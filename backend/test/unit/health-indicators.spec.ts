@@ -46,3 +46,18 @@ it('bounds hanging dependencies and strips exception detail', async () => {
   expect(Date.now() - start).toBeLessThan(500);
   expect(JSON.stringify(result)).not.toContain('secret');
 });
+
+it('does not launch overlapping driver probes after an indicator deadline', async () => {
+  const database = { check: vi.fn(() => new Promise<'up'>(() => undefined)) };
+  const policy = vi.fn(
+    () =>
+      new Promise<{ queue: 'up'; streams: 'up'; limiter: 'up' }>(
+        () => undefined,
+      ),
+  );
+  const indicators = new HealthIndicators({ database, valkey: policy }, 10);
+  await indicators.check('ai-worker');
+  await indicators.check('ai-worker');
+  expect(database.check).toHaveBeenCalledOnce();
+  expect(policy).toHaveBeenCalledOnce();
+});

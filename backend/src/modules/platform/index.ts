@@ -5,3 +5,4 @@ export {
   type DispatcherOptions,
 } from './outbox-dispatcher.js';
 export { PlatformModule } from './platform.module.js';
+export { PlatformVersionService } from './version.service.js';

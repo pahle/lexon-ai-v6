@@ -197,3 +197,47 @@ test('producer fails within its budget during a private proxy outage and recover
     await proxy.close();
   }
 });
+
+test('worker progress detects a stalled active handler independently of health polling', async ({
+  services,
+}) => {
+  const options = {
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix + ':progress',
+  };
+  const db = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 1,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const consumer = new QueueConsumer(options, new JobExecutor(db));
+  let entered!: () => void;
+  const busy = new Promise<void>((done) => {
+    entered = done;
+  });
+  let release!: () => void;
+  const done = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    await consumer.start(async () => {
+      entered();
+      await done;
+    });
+    expect(consumer.isProgressing(100)).toBe(true);
+    await producer.enqueue(input());
+    await busy;
+    expect(consumer.isProgressing(100, Date.now() + 101)).toBe(false);
+    release();
+    await expect
+      .poll(() => consumer.isProgressing(100, Date.now() + 101))
+      .toBe(true);
+  } finally {
+    release();
+    await consumer.close();
+    await producer.close();
+    await db.close();
+  }
+  expect(consumer.isProgressing(100)).toBe(false);
+});

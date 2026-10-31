@@ -19,6 +19,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",
     "@aws-sdk/s3-request-presigner": "3.1161.0",
+    "@lexon/contracts": "workspace:*",
     "@nestjs/bullmq": "12.0.0",
     "@nestjs/common": "12.3.2",
     "@nestjs/config": "12.0.1",
@@ -45,5 +46,14 @@
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "testcontainers": "12.2.1"
+  },
+  "exports": {
+    "./evaluation": {
+      "types": "./dist/evaluation/index.d.ts",
+      "import": "./dist/evaluation/index.js"
+    }
+  },
+  "imports": {
+    "#backend-package": "./package.json"
   }
 }

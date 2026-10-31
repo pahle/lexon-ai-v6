@@ -13,3 +13,19 @@ Optional local speed-up: `LEXON_TEST_REUSE=1 pnpm test` retains reusable test co
 Container pins live only in `config/container-images.env`, as exact tags and digests. Testcontainers reads this file; the Compose task uses the same manifest.
 
 Migration bootstrap connects with an administrative identity only to provision the non-superuser migrator login and database. Versioned SQL migrations then run as `lexon_migrator`, which owns `app`, `auth`, and `ops`. `lexon_app` and `lexon_auth` are created by those migrations; their passwords come from secret runtime inputs, never committed SQL. Runtime processes must never receive administrative or migrator credentials. `backend/drizzle.config.ts` describes the Drizzle Kit migration location; do not run schema push against deployed databases.
+
+The backend now has independent API, AI-worker, document-worker and dispatcher
+roots. After building shared/backend, their commands are respectively
+`node backend/dist/entrypoints/api/main.js`,
+`node backend/dist/entrypoints/ai-worker/main.js`,
+`node backend/dist/entrypoints/document-worker/main.js`, and
+`node backend/dist/entrypoints/dispatcher/main.js`. Boot validates only the
+selected role's settings. API serves `/api/health`, `/api/health/live`, and the
+shared-schema diagnostic POST `/api/diagnostics/validation`. Workers expose
+health through the exec checker and a writable health-file path.
+
+All test entrypoints build the package exports they exercise. Integration
+global setup also compiles child-process fixtures before starting its single
+infrastructure set. `evals` consumes only `@lexon/backend/evaluation`; its F0
+context boots actual Nest DI without HTTP, infrastructure or model credentials.
+Compose startup and E2E commands are completed in their later plan tasks.

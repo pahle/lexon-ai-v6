@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   root: import.meta.dirname,
   test: {
+    globalSetup: ['./scripts/test/prepare-packages.ts'],
     projects: [
       'backend/vitest.config.ts',
       'backend/vitest.integration.config.ts',

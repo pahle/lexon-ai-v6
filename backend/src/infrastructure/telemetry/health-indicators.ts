@@ -14,6 +14,20 @@ interface Ports {
   storage?: Probe;
 }
 export class HealthIndicators {
+  readonly #pending = new Map<string, Promise<unknown>>();
+  private once<T>(key: string, run: () => Promise<T>): Promise<T> {
+    let pending = this.#pending.get(key) as Promise<T> | undefined;
+    if (!pending) {
+      pending = Promise.resolve().then(run);
+      this.#pending.set(key, pending);
+      const clear = () => {
+        if (this.#pending.get(key) === pending) this.#pending.delete(key);
+      };
+      void pending.then(clear, clear);
+    }
+    return pending;
+  }
+
   constructor(
     private readonly ports: Ports,
     private readonly timeoutMs: number,
@@ -21,9 +35,12 @@ export class HealthIndicators {
   ) {}
   async check(runtime: RuntimeName): Promise<DependencyStatus> {
     // Start one policy request, but consume it within bounded Terminus attempts.
-    const valkey = Promise.resolve().then(() => this.ports.valkey());
+    const valkey = this.once('valkey', () => this.ports.valkey());
     const checks: [DependencyName, () => Promise<'up' | 'down'>][] = [
-      ['postgres', () => this.ports.database.check()],
+      [
+        'postgres',
+        () => this.once('postgres', () => this.ports.database.check()),
+      ],
       ...(['queue', 'streams', 'limiter'] as const).map(
         (key) =>
           [key, async () => (await valkey)[key]] as [
@@ -35,7 +52,10 @@ export class HealthIndicators {
     if (runtime === 'api' || runtime === 'document-worker')
       checks.push([
         'storage',
-        async () => (this.ports.storage ? this.ports.storage.check() : 'down'),
+        async () =>
+          this.ports.storage
+            ? this.once('storage', () => this.ports.storage!.check())
+            : 'down',
       ]);
     const result: DependencyStatus = {};
     await Promise.all(

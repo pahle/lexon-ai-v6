@@ -137,3 +137,13 @@ it('validates an optional caller-reachable S3 endpoint separately from its inter
     }),
   ).toThrow('S3_PUBLIC_ENDPOINT');
 });
+
+it('configures a queue namespace shared by producers and workers', () => {
+  expect(
+    loadRuntimeConfig('ai-worker', { ...base, QUEUE_PREFIX: 'lexon_test' })
+      .queuePrefix,
+  ).toBe('lexon_test');
+  expect(() =>
+    loadRuntimeConfig('ai-worker', { ...base, QUEUE_PREFIX: '' }),
+  ).toThrow('QUEUE_PREFIX');
+});

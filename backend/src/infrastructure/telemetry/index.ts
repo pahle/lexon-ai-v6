@@ -1,5 +1,5 @@
 export { TelemetryModule } from './telemetry.module.js';
-export { createLoggingOptions } from './logging.js';
+export { assignRequestId, createLoggingOptions } from './logging.js';
 export { HealthIndicators } from './health-indicators.js';
 export { HealthWriter, writeHealthSnapshot } from './health-writer.js';
 export {

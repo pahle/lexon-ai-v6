@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import type { Params } from 'nestjs-pino';
 import type { Options } from 'pino-http';
@@ -6,6 +7,7 @@ import type { RuntimeName } from '../../config/runtime-config.js';
 const identifier = /^[a-zA-Z0-9_-]{1,128}$/;
 const events = new Set([
   'job_processed',
+  'http_request_failed',
   'boot_failed',
   'health_write_failed',
   'runtime_started',
@@ -39,15 +41,7 @@ export function createLoggingOptions(
         ],
         censor: '[REDACTED]',
       },
-      genReqId(req, res) {
-        const supplied = req.headers['x-request-id'];
-        const requestId =
-          typeof supplied === 'string' && identifier.test(supplied)
-            ? supplied
-            : randomUUID();
-        res.setHeader('x-request-id', requestId);
-        return requestId;
-      },
+      genReqId: assignRequestId,
       customAttributeKeys: { reqId: 'requestId' },
       wrapSerializers: false,
       serializers: {
@@ -153,4 +147,17 @@ export function createLoggingOptions(
       },
     },
   };
+}
+
+export function assignRequestId(
+  req: IncomingMessage,
+  res: ServerResponse,
+): string {
+  const supplied = req.headers['x-request-id'];
+  const requestId =
+    typeof supplied === 'string' && identifier.test(supplied)
+      ? supplied
+      : randomUUID();
+  res.setHeader('x-request-id', requestId);
+  return requestId;
 }

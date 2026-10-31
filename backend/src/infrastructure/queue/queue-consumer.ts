@@ -11,6 +11,7 @@ import { QUEUE_NAME, type QueueOptions } from './queue-producer.js';
 
 export class QueueConsumer {
   #app: INestApplicationContext | undefined;
+  #busySince: number | undefined;
   constructor(
     private readonly options: QueueOptions,
     private readonly executor: JobExecutor,
@@ -22,13 +23,22 @@ export class QueueConsumer {
   async start(handler: TenantJobHandler): Promise<void> {
     if (this.#app) throw new Error('Consumer already started');
     const executor = this.executor;
+    const beginProgress = () => {
+      this.#busySince = Date.now();
+    };
+    const endProgress = () => {
+      this.#busySince = undefined;
+    };
     @Processor(QUEUE_NAME, this.timing)
     class TenantProcessor extends WorkerHost {
       async process(job: Job): Promise<'processed' | 'duplicate'> {
+        beginProgress();
         try {
           return await executor.execute(job.data, handler);
         } catch {
           throw new Error('Job execution failed');
+        } finally {
+          endProgress();
         }
       }
     }
@@ -51,6 +61,12 @@ export class QueueConsumer {
     const worker = app.get(TenantProcessor).worker;
     worker.on('error', () => undefined);
     await worker.waitUntilReady();
+  }
+  isProgressing(staleMs: number, now = Date.now()): boolean {
+    return (
+      this.#app !== undefined &&
+      (this.#busySince === undefined || now - this.#busySince < staleMs)
+    );
   }
   async close(): Promise<void> {
     const app = this.#app;

@@ -3,7 +3,10 @@ export default defineProject({
   test: {
     name: 'backend-integration',
     include: ['test/integration/**/*.spec.ts'],
-    globalSetup: ['test/setup/global-infrastructure.ts'],
+    globalSetup: [
+      '../scripts/test/prepare-packages.ts',
+      'test/setup/global-infrastructure.ts',
+    ],
     testTimeout: 30000,
     hookTimeout: 60000,
     maxWorkers: 2,

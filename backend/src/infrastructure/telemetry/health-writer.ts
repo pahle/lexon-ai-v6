@@ -45,6 +45,7 @@ export class HealthWriter {
         await rm(path, { force: true });
       },
     },
+    private readonly reportFailure: () => void = () => undefined,
   ) {}
   health(): 'up' | 'down' {
     return this.#healthy && Date.now() - this.#writtenAt < this.options.staleMs
@@ -72,6 +73,11 @@ export class HealthWriter {
       this.#healthy = true;
     } catch {
       this.#healthy = false;
+      try {
+        this.reportFailure();
+      } catch {
+        /* Logging cannot mask unhealthy state. */
+      }
       await this.io.invalidate(this.options.path).catch(() => undefined);
     }
   }

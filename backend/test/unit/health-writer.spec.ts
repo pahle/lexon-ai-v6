@@ -181,3 +181,21 @@ it('discards a write that completes after shutdown', async () => {
   expect(writer.health()).toBe('down');
   await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
 });
+
+it('reports snapshot write failure through an operational callback without error details', async () => {
+  const report = vi.fn();
+  const writer = new HealthWriter(
+    { path, writeIntervalMs: 10, staleMs: 100 },
+    async () => sample(),
+    {
+      write: async () => {
+        throw new Error('secret-host');
+      },
+      invalidate: async () => undefined,
+    },
+    report,
+  );
+  await writer.cycle();
+  expect(report).toHaveBeenCalledWith();
+  expect(writer.health()).toBe('down');
+});

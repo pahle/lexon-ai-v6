@@ -81,3 +81,35 @@ stalled heartbeat and a late shutdown write regression. The compiled checker
 returns 0 for healthy and 1 for missing/stale/unhealthy files, with empty
 stdout/stderr in all four cases. Root composition and tmpfs mounts follow in
 Tasks 12 and 15; this is not yet a running Compose topology proof.
+
+## Task 12: runtime roots, native HTTP validation and evaluation
+
+NestJS 12.3.2 independent roots pass real HTTP readiness/liveness, native
+Body-schema StandardSchemaValidationPipe and shared error contracts. Invalid
+UUIDs, unknown keys and malformed JSON produce sanitized errors. Request IDs
+are assigned before body parsing and propagated in response/log output; the
+filter resolves the transient PinoLogger through Nest's scoped resolver.
+A real wildcard-address bind collision verifies startup cleanup and nonzero
+exit with sanitized boot logs. The collision fixture uses the same address
+as the API; a loopback-only listener did not reliably collide on macOS.
+
+API/dispatcher have no registered processor, standalone roots have no HTTP
+server, and a Node24 load hook observes the document worker's actual loaded
+module URLs: no AI-worker root or infrastructure/ai path, no TCP listen call.
+AI worker boots without storage/model secrets. Dispatcher standby writes a
+ready standby snapshot; a private database proxy outage makes it unready.
+Closing roots removes snapshots, processors and dedicated lock sessions.
+Queue-handler and dispatcher progress are owned by their work loops. Timed-out
+health checks share still-pending underlying probes rather than accumulating
+new driver operations. Snapshot-write failures emit a fixed operational event.
+
+The backend exports exactly ./evaluation. Evals imports the built package
+export, starts EvaluationModule through actual Nest application-context DI,
+resolves the package version provider, and closes it. No static version stub
+or source-path alias is used. Vitest global preparation builds shared/backend
+exports, including for directly filtered integration/eval commands.
+
+Pino's out-of-context binding is process-scoped; the production roots run in
+separate processes as designed. In-process composition checks focus on module
+registration and lifecycle; child-process import/boot tests exercise the real
+process boundary. Compose networking remains pending Tasks 15–16.

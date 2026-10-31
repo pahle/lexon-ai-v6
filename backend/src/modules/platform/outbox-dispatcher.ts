@@ -14,6 +14,8 @@ export interface DispatcherOptions {
 export class OutboxDispatcher {
   #status: 'active' | 'standby' | 'unhealthy' = 'unhealthy';
   #enqueueFailed = false;
+  #lastProgress = 0;
+  #running = false;
   constructor(
     private readonly repository: OutboxRepository,
     private readonly session: DispatcherSession,
@@ -25,15 +27,22 @@ export class OutboxDispatcher {
       ? 'unhealthy'
       : this.#status;
   }
+  isProgressing(staleMs: number, now = Date.now()): boolean {
+    return this.#running && now - this.#lastProgress < staleMs;
+  }
   async start(signal: AbortSignal): Promise<void> {
+    this.#running = true;
+    this.#lastProgress = Date.now();
     try {
       while (!signal.aborted) {
         try {
           if (!(await this.session.tryAcquire())) {
+            this.#lastProgress = Date.now();
             this.#status = 'standby';
             await this.session.waitForWake(this.options.pollMs, signal);
             continue;
           }
+          this.#lastProgress = Date.now();
           this.#status = this.#enqueueFailed ? 'unhealthy' : 'active';
           const claims = await this.repository.claimBatch({
             now: new Date(),
@@ -41,6 +50,7 @@ export class OutboxDispatcher {
             leaseMs: this.options.leaseMs,
           });
           for (const claim of claims) {
+            this.#lastProgress = Date.now();
             if (signal.aborted || !this.session.isLeader()) break;
             const nextAttempt = () =>
               new Date(
@@ -79,6 +89,7 @@ export class OutboxDispatcher {
                 );
             }
           }
+          this.#lastProgress = Date.now();
           if (
             claims.length < this.options.batchSize ||
             this.#status === 'unhealthy'
@@ -90,6 +101,7 @@ export class OutboxDispatcher {
         }
       }
     } finally {
+      this.#running = false;
       this.#status = 'unhealthy';
       await this.session.close();
     }

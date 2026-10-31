@@ -51,6 +51,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1161.0
         version: 3.1161.0
+      '@lexon/contracts':
+        specifier: workspace:*
+        version: link:../shared
       '@nestjs/bullmq':
         specifier: 12.0.0
         version: 12.0.0(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.3.2)(bullmq@6.5.3(ioredis@6.0.0)(pg@8.23.1))
