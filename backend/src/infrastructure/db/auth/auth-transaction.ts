@@ -141,5 +141,24 @@ export function createAuthTransactions(database: Database) {
     if (!state?.active) throw new Error('Auth transaction unavailable');
     state.afterCommit.push(callback);
   }
-  return { adapterFactory, transaction, afterCommit };
+  const accountLocks = {
+    async grants(
+      invitationId: string | undefined,
+      setupDigest: string | undefined,
+    ) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_lock_signup_grants(${invitationId ?? null}::uuid, ${setupDigest ?? null}::text)`,
+      );
+    },
+    async user(userId: string) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_lock_account(${userId}::uuid)`,
+      );
+    },
+  };
+  return { adapterFactory, transaction, afterCommit, accountLocks };
 }

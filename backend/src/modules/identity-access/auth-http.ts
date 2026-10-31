@@ -101,6 +101,10 @@ export interface AuthHttpPolicyDependencies {
       body: Record<string, unknown>;
       tx: AuthCommandSession;
     },
+  ) => Promise<void | ((response: Response) => Promise<Response>)>;
+  failed?: (
+    rule: AuthEndpointRule,
+    body: Record<string, unknown>,
   ) => Promise<void>;
   // Required before non-public attempts can run; resolve from trusted identity
   // facts, never a client-supplied account key. It must not mutate auth state.
@@ -189,6 +193,8 @@ export function createAuthHttp(
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     let failure: Response | undefined;
+    let failedAttempt:
+      { rule: AuthEndpointRule; body: Record<string, unknown> } | undefined;
     const abort = new Error('Auth operation failed');
     try {
       const context = deps.context();
@@ -280,22 +286,54 @@ export function createAuthHttp(
         ...(request.method === 'POST' ? { body: JSON.stringify(body) } : {}),
       });
       const response = await integration.transaction(async (tx) => {
-        await deps.authorize(rule, { request: forwarded, body, tx });
+        const complete = await deps.authorize(rule, {
+          request: forwarded,
+          body,
+          tx,
+        });
         const native = await integration.handle(forwarded);
         if (native.status >= 400) {
           failure = native;
+          failedAttempt = { rule, body };
           throw abort;
         }
-        return native;
+        return complete ? complete(native) : native;
       });
+      if (
+        rule.path === '/sign-up/email' ||
+        rule.path === '/request-password-reset' ||
+        rule.path === '/send-verification-email'
+      )
+        return Response.json(
+          { status: true },
+          {
+            headers: {
+              'cache-control': 'no-store',
+              'referrer-policy': 'no-referrer',
+            },
+          },
+        );
       return await sanitizeAuthResponse(response, channel, deps.origin);
     } catch (error) {
-      if (error === abort && failure)
+      if (error === abort && failure) {
+        if (failedAttempt) {
+          try {
+            await deps.failed?.(failedAttempt.rule, failedAttempt.body);
+          } catch {
+            return errorResponse('AUTH_UNAVAILABLE', 503);
+          }
+          if (
+            failedAttempt.rule.path === '/sign-in/email' &&
+            failure.status < 500
+          )
+            return errorResponse('AUTH_REQUIRED', 401);
+        }
         return sanitizeAuthResponse(
           failure,
           request.headers.has('authorization') ? 'bearer' : 'cookie',
           deps.origin,
         );
+      }
       if (error instanceof IdentityError || error instanceof AuthLimitError)
         return errorResponse(error.code, error.status);
       return errorResponse('AUTH_UNAVAILABLE', 503);

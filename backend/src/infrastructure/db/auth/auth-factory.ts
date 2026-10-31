@@ -5,11 +5,20 @@ import { defaultAc, userAc } from 'better-auth/plugins/admin/access';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
+import { accountPlugin, type AccountLocks } from './account-plugin.js';
 
 // Private composition shared by schema generation and the runtime boundary.
 export function createAuthEngine(
   options: AuthEngineOptions,
   database: BetterAuthOptions['database'],
+  locks: AccountLocks = {
+    grants: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    user: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
 ) {
   return betterAuth({
     appName: 'Lexon',
@@ -30,19 +39,22 @@ export function createAuthEngine(
       minPasswordLength: 12,
       requireEmailVerification: true,
       autoSignIn: false,
+      revokeSessionsOnPasswordReset: true,
+      resetPasswordTokenExpiresIn: options.policy?.resetSeconds ?? 1800,
       sendResetPassword: async ({ user, url }) =>
         options.mail.sendPasswordReset({ email: user.email, url }),
     },
     emailVerification: {
       sendOnSignUp: true,
       autoSignInAfterVerification: false,
+      expiresIn: options.policy?.verificationSeconds ?? 3600,
       sendVerificationEmail: async ({ user, url }) =>
         options.mail.sendVerification({ email: user.email, url }),
     },
     session: {
-      expiresIn: 604800,
-      updateAge: 86400,
-      freshAge: 300,
+      expiresIn: options.policy?.cookieSeconds ?? 604800,
+      updateAge: options.policy?.cookieRefreshSeconds ?? 86400,
+      freshAge: options.policy?.reauthSeconds ?? 300,
       cookieCache: { enabled: false },
       additionalFields: {
         channel: {
@@ -63,6 +75,7 @@ export function createAuthEngine(
       },
     },
     user: {
+      changeEmail: { enabled: true },
       additionalFields: {
         onboardingComplete: {
           type: 'boolean',
@@ -79,10 +92,11 @@ export function createAuthEngine(
       },
     },
     plugins: [
+      accountPlugin(locks),
       organization({
         allowUserToCreateOrganization:
           options.pluginConfiguration?.allowUserToCreateOrganization ?? true,
-        invitationExpiresIn: 1209600,
+        invitationExpiresIn: options.policy?.invitationSeconds ?? 1209600,
         schema: {
           organization: {
             additionalFields: {

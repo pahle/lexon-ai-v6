@@ -43,6 +43,13 @@
       "when": 1793404800005,
       "tag": "0005_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793404800006,
+      "tag": "0006_account_primitives",
+      "breakpoints": true
     }
   ]
 }

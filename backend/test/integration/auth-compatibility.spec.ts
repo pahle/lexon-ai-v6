@@ -261,7 +261,7 @@ test('rolls back handler writes when native dispatch converts an error into a Re
     );
     expect(response.status).toBe(400);
     expect(await proof.inspect.countUsers(input.body.email)).toBe(0);
-    expect(proof.mailWasDelivered(input.body.email)).toBe(false);
+    expect(proof.mailWasDispatched(input.body.email)).toBe(false);
   } finally {
     await proof.close();
   }
@@ -276,16 +276,16 @@ test('defers injected mail callbacks until the outer commit and discards them on
   try {
     await proof.integration.transaction(async (tx) => {
       await tx.call('signUpEmail', committed);
-      expect(proof.mailWasDelivered(committed.body.email)).toBe(false);
+      expect(proof.mailWasDispatched(committed.body.email)).toBe(false);
     });
-    expect(proof.mailWasDelivered(committed.body.email)).toBe(true);
+    expect(proof.mailWasDispatched(committed.body.email)).toBe(true);
     await expect(
       proof.integration.transaction(async (tx) => {
         await tx.call('signUpEmail', aborted);
         throw new Error('mail-rollback');
       }),
     ).rejects.toThrow('mail-rollback');
-    expect(proof.mailWasDelivered(aborted.body.email)).toBe(false);
+    expect(proof.mailWasDispatched(aborted.body.email)).toBe(false);
   } finally {
     await proof.close();
   }
@@ -306,7 +306,7 @@ test('rolls back a server command that requests an error Response', async ({
       ),
     ).rejects.toThrow('Auth command failed');
     expect(await proof.inspect.countUsers(input.body.email)).toBe(0);
-    expect(proof.mailWasDelivered(input.body.email)).toBe(false);
+    expect(proof.mailWasDispatched(input.body.email)).toBe(false);
   } finally {
     await proof.close();
   }

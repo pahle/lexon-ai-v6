@@ -17,6 +17,7 @@ import { composeAuthIntegration } from '../auth/auth-integration.js';
 import { createAuthInspector } from './auth-inspect.js';
 import nodemailer from 'nodemailer';
 import { SmtpMailer } from '../../email/index.js';
+import type { AuthEngineOptions } from '../auth/auth-types.js';
 export type { AuthCommandSession } from '../auth/auth-types.js';
 
 @Controller('probe')
@@ -29,22 +30,29 @@ class ProbeController {
 
 export async function createAuthFixture(
   services: { authUrl: string; migratorUrl: string; appUrl?: string },
-  options: { rejectSignupResponse?: boolean } = {},
+  options: {
+    rejectSignupResponse?: boolean;
+    policy?: AuthEngineOptions['policy'];
+    mailTransport?: import('../../email/index.js').MailTransport;
+  } = {},
 ) {
   const origin = 'http://localhost:3000';
   const mail = new Map<string, string>();
   const mailer = new SmtpMailer({
     origin,
     from: 'lexon@example.test',
-    transport: nodemailer.createTransport({
-      streamTransport: true,
-      buffer: true,
-    }),
+    transport:
+      options.mailTransport ??
+      nodemailer.createTransport({
+        streamTransport: true,
+        buffer: true,
+      }),
   });
   const { auth, integration } = await composeAuthIntegration({
     authUrl: services.authUrl,
     origin,
     secret: randomBytes(48).toString('base64url'),
+    ...(options.policy ? { policy: options.policy } : {}),
     plugins: options.rejectSignupResponse
       ? [
           {
@@ -67,14 +75,11 @@ export async function createAuthFixture(
     mail: {
       sendVerification: async ({ email, url }) => {
         await mailer.send({ kind: 'verification', to: email, actionUrl: url });
-        // Fixture-only synchronization: production delivery never determines
-        // account-existence-sensitive response timing.
-        await mailer.drain(1000);
         mail.set(email, url);
       },
       sendPasswordReset: async ({ email, url }) => {
         await mailer.send({ kind: 'reset', to: email, actionUrl: url });
-        await mailer.drain(1000);
+        mail.set(`reset:${email}`, url);
       },
     },
   });
@@ -92,7 +97,13 @@ export async function createAuthFixture(
     origin,
     integration,
     inspect,
-    mailWasDelivered: (email: string) => mail.has(email),
+    mailWasDispatched: (email: string) => mail.has(email),
+    dispatchedLink: (
+      email: string,
+      kind: 'verification' | 'reset' = 'verification',
+    ) => mail.get(kind === 'reset' ? `reset:${email}` : email),
+    mailDeliveryState: () => mailer.deliveryState(),
+    drainMail: () => mailer.drain(1000),
     pluginIds: () => auth.options.plugins.map((plugin) => plugin.id),
     nativeSettings: () => {
       const options: BetterAuthOptions = auth.options;

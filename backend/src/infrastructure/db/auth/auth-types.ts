@@ -5,6 +5,14 @@ export interface AuthEngineOptions {
   authUrl: string;
   origin: string;
   secret: string;
+  policy?: {
+    cookieSeconds?: number;
+    cookieRefreshSeconds?: number;
+    reauthSeconds?: number;
+    invitationSeconds?: number;
+    verificationSeconds?: number;
+    resetSeconds?: number;
+  };
   pluginConfiguration?: {
     allowUserToCreateOrganization?: boolean;
     issuer?: string;

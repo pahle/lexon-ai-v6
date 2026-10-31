@@ -84,7 +84,29 @@ const setup = z
         : event.outcome === 'success'),
     { message: 'Invalid administrator setup outcome or subject' },
   );
-export const AuditEventSchema = z.union([failed, success, organization, setup]);
+const account = z.strictObject({
+  ...base,
+  type: z.literal('identity.account_changed.v1'),
+  outcome: z.literal('success'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({
+    action: z.enum([
+      'password_changed',
+      'password_reset',
+      'email_change_requested',
+      'email_changed',
+      'sessions_revoked',
+      'signed_out',
+    ]),
+  }),
+});
+export const AuditEventSchema = z.union([
+  failed,
+  success,
+  organization,
+  setup,
+  account,
+]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };
 

@@ -31,6 +31,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
         },
       },
       transactions.adapterFactory,
+      transactions.accountLocks,
     );
     await auth.$context;
     const transaction: AuthIntegration['transaction'] = (work) =>
