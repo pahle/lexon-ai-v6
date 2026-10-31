@@ -36,7 +36,7 @@ export class FaultProxy {
         if (!frame) break;
         const command = buffered.subarray(0, frame.bytes);
         buffered = buffered.subarray(frame.bytes);
-        if (['eval', 'evalsha'].includes(frame.name.toLowerCase()))
+        if (['eval', 'evalsha', 'set'].includes(frame.name.toLowerCase()))
           socket.write(
             '-OOM command not allowed when used memory > maxmemory\r\n',
           );

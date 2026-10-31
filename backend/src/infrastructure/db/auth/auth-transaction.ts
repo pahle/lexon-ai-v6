@@ -109,6 +109,8 @@ export function createAuthTransactions(database: Database) {
           ) {
             if (!active || !state.active || scope.getStore() !== state)
               throw new Error('Auth command session expired');
+            if (name === 'impersonateUser' || name === 'stopImpersonating')
+              throw new Error('Server operation unavailable');
             const invoke = api[name] as (
               input: Parameters<LexonServerApi[K]>[0],
             ) => Promise<Awaited<ReturnType<LexonServerApi[K]>>>;

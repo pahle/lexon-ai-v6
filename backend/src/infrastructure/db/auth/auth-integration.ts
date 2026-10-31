@@ -35,6 +35,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
     await auth.$context;
     const transaction: AuthIntegration['transaction'] = (work) =>
       transactions.transaction(auth.api, work);
+    let closing: Promise<void> | undefined;
     const integration: AuthIntegration = Object.freeze({
       transaction,
       // A Response may carry session cookies/tokens. It must remain private
@@ -56,7 +57,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
           throw error;
         }
       },
-      close: () => pool.end(),
+      close: () => (closing ??= pool.end()),
     });
     return { auth, integration };
   } catch {

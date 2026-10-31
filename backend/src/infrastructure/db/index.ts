@@ -8,6 +8,7 @@ export type { TenantSession } from './tenant-session.js';
 export { AuditRepository } from './audit.repository.js';
 export type { AuditWriteRecord } from './audit-write-record.js';
 export type { AuthCommandSession } from './auth/auth-types.js';
+export type { AuthIntegration } from './auth/auth-types.js';
 export { appendAuthAuditRecord } from './auth/auth-functions.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';

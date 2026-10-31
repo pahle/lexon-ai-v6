@@ -25,6 +25,7 @@ type ActionLimits = Record<
 export class AuthLimiter {
   readonly #client: Redis;
   readonly #limits: ActionLimits;
+  readonly #availabilityKey: string;
   private constructor(options: AuthLimiterOptions) {
     this.#client = new Redis(options.url, {
       lazyConnect: true,
@@ -38,6 +39,7 @@ export class AuthLimiter {
     this.#client.on('error', () => undefined);
     const rules = options.rules ?? DEFAULT_AUTH_RATE_RULES;
     const prefix = options.prefix ?? 'rl:auth:';
+    this.#availabilityKey = `${prefix}availability`;
     const limit = (action: AuthLimitAction, scope: 'account' | 'ip') =>
       new RateLimiterRedis({
         storeClient: this.#client,
@@ -88,5 +90,12 @@ export class AuthLimiter {
   }
   async close(): Promise<void> {
     this.#client.disconnect();
+  }
+  async assertAvailable(): Promise<void> {
+    try {
+      await this.#client.set(this.#availabilityKey, '1', 'PX', 1000);
+    } catch {
+      throw new AuthLimitError(503, 'AUTH_UNAVAILABLE');
+    }
   }
 }

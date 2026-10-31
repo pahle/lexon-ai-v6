@@ -17,6 +17,12 @@ export function createAuthInspector(options: {
     return Number(result.rows[0]!.count);
   }
   return {
+    async makeAdmin(userId: string) {
+      await migrator.query('UPDATE auth."user" SET role = $2 WHERE id=$1', [
+        userId,
+        'admin',
+      ]);
+    },
     async personalFor(userId: string) {
       const result = await migrator.query<{
         orgId: string;

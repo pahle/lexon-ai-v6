@@ -1,6 +1,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { organization } from 'better-auth/plugins/organization';
 import { admin } from 'better-auth/plugins/admin';
+import { defaultAc, userAc } from 'better-auth/plugins/admin/access';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
@@ -18,8 +19,12 @@ export function createAuthEngine(
     trustedOrigins: [options.origin],
     database,
     telemetry: { enabled: false },
+    rateLimit: { enabled: false },
     logger: { disabled: true },
-    advanced: { database: { generateId: 'uuid' } },
+    advanced: {
+      database: { generateId: 'uuid' },
+      ipAddress: { ipAddressHeaders: ['x-lexon-client-address'] },
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 12,
@@ -130,7 +135,13 @@ export function createAuthEngine(
           },
         },
       }),
-      admin(),
+      admin({
+        roles: {
+          admin: defaultAc.newRole({ user: ['ban'], session: ['revoke'] }),
+          user: userAc,
+        },
+        adminRoles: ['admin'],
+      }),
       twoFactor({ issuer: options.pluginConfiguration?.issuer ?? 'Lexon' }),
       bearer(),
       ...(options.plugins ?? []),

@@ -1,14 +1,17 @@
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   Body,
   Controller,
   Module,
   Post,
   type INestApplication,
+  type DynamicModule,
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import type { BetterAuthOptions } from 'better-auth';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { composeAuthIntegration } from '../auth/auth-integration.js';
 import { createAuthInspector } from './auth-inspect.js';
@@ -91,18 +94,73 @@ export async function createAuthFixture(
     inspect,
     mailWasDelivered: (email: string) => mail.has(email),
     pluginIds: () => auth.options.plugins.map((plugin) => plugin.id),
+    nativeSettings: () => {
+      const options: BetterAuthOptions = auth.options;
+      return {
+        cookieCacheDisabled: options.session?.cookieCache?.enabled === false,
+        secondaryStorageDisabled: options.secondaryStorage === undefined,
+        nativeRateLimitDisabled: options.rateLimit?.enabled === false,
+        telemetryDisabled: options.telemetry?.enabled === false,
+      };
+    },
     lastNativeResponse: () => lastResponse,
-    async startNest() {
+    endpointInventory() {
+      const endpoints = Object.values(auth.api) as Array<{
+        path?: string;
+        options: { method?: string | readonly string[]; scope?: string };
+      }>;
+      return endpoints.flatMap((endpoint) => {
+        if (!endpoint.path || endpoint.options.scope === 'server') return [];
+        const declared = endpoint.options.method ?? 'GET';
+        const methods =
+          declared === '*'
+            ? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+            : typeof declared === 'string'
+              ? [declared]
+              : declared;
+        return methods.map((method) => ({ method, path: endpoint.path! }));
+      });
+    },
+    async nativeImpersonationDenied(headers: Headers, userId: string) {
+      const response = await integration.transaction(() =>
+        auth.api.impersonateUser({
+          headers,
+          body: { userId },
+          asResponse: true,
+        }),
+      );
+      return response.status === 403;
+    },
+    async startNest(
+      options: {
+        handler?: (request: Request) => Promise<Response>;
+        middleware?: (
+          req: IncomingMessage & { originalUrl?: string },
+          res: ServerResponse,
+          next: () => void,
+        ) => void;
+        moduleFactory?: (options: {
+          integration: typeof integration;
+          frameworkModule: DynamicModule;
+        }) => DynamicModule;
+      } = {},
+    ) {
+      const frameworkModule = AuthModule.forRoot({
+        auth: { ...auth, handler: options.handler ?? integration.handle },
+        disableGlobalAuthGuard: true,
+        isGlobal: false,
+        disableTrustedOriginsCors: true,
+        ...(options.middleware ? { middleware: options.middleware } : {}),
+        bodyParser: {
+          json: { limit: '1kb' },
+          urlencoded: { enabled: false },
+        },
+      });
       @Module({
         imports: [
-          AuthModule.forRoot({
-            auth: { ...auth, handler: integration.handle },
-            disableGlobalAuthGuard: true,
-            bodyParser: {
-              json: { limit: '1kb' },
-              urlencoded: { enabled: false },
-            },
-          }),
+          options.moduleFactory
+            ? options.moduleFactory({ integration, frameworkModule })
+            : frameworkModule,
         ],
         controllers: [ProbeController],
       })
