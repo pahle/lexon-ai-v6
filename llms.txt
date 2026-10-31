@@ -1,0 +1,24 @@
+# Lexon
+
+> Indonesian legal AI workspace (Chat, Tabular Review, DOCX drafting) built
+> clean-room with spec-driven development and TDD. Monorepo: backend/ (NestJS
+> 12), frontend/ (Next.js 16), shared/, evals/, word-add-in/, infra/.
+
+Read `AGENTS.md` first. Documents in `docs/specs/` are authoritative and win
+over everything else.
+
+## Reference documents
+
+- [Technology Stack (LEX-TS-001)](docs/specs/LEXON-01-TECHNOLOGY-STACK.md): locked technology choices and versions
+- [System Architecture (LEX-ARC-001)](docs/specs/LEXON-02-SYSTEM-ARCHITECTURE.md): runtimes, domains, data flows, security, AI Run Engine (§4.7)
+- [Design System (LEX-DS-001)](docs/specs/LEXON-03-DESIGN-SYSTEM.md): tokens, components, accessibility
+
+## Work in progress
+
+- [Slice index](docs/briefs/README.md): slices F0–F20, order, dependencies, cross-cutting rules
+- [Briefs](docs/briefs/): one brief per slice, input to superpowers brainstorming
+- [Superpowers specs](docs/superpowers/specs/) and [plans](docs/superpowers/plans/): approved designs and plans
+
+## Third-party documentation
+
+- [Technology references](docs/references/README.md): official docs and llms.txt per technology; `node scripts/fetch-docs.mjs`

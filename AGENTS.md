@@ -34,7 +34,9 @@ each task in **writing-plans**:
 1. Read the slice brief and every `docs/specs/` section it references.
 2. Read the **current official documentation** for every library, framework,
    and service the slice touches, at the exact version pinned in LEX-TS-001
-   (start from the links in the brief's "Research first" section). Do not rely
+   (start from the links in the brief's "Research first" section and from
+   `docs/references/`; `node scripts/fetch-docs.mjs <id>` downloads a vendor's
+   llms.txt into `.cache/docs/`). Do not rely
    on memory: NestJS 12, Next.js 16, AI SDK 7, Better Auth, BullMQ 6, Zod 4,
    TypeScript 6, and assistant-ui change quickly.
 3. Check the installed package versions and their changelogs / migration
