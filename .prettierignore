@@ -1,0 +1,7 @@
+.agents/
+.superpowers/
+.cache/
+pnpm-lock.yaml
+**/dist/
+**/.next/
+**/.test-build/

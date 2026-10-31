@@ -39,20 +39,20 @@
 
 ## File Structure and Ownership
 
-| Area | Files / responsibility |
-| --- | --- |
-| Workspace | Root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.node-version`, `tsconfig.base.json`, `vitest.config.ts`, `eslint.config.mjs`, `.prettierrc.json`; package manifests/tsconfigs and package-local Vitest project configs. |
-| Contracts | `shared/src/{identity,error,pagination,event,health,diagnostic,index}.ts`; `shared/test/contracts.spec.ts`. |
-| Boundary tooling | `scripts/eslint/{lexon-boundaries,resolve-import}.mjs`, `scripts/check-boundaries.mjs`, `scripts/test/boundaries.spec.mjs`, `scripts/test/fixtures/boundaries/`. |
-| Backend startup | `backend/src/config/`, `backend/src/bootstrap/`, four `backend/src/entrypoints/<runtime>/{main,root.module}.ts`; platform HTTP under `backend/src/modules/platform/`. |
-| Database | `backend/src/infrastructure/db/{index,db.module,tenant-session,tenant-database,authorization-predicate,outbox.repository,processed-jobs.repository,dispatcher-session,schema,bootstrap,migrate}.ts`; `backend/drizzle/`; private test helpers under `backend/src/infrastructure/db/testing/`. |
-| Test infrastructure | `config/container-images.env`, `scripts/container-images.mjs`, `backend/test/setup/{global-infrastructure,file-services,provided-context}.ts`, `backend/test/integration/`; only db-local helpers import database drivers. |
-| Queue/storage/AI | Focused files under `backend/src/infrastructure/{queue,storage,ai}/`; each has its own `index.ts`, module, adapter, and README. |
-| Health/telemetry | `backend/src/infrastructure/telemetry/`; checker under `backend/src/bootstrap/health-check.ts`. |
-| Evaluation | `backend/src/evaluation/{index,evaluation.module}.ts`, backend package export `./evaluation`, `evals/src/context.ts`, `evals/test/context.spec.ts`. |
-| Frontend | `frontend/components.json`, `frontend/next.config.ts`, `frontend/src/{app,components,lib}/`; tests under `frontend/test/`. |
-| Containers/E2E | `backend/Dockerfile`, `frontend/Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `scripts/{dev,e2e}.mjs`, `backend/test/e2e/`, `frontend/test/e2e/`, `playwright.config.ts`. |
-| Delivery | `.github/workflows/ci.yml`, `backend/stryker.config.mjs`, `README.md`, `docs/references/F0-versions.md`, `docs/references/F0-S6-findings.md`. |
+| Area                | Files / responsibility                                                                                                                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace           | Root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.node-version`, `tsconfig.base.json`, `vitest.config.ts`, `eslint.config.mjs`, `.prettierrc.json`; package manifests/tsconfigs and package-local Vitest project configs.                                                       |
+| Contracts           | `shared/src/{identity,error,pagination,event,health,diagnostic,index}.ts`; `shared/test/contracts.spec.ts`.                                                                                                                                                                                   |
+| Boundary tooling    | `scripts/eslint/{lexon-boundaries,resolve-import}.mjs`, `scripts/check-boundaries.mjs`, `scripts/test/boundaries.spec.mjs`, `scripts/test/fixtures/boundaries/`.                                                                                                                              |
+| Backend startup     | `backend/src/config/`, `backend/src/bootstrap/`, four `backend/src/entrypoints/<runtime>/{main,root.module}.ts`; platform HTTP under `backend/src/modules/platform/`.                                                                                                                         |
+| Database            | `backend/src/infrastructure/db/{index,db.module,tenant-session,tenant-database,authorization-predicate,outbox.repository,processed-jobs.repository,dispatcher-session,schema,bootstrap,migrate}.ts`; `backend/drizzle/`; private test helpers under `backend/src/infrastructure/db/testing/`. |
+| Test infrastructure | `config/container-images.env`, `scripts/container-images.mjs`, `backend/test/setup/{global-infrastructure,file-services,provided-context}.ts`, `backend/test/integration/`; only db-local helpers import database drivers.                                                                    |
+| Queue/storage/AI    | Focused files under `backend/src/infrastructure/{queue,storage,ai}/`; each has its own `index.ts`, module, adapter, and README.                                                                                                                                                               |
+| Health/telemetry    | `backend/src/infrastructure/telemetry/`; checker under `backend/src/bootstrap/health-check.ts`.                                                                                                                                                                                               |
+| Evaluation          | `backend/src/evaluation/{index,evaluation.module}.ts`, backend package export `./evaluation`, `evals/src/context.ts`, `evals/test/context.spec.ts`.                                                                                                                                           |
+| Frontend            | `frontend/components.json`, `frontend/next.config.ts`, `frontend/src/{app,components,lib}/`; tests under `frontend/test/`.                                                                                                                                                                    |
+| Containers/E2E      | `backend/Dockerfile`, `frontend/Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `scripts/{dev,e2e}.mjs`, `backend/test/e2e/`, `frontend/test/e2e/`, `playwright.config.ts`.                                                                                               |
+| Delivery            | `.github/workflows/ci.yml`, `backend/stryker.config.mjs`, `README.md`, `docs/references/F0-versions.md`, `docs/references/F0-S6-findings.md`.                                                                                                                                                 |
 
 Create files when their owning task needs them, not empty directories for future slices. Tests that need privileged DB access call db-local testing helpers; they never import a driver from a forbidden location. The following tasks form one dependency chain with independently testable deliverables; separate subsystem plans would duplicate the transaction, configuration, and test-harness interfaces.
 
@@ -64,12 +64,14 @@ Create files when their owning task needs them, not empty directories for future
 
 **Interfaces:** Package names `@lexon/backend`, `@lexon/frontend`, `@lexon/contracts`, `@lexon/evals`. Root `test` launches one `vitest run`; package `test` selects its project(s) through the root config (not recursive root `test`). Root/package `pretest` hooks build required workspace dependencies first, including contracts/backend before the evals package-export test, so `pnpm test` works after installation without a prior manual build. `test:unit` gets the same dependency-build preparation but selects only non-integration projects. Dependency-aware builds never recursively invoke their consumers or start containers.
 
-- [ ] Resolve exact package/CLI/tool versions within the locked baselines and document version, official source, peer constraints, date, and reason in `F0-versions.md`; Node patch must satisfy generator floor. Record image selection separately in Task 5. No compatibility success claim yet.
-- [ ] Scaffold Nest ESM and assistant-ui `default` using exact-resolved CLI versions with installation/skill-addition disabled. Retain configuration/manifests/assets; remove generated application/sample/chat source before adding any product behavior. Replace TS7/oxlint/oxfmt, select `base-nova`, set exact dependencies and YAML overrides, then install and commit the lockfile as part of this task. This is toolchain setup; real backend/frontend behavior starts with failing tests in later tasks.
-- [ ] Write `toolchain.spec.ts` with fixture-only decorated `Dependency`/`Consumer`: `Test.createTestingModule({providers:[Dependency,Consumer]}).compile()` must resolve `Consumer` with its injected dependency; assert the injected value, then close. First run before adding the Nest-compatible Vitest decorator transform must fail at injection/metadata, not a missing test name.
-- [ ] Run `pnpm exec vitest run --project backend-unit backend/test/unit/toolchain.spec.ts`; record the expected metadata failure. Implement strict TS6 NodeNext build settings and the official Nest 12 template's tested Vitest transform; do not mask it by manually wiring the dependency.
-- [ ] Run the same test to PASS; typecheck and compile the fixture-only metadata program under TS6, then import its output as ESM. Backend production build uses `rootDir:src`, `outDir:dist`, excludes test files, and later emits `dist/entrypoints/<runtime>/main.js` and `dist/bootstrap/health-check.js`; fixture builds use a separate tsconfig. Verify `pnpm list -r typescript zod` resolves exactly one version each and `pnpm install --frozen-lockfile` makes no lockfile change. Contracts/evals gain code in Tasks 2/12; frontend build begins with the tested page in Task 14. Do not fabricate successful empty suites or require an app build before its source task.
-- [ ] Commit explicit files: `git commit -m "chore: establish pinned ESM workspace and metadata proof"`.
+- [x] Resolve exact package/CLI/tool versions within the locked baselines and document version, official source, peer constraints, date, and reason in `F0-versions.md`; Node patch must satisfy generator floor. Record image selection separately in Task 5. No compatibility success claim yet.
+- [x] Scaffold Nest ESM and assistant-ui `default` using exact-resolved CLI versions with installation/skill-addition disabled. Retain configuration/manifests/assets; remove generated application/sample/chat source before adding any product behavior. Replace TS7/oxlint/oxfmt, select `base-nova`, set exact dependencies and YAML overrides, then install and commit the lockfile as part of this task. This is toolchain setup; real backend/frontend behavior starts with failing tests in later tasks.
+- [x] Write `toolchain.spec.ts` with fixture-only decorated `Dependency`/`Consumer`: `Test.createTestingModule({providers:[Dependency,Consumer]}).compile()` must resolve `Consumer` with its injected dependency; assert the injected value, then close. First run before adding the Nest-compatible Vitest decorator transform must fail at injection/metadata, not a missing test name.
+- [x] Run `pnpm exec vitest run --project backend-unit backend/test/unit/toolchain.spec.ts`; record the expected metadata failure. Implement strict TS6 NodeNext build settings and the official Nest 12 template's tested Vitest transform; do not mask it by manually wiring the dependency.
+- [x] Run the same test to PASS; typecheck and compile the fixture-only metadata program under TS6, then import its output as ESM. Backend production build uses `rootDir:src`, `outDir:dist`, excludes test files, and later emits `dist/entrypoints/<runtime>/main.js` and `dist/bootstrap/health-check.js`; fixture builds use a separate tsconfig. Verify `pnpm list -r typescript zod` resolves exactly one version each and `pnpm install --frozen-lockfile` makes no lockfile change. Contracts/evals gain code in Tasks 2/12; frontend build begins with the tested page in Task 14. Do not fabricate successful empty suites or require an app build before its source task.
+- [x] Commit explicit files: `git commit -m "chore: establish pinned ESM workspace and metadata proof"`.
+
+Task 1 execution ruling: the exact installed Vitest 5/Vite 8 toolchain already emits Nest constructor metadata. The native fixture passed on its first valid discovery run; retain this characterization and omit an unnecessary additional transformer. No production behavior was added in Task 1.
 
 ### Task 2: Define browser-safe contracts and API shapes
 
@@ -305,18 +307,18 @@ Create files when their owning task needs them, not empty directories for future
 
 ## Coverage and Handoff
 
-| Brief items | Owning tasks |
-| --- | --- |
-| 1–4: workspace, pins, scripts, boundaries | 1, 3, 15, 18 |
-| 5–6: shared contracts | 2 |
-| 7–12: runtime layout/config/logging/health/validation | 4, 11, 12 |
-| 13–14: AI/MCP compatibility | 13 |
-| 15–20: roles/migrations/pools/tenant/predicate/RLS | 5, 6 |
-| 21–23: outbox/receipts/queue/Valkey | 7, 8, 9, 16 |
-| 24–27: frontend/toolchain/chat removal | 1, 14 |
-| 28–30: Docker/network/storage | 5, 10, 15, 16 |
-| 31: Vitest/HTTP/Playwright/mutation/evals | 1, 5–6, 8, 12, 16–17 |
-| 32–33: CI/docs | 18 |
+| Brief items                                           | Owning tasks         |
+| ----------------------------------------------------- | -------------------- |
+| 1–4: workspace, pins, scripts, boundaries             | 1, 3, 15, 18         |
+| 5–6: shared contracts                                 | 2                    |
+| 7–12: runtime layout/config/logging/health/validation | 4, 11, 12            |
+| 13–14: AI/MCP compatibility                           | 13                   |
+| 15–20: roles/migrations/pools/tenant/predicate/RLS    | 5, 6                 |
+| 21–23: outbox/receipts/queue/Valkey                   | 7, 8, 9, 16          |
+| 24–27: frontend/toolchain/chat removal                | 1, 14                |
+| 28–30: Docker/network/storage                         | 5, 10, 15, 16        |
+| 31: Vitest/HTTP/Playwright/mutation/evals             | 1, 5–6, 8, 12, 16–17 |
+| 32–33: CI/docs                                        | 18                   |
 
 Plan self-review completed against the approved design and updated brief: all items are mapped above; eval exception and F20 edge gap are preserved; interface names/dependencies and five Review Focus assertions are assigned; storage and health are separate reviewable deliverables. Exact patches/digests, runtime compatibility, mutation score, and passing CI remain execution evidence, not completed work.
 

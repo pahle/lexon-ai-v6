@@ -1,0 +1,27 @@
+{
+  "name": "@lexon/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --config ../vitest.config.ts --project contracts",
+    "test:e2e": "node ../scripts/e2e.mjs --package shared",
+    "dev": "node ../scripts/dev.mjs --package shared",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  }
+}
