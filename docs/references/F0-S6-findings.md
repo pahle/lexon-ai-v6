@@ -16,3 +16,7 @@ Status: in progress. No foundation acceptance criterion is complete yet.
 - Product entrypoints and feature behavior are still absent; only a test-owned DI fixture exists.
 
 Task 1 final checks: root test 1/1; backend typecheck; TS6 fixture compilation and Node ESM import; ESLint; single TS 6.0.3 and Zod 4.6.7 resolutions; frozen install with unchanged lockfile. Full application build and other-package suites are deliberately pending their owning tasks, not reported as passing empty suites.
+
+## Task 2 contracts
+
+18 contract cases pass (19 total with metadata proof). Shared build/typecheck, filtered package test, and Vite browser-target bundle/import succeed. The failing first run found the missing contract export; implemented only browser-safe schemas/types/interfaces.

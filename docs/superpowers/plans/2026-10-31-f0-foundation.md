@@ -81,10 +81,10 @@ Task 1 execution ruling: the exact installed Vitest 5/Vite 8 toolchain already e
 
 **Interfaces:** `UuidSchema`; `DiagnosticInputSchema` = strict `{probeId: UUID}`; `DiagnosticResponseSchema` = `{probeId: UUID, accepted: true}`. `ErrorResponseSchema` = `{error:{code:string,message:string,issues?:{path:string,message:string}[]},requestId?:string}`. `HealthResponseSchema` = `{status:'ok'|'unavailable',version:string,dependencies:Record<string,'up'|'down'>}`. `PaginationSchema` = `{limit:integer 1..100 default 20,cursor?:UUID}`. `PageInfoSchema` = `{nextCursor:UUID|null}`. `EventEnvelope<T>` = readonly `{version:1,id:string,type:string,occurredAt:string,payload:T}`. `FoundationApi` interface has `health():Promise<HealthResponse>` and `diagnose(input:DiagnosticInput):Promise<DiagnosticResponse>`; inferred types exported with schemas. No fetch implementation here.
 
-- [ ] Write table-driven tests: valid UUID round trip; invalid/missing UUID and extra diagnostic fields rejected; limits `0`/`101` rejected, omitted limit becomes `20`; health success/unavailable both accepted; error issues contain only field paths/messages; event type-check fixture requires `version:1`. Use `expect(DiagnosticInputSchema.safeParse({probeId:'bad'}).success).toBe(false)` and `expect(PaginationSchema.parse({})).toEqual({limit:20})` as exact assertions.
-- [ ] Run `pnpm exec vitest run --project contracts`; expect missing exports, then implement only these Zod schemas/interfaces in the listed files.
-- [ ] Re-run contracts tests, shared build/typecheck, and a browser-target bundling/import smoke via the frontend toolchain: no Node builtins/workspace runtime import is introduced. The shared package test script must now execute this suite.
-- [ ] Commit: `git commit -m "feat: define foundation API and validation contracts"`.
+- [x] Write table-driven tests: valid UUID round trip; invalid/missing UUID and extra diagnostic fields rejected; limits `0`/`101` rejected, omitted limit becomes `20`; health success/unavailable both accepted; error issues contain only field paths/messages; event type-check fixture requires `version:1`. Use `expect(DiagnosticInputSchema.safeParse({probeId:'bad'}).success).toBe(false)` and `expect(PaginationSchema.parse({})).toEqual({limit:20})` as exact assertions.
+- [x] Run `pnpm exec vitest run --project contracts`; expect missing exports, then implement only these Zod schemas/interfaces in the listed files.
+- [x] Re-run contracts tests, shared build/typecheck, and a browser-target bundling/import smoke via the frontend toolchain: no Node builtins/workspace runtime import is introduced. The shared package test script must now execute this suite.
+- [x] Commit: `git commit -m "feat: define foundation API and validation contracts"`.
 
 ### Task 3: Make the import matrix executable, including the evaluation exception
 
