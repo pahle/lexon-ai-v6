@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -17,6 +19,16 @@ import { allowContainerReuse, provisionRun } from './resource-lifecycle.js';
 import type { InfrastructureDescriptor } from './provided-context.js';
 
 export default async function setup(project: TestProject) {
+  await promisify(execFile)(
+    process.execPath,
+    [
+      new URL('../../../node_modules/typescript/bin/tsc', import.meta.url)
+        .pathname,
+      '-p',
+      new URL('../process/tsconfig.json', import.meta.url).pathname,
+    ],
+    { timeout: 30000 },
+  );
   const reuse = allowContainerReuse(process.env);
   const images = readContainerImages(
     new URL('../../../config/container-images.env', import.meta.url).pathname,

@@ -38,3 +38,24 @@ Observed compatibility details: SeaweedFS S3 config uses accessKey/secretKey (no
 ## Task 6 tenant boundary
 
 Real PostgreSQL tests pass for fresh and size-one reused connections after both commit and rollback. The fixture is populated with a third tenant before no-context probes, avoiding an empty-table false proof. A/B read/update/delete/insert isolation, role restrictions, session expiration, missing-user reset and statement timeout recovery pass. Opaque sessions hold no public client/pool; runtime import-boundary fixtures reject private db/session and test-helper access. Public class declarations expose only options, callbacks, status and lifecycle. Root tests: 48/48; lint fixtures: 51/51; backend build/typecheck pass.
+
+## Task 8: native BullMQ integration
+
+Verified 2026-10-31: @nestjs/bullmq 12.0.0, BullMQ 6.5.3, NestJS 12.3.2,
+ioredis 6.0.0, Valkey 9.0.7. Native Processor / WorkerHost works in the ESM
+application context, including actual retries and child-process stalled-job
+recovery. No peer override or fallback wrapper is needed.
+
+Three attempts with observed exponential delays passed. Retained IDs suppress
+reinsertion; explicitly removing the completed queue job permits another
+delivery which returns duplicate, with one PostgreSQL effect. Failed-job
+reasons/stack traces exclude the handler's error content. Policy checks and
+MAXLEN/TTL Streams round trip pass against the real service. A private TCP
+proxy outage rejects within the producer budget and recovers without changing
+shared service configuration.
+
+Two SIGKILL tests use compiled workers: after effect insertion before commit,
+the connection loss rolls back both receipt and effect; after committed execute
+before processor resolution, the receipt survives. In both cases a confirmed
+replacement-process delivery completes with exactly one effect. The second
+case returns duplicate. These checkpoints exist only in test fixtures.
