@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TenantSession } from './tenant-session.js';
 
 const schema = z.strictObject({
   outboxId: z.uuid(),
@@ -28,3 +29,8 @@ export function parseJobEnvelope(input: unknown): JobEnvelope {
     payload: Object.freeze(payload),
   });
 }
+
+export type TenantJobHandler = (
+  tx: TenantSession,
+  job: JobEnvelope,
+) => Promise<void>;

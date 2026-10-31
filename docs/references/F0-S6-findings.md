@@ -210,7 +210,7 @@ Final measured baseline (4 seconds): **96.77%**, 31 mutants, 30 killed,
 | Mutated file                                 | Killed | Survived |  Score |
 | -------------------------------------------- | -----: | -------: | -----: |
 | infrastructure/db/authorization-predicate.ts |     15 |        1 | 93.75% |
-| modules/platform/job-envelope.ts             |     15 |        0 |   100% |
+| infrastructure/db/job-envelope.ts            |     15 |        0 |   100% |
 
 The first run scored77.42%; surviving optional-user mutants exposed missing
 assertions in this focused scope. Added strict equality, own-key absence,
@@ -296,3 +296,16 @@ Linux CI follow-up: initial PR run41187765541 passed unit/integration but failed
 The credential regression also covers regeneration over an existing0600 file and repeated invocation. Atomic same-directory replacement applies the required permissions even when writeFile would otherwise preserve old permissions, and permits replacing a previous read-only file without relaxing its access mode. Updated local totals are124Vitest,59tooling,9Compose Playwright, all passing.
 
 Final CI acceptance (2026-10-31): [PR run41188480897](https://github.com/pahle/lexon-ai-v6/actions/runs/41188480897) passed both `unit-integration` and `compose-e2e` on Ubuntu24.04 at commit0d29466013cb10f348a7b2716b9a851468f14166. This independently verifies frozen installation, root lint/format, package lint/build/typecheck,124Vitest tests,59tooling assertions, and9Compose Playwright tests. [PR6](https://github.com/pahle/lexon-ai-v6/pull/6) targets main from f0-foundation; no merge was performed. Task18 and the full approved plan are complete. The completion-doc commit triggers the same checks again; GitHub's latest-head checks remain the review source of truth.
+
+## Brief-owner review fixes (2026-10-31)
+
+- `withTenant` now releases a connection with an error when `ROLLBACK`
+  fails, so the pool destroys it instead of handing a possibly open
+  transaction and tenant context to the next caller (unit regression test).
+- New boundary rule `infrastructure-domain`: `backend/src/infrastructure/*`
+  may not import `backend/src/modules/*`. The job envelope and
+  `TenantJobHandler` moved to `infrastructure/db/job-envelope.ts` (platform
+  re-exports them), the queue consumer depends on a `JobRunner` interface,
+  and the backend version is read through `config/package-version.ts`. This
+  removed the infrastructure ↔ platform import cycle. Mutation baseline
+  re-run: unchanged at 96.77% (job envelope now mutated at its new path).

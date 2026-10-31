@@ -310,5 +310,29 @@
     "importer": "backend/src/entrypoints/ai-worker/root.module.ts",
     "code": "import '../../infrastructure/ai/index.js';",
     "rule": null
+  },
+  {
+    "name": "infrastructure imports domain module",
+    "importer": "backend/src/infrastructure/queue/queue-consumer.ts",
+    "code": "import '../../modules/platform/index.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
+    "name": "infrastructure imports domain module internals",
+    "importer": "backend/src/infrastructure/db/outbox.repository.ts",
+    "code": "import '../../modules/platform/job-envelope.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
+    "name": "infrastructure imports sibling infrastructure",
+    "importer": "backend/src/infrastructure/queue/queue-producer.ts",
+    "code": "import '../db/index.js';",
+    "rule": null
+  },
+  {
+    "name": "domain module imports infrastructure",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import '../../infrastructure/db/index.js';",
+    "rule": null
   }
 ]

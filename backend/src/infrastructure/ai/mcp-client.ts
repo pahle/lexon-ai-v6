@@ -1,8 +1,8 @@
 import { Client } from '@modelcontextprotocol/client';
-import { PlatformVersionService } from '../../modules/platform/index.js';
+import { readBackendVersion } from '../../config/package-version.js';
 export function createMcpClient(): Client {
   return new Client(
-    { name: 'lexon', version: new PlatformVersionService().version },
+    { name: 'lexon', version: readBackendVersion() },
     { versionNegotiation: { mode: 'auto' } },
   );
 }

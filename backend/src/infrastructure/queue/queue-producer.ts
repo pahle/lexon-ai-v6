@@ -1,8 +1,5 @@
 import { Queue } from 'bullmq';
-import {
-  parseJobEnvelope,
-  type JobEnvelope,
-} from '../../modules/platform/index.js';
+import { parseJobEnvelope, type JobEnvelope } from '../db/index.js';
 export interface QueueOptions {
   url: string;
   prefix: string;

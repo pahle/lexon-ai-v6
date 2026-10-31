@@ -1,14 +1,12 @@
 import {
   TenantDatabase,
   ProcessedJobsRepository,
-  type TenantSession,
+  parseJobEnvelope,
+  type JobEnvelope,
+  type TenantJobHandler,
 } from '../../infrastructure/db/index.js';
-import { parseJobEnvelope, type JobEnvelope } from './job-envelope.js';
 
-export type TenantJobHandler = (
-  tx: TenantSession,
-  job: JobEnvelope,
-) => Promise<void>;
+export type { TenantJobHandler };
 
 export class JobExecutor {
   constructor(

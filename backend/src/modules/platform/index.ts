@@ -1,4 +1,7 @@
-export { parseJobEnvelope, type JobEnvelope } from './job-envelope.js';
+export {
+  parseJobEnvelope,
+  type JobEnvelope,
+} from '../../infrastructure/db/index.js';
 export { JobExecutor, type TenantJobHandler } from './job-executor.js';
 export {
   OutboxDispatcher,

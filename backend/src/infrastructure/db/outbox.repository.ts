@@ -1,8 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  parseJobEnvelope,
-  type JobEnvelope,
-} from '../../modules/platform/index.js';
+import { parseJobEnvelope, type JobEnvelope } from './job-envelope.js';
 import { TenantDatabase } from './tenant-database.js';
 import { inspectPool } from './tenant-session.js';
 import { requireSession, type TenantSession } from './tenant-session.js';

@@ -37,7 +37,9 @@ describe('withTenant connection release', () => {
     });
 
     await expect(
-      database.withTenant(ctx, () => Promise.reject(new Error('handler failed'))),
+      database.withTenant(ctx, () =>
+        Promise.reject(new Error('handler failed')),
+      ),
     ).rejects.toThrow('handler failed');
 
     expect(client.release).toHaveBeenCalledTimes(1);
@@ -53,7 +55,9 @@ describe('withTenant connection release', () => {
     });
 
     await expect(
-      database.withTenant(ctx, () => Promise.reject(new Error('handler failed'))),
+      database.withTenant(ctx, () =>
+        Promise.reject(new Error('handler failed')),
+      ),
     ).rejects.toThrow('handler failed');
 
     expect(client.release).toHaveBeenCalledTimes(1);
