@@ -141,7 +141,11 @@ tenant selection right here matters more than UI polish (F2 owns the shell).
     organization (besides creating it).
     - The invitation's role is a **floor**: accepting may raise a member to
       admin but never lowers an existing admin or owner.
-    - Accepting again is idempotent.
+    - A retry by the original recipient while their membership still exists
+      succeeds without changing membership or role (idempotent).
+    - After the recipient leaves or is removed, the consumed invitation
+      cannot restore access; rejoining needs a new invitation.
+    - Any other account using the link is rejected.
     - A new user who opens an invitation link signs up with that email,
       verifies it, and then accepts.
 14. Leave an organization (members and admins; owners only if another owner
@@ -331,8 +335,10 @@ From `.agents/skills/` (read the conflict table in its README first):
 - [ ] Sign-up → verify → sign-in → onboarding works in the browser (E2E),
       with English copy and axe passing.
 - [ ] Invitation flows (new person and existing user) work end to end with
-      emails captured by the test transport; expired, cancelled, and
-      reused invitations are rejected.
+      emails captured by the test transport; expired and cancelled
+      invitations are rejected; a consumed invitation is idempotent for its
+      recipient while still a member, and rejected after departure or for
+      any other account.
 - [ ] Invitation-only mode blocks open sign-up but still allows sign-up for
       an invited email.
 - [ ] A user with two team organizations plus Personal can switch. The
