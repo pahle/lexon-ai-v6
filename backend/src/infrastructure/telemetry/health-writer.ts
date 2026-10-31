@@ -26,6 +26,7 @@ interface HealthIo {
   invalidate: (path: string) => Promise<void>;
 }
 export class HealthWriter {
+  #writing = false;
   #healthy = false;
   #writtenAt = Number.NEGATIVE_INFINITY;
   #running: Promise<void> | undefined;
@@ -64,7 +65,12 @@ export class HealthWriter {
     try {
       const snapshot = parseHealthSnapshot(await this.sample());
       if (this.#stopped) return;
-      await this.io.write(this.options.path, snapshot);
+      this.#writing = true;
+      try {
+        await this.io.write(this.options.path, snapshot);
+      } finally {
+        this.#writing = false;
+      }
       if (this.#stopped) {
         await this.io.invalidate(this.options.path).catch(() => undefined);
         return;
@@ -97,7 +103,21 @@ export class HealthWriter {
     this.#stopped = true;
     this.#healthy = false;
     clearTimeout(this.#timer);
-    // A hung sampler must not prevent shutdown invalidation. Its eventual result is discarded.
+    // Drain a write already in progress, but never wait for a hung sampler.
+    // Bound filesystem shutdown too; a late write still invalidates itself above.
+    if (this.#writing && this.#running) {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          this.#running,
+          new Promise<void>((resolve) => {
+            timeout = setTimeout(resolve, Math.min(1000, this.options.staleMs));
+          }),
+        ]);
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
     await this.io.invalidate(this.options.path).catch(() => undefined);
   }
 }

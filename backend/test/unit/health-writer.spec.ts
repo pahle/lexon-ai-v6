@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs';
 import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -150,7 +151,7 @@ it('does not overlap cycles or keep advancing a stalled work heartbeat', async (
   await writer.stop();
 });
 
-it('discards a write that completes after shutdown', async () => {
+it('waits for an in-flight write before completing shutdown', async () => {
   let entered!: () => void;
   const writing = new Promise<void>((done) => {
     entered = done;
@@ -169,15 +170,20 @@ it('discards a write that completes after shutdown', async () => {
         await writeHealthSnapshot(p, s);
       },
       invalidate: async (p) => {
-        await rm(p, { force: true });
+        rmSync(p, { force: true });
       },
     },
   );
   const cycle = writer.cycle();
   await writing;
-  await writer.stop();
+  let stopped = false;
+  const stopping = writer.stop().then(() => {
+    stopped = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(stopped).toBe(false);
   release();
-  await cycle;
+  await Promise.all([cycle, stopping]);
   expect(writer.health()).toBe('down');
   await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
 });
@@ -198,4 +204,15 @@ it('reports snapshot write failure through an operational callback without error
   await writer.cycle();
   expect(report).toHaveBeenCalledWith();
   expect(writer.health()).toBe('down');
+});
+
+it('invalidates promptly when the sampler never completes', async () => {
+  await writeHealthSnapshot(path, sample());
+  const writer = new HealthWriter(
+    { path, writeIntervalMs: 10, staleMs: 100 },
+    () => new Promise<HealthSnapshot>(() => undefined),
+  );
+  void writer.cycle();
+  await writer.stop();
+  await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
 });

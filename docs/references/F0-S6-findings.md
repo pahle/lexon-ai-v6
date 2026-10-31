@@ -290,3 +290,5 @@ passed backend7, frontend1, contracts2 and evals1. Final root build/format and
 frozen lockfile gates pass. Tooling tests total58, including53 lint-boundary
 fixtures and5 rendered-topology/setup/cleanup cases. CI evidence follows the
 review PR; local results are not presented as a GitHub result.
+
+Linux CI follow-up: initial PR run41187765541 passed unit/integration but failed Compose startup; the duplicate push run also exposed a health shutdown race. The pinned SeaweedFS entrypoint drops privileges, making the0600 host credential file unreadable on Linux. Changed only the file to0444, keeping its host parent0700 and container mount read-only; node regression and an actual Linux-container permission proof cover this. Health shutdown now drains an already-started write with a bounded wait, without blocking on a hung sampler; deterministic regression coverage reproduces the former early return. Actual updated-head CI remains the final completion gate.

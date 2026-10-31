@@ -66,7 +66,9 @@ export async function composeEnvironment(input, directory) {
         },
       ],
     }),
-    { mode: 0o600 },
+    // The private parent directory protects host access. The read-only file
+    // mount must remain readable after the image drops to its seaweed user.
+    { mode: 0o444 },
   );
   env.S3_CONFIG_PATH = configPath;
   return env;
