@@ -192,10 +192,10 @@ Task 1 execution ruling: the exact installed Vitest 5/Vite 8 toolchain already e
 
 **Interfaces:** `StoragePort.put(key:string,body:Uint8Array):Promise<void>`, `get(key:string,range?:{start:number,endInclusive:number}):Promise<Uint8Array>`, `delete(key:string):Promise<void>`, `presignPut(key:string,expiresInSeconds:number):Promise<string>`, `check():Promise<'up'|'down'>`, `close():Promise<void>`. Bucket/endpoint/credentials are injected at construction. `check()` is a bounded non-destructive bucket-access probe; it never returns credentials, hosts or errors.
 
-- [ ] Write `storage.spec.ts` with known bytes `Uint8Array([0,1,2,3,4])`: put/get equal original; range `1..3` equals `[1,2,3]`; delete makes get not found; fetch a presigned PUT and read exact uploaded bytes. Assert a tampered signature is rejected, without logging the signed URL. Use only the file's bucket. Named assertion: `it('returns the requested byte range', ...)` with `expect(await storage.get(key,{start:1,endInclusive:3})).toEqual(new Uint8Array([1,2,3]))`.
-- [ ] Run `pnpm exec vitest run --project backend-integration backend/test/integration/storage.spec.ts`; expect missing adapter/contract failure, not a mocked S3 response.
-- [ ] Implement AWS SDK commands through `StoragePort`, caller-reachable presigned endpoint, range validation and sanitized failures in the listed files. Keep the implementation replaceable and close its client at teardown.
-- [ ] Re-run the contract suite, backend build/typecheck/lint, and document the storage boundary and F7 encryption extension point. Commit: `git commit -m "feat: provide the S3 storage port with SeaweedFS contract proof"`.
+- [x] Write `storage.spec.ts` with known bytes `Uint8Array([0,1,2,3,4])`: put/get equal original; range `1..3` equals `[1,2,3]`; delete makes get not found; fetch a presigned PUT and read exact uploaded bytes. Assert a tampered signature is rejected, without logging the signed URL. Use only the file's bucket. Named assertion: `it('returns the requested byte range', ...)` with `expect(await storage.get(key,{start:1,endInclusive:3})).toEqual(new Uint8Array([1,2,3]))`.
+- [x] Run `pnpm exec vitest run --project backend-integration backend/test/integration/storage.spec.ts`; expect missing adapter/contract failure, not a mocked S3 response.
+- [x] Implement AWS SDK commands through `StoragePort`, caller-reachable presigned endpoint, range validation and sanitized failures in the listed files. Keep the implementation replaceable and close its client at teardown.
+- [x] Re-run the contract suite, backend build/typecheck/lint, and document the storage boundary and F7 encryption extension point. Commit: `git commit -m "feat: provide the S3 storage port with SeaweedFS contract proof"`.
 
 ### Task 11: Implement secret-free health snapshots and the exec checker
 

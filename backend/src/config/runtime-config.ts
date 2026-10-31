@@ -32,6 +32,7 @@ const common = z.object({
 });
 const storageSchema = z.object({
   S3_ENDPOINT: url(['http:', 'https:']),
+  S3_PUBLIC_ENDPOINT: url(['http:', 'https:']).optional(),
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
@@ -95,6 +96,7 @@ function readStorage(env: Record<string, string | undefined>) {
   const values = read(storageSchema, env);
   return {
     endpoint: values.S3_ENDPOINT,
+    publicEndpoint: values.S3_PUBLIC_ENDPOINT ?? values.S3_ENDPOINT,
     bucket: values.S3_BUCKET,
     accessKey: values.S3_ACCESS_KEY,
     secretKey: values.S3_SECRET_KEY,

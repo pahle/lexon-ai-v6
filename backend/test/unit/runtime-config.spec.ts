@@ -120,3 +120,20 @@ it('records retention metadata without enabling receipt cleanup', () => {
       }),
     ).toThrow('JOB_RECEIPT_RETENTION_SECONDS');
 });
+
+it('validates an optional caller-reachable S3 endpoint separately from its internal endpoint', () => {
+  expect(
+    loadRuntimeConfig('api', {
+      ...base,
+      ...storage,
+      S3_PUBLIC_ENDPOINT: 'http://localhost:8334',
+    }).storage.publicEndpoint,
+  ).toBe('http://localhost:8334');
+  expect(() =>
+    loadRuntimeConfig('api', {
+      ...base,
+      ...storage,
+      S3_PUBLIC_ENDPOINT: 'redis://secret-host',
+    }),
+  ).toThrow('S3_PUBLIC_ENDPOINT');
+});

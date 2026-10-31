@@ -59,3 +59,14 @@ the connection loss rolls back both receipt and effect; after committed execute
 before processor resolution, the receipt survives. In both cases a confirmed
 replacement-process delivery completes with exactly one effect. The second
 case returns duplicate. These checkpoints exist only in test fixtures.
+
+## Task 10: S3 portability
+
+AWS SDK client/presigner 3.1161.0 with SeaweedFS 4.51 passes real binary
+put/get/delete, exact inclusive range 1..3, HTTP presigned PUT, and signature
+tampering rejection. HeadBucket probes bucket access without writes and the
+private outage probe is bounded. SDK errors are sanitized at the boundary.
+The initial presigned upload returned BadDigest: automatic CRC32 described
+the absent body at signing time. Only the presigning client now selects AWS's
+documented WHEN_REQUIRED request checksum mode; regular SDK uploads retain
+default checksum behavior. Public/internal signing endpoints are separate.
