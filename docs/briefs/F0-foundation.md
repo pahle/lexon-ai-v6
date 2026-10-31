@@ -43,9 +43,14 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
    `pnpm --filter`.
 4. ESLint (flat config) + Prettier across the workspace. These
    **boundary rules must fail the lint** when violated (LEX-ARC-001 §3.4):
-   - `frontend/` and `evals/` must not import `backend/`; `frontend/` must not
-     import `pg`, `drizzle-orm`, the AI SDK provider, or any server-only
-     module.
+   - `frontend/` must not import `backend/`, `pg`, `drizzle-orm`, the AI SDK
+     provider, or any server-only module.
+   - `evals/` may import `backend/` **only through one public evaluation entry**
+     exported by the backend package (it exposes what a standalone
+     application context needs), never module internals or
+     `infrastructure/*`. LEX-ARC-001 §4.7 and §7.2 require the evals runner to
+     drive the real AI Run Engine from F3 onward, so a total ban would block
+     F3. In F0 the entry may expose only a minimal module.
    - `shared/` must not import any other workspace package or Node-only APIs.
    - `backend/` must not import `frontend/`.
    - Inside `backend/`, a domain module may import another module only through
@@ -232,6 +237,14 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     **A test proves that `document-worker` cannot reach the internet.** ClamAV
     and the LibreOffice sandbox are added in F7, but their network slot
     already exists.
+    - **Frontend egress in development:** the developer's browser must reach
+      the frontend and API through published host ports, and Docker cannot
+      publish ports from an `internal` network. F0 therefore does **not** make
+      `edge` internal or otherwise break host access to block frontend
+      egress. Frontend no-egress is enforced and tested in F20 (Caddy as the
+      only ingress, host firewall rules). F0 records this as a known gap and
+      still ensures the frontend receives no secrets and has no `core`
+      membership.
 30. The S3 port interface exists in `infrastructure/storage` with an initial
     contract test (put, get, range get, delete, presigned PUT) that runs
     against SeaweedFS. Encryption is F7.
@@ -249,8 +262,8 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     - **Mutation:** Stryker configured and running on at least the `db` and
       `platform` modules. A baseline score is recorded; F0 sets no threshold.
     - **`evals/`:** the package exists with a Vitest runner that boots a
-      standalone NestJS application context, plus one trivial passing case.
-      Real evals start in F3.
+      standalone NestJS application context through the backend's public
+      evaluation entry, plus one trivial passing case. Real evals start in F3.
 32. GitHub Actions CI on every PR:
     - install with frozen lockfile
     - lint (including boundary fixtures), typecheck, and build per package
