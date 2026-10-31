@@ -104,16 +104,33 @@ tenant selection right here matters more than UI polish (F2 owns the shell).
 
 9. Personal organization created atomically with the account; protected
    from organization operations as described in **Concepts**.
-10. Create a team organization (name, slug); creator becomes owner. Platform
-    admin can create one and invite its first owner.
+10. Create a team organization (name, slug); creator becomes owner, and the
+    organization is `active` at once.
+    - **Platform-admin provisioning.** A platform administrator creates an
+      organization in state **`provisioning`** together with exactly one
+      **owner invitation** for the first owner's email.
+    - A `provisioning` organization has no members and cannot hold content,
+      be listed by users, or become anyone's active organization.
+    - The platform administrator can see only its metadata and the
+      invitation status. They can resend the invitation, replace its email,
+      or cancel the provisioning, which deletes the organization.
+    - Accepting the owner invitation (after sign-up and email verification
+      if needed) makes that person the owner and moves the organization to
+      `active` **in one transaction**.
+    - An expired owner invitation leaves the organization in `provisioning`
+      until the admin resends or cancels.
+    - The platform administrator never becomes a member (LEX-ARC-001 §6.2).
 11. Roles: `owner` (one or more), `admin`, `member`.
-    - Every team organization always has at least one owner. Enforce this in
+    - Every **active** team organization always has at least one owner
+      (`provisioning` organizations have none by definition). Enforce this in
       the service **and** in the database, so two owners leaving
       concurrently cannot both succeed.
     - Role changes are checked against both the actor's role and the
       target's current role.
 12. Invitations by email with role `member` (default) or `admin`; inviting
-    an admin requires an owner. Owners are never invited; owners promote.
+    an admin requires an owner. Members of an organization never invite
+    owners; owners promote. The only owner invitation is the
+    platform-admin provisioning invitation in item 10.
     - One pending invitation per (organization, email).
     - Invitations expire after 14 days (configurable).
     - States: pending, accepted, declined, cancelled, expired.
@@ -325,6 +342,9 @@ From `.agents/skills/` (read the conflict table in its README first):
       session falls back to Personal (tested).
 - [ ] Last-owner protection holds under concurrent leave/demote (tested at
       the database level).
+- [ ] Platform-admin provisioning: a `provisioning` organization is
+      invisible and unusable; accepting the owner invitation activates it
+      atomically; the admin never becomes a member; cancel deletes it.
 - [ ] Role matrix tests: every allowed and forbidden action for owner,
       admin, member, and non-member.
 - [ ] 2FA:
