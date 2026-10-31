@@ -1,6 +1,6 @@
 # F0 S6 findings
 
-Status: implementation and local validation complete through Task 17. Final CI acceptance is recorded below after the PR checks run.
+Status: all 18 tasks complete. Local validation and successful PR Linux CI evidence are recorded below.
 
 ## Task 1 toolchain
 
@@ -270,7 +270,7 @@ above retain compatibility decisions and concrete failure/fix findings.
 | 33         | Root developer flow, migration/rollback/retention guidance and five infrastructure READMEs   |
 
 Final local root run: frozen install, lint, typecheck, build, format check,
-**123/123 Vitest tests (31 files)** and **58/58 Node tooling assertions** pass.
+**124/124 Vitest tests (31 files)** and **59/59 Node tooling assertions** pass.
 The previously measured Stryker baseline remains 30/31 killed, one equivalent
 survivor, no uncovered/errors/timeouts. No mutated file changed afterward.
 Package gates and Compose verification are reported with their final run below;
@@ -287,10 +287,12 @@ Final package runs: contracts18, backend95, frontend9, evals1 tests pass;
 each package lint/build/typecheck also passes. Final Compose run passes9/9,
 including browser and separate nested-policy recovery. Filtered E2E commands
 passed backend7, frontend1, contracts2 and evals1. Final root build/format and
-frozen lockfile gates pass. Tooling tests total58, including53 lint-boundary
+frozen lockfile gates pass. Tooling tests total59, including53 lint-boundary
 fixtures and5 rendered-topology/setup/cleanup cases. CI evidence follows the
 review PR; local results are not presented as a GitHub result.
 
 Linux CI follow-up: initial PR run41187765541 passed unit/integration but failed Compose startup; the duplicate push run also exposed a health shutdown race. The pinned SeaweedFS entrypoint drops privileges, making the0600 host credential file unreadable on Linux. Changed only the file to0444, keeping its host parent0700 and container mount read-only; node regression and an actual Linux-container permission proof cover this. Health shutdown now drains an already-started write with a bounded wait, without blocking on a hung sampler; deterministic regression coverage reproduces the former early return. Actual updated-head CI remains the final completion gate.
 
 The credential regression also covers regeneration over an existing0600 file and repeated invocation. Atomic same-directory replacement applies the required permissions even when writeFile would otherwise preserve old permissions, and permits replacing a previous read-only file without relaxing its access mode. Updated local totals are124Vitest,59tooling,9Compose Playwright, all passing.
+
+Final CI acceptance (2026-10-31): [PR run41188480897](https://github.com/pahle/lexon-ai-v6/actions/runs/41188480897) passed both `unit-integration` and `compose-e2e` on Ubuntu24.04 at commit0d29466013cb10f348a7b2716b9a851468f14166. This independently verifies frozen installation, root lint/format, package lint/build/typecheck,124Vitest tests,59tooling assertions, and9Compose Playwright tests. [PR6](https://github.com/pahle/lexon-ai-v6/pull/6) targets main from f0-foundation; no merge was performed. Task18 and the full approved plan are complete. The completion-doc commit triggers the same checks again; GitHub's latest-head checks remain the review source of truth.
