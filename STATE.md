@@ -4,9 +4,8 @@ Last updated: 2026-10-31 by the brief generator (session 1).
 
 ## Next action
 
-**F1 brief is in PR #9** (`docs/briefs/F1-identity-organizations.md`, plus
-LEX-ARC-001 §1/§3.2 decisions). Wait for the product owner to merge it, then
-support Codex through F1 brainstorming/spec/plan
+**F1 brief merged to `main` (PR #9)** with LEX-ARC-001 §1/§3.2 decisions and
+the F1 skills. Next: Codex through F1 brainstorming/spec/plan
 (`playbooks/support-implementer.md`), review the plan, and later review the
 implementation.
 
@@ -21,7 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Brief in PR #9 | Notes: `notes/F1-identity-organizations.md` |
+| F1 Identity & Organizations | Brief merged (PR #9); implementer brainstorming next | Notes: `notes/F1-identity-organizations.md` |
 | F2–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
