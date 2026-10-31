@@ -1,0 +1,17 @@
+{
+  "$comment": "Vendored third-party agent skills. Update only by re-copying from the pinned upstream commit after reviewing the diff. See README.md.",
+  "reviewed": "2026-10-31",
+  "skills": {
+    "ai-sdk":                  { "repo": "vercel/ai",               "path": "skills/use-ai-sdk",                        "commit": "dffe4053c15709577329518044b1ec1d4c6bb0fe", "license": "Apache-2.0" },
+    "assistant-ui":            { "repo": "assistant-ui/skills",     "path": "assistant-ui/skills/assistant-ui",         "commit": "b0609e66baff7e19f21053d5492464dcc22ec9c3", "license": "MIT" },
+    "setup":                   { "repo": "assistant-ui/skills",     "path": "assistant-ui/skills/setup",                "commit": "b0609e66baff7e19f21053d5492464dcc22ec9c3", "license": "MIT" },
+    "runtime":                 { "repo": "assistant-ui/skills",     "path": "assistant-ui/skills/runtime",              "commit": "b0609e66baff7e19f21053d5492464dcc22ec9c3", "license": "MIT" },
+    "shadcn":                  { "repo": "shadcn-ui/ui",            "path": "skills/shadcn",                            "commit": "b8d7baa15b1dca5716f13153e63795fc3d741f6b", "license": "MIT" },
+    "playwright-cli":          { "repo": "microsoft/playwright-cli","path": "skills/playwright-cli",                    "commit": "faf6bc58769f524fb8f1c9c1e38e36c9c00cfc1b", "license": "Apache-2.0" },
+    "docker-compose-patterns": { "repo": "docker/skills",           "path": "skills/docker-compose-patterns",           "commit": "34969c320b839772a26f3855d3e87cc3d8090da1", "license": "Apache-2.0" },
+    "docker-build-strategies": { "repo": "docker/skills",           "path": "skills/docker-build-strategies",           "commit": "34969c320b839772a26f3855d3e87cc3d8090da1", "license": "Apache-2.0" },
+    "valkey":                  { "repo": "valkey-io/valkey-skills", "path": "skills/valkey",                            "commit": "c7f563970ae4702d1c83c9da27ac8cdbca15fa7b", "license": "BSD-3-Clause" },
+    "vitest":                  { "repo": "antfu/skills",            "path": "skills/vitest",                            "commit": "7de210b51c8d48cc405a4eac3e17cbb1396c653b", "license": "MIT" },
+    "pnpm":                    { "repo": "antfu/skills",            "path": "skills/pnpm",                              "commit": "7de210b51c8d48cc405a4eac3e17cbb1396c653b", "license": "MIT" }
+  }
+}

@@ -333,6 +333,14 @@ before writing each plan task (see `AGENTS.md`):
 - ESLint flat config and `no-restricted-imports` — https://eslint.org/docs/latest/
 - GitHub Actions service containers — https://docs.github.com/actions
 
+## Skills to use
+
+From `.agents/skills/` (read the conflict table in its README first):
+`ai-sdk`, `assistant-ui`, `setup`, `runtime`, `shadcn`, `playwright-cli`,
+`docker-compose-patterns`, `docker-build-strategies`, `valkey`, `vitest`,
+`pnpm`. No vendor skill exists for NestJS, Drizzle, BullMQ, or PostgreSQL
+RLS; use `docs/references/` for those.
+
 ## Acceptance criteria
 
 - [ ] One command starts the full local stack; all runtimes report healthy;
