@@ -197,7 +197,7 @@ so existing build/global setup and file isolation remain active.
 
 **Interfaces:** Consumes Task 1's signup/transaction fixture. Produces invariant-backed `personalOwnerId` uniqueness and Personal membership, plus only these app-role SELECT projections: user `id,emailVerified,twoFactorEnabled,role,banned`; organization `id,name,slug,kind,state,require2fa,personalOwnerId`; member `id,userId,organizationId,role` (use the generated physical column names).
 
-- [ ] **Step 1 — RED tests:** Signup yields exactly one Personal and its sole owner; a forced failure after the native user insert leaves zero users/orgs/members. Pause before commit and query through a separate connection: no partial account. Failures creating Personal/member also roll back. Reject extra members, invitations, rename/kind/owner changes, leave/removal, and arbitrary personal deletion. Verify app-role permitted-column reads and forbidden token/password/TOTP/recovery/session/account reads; auth role cannot read `app`/`ops` tables or bypass schema ownership.
+- [x] **Step 1 — RED tests:** Signup yields exactly one Personal and its sole owner; a forced failure after the native user insert leaves zero users/orgs/members. Pause before commit and query through a separate connection: no partial account. Failures creating Personal/member also roll back. Reject extra members, invitations, rename/kind/owner changes, leave/removal, and arbitrary personal deletion. Verify app-role permitted-column reads and forbidden token/password/TOTP/recovery/session/account reads; auth role cannot read `app`/`ops` tables or bypass schema ownership.
 
   Representative assertion, after arranging the case above:
 
@@ -211,10 +211,10 @@ so existing build/global setup and file isolation remain active.
   });
   ```
 
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/personal-organization.spec.ts backend/test/integration/auth-privileges.spec.ts`; expect missing invariant/grants failures.
-- [ ] **Step 3 — Implement:** Add migrator-owned safe-path user-insert trigger, Personal/member creation, immutable owner reference and deferred final-state checks. Function privileges do not expose a general mutation API. Revoke broad inherited/default grants before granting the exact projection. Keep runtime DML only under `lexon_auth`; no app-role auth mutations. Add DB test helpers for failpoints without production failpoint flags. F18 deletion remains unavailable.
-- [ ] **Step 4 — GREEN:** Re-run Step 2 and Task 1 compatibility tests; all rollback and negative privilege assertions pass on fresh and cloned migrated databases.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(identity): enforce atomic personal workspaces in PostgreSQL"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/personal-organization.spec.ts backend/test/integration/auth-privileges.spec.ts`; expect missing invariant/grants failures.
+- [x] **Step 3 — Implement:** Add migrator-owned safe-path user-insert trigger, Personal/member creation, immutable owner reference and deferred final-state checks. Function privileges do not expose a general mutation API. Revoke broad inherited/default grants before granting the exact projection. Keep runtime DML only under `lexon_auth`; no app-role auth mutations. Add DB test helpers for failpoints without production failpoint flags. F18 deletion remains unavailable.
+- [x] **Step 4 — GREEN:** Re-run Step 2 and Task 1 compatibility tests; all rollback and negative privilege assertions pass on fresh and cloned migrated databases.
+- [x] **Step 5 — Commit:** `git commit -m "feat(identity): enforce atomic personal workspaces in PostgreSQL"`.
 
 ### Task 3: Add append-only audit with a transaction-bound auth writer
 

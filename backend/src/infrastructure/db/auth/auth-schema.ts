@@ -126,7 +126,9 @@ export const organization = authSchema.table('organization', {
     .default('active')
     .notNull(),
   require2fa: boolean('require2fa').default(false).notNull(),
-  personalOwnerId: text('personal_owner_id'),
+  personalOwnerId: uuid('personal_owner_id')
+    .unique()
+    .references(() => user.id),
 });
 
 export const member = authSchema.table(

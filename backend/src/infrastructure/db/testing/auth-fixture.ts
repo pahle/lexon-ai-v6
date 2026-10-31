@@ -23,7 +23,7 @@ class ProbeController {
 }
 
 export async function createAuthFixture(
-  services: { authUrl: string; migratorUrl: string },
+  services: { authUrl: string; migratorUrl: string; appUrl?: string },
   options: { rejectSignupResponse?: boolean } = {},
 ) {
   const origin = 'http://localhost:3000';

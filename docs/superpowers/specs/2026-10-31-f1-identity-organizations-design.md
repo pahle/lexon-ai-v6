@@ -793,3 +793,7 @@ Vendored guidance consulted: Better Auth integration, organization, password,
 Karpathy guidelines. `.agents/skills/README.md` conflicts remain overridden by
 the locked stack: no push migrations, cookie authorization cache, impersonation,
 social providers, unreviewed tools, or Radix components.
+
+### Implementation research supplement — Personal invariant
+
+- **R25 (2026-11-01):** PostgreSQL 17 [CREATE TRIGGER](https://www.postgresql.org/docs/17/sql-createtrigger.html), [GRANT](https://www.postgresql.org/docs/17/sql-grant.html), and [function security](https://www.postgresql.org/docs/17/sql-createfunction.html). Verified row triggers participate in the inserting transaction, deferred constraint triggers check final state, and column SELECT grants do not grant table-wide reads. Task 2 uses migrator-owned triggers with qualified references and a fixed safe search path, revoked PUBLIC execution, and exact app-role projections. Existing Better Auth 1.7.14 generated native columns remain authoritative; its additional Personal owner string is represented as a constrained UUID in Drizzle/PostgreSQL.
