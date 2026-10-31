@@ -57,3 +57,5 @@ Task 5 pins: testcontainers/@testcontainers/postgresql 12.2.1, pg/@types/pg 8.23
 Task 8 pins (2026-10-31): bullmq 6.5.3 and @nestjs/bullmq 12.0.0. Published peers explicitly accept BullMQ ^6 and Nest ^12; strict-peer install passed with ioredis 6.0.0. Native Processor/WorkerHost registration and real stalled-job recovery passed.
 
 Task 10 reverified AWS SDK client-s3/s3-request-presigner 3.1161.0 APIs and SeaweedFS 4.51 contract on 2026-10-31; no version change.
+
+Task 11 pin (2026-10-31): @nestjs/terminus 12.1.0, peer-compatible with Nest12. Its installed HealthIndicatorService.check().attempt().withTimeout() API is exercised directly; sanitized status mapping discards all library error details. Node24.22.1 fs docs read from the exact release URL.

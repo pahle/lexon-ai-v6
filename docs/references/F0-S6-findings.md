@@ -70,3 +70,14 @@ The initial presigned upload returned BadDigest: automatic CRC32 described
 the absent body at signing time. Only the presigning client now selects AWS's
 documented WHEN_REQUIRED request checksum mode; regular SDK uploads retain
 default checksum behavior. Public/internal signing endpoints are separate.
+
+## Task 11: non-HTTP worker health
+
+Terminus 12.1.0 native indicators bound hanging probes and expose only mapped
+up/down values. Snapshot/checker/writer tests cover required states, dependency
+readiness independent from liveness, standby, unexpected fields, clock edges,
+atomic replacement, EACCES invalidation/recovery, failed invalidation expiry,
+stalled heartbeat and a late shutdown write regression. The compiled checker
+returns 0 for healthy and 1 for missing/stale/unhealthy files, with empty
+stdout/stderr in all four cases. Root composition and tmpfs mounts follow in
+Tasks 12 and 15; this is not yet a running Compose topology proof.
