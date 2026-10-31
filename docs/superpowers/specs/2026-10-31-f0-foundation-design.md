@@ -1,0 +1,217 @@
+# F0 — Foundation design
+
+Date: 2026-10-31
+
+Status: Draft for approval
+
+Scope: `docs/briefs/F0-foundation.md`, including the decisions below
+
+Authority: LEX-TS-001 v1.7 and LEX-ARC-001 v1.7
+
+## Intent
+
+Give developers an empty, production-shaped foundation whose important rules are executable proofs. Later slices must be able to add features without rebuilding the workspace, tenant boundary, runtime composition, or test infrastructure. F0 implements S6 except Better Auth, which belongs to F1.
+
+Success means a fresh clone can start the local stack with one command, integration tests start their own infrastructure, and CI proves both application behavior and container topology. Merely compiling a collection of packages is insufficient.
+
+No product code, scaffolding, dependency installation, or compatibility spike has been performed during this design discussion. The repository currently contains documentation, reference tooling, and vendored skills; it has no application manifests or lockfile. Documentation research is not evidence that integrations run together.
+
+## Requirements and decisions
+
+The F0 brief remains the acceptance checklist. This document resolves its open questions and specifies the mechanisms needed to implement it.
+
+| Decision | Resolution and origin |
+| --- | --- |
+| Delivery semantics | Human decision, now in PR #3: at-least-once delivery with effectively-once PostgreSQL effects through an `ops` processed-job receipt keyed by outbox ID. Receipt and effect commit together. All later job types use the mechanism. |
+| pnpm configuration | Human-approved correction, now in PR #4: all pnpm settings, including `overrides`, live in `pnpm-workspace.yaml`. Exactly one TypeScript 6.x and one Zod 4.x remain mandatory. |
+| Brief question 1 | Human decision: Testcontainers, started once per Vitest integration run in global setup. Per-file database clones, Valkey namespaces, and S3 buckets. No pre-started stack; reuse is opt-in locally and forbidden in CI. |
+| Brief question 2 | Human choice: health file plus exec checker, separate liveness/readiness, configurable writable tmpfs path and timing, secret-free file, healthy standby dispatcher. HTTP worker probes are excluded by Architecture §3.6. |
+| Brief question 3 | Stack-prescribed compatibility gate: try `@nestjs/bullmq`; use the pre-approved thin BullMQ provider wrapper only on demonstrated incompatibility. Better Auth is F1. Any other incompatibility with the locked stack returns to the human. |
+| Brief question 4 | Human choice: remove disconnected chat UI, retain `components.json`, `base-nova`, the style-aware `@assistant-ui` registry, four exact-pinned client packages, and a stub-runtime provider render test. No chat Route Handler or server model code. |
+| CI layers | Human decision supersedes the brief's GitHub service-container wording: CI runs Testcontainers integration tests and the separate full Compose smoke/E2E layer. It does not start redundant GitHub service containers for the integration layer. |
+
+### Goals, non-goals, and failure conditions
+
+Goals are reproducible builds; enforced module boundaries; fail-closed tenant access on fresh and reused connections; crash-safe job effects; observable runtimes; S3 portability; and meaningful unit, integration, E2E, mutation, and eval runner proofs.
+
+Authentication, design tokens, app navigation, working chat, AI execution orchestration, real connectors, domain tables, document processing, encryption, production deployment, and operational receipt cleanup remain in their later slices. `word-add-in/` and `infra/` are not created.
+
+F0 fails if a runtime can accidentally use the migrator role, a domain module can bypass the database boundary, the frontend receives infrastructure credentials, a test relies on a developer's running stack, or a healthy-looking probe can remain valid indefinitely after its process stops.
+
+## Approaches considered
+
+The technology and four-runtime architecture are fixed by the source specifications. No alternative framework or application topology is introduced.
+
+For database integration tests, Compose-backed tests were considered: they are simple when developers already run the stack, but introduce prerequisites and shared mutable state. The human chose Testcontainers with run-scoped services and file-scoped resources, so one test command works independently. Compose remains the topology proof layer.
+
+For worker health, the alternatives presented were a periodically refreshed health file checked by an exec command, and an exec command requesting live status over a Unix socket. The human selected the file approach for simpler Docker/CI operation and inspection, accepting bounded failure-detection latency. A socket gives immediate responses but adds protocol and lifecycle handling. A worker HTTP listener conflicts with Architecture §3.6. A probe that starts another Nest application context cannot establish that the real worker is alive.
+
+For the frontend template, keeping a disconnected thread would preserve visible sample code, but imply a feature outside F0. The human chose removal while retaining registry configuration and explicit package compatibility proof, so F4 can add chat without re-scaffolding.
+
+## Workspace and boundaries
+
+Create exactly four workspace packages: `backend/`, `frontend/`, `shared/`, and `evals/`. The root is a private orchestration manifest, not another application package. Every manifest declares ESM. Node 24 LTS, pnpm, dependencies, and container images are exact-pinned; Node's selected patch must also satisfy the Nest CLI generator's Node 24 minimum. Commit the lockfile. Root workspace overrides enforce single TypeScript 6.x and Zod 4.x resolutions.
+
+Use Nest's ESM scaffold and assistant-ui's `default` template, then align them before installation. Replace the frontend template's TypeScript 7 and oxlint/oxfmt settings with TypeScript 6 and ESLint flat config/Prettier, as required by Stack §2 and §7. Record scaffold CLI versions and resolved dependency versions with the S6 findings. Do not add vendor skills through scaffolding.
+
+Root commands are `dev`, `build`, `lint`, `typecheck`, `test`, `test:e2e`, and `format`; package commands work through `pnpm --filter`. The builder may choose script filenames and package names other than the required `@lexon/contracts`. Root `dev` starts the complete Compose development stack, including ordered migration/bootstrap, without asking developers to start dependencies separately. Backend package development can select an entrypoint; documented frontend development uses the API rewrite.
+
+ESLint enforces the brief's entire import matrix, including package names, aliases, relative paths, and package subpaths. Domain modules expose a public `index.ts`; database and AI imports stay in their respective infrastructure folders. Frontend AI SDK client imports explicitly approved above are allowed; provider imports, server-only model execution, and backend/data-driver imports are forbidden. `evals/` cannot import backend code. `shared/` cannot import any workspace package or Node-only API. Include negative fixtures and positive controls for each rule, including misleading relative paths and aliases. Resolve paths rather than trusting textual package prefixes alone. Fixture execution is part of `lint`.
+
+Infrastructure implementation and test-only privileged helpers stay inside their permitted boundary. Do not exempt all test files from the import rules. Root tooling is not a runtime escape hatch.
+
+## Contracts and frontend proof
+
+`@lexon/contracts` contains browser-safe types, schemas, and interfaces only. It establishes UUID IDs, a versioned event envelope, error and pagination shapes, a health/version response, and one diagnostic input schema. The builder chooses the minimal fields and pagination convention and documents them before coding; no unused domain contracts are added.
+
+Architectural clarification, proposed by the designer: the shared package defines the typed API contract/interface and response schemas; the executable fetch client lives in `frontend/src/lib`, consistent with Architecture §3.4's folder layout and the prohibition on business logic in `shared/`. There is no HTTP client implementation in the contracts package.
+
+Use `GET /api/health` for the required version/readiness response, plus a dependency-independent API liveness route. A minimal diagnostic POST validates its body using the shared Zod schema on a Nest route decorator through Standard Schema. Invalid input returns HTTP 400 with the shared error shape and sanitized field issues; it does not echo supplied values. The endpoint has no persistence or domain behavior.
+
+The frontend proves TanStack Query fetching through same-origin `/api`, React Hook Form using that same diagnostic schema, and a Server Component request through `BACKEND_INTERNAL_URL`. It handles loading, unavailable backend, and validation errors. Development rewrites preserve the one-origin browser flow. Keep empty `(auth)` and `(workspace)` route groups and no-op `proxy.ts`; no auth redirects.
+
+Retain `components.json` with `style: base-nova` and registry `@assistant-ui: https://r.assistant-ui.com/styles/{style}/{name}.json`. Keep exact versions of `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk`, `ai` 7.x, and `@ai-sdk/react` 4.x. One small React 19/TypeScript 6 test renders `AssistantRuntimeProvider` using a real supported runtime constructed around a stub adapter, with a child that consumes runtime state. No unsafe type-cast fake runtime, model invocation, network, or Route Handler is needed. The provider need not wrap the F0 application. Verify the adapter packages' exports compile as well. Delete `app/api/chat` and all template server-side provider/model code.
+
+## Runtime composition, configuration, and logging
+
+Follow Architecture §3.4 for folders. F0 has only the `platform` domain module and infrastructure folders `db`, `storage`, `queue`, `ai`, and `telemetry`. Four independent root modules select their actual dependencies:
+
+| Entrypoint | F0 responsibilities | Readiness dependencies |
+| --- | --- | --- |
+| API | HTTP, validation/health, queue producer wiring; no processors | Postgres, Valkey, S3 |
+| AI worker | Application context, no-op processor, AI/MCP compatibility providers | Postgres, Valkey |
+| Document worker | Application context, document-worker composition/storage proof; no AI import | Postgres, Valkey, S3 |
+| Dispatcher | Application context, platform outbox, lock/listen/poll, queue producer | Postgres, Valkey |
+
+Register processors only in workers. A test-only no-op registration can exercise each worker without defining future domain queues in production. Reusable bootstrap helpers must not import every infrastructure module through one eager barrel. Verify the document-worker's reachable import/module graph excludes `infrastructure/ai`; container-network tests independently prove egress isolation.
+
+Each root module validates only its configuration via `@nestjs/config` and Zod. Validate pool size, statement timeout, polling/backoff, health path, heartbeat interval, staleness threshold, and probe timeouts. Require positive timings and a staleness budget greater than the normal heartbeat/check cycle. Only the AI configuration path may accept model credentials; F0 boot and tests need no real provider key because live inference is absent. Queue, streams, and limiter URLs remain separate settings. No unused secrets are required to boot a runtime.
+
+All entrypoints use `nestjs-pino`. Request IDs are accepted/created under a bounded safe format and propagated in HTTP responses/log context. Background logs use operational job/request correlation IDs without content. Redact authorization/cookie headers, password/token/secret/API-key variants, and content fields including prompts, message bodies, document text, and payloads. Prefer allowlisted operational log fields; do not log request bodies, raw environment objects, database URLs, provider errors, or arbitrary nested payloads. Tests capture real serialized output and assert sentinel secret/content values never appear, including error and boot-failure paths.
+
+Graceful shutdown stops new work, marks readiness down, closes processors/listeners/pools, and removes or invalidates health status. No unbounded shutdown wait.
+
+## Worker health
+
+The actual running process evaluates Terminus indicators and atomically replaces a status file under a configurable writable tmpfs path, for example `/run/lexon/health/status.json`. Write a temporary file in the same directory and rename it; partial writes must never appear healthy. Each container owns its file. The mount is explicit in Compose and supports a later read-only root filesystem without redesign.
+
+The file contains only statuses, timestamps, and dependency names. Activity can be represented as status `active`/`standby`; exclude hosts, connection strings, exception messages, and credentials. Liveness records a functioning process/event loop; readiness additionally reflects bounded dependency checks and required startup configuration. Dependency failure must not be confused with an unresponsive process. Heartbeat updates cannot conceal a stalled work loop. API health uses the same indicator implementations through HTTP.
+
+The exec checker accepts liveness/readiness mode, validates file shape and timestamps, rejects missing, malformed, stale, future-dated outside allowed clock tolerance, or unhealthy files, and exits nonzero without printing file contents. Docker health uses readiness; liveness remains independently inspectable. Unit tests cover the human's four required cases plus malformed/partial input. Test process-side write failure and recovery, rather than only testing the reader.
+
+On a write failure the process sets internal health to unhealthy, emits a sanitized operational event, and attempts to invalidate the previous status file. If the filesystem also prevents invalidation, externally observable failure is bounded by that file's staleness threshold. Do not silently continue claiming healthy or rely on a second process's successful dependency probes. Recovery requires a successful fresh status write.
+
+A dispatcher awaiting its advisory lock is live and ready when dependencies are healthy, with status `standby`. Loss of its lock connection immediately disables dispatching and makes readiness down until it reconnects and establishes either standby or active state.
+
+## Database and tenant access
+
+Use PostgreSQL 17, `pg_trgm`, Drizzle with node-postgres, and versioned SQL under `backend/drizzle/`. Create `app`, `auth`, and `ops` with the exact roles and grants in Architecture §3.2. Only migration execution uses `lexon_migrator`; application pools use `lexon_app`. `lexon_auth` is provisioned for F1 but F0 does not run Better Auth or require an auth pool in each runtime.
+
+Bootstrap needs an existing administrative identity to provision the migrator login and narrowly required setup privileges; a role cannot create itself. Designer proposal: a local/test-only bootstrap step supplies that identity, then migrations connect as `lexon_migrator` and perform versioned application-role creation, schema ownership, grants, extension, and table changes. Keep admin credentials out of runtime containers. Validate the precise PostgreSQL role-membership requirements during planning; do not make the migrator a runtime superuser as a shortcut. Bootstrap passwords come from secret input, not committed SQL. Repeated migrations must not reset credentials unexpectedly.
+
+`withTenant(ctx, fn)` validates explicit UUID tenant/user context, rejects absent org ID, acquires one client, begins a transaction, and sets `app.org_id` and `app.user_id` with parameterized transaction-local `set_config`. All callback work uses that transaction, followed by commit or rollback and guaranteed release. Context never comes from global state. When user ID is absent in the permitted F0 test context, set a deliberate empty value instead of inheriting anything. Validate present IDs before touching the database.
+
+Expose an opaque transaction-bound repository/session interface, not `pg` clients, pools, Drizzle connection objects, or unrestricted out-of-transaction access. Operations cannot retain a usable session after the callback ends. Query implementations and Drizzle imports remain inside `infrastructure/db`; domain services use its public interfaces. Use a neutral authorization-predicate representation that the db adapter translates to SQL. F0's predicate adds org equality; future project/ethical-wall predicates extend it in F6. Prove the builder separately and its use in the fixture read path.
+
+The tenanted test table is installed by db test fixtures, not product migrations. Its policy has both `USING` and `WITH CHECK` equal to `org_id = NULLIF(current_setting('app.org_id', true), '')::uuid`, with enabled and forced RLS. Use actual `lexon_app` sessions for security tests. Prove fresh-context absence, pooled reuse after commit and rollback, cross-tenant SELECT/UPDATE/DELETE/INSERT rejection, and lack of ownership/BYPASSRLS/RLS-disable/auth-secret access. Test auth restrictions with fixture-only auth tables; F1 owns real auth schema tables. Privileged fixture setup is never mistaken for the application access path.
+
+## Outbox, receipts, and queues
+
+`ops.outbox` records UUID ID, job type, schema-validated metadata payload, created/claimed/sent timestamps, attempt count, and retry eligibility as needed. Payloads contain IDs and operational metadata only, never document text, prompts, or credentials. `ops.processed_jobs` has an outbox-ID primary key and processing timestamp; receipt records have no client content. F0 performs no receipt deletion; document configurable retention exceeding every permitted redelivery window and leave the cleanup operation to a later operational slice.
+
+The dispatcher maintains a dedicated session for the advisory lock, and a dedicated LISTEN session if needed. Do not return session-scoped lock/listener connections to the pool. Establish LISTEN, then scan existing eligible work; notifications are hints and polling closes missed-notification gaps. Standby dispatchers do not claim or enqueue work.
+
+Claim eligible rows with `FOR UPDATE SKIP LOCKED`, enqueue with job ID equal to outbox ID, and mark sent only after enqueue succeeds. Use bounded enqueue timeouts and bounded batches. A crash after enqueue but before marking sent intentionally allows replay. On failure retain unsent work and retry with configurable capped backoff, without a tight loop. Record attempts safely even when a claim transaction rolls back. Do not permanently skip rows merely because an earlier claim timestamp exists. The builder selects short claim transactions with recoverable leases or a bounded lock-held transaction and documents recovery; it must prove crash recovery and avoid indefinite database locks during Valkey outages.
+
+The shared worker execution mechanism validates job type/payload and tenant context, then starts the same tenant transaction used for the handler's database work. First attempt a unique receipt insert (`ON CONFLICT DO NOTHING` with a returned winner indicator), then run the handler only if that transaction acquired the receipt. Effect and receipt commit atomically. A conflict waits for the competing transaction's outcome; a committed receipt skips the handler and acknowledges, while rollback allows another attempt. Never implement this as an unlocked receipt SELECT followed by a later insert. PostgreSQL permits the same `lexon_app` transaction to write `ops` and RLS-protected `app` tables.
+
+The F0 no-op handler's observable effect is a fixture-only row/counter update. Prove concurrent duplicates, retry after rollback, process death before commit, process death after commit before BullMQ acknowledgement, and redelivery after BullMQ cleanup. Receipt writes do not occur in a separate connection/transaction from the effect. Retry/re-enqueue uses the same outbox ID; an intentionally new operation gets a new ID.
+
+This transaction guarantee covers PostgreSQL effects. An external model call, object-store write, or remote MCP action cannot be atomically committed with PostgreSQL; later slices must combine this mechanism with provider idempotency or explicit reconciliation and cannot claim that a receipt alone prevents duplicate external effects. F0 introduces no such handler.
+
+Prefer `@nestjs/bullmq` with BullMQ 6 and verify ESM construction, processing, configured retry/backoff, and deduplication. Record actual compatibility results before selecting the pre-approved wrapper fallback. Configure bounded age/count removal for completed/failed jobs; the durable receipt survives queue cleanup. F0 creates only queues needed by its proofs, following the architecture's `ai-*` and `doc-*` names.
+
+All runtimes check Valkey connectivity; startup/readiness verifies `noeviction`, AOF enabled, and `appendfsync everysec`. The API refuses readiness on a policy violation. Use separately configured queue/streams/limiter connections and namespaced keys. S6 includes a minimal Streams round trip without building F4's stream hub.
+
+## Storage and compatibility proofs
+
+The S3 port lives in `infrastructure/storage`, implemented using AWS SDK v3. Contract tests against real SeaweedFS exercise put/get, byte-range get with exact returned bytes, delete, and a presigned PUT performed over HTTP. Inject endpoints and credentials; presigned URLs must be reachable from the caller's network. No encryption or client-document fixture is needed. API/document-worker readiness uses a bounded, non-destructive storage dependency probe.
+
+Inside `infrastructure/ai`, prove AI SDK 7 plus OpenRouter provider 3.x build/run in ESM. Construct the provider without making a live request; stream using the SDK's supported mock model and assert chunks/completion. No CI network/model call or CJS shim. Define a reviewed model-allowlist schema/file with no enabled production models; F3 populates it. Keep real model access impossible without a reviewed entry.
+
+MCP v2 client imports/constructs in the same ESM environment. The official SDK documents testing support; planning must verify the exact pinned v2 release's available transport/harness and prefer an in-process server exchange. Only if that release lacks usable support may the brief's compile-and-construct fallback be recorded. Do not silently substitute v1 imports. Real connector management belongs to F16.
+
+## Containers and test infrastructure
+
+One backend Dockerfile supplies four targets, each launching its own entrypoint. Document worker has no F7 OCR/ClamAV/LibreOffice tooling yet. Frontend has its own Dockerfile. Each service has explicit CPU/memory limits and exact image tag/digest pins, following the stack's stronger digest requirement.
+
+Designer proposal for shared pins: a checked-in root `config/container-images.env` contains literal `tag@sha256:digest` references. Compose uses required variable interpolation supplied by the root command; Testcontainers reads the same file. Do not duplicate defaults in YAML, tests, or CI. A static check rejects unresolved variables and divergent image references. Bootstrap/migrations use these same PostgreSQL pins. Local and CI code paths pass the manifest explicitly.
+
+Compose defines `edge`, `egress`, internal `core`, and internal `sandbox` with membership from Architecture §2.2. Document worker joins only `core` and `sandbox`; frontend joins only `edge` and receives only non-secret API/presentation configuration. Because frontend must have no egress, explicitly prevent an outbound route on its network, rather than assuming the name `edge` restricts traffic. API can join `edge`, `core`, and `egress`. No frontend data-plane credentials or core membership.
+
+`pnpm test` runs unit/integration projects without pre-started services. The integration project's Vitest global setup starts one Postgres, one authenticated/persistent-policy Valkey, and one SeaweedFS topology per invocation, migrates a template database, closes template connections, and shares only serializable endpoints/namespace metadata with test workers via `provide`/`inject`. Each file clones the template to a unique database, owns a Valkey prefix (including BullMQ's supported queue prefix), and owns an S3 bucket; cleanup is scoped to that file. PostgreSQL roles are cluster-global: provision them once, do not drop/recreate them per file. Template cloning must not overlap open template connections. Limit concurrency to a documented development memory budget.
+
+Use the same backend integration configuration when filtered. Root multi-project execution must attach infrastructure setup once, not independently to every workspace project. Independent filtered invocations are separate runs and receive separate containers. Unit-only/shared/frontend/evals projects need no containers unless they actually exercise infrastructure. Opt-in reuse still creates fresh per-run/per-file namespaces, never reuses an old migrated template blindly, and is rejected in CI. Global teardown handles normal completion and failures; Testcontainers' cleanup handles abandoned runs.
+
+`pnpm test:e2e` starts a uniquely named full Compose stack, waits for health, runs Playwright browser and APIRequestContext cases, checks all four runtimes, tests standby/failover as appropriate, and verifies document-worker no-egress plus Valkey settings. Capture sanitized diagnostics and tear down only that run's resources. Prove no-egress using direct-IP connections to controlled off-network endpoints with a successful control from an egress-enabled runtime; DNS failure alone is insufficient. Prove permitted core dependencies remain reachable. Do not rely on a public website's availability as the only isolation oracle.
+
+## Quality gates and completion evidence
+
+TDD applies to every production behavior: add the meaningful failing proof first. Use Vitest, `@nestjs/testing`, ephemeral HTTP ports, and native `fetch`, never Supertest. Follow the Nest 12 scaffold's decorator transform and verify real constructor injection with emitted metadata; do not conceal missing metadata by adding explicit injection tokens everywhere.
+
+| Proof group | Required evidence |
+| --- | --- |
+| Toolchain | Four packages build/typecheck; ESM entrypoints boot; exact single TS/Zod resolutions; retained assistant-ui packages compile/render. |
+| Boundaries | Every prohibited import fails lint with its rule identified; legitimate public imports pass. |
+| Configuration/privacy | Per-runtime missing/invalid values fail boot without values; redaction holds for HTTP/background/errors. |
+| Tenant database | Fresh/reused connections fail closed; complete cross-tenant and role/grant tests; explicit transaction and predicate behavior. |
+| Jobs | Processing/backoff/outage recovery, standby/lock takeover, cleanup redelivery, rollback/concurrency, crash-after-commit receipt proof. |
+| Storage/AI/MCP | Real S3 contract, mocked stream, provider construction, v2 MCP proof, Streams round trip. |
+| Topology | Full Compose health, browser/API cases, internal dependencies reachable, document-worker internet unreachable, Valkey configuration rejection. |
+| Mutation/evals | Stryker runs against db and platform with a recorded baseline and no threshold; evals boots its own standalone Nest context and passes one trivial case. |
+
+The eval harness owns a minimal F0 Nest module and imports only allowed contracts/framework dependencies, never backend internals; F3 owns its real engine integration design. Stryker uses the verified Vitest transform/config, records selected files, versions, score, and exclusions, and must not quietly exclude the meaningful db/platform logic. Provide an executable documented mutation command; F0 does not require it on every PR.
+
+GitHub Actions runs frozen-lockfile install, per-package lint/typecheck/build, root/package-equivalent unit/integration coverage with Testcontainers, and full Compose E2E on PRs. Do not run only unit tests in CI while calling them integration coverage. The builder may split jobs for speed without duplicating the infrastructure source of truth. Unit-suite time under a minute is a target, not a gate on image pull/build/integration time.
+
+README covers prerequisites (including Docker), `.env.example`, one-command start, each test layer, runtime selection, and migrations. Each backend infrastructure folder has a page explaining its boundary and public usage. Record S6 resolved versions, evidence, fallback choice, and unresolved failures. A failed required compatibility check blocks completion; propose source-spec revisions explicitly rather than silently changing technologies.
+
+## Research notes
+
+Read date for every entry: **2026-10-31**. Versions below are the locked baseline or the official documentation line, not invented exact package pins. No application packages are installed yet. LEX-TS-001 expressly leaves exact patches to scaffolding; planning must resolve exact releases and inspect their package metadata/changelogs, including test-runner peer support, before each relevant task. These notes distinguish documented APIs from S6 runtime evidence that remains to be produced.
+
+| ID | Official source and version | Decision supported / verification limit |
+| --- | --- | --- |
+| R01 | [pnpm workspaces](https://pnpm.io/workspaces), [configuration](https://pnpm.io/package_json), [overrides](https://pnpm.io/settings/dependency-resolution#overrides); current 12.x docs | Workspace protocol, one lockfile, YAML settings/overrides. Package.json configuration mismatch resolved by approved PR #4. Exact pnpm release still to pin. |
+| R02 | [Nest migration guide](https://docs.nestjs.com/migration-guide); 11 → 12 | ESM packages, TS6 schematics, Node 24 generator minimum, Standard Schema config/validation, Terminus v12 indicator changes. Use modern indicator service rather than removed legacy APIs. |
+| R03 | [Nest testing](https://docs.nestjs.com/fundamentals/testing), [standalone](https://docs.nestjs.com/standalone-applications), [validation](https://docs.nestjs.com/techniques/validation); 12 | Vitest and testing module APIs, application contexts, route schema support. Metadata transform must be proven with the exact scaffold and Stryker. |
+| R04 | [Nest Terminus](https://docs.nestjs.com/recipes/terminus), [configuration](https://docs.nestjs.com/techniques/configuration); 12-compatible line | Dependency indicators and boot validation; worker file adapter is Lexon design, not a claimed built-in Terminus facility. |
+| R05 | [nestjs-pino README](https://github.com/iamolegga/nestjs-pino); current docs, exact version pending | Logging/provider integration. Nested redaction and Nest 12 compatibility require tests, not assumptions about wildcard coverage. |
+| R06 | [AI SDK introduction](https://ai-sdk.dev/docs/introduction), [mock-model testing](https://ai-sdk.dev/docs/ai-sdk-core/testing), [Nest cookbook](https://ai-sdk.dev/cookbook/api-servers/nest); v7 | Mock streaming proof and ESM server use. Cookbook direct-generation placement does not override Lexon's worker architecture. |
+| R07 | [OpenRouter provider README](https://github.com/OpenRouterTeam/ai-sdk-provider); 3.x targeting AI SDK 7 | README explicitly states `ai@^7`, ESM-only, Node ≥22. Runtime proof remains required. |
+| R08 | [MCP SDKs](https://modelcontextprotocol.io/docs/2026-07-28/sdk), [v2 client](https://ts.sdk.modelcontextprotocol.io/v2/get-started/first-client.html), [v2 testing](https://ts.sdk.modelcontextprotocol.io/v2/testing.html); v2 / protocol 2026-07-28 | Separate client package and constructor, testing support discovery. Avoid root TypeScript SDK site defaulting to v1; verify exact-release in-process APIs during planning. |
+| R09 | [Next rewrites](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites), [proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy); 16 | Same-origin development forwarding and no-op proxy convention. Route groups per the locked Next App Router structure. |
+| R10 | [assistant-ui index](https://www.assistant-ui.com/llms.txt), [CLI](https://www.assistant-ui.com/docs/cli), [Base UI registry](https://www.assistant-ui.com/docs/base-ui); React package 0.15.x / AI SDK 7 integration | Default scaffold; style-aware registry URL confirmed. Stub runtime/provider APIs additionally routed through vendored runtime skill; exact package render proof required. |
+| R11 | [shadcn installation](https://ui.shadcn.com/docs/installation), [Base UI quick start](https://base-ui.com/react/overview/quick-start); `base-nova`, Base UI 1.x | Base UI component foundation and retained registry configuration, no Radix substitution. |
+| R12 | [TanStack Query overview](https://tanstack.com/query/latest/docs/framework/react/overview), [React Hook Form start](https://react-hook-form.com/get-started); current Query docs, RHF v7 docs | Query/provider and schema-resolver form roles; exact releases selected at scaffold. |
+| R13 | [Zod 4 notes](https://zod.dev/v4), [Standard Schema](https://standardschema.dev/); Zod 4.x | Shared validation contracts and standard interface; single-version constraint. |
+| R14 | [Drizzle PostgreSQL](https://orm.drizzle.team/docs/get-started-postgresql), [node-postgres transactions](https://node-postgres.com/features/transactions); exact driver/ORM versions pending | Native node-postgres adapter and same-client transaction requirement. Resolve Drizzle release/migration APIs before implementation; do not guess across its version lines. |
+| R15 | [Postgres RLS](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), [administration functions](https://www.postgresql.org/docs/17/functions-admin.html), [locking](https://www.postgresql.org/docs/17/explicit-locking.html), [LISTEN](https://www.postgresql.org/docs/17/sql-listen.html); 17 | RLS/owner restrictions, transaction-local context, advisory session locks, and notifications as non-durable hints. Test NULLIF reuse behavior against real Postgres. |
+| R16 | [CREATE DATABASE](https://www.postgresql.org/docs/17/sql-createdatabase.html); 17 | Template cloning, administrative privileges, and closing template sessions. Roles remain cluster-scoped rather than database fixtures. |
+| R17 | [BullMQ changelog](https://docs.bullmq.io/changelog), [job IDs](https://docs.bullmq.io/guide/jobs/job-ids), [cleanup](https://docs.bullmq.io/guide/queues/auto-removal-of-jobs), [Nest queues](https://docs.nestjs.com/techniques/queues); BullMQ 6, changelog 6.5.0 dated 2026-10-26 | ID deduplication disappears after removal; durable PostgreSQL receipt needed. Nest integration compatibility is an S6 result, not inferred from its docs. |
+| R18 | [Valkey persistence](https://valkey.io/topics/persistence/); 9.0.x ≥9.0.6 baseline | AOF configuration/persistence roles. Locked noeviction/connection policies checked at startup and in topology tests. |
+| R19 | [SeaweedFS S3 API](https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API), [AWS JS S3 examples](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/javascript_s3_code_examples.html); SeaweedFS 4.x, AWS SDK v3 | S3 port and real gateway contract, presigned request and range operations. Actual image/API behavior is proven by contract tests. |
+| R20 | [Docker networking](https://docs.docker.com/compose/how-tos/networking/); Compose v2/current spec | Internal networks have no external gateway, but joining a non-internal network adds a path. Check actual memberships/routes in E2E. Resource/mount/build options must be checked against exact Compose release during planning. |
+| R21 | [Vitest global setup](https://vitest.dev/config/globalsetup), [Testcontainers containers](https://node.testcontainers.org/features/containers/), [Postgres module](https://node.testcontainers.org/modules/postgresql/); exact stable versions pending | Global setup has separate scope; share serializable data via provide/inject. Containers are run-scoped, file resources separate. Do not select a beta merely because a vendored skill discusses one. |
+| R22 | [Playwright setup/teardown](https://playwright.dev/docs/test-global-setup-teardown), [Stryker Vitest runner](https://stryker-mutator.io/docs/stryker-js/vitest-runner/); exact releases pending | Setup/teardown ownership and Vitest mutation runner; verify runner peer compatibility and metadata. |
+| R23 | [ESLint restricted imports](https://eslint.org/docs/latest/rules/no-restricted-imports), [Actions container services](https://docs.github.com/en/actions/tutorials/use-containerized-services/use-docker-service-containers); current docs | Import restrictions and Linux runner container networking. Human's Testcontainers choice replaces predeclared Actions service containers. |
+| R24 | [TypeScript 6 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html), [Node 24 API](https://nodejs.org/docs/latest-v24.x/api/); TS6, Node24 | Modern compiler/runtime line; patch must meet Nest generator floor. |
+| R25 | [Tailwind Next installation](https://tailwindcss.com/docs/installation/framework-guides/nextjs), [Lucide React](https://lucide.dev/guide/react); Tailwind4, exact Lucide release pending | Retained frontend styling/icon toolchain; no F2 design system work. |
+
+Vendored skills were consulted alongside `.agents/skills/README.md`; its conflict table applies. OpenRouter replaces gateway defaults, model execution stays in workers, hosted assistant runtimes are absent, Base UI replaces Radix examples, and project network/tooling requirements override generic recommendations.
+
+## Left to the builder
+
+Choose exact patches within the locked baselines after official release/peer research; minimal contract field names; finite operational defaults; fixture names; script filenames; CI job partitioning; the concrete recoverable outbox-claim implementation; and the exact MCP test harness. Record these as implementation decisions and verify them with the prescribed proofs. None permits changing runtime boundaries, weakening isolation, skipping required tests, or changing a locked technology silently.
+
+After human approval of this document, invoke `superpowers:writing-plans`. The plan must cite the research notes, re-check official documentation for each task, and sequence failing proofs before production code. Approval of this design is not authorization to skip the plan.
