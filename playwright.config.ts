@@ -13,5 +13,22 @@ export default defineConfig({
       name: 'runtime-health',
       testMatch: 'backend/test/e2e/runtime-health.spec.ts',
     },
+    { name: 'backend-api', testMatch: 'backend/test/e2e/api.spec.ts' },
+    {
+      name: 'frontend-browser',
+      testMatch: 'frontend/test/e2e/health-page.spec.ts',
+    },
+    {
+      name: 'topology',
+      testMatch: [
+        'backend/test/e2e/topology.spec.ts',
+        'backend/test/e2e/valkey-policy.spec.ts',
+      ],
+    },
+    {
+      name: 'evaluation-smoke',
+      testMatch: 'backend/test/e2e/api.spec.ts',
+      grep: /evaluation export/,
+    },
   ],
 });

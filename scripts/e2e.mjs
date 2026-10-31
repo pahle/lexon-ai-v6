@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
+import { withOwnedStack } from './e2e-lifecycle.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 async function port() {
   const server = createServer();
@@ -30,9 +31,9 @@ const directory = await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
 const secret = () => randomBytes(24).toString('hex');
 let env;
-let stopping = false;
+const controller = new AbortController();
 const stop = () => {
-  stopping = true;
+  controller.abort();
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
@@ -53,49 +54,66 @@ try {
     },
     directory,
   );
-  await run('docker', composeArgs(project, ['config', '--quiet']), {
-    env,
-    quiet: true,
-  });
-  await run('docker', composeArgs(project, ['build']), { env });
-  if (stopping) throw new Error('E2E interrupted');
-  await run(
-    'docker',
-    composeArgs(project, ['up', '--detach', '--wait', '--wait-timeout', '180']),
-    { env },
-  );
-  if (stopping) throw new Error('E2E interrupted');
-  const descriptor = {
+  env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
+  const files = [root + 'backend/test/e2e/compose.egress-probe.yml'];
+  await withOwnedStack({
     project,
-    apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
-    frontendUrl: `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`,
-  };
-  await run(
-    process.execPath,
-    [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
-    {
-      env: { ...process.env, LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor) },
+    directory,
+    signal: controller.signal,
+    async start(signal) {
+      await run('docker', composeArgs(project, ['config', '--quiet'], files), {
+        env,
+        quiet: true,
+        signal,
+      });
+      await run('docker', composeArgs(project, ['build'], files), {
+        env,
+        signal,
+      });
+      await run(
+        'docker',
+        composeArgs(
+          project,
+          ['up', '--detach', '--wait', '--wait-timeout', '180'],
+          files,
+        ),
+        { env, signal },
+      );
     },
-  );
+    async exercise(signal) {
+      const descriptor = {
+        project,
+        apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
+        frontendUrl: `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`,
+      };
+      await run(
+        process.execPath,
+        [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
+        {
+          env: {
+            ...process.env,
+            LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+          },
+          signal,
+        },
+      );
+    },
+    down: () =>
+      run(
+        'docker',
+        composeArgs(
+          project,
+          ['down', '--volumes', '--remove-orphans', '--timeout', '12'],
+          files,
+        ),
+        { env, quiet: true },
+      ),
+    remove: (directory) => rm(directory, { recursive: true, force: true }),
+  });
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
 } finally {
-  if (env)
-    await run(
-      'docker',
-      composeArgs(project, [
-        'down',
-        '--volumes',
-        '--remove-orphans',
-        '--timeout',
-        '12',
-      ]),
-      { env, quiet: true },
-    ).catch(() => {
-      console.error('E2E cleanup failed');
-      process.exitCode = 1;
-    });
   process.off('SIGINT', stop);
   process.off('SIGTERM', stop);
   await rm(directory, { recursive: true, force: true });

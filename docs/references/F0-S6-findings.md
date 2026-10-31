@@ -170,3 +170,25 @@ a fresh lexon-dev stack using temporary local .env credentials and separate
 host ports, returned version0.0.1, and was removed with only its own resources.
 No data-plane host ports are published. Frontend's development edge remains
 non-internal; the F20 no-egress gap is explicitly retained.
+
+## Task 16: browser/API and actual topology
+
+Playwright1.64.1 exercises SSR and browser health/version agreement, same-origin
+requests, local invalid UUID with no POST, exact valid POST, shared API response
+schemas and absence of chat routes. The built image boots its public evaluation
+export from the backend package directory. Frontend environment/static assets
+are checked against the run's actual infrastructure credential sentinels.
+
+Actual Docker membership is inspected. An API direct-IP TCP connection reaches
+the controlled fixed-response endpoint on egress; the same connection from the
+document worker fails, while its Postgres/Valkey/S3 core connections and
+readiness pass. No DNS/public-internet oracle is used. Frontend is edge-only;
+its outbound-connectivity gap is intentionally deferred to F20.
+
+Native CONFIG GET proves noeviction/AOF/everysec. A separate nested Compose
+project rejects each wrong setting with API exit1, then correct settings boot
+healthy. Successful one-shot jobs use compose wait, rather than up --wait's
+running-state requirement. Test fixtures use same-package working directories
+for Node self exports and distinguish the form's alert from Next's announcer.
+Cleanup unit tests verify failed startup, abort and failed teardown always
+remove only owned resources/private files; signals propagate to child commands.

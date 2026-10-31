@@ -1,0 +1,21 @@
+services:
+  network-control:
+    image: ${NODE_IMAGE:?}
+    user: node
+    read_only: true
+    command: [node, /probe.mjs]
+    volumes: ['${NETWORK_CONTROL_PATH:?}:/probe.mjs:ro']
+    networks: [egress]
+    mem_limit: 64m
+    cpus: 0.1
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:7777').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20

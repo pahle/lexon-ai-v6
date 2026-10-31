@@ -56,3 +56,17 @@ Backend roots run as non-root with read-only filesystems and writable tmpfs for
 health and temporary files. Frontend remains off core and secret-free; outbound
 connectivity on the non-internal development edge is the recorded F0 gap, with
 frontend no-egress enforcement deferred to F20.
+
+E2E project filters are `runtime-health`, `backend-api`, `frontend-browser`,
+`topology`, and `evaluation-smoke`. `pnpm --filter @lexon/backend test:e2e`
+runs runtime/API/topology checks; frontend runs the browser project; contracts
+runs the shared API contract project; evals runs the image's public evaluation
+context proof. All launch their own real stack, including when filtered.
+
+The topology test uses a fixed-response endpoint on egress and a direct-IP
+TCP attempt. API reachability is the positive control before document-worker
+failure is accepted; core services must remain reachable from that worker.
+Wrong Valkey policy/AOF/fsync cases run serially in a separate nested project,
+then correct settings recover. These tests never reconfigure the integration
+bed or an existing development project. Startup interruption and failure both
+tear down the owned E2E project and remove its private credential directory.

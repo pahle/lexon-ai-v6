@@ -17,7 +17,7 @@ export async function docker(args: string[]): Promise<string> {
   return (
     await promisify(execFile)('docker', args, {
       timeout: 30000,
-      maxBuffer: 1024 * 1024,
+      maxBuffer: 16 * 1024 * 1024,
     })
   ).stdout.trim();
 }
