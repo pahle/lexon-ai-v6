@@ -10,8 +10,7 @@ pause F1 until the branch rename/handoff work was done (done).
 
 ### Housekeeping in flight
 
-- PR #8 (`AGENTS.md` on `main` names `brief-generator`) waits for the product
-  owner to merge.
+- PR #8 (`AGENTS.md` on `main` names `brief-generator`) is merged.
 - Remote branches `contaminated`, `f0-foundation`, and
   `claude/focused-shannon-b5cmwe` are obsolete; the product owner deletes
   them on GitHub (the brief generator's sandbox could not delete refs).
