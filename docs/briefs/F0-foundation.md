@@ -31,7 +31,7 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
 
 1. A pnpm workspace at the repository root with exactly these packages:
    `backend/`, `frontend/`, `shared/`, `evals/`. `word-add-in/` is created in
-   F18; `infra/` is created in F19. `docs/` already exists. ESM only
+   F19; `infra/` is created in F20. `docs/` already exists. ESM only
    (`"type": "module"` everywhere).
 2. One TypeScript 6.x and one Zod 4.x for the whole workspace, enforced with
    `pnpm.overrides`. All dependency versions are pinned exactly, and a
@@ -112,7 +112,7 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
 14. **MCP client smoke proof:** `@modelcontextprotocol/client` v2 imports and
     constructs in the same project. A test talks to an in-process test server
     if the SDK provides one; otherwise this is a compile-and-construct check.
-    Real connectors are F15.
+    Real connectors are F16.
 
 ### Database (`backend/src/infrastructure/db`, `backend/drizzle/`)
 
@@ -141,7 +141,7 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     Later slices copy this pattern exactly.
 19. A central **authorization predicate builder**: an interface and its first
     implementation. Every later read path must go through it. In F0 it only
-    adds the org filter, and project and ethical-wall filters are added in F5.
+    adds the org filter, and project and ethical-wall filters are added in F6.
     It is tested on its own.
 20. **Fail-closed proof (mandatory tests):** with a tenanted test table under
     the policy pattern:
@@ -187,7 +187,7 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     - TanStack Query; React Hook Form with the Zod resolver
 25. **The template's `app/api/chat` Route Handler and any direct model call
     are removed.** The frontend holds no server secrets and calls no model.
-    Chat is wired to the backend in F3. The template's thread UI may remain
+    Chat is wired to the backend in F4. The template's thread UI may remain
     as a static, disconnected shell, or be removed; F2 decides the layout.
 26. In development, `rewrites` forward `/api/*` to the backend (LEX-ARC-001
     §3.5), so the browser talks to one origin.
@@ -213,11 +213,11 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
 29. Networks as in LEX-ARC-001 §2.2 (`edge`, `egress`, `core` internal,
     `sandbox` internal). `document-worker` is on `core` and `sandbox` only.
     **A test proves that `document-worker` cannot reach the internet.** ClamAV
-    and the LibreOffice sandbox are added in F6, but their network slot
+    and the LibreOffice sandbox are added in F7, but their network slot
     already exists.
 30. The S3 port interface exists in `infrastructure/storage` with an initial
     contract test (put, get, range get, delete, presigned PUT) that runs
-    against SeaweedFS. Encryption is F6.
+    against SeaweedFS. Encryption is F7.
 
 ### Quality gates
 
@@ -242,7 +242,7 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     - E2E smoke
 
     Jobs use `pnpm --filter` per folder. Supply-chain scanning (Syft, Trivy,
-    OSV) and Renovate are added in F19; F0 only leaves room for them.
+    OSV) and Renovate are added in F20; F0 only leaves room for them.
 33. Developer docs: a root `README` section with prerequisites, one-command
     start, how to run each test layer, and how to add a migration. One page
     per `backend/` infrastructure folder explains its rule (for example, why
@@ -252,13 +252,14 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
 
 - Authentication, sessions, organizations, users, `proxy.ts` logic → **F1**
 - Design tokens, app shell, navigation → **F2**
-- Real chat, runs, SSE stream hub, the populated model allowlist, usage → **F3**
+- AI run engine, runs, the populated model allowlist, usage → **F3**
+- Chat, SSE stream hub, `ChatTransport` → **F4**
 - Domain tables and modules other than `platform` → their slices
 - ClamAV, LibreOffice sandbox, OCR toolchain in the `document-worker` image,
-  object encryption → **F6**
+  object encryption → **F7**
 - Caddy, production Compose, backups, OTel Collector, Sentry, supply-chain
-  scanning, Renovate → **F19**
-- `word-add-in/` → **F18**
+  scanning, Renovate → **F20**
+- `word-add-in/` → **F19**
 
 ## Developer flows
 
@@ -380,4 +381,4 @@ before writing each plan task (see `AGENTS.md`):
    incompatible with NestJS 12 ESM, the fallbacks are pre-approved in
    LEX-TS-001. Any other incompatibility goes back to the product owner.
 4. Should the template's disconnected thread UI stay in F0 as a visual
-   placeholder, or be removed until F3?
+   placeholder, or be removed until F4?
