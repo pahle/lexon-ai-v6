@@ -93,6 +93,9 @@ test('document-worker boot imports no AI and opens no TCP listener', async ({
     const value = await result;
     expect(value.listeners).toBe(0);
     expect(
+      value.loaded.some((path) => path.includes('/queue/auth-limiter.js')),
+    ).toBe(false);
+    expect(
       value.loaded.some((path) => path.includes('/infrastructure/ai/')),
     ).toBe(false);
     expect(

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { RuntimeConfigurationError } from './configuration-error.js';
+import { readAuthRateRules, readTrustedProxies } from './auth-rate-config.js';
 
 const duration = (seconds: number) =>
   z.coerce
@@ -80,6 +81,8 @@ export function readAuthConfig(env: Record<string, string | undefined>) {
     resetSeconds: value.AUTH_RESET_SECONDS,
     database: { authUrl: value.DATABASE_AUTH_URL },
     smtp: { url: value.SMTP_URL, from: value.SMTP_FROM },
+    rateRules: readAuthRateRules(env.AUTH_RATE_RULES_JSON),
+    trustedProxies: readTrustedProxies(env.AUTH_TRUSTED_PROXIES),
   };
 }
 export type AuthConfig = ReturnType<typeof readAuthConfig>;

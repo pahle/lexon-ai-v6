@@ -85,3 +85,36 @@ test('workers do not require or retain API identity configuration', () => {
   for (const runtime of ['ai-worker', 'dispatcher'] as const)
     expect(loadRuntimeConfig(runtime, env)).not.toHaveProperty('auth');
 });
+
+test('rate overrides and trusted proxy ranges are strict boot configuration', () => {
+  const env = authConfigEnvironment();
+  const value = readAuthConfig({
+    ...env,
+    AUTH_RATE_RULES_JSON: JSON.stringify({
+      signin: { account: 2, ip: 4, windowSeconds: 10 },
+    }),
+    AUTH_TRUSTED_PROXIES: '127.0.0.1,10.0.0.0/8',
+  });
+  expect(value.rateRules.signin).toEqual({
+    account: 2,
+    ip: 4,
+    windowSeconds: 10,
+  });
+  expect(value.trustedProxies).toEqual(['127.0.0.1', '10.0.0.0/8']);
+  value.rateRules.signup.account = 99;
+  expect(readAuthConfig(env).rateRules.signup.account).toBe(3);
+  for (const invalid of [
+    JSON.stringify({ signin: { account: 0, ip: 4, windowSeconds: 10 } }),
+    JSON.stringify({ unknown: { account: 1, ip: 1, windowSeconds: 1 } }),
+    JSON.stringify({
+      signin: { account: 1, ip: 1, windowSeconds: 1, insurance: true },
+    }),
+    'not-json',
+  ])
+    expect(() =>
+      readAuthConfig({ ...env, AUTH_RATE_RULES_JSON: invalid }),
+    ).toThrow();
+  expect(() =>
+    readAuthConfig({ ...env, AUTH_TRUSTED_PROXIES: '10.0.0.0/99' }),
+  ).toThrow();
+});
