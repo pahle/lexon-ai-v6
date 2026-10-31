@@ -77,5 +77,6 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   publish host ports).
 - Review layering, not only behavior: F0 shipped infrastructure → domain
   imports; a lint rule now forbids it.
+- Check that rules compose: F1 said "owners are never invited" and "every org has an owner" while admins invite a first owner (fixed with a `provisioning` state, PR #10).
 - Superpowers brainstorming asks one question per message and waits; give
   the product owner a ready-to-paste English answer for Codex.
