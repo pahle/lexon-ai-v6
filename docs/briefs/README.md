@@ -13,7 +13,7 @@ third-party product.
 
 | ID | Slice | Depends on | Spike | Brief |
 |---|---|---|---|---|
-| F0 | Foundation: pnpm monorepo, `shared/`, frontend + backend scaffolds, four backend entrypoints, config/logging/health, local Docker Compose (Postgres, Valkey, SeaweedFS), DB roles + schemas, `withTenant` + fail-closed RLS, ESLint boundary rules, Vitest/Playwright/Stryker, CI | — | S6 | — |
+| F0 | Foundation: pnpm monorepo, `shared/`, frontend + backend scaffolds, four backend entrypoints, config/logging/health, local Docker Compose (Postgres, Valkey, SeaweedFS), DB roles + schemas, `withTenant` + fail-closed RLS, ESLint boundary rules, Vitest/Playwright/Stryker, CI | — | S6 | [F0](F0-foundation.md) |
 | F1 | Identity & Organizations: Better Auth (email/password, verification, password reset, 2FA, sessions and revocation), transactional email, onboarding, user profile, organizations, members, invitations, org roles, member offboarding, platform admin, `proxy.ts` redirects | F0 | S6 (b) | — |
 | F2 | App shell & design system: tokens from LEX-DS-001, layout (sidebar / main / right panel), navigation, empty/error/loading states, user settings shell (profile, security, appearance), org settings shell, a11y checks | F1 | — | — |
 | F3 | Chat core: conversations, messages, AI runs, outbox + dispatcher, AI worker, Valkey Streams, SSE stream hub, `ChatTransport` + assistant-ui, cancel, resume, model allowlist and per-chat model/reasoning selection, usage events, chat history list with search and rename/delete, first `evals/` harness | F2 | S2 | — |
