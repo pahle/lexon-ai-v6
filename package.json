@@ -14,7 +14,7 @@
     "lint": "eslint . && node scripts/check-boundaries.mjs",
     "typecheck": "pnpm -r --sort typecheck",
     "test": "vitest run",
-    "test:unit": "vitest run --project backend-unit",
+    "test:unit": "vitest run --project '!backend-integration'",
     "test:e2e": "node scripts/e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

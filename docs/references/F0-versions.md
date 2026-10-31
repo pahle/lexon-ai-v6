@@ -51,3 +51,5 @@ Peer checks: Nest 12 packages agree on ^12; TypeScript ESLint accepts >=4.8.4 <6
 Vitest 5.0.5 / Vite 8.3.5 natively emit the decorator metadata from the Nest TypeScript config. The real Nest DI characterization test passes without an added SWC plugin; no unused transformer dependency is retained.
 
 Task 4 exact pins: @nestjs/config 12.0.1; nestjs-pino 5.3.1; pino 10.4.0; pino-http 11.0.0. Official package metadata on 2026-10-31 confirms Nest12 peers and the Pino10/pino-http11 peer pair.
+
+Task 5 pins: testcontainers/@testcontainers/postgresql 12.2.1, pg/@types/pg 8.23.1, drizzle-orm 0.45.4, drizzle-kit 0.31.11, ioredis 6.0.0, AWS S3 client/presigner 3.1161.0. Registry peer metadata verified on 2026-10-31. Container tags/digests verified through official Docker Hub manifests and pulled successfully: PostgreSQL 17.11-bookworm, Valkey 9.0.7-alpine3.24, SeaweedFS 4.51; Node 24.22.1-bookworm-slim is pinned in the same manifest.
