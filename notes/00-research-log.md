@@ -62,3 +62,10 @@ Lexon's stack comes only from LEX-TS-001.
   retained. Brief corrected (PR #3): at-least-once delivery + effectively-once
   effects via a Postgres processed-job receipt written in the effect's
   transaction. Lesson for future briefs: state delivery guarantees precisely.
+
+## Handoff (2026-10-31)
+
+- Branch renamed `contaminated` → `brief-generator` at the product owner's
+  request and turned into a handoff kit (`STATE.md`, `AGENTS.md`,
+  `playbooks/`, `notes/feature-inventory.md`) so any model/session can take
+  over the brief-generator role.
