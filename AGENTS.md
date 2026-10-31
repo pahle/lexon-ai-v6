@@ -20,8 +20,9 @@ Changing a technology choice requires an explicit revision of LEX-TS-001.
 
 - Work only from `docs/`. Never fetch, clone, browse, or search for the source
   code of any third-party legal AI product, and never check out the
-  `contaminated` branch of this repository (it holds clean-room research about
-  an AGPL-3.0 reference product and is never merged into `main`).
+  `brief-generator` branch of this repository (it holds the brief generator's
+  clean-room research about an AGPL-3.0 reference product and is never merged
+  into `main`).
 - If a brief seems to be missing information, ask the human; do not look for
   it elsewhere.
 
