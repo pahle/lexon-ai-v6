@@ -48,9 +48,8 @@ each task in **writing-plans**:
 
 ## Conventions
 
-- **English** for UI copy, errors, emails, code, comments, commit messages,
-  briefs, superpowers specs, and plans. The reference documents in
-  `docs/specs/` are written in Indonesian; read them as authoritative.
+- **English** everywhere: UI copy, errors, emails, code, comments, commit
+  messages, reference documents, briefs, superpowers specs, and plans.
 - Repo layout follows LEX-ARC-001 §3.4 (`backend/`, `frontend/`, `word-add-in/`,
   `shared/`, `evals/`, `infra/`, `docs/`) at the repository root.
 - Pin dependency versions exactly. One TypeScript (6.x) and one Zod (4.x) for

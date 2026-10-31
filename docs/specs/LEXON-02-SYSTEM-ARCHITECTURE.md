@@ -1,35 +1,49 @@
 # LEXON
 ## System Architecture Specification
 
-| Informasi | Detail |
+| Field | Detail |
 |---|---|
-| **Dokumen** | LEX-ARC-001 |
-| **Versi** | 1.7 |
-| **Status** | **PROPOSED — untuk persetujuan arsitektur** |
-| **Tanggal** | 31 Oktober 2026 |
-| **Menggantikan** | v1.6 (31 Oktober 2026) |
-| **Produk** | Lexon — Indonesian Legal AI Workspace |
-| **Acuan teknologi** | [Technology Stack Specification v1.7](./LEXON-01-TECHNOLOGY-STACK.md) · LOCKED (dengan prasyarat validasi) |
-| **Acuan desain** | [Design System v1.0](./LEXON-03-DESIGN-SYSTEM.md) |
-| **Klasifikasi** | Internal · Product & Engineering |
+| **Document** | LEX-ARC-001 |
+| **Version** | 1.7 |
+| **Status** | **PROPOSED — for architecture approval** |
+| **Date** | 31 October 2026 |
+| **Supersedes** | v1.6 (31 October 2026) |
+| **Product** | Lexon — Indonesian Legal AI Workspace |
+| **Technology reference** | [Technology Stack Specification v1.7](./LEXON-01-TECHNOLOGY-STACK.md) · LOCKED (subject to validation prerequisites) |
+| **Design reference** | [Design System v1.0](./LEXON-03-DESIGN-SYSTEM.md) |
+| **Classification** | Internal · Product & Engineering |
 
-## 1. Ikhtisar Sistem
+## 1. System Overview
 
-Lexon adalah platform kerja hukum berbantuan AI yang memadukan **Chat**, **Tabular Review**, dan **Document Editor** dengan pengelolaan dokumen, project, serta kolaborasi berbasis organisasi. Integrasi layanan eksternal dilakukan melalui konektor berbasis Model Context Protocol (MCP). Arsitektur sistem dirancang untuk menyediakan pengalaman terpadu, pemisahan data yang jelas, dan pemrosesan AI serta dokumen yang dapat berlangsung di luar siklus request pengguna.
+Lexon is an AI-assisted legal work platform that combines **Chat**, **Tabular Review**, and a **Document Editor** with document and project management and organization-based collaboration. External services are integrated through connectors based on the Model Context Protocol (MCP). The architecture is designed to give a unified experience, clear data separation, and AI and document processing that can run outside the user request cycle.
 
-Arah pengalaman produk berorientasi pada standar aplikasi legal AI profesional, dengan **Legora dan Harvey** sebagai tolok ukur kategori produk. Arsitektur teknis dalam dokumen ini disusun berdasarkan kebutuhan dan pilihan teknologi Lexon.
+The product experience is oriented toward the standard of professional legal AI applications, with **Legora and Harvey** as category benchmarks. The technical architecture in this document is based on Lexon's own requirements and technology choices.
 
-**Gaya arsitektur:** frontend dan backend terpisah dalam satu monorepo, dengan struktur folder root yang mengikuti Mike OSS (`backend/`, `frontend/`, `word-add-in/`). Frontend (Next.js) hanya menyajikan antarmuka; seluruh logika bisnis dan akses data berada di backend (NestJS). Di dalam backend, domain tetap berupa modul-modul pada satu codebase yang diakses melalui application services, sedangkan pekerjaan komputasi tertentu dieksekusi oleh worker terpisah yang merupakan entrypoint dari codebase backend yang sama. Rancangan awal dioperasikan pada satu Linux VPS melalui Docker Compose.
+**Architecture style:** separate frontend and backend in one monorepo, with a root folder structure that follows Mike OSS (`backend/`, `frontend/`, `word-add-in/`). The frontend (Next.js) only serves the interface; all business logic and data access live in the backend (NestJS). Inside the backend, domains remain modules in one codebase accessed through application services, while certain compute work is executed by separate workers that are entrypoints of the same backend codebase. The initial design runs on one Linux VPS through Docker Compose.
 
-**Tiga prinsip penentu:**
+**Three defining principles:**
 
-1. **Jawaban harus dapat ditelusuri.** Setiap jawaban berbasis dokumen membawa sitasi ke halaman/paragraf sumber yang diverifikasi oleh sistem (§4.3).
-2. **Dokumen klien adalah data paling sensitif.** Pengiriman ke model, logging, retensi, dan penghapusan dikendalikan secara eksplisit (§6).
-3. **Konten unggahan tidak tepercaya.** File dipindai, diproses dalam batas terisolasi, dan isinya diperlakukan sebagai data, bukan instruksi (§5.2).
+1. **Answers must be traceable.** Every document-based answer carries citations to the source page/paragraph, verified by the system (§4.3).
+2. **Client documents are the most sensitive data.** Sending to models, logging, retention, and deletion are explicitly controlled (§6).
+3. **Uploaded content is untrusted.** Files are scanned, processed inside isolated boundaries, and their content is treated as data, not instructions (§5.2).
 
-**Cakupan bahasa awal (MVP):** Inggris untuk antarmuka, konten, prompt sistem, dan dokumentasi engineering. Bahasa Indonesia disiapkan melalui konfigurasi (§4.3), tanpa perubahan skema.
+**Initial language scope (MVP):** English for the interface, content, system prompts, reference documents, and engineering documents. Indonesian is prepared through configuration (§4.3), without schema changes.
 
-**Kemampuan produk MVP.** Selain Chat, Tabular Review, dan Document Editor, MVP mencakup: Projects dan Library dokumen, **Workflows** (prosedur kerja AI bertitel yang dapat dipanggil pengguna) beserta **Quick Actions**, **Playbooks** (aturan peninjauan kontrak), **Memory** (preferensi dan fakta tersimpan per pengguna/project yang dipakai ulang AI), **Subagents** (delegasi sub-tugas dari satu run AI), **Riset web** (pencarian web sebagai tool AI dengan sitasi sumber), konektor MCP, serta **ekspor data pribadi**. Di luar cakupan: kunci API milik pengguna (BYOK), aplikasi desktop, dan integrasi basis data putusan pihak ketiga khusus yurisdiksi asing.
+**MVP product capabilities.** Besides Chat, Tabular Review, and the Document Editor, the MVP includes:
+- Projects and the document Library
+- **Workflows** (titled AI work procedures a user can invoke), together with **Quick Actions**
+- **Playbooks** (contract review rules)
+- **Memory** (preferences and facts saved per user/project and reused by the AI)
+- **Subagents** (delegating sub-tasks from one AI run)
+- **Web research** (web search as an AI tool with source citations)
+- MCP connectors
+- **personal data export**
+
+Out of scope:
+- user-supplied API keys (BYOK)
+- organization-level model provider keys
+- a desktop application
+- integration with third-party, foreign-jurisdiction case-law databases
 
 ## 2. Logical Architecture
 
@@ -37,11 +51,11 @@ Arah pengalaman produk berorientasi pada standar aplikasi legal AI profesional, 
 flowchart TB
     User[Web Browser] --> Edge[Caddy / HTTPS]
     Word[Microsoft Word Add-in] --> Edge
-    Edge -->|halaman| FE["Frontend · Next.js"]
+    Edge -->|pages| FE["Frontend · Next.js"]
     Edge -->|"/api"| API["Backend API · NestJS"]
-    FE -->|SSR, jaringan edge| API
+    FE -->|SSR, edge network| API
 
-    API --> Application["Modul domain (backend)"]
+    API --> Application["Domain modules (backend)"]
     AI[AI Worker] --> Application
     Docs[Document Worker] --> Application
 
@@ -61,142 +75,155 @@ flowchart TB
     AI --> Events[Valkey Streams]
     Events --> API
     API -->|SSE| User
-    FE -.telemetri.-> Col[OTel Collector + Sentry Relay]
+    FE -.telemetry.-> Col[OTel Collector + Sentry Relay]
     API -.-> Col
     AI -.-> Col
     Docs -.-> Col
     Col --> Obs[Backend observability / Sentry]
 ```
 
-*Diagram memperlihatkan dependensi logis utama. Koneksi data, antrean, dan storage dapat digunakan oleh beberapa runtime backend melalui antarmuka infrastruktur yang sama. Frontend tidak memiliki koneksi ke PostgreSQL, Valkey, maupun penyimpanan objek.*
+*The diagram shows the main logical dependencies. Data, queue, and storage connections can be used by several backend runtimes through the same infrastructure interfaces. The frontend has no connection to PostgreSQL, Valkey, or object storage.*
 
-### 2.1 Runtime aplikasi
+### 2.1 Application runtimes
 
-| Komponen | Fungsi utama | Antarmuka |
+| Component | Main function | Interface |
 |---|---|---|
-| **Frontend** | UI dan server-side rendering. Memanggil Backend API (dari browser melalui `/api/*`, dari server Next.js melalui jaringan `edge`). Tanpa akses database, Valkey, atau storage; tanpa rahasia server | HTTPS / Next.js App Router |
-| **Backend API** | Seluruh HTTP API, sesi dan autentikasi (Better Auth), validasi, authorization, operasi sinkron, administrasi connector MCP, dan SSE delivery (stream hub) | HTTPS / controller NestJS |
-| **AI Worker** | Generation, tool execution, dan pemrosesan pekerjaan AI. Satu-satunya runtime pekerjaan yang berkomunikasi dengan provider model. Entrypoint `backend/` | BullMQ jobs; database dan event streams |
-| **Document Worker** | Pemindaian, validasi, ekstraksi, OCR, chunking, dan pemrosesan dokumen. **Tanpa akses internet** karena memproses file tidak tepercaya. Entrypoint `backend/` | BullMQ jobs; database dan object storage |
-| **LibreOffice Sandbox** | Konversi format Office dalam lingkungan terisolasi | Layanan internal tanpa akses internet |
-| **ClamAV** | Pemindaian malware unggahan | Layanan internal (`clamd`) |
-| **Outbox Dispatcher** | Memindahkan entri outbox PostgreSQL ke BullMQ; satu instance aktif (`pg_try_advisory_lock`); dibangunkan `LISTEN/NOTIFY` dengan polling cadangan. Entrypoint `backend/` | PostgreSQL; Valkey |
-| **OTel Collector + Sentry Relay** | Satu-satunya jalur ekspor telemetri dan error; penghapusan atribut sensitif lapis kedua; membuat runtime tanpa egress tetap terpantau | OTLP; protokol Sentry |
-| **Word Add-in** | Antarmuka Lexon dalam Microsoft Word; bundel statis dari `word-add-in/` yang disajikan Caddy | API Lexon melalui HTTPS (§8) |
+| **Frontend** | UI and server-side rendering. Calls the Backend API: from the browser through `/api/*`, from the Next.js server through the `edge` network. It has no access to the database, Valkey, or storage, and holds no server secrets | HTTPS / Next.js App Router |
+| **Backend API** | All HTTP APIs, sessions and authentication (Better Auth), validation, authorization, synchronous operations, MCP connector administration, and SSE delivery (stream hub) | HTTPS / NestJS controllers |
+| **AI Worker** | Generation, tool execution, and AI work processing through the AI Run Engine (§4.7). The only job runtime that talks to the model provider. A `backend/` entrypoint | BullMQ jobs; database and event streams |
+| **Document Worker** | Scanning, validation, extraction, OCR, chunking, and document processing. **No internet access** because it processes untrusted files. A `backend/` entrypoint | BullMQ jobs; database and object storage |
+| **LibreOffice Sandbox** | Office format conversion in an isolated environment | Internal service without internet access |
+| **ClamAV** | Malware scanning of uploads | Internal service (`clamd`) |
+| **Outbox Dispatcher** | Moves PostgreSQL outbox entries into BullMQ. One active instance (`pg_try_advisory_lock`), woken by `LISTEN/NOTIFY` with a polling fallback. A `backend/` entrypoint | PostgreSQL; Valkey |
+| **OTel Collector + Sentry Relay** | The only export path for telemetry and errors. They provide a second layer of sensitive-attribute removal and keep egress-less runtimes observable | OTLP; Sentry protocol |
+| **Word Add-in** | The Lexon interface inside Microsoft Word; a static bundle from `word-add-in/` served by Caddy | Lexon API over HTTPS (§8) |
 
-**MCP Connector Services** merupakan modul aplikasi yang digunakan oleh Backend API dan AI Worker, bukan runtime deployment tersendiri. Backend API mengelola konfigurasi dan alur otorisasi connector; AI Worker menjalankan tool yang tersedia dalam konteks pekerjaan AI.
+**MCP Connector Services** is an application module used by the Backend API and the AI Worker, not a separate deployment runtime. The Backend API manages connector configuration and authorization flows; the AI Worker runs the available tools within the context of AI work.
 
-Runtime backend (API, AI Worker, Document Worker, Dispatcher) berasal dari satu codebase dan berbagi modul bisnis; tiap entrypoint memiliki root module sendiri yang hanya memuat modul yang dibutuhkannya (§3.6). Pemisahan runtime bertujuan mengisolasi beban kerja dan batas jaringan, bukan membentuk layanan bisnis yang sepenuhnya independen. Pemisahan frontend dari backend adalah batas kepercayaan: frontend tidak pernah menyentuh data atau rahasia server.
+The backend runtimes (API, AI Worker, Document Worker, Dispatcher) come from one codebase and share business modules. Each entrypoint has its own root module that loads only the modules it needs (§3.6). Runtime separation isolates workloads and network boundaries; it does not create fully independent business services. The frontend–backend separation is a trust boundary: the frontend never touches server data or secrets.
 
-### 2.2 Jaringan container
+### 2.2 Container networks
 
-Docker Compose memakai empat jaringan. Jaringan bertanda *internal* tidak memiliki rute keluar; komponen yang memerlukan egress harus tergabung pada jaringan `egress`.
+Docker Compose uses four networks. Networks marked *internal* have no outbound route; components that need egress must join the `egress` network.
 
-| Jaringan | Anggota | Akses internet |
+| Network | Members | Internet access |
 |---|---|---|
-| `edge` | Caddy, Frontend, Backend API, OTel Collector, Sentry Relay | Trafik masuk melalui Caddy |
-| `egress` | Backend API, AI Worker, pembaru signature ClamAV (`freshclam`), OTel Collector, Sentry Relay | Satu-satunya jalur keluar. Backend API dan AI Worker memakai klien HTTP yang tervalidasi (§5.1); aturan firewall host membatasi tujuan pembaru signature serta tujuan ekspor Collector dan Relay |
-| `core` (internal) | Backend API, AI Worker, Document Worker, Outbox Dispatcher, PostgreSQL, Valkey, penyimpanan objek, OTel Collector, Sentry Relay | Tidak ada |
-| `sandbox` (internal) | Document Worker, LibreOffice Sandbox, `clamd` | Tidak ada |
+| `edge` | Caddy, Frontend, Backend API, OTel Collector, Sentry Relay | Inbound traffic through Caddy |
+| `egress` | Backend API, AI Worker, ClamAV signature updater (`freshclam`), OTel Collector, Sentry Relay | The only outbound path. The Backend API and AI Worker use a validated HTTP client (§5.1); host firewall rules restrict the signature updater's destinations and the Collector's and Relay's export destinations |
+| `core` (internal) | Backend API, AI Worker, Document Worker, Outbox Dispatcher, PostgreSQL, Valkey, object storage, OTel Collector, Sentry Relay | None |
+| `sandbox` (internal) | Document Worker, LibreOffice Sandbox, `clamd` | None |
 
-Frontend hanya tergabung pada `edge`: tidak ada rute ke `core` (database, Valkey, penyimpanan), tidak ada egress, dan tidak ada rahasia server. Kompromi pada proses Next.js dengan demikian tidak memberi jalur langsung ke data. Collector dan Relay bergabung ke `edge` hanya untuk menerima telemetri dari Frontend; keduanya tidak menerima koneksi dari luar melalui Caddy.
+The Frontend is only on `edge`: it has no route to `core` (database, Valkey, storage), no egress, and no server secrets. A compromise of the Next.js process therefore gives no direct path to data. The Collector and Relay join `edge` only to receive telemetry from the Frontend; neither accepts connections from outside through Caddy.
 
-Document Worker tidak memiliki rute keluar; trace, metrics, dan error-nya dikirim ke OTel Collector dan Sentry Relay pada jaringan `core`, yang meneruskannya ke luar setelah penghapusan atribut. LibreOffice Sandbox dan `clamd` tidak mengirim telemetri langsung; status dan durasinya dilaporkan oleh Document Worker. Telemetri sisi server Next.js dikirim ke Collector dan Relay pada `edge`; error sisi browser dikirim melalui `tunnel` Sentry berupa endpoint Backend API `POST /api/telemetry/sentry-tunnel` yang meneruskannya ke Sentry Relay, dengan pembatasan laju, batas ukuran body, dan allowlist DSN.
+The Document Worker has no outbound route. It sends its traces, metrics, and errors to the OTel Collector and Sentry Relay on the `core` network, which forward them out after removing sensitive attributes. The LibreOffice Sandbox and `clamd` send no telemetry directly; the Document Worker reports their status and duration.
 
-## 3. Struktur Aplikasi
+Telemetry paths for the frontend:
+- **Next.js server:** telemetry goes to the Collector and Relay on `edge`.
+- **Browser:** errors go through the Sentry `tunnel`, a Backend API endpoint `POST /api/telemetry/sentry-tunnel` that forwards them to Sentry Relay. The endpoint has rate limiting, a body size limit, and a DSN allowlist.
 
-### 3.1 Domain dan tanggung jawab
+## 3. Application Structure
 
-| Domain | Tanggung jawab |
+### 3.1 Domains and responsibilities
+
+| Domain | Responsibility |
 |---|---|
-| **Identity & Access** | Identitas, sesi, keanggotaan, role organisasi, dan keputusan izin atas resource |
-| **Organizations & Workspaces** | Konteks kerja pengguna, organisasi, keanggotaan, dan pengaturan workspace |
-| **Projects** | Pengelompokan pekerjaan (matter), instruksi, relasi percakapan dan dokumen, serta pagar etik (ethical wall) |
-| **Chat** | Conversations, messages, AI runs, streaming state, persetujuan tool, riwayat interaksi, dan **subagents** (run anak yang didelegasikan dari run induk, dengan batas kedalaman, anggaran token, dan izin yang tidak melebihi run induk) |
-| **Documents** | Upload, metadata, file versions, status pipeline, ekstraksi, OCR, dan lifecycle dokumen |
-| **Knowledge & Retrieval** | Chunking, indeks keyword (FTS dan trigram), retrieval, perakitan konteks, dan verifikasi sitasi |
-| **Tabular Review** | Review berbasis baris/kolom, sumber dokumen, konfigurasi, status sel, dan hasil analisis |
-| **Editor** | Drafting DOCX, versi dokumen, komentar, tracked changes, dan penerapan saran AI |
-| **Connectors & MCP** | Koneksi layanan eksternal, kredensial, katalog tool, kebijakan eksekusi, persetujuan tindakan, dan pencatatan hasil tool |
-| **Usage & Quotas** | Pencatatan penggunaan model, kuota per organisasi, dan metering biaya |
-| **Workflows** | Katalog workflow (bawaan, organisasi, pribadi), Quick Actions, berbagi workflow, dan pemakaian workflow dalam Chat dan Tabular Review |
-| **Playbooks** | Aturan peninjauan kontrak (posisi standar, fallback, eskalasi), impor, dan penerapannya pada review dokumen |
-| **Memory** | Memori per pengguna dan per project: pembuatan (eksplisit dan usulan AI yang disetujui), lingkup, penyuntingan, penghapusan, dan injeksi ke konteks AI |
-| **Research** | Riset web sebagai tool AI: kueri ke penyedia pencarian, pengambilan halaman melalui klien HTTP tervalidasi (§5.1), hasil sebagai data tidak tepercaya beserta sitasi URL |
-| **Audit** | Catatan audit append-only atas akses, aksi AI, ekspor, dan perubahan izin; ekspor data pribadi pengguna (§6.3) |
-| **Platform Services** | Jobs, notifications operasional, dan observability lintas domain |
+| **Identity & Access** | Identity, sessions, membership, organization roles, and permission decisions on resources |
+| **Organizations & Workspaces** | User work context, organizations, membership, and workspace settings |
+| **Projects** | Grouping of work (matters), instructions, relations between conversations and documents, and ethical walls |
+| **Chat** | Conversations, messages, AI runs, streaming state, tool approval, interaction history, and **subagents** (child runs delegated from a parent run, with depth limits, token budgets, and permissions that never exceed the parent run) |
+| **Documents** | Upload, metadata, file versions, pipeline status, extraction, OCR, and document lifecycle |
+| **Knowledge & Retrieval** | Chunking, keyword index (FTS and trigram), retrieval, context assembly, and citation verification |
+| **Tabular Review** | Row/column-based review, document sources, configuration, cell status, and analysis results |
+| **Editor** | DOCX drafting, document versions, comments, tracked changes, and applying AI suggestions |
+| **Connectors & MCP** | External service connections, credentials, tool catalog, execution policies, action approval, and tool result recording |
+| **Workflows** | Workflow catalog (built-in, organization, personal), Quick Actions, workflow sharing, and using workflows in Chat and Tabular Review |
+| **Playbooks** | Contract review rules (standard positions, fallbacks, escalation), import, and applying them to document reviews |
+| **Memory** | Per-user and per-project memory: creation (explicit, and AI-proposed with approval), scope, editing, deletion, and injection into AI context |
+| **Research** | Web research as an AI tool: queries to a search provider, page fetching through the validated HTTP client (§5.1), results as untrusted data with URL citations |
+| **Usage & Quotas** | Model usage recording, per-organization quotas, and cost metering |
+| **Audit** | Append-only audit records of access, AI actions, exports, and permission changes; personal data export for users (§6.3) |
+| **Platform Services** | Jobs, operational notifications, and cross-domain observability |
 
-Setiap domain adalah satu modul NestJS di `backend/src/modules/<domain>`. Modul memegang aturan bisnis atas resource-nya sendiri dan hanya mengekspor application service yang menjadi kontraknya. Komunikasi lintas modul dilakukan melalui service yang diekspor tersebut; controller HTTP dan processor BullMQ menjadi adaptor eksekusi yang tipis.
+Each domain is one NestJS module in `backend/src/modules/<domain>`. A module owns the business rules for its own resources and exports only the application service that forms its contract. Cross-module communication goes through those exported services; HTTP controllers and BullMQ processors are thin execution adapters.
 
-### 3.2 Identitas dan otorisasi
+### 3.2 Identity and authorization
 
-**Better Auth** menjadi komponen dasar untuk autentikasi dan manajemen sesi, dipasang di backend (NestJS) pada `/api/auth/*`. Frontend memakai klien `better-auth/react` pada origin yang sama. Body parser bawaan NestJS dinonaktifkan agar Better Auth menangani body mentah, dan parser JSON dipasang untuk rute lain. Adaptor yang dipakai adalah pustaka komunitas `@thallesp/nestjs-better-auth`; adaptor internal tipis di atas `toNodeHandler` hanya dibuat bila S6 menunjukkan ketidakcocokan dengan NestJS 12 atau ESM. Rancangan integrasi memanfaatkan plugin berikut:
+**Better Auth** is the base component for authentication and session management, mounted in the backend (NestJS) at `/api/auth/*`. The frontend uses the `better-auth/react` client on the same origin. NestJS's built-in body parser is disabled so Better Auth handles the raw body, and a JSON parser is mounted for other routes. The adapter is the community library `@thallesp/nestjs-better-auth`; a thin internal adapter over `toNodeHandler` is built only if S6 shows an incompatibility with NestJS 12 or ESM. The integration uses these plugins:
 
-- **Organization:** organisasi, anggota, undangan, dan role tingkat organisasi.
-- **Admin:** fungsi administratif tingkat platform.
-- **Two-Factor:** 2FA; wajib untuk platform administrator dan dapat diwajibkan per organisasi.
-- **Bearer:** token untuk klien non-cookie, terutama Word add-in (§8).
+- **Organization:** organizations, members, invitations, and organization-level roles.
+- **Admin:** platform-level administrative functions.
+- **Two-Factor:** 2FA; mandatory for platform administrators and optionally required per organization.
+- **Bearer:** tokens for non-cookie clients, mainly the Word add-in (§8).
 
-Kedua lingkup administrasi dipisahkan:
+The two administration scopes are separated:
 
-- **Platform administrator:** mengelola fungsi administratif aplikasi Lexon. Tidak memiliki akses bawaan ke isi dokumen atau percakapan pelanggan (lihat *break-glass*, §6.2).
-- **Organization owner/admin/member:** mengelola atau berpartisipasi dalam organisasi yang menjadi lingkupnya.
+- **Platform administrator:** manages Lexon's administrative functions. Has no built-in access to customer document or conversation content (see *break-glass*, §6.2).
+- **Organization owner/admin/member:** manages or participates in the organization within their scope.
 
-Izin terhadap **Project, Chat, Document, Tabular Review, dan Editor** diputuskan oleh **Lexon resource-level policies** (guard dan policy services NestJS) berdasarkan identitas, konteks organisasi/project, kepemilikan, dan pemberian akses. Validasi izin dilakukan pada server saat resource dibaca atau diubah, termasuk oleh worker yang memproses pekerjaan terkait. Frontend tidak mengambil keputusan izin; pemeriksaan di antarmuka hanya untuk pengalaman pengguna.
+Permissions on **Project, Chat, Document, Tabular Review, and Editor** are decided by **Lexon resource-level policies** (NestJS guards and policy services). The inputs are identity, organization/project context, ownership, and access grants. Permissions are validated on the server whenever a resource is read or changed, including by workers processing related work. The frontend makes no permission decisions; interface checks are only for user experience.
 
-**Isolasi tenant berlapis:**
+**Layered tenant isolation:**
 
-1. **Lapis aplikasi:** resource-level policies, melalui satu *authorization predicate builder* terpusat. Setiap query yang menyentuh dokumen, chunk, atau percakapan (termasuk keyword search dan retrieval) wajib memakai builder ini; tidak ada jalur query tanpa filter.
-2. **Lapis database:** PostgreSQL RLS pada seluruh tabel bertenant (`org_id`) di skema `app` (rincian di bawah).
-3. **Pengujian:** uji negatif lintas-tenant dan lintas-project di CI untuk setiap jalur baca (API, worker, retrieval, SSE, ekspor), ditambah uji bahwa query tanpa konteks tenant mengembalikan nol baris.
+1. **Application layer:** resource-level policies, through one central *authorization predicate builder*. Every query that touches documents, chunks, or conversations (including keyword search and retrieval) must use this builder; there is no unfiltered query path.
+2. **Database layer:** PostgreSQL RLS on every tenanted table (`org_id`) in the `app` schema (details below).
+3. **Testing:** CI runs negative cross-tenant and cross-project tests for every read path (API, worker, retrieval, SSE, export). It also tests that queries without tenant context return zero rows.
 
-**Role database dan skema.**
+**Database roles and schemas.**
 
-| Role | Dipakai oleh | Hak |
+| Role | Used by | Privileges |
 |---|---|---|
-| `lexon_migrator` | Drizzle Kit (migrasi) | Pemilik skema `app`, `auth`, dan `ops`; tidak pernah dipakai runtime |
-| `lexon_app` | Backend API, AI Worker, Document Worker, Outbox Dispatcher | Tanpa `BYPASSRLS` dan bukan pemilik tabel; DML pada skema `app` (tunduk RLS) dan `ops`; `SELECT` per kolom non-rahasia pada `auth.user`, `auth.organization`, dan `auth.member` untuk keputusan izin |
-| `lexon_auth` | Adaptor Better Auth saja | DML hanya pada skema `auth`; tidak memiliki hak atas skema `app` dan `ops` |
+| `lexon_migrator` | Drizzle Kit (migrations) | Owner of the `app`, `auth`, and `ops` schemas; never used at runtime |
+| `lexon_app` | Backend API, AI Worker, Document Worker, Outbox Dispatcher | No `BYPASSRLS` and not a table owner. Has DML on the `app` schema (subject to RLS) and on `ops`, plus per-column `SELECT` on non-secret columns of `auth.user`, `auth.organization`, and `auth.member` for permission decisions |
+| `lexon_auth` | The Better Auth adapter only | DML only on the `auth` schema; no privileges on the `app` and `ops` schemas |
 
-Frontend dan Word add-in tidak memiliki role database dan tidak terhubung ke PostgreSQL.
+The Frontend and Word add-in have no database role and do not connect to PostgreSQL.
 
-- **Tabel Better Auth** (user, session, account, verification, organization, member, invitation, two-factor) berada di skema `auth` tanpa RLS bertenant, karena Better Auth menjalankan query sendiri tanpa konteks `app.org_id`. Adaptor Better Auth di backend memakai pool koneksi tersendiri dengan role `lexon_auth`. Perlindungannya berupa pemisahan role dan hak per kolom: token sesi, hash password, dan rahasia 2FA tidak dapat dibaca `lexon_app`. Konfigurasi skema pada adapter Drizzle Better Auth diverifikasi saat implementasi.
-- **Tabel operasional** tanpa konten klien (outbox, status dispatcher, ledger penghapusan) berada di skema `ops`, hanya memuat id dan metadata (K3, §6.1), dan tidak diberi RLS bertenant agar Outbox Dispatcher dapat bekerja lintas tenant.
-- **Wrapper konteks.** Seluruh akses ke skema `app` melewati `withTenant(ctx, fn)` di modul database backend (`backend/src/infrastructure/db`), yang membuka transaksi dan menetapkan `set_config('app.org_id', $1, true)` serta `set_config('app.user_id', $2, true)`. Bentuk `set_config` dipakai karena `SET LOCAL` tidak menerima parameter; argumen `true` membuat nilai berlaku sebatas transaksi sehingga aman bagi connection pool. Konteks (`orgId`, `userId`) diturunkan guard dari sesi Better Auth dan dilewatkan secara eksplisit ke `withTenant`; tidak ada konteks implisit global. Klien database mentah tidak diekspor dari modul tersebut, dan aturan ESLint `no-restricted-imports` melarang impor driver langsung di luar modul itu serta melarang `pg` dan `drizzle-orm` di `frontend/` dan `word-add-in/`.
-- **Fail-closed.** Policy RLS berbentuk `org_id = NULLIF(current_setting('app.org_id', true), '')::uuid`. Pada koneksi yang belum pernah menetapkan nilai, `current_setting(..., true)` mengembalikan NULL; pada koneksi pool bekas pakai, setelah transaksi yang memakai `set_config(..., true)` berakhir, nilainya kembali menjadi string kosong, bukan NULL, sehingga cast `::uuid` langsung akan melempar error. `NULLIF` mengubah keduanya menjadi NULL sehingga perbandingan tidak pernah benar dan tidak ada baris yang lolos. Uji wajib (S6): kueri tanpa konteks pada koneksi baru **dan** pada koneksi bekas pakai mengembalikan nol baris tanpa error. Policy dijaga sesederhana perbandingan kesetaraan agar tetap memakai indeks.
-- **Worker dan dispatcher** menetapkan konteks dari payload job yang tervalidasi. Pekerjaan lintas tenant (rekonsiliasi, retensi, pemutaran ulang ledger penghapusan) memakai fungsi `SECURITY DEFINER` yang sempit, ber-`search_path` tetap, dan teraudit, bukan role tanpa RLS.
+- **Better Auth tables** (user, session, account, verification, organization, member, invitation, two-factor) live in the `auth` schema without tenanted RLS, because Better Auth runs its own queries without an `app.org_id` context. The Better Auth adapter in the backend uses its own connection pool with the `lexon_auth` role. Protection comes from role separation and per-column privileges: `lexon_app` cannot read session tokens, password hashes, or 2FA secrets. The schema configuration of the Better Auth Drizzle adapter is verified during implementation.
+- **Operational tables** without client content (outbox, dispatcher status, deletion ledger) live in the `ops` schema. They hold only ids and metadata (K3, §6.1) and have no tenanted RLS, so the Outbox Dispatcher can work across tenants.
+- **Context wrapper.** All access to the `app` schema goes through `withTenant(ctx, fn)` in the backend database module (`backend/src/infrastructure/db`). It opens a transaction and sets `set_config('app.org_id', $1, true)` and `set_config('app.user_id', $2, true)`.
+  - The `set_config` form is used because `SET LOCAL` does not accept parameters. The `true` argument scopes the value to the transaction, so it is safe for a connection pool.
+  - The context (`orgId`, `userId`) is derived by a guard from the Better Auth session and passed explicitly to `withTenant`; there is no implicit global context.
+  - The raw database client is not exported from that module. The ESLint rule `no-restricted-imports` forbids importing the driver outside that module, and forbids `pg` and `drizzle-orm` in `frontend/` and `word-add-in/`.
+- **Fail-closed.** RLS policies have the form `org_id = NULLIF(current_setting('app.org_id', true), '')::uuid`. The `NULLIF` covers two cases:
+  - On a connection that has never set the value, `current_setting(..., true)` returns NULL.
+  - On a reused pool connection, after a transaction that used `set_config(..., true)` ends, the value becomes an empty string, not NULL, so a direct `::uuid` cast would throw an error.
 
-**Ethical wall (pagar etik):** akses ke project/matter berbasis keanggotaan eksplisit. Role organisasi tidak otomatis memberi akses ke isi project (dapat dikonfigurasi per organisasi). Daftar penolakan (*deny list*) per project mengalahkan role mana pun (deny-overrides).
+  `NULLIF` turns both into NULL, so the comparison is never true and no rows pass. Mandatory test (S6): a query without context returns zero rows without error, on both a fresh connection **and** a reused connection. Policies are kept as simple equality comparisons so they keep using indexes.
+- **Workers and the dispatcher** set the context from the validated job payload. Cross-tenant work (reconciliation, retention, deletion ledger replay) uses narrow, audited `SECURITY DEFINER` functions with a fixed `search_path`, not a role without RLS.
 
-Penggunaan plugin dalam bagian ini merupakan **rincian rancangan integrasi Better Auth**, bukan penetapan teknologi di luar stack yang dikunci.
+**Ethical wall:** access to a project/matter is based on explicit membership. An organization role does not automatically grant access to project content (configurable per organization). A per-project deny list overrides any role (deny-overrides).
 
-### 3.3 Integrasi MCP
+The plugin usage in this section is a **design detail of the Better Auth integration**, not a technology decision outside the locked stack.
 
-Lexon menyediakan kemampuan **MCP client** untuk menghubungkan asisten AI dengan tool yang disajikan oleh server MCP jarak jauh. Koneksi dikelola melalui antarmuka **Settings → Connectors** dan diakses melalui layanan aplikasi, dengan dukungan untuk:
+### 3.3 MCP integration
 
-- Pendaftaran connector menggunakan URL server yang tervalidasi, daftar connector, pembaruan konfigurasi, penonaktifan, dan penghapusan.
-- Autentikasi OAuth 2.0 termasuk proses authorization dan pembaruan token (dengan validasi *issuer* pada metadata OAuth yang ketat, RFC 8414), serta bearer token atau custom headers untuk koneksi yang relevan.
-- Discovery dan sinkronisasi metadata tool, skema input, serta pengaturan enabled/disabled per connector dan per tool.
-- Kebijakan **read-only** untuk mencegah operasi yang mengubah data dan opsi **persetujuan pengguna sebelum write action** dijalankan.
-- Eksekusi tool melalui AI Worker dengan identitas pengguna dan batas akses connector yang diperiksa pada sisi server.
-- Pelaporan status, hasil, dan kesalahan pemanggilan tool sebagai bagian dari percakapan AI.
+Lexon provides an **MCP client** capability to connect the AI assistant to tools served by remote MCP servers. Connections are managed through the **Settings → Connectors** interface and accessed through application services, with support for:
 
-Koneksi dan kredensial terikat pada pemilik serta lingkup aksesnya. Keanggotaan organisasi saja tidak memberikan hak menggunakan koneksi pribadi pengguna lain. Kontrol terhadap koneksi yang dibagikan, jika diaktifkan, harus melalui kebijakan akses yang eksplisit.
+- Connector registration using a validated server URL, connector listing, configuration updates, disabling, and deletion.
+- OAuth 2.0 authentication including the authorization flow and token refresh (with strict *issuer* validation of OAuth metadata, RFC 8414), and bearer tokens or custom headers for relevant connections.
+- Discovery and synchronization of tool metadata, input schemas, and enabled/disabled settings per connector and per tool.
+- A **read-only** policy to prevent data-modifying operations, and an option for **user approval before a write action** runs.
+- Tool execution through the AI Worker with the user's identity and connector access limits checked on the server.
+- Reporting of tool call status, results, and errors as part of the AI conversation.
 
-### 3.4 Struktur monorepo
+Connections and credentials are bound to their owner and access scope. Organization membership alone does not grant the right to use another user's personal connection. Control over shared connections, if enabled, must go through an explicit access policy.
 
-Struktur root mengikuti Mike OSS: folder aplikasi berada langsung di root dan tiap aplikasi memiliki `package.json` sendiri. Lexon menamai folder add-in `word-add-in/` (pada repo acuan `word-addin/`). Perbedaan utama dari Mike OSS: pnpm workspace dengan `shared/` sebagai satu-satunya paket bersama, dan backend memiliki empat entrypoint, bukan satu proses.
+### 3.4 Monorepo structure
+
+The root structure follows Mike OSS: application folders sit directly at the root and each application has its own `package.json`. Lexon names the add-in folder `word-add-in/` (the reference repo uses `word-addin/`). The main differences from Mike OSS:
+- a pnpm workspace with `shared/` as the only shared package;
+- a backend with four entrypoints instead of one process.
 
 ```text
 lexon/
-├── backend/                       # NestJS 12 (ESM): API, modul domain, entrypoint worker
+├── backend/                       # NestJS 12 (ESM): API, domain modules, worker entrypoints
 │   ├── src/
-│   │   ├── entrypoints/           # satu root module + bootstrap per runtime (§3.6)
+│   │   ├── entrypoints/           # one root module + bootstrap per runtime (§3.6)
 │   │   │   ├── api/               # Backend API: HTTP + SSE
-│   │   │   ├── ai-worker/         # Eksekusi AI jobs
-│   │   │   ├── document-worker/   # Scan, OCR, ekstraksi, chunking
-│   │   │   └── dispatcher/        # Outbox → BullMQ (satu instance aktif)
-│   │   ├── modules/               # Satu modul NestJS per domain (§3.1)
+│   │   │   ├── ai-worker/         # Executes AI jobs (AI Run Engine, §4.7)
+│   │   │   ├── document-worker/   # Scan, OCR, extraction, chunking
+│   │   │   └── dispatcher/        # Outbox → BullMQ (one active instance)
+│   │   ├── modules/               # One NestJS module per domain (§3.1)
 │   │   │   ├── identity-access/
 │   │   │   ├── organizations/
 │   │   │   ├── projects/
@@ -214,440 +241,535 @@ lexon/
 │   │   │   ├── audit/
 │   │   │   └── platform/
 │   │   └── infrastructure/
-│   │       ├── db/                # Drizzle schema, withTenant, predicate builder, kebijakan RLS
-│   │       ├── storage/           # S3 port + enkripsi objek (§5.6)
+│   │       ├── db/                # Drizzle schema, withTenant, predicate builder, RLS policies
+│   │       ├── storage/           # S3 port + object encryption (§5.6)
 │   │       ├── queue/             # BullMQ, Valkey, stream hub
-│   │       ├── ai/                # AI SDK + OpenRouter, allowlist model/provider
+│   │       ├── ai/                # AI SDK + OpenRouter, model/provider allowlist
 │   │       └── telemetry/         # OpenTelemetry, Sentry
-│   ├── drizzle/                   # Migrasi SQL berversi (termasuk RLS dan role)
+│   ├── drizzle/                   # Versioned SQL migrations (including RLS and roles)
 │   ├── test/
-│   ├── Dockerfile                 # target: api, ai-worker, dispatcher, document-worker
+│   ├── Dockerfile                 # targets: api, ai-worker, dispatcher, document-worker
 │   └── package.json
-├── frontend/                      # Next.js 16: UI dan SSR saja
-│   ├── src/app/                   # App Router; route groups (auth) dan (workspace)
-│   ├── src/components/            # shadcn/ui (Base UI), assistant-ui, editor DOCX, grid Tabular Review
-│   ├── src/lib/                   # klien API bertipe, klien Better Auth, ChatTransport
+├── frontend/                      # Next.js 16: UI and SSR only
+│   ├── src/app/                   # App Router; route groups (auth) and (workspace)
+│   ├── src/components/            # shadcn/ui (Base UI), assistant-ui, DOCX editor, Tabular Review grid
+│   ├── src/lib/                   # typed API client, Better Auth client, ChatTransport
 │   ├── Dockerfile
 │   └── package.json
-├── word-add-in/                   # Office.js + React + Webpack (bundel statis)
-├── shared/                        # @lexon/contracts: skema Zod, kontrak event (versioned), antarmuka EditorPort
-├── evals/                         # Dataset dan harness evaluasi kualitas AI
-├── infra/                         # Deployment produksi: Caddy, sandbox, backup, OTel Collector & Sentry Relay
+├── word-add-in/                   # Office.js + React + Webpack (static bundle)
+├── shared/                        # @lexon/contracts: Zod schemas, event contracts (versioned), EditorPort interface
+├── evals/                         # AI quality evaluation datasets and harness
+├── infra/                         # Production deployment: Caddy, sandbox, backup, OTel Collector & Sentry Relay
 ├── docs/                          # System specifications
-├── docker-compose.yml             # Stack pengembangan lokal
+├── docker-compose.yml             # Local development stack
 ├── pnpm-workspace.yaml
 └── package.json
 ```
 
-**Aturan dependensi** (ditegakkan ESLint dan diperiksa di CI):
+**Dependency rules** (enforced by ESLint and checked in CI):
 
-- `frontend/` dan `word-add-in/` hanya boleh mengimpor `shared/`; keduanya tidak boleh mengimpor `backend/`.
-- `backend/` tidak mengimpor `frontend/` maupun `word-add-in/`.
-- `shared/` tidak bergantung pada folder lain, hanya memuat tipe, skema, dan antarmuka (tanpa logika bisnis dan tanpa API khusus Node) sehingga dapat dipakai di browser dan add-in.
-- Di dalam `backend/`, modul domain lain hanya diimpor melalui barrel publik `index.ts`; driver `pg` dan Drizzle hanya di `infrastructure/db`; AI SDK dan provider hanya melalui `infrastructure/ai`.
-- `EditorPort` didefinisikan di `shared/`; adaptor EigenPal berada di `frontend/` (editor di browser) dan di modul `editor` backend (`editor-api`, §4.4).
+- `frontend/` and `word-add-in/` may import only `shared/`; neither may import `backend/`.
+- `backend/` does not import `frontend/` or `word-add-in/`.
+- `shared/` depends on no other folder. It contains only types, schemas, and interfaces (no business logic and no Node-specific APIs), so it can be used in the browser and the add-in.
+- Inside `backend/`:
+  - other domain modules are imported only through their public `index.ts` barrel;
+  - the `pg` driver and Drizzle are used only in `infrastructure/db`;
+  - the AI SDK and provider are used only through `infrastructure/ai`.
+- `EditorPort` is defined in `shared/`. The EigenPal adapters live in `frontend/` (the in-browser editor) and in the backend `editor` module (`editor-api`, §4.4).
 
-Pada `frontend/`, Next.js route groups **`(auth)`** dan **`(workspace)`** mengorganisasikan halaman. Logika bisnis ditempatkan pada modul domain backend yang dapat diakses secara konsisten oleh controller dan worker.
+In `frontend/`, the Next.js route groups **`(auth)`** and **`(workspace)`** organize the pages. Business logic is placed in backend domain modules, so controllers and workers can reach it consistently.
 
-Struktur ini adalah organisasi logis tingkat awal; subfolder dibuat sejalan dengan kebutuhan modul.
+This structure is the initial logical organization; subfolders are created as modules need them.
 
-### 3.5 Batas Frontend–Backend
+### 3.5 Frontend–Backend boundary
 
-- **Routing dan origin.** Caddy meneruskan `/api/*` ke Backend API dan seluruh path lain ke Frontend, sehingga browser hanya berhubungan dengan satu origin publik. Cookie sesi Better Auth tidak memerlukan CORS atau pengaturan lintas-subdomain. Pada pengembangan lokal, `rewrites` Next.js meneruskan `/api/*` ke backend.
-- **Panggilan dari browser.** Klien Better Auth, klien API bertipe (dari `shared/`), dan `ChatTransport` (§4.1) memanggil `/api/*` langsung, termasuk endpoint SSE. Jalur SSE dilayani Backend API tanpa melewati Next.js.
-- **Panggilan dari server Next.js.** Server Components memanggil Backend API melalui `BACKEND_INTERNAL_URL` pada jaringan `edge` dengan meneruskan header `cookie` dari request pengguna. Next.js tidak mengakses database atau storage.
-- **Autentikasi di frontend.** `proxy.ts` Next.js 16 (runtime Node.js; pengganti `middleware.ts`) hanya memeriksa keberadaan cookie sesi untuk pengalihan cepat; keputusan akses selalu diambil backend.
-- **Larangan.** Route Handlers dan Server Actions tidak dipakai untuk logika bisnis atau akses data; hanya untuk kebutuhan presentasi (misalnya pengalihan atau preferensi tampilan).
-- **Kontrak.** Skema request/response dan kontrak event streaming berada di `shared/` (Zod, berversi). Backend memvalidasi masukan dengan skema tersebut pada decorator route (dukungan Standard Schema di NestJS 12; diverifikasi pada S6), dan frontend memakai skema yang sama untuk tipe dan validasi formulir (React Hook Form dengan Zod resolver; data fetching melalui TanStack Query).
-- **Kompatibilitas versi.** Word add-in dirilis terpisah dari web dan dapat tertinggal versinya pada klien. Perubahan kontrak API yang tidak kompatibel dikerjakan sebagai versi baru dengan masa transisi.
-- **CORS.** Hanya origin Word add-in (pada `/api/*`) dan host data-plane S3 (§5.1) yang memerlukan CORS; tidak ada CORS untuk frontend utama.
+- **Routing and origin.** Caddy forwards `/api/*` to the Backend API and every other path to the Frontend, so the browser deals with only one public origin. The Better Auth session cookie needs no CORS or cross-subdomain settings. In local development, Next.js `rewrites` forward `/api/*` to the backend.
+- **Calls from the browser.** The Better Auth client, the typed API client (from `shared/`), and the `ChatTransport` (§4.1) call `/api/*` directly, including the SSE endpoint. The SSE path is served by the Backend API without going through Next.js.
+- **Calls from the Next.js server.** Server Components call the Backend API through `BACKEND_INTERNAL_URL` on the `edge` network, forwarding the `cookie` header from the user's request. Next.js does not access the database or storage.
+- **Authentication in the frontend.** The Next.js 16 `proxy.ts` (Node.js runtime; replaces `middleware.ts`) only checks for the presence of a session cookie for fast redirects; access decisions are always made by the backend.
+- **Prohibitions.** Route Handlers and Server Actions are not used for business logic or data access; only for presentation needs (for example, redirects or display preferences).
+- **Contracts.** Request/response schemas and the streaming event contract live in `shared/` (Zod, versioned).
+  - The backend validates input with these schemas on route decorators (Standard Schema support in NestJS 12; verified in S6).
+  - The frontend uses the same schemas for types and form validation (React Hook Form with the Zod resolver; data fetching through TanStack Query).
+- **Version compatibility.** The Word add-in is released separately from the web and can lag behind on clients. Incompatible API contract changes are done as a new version with a transition period.
+- **CORS.** Only the Word add-in origin (on `/api/*`) and the S3 data-plane host (§5.1) need CORS; there is no CORS for the main frontend.
 
-### 3.6 Entrypoint backend dan komposisi modul
+### 3.6 Backend entrypoints and module composition
 
-Backend dibangun dari satu codebase dan dijalankan sebagai empat proses. Tiap entrypoint memiliki root module sendiri; worker dan dispatcher memakai *application context* NestJS (tanpa listener HTTP).
+The backend is built from one codebase and runs as four processes. Each entrypoint has its own root module; the workers and dispatcher use a NestJS *application context* (no HTTP listener).
 
-| Entrypoint | Memuat | Sengaja tidak memuat |
+| Entrypoint | Loads | Deliberately does not load |
 |---|---|---|
-| `api` | Seluruh modul domain, controller, Better Auth, stream hub; antrean hanya sebagai *producer* | Processor BullMQ |
-| `ai-worker` | Chat (termasuk subagents), Knowledge & Retrieval (retrieval), Tabular Review, Connectors (eksekusi tool), Workflows dan Playbooks (baca), Memory, Research, Usage, Audit; processor `ai-*` | Controller HTTP, Better Auth |
-| `document-worker` | Documents, Knowledge & Retrieval (chunking), ekspor XLSX; processor `doc-*` | `infrastructure/ai` (klien model), Better Auth, controller HTTP |
-| `dispatcher` | Platform Services (outbox) | Modul domain lain |
+| `api` | All domain modules, controllers, Better Auth, the stream hub; queues only as a *producer* | BullMQ processors |
+| `ai-worker` | AI Run Engine (§4.7), Chat (including subagents), Knowledge & Retrieval (retrieval), Tabular Review, Connectors (tool execution), Workflows and Playbooks (read), Memory, Research, Usage, Audit; `ai-*` processors | HTTP controllers, Better Auth |
+| `document-worker` | Documents, Knowledge & Retrieval (chunking), XLSX export; `doc-*` processors | `infrastructure/ai` (model client), Better Auth, HTTP controllers |
+| `dispatcher` | Platform Services (outbox) | Other domain modules |
 
-Dengan demikian pembatasan Document Worker (tanpa internet, tanpa provider model) ditegakkan dua kali: pada jaringan container (§2.2) dan pada komposisi modul. Satu `Dockerfile` backend memiliki target `api`, `ai-worker`, `dispatcher`, dan `document-worker`; target `document-worker` menambahkan toolchain OCR (OCRmyPDF, Tesseract) dan pustaka pendukungnya.
+This means the Document Worker restrictions (no internet, no model provider) are enforced twice: by the container network (§2.2) and by module composition. One backend `Dockerfile` has the targets `api`, `ai-worker`, `dispatcher`, and `document-worker`. The `document-worker` target adds the OCR toolchain (OCRmyPDF, Tesseract) and its supporting libraries.
 
 ## 4. Data & Integration Architecture
 
-| Komponen | Data/operasi yang menjadi tanggung jawabnya |
+| Component | Data/operations it is responsible for |
 |---|---|
-| **PostgreSQL** | User/resource references, organisasi, izin, conversations, metadata dan versions, chunk, review state, usage events, audit log, durable job state |
-| **Object storage (S3 / SeaweedFS)** | Objek file, dokumen sumber, hasil OCR, dan artifacts dokumen; konten area aktif terenkripsi aplikasi per organisasi (§5.6) |
-| **Valkey / BullMQ** | Antrean pekerjaan, scheduling, dispatch, retry, rate limiting, dan koordinasi proses |
-| **Valkey Streams** | Pengiriman event antar-runtime untuk streaming real-time |
-| **SSE** | Koneksi pengiriman event dari Backend API ke klien |
-| **OpenRouter** | Gateway model AI yang dipanggil oleh AI Worker (dengan kebijakan retensi nol, §6.2) |
-| **MCP connector services** | Identitas connector, konfigurasi otorisasi terenkripsi, katalog tool, policy, dan status persetujuan tersimpan di PostgreSQL |
-| **Remote MCP servers** | Menyediakan tool eksternal yang dipanggil oleh AI Worker melalui transport Streamable HTTP |
+| **PostgreSQL** | User/resource references, organizations, permissions, conversations, metadata and versions, chunks, review state, usage events, audit log, durable job state |
+| **Object storage (S3 / SeaweedFS)** | File objects, source documents, OCR results, and document artifacts; active-area content encrypted by the application per organization (§5.6) |
+| **Valkey / BullMQ** | Job queues, scheduling, dispatch, retries, rate limiting, and process coordination |
+| **Valkey Streams** | Event delivery between runtimes for real-time streaming |
+| **SSE** | Event delivery connection from the Backend API to clients |
+| **OpenRouter** | AI model gateway called by the AI Worker (with a zero-retention policy, §6.2) |
+| **MCP connector services** | Connector identity, encrypted authorization configuration, tool catalog, policies, and approval status, stored in PostgreSQL |
+| **Remote MCP servers** | Provide external tools called by the AI Worker over the Streamable HTTP transport |
 
-**Aturan data utama:** PostgreSQL menyimpan state bisnis yang otoritatif; objek biner berada di penyimpanan S3. Identitas dan izin file ditentukan oleh metadata serta kebijakan aplikasi. Event real-time dan antrean bukan pengganti catatan bisnis permanen. Penyimpanan objek diakses hanya melalui **S3 port** di `backend/src/infrastructure/storage` dan diuji dengan contract test sehingga implementasinya dapat diganti. Enkripsi dan dekripsi objek (§5.6) berlangsung di lapisan port ini, sehingga implementasi penyimpanan hanya melihat ciphertext.
+**Main data rules:**
+- PostgreSQL holds the authoritative business state; binary objects live in S3 storage.
+- File identity and permissions are determined by metadata and application policy.
+- Real-time events and queues do not replace permanent business records.
+- Object storage is accessed only through the **S3 port** in `backend/src/infrastructure/storage` and is tested with contract tests, so its implementation can be replaced.
+- Object encryption and decryption (§5.6) happen in this port layer, so the storage implementation only ever sees ciphertext.
 
-### 4.1 Alur Chat dan kontrak streaming
+### 4.1 Chat flow and streaming contract
 
-**Kontrak streaming (rancangan; divalidasi pada spike S2):**
+**Streaming contract (design; validated in spike S2):**
 
-1. **Kirim prompt.** Klien memanggil API terautentikasi. API memvalidasi input dan izin, lalu dalam satu transaksi menyimpan message, membuat `ai_run` berstatus `queued`, dan mencatat entri outbox. Respons memuat `runId`.
-2. **Dispatch.** Outbox Dispatcher (§2.1) dibangunkan oleh `NOTIFY` dari transaksi pengirim (dengan polling cadangan), mengambil entri dengan `FOR UPDATE SKIP LOCKED`, dan meneruskannya ke BullMQ dengan job id = id outbox sehingga pengiriman ulang bersifat idempotent. Bila Valkey menolak tulis atau tidak tersedia, entri tetap di outbox dan dicoba ulang dengan backoff; tidak ada pekerjaan yang hilang.
-3. **Eksekusi.** AI Worker menjalankan generation melalui AI SDK/OpenRouter dan menulis setiap potongan ke Valkey Stream `run:{runId}` (`XADD` dengan `MAXLEN`). Format potongan mengikuti protokol UI message stream AI SDK agar dapat dikonsumsi `useChat`/assistant-ui; skema dan versi event didefinisikan di `shared/`.
-4. **Pengiriman ke klien.** Endpoint SSE `GET /api/runs/{runId}/events` pada Backend API memverifikasi izin, lalu berlangganan ke **stream hub** milik proses Backend API tersebut. Setiap proses Backend API menjalankan satu hub dengan satu koneksi Valkey khusus yang membaca seluruh stream aktif sekaligus (`XREAD BLOCK` multi-key dengan blok pendek, usulan 1–2 detik, agar daftar stream diperbarui saat ada pelanggan baru), lalu mem-*fan-out* frame ke pelanggan di memori. Jumlah koneksi Valkey per proses tetap dan tidak bertambah per klien. Replay `Last-Event-ID` dilakukan dengan `XRANGE` melalui koneksi non-blocking bersama sebelum pelanggan bergabung ke hub; frame dideduplikasi berdasarkan id entri sehingga peralihan replay → live tidak menghilangkan atau menggandakan frame. Frame diteruskan dengan `id` = id entri stream, ditambah *heartbeat* berkala. Jumlah koneksi SSE per pengguna dibatasi. Caddy dikonfigurasi tanpa buffering dan dengan timeout baca panjang untuk jalur ini. Jalur ini dilayani langsung oleh Backend API (tidak melalui Next.js), sehingga umur koneksi SSE tidak membebani proses frontend. Saat Backend API berhenti untuk deploy, hub menutup koneksi SSE secara terkontrol agar klien menyambung ulang dengan `Last-Event-ID` ke instance baru; dukungan graceful shutdown adaptor Express NestJS 12 dipakai bila tersedia dan diverifikasi pada S2.
-5. **Checkpoint dan penyelesaian.** Worker menyimpan checkpoint pesan parsial ke PostgreSQL pada batas langkah (dan periodik selama generation panjang). Pada akhir, pesan final, penggunaan token/biaya, dan status `completed` ditulis dalam satu transaksi, lalu event `finish` diterbitkan dan stream diberi TTL pendek.
-6. **Reconnect/resume.** Klien yang membuka ulang conversation dengan run aktif menyambung ke endpoint yang sama menggunakan `Last-Event-ID`. Bila stream telah kedaluwarsa, klien memuat pesan dari PostgreSQL (final atau checkpoint terakhir dengan status run).
-7. **Cancel.** `POST /api/runs/{runId}/cancel` menetapkan status `cancelling` dan menerbitkan sinyal kontrol; worker menghentikan generation melalui `AbortSignal`, menyimpan hasil parsial, dan menetapkan `cancelled`.
-8. **Persetujuan tool (write action).** Saat tool memerlukan persetujuan, worker menyimpan operasi beserta *hash snapshot*-nya, menetapkan run `awaiting_approval`, menerbitkan event, lalu **mengakhiri job** (slot worker dibebaskan). Keputusan pengguna diterima API, divalidasi (pemilik, hash snapshot, izin, status connector), kemudian job `resume` dikirim melalui outbox. Persetujuan yang tidak dijawab kedaluwarsa menjadi penolakan.
-9. **Kegagalan worker.** Job yang *stalled* dicoba ulang dengan id yang sama dan dilanjutkan dari checkpoint terakhir; klien menerima event `reset` untuk pesan yang sedang berjalan agar potongan parsial dibuang.
+1. **Send prompt.** The client calls an authenticated API. The API validates input and permissions, then in one transaction saves the message, creates an `ai_run` with status `queued`, and records an outbox entry. The response contains the `runId`.
+2. **Dispatch.** The Outbox Dispatcher (§2.1) is woken by `NOTIFY` from the sending transaction (with a polling fallback). It claims entries with `FOR UPDATE SKIP LOCKED` and forwards them to BullMQ with job id = outbox id, so redelivery is idempotent. If Valkey rejects writes or is unavailable, the entry stays in the outbox and is retried with backoff; no work is lost.
+3. **Execution.** The AI Worker runs generation through the AI Run Engine (§4.7) using the AI SDK/OpenRouter, and writes each chunk to the Valkey Stream `run:{runId}` (`XADD` with `MAXLEN`). The chunk format follows the AI SDK UI message stream protocol so `useChat`/assistant-ui can consume it; the event schema and version are defined in `shared/`.
+4. **Delivery to the client.** The SSE endpoint `GET /api/runs/{runId}/events` on the Backend API verifies permissions, then subscribes to the **stream hub** of that Backend API process.
+   - **One Valkey connection per process.** Each Backend API process runs one hub with one dedicated Valkey connection that reads all active streams at once (`XREAD BLOCK` multi-key). The block is short (proposed 1–2 seconds) so the stream list is refreshed when new subscribers arrive. The hub fans frames out to subscribers in memory, so the number of Valkey connections per process is fixed and does not grow per client.
+   - **Replay.** `Last-Event-ID` replay is done with `XRANGE` over a shared non-blocking connection before the subscriber joins the hub. Frames are deduplicated by entry id, so the replay → live transition neither drops nor duplicates frames.
+   - **Frames.** Each frame is forwarded with `id` = the stream entry id, plus a periodic *heartbeat*. The number of SSE connections per user is limited.
+   - **Proxy and Next.js.** Caddy is configured without buffering and with a long read timeout for this path. The path is served directly by the Backend API (not through Next.js), so long-lived SSE connections do not burden the frontend process.
+   - **Deploys.** When the Backend API stops for a deploy, the hub closes SSE connections in a controlled way so clients reconnect with `Last-Event-ID` to the new instance. The NestJS 12 Express adapter's graceful shutdown support is used if available and is verified in S2.
+5. **Checkpoint and completion.** The worker saves partial message checkpoints to PostgreSQL at step boundaries (and periodically during long generations). At the end, the final message, token/cost usage, and `completed` status are written in one transaction; then a `finish` event is published and the stream is given a short TTL.
+6. **Reconnect/resume.** A client that reopens a conversation with an active run reconnects to the same endpoint using `Last-Event-ID`. If the stream has expired, the client loads messages from PostgreSQL (final or the last checkpoint, with run status).
+7. **Cancel.** `POST /api/runs/{runId}/cancel` sets status `cancelling` and publishes a control signal; the worker stops generation through an `AbortSignal`, saves partial results, and sets `cancelled`.
+8. **Tool approval (write action).** When a tool needs approval:
+   1. The worker saves the operation with its *snapshot hash*, sets the run to `awaiting_approval`, publishes an event, and then **ends the job**, which frees the worker slot.
+   2. The API receives the user's decision and validates it: owner, snapshot hash, permissions, and connector status.
+   3. A `resume` job is then sent through the outbox.
 
-**Integrasi klien:** transport `ChatTransport` kustom di `frontend/src/lib` — pengiriman prompt ke endpoint run dan penyambungan ulang ke endpoint SSE — dihubungkan ke assistant-ui. Kecocokan dengan AI SDK 7 / `@ai-sdk/react` 4 divalidasi pada spike S2.
+   Approvals that are not answered expire as rejections.
+9. **Worker failure.** A *stalled* job is retried with the same id and continues from the last checkpoint; the client receives a `reset` event for the in-progress message so partial chunks are discarded.
 
-**Sifat rancangan:** generation tidak bergantung pada umur koneksi browser. Retry dan pemrosesan berulang ditangani dengan identitas job/run serta operasi persistensi yang idempotent. Jaminan replay dan recovery ditentukan oleh state tersimpan dan retensi event yang dikonfigurasi.
+**Client integration:** a custom `ChatTransport` in `frontend/src/lib` connects to assistant-ui. It sends prompts to the run endpoint and reconnects to the SSE endpoint. Compatibility with AI SDK 7 / `@ai-sdk/react` 4 is validated in spike S2.
 
-### 4.2 Alur Dokumen (upload hingga terindeks)
+**Design properties:** generation does not depend on the lifetime of the browser connection. Retries and repeated processing are handled with job/run identity and idempotent persistence operations. Replay and recovery guarantees are determined by stored state and the configured event retention.
 
-1. Pengguna meminta upload melalui API Lexon.
-2. API memvalidasi konteks, izin, ukuran, dan tipe, lalu menerbitkan presigned URL menggunakan AWS SDK v3 ke area *quarantine* (prefiks objek terpisah).
-3. Klien mengunggah objek ke endpoint penyimpanan melalui HTTPS.
-4. Backend memverifikasi objek (ukuran, checksum, *magic bytes* — bukan hanya ekstensi) dan mencatat metadata serta versi dokumen di PostgreSQL dengan status `uploaded`.
-5. Document Worker menjalankan pipeline berikut. Setiap tahap idempotent per versi dokumen dan mencatat statusnya:
+### 4.2 Document flow (upload to indexed)
 
-| Status | Tahap | Keterangan |
+1. The user requests an upload through the Lexon API.
+2. The API validates context, permissions, size, and type, then issues a presigned URL with AWS SDK v3 to the *quarantine* area (a separate object prefix).
+3. The client uploads the object to the storage endpoint over HTTPS.
+4. The backend verifies the object (size, checksum, *magic bytes*, not only the extension) and records metadata and the document version in PostgreSQL with status `uploaded`.
+5. The Document Worker runs the following pipeline. Each stage is idempotent per document version and records its status:
+
+| Status | Stage | Notes |
 |---|---|---|
-| `scanning` | Pemindaian ClamAV | Hasil positif → `quarantined`; objek tidak diproses dan tidak dapat diunduh |
-| `validating` | Validasi struktur | Rasio kompresi dan ukuran terurai untuk OOXML/ZIP; parser XML tanpa entitas eksternal; batas jumlah halaman |
-| `converting` | Konversi (bila perlu) | Format Office legacy dikonversi melalui LibreOffice Sandbox |
-| `extracting` | Ekstraksi teks | PDF.js (teks beserta posisi) dan Mammoth/parser DOCX |
-| `ocr` | OCR (bila perlu) | Halaman tanpa text layer yang memadai diproses OCRmyPDF/Tesseract; hasil disimpan sebagai artefak PDF dengan text layer, sedangkan **file asli tidak diubah** |
-| `chunking` | Pembagian chunk | Berbasis struktur, membawa jangkar sitasi (§4.3); kolom `tsvector` dan indeks trigram terisi saat chunk ditulis |
-| `indexed` | Siap | Tersedia bagi Chat, Tabular Review, dan Editor |
-| `failed` | Gagal | Dengan kode alasan; dapat dicoba ulang |
+| `scanning` | ClamAV scan | Positive result → `quarantined`; the object is not processed and cannot be downloaded |
+| `validating` | Structure validation | Compression ratio and uncompressed size for OOXML/ZIP; XML parser without external entities; page count limit |
+| `converting` | Conversion (if needed) | Legacy Office formats are converted through the LibreOffice Sandbox |
+| `extracting` | Text extraction | PDF.js (text with positions) and Mammoth/DOCX parser |
+| `ocr` | OCR (if needed) | Pages without a sufficient text layer are processed by OCRmyPDF/Tesseract; the result is stored as a PDF artifact with a text layer, while **the original file is not changed** |
+| `chunking` | Chunking | Structure-based, carrying citation anchors (§4.3); the `tsvector` column and trigram index are filled when chunks are written |
+| `indexed` | Ready | Available to Chat, Tabular Review, and the Editor |
+| `failed` | Failed | With a reason code; can be retried |
 
-6. Objek dipindahkan dari area quarantine ke area aktif hanya setelah lolos pemindaian dan validasi; saat dipindahkan, objek dienkripsi dengan DEK organisasi (§5.6). Objek di quarantine tidak terenkripsi aplikasi dan berumur pendek (lifecycle kedaluwarsa, usulan 24 jam).
+6. Objects move from the quarantine area to the active area only after passing scanning and validation; when moved, they are encrypted with the organization's DEK (§5.6). Objects in quarantine are not application-encrypted and are short-lived (expiry lifecycle, proposed 24 hours).
 
-**OCR (v1: bahasa Inggris).** Klasifikasi per halaman: halaman dengan cakupan teks rendah dikirim ke OCR. Gambar (PNG/JPG/TIFF) dikonversi menjadi PDF lalu di-OCR. Bahasa OCR ditentukan konfigurasi (`OCR_LANGS=eng`); bahasa Indonesia ditambahkan dengan menambah paket bahasa Tesseract (`eng+ind`) tanpa perubahan kode. Skor kepercayaan OCR disimpan per halaman; halaman berkepercayaan rendah ditandai di UI dan pada sitasi. OCR berjalan lokal agar isi dokumen tidak dikirim ke pihak ketiga.
+**OCR (v1: English).**
+- Pages are classified one by one; pages with low text coverage are sent to OCR.
+- Images (PNG/JPG/TIFF) are converted to PDF and then OCR'd.
+- The OCR language comes from configuration (`OCR_LANGS=eng`). Indonesian is added by installing the Tesseract language pack (`eng+ind`), without code changes.
+- An OCR confidence score is stored per page; low-confidence pages are flagged in the UI and on citations.
+- OCR runs locally, so document content is not sent to third parties.
 
-**Bahasa dokumen.** Ekstraksi dan OCR tidak bergantung pada konfigurasi bahasa PostgreSQL; keduanya terpisah dari pencarian (§4.3). Bahasa terdeteksi per versi dokumen dan disimpan sebagai metadata.
+**Document language.** Extraction and OCR do not depend on PostgreSQL language configuration; both are separate from search (§4.3). The language is detected per document version and stored as metadata.
 
-Metadata database dan operasi object storage dapat selesai pada waktu berbeda; proses penyelesaian, retry, dan cleanup harus menjaga konsistensi lifecycle dokumen. Unggahan yatim (objek tanpa catatan) dibersihkan oleh *lifecycle rule* dan job rekonsiliasi.
+Database metadata and object storage operations can complete at different times. Completion, retry, and cleanup processes must keep the document lifecycle consistent. Orphan uploads (objects without a record) are cleaned up by a *lifecycle rule* and a reconciliation job.
 
 ### 4.3 Retrieval & Grounding
 
-**Pipeline retrieval:**
+**Retrieval pipeline:**
 
-1. **Chunking berbasis struktur.** Teks dipecah mengikuti struktur dokumen (heading, pasal/klausul, paragraf, tabel) dengan ukuran target dan tumpang tindih yang dikonfigurasi. Setiap chunk membawa jangkar sitasi: id versi dokumen, halaman awal/akhir, offset karakter, dan untuk PDF kotak pembatas (*bounding boxes*) dari posisi teks PDF.js; untuk DOCX, indeks paragraf dan offset.
-2. **Indeks.** Setiap chunk menyimpan: `tsvector` (dihasilkan dari konfigurasi bahasa chunk), teks untuk trigram, dan `org_id` yang didenormalisasi untuk filter tenant dan RLS. Indeks: GIN pada `tsvector`, GIN `pg_trgm` pada teks chunk, dan B-tree `(org_id, document_version_id)`.
-3. **Retrieval keyword.** Kueri dijalankan sebagai keyword search (FTS) dan, untuk pola sitasi atau nomor pasal, trigram. Hasil digabung dengan *Reciprocal Rank Fusion* di SQL. Semua kueri memakai authorization predicate builder (§3.2) dan filter project/dokumen yang dipilih pengguna; filter berada pada kueri yang sama dengan pencarian indeks, bukan sesudahnya.
-4. **Reranking (opsional).** Pengurutan ulang oleh model; diaktifkan hanya bila evaluasi menunjukkan manfaat sepadan dengan biaya dan latensi.
-5. **Perakitan konteks.** Dua jalur: **konteks penuh** untuk dokumen tunggal yang muat dalam anggaran token model (umum untuk kontrak), dan **retrieval** untuk banyak dokumen atau dokumen sangat panjang. Pemilihan dilakukan per permintaan berdasarkan anggaran token.
-6. **Generasi dengan sitasi terstruktur.** Model diminta mengeluarkan sitasi sebagai data terstruktur (id chunk + kutipan pendek).
-7. **Verifikasi sitasi.** Server memeriksa bahwa setiap kutipan benar-benar terdapat (setelah normalisasi) pada chunk yang dirujuk. Sitasi yang gagal diverifikasi ditandai "tidak terverifikasi" di UI dan dicatat untuk evaluasi. Klik sitasi membuka sumber pada halaman/paragraf terkait (PDF.js atau editor DOCX).
+1. **Structure-based chunking.** Text is split along the document structure (headings, articles/clauses, paragraphs, tables), with a configured target size and overlap. Each chunk carries a citation anchor:
+   - the document version id, start/end pages, and character offsets;
+   - for PDF, bounding boxes from PDF.js text positions;
+   - for DOCX, the paragraph index and offset.
+2. **Index.** Each chunk stores:
+   - a `tsvector` generated from the chunk's language configuration;
+   - text for trigram matching;
+   - a denormalized `org_id` for tenant filtering and RLS.
 
-**Pencarian semantik (vektor) tidak dipakai di MVP.** Skala MVP (puluhan dokumen per project) dilayani oleh jalur konteks penuh untuk dokumen tunggal dan FTS + trigram untuk banyak dokumen. Tidak ada embedding, kolom vektor, maupun ekstensi `pgvector`. Konsekuensi yang diterima: pertanyaan yang diparafrasekan jauh dari kata kunci dokumen lebih bergantung pada konteks penuh dan kualitas FTS. Pencarian vektor ditambahkan kemudian hanya melalui perubahan stack yang eksplisit (ekstensi, tabel vektor terpisah, job embedding), bila evaluasi (§7.2) menunjukkan Recall@K FTS di bawah ambang yang disepakati atau korpus per organisasi tumbuh melampaui yang dapat dilayani FTS. Rancangan tidak menutup jalur ini: chunk, jangkar sitasi, dan filter otorisasi tidak bergantung pada vektor.
+   Indexes: GIN on `tsvector`, GIN `pg_trgm` on chunk text, and B-tree on `(org_id, document_version_id)`.
+3. **Keyword retrieval.** Queries run as keyword search (FTS) and, for citation patterns or article numbers, trigram matching. Results are merged with *Reciprocal Rank Fusion* in SQL. Every query uses the authorization predicate builder (§3.2) and the project/document filters the user selected; filters are in the same query as the index search, not applied afterward.
+4. **Reranking (optional).** Model-based reordering; enabled only if evaluation shows benefit worth the cost and latency.
+5. **Context assembly.** Two paths, chosen per request based on the token budget:
+   - **full context** for a single document that fits within the model's token budget (common for contracts);
+   - **retrieval** for many documents or very long documents.
+6. **Generation with structured citations.** The model is asked to output citations as structured data (chunk id + short quote).
+7. **Citation verification.** The server checks that each quote actually appears (after normalization) in the referenced chunk. Citations that fail verification are marked "unverified" in the UI and logged for evaluation. Clicking a citation opens the source at the relevant page/paragraph (PDF.js or the DOCX editor).
 
-**Konfigurasi bahasa pencarian.**
+**Semantic (vector) search is not used in the MVP.** MVP scale (dozens of documents per project) is served by the full-context path for single documents and FTS + trigram for many documents. There are no embeddings, vector columns, or `pgvector` extension.
 
-| Aspek | v1 (Inggris) | Penambahan Indonesia |
+- **Accepted consequence:** questions paraphrased far from the document's keywords depend more on full context and FTS quality.
+- **When vector search would be added:** only through an explicit stack change (extension, separate vector table, embedding job), and only if evaluation (§7.2) shows FTS Recall@K below the agreed threshold, or the per-organization corpus grows beyond what FTS can serve.
+- **The path stays open:** chunks, citation anchors, and authorization filters do not depend on vectors.
+
+**Search language configuration.**
+
+| Aspect | v1 (English) | Adding Indonesian |
 |---|---|---|
-| Konfigurasi FTS | `english` | `indonesian` (stemmer Snowball bawaan PostgreSQL), dengan daftar stopword dan dictionary sinonim untuk singkatan hukum (UU, PP, Perpres, KUHPer, dst.) |
-| Skema | Kolom `search_config` per chunk | Tidak berubah |
-| Perubahan yang diperlukan | — | Perubahan konfigurasi dan re-index chunk; OCR menambah `ind` |
-| Dokumen dua bahasa | — | Indeks per chunk sesuai bahasa terdeteksi; kueri dijalankan pada kedua konfigurasi |
+| FTS configuration | `english` | `indonesian` (PostgreSQL's built-in Snowball stemmer), with a stopword list and a synonym dictionary for legal abbreviations (UU, PP, Perpres, KUHPer, etc.) |
+| Schema | `search_config` column per chunk | Unchanged |
+| Required changes | — | Configuration change and chunk re-index; OCR adds `ind` |
+| Bilingual documents | — | Index per chunk according to the detected language; queries run against both configurations |
 
-Stemmer Snowball bersifat sederhana (menangani prefiks/sufiks umum) sehingga kualitasnya diukur melalui evaluasi (§7) sebelum dianggap memadai; bila tidak memadai, perbaikan ditempuh melalui dictionary sinonim, trigram, dan reranking opsional sebelum pencarian vektor dipertimbangkan. Peringkat FTS PostgreSQL (`ts_rank`) bukan BM25; bila evaluasi menunjukkan kekurangan, alternatif dievaluasi melalui perubahan stack yang eksplisit.
+The Snowball stemmer is simple (it handles common prefixes/suffixes), so its quality is measured through evaluation (§7) before it is considered adequate. If it is not adequate, improvements are pursued through the synonym dictionary, trigram, and optional reranking before vector search is considered. PostgreSQL FTS ranking (`ts_rank`) is not BM25; if evaluation shows shortcomings, alternatives are evaluated through an explicit stack change.
 
-**Korpus hukum bersama** (peraturan perundang-undangan, putusan) di luar cakupan MVP (v1.3): dapat disediakan melalui konektor MCP atau korpus internal yang memakai skema chunk yang sama dengan lingkup `global` (keputusan terbuka, §9).
+**Shared legal corpus** (statutes, court decisions) is outside the MVP scope (v1.3). It can be provided through an MCP connector or an internal corpus using the same chunk schema with a `global` scope (open decision, §9).
 
-### 4.4 Editor dan format kanonik dokumen
+### 4.4 Editor and canonical document format
 
-- **DOCX adalah format kanonik** seluruh dokumen hukum. Tracked changes dan komentar disimpan di dalam OOXML (`w:ins`, `w:del`, `comments.xml`); tabel di PostgreSQL hanya memuat indeks turunan untuk daftar dan pencarian.
-- **Peran editor.** EigenPal (Core + Pro) menyunting DOCX di browser. Tiptap hanya untuk konten non-DOCX (instruksi project, composer, catatan, pratinjau draf AI) dan tidak menjadi sumber kebenaran dokumen hukum.
-- **`EditorPort`.** Domain Editor berinteraksi dengan editor melalui antarmuka internal (open, save, applySuggestions, listChanges, export) sehingga penggantian editor tidak mengubah domain. Antarmuka didefinisikan di `shared/`; adaptor EigenPal berada di `frontend/` (editor di browser) dan di modul `editor` backend (`editor-api`, untuk pembuatan OOXML di server, lihat *Saran AI* dan §8).
-- **Versi dokumen.** Setiap versi tidak dapat diubah (`document_versions`: checksum, kunci objek, ukuran, pembuat, asal [`upload` | `user_edit` | `ai_edit`], versi induk). *Autosave* menimpa draf kerja per pengguna; versi baru dibuat pada simpan eksplisit, penerapan saran AI, dan penutupan sesi.
-- **Saran AI.** Perubahan yang diusulkan AI diterapkan sebagai **tracked changes** dengan penulis "Lexon AI (atas nama pengguna)" sehingga pengguna menerima atau menolak satu per satu. Penerapan di klien atau server (editor-api) ditentukan pada spike S1.
-- **Konkurensi (v1).** Satu penyunting aktif per dokumen melalui kunci lunak (*soft lock*) dengan indikator kehadiran; penyimpanan menggunakan `base_version_id` (optimistic) dan konflik ditangani dengan membuat cabang untuk digabung manual. **Kolaborasi real-time bukan target v1.**
-- **Ekspor.** DOCX asli dan PDF (melalui LibreOffice Sandbox).
+- **DOCX is the canonical format** of all legal documents. Tracked changes and comments are stored inside the OOXML (`w:ins`, `w:del`, `comments.xml`); tables in PostgreSQL hold only derived indexes for listing and search.
+- **Editor roles.** EigenPal (Core + Pro) edits DOCX in the browser. Tiptap is only for non-DOCX content (project instructions, composer, notes, AI draft previews) and is not the source of truth for legal documents.
+- **`EditorPort`.** The Editor domain interacts with the editor through an internal interface (open, save, applySuggestions, listChanges, export), so replacing the editor does not change the domain. The interface is defined in `shared/`. EigenPal adapters live in `frontend/` (the in-browser editor) and in the backend `editor` module (`editor-api`, for server-side OOXML generation; see *AI suggestions* and §8).
+- **Document versions.** Every version is immutable (`document_versions`: checksum, object key, size, creator, origin [`upload` | `user_edit` | `ai_edit`], parent version). *Autosave* overwrites a per-user working draft; a new version is created on explicit save, on applying AI suggestions, and when a session closes.
+- **AI suggestions.** Changes proposed by the AI are applied as **tracked changes** with the author "Lexon AI (on behalf of the user)", so the user accepts or rejects them one by one. Whether they are applied in the client or on the server (editor-api) is decided in spike S1.
+- **Concurrency (v1).** One active editor per document through a *soft lock* with a presence indicator. Saves use `base_version_id` (optimistic); conflicts are handled by creating a branch for manual merging. **Real-time collaboration is not a v1 goal.**
+- **Export.** Original DOCX and PDF (through the LibreOffice Sandbox).
 
 ### 4.5 Tabular Review
 
-- **Model data:** `review` → kolom (pertanyaan, tipe/skema keluaran) × baris (versi dokumen) → `cell` (nilai, status, sitasi, run, model, token).
-- **Status sel:** `pending` → `running` → `done` | `error` | `stale` (stale bila dokumen atau pertanyaan berubah).
-- **Unit kerja default: satu panggilan per dokumen.** Seluruh kolom untuk satu baris diminta dalam satu panggilan dengan structured output (skema gabungan dari skema keluaran tiap kolom, divalidasi Zod). Review 50 dokumen × 20 kolom menjadi ±50 panggilan, bukan 1.000. Kolom dipecah ke beberapa panggilan bila jumlah kolom atau ukuran skema melampaui ambang terkonfigurasi, bila kolom memerlukan model berbeda, atau bila dokumen melebihi anggaran token (kolom tersebut memakai jalur retrieval §4.3).
-- **Pemakaian ulang konteks:** prompt disusun dengan prefiks stabil (instruksi → dokumen → pertanyaan kolom) agar prompt caching provider terpakai bila didukung; token yang terbaca dari cache dicatat di `usage_events`.
-- **Granularitas pengulangan:** retry dan re-run berlaku per sel. Sel `error` dan `stale` dikerjakan ulang tanpa mengulang sel `done`; perubahan satu kolom memicu satu panggilan per dokumen untuk kolom itu saja.
-- **Sitasi per sel** diverifikasi dengan mekanisme yang sama dengan Chat (§4.3 langkah 7).
-- **Penjadwalan:** job per dokumen dikirim ke AI Worker (antrean `ai-batch`) dengan batas concurrency per organisasi (§5.3) dan prioritas lebih rendah daripada Chat interaktif; estimasi biaya ditampilkan sebelum run dimulai (§7.3).
-- **Pengiriman hasil:** pembaruan sel diteruskan ke grid melalui stream `review:{id}` (mekanisme sama dengan §4.1).
-- **Antarmuka:** TanStack Table dengan virtualisasi; edit manual oleh pengguna dicatat dan tidak ditimpa ulang tanpa konfirmasi.
-- **Ekspor:** XLSX melalui ExcelJS di Document Worker untuk review besar.
-- Pekerjaan analisis dijadwalkan ke worker terkait; konfigurasi dan status baris/kolom dikelola secara transaksional.
+- **Data model:** `review` → columns (question, output type/schema) × rows (document versions) → `cell` (value, status, citations, run, model, tokens).
+- **Cell status:** `pending` → `running` → `done` | `error` | `stale` (stale when the document or question changes).
+- **Default unit of work: one call per document.** All columns for a row are requested in one call with structured output: a combined schema built from each column's output schema, validated with Zod. A 50-document × 20-column review becomes about 50 calls, not 1,000. Columns are split across several calls when:
+  - the number of columns or the schema size exceeds a configured threshold;
+  - a column needs a different model;
+  - the document exceeds the token budget (those columns use the retrieval path, §4.3).
+- **Context reuse:** prompts are built with a stable prefix (instructions → document → column questions) so provider prompt caching is used when supported; tokens read from cache are recorded in `usage_events`.
+- **Retry granularity:** retry and re-run apply per cell. `error` and `stale` cells are reprocessed without repeating `done` cells; changing one column triggers one call per document for that column only.
+- **Per-cell citations** are verified with the same mechanism as Chat (§4.3 step 7).
+- **Scheduling:** per-document jobs are sent to the AI Worker (`ai-batch` queue). They have a per-organization concurrency limit (§5.3) and lower priority than interactive Chat. A cost estimate is shown before the run starts (§7.3).
+- **Result delivery:** cell updates are forwarded to the grid through the `review:{id}` stream (same mechanism as §4.1).
+- **Interface:** TanStack Table with virtualization; manual edits by the user are recorded and are not overwritten without confirmation.
+- **Export:** XLSX through ExcelJS in the Document Worker for large reviews.
+- Analysis work is scheduled to the relevant worker; row/column configuration and status are managed transactionally.
 
-### 4.6 Alur Koneksi dan Tool MCP
+### 4.6 MCP connection and tool flow
 
-1. Pengguna menambahkan connector pada pengaturan akun. API memvalidasi URL tujuan, konteks akses, dan metode otorisasi yang dipilih.
-2. Pada koneksi OAuth, API menjalankan alur otorisasi melalui callback HTTPS dan menyimpan token secara terenkripsi (§5.6). Pada koneksi berbasis bearer token atau headers, kredensial juga dikelola oleh server.
-3. Connector services memakai klien MCP `@modelcontextprotocol/client` v2 (spec 2026-07-28; peer dependency Zod 4) yang diuji juga terhadap server berspec lama. Pemakaian klien ini tidak mengubah kontrak SSE Lexon sendiri (§4.1). Connector services mengambil katalog tool dari server MCP, memvalidasi dan menyimpan metadata yang dibutuhkan, serta menerapkan status dan kebijakan tiap tool.
-4. Saat AI membutuhkan tool, AI Worker memeriksa identitas pemanggil, kepemilikan connector, status koneksi, skema argumen, izin, dan klasifikasi read/write.
-5. Tindakan yang mewajibkan persetujuan ditahan hingga pengguna menyetujuinya (§4.1 langkah 8). Keputusan diterapkan terhadap operasi yang tersimpan pada server; izin dan konfigurasi connector diperiksa kembali sebelum eksekusi.
-6. Hasil eksekusi diteruskan ke AI sebagai **data eksternal yang tidak tepercaya**, dengan batas waktu, pembatasan ukuran, penanganan kegagalan, dan audit yang sesuai.
+1. The user adds a connector in account settings. The API validates the destination URL, the access context, and the chosen authorization method.
+2. For OAuth connections, the API runs the authorization flow through an HTTPS callback and stores tokens encrypted (§5.6). For bearer-token or header-based connections, the credentials are also managed by the server.
+3. Connector services use the MCP client `@modelcontextprotocol/client` v2 (spec 2026-07-28; Zod 4 peer dependency), which is also tested against older-spec servers. Using this client does not change Lexon's own SSE contract (§4.1). Connector services fetch the tool catalog from the MCP server, validate and store the needed metadata, and apply each tool's status and policy.
+4. When the AI needs a tool, the AI Worker checks the caller's identity, connector ownership, connection status, argument schema, permissions, and read/write classification.
+5. Actions that require approval are held until the user approves them (§4.1 step 8). The decision is applied to the operation stored on the server; connector permissions and configuration are rechecked before execution.
+6. Execution results are passed to the AI as **untrusted external data**, with timeouts, size limits, failure handling, and appropriate auditing.
 
-**Batas konsistensi:** persetujuan hanya berlaku untuk operasi dan konteks yang dinyatakan, tidak otomatis dapat digunakan ulang untuk server, akun, atau kredensial yang telah berubah. Permintaan yang gagal karena otorisasi atau koneksi tidak boleh diam-diam dieksekusi dengan identitas lain.
+**Consistency boundary:** an approval applies only to the stated operation and context. It is not automatically reusable for a server, account, or credential that has changed. A request that fails because of authorization or connectivity must never be silently executed under another identity.
 
 ### 4.7 AI Run Engine
 
-Seluruh pekerjaan AI interaktif dan batch (Chat, chat dalam project, chat atas Tabular Review, chat di Word add-in, subagents, serta eksekusi Workflows dan Playbooks) dijalankan oleh **satu mesin run** di AI Worker. Mesin ini tidak mengenal fitur; fitur menyambung melalui kontrak yang ditetapkan, sehingga penambahan fitur tidak mengubah mesin.
+**One engine for all AI work.** All interactive and batch AI work runs on **one run engine** in the AI Worker. That covers Chat, chat within a project, chat over a Tabular Review, chat in the Word add-in, subagents, and Workflow and Playbook execution.
 
-**Tanggung jawab mesin:** state machine `ai_run` (`queued` → `running` → `awaiting_approval` → `completed` | `failed` | `cancelling` → `cancelled`), pemrosesan job dari antrean `ai-*`, loop model–tool dengan batas iterasi dan anggaran token, pemanggilan model hanya melalui `infrastructure/ai` (allowlist dan preferensi provider, §6.2), penulisan event ke Valkey Streams sesuai kontrak `shared/` (§4.1 langkah 3), checkpoint pada batas langkah, cancel melalui `AbortSignal`, jeda persetujuan dan kelanjutan melalui job `resume` (§4.1 langkah 8), pencatatan `usage_events`, serta tracing tanpa isi K1 (§7.1).
+The engine knows nothing about features. Features plug in through defined contracts, so adding a feature does not change the engine.
 
-**Titik sambung (extension points):**
+**Engine responsibilities:**
 
-| Kontrak | Fungsi | Contoh penyedia |
+- **Run lifecycle:** the `ai_run` state machine (`queued` → `running` → `awaiting_approval` → `completed` | `failed`; `cancelling` → `cancelled`).
+- **Execution:** processing jobs from the `ai-*` queues, and the model–tool loop with an iteration limit and a token budget.
+- **Model access:** model calls go only through `infrastructure/ai` (allowlist and provider preferences, §6.2).
+- **Streaming:** writing events to Valkey Streams per the `shared/` contract (§4.1 step 3).
+- **Durability:** checkpoints at step boundaries; cancel through an `AbortSignal`; approval pause and continuation through a `resume` job (§4.1 step 8).
+- **Accounting:** recording `usage_events`.
+- **Observability:** tracing without K1 content (§7.1).
+
+**Extension points:**
+
+| Contract | Function | Example providers |
 |---|---|---|
-| **Run profile** | Konfigurasi per jenis permukaan: model default dan yang diizinkan, batas iterasi, anggaran token, prioritas antrean, serta kapabilitas yang boleh diaktifkan | chat, project chat, tabular chat, Word chat, subagent, workflow |
-| **Context provider** | Menyumbang bagian konteks prompt dengan anggaran token sendiri; setiap isi yang berasal dari dokumen, memory, web, atau tool ditempatkan sebagai **data terdelimitasi yang tidak tepercaya** (§5.1 *Prompt injection*) | dokumen dan chunk (§4.3), instruksi project, memory, workflow, playbook |
-| **Tool provider** | Mendaftarkan tool beserta skema argumen (Zod), klasifikasi read/write, kebutuhan persetujuan, batas waktu, dan batas ukuran hasil | retrieval, riset web, konektor MCP (§4.6), edit dokumen (§4.4), subagent, tool klien Word (§8) |
-| **Capability policy** | Menentukan kapabilitas dan tool yang aktif untuk satu run berdasarkan identitas, konteks organisasi/project, dan izin atas resource (§3.2) yang diperiksa di server; bukan berdasarkan flag yang dikirim pemanggil | seluruh permukaan |
+| **Run profile** | Configuration per surface type: default and allowed models, iteration limit, token budget, queue priority, and the capabilities that may be enabled | chat, project chat, tabular chat, Word chat, subagent, workflow |
+| **Context provider** | Contributes a part of the prompt context with its own token budget. Every piece of content from documents, memory, the web, or tools is placed as **delimited, untrusted data** (§5.1 *Prompt injection*) | documents and chunks (§4.3), project instructions, memory, workflow, playbook |
+| **Tool provider** | Registers tools with an argument schema (Zod), read/write classification, approval requirement, timeout, and result size limit | retrieval, web research, MCP connectors (§4.6), document editing (§4.4), subagent, Word client tools (§8) |
+| **Capability policy** | Decides the capabilities and tools active for a run. Inputs are identity, organization/project context, and resource permissions (§3.2), checked on the server; never flags sent by the caller | every surface |
 
-**Aturan:**
+**Rules:**
 
-- Fitur menambah perilaku dengan mendaftarkan run profile, context provider, atau tool provider; **tidak** dengan menambah parameter atau percabangan di dalam mesin.
-- Izin dihitung ulang oleh capability policy setiap kali run dimulai atau dilanjutkan; tool write tanpa izin tidak diiklankan ke model dan tetap ditolak bila diminta.
-- Subagent adalah run anak dengan run profile sendiri; kapabilitasnya merupakan irisan dari kapabilitas run induk dan dibatasi kedalaman serta anggaran.
-- Mesin dapat diuji tanpa HTTP dan tanpa jaringan memakai model tiruan; runner `evals/` (§7.2) memakai mesin yang sama.
+- Features add behavior by registering a run profile, context provider, or tool provider; **not** by adding parameters or branches inside the engine.
+- The capability policy recomputes permissions every time a run starts or resumes. A write tool without permission is not advertised to the model, and is still rejected if requested.
+- A subagent is a child run with its own run profile. Its capabilities are the intersection of the parent run's capabilities, and it is limited by depth and budget.
+- The engine can be tested without HTTP and without a network using a mock model; the `evals/` runner (§7.2) uses the same engine.
 
-## 5. Deployment, Isolasi & Ketahanan
+## 5. Deployment, Isolation & Resilience
 
-### 5.1 Topologi dan batas keamanan
+### 5.1 Topology and security boundaries
 
-Topologi deployment awal menggunakan Docker Compose di Linux VPS dengan komponen Caddy, Frontend, Backend API, AI Worker, Document Worker, Outbox Dispatcher, LibreOffice Sandbox, ClamAV, PostgreSQL, Valkey, dan penyimpanan objek S3. Word add-in disajikan sebagai bundel statis oleh Caddy dan mengakses API Lexon melalui HTTPS.
+The initial deployment topology uses Docker Compose on a Linux VPS. Its components are Caddy, the Frontend, the Backend API, the AI Worker, the Document Worker, the Outbox Dispatcher, the LibreOffice Sandbox, ClamAV, PostgreSQL, Valkey, and S3 object storage. The Word add-in is served as a static bundle by Caddy and accesses the Lexon API over HTTPS.
 
-- **Ingress:** Caddy menangani HTTPS dan routing trafik publik: `/api/*` ke Backend API, path lain ke Frontend, dan bundel add-in pada host tersendiri.
-- **Frontend:** hanya pada jaringan `edge`, tanpa akses data dan tanpa rahasia server (§2.2, §3.5).
-- **Private network:** koneksi database, queue, worker, dan endpoint administratif storage berada dalam jaringan internal deployment (§2.2).
-- **Object transfer:** upload memakai presigned URL dengan masa berlaku singkat, scope objek, dan pembatasan ukuran. Hanya endpoint S3 *data-plane* yang diekspos melalui Caddy pada host terpisah dengan CORS terbatas; endpoint master, filer, dan administratif tetap internal. Unduhan dan tampilan dokumen dilayani melalui endpoint Backend API yang mendekripsi secara streaming dengan dukungan `Range` (§5.6), bukan presigned GET langsung ke penyimpanan.
-- **Application authorization:** setiap operasi resource melewati validasi izin server-side dan RLS (§3.2).
-- **Rate limiting:** limiter berbasis Valkey pada endpoint autentikasi, unggah, dan AI; batas per pengguna dan per organisasi.
-- **MCP outbound security:** tujuan HTTP divalidasi untuk mencegah SSRF; alamat privat, *link-local*, dan metadata cloud diblokir; DNS diselesaikan sekali dan koneksi dipin ke IP yang telah divalidasi (anti *DNS rebinding*); perubahan tujuan akibat redirect tidak boleh melewati kebijakan; setiap koneksi memiliki timeout dan batas ukuran respons.
-- **MCP credential protection:** token dan header rahasia dienkripsi saat disimpan (§5.6); kredensial serta isi dokumen tidak dimasukkan ke log diagnostik umum.
-- **MCP tool authorization:** operasi dieksekusi dalam konteks pemilik connector, di bawah kebijakan per tool; tindakan write dengan persetujuan memerlukan validasi ulang tepat sebelum eksekusi.
-- **Prompt injection:** isi dokumen, halaman web, dan hasil tool selalu ditempatkan sebagai data terdelimitasi dalam prompt; instruksi di dalamnya tidak pernah memicu tool write tanpa persetujuan pengguna; AI tidak mengikuti URL secara otomatis. Himpunan uji injeksi menjadi bagian evaluasi (§7).
-- **Operations:** error dicatat melalui Sentry (scrubbing di SDK) dan diteruskan lewat Sentry Relay; tracing/metrics menggunakan OpenTelemetry dan diekspor hanya melalui OTel Collector, yang membuang atribut di luar daftar izin sebagai lapis kedua; pengujian serta build otomatis menggunakan GitHub Actions.
+- **Ingress:** Caddy handles HTTPS and public traffic routing: `/api/*` to the Backend API, other paths to the Frontend, and the add-in bundle on its own host.
+- **Frontend:** only on the `edge` network, with no data access and no server secrets (§2.2, §3.5).
+- **Private network:** database, queue, worker, and storage administrative endpoints are on the deployment's internal network (§2.2).
+- **Object transfer:**
+  - Uploads use presigned URLs with short expiry, object scope, and size limits.
+  - Only the S3 *data-plane* endpoint is exposed through Caddy, on a separate host with limited CORS; the master, filer, and administrative endpoints stay internal.
+  - Document downloads and views are served through a Backend API endpoint that decrypts as a stream with `Range` support (§5.6), not through a direct presigned GET to storage.
+- **Application authorization:** every resource operation passes server-side permission validation and RLS (§3.2).
+- **Rate limiting:** a Valkey-based limiter on authentication, upload, and AI endpoints; limits per user and per organization.
+- **MCP outbound security:** HTTP destinations are validated to prevent SSRF. Controls:
+  - private, *link-local*, and cloud metadata addresses are blocked;
+  - DNS is resolved once and the connection is pinned to the validated IP (anti *DNS rebinding*);
+  - a destination change caused by a redirect must not bypass the policy;
+  - every connection has a timeout and a response size limit.
+- **MCP credential protection:** tokens and secret headers are encrypted at rest (§5.6); credentials and document content are not written to general diagnostic logs.
+- **MCP tool authorization:** operations run in the connector owner's context under per-tool policies; approved write actions require revalidation immediately before execution.
+- **Prompt injection:** document content, web pages, and tool results are always placed as delimited data in the prompt. Instructions inside them never trigger a write tool without user approval, and the AI does not follow URLs automatically. An injection test set is part of evaluation (§7).
+- **Operations:**
+  - errors are recorded through Sentry (SDK scrubbing) and forwarded through Sentry Relay;
+  - tracing/metrics use OpenTelemetry and are exported only through the OTel Collector, which drops attributes outside the allowlist as a second layer;
+  - automated testing and builds use GitHub Actions.
 
-### 5.2 Isolasi eksekusi file tidak tepercaya
+### 5.2 Isolating untrusted file execution
 
-| Komponen | Kontrol |
+| Component | Controls |
 |---|---|
-| **LibreOffice Sandbox** | Container terpisah pada jaringan tanpa egress; pengguna non-root; *root filesystem* read-only dengan `tmpfs` kerja; `cap_drop: ALL`; profil pengguna LibreOffice terpisah per konversi (`-env:UserInstallation`); batas waktu dan memori dengan penghentian paksa; maksimal 1–2 konversi bersamaan |
-| **OCR** | Proses anak dengan batas waktu, memori, dan jumlah halaman; antrean tersendiri dengan concurrency 1–2 |
-| **ClamAV** | `clamd` pada jaringan sandbox tanpa egress; signature diperbarui terjadwal oleh kontainer `freshclam` terpisah (jaringan `egress`) melalui volume bersama; objek yang belum dipindai tidak dapat diunduh atau diproses |
-| **Parser dokumen** | Entitas XML eksternal dinonaktifkan; batas rasio kompresi dan ukuran terurai; batas kedalaman struktur |
-| **Hasil unduhan** | Disajikan dengan `Content-Disposition` dan `Content-Type` yang tepat, tanpa eksekusi konten aktif |
+| **LibreOffice Sandbox** | • separate container on a network without egress<br>• non-root user<br>• read-only *root filesystem* with a working `tmpfs`<br>• `cap_drop: ALL`<br>• a separate LibreOffice user profile per conversion (`-env:UserInstallation`)<br>• time and memory limits with forced termination<br>• at most 1–2 concurrent conversions |
+| **OCR** | Child process with time, memory, and page count limits; its own queue with concurrency 1–2 |
+| **ClamAV** | `clamd` on the sandbox network without egress. Signatures are updated on a schedule by a separate `freshclam` container (on the `egress` network) through a shared volume. Objects that have not been scanned cannot be downloaded or processed |
+| **Document parsers** | External XML entities disabled; compression ratio and uncompressed size limits; structure depth limits |
+| **Download results** | Served with correct `Content-Disposition` and `Content-Type`, without executing active content |
 
-### 5.3 Anggaran sumber daya dan keadilan antar-tenant
+### 5.3 Resource budget and fairness across tenants
 
-- Setiap layanan memiliki batas memori dan CPU di Compose; profil awal dikalibrasi melalui uji beban sebelum produksi.
-- Antrean dipisah per jenis pekerjaan (`ai-interactive`, `ai-batch`, `doc-scan`, `doc-ocr`, `doc-chunk`, `doc-convert`) dengan concurrency masing-masing; Chat interaktif diprioritaskan di atas Tabular Review dan indexing.
-- Pembatasan concurrency per organisasi diterapkan di aplikasi (token bucket di Valkey) agar satu organisasi tidak menguras antrean.
-- Kapasitas PostgreSQL dilindungi dengan pool koneksi terbatas per runtime dan `statement_timeout`.
+- Every service has memory and CPU limits in Compose; the initial profile is calibrated through load testing before production.
+- Queues are separated per job type (`ai-interactive`, `ai-batch`, `doc-scan`, `doc-ocr`, `doc-chunk`, `doc-convert`), each with its own concurrency. Interactive Chat is prioritized over Tabular Review and indexing.
+- Per-organization concurrency limits are applied in the application (token bucket in Valkey) so one organization cannot drain the queues.
+- PostgreSQL capacity is protected with a limited connection pool per runtime and `statement_timeout`.
 
-**Profil sumber daya awal** (titik awal; dikalibrasi melalui uji beban sebelum produksi):
+**Initial resource profile** (a starting point; calibrated through load testing before production):
 
-| Layanan | Batas memori | CPU | Catatan |
+| Service | Memory limit | CPU | Notes |
 |---|---|---|---|
-| PostgreSQL 17 | 4 GB | 2 | `shared_buffers` ±1 GB; indeks GIN (FTS dan trigram) sebaiknya muat di memori |
-| Valkey 9.0.x | 1 GB (`maxmemory` 768 MB) | 0,5 | Anggaran per penggunaan §5.4 |
-| SeaweedFS (master, volume, filer, S3) | 1 GB | 0,5 | |
-| Backend API (NestJS) | 1,5 GB | 1 | Termasuk stream hub |
-| Frontend (Next.js) | 0,75 GB | 0,5 | SSR saja; tanpa koneksi SSE dan tanpa akses data |
-| AI Worker | 1 GB | 1 | Dominan I/O jaringan |
-| Outbox Dispatcher | 256 MB | 0,25 | |
-| Document Worker (termasuk OCR) | 3 GB | 2 | OCR dominan CPU; concurrency 1–2 |
-| LibreOffice Sandbox | 2 GB | 1 | 1–2 konversi bersamaan |
-| `clamd` | 3 GB | 1 | Basis signature membutuhkan memori dalam orde 1 GB lebih dan dapat berlipat saat reload |
-| Caddy, `freshclam`, OTel Collector, Sentry Relay | 1 GB total | 0,5 | |
-| **Total** | **±18,5 GB** | **±10 (CPU boleh overcommit)** | |
+| PostgreSQL 17 | 4 GB | 2 | `shared_buffers` ~1 GB; GIN indexes (FTS and trigram) should fit in memory |
+| Valkey 9.0.x | 1 GB (`maxmemory` 768 MB) | 0.5 | Per-use budget §5.4 |
+| SeaweedFS (master, volume, filer, S3) | 1 GB | 0.5 | |
+| Backend API (NestJS) | 1.5 GB | 1 | Includes the stream hub |
+| Frontend (Next.js) | 0.75 GB | 0.5 | SSR only; no SSE connections and no data access |
+| AI Worker | 1 GB | 1 | Dominated by network I/O |
+| Outbox Dispatcher | 256 MB | 0.25 | |
+| Document Worker (including OCR) | 3 GB | 2 | OCR is CPU-dominant; concurrency 1–2 |
+| LibreOffice Sandbox | 2 GB | 1 | 1–2 concurrent conversions |
+| `clamd` | 3 GB | 1 | The signature database needs memory on the order of 1 GB or more and can double during reload |
+| Caddy, `freshclam`, OTel Collector, Sentry Relay | 1 GB total | 0.5 | |
+| **Total** | **~18.5 GB** | **~10 (CPU may be overcommitted)** | |
 
-- **Produksi/pilot:** minimum 8 vCPU, 32 GB RAM, NVMe; sisa memori dipakai sebagai page cache sistem berkas untuk PostgreSQL dan SeaweedFS.
-- **Staging/pengembangan:** 16 GB memadai dengan batas diturunkan dan `ConcurrentDatabaseReload no` pada `clamd` (memori tidak berlipat saat reload signature; pemindaian berhenti sesaat, dapat diterima karena pemindaian berjalan asinkron).
-- **Overhead NestJS:** setiap proses backend memuat runtime NestJS dan kontainer dependency injection, sehingga batas AI Worker, Dispatcher, dan Document Worker (terutama Dispatcher) dikalibrasi ulang pada uji beban.
+- **Production/pilot:** minimum 8 vCPU, 32 GB RAM, NVMe; the remaining memory is used as filesystem page cache for PostgreSQL and SeaweedFS.
+- **Staging/development:** 16 GB is enough with lowered limits and `ConcurrentDatabaseReload no` on `clamd`. With that setting, memory does not double during signature reload; scanning pauses briefly instead, which is acceptable because scanning is asynchronous.
+- **NestJS overhead:** each backend process loads the NestJS runtime and dependency injection container, so the limits of the AI Worker, Dispatcher, and Document Worker (especially the Dispatcher) are recalibrated in load testing.
 
 ### 5.4 Valkey
 
-- Satu instance Valkey 9.0.x (patch ≥ 9.0.6, di-pin) untuk BullMQ, Streams, dan rate limiting, dengan autentikasi dan hanya pada jaringan internal. Aplikasi memakai konfigurasi koneksi terpisah per penggunaan (`VALKEY_QUEUE_URL`, `VALKEY_STREAMS_URL`, `VALKEY_LIMITER_URL`) yang saat ini menunjuk instance yang sama, sehingga pemisahan ke instance lain cukup berupa perubahan konfigurasi.
-- `maxmemory-policy noeviction` (wajib bagi BullMQ); AOF `everysec`; alarm pada 70% `maxmemory`. Perilaku `noeviction` dan AOF diuji ulang pada Valkey 9.0.x di S6.
-- **Anggaran memori per penggunaan** (awal): BullMQ ≤ 50%, Streams ≤ 30%, rate limiter ≤ 10%, cadangan 10%. Anggaran ditegakkan melalui batas yang dapat dihitung: `MAXLEN` per stream × batas run aktif (per organisasi dan global); TTL pada seluruh kunci limiter; `removeOnComplete`/`removeOnFail` berbasis usia dan jumlah. Kunci memakai prefiks per penggunaan (`bull:`, `run:`/`review:`, `rl:`), dan pemakaian per prefiks dipantau melalui sampling `MEMORY USAGE` berkala.
-- **Perilaku saat Valkey penuh atau tidak tersedia:** enqueue gagal tetapi entri tetap di outbox (§4.1 langkah 2); streaming jatuh ke pemuatan dari PostgreSQL (checkpoint); rate limiter *fail-closed* untuk endpoint autentikasi dan *fail-open* dengan batas lokal per proses untuk endpoint lain; kuota biaya tetap ditegakkan dari `usage_events` di PostgreSQL.
-- Pemisahan instance (antrean terpisah dari streams + limiter) dilakukan bila alarm memori berulang atau satu penggunaan konsisten melampaui anggarannya.
-- Valkey bukan sumber kebenaran: kehilangan data Valkey dipulihkan dari outbox dan status di PostgreSQL.
+- **One instance.** One Valkey 9.0.x instance (patch ≥ 9.0.6, pinned) serves BullMQ, Streams, and rate limiting, with authentication and only on the internal network.
+- **Connections per use.** The application uses separate connection configuration per use (`VALKEY_QUEUE_URL`, `VALKEY_STREAMS_URL`, `VALKEY_LIMITER_URL`). They currently point to the same instance, so splitting onto other instances is only a configuration change.
+- **Required settings:** `maxmemory-policy noeviction` (required by BullMQ); AOF `everysec`; an alarm at 70% of `maxmemory`. The `noeviction` and AOF behavior are retested on Valkey 9.0.x in S6.
+- **Memory budget per use** (initial): BullMQ ≤ 50%, Streams ≤ 30%, rate limiter ≤ 10%, reserve 10%. Budgets are enforced through calculable limits:
+  - `MAXLEN` per stream × the limit on active runs (per organization and global);
+  - TTL on all limiter keys;
+  - age- and count-based `removeOnComplete`/`removeOnFail`.
 
-### 5.5 Backup dan pemulihan
+  Keys use per-use prefixes (`bull:`, `run:`/`review:`, `rl:`), and usage per prefix is monitored through periodic `MEMORY USAGE` sampling.
+- **Behavior when Valkey is full or unavailable:**
+  - enqueue fails but the entry stays in the outbox (§4.1 step 2);
+  - streaming falls back to loading from PostgreSQL (checkpoints);
+  - the rate limiter is *fail-closed* for authentication endpoints and *fail-open* with a local per-process limit for other endpoints;
+  - cost quotas are still enforced from `usage_events` in PostgreSQL.
+- **Splitting instances.** Queues are split from streams + limiter when memory alarms recur or one use consistently exceeds its budget.
+- **Not a source of truth.** Lost Valkey data is recovered from the outbox and status in PostgreSQL.
 
-| Data | Mekanisme | Target awal (usulan; disetujui bisnis) |
+### 5.5 Backup and recovery
+
+| Data | Mechanism | Initial target (proposed; business approval) |
 |---|---|---|
-| PostgreSQL | pgBackRest: backup penuh berkala + arsip WAL, terenkripsi, ke penyimpanan off-site; retensi dibatasi jendela W | RPO ≤ 15 menit |
-| Objek file | Replikasi terjadwal (`rclone sync`, mempropagasikan penghapusan) ke bucket off-site pada penyedia/wilayah berbeda, terenkripsi sisi klien; versi lama off-site dibatasi jendela W | RPO ≤ 1 jam |
-| Konfigurasi dan secrets | Salinan terenkripsi terpisah dari backup data; kunci enkripsi disimpan di luar set backup yang sama | — |
-| Pemulihan sistem | Prosedur tertulis dan **latihan restore berkala** (minimal per kuartal) yang diverifikasi dengan pemeriksaan integritas; pemutaran ulang ledger penghapusan (§6.3) merupakan langkah wajib sebelum sistem dibuka kembali | RTO ≤ 8 jam |
+| PostgreSQL | pgBackRest: periodic full backup + WAL archive, encrypted, to off-site storage; retention bounded by window W | RPO ≤ 15 minutes |
+| File objects | Scheduled replication (`rclone sync`, propagating deletions) to an off-site bucket at a different provider/region, client-side encrypted; old off-site versions bounded by window W | RPO ≤ 1 hour |
+| Configuration and secrets | An encrypted copy separate from data backups; encryption keys are stored outside the same backup set | — |
+| System recovery | A written procedure and **periodic restore drills** (at least quarterly), verified with integrity checks. Replaying the deletion ledger (§6.3) is a mandatory step before the system is reopened | RTO ≤ 8 hours |
 
-Jendela retensi backup **W** (usulan 35 hari; dinyatakan dalam DPA) berlaku bagi backup PostgreSQL maupun versi objek off-site, dan menjadi batas waktu penghapusan menyeluruh (§6.3).
+The backup retention window **W** (proposed 35 days; stated in the DPA) applies to both PostgreSQL backups and off-site object versions, and is the deadline for complete deletion (§6.3).
 
-### 5.6 Manajemen kunci dan rahasia
+### 5.6 Key and secret management
 
-- Kredensial connector, token OAuth, dan header rahasia dienkripsi dengan **AES-256-GCM** menggunakan *envelope encryption*: kunci data (DEK) dibungkus oleh *key-encryption-key* (KEK) yang disimpan sebagai Docker secret di luar database, repositori, dan backup data.
-- **Konten K1 di penyimpanan objek** (file asli, artefak OCR, hasil konversi, ekspor) dienkripsi di level aplikasi dengan **DEK per organisasi**, memakai AES-256-GCM tersegmentasi (usulan segmen 64 KiB, nonce diturunkan dari indeks segmen, tag per segmen) agar baca sebagian (`Range`, dipakai PDF.js) tetap dimungkinkan tanpa mendekripsi seluruh file. DEK organisasi dibungkus KEK yang sama dan disimpan di PostgreSQL. Enkripsi dan dekripsi berada di S3 port (`backend/src/infrastructure/storage`).
-- **Crypto-shredding.** Penghancuran DEK organisasi membuat seluruh objek organisasi tidak terbaca, termasuk salinan off-site dan versi lama. Karena DEK terbungkus ikut ter-backup bersama PostgreSQL, jaminan ini berlaku penuh setelah backup lama kedaluwarsa dalam jendela W (§5.5); manfaat langsungnya adalah salinan objek tidak lagi bergantung pada keberhasilan propagasi penghapusan. Penyimpanan DEK pada KMS eksternal menghilangkan ketergantungan pada W dan menjadi jalur evolusi.
-- Konten K1 di PostgreSQL (chunk, tsvector, percakapan) tidak dienkripsi level aplikasi karena harus dapat dicari; perlindungannya adalah RLS, LUKS, backup terenkripsi, dan jendela W.
-- Setiap ciphertext membawa `kid` (versi kunci) sehingga rotasi KEK dilakukan dengan membungkus ulang DEK tanpa mengenkripsi ulang seluruh data.
-- Disk VPS memakai enkripsi LUKS; backup terenkripsi.
-- Evolusi ke KMS eksternal dimungkinkan karena akses kunci melalui satu antarmuka di `backend/src/infrastructure/storage` (dan modul kunci terkait).
-- Rahasia tidak muncul di log, variabel CI yang dicetak, ataupun Sentry. Rahasia server hanya dipasang pada container backend; container Frontend tidak menerima KEK, kredensial database, maupun kredensial provider model.
+- **Credential encryption.** Connector credentials, OAuth tokens, and secret headers are encrypted with **AES-256-GCM** using *envelope encryption*. The data key (DEK) is wrapped by a *key-encryption-key* (KEK) stored as a Docker secret outside the database, repository, and data backups.
+- **K1 content in object storage.** Original files, OCR artifacts, conversion results, and exports are encrypted at the application level with a **per-organization DEK**:
+  - segmented AES-256-GCM (proposed 64 KiB segments, nonce derived from the segment index, tag per segment);
+  - partial reads (`Range`, used by PDF.js) remain possible without decrypting the whole file;
+  - the organization DEK is wrapped by the same KEK and stored in PostgreSQL;
+  - encryption and decryption live in the S3 port (`backend/src/infrastructure/storage`).
+- **Crypto-shredding.** Destroying an organization's DEK makes all of that organization's objects unreadable, including off-site copies and old versions.
+  - Because wrapped DEKs are backed up along with PostgreSQL, the guarantee holds fully only after old backups expire within window W (§5.5).
+  - The immediate benefit is that object copies no longer depend on deletion propagation succeeding.
+  - Storing DEKs in an external KMS removes the dependency on W and is the evolution path.
+- **K1 content in PostgreSQL** (chunks, tsvector, conversations) is not application-encrypted because it must be searchable; it is protected by RLS, LUKS, encrypted backups, and window W.
+- **Key rotation.** Every ciphertext carries a `kid` (key version), so KEK rotation is done by rewrapping DEKs without re-encrypting all data.
+- **Disk and backups.** The VPS disk uses LUKS encryption; backups are encrypted.
+- **KMS path.** Moving to an external KMS is possible because key access goes through one interface in `backend/src/infrastructure/storage` (and the related key module).
+- **Secret hygiene.** Secrets never appear in logs, printed CI variables, or Sentry. Server secrets are mounted only on backend containers; the Frontend container receives no KEK, database credentials, or model provider credentials.
 
-## 6. Kerahasiaan, Perlindungan Data & Kepatuhan
+## 6. Confidentiality, Data Protection & Compliance
 
-Lexon memproses dokumen dan percakapan klien hukum. Bagian ini menetapkan kontrol teknis yang dapat dibangun sekarang tanpa mengubah stack, dan mendaftar butir yang perlu dikonsultasikan secara hukum (§6.4).
+Lexon processes legal clients' documents and conversations. This section sets the technical controls that can be built now without changing the stack, and lists items that need legal consultation (§6.4).
 
-### 6.1 Klasifikasi data
+### 6.1 Data classification
 
-| Kelas | Contoh | Perlakuan |
+| Class | Examples | Handling |
 |---|---|---|
-| **K1 — Konten klien** | Isi dokumen, chunk, percakapan, hasil OCR, output model | Tidak masuk log/telemetri/Sentry; objek terenkripsi per organisasi (§5.6); dikirim ke model hanya sesuai kebijakan §6.2; mengikuti retensi dan penghapusan §6.3 |
-| **K2 — Kredensial** | Token OAuth, bearer token, header rahasia, kunci | Terenkripsi (§5.6); tidak pernah dikirim ke model atau klien |
-| **K3 — Metadata operasional** | Id, status job, ukuran, waktu, penggunaan token | Dapat masuk telemetri tanpa isi |
+| **K1 — Client content** | Document content, chunks, conversations, OCR results, model output | Not in logs/telemetry/Sentry; objects encrypted per organization (§5.6); sent to models only per the §6.2 policy; follows retention and deletion in §6.3 |
+| **K2 — Credentials** | OAuth tokens, bearer tokens, secret headers, keys | Encrypted (§5.6); never sent to models or clients |
+| **K3 — Operational metadata** | Ids, job status, size, time, token usage | May go into telemetry without content |
 
-### 6.2 Kontrol teknis
+### 6.2 Technical controls
 
-| Area | Kontrol |
+| Area | Control |
 |---|---|
-| **Pengiriman ke model** | Hanya konteks yang diperlukan (chunk terpilih atau dokumen yang dipilih pengguna) yang dikirim, bukan korpus keseluruhan. Routing OpenRouter dikonfigurasi untuk menolak provider yang menyimpan atau melatih dari data (pengaturan *data collection deny* dan/atau routing *zero data retention*; parameter yang berlaku diverifikasi pada dokumentasi OpenRouter terkini), dan pencatatan prompt/respons pada akun OpenRouter dinonaktifkan. |
-| **Allowlist model dan provider** | Daftar model/provider yang diizinkan per lingkungan disimpan sebagai konfigurasi yang ditinjau; penambahan model baru melalui tinjauan, bukan perubahan sembarang. Sebelum masuk allowlist, setiap model kandidat (termasuk model yang pernah dipakai pada prototipe) diverifikasi memiliki endpoint yang memenuhi kebijakan retensi di atas; model yang hanya tersedia melalui provider yang menyimpan atau melatih dari data tidak dipakai untuk K1. Allowlist mencatat model, provider, dan wilayah pemrosesan sebagai masukan butir transfer lintas negara (§6.4). Preferensi provider dikirim eksplisit pada setiap request, tidak hanya mengandalkan pengaturan akun, dan request ditolak bila tidak ada provider yang memenuhi. |
-| **Logging dan telemetri** | Tidak ada isi dokumen atau prompt di log, Sentry (`beforeSend` scrubbing), maupun atribut OpenTelemetry; perekaman input/output AI SDK dinonaktifkan secara default di produksi; diagnosis memakai id dan ukuran. |
-| **Audit** | Log audit *append-only* yang hanya memuat id dan metadata (K3), tidak pernah isi K1: akses dokumen, run AI (model dan provider yang dipakai), panggilan tool, ekspor, berbagi, dan perubahan izin. Role aplikasi tidak memiliki `UPDATE`/`DELETE` pada tabel audit; ekspor berkala ke penyimpanan terpisah. |
-| **Akses staf (*break-glass*)** | Staf platform tidak melihat isi pelanggan secara bawaan. Akses darurat memerlukan alasan tertulis, persetujuan kedua, batas waktu, dan tercatat di audit. |
-| **Autentikasi** | 2FA wajib untuk platform administrator dan dapat diwajibkan per organisasi; sesi dengan masa berlaku dan pencabutan; token add-in berumur pendek. |
-| **Enkripsi** | TLS untuk seluruh lalu lintas eksternal; LUKS pada disk; backup terenkripsi; enkripsi level aplikasi untuk K2. |
-| **Ethical wall** | Lihat §3.2; berlaku juga pada retrieval, Tabular Review, dan ekspor. |
-| **Minimisasi** | Opsi (feature flag) penyamaran data pribadi sebelum pengiriman ke model dapat ditambahkan tanpa perubahan arsitektur melalui langkah pra-pemrosesan di AI Worker. |
+| **Sending to models** | Only the needed context is sent (selected chunks or user-selected documents), not the whole corpus. OpenRouter routing is configured to refuse providers that store or train on data (the *data collection deny* setting and/or *zero data retention* routing; the applicable parameters are verified against current OpenRouter documentation), and prompt/response logging on the OpenRouter account is disabled. |
+| **Model and provider allowlist** | The allowlist of models/providers per environment is kept as reviewed configuration; new models are added through review, not ad hoc changes.<br>• Before entering the allowlist, every candidate model (including models used in prototypes) is verified to have an endpoint that meets the retention policy above.<br>• Models available only through providers that store or train on data are not used for K1.<br>• The allowlist records the model, provider, and processing region as input to the cross-border transfer item (§6.4).<br>• Provider preferences are sent explicitly on every request, not relying only on account settings, and the request is refused if no provider qualifies. |
+| **Logging and telemetry** | No document or prompt content in logs, Sentry (`beforeSend` scrubbing), or OpenTelemetry attributes. AI SDK input/output recording is disabled by default in production. Diagnosis uses ids and sizes. |
+| **Audit** | An *append-only* audit log holding only ids and metadata (K3), never K1 content. It covers:<br>• document access<br>• AI runs (the model and provider used)<br>• tool calls<br>• exports<br>• sharing<br>• permission changes<br>The application role has no `UPDATE`/`DELETE` on audit tables; the log is exported periodically to separate storage. |
+| **Staff access (*break-glass*)** | Platform staff do not see customer content by default. Emergency access requires a written reason, a second approval, and a time limit, and is recorded in the audit log. |
+| **Authentication** | 2FA mandatory for platform administrators and optionally required per organization; sessions with expiry and revocation; short-lived add-in tokens. |
+| **Encryption** | TLS for all external traffic; LUKS on disk; encrypted backups; application-level encryption for K2. |
+| **Ethical wall** | See §3.2; also applies to retrieval, Tabular Review, and exports. |
+| **Minimization** | An optional (feature-flagged) masking of personal data before sending to models can be added without architecture changes, through a preprocessing step in the AI Worker. |
 
-### 6.3 Retensi dan penghapusan
+### 6.3 Retention and deletion
 
-- Retensi dapat dikonfigurasi per organisasi untuk percakapan, dokumen, dan hasil AI.
-- **Penghapusan menyeluruh (*hard delete*):** satu alur terkoordinasi menghapus baris database, chunk, objek (termasuk artefak OCR dan versi), stream Valkey terkait, dan entri cache. Penyelesaian dicatat di audit.
-- **Ledger penghapusan.** Setiap penghapusan mencatat id resource, organisasi, waktu, dan dasar penghapusan (tanpa isi) di `ops.deletion_ledger`. Ledger diekspor ke penyimpanan terpisah bersama ekspor audit, sehingga tetap tersedia walaupun restore berasal dari titik sebelum penghapusan. Setelah restore, job pemutaran ulang ledger wajib selesai sebelum sistem dibuka untuk pengguna, agar data yang telah dihapus tidak hidup kembali.
-- **Backup.** Data yang dihapus hilang dari backup PostgreSQL dan versi objek off-site paling lambat setelah jendela W (§5.5); batas waktu ini dinyatakan dalam DPA.
-- **Penghapusan tenant** ditutup dengan *crypto-shredding*: DEK organisasi dihancurkan setelah ekspor data dan penghapusan baris (§5.6).
-- **Kesesuaian dengan audit append-only:** karena audit hanya memuat id dan metadata, penghapusan konten tidak memerlukan pengubahan catatan audit.
-- **Legal hold:** penanda per project/dokumen yang mencegah penghapusan otomatis maupun manual.
-- Tenant yang dihapus: ekspor data (permintaan pelanggan) sebelum penghapusan.
-- **Ekspor data pribadi:** pengguna dapat meminta ekspor data miliknya (profil, percakapan, dokumen yang diunggahnya, memory, workflow pribadi) sebagai arsip yang dibuat oleh worker, diunduh melalui Backend API, berumur pendek, dan tercatat di audit. Konten organisasi yang bukan milik pengguna tidak ikut diekspor.
+- Retention is configurable per organization for conversations, documents, and AI results.
+- **Complete deletion (*hard delete*):** one coordinated flow deletes database rows, chunks, objects (including OCR artifacts and versions), related Valkey streams, and cache entries. Completion is recorded in the audit log.
+- **Deletion ledger.** Every deletion records the resource id, organization, time, and basis for deletion (no content) in `ops.deletion_ledger`. The ledger is exported to separate storage along with the audit export, so it remains available even if a restore comes from a point before the deletion. After a restore, the ledger replay job must finish before the system opens to users, so deleted data does not come back.
+- **Backup.** Deleted data disappears from PostgreSQL backups and off-site object versions no later than window W (§5.5); this deadline is stated in the DPA.
+- **Tenant deletion** ends with *crypto-shredding*: the organization's DEK is destroyed after data export and row deletion (§5.6).
+- **Consistency with the append-only audit:** because the audit holds only ids and metadata, deleting content does not require changing audit records.
+- **Legal hold:** a per-project/document flag that prevents both automatic and manual deletion.
+- Deleted tenants: data is exported (at the customer's request) before deletion.
+- **Personal data export:** a user can request an export of their own data as an archive. Properties:
+  - **Contents:** profile, conversations, the documents they uploaded, memory, and personal workflows. Organization content that does not belong to the user is not exported.
+  - **Delivery:** the archive is built by a worker, downloaded through the Backend API, short-lived, and recorded in the audit log.
 
-### 6.4 Butir untuk konsultasi hukum
+### 6.4 Items for legal consultation
 
-Daftar berikut berasal dari pengetahuan umum penyusun, belum diverifikasi terhadap teks peraturan terkini, dan **bukan nasihat hukum**. Tujuannya mempercepat konsultasi.
+The list below comes from the authors' general knowledge, has not been verified against current regulatory text, and **is not legal advice**. Its purpose is to speed up consultation.
 
-| Topik | Pertanyaan untuk penasihat hukum |
+| Topic | Questions for legal counsel |
 |---|---|
-| **UU Pelindungan Data Pribadi (UU No. 27 Tahun 2022)** | Peran Lexon sebagai pengendali atau prosesor data pribadi terhadap pelanggan firma hukum; isi perjanjian pemrosesan data (DPA); kebutuhan penilaian dampak; kewajiban dan tenggat pemberitahuan insiden; hak subjek data (akses, koreksi, penghapusan) dan kaitannya dengan fitur penghapusan §6.3 |
-| **Transfer data lintas negara** | Dasar hukum pengiriman konten ke provider model di luar Indonesia melalui OpenRouter; apakah wilayah provider perlu dibatasi; klausul kontraktual yang dibutuhkan |
-| **Kerahasiaan profesi advokat** | Implikasi kewajiban kerahasiaan klien (UU Advokat dan kode etik) bagi pengguna Lexon; klausul yang diminta firma hukum (misalnya larangan pelatihan model, lokasi data, hak audit) |
-| **Penyelenggara Sistem Elektronik** | Kewajiban pendaftaran dan kewajiban lain sebagai penyelenggara sistem elektronik lingkup privat |
-| **Lokasi hosting** | Apakah VPS perlu berada di wilayah Indonesia; pengaruh pada pilihan penyedia dan backup off-site |
-| **Syarat layanan dan batasan produk** | Penafian bahwa keluaran AI bukan nasihat hukum; alokasi tanggung jawab; retensi dan penggunaan data oleh Lexon |
-| **Lisensi pihak ketiga** | Syarat EigenPal Pro (perpanjangan otomatis, perubahan syarat sepihak dengan pemberitahuan 30 hari, hukum California) dan kesesuaiannya dengan rencana komersial |
+| **Personal Data Protection Law (UU No. 27 Tahun 2022)** | Lexon's role as personal data controller or processor toward law firm customers; contents of the data processing agreement (DPA); need for an impact assessment; incident notification obligations and deadlines; data subject rights (access, correction, deletion) and how they relate to the deletion features in §6.3 |
+| **Cross-border data transfer** | Legal basis for sending content to model providers outside Indonesia through OpenRouter; whether provider regions must be restricted; required contractual clauses |
+| **Advocate professional confidentiality** | Implications of client confidentiality obligations (Advocates Law and code of ethics) for Lexon users; clauses law firms will request (for example, no model training, data location, audit rights) |
+| **Electronic System Operator** | Registration and other obligations as a private-scope electronic system operator |
+| **Hosting location** | Whether the VPS must be located in Indonesia; effect on the choice of provider and off-site backup |
+| **Terms of service and product limits** | Disclaimer that AI output is not legal advice; allocation of responsibility; retention and use of data by Lexon |
+| **Third-party licenses** | EigenPal Pro terms (auto-renewal, unilateral term changes with 30 days' notice, California law) and their fit with the commercial plan |
 
-## 7. Observability, Evaluasi & Kendali Biaya
+## 7. Observability, Evaluation & Cost Control
 
 ### 7.1 Observability
 
-OpenTelemetry untuk trace dan metrics lintas Frontend, Backend API, AI Worker, Document Worker, dan Outbox Dispatcher, diekspor melalui OTel Collector (§2.1) dengan daftar izin atribut; `@ai-sdk/otel` untuk tracing generation dan tool tanpa merekam isi (§6.2). Metrik operasional utama: latensi antrean per jenis job, durasi tiap tahap pipeline dokumen, tingkat gagal OCR/konversi, penggunaan memori Valkey per prefiks penggunaan, jumlah koneksi SSE per proses, umur entri outbox tertua, serta penggunaan sumber daya per container.
+OpenTelemetry provides traces and metrics across the Frontend, Backend API, AI Worker, Document Worker, and Outbox Dispatcher. They are exported through the OTel Collector (§2.1) with an attribute allowlist, and `@ai-sdk/otel` traces generation and tools without recording content (§6.2).
 
-### 7.2 Evaluasi kualitas AI
+Main operational metrics:
+- queue latency per job type
+- duration of each document pipeline stage
+- OCR/conversion failure rate
+- Valkey memory usage per usage prefix
+- number of SSE connections per process
+- age of the oldest outbox entry
+- resource usage per container
 
-`evals/` memuat dataset dan runner berbasis Vitest, dijalankan pada application context NestJS standalone (tanpa HTTP) untuk subset CI, ditambah sejumlah kecil skenario end-to-end melalui API publik memakai Playwright `APIRequestContext`.
+### 7.2 AI quality evaluation
 
-| Aspek | Ukuran |
+`evals/` holds datasets and a Vitest-based runner, run on a standalone NestJS application context (no HTTP) for the CI subset, plus a small number of end-to-end scenarios through the public API using Playwright `APIRequestContext`.
+
+| Aspect | Measure |
 |---|---|
-| **Akurasi sitasi** | Persentase sitasi yang kutipannya terdapat pada chunk rujukan; kelengkapan sitasi pada klaim faktual |
-| **Groundedness** | Persentase pernyataan yang didukung bukti pada konteks |
-| **Kebenaran jawaban** | Dataset emas pertanyaan-jawaban atas dokumen contoh; penilai model dengan model terkunci dan sebagian dinilai manusia |
-| **Penolakan yang tepat** | Perilaku saat bukti tidak ada (tidak mengarang) |
-| **Ketahanan prompt injection** | Dokumen dan hasil tool yang berisi instruksi berbahaya tidak memicu aksi |
-| **Kualitas retrieval** | Recall@K dan MRR pada dataset kueri-chunk, termasuk perbandingan konfigurasi bahasa |
-| **Biaya dan latensi** | Token, biaya, dan waktu per tugas |
+| **Citation accuracy** | Percentage of citations whose quote appears in the referenced chunk; completeness of citations on factual claims |
+| **Groundedness** | Percentage of statements supported by evidence in the context |
+| **Answer correctness** | A golden dataset of questions and answers over sample documents; model graders with a locked model, partly graded by humans |
+| **Appropriate refusal** | Behavior when evidence is absent (no fabrication) |
+| **Prompt injection resistance** | Documents and tool results containing malicious instructions do not trigger actions |
+| **Retrieval quality** | Recall@K and MRR on a query–chunk dataset, including a comparison of language configurations |
+| **Cost and latency** | Tokens, cost, and time per task |
 
-Perubahan pada prompt, retrieval, konfigurasi model, atau versi AI SDK/provider menjalankan subset evaluasi di CI; evaluasi penuh berjalan terjadwal dan hasilnya disimpan untuk melihat tren.
+Changes to prompts, retrieval, model configuration, or the AI SDK/provider version run the evaluation subset in CI; the full evaluation runs on a schedule and results are stored to track trends.
 
-### 7.3 Kendali biaya dan kuota
+### 7.3 Cost control and quotas
 
-- Setiap pemanggilan model mencatat `usage_events` (organisasi, pengguna, run, model, token masuk/keluar, biaya dari akuntansi penggunaan OpenRouter).
-- Kuota dan batas laju per organisasi diperiksa sebelum run dan pada tugas batch (Tabular Review) dengan estimasi di muka.
-- Batas pengeluaran pada kunci OpenRouter per lingkungan berfungsi sebagai pengaman terakhir; alarm pada ambang pemakaian.
-- Kebijakan fallback model ditetapkan di konfigurasi dan dicatat di audit bila terjadi.
+- Every model call records `usage_events` (organization, user, run, model, input/output tokens, cost from OpenRouter usage accounting).
+- Quotas and rate limits per organization are checked before a run and on batch tasks (Tabular Review), with an up-front estimate.
+- A spending limit on the OpenRouter key per environment acts as the last safeguard; alarms fire at usage thresholds.
+- The model fallback policy is set in configuration and recorded in the audit log when it happens.
 
-## 8. Klien Word Add-in
+## 8. Word Add-in Client
 
-- **Asal dan pengiriman:** add-in berasal dari folder `word-add-in/`, dibangun sebagai bundel statis (Office.js + React + Webpack), dan disajikan Caddy dari domain yang dikendalikan Lexon. Add-in memakai kontrak `shared/`; karena versinya dapat tertinggal dari web, backend menjaga kompatibilitas kontrak API selama masa transisi (§3.5).
-- **Autentikasi:** cookie sesi tidak diandalkan pada *webview* Office. Add-in memakai alur login melalui Office Dialog API yang menghasilkan token melalui plugin Bearer Better Auth; token berumur pendek, disimpan di memori atau penyimpanan add-in (bukan cookie), dan diperbarui melalui refresh yang terikat sesi.
-- **Keamanan origin:** CORS dibatasi pada origin add-in; CSP ketat; manifest dan aset add-in dilayani dari domain yang dikendalikan Lexon.
-- **Otorisasi:** seluruh panggilan melewati API yang sama dan kebijakan yang sama (§3.2); add-in tidak memiliki jalur data khusus.
-- **Pengeditan dokumen:** di web, saran AI diterapkan melalui editor DOCX (EigenPal). Di Word, saran AI **tidak** diketik melalui Office.js dalam mode track changes, karena revisi semacam itu tercatat atas nama pengguna Word. Backend membuat fragmen OOXML yang sudah memuat `w:ins`/`w:del` dengan penulis "Lexon AI (atas nama pengguna)" memakai EigenPal `editor-api` pada modul `editor` (§4.4), lalu add-in menyisipkannya ke rentang target melalui `insertOoxml`. Atribusi revisi menjadi identik di web dan di Word.
-- **Penentuan rentang target:** setiap saran membawa jangkar paragraf dan teks asli; add-in memverifikasi bahwa teks pada rentang masih sama sebelum menyisipkan. Bila dokumen telah berubah sejak saran dibuat, saran ditandai kedaluwarsa dan dapat dibuat ulang.
-- **Fallback:** bila S1 menunjukkan Word tidak mempertahankan atribusi pada OOXML yang disisipkan untuk kasus tertentu, add-in memakai track changes Office.js (penulis = pengguna) disertai komentar "Disarankan oleh Lexon AI", dan asal perubahan tercatat di audit.
+- **Origin and delivery:** the add-in comes from the `word-add-in/` folder, is built as a static bundle (Office.js + React + Webpack), and is served by Caddy from a Lexon-controlled domain. The add-in uses the `shared/` contracts; because its version can lag behind the web, the backend keeps API contracts compatible during the transition period (§3.5).
+- **Authentication:** session cookies are not relied on in the Office *webview*. The add-in uses a login flow through the Office Dialog API that issues a token through the Better Auth Bearer plugin. The token is short-lived, stored in memory or add-in storage (not a cookie), and renewed through a session-bound refresh.
+- **Origin security:** CORS restricted to the add-in origin; strict CSP; manifest and add-in assets served from a Lexon-controlled domain.
+- **Authorization:** all calls go through the same API and the same policies (§3.2); the add-in has no special data path.
+- **Document editing:** on the web, AI suggestions are applied through the DOCX editor (EigenPal). In Word, AI suggestions are **not** typed through Office.js in track-changes mode, because such revisions are recorded under the Word user's name. Instead:
+  1. The backend builds an OOXML fragment that already contains `w:ins`/`w:del` with the author "Lexon AI (on behalf of the user)", using EigenPal `editor-api` in the `editor` module (§4.4).
+  2. The add-in inserts it into the target range through `insertOoxml`.
+
+  Revision attribution is therefore identical on the web and in Word.
+- **Target range resolution:** every suggestion carries a paragraph anchor and the original text; the add-in verifies that the text in the range is still the same before inserting. If the document has changed since the suggestion was made, the suggestion is marked stale and can be regenerated.
+- **Fallback:** if S1 shows Word does not preserve attribution on inserted OOXML in certain cases, the add-in uses Office.js track changes (author = the user) with a comment "Suggested by Lexon AI", and the origin of the change is recorded in the audit log.
 
 ## 9. Architectural Decisions & Open Design Details
 
-| Area | Keputusan dasar | Rincian yang ditetapkan saat implementasi |
+| Area | Base decision | Details set during implementation |
 |---|---|---|
-| Application topology | Frontend (Next.js) dan Backend (NestJS) terpisah; backend satu codebase modular dengan entrypoint API + AI Worker + Document Worker + Dispatcher (+ sandbox dan ClamAV sebagai layanan pendukung) | Kapasitas dan concurrency tiap runtime; ukuran image per target |
-| Struktur repositori | Monorepo pnpm; root `backend/`, `frontend/`, `word-add-in/` (mengikuti Mike OSS) ditambah `shared/`, `evals/`, `infra/`, `docs/` | Apakah komponen UI perlu dibagi antara frontend dan add-in (saat ini tidak); pemisahan ke repositori terpisah bila tim atau siklus rilis memerlukannya |
-| Integrasi NestJS | NestJS 12 (proyek ESM, adaptor Express); validasi Zod melalui Standard Schema; `@nestjs/bullmq`; Better Auth melalui adaptor NestJS | **Ditetapkan:** adaptor Better Auth = `@thallesp/nestjs-better-auth` (S6 memverifikasi); pino (`nestjs-pino`), `@nestjs/config` dengan skema Zod, `@nestjs/terminus`. Diverifikasi di S6: kompatibilitas BullMQ 6 dan `@nestjs/bullmq`; transformer dekorator pada Vitest/Stryker |
-| Origin dan routing | Satu origin publik; Caddy meneruskan `/api/*` ke backend dan sisanya ke frontend | Nama host add-in dan data-plane S3. **Ditetapkan:** error sisi browser melalui `tunnel` Sentry pada Backend API (§2.2) |
-| Data ownership | PostgreSQL untuk state bisnis; penyimpanan S3 untuk objek file; S3 port + contract test | Lifecycle versions dan proses pemulihan |
-| Object storage | SeaweedFS di balik kontrak S3 | Hasil spike S5; kandidat pengganti: Garage, RustFS, S3 terkelola |
-| Retrieval | Keyword retrieval (FTS + trigram) dengan fusi RRF dan verifikasi sitasi; jalur konteks penuh untuk dokumen tunggal; **tanpa pencarian vektor di MVP** (§4.3) | Ukuran chunk, nilai K/N, ada-tidaknya reranker (ditentukan evaluasi dan S3; tetap sebagai nilai konfigurasi), serta ambang Recall@K yang memicu pertimbangan pencarian vektor |
-| Model chat dan generasi | Melalui OpenRouter dengan allowlist terverifikasi (§6.2) | **Terbuka:** model utama dan fallback; hanya model dengan endpoint yang memenuhi kebijakan retensi |
-| Bahasa | v1 Inggris; Indonesia melalui konfigurasi | Waktu penambahan `ind` dan kualitas stemmer menurut evaluasi |
-| Document editing | DOCX kanonik; EigenPal Core + Pro di balik `EditorPort`; saran AI di Word add-in sebagai OOXML beratribusi dari `editor-api` di backend (§8) | Penerapan saran AI di klien web vs `editor-api` (S1); lisensi Pro (Stack §9 P1) |
-| Background execution | BullMQ, Valkey, transactional outbox dengan Outbox Dispatcher tersendiri (entrypoint backend) | Retry policy, backoff dispatcher, dan interval polling cadangan |
-| Streaming | SSE dari Backend API melalui stream hub per proses; events via Valkey Streams; kontrak §4.1 | Jendela replay, TTL, durasi blok hub, batas koneksi per pengguna, semantik cancel, dan penutupan graceful saat deploy (divalidasi S2) |
-| Authorization | Better Auth (skema `auth`, role `lexon_auth`) di backend + Lexon resource policies + RLS fail-closed melalui `withTenant` + ethical wall | Matriks izin per resource dan inheritance |
-| MCP integration | MCP client v2 (`@modelcontextprotocol/client`) melalui AI Worker, dengan connector services dan tool policies | Ketentuan koneksi yang dapat dibagikan, daftar server, dan kebijakan approval untuk tiap workflow |
-| Korpus hukum bersama | Di luar MVP (v1.3) | **Terbuka:** konektor MCP atau korpus internal berlingkup `global` |
-| Riset web | Tool AI di AI Worker melalui klien HTTP tervalidasi; hasil sebagai data tidak tepercaya | **Terbuka:** penyedia pencarian web (perlu kebijakan retensi yang setara §6.2; kandidat: fitur web search OpenRouter atau API pencarian khusus) — penambahan penyedia di luar stack memerlukan keputusan stack eksplisit |
-| Memory, Workflows, Playbooks, Subagents | Modul domain di backend (§3.1); tanpa teknologi baru | Batas ukuran memory yang diinjeksi, kebijakan usulan memory oleh AI, batas kedalaman dan anggaran subagent, format impor playbook |
-| Kerahasiaan | Kontrol §6.2; enkripsi objek per organisasi; ledger penghapusan dan jendela W | **Terbuka:** hasil konsultasi hukum §6.4; wilayah hosting; kebijakan retensi bawaan; nilai final W |
-| Deployment | Linux VPS + Docker Compose; profil awal minimum 8 vCPU / 32 GB (§5.3) | Kalibrasi profil (uji beban), target RPO/RTO final, prosedur restore |
-| Keputusan bisnis dan operasional yang masih terbuka | Tidak ditetapkan pada v1.5 | **Terbuka:** penyedia VPS dan wilayah (termasuk kebutuhan hosting di Indonesia); penyedia penyimpanan off-site; backend observability (self-hosted atau SaaS; profil §5.3 belum memuat penyimpanan trace dan metrics) dan pilihan Sentry SaaS vs self-hosted; penyedia SMTP; model chat utama dan fallback (evaluasi ZDR); nilai W (disarankan 35 hari, belum disetujui), RPO/RTO, retensi bawaan, matriks izin; connector bersama; korpus hukum bersama |
-| Temuan desain terbuka dari review v1.5 | Dicatat, belum diputuskan | AI Worker tidak memuat modul Documents sehingga memerlukan fasad baca-saja; input XLSX belum ada pada pipeline §4.2; pembuatan OOXML `editor-api` di proses `api` dapat bersaing dengan event loop SSE (dievaluasi pada S1 dan S2) |
+| Application topology | Frontend (Next.js) and Backend (NestJS) separated. The backend is one modular codebase with entrypoints API + AI Worker + Document Worker + Dispatcher, plus the sandbox and ClamAV as supporting services | Capacity and concurrency per runtime; image size per target |
+| Repository structure | pnpm monorepo; root `backend/`, `frontend/`, `word-add-in/` (following Mike OSS) plus `shared/`, `evals/`, `infra/`, `docs/` | Whether UI components need to be shared between the frontend and the add-in (currently no); splitting into separate repositories if the team or release cycle requires it |
+| NestJS integration | NestJS 12 (ESM project, Express adapter); Zod validation through Standard Schema; `@nestjs/bullmq`; Better Auth through a NestJS adapter | **Set:** Better Auth adapter = `@thallesp/nestjs-better-auth` (S6 verifies); pino (`nestjs-pino`), `@nestjs/config` with a Zod schema, `@nestjs/terminus`. Verified in S6: BullMQ 6 and `@nestjs/bullmq` compatibility; the decorator transformer on Vitest/Stryker |
+| Origin and routing | One public origin; Caddy forwards `/api/*` to the backend and the rest to the frontend | Host names for the add-in and the S3 data plane. **Set:** browser errors go through the Sentry `tunnel` on the Backend API (§2.2) |
+| Data ownership | PostgreSQL for business state; S3 storage for file objects; S3 port + contract tests | Version lifecycle and recovery process |
+| Object storage | SeaweedFS behind the S3 contract | Result of spike S5; replacement candidates: Garage, RustFS, managed S3 |
+| Retrieval | Keyword retrieval (FTS + trigram) with RRF fusion and citation verification; full-context path for single documents; **no vector search in the MVP** (§4.3) | Chunk size, K/N values, and whether a reranker is used (decided by evaluation and S3, kept as configuration values), plus the Recall@K threshold that triggers considering vector search |
+| AI run engine | One run engine in the AI Worker; features plug in through run profiles, context providers, tool providers, and the capability policy (§4.7) | Contract shapes, iteration and token budget defaults per run profile, and the provider registration mechanism |
+| Chat and generation models | Through OpenRouter with a verified allowlist (§6.2) | **Open:** primary and fallback models; only models with endpoints that meet the retention policy |
+| Language | MVP in English; Indonesian through configuration | When `ind` is added and stemmer quality according to evaluation |
+| Document editing | DOCX canonical; EigenPal Core + Pro behind `EditorPort`; AI suggestions in the Word add-in as attributed OOXML from `editor-api` in the backend (§8) | Applying AI suggestions in the web client vs `editor-api` (S1); Pro license (Stack §9 P1) |
+| Background execution | BullMQ, Valkey, transactional outbox with its own Outbox Dispatcher (backend entrypoint) | Retry policy, dispatcher backoff, and fallback polling interval |
+| Streaming | SSE from the Backend API through a per-process stream hub; events via Valkey Streams; contract §4.1 | Replay window, TTL, hub block duration, per-user connection limit, cancel semantics, and graceful close during deploys (validated in S2) |
+| Authorization | Better Auth (`auth` schema, `lexon_auth` role) in the backend + Lexon resource policies + fail-closed RLS through `withTenant` + ethical wall | Permission matrix per resource and inheritance |
+| MCP integration | MCP client v2 (`@modelcontextprotocol/client`) through the AI Worker, with connector services and tool policies | Rules for shareable connections, server list, and approval policy for each workflow |
+| Shared legal corpus | Outside the MVP (v1.3) | **Open:** MCP connector or an internal corpus with `global` scope |
+| Web research | AI tool in the AI Worker through the validated HTTP client; results as untrusted data | **Open:** the web search provider (it needs a retention policy equivalent to §6.2; candidates: OpenRouter's web search feature or a dedicated search API). Adding a provider outside the stack requires an explicit stack decision |
+| Memory, Workflows, Playbooks, Subagents | Backend domain modules (§3.1); no new technology | Size limit of injected memory, policy for AI-proposed memory, subagent depth and budget limits, playbook import format |
+| Confidentiality | Controls in §6.2; per-organization object encryption; deletion ledger and window W | **Open:** results of legal consultation §6.4; hosting region; default retention policy; final value of W |
+| Deployment | Linux VPS + Docker Compose; initial profile minimum 8 vCPU / 32 GB (§5.3) | Profile calibration (load testing), final RPO/RTO targets, restore procedure |
+| Open business and operational decisions | Not set in v1.7 | **Open:**<br>• VPS provider and region (including whether hosting must be in Indonesia)<br>• off-site storage provider<br>• observability backend (self-hosted or SaaS; the §5.3 profile does not yet include trace and metrics storage) and Sentry SaaS vs self-hosted<br>• SMTP provider<br>• primary and fallback chat models (ZDR evaluation)<br>• value of W (35 days suggested, not yet approved), RPO/RTO<br>• default retention<br>• permission matrix<br>• shared connectors<br>• shared legal corpus |
+| Open design findings from the v1.5 review | Recorded, not yet decided | • The AI Worker does not load the Documents module, so it needs a read-only facade<br>• XLSX input is not yet part of the §4.2 pipeline<br>• `editor-api` OOXML generation in the `api` process can compete with the SSE event loop (evaluated in S1 and S2) |
 
-## 10. Validasi Spike
+## 10. Spike Validation
 
-Setiap spike berdurasi tetap (1–2 minggu), dikerjakan sebelum fitur terkait dibangun penuh, dan hasilnya dicatat sebagai revisi dokumen ini.
+Each spike has a fixed duration (1–2 weeks), is done before the related feature is fully built, and its results are recorded as a revision of this document.
 
-| ID | Spike | Kriteria lulus (ringkas) |
+| ID | Spike | Pass criteria (summary) |
 |---|---|---|
-| **S1** | **DOCX fidelity dan tracked changes** | Round-trip kumpulan kontrak nyata (penomoran, tabel, header/footer, gaya) tanpa kehilangan elemen yang berarti; tracked changes dan komentar dibuat di editor dan terbaca benar di Microsoft Word, dan sebaliknya; saran AI diterapkan sebagai tracked changes; keputusan klien vs `editor-api`; backend membuat OOXML berisi revisi beratribusi "Lexon AI" dan Word add-in menyisipkannya melalui `insertOoxml`, dengan atribusi bertahan setelah disimpan di Word desktop maupun Word web; lisensi Pro aktif untuk pengujian produksi; paket Pro (termasuk `telemetry`) terbukti tidak mengirim konten dokumen dari runtime yang memiliki egress |
-| **S2** | **Streaming end-to-end** | Worker → Valkey Streams → SSE → assistant-ui dengan resume setelah refresh, cancel, persetujuan tool, dan worker crash sesuai §4.1; kecocokan dengan AI SDK 7 dan `@ai-sdk/react` 4; ≥ 500 koneksi SSE bersamaan dengan jumlah koneksi Valkey tetap per proses Backend API; peralihan replay → live tanpa frame hilang atau ganda; restart Backend API saat deploy tidak menghilangkan frame (klien menyambung ulang dengan `Last-Event-ID`) |
-| **S3** | **OCR + retrieval + sitasi** | PDF hasil scan (bahasa Inggris) menjadi teks terindeks; ≥ ambang akurasi sitasi yang disepakati; sitasi membuka halaman/paragraf yang benar; kualitas retrieval FTS + trigram (Recall@K, MRR) diukur pada dataset evaluasi sebagai dasar ambang yang memicu pertimbangan pencarian vektor; `EXPLAIN ANALYZE` dengan RLS aktif menunjukkan FTS dan trigram memakai indeks GIN (bukan seq scan) |
-| **S4** | **Tabular Review skala** | 50 dokumen × 20 kolom: grid tetap responsif, penjadwalan job adil antar-organisasi, pembaruan sel real-time, ekspor XLSX benar; ±50 panggilan model dengan unit kerja per dokumen; biaya aktual dalam ±20% dari estimasi |
-| **S5** | **Penyimpanan S3** | Contract test lulus pada SeaweedFS (presigned PUT/GET, multipart, lifecycle/kedaluwarsa, CORS); latihan restore dari backup off-site berhasil dalam target RTO; objek terenkripsi aplikasi dapat dibaca melalui `Range` oleh PDF.js; latihan restore mencakup pemutaran ulang ledger penghapusan; bila gagal, uji kandidat berikutnya |
-| **S6** | **Fondasi backend NestJS** | (a) Proyek ESM NestJS 12 pada Node 24 membangun dan menjalankan AI SDK 7 dan `@openrouter/ai-sdk-provider` tanpa shim CJS; (b) Better Auth di NestJS: login cookie dan Bearer, plugin Organization/Admin/Two-Factor, `getSession` pada guard, body parser tidak mengganggu rute lain, tabel di skema `auth` melalui role `lexon_auth`; (c) controller dan processor memakai `withTenant`, query tanpa konteks mengembalikan nol baris, dan ESLint menolak impor driver di luar modul db serta `pg`/`drizzle-orm` di `frontend/` dan `word-add-in/`; (d) validasi Zod pada decorator route (Standard Schema) memakai skema `shared/` yang sama dengan frontend dan add-in; (e) empat entrypoint berjalan dari satu `Dockerfile` dengan target berbeda, dan Document Worker tidak memuat `infrastructure/ai` serta gagal bila mencoba egress; (f) `@nestjs/bullmq` dengan BullMQ 6 (atau pembungkus cadangan) lulus uji antrean, retry, dan job id idempotent; (g) Vitest (termasuk transformer dekorator) dan Stryker berjalan pada test dengan dependency injection; (h) `nestjs-pino` (dengan redaksi) dan `@nestjs/terminus` berjalan di empat entrypoint pada NestJS 12 ESM; klien MCP v2 berjalan di proyek yang sama; Valkey 9.0.x lulus uji `noeviction`, AOF, BullMQ, dan Streams; policy RLS `NULLIF` lulus uji koneksi bekas pakai |
+| **S1** | **DOCX fidelity and tracked changes** | • **Round-trip:** a set of real contracts (numbering, tables, headers/footers, styles) round-trips without meaningful element loss.<br>• **Interop with Word:** tracked changes and comments created in the editor read correctly in Microsoft Word, and vice versa.<br>• **AI suggestions:** applied as tracked changes; client vs `editor-api` decided.<br>• **Attributed OOXML:** the backend creates OOXML with "Lexon AI"-attributed revisions, the Word add-in inserts it through `insertOoxml`, and attribution survives saving in both Word desktop and Word web.<br>• **Licensing:** the Pro license is active for production testing.<br>• **Telemetry:** the Pro packages (including `telemetry`) are shown not to send document content from runtimes with egress. |
+| **S2** | **End-to-end streaming** | • **Flow:** worker → Valkey Streams → SSE → assistant-ui, with resume after refresh, cancel, tool approval, and worker crash per §4.1.<br>• **Compatibility:** AI SDK 7 and `@ai-sdk/react` 4.<br>• **Load:** ≥ 500 concurrent SSE connections with a fixed number of Valkey connections per Backend API process.<br>• **Replay:** the replay → live transition loses or duplicates no frames.<br>• **Deploys:** restarting the Backend API during a deploy loses no frames (clients reconnect with `Last-Event-ID`). |
+| **S3** | **OCR + retrieval + citations** | • **OCR:** scanned PDFs (English) become indexed text.<br>• **Citations:** accuracy at or above the agreed threshold; citations open the correct page/paragraph.<br>• **Retrieval quality:** FTS + trigram quality (Recall@K, MRR) is measured on the evaluation dataset as the basis for the threshold that triggers considering vector search.<br>• **Query plans:** `EXPLAIN ANALYZE` with RLS active shows FTS and trigram using GIN indexes (not a seq scan). |
+| **S4** | **Tabular Review at scale** | • **Scale:** 50 documents × 20 columns; the grid stays responsive.<br>• **Fairness:** job scheduling is fair across organizations.<br>• **Delivery:** cell updates arrive in real time; XLSX export is correct.<br>• **Calls:** about 50 model calls with the per-document unit of work.<br>• **Cost:** actual cost within ±20% of the estimate. |
+| **S5** | **S3 storage** | • **Contract tests** pass on SeaweedFS: presigned PUT/GET, multipart, lifecycle/expiry, CORS.<br>• **Restore:** a restore drill from off-site backup succeeds within the RTO target and includes replaying the deletion ledger.<br>• **Encrypted reads:** application-encrypted objects can be read through `Range` by PDF.js.<br>• **Fallback:** if it fails, test the next candidate. |
+| **S6** | **NestJS backend foundation** | (a) An ESM NestJS 12 project on Node 24 builds and runs AI SDK 7 and `@openrouter/ai-sdk-provider` without a CJS shim.<br>(b) Better Auth in NestJS:<br>  • cookie and Bearer login<br>  • Organization/Admin/Two-Factor plugins<br>  • `getSession` in a guard<br>  • the body parser does not interfere with other routes<br>  • tables in the `auth` schema through the `lexon_auth` role<br>(c) Controllers and processors use `withTenant`, and queries without context return zero rows. ESLint rejects driver imports outside the db module and `pg`/`drizzle-orm` in `frontend/` and `word-add-in/`.<br>(d) Zod validation on route decorators (Standard Schema) uses the same `shared/` schemas as the frontend and add-in.<br>(e) Four entrypoints run from one `Dockerfile` with different targets. The Document Worker does not load `infrastructure/ai` and fails if it tries egress.<br>(f) `@nestjs/bullmq` with BullMQ 6 (or the fallback wrapper) passes queue, retry, and idempotent job id tests.<br>(g) Vitest (including the decorator transformer) and Stryker run on tests with dependency injection.<br>(h) Runtime integrations:<br>  • `nestjs-pino` (with redaction) and `@nestjs/terminus` run in all four entrypoints on NestJS 12 ESM<br>  • the MCP v2 client runs in the same project<br>  • Valkey 9.0.x passes `noeviction`, AOF, BullMQ, and Streams tests<br>  • the `NULLIF` RLS policy passes the reused-connection test |
 
-## 11. Status, Kendali Dokumen & Riwayat Perubahan
+## 11. Status, Document Control & Change History
 
-Dokumen ini mencatat **baseline rancangan arsitektur Lexon v1.6** yang disusun menggunakan [Technology Stack Specification](./LEXON-01-TECHNOLOGY-STACK.md). Pilihan teknologinya mengikuti dokumen **LOCKED**; detail mekanisme arsitektur yang diberi status rancangan memerlukan persetujuan sebelum menjadi keputusan final.
+This document records the **Lexon architecture design baseline v1.7**, built on the [Technology Stack Specification](./LEXON-01-TECHNOLOGY-STACK.md). Its technology choices follow the **LOCKED** document; architectural mechanisms marked as design require approval before becoming final decisions.
 
-Perubahan arsitektur yang berdampak pada pilihan teknologi, ownership data, atau batas antar-runtime dicatat melalui revisi dokumen ini.
+Architecture changes that affect technology choices, data ownership, or runtime boundaries are recorded through revisions of this document.
 
-| Versi | Perubahan |
+| Version | Changes |
 |---|---|
-| 1.1 | Baseline awal |
-| 1.2 | **Ditambah:** domain Knowledge & Retrieval, Usage & Quotas, Audit; §2.2 jaringan container; pipeline dokumen dengan pemindaian, validasi, OCR, chunking, embedding (§4.2); retrieval dan grounding dengan sitasi terverifikasi serta konfigurasi bahasa (§4.3); kontrak streaming rinci dengan resume, cancel, persetujuan, dan pemulihan (§4.1); format kanonik DOCX, versi dokumen, dan `EditorPort` (§4.4); model Tabular Review (§4.5); isolasi tenant berlapis dengan RLS dan ethical wall (§3.2); isolasi file tidak tepercaya (§5.2); anggaran sumber daya dan keadilan antar-tenant (§5.3); kebijakan Valkey (§5.4); backup dan RPO/RTO (§5.5); manajemen kunci (§5.6); kerahasiaan, retensi, penghapusan, dan butir konsultasi hukum (§6); observability, evaluasi, dan kendali biaya (§7); autentikasi Word add-in (§8); spike validasi (§10). **Diubah:** RustFS → penyimpanan S3 (SeaweedFS) dengan S3 port; Tabular Review memakai TanStack Table; peran Tiptap dibatasi pada konten non-DOCX; MCP menambahkan validasi issuer OAuth dan pinning DNS. |
-| 1.3 | **Ditambah:** Outbox Dispatcher dan OTel Collector + Sentry Relay sebagai runtime (§2.1, §2.2); role database dan skema `app`/`auth`/`ops`, wrapper `withTenant`, dan RLS fail-closed (§3.2); stream hub SSE (§4.1); strategi pencarian vektor dua jalur (§4.3); unit kerja Tabular Review per dokumen dan prompt caching (§4.5); profil sumber daya awal (§5.3); anggaran memori dan perilaku gagal Valkey (§5.4); enkripsi objek per organisasi dan crypto-shredding (§5.6); ledger penghapusan dan jendela retensi W (§5.5, §6.3); verifikasi allowlist model terhadap kebijakan retensi (§6.2). **Diubah:** penerapan saran AI di Word add-in melalui OOXML beratribusi dari `editor-api`, dengan fallback track changes Office.js + komentar (§8); kriteria spike S1–S5 (§10). |
-| 1.4 | **Diubah:** gaya arsitektur dari modular monolith ber-Next.js menjadi frontend (Next.js) dan backend (NestJS) terpisah; "Web & API" dipecah menjadi Frontend dan Backend API (§2.1); struktur `apps/*` dan `packages/*` menjadi struktur root `backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`, `infra/`, `docs/` mengikuti Mike OSS (§3.4); `packages/core` dan `packages/db` menjadi `backend/src/modules` dan `backend/src/infrastructure`, `packages/contracts` menjadi `shared/`, `packages/evals` menjadi `evals/`, `packages/ui` ditiadakan; Better Auth dipasang di backend (§3.2); jaringan `edge` memuat Frontend, Backend API, Collector, dan Relay (§2.2); stream hub dan SSE berada pada Backend API (§4.1); profil sumber daya memisahkan Backend API dan Frontend (§5.3); `EditorPort` didefinisikan di `shared/` dengan adaptor di frontend dan backend (§4.4); OOXML beratribusi untuk Word add-in dibuat di backend (§8). **Ditambah:** batas Frontend–Backend (§3.5); entrypoint backend dan komposisi modul (§3.6); aturan dependensi antarfolder (§3.4); spike S6 dan penyesuaian kriteria S1 dan S2 (§10); baris keputusan struktur repositori, integrasi NestJS, serta origin dan routing (§9). |
-| 1.5 | **Diperbaiki:** policy RLS memakai `NULLIF(current_setting('app.org_id', true), '')::uuid` karena nilai konteks pada koneksi pool bekas pakai berupa string kosong (§3.2, S6). **Diganti:** Valkey 8.1 → 9.0.x (§2, §5.3, §5.4); klien MCP → `@modelcontextprotocol/client` v2 (§4.6); "middleware" Next.js → `proxy.ts` (§3.5). **Ditetapkan:** adaptor Better Auth `@thallesp/nestjs-better-auth` (§3.2); vektor `halfvec(1024)` dengan HNSW cosine dan embedding melalui OpenRouter dengan flag retensi nol (§4.2, §4.3, §9); jalur error browser melalui `tunnel` Sentry (§2.2); runner evals standalone (§7.2); logging, konfigurasi, dan health check (§9). **Ditambah:** kriteria S6(h), pemeriksaan batas `halfvec` dan tingkat query HNSW pada S3, pemeriksaan telemetri paket Pro pada S1; baris keputusan bisnis dan temuan desain yang masih terbuka (§9). |
-| 1.7 | **Ditambah:** §4.7 AI Run Engine (satu mesin run dengan run profile, context provider, tool provider, dan capability policy); kemampuan produk MVP (Workflows dan Quick Actions, Playbooks, Memory, Subagents, Riset web, ekspor data pribadi) beserta domain dan modulnya (§1, §3.1, §3.4, §3.6, §6.3, §9); rujukan Design System. **Ditetapkan:** bahasa MVP Inggris (UI, konten, dokumentasi engineering). **Diubah:** komponen frontend memakai shadcn/ui di atas Base UI (Stack v1.7) |
-| 1.6 | **Dikeluarkan dari MVP:** `pgvector`, kolom `halfvec`, indeks HNSW, strategi pencarian vektor dua jalur, pipeline embedding (status `embedding`, antrean `ai-embed`, endpoint embeddings OpenRouter), dan pemilihan model embedding, karena skala dokumen MVP tidak memerlukannya. **Diubah:** retrieval menjadi FTS + trigram dengan fusi RRF dan jalur konteks penuh (§4.3); status pipeline dokumen berakhir di `chunking` → `indexed` (§4.2); kriteria S3 dan S6(h) disesuaikan (§10). **Ditambah:** ketentuan penambahan pencarian vektor di kemudian hari melalui perubahan stack eksplisit (§4.3). |
+| 1.1 | Initial baseline |
+| 1.2 | **Added:**<br>• Knowledge & Retrieval, Usage & Quotas, and Audit domains<br>• §2.2 container networks<br>• document pipeline with scanning, validation, OCR, chunking, embedding (§4.2)<br>• retrieval and grounding with verified citations and language configuration (§4.3)<br>• a detailed streaming contract with resume, cancel, approval, and recovery (§4.1)<br>• canonical DOCX format, document versions, and `EditorPort` (§4.4)<br>• the Tabular Review model (§4.5)<br>• layered tenant isolation with RLS and ethical walls (§3.2)<br>• untrusted file isolation (§5.2)<br>• resource budget and tenant fairness (§5.3)<br>• Valkey policy (§5.4)<br>• backup and RPO/RTO (§5.5)<br>• key management (§5.6)<br>• confidentiality, retention, deletion, and legal consultation items (§6)<br>• observability, evaluation, and cost control (§7)<br>• Word add-in authentication (§8)<br>• validation spikes (§10)<br>**Changed:**<br>• RustFS → S3 storage (SeaweedFS) with an S3 port<br>• Tabular Review uses TanStack Table<br>• Tiptap's role limited to non-DOCX content<br>• MCP adds OAuth issuer validation and DNS pinning |
+| 1.3 | **Added:**<br>• Outbox Dispatcher and OTel Collector + Sentry Relay as runtimes (§2.1, §2.2)<br>• database roles and the `app`/`auth`/`ops` schemas, the `withTenant` wrapper, and fail-closed RLS (§3.2)<br>• the SSE stream hub (§4.1)<br>• a two-path vector search strategy (§4.3)<br>• the per-document unit of work for Tabular Review and prompt caching (§4.5)<br>• the initial resource profile (§5.3)<br>• Valkey memory budgets and failure behavior (§5.4)<br>• per-organization object encryption and crypto-shredding (§5.6)<br>• the deletion ledger and retention window W (§5.5, §6.3)<br>• verifying the model allowlist against the retention policy (§6.2)<br>**Changed:**<br>• AI suggestions in the Word add-in applied through attributed OOXML from `editor-api`, with an Office.js track changes + comment fallback (§8)<br>• spike criteria S1–S5 (§10) |
+| 1.4 | **Changed:**<br>• Architecture style from a Next.js modular monolith to a separate frontend (Next.js) and backend (NestJS); "Web & API" split into Frontend and Backend API (§2.1).<br>• The `apps/*` and `packages/*` structure became the root `backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`, `infra/`, `docs/` following Mike OSS (§3.4). `packages/core` and `packages/db` became `backend/src/modules` and `backend/src/infrastructure`, `packages/contracts` became `shared/`, `packages/evals` became `evals/`, and `packages/ui` was dropped.<br>• Better Auth mounted in the backend (§3.2).<br>• The `edge` network holds the Frontend, Backend API, Collector, and Relay (§2.2).<br>• The stream hub and SSE live in the Backend API (§4.1).<br>• The resource profile separates the Backend API and Frontend (§5.3).<br>• `EditorPort` defined in `shared/` with adapters in the frontend and backend (§4.4).<br>• Attributed OOXML for the Word add-in built in the backend (§8).<br>**Added:**<br>• the Frontend–Backend boundary (§3.5)<br>• backend entrypoints and module composition (§3.6)<br>• cross-folder dependency rules (§3.4)<br>• spike S6 and adjusted S1 and S2 criteria (§10)<br>• decision rows for repository structure, NestJS integration, and origin and routing (§9) |
+| 1.5 | **Fixed:** RLS policies use `NULLIF(current_setting('app.org_id', true), '')::uuid` because the context value on a reused pool connection is an empty string (§3.2, S6).<br>**Replaced:**<br>• Valkey 8.1 → 9.0.x (§2, §5.3, §5.4)<br>• MCP client → `@modelcontextprotocol/client` v2 (§4.6)<br>• Next.js "middleware" → `proxy.ts` (§3.5)<br>**Set:**<br>• Better Auth adapter `@thallesp/nestjs-better-auth` (§3.2)<br>• `halfvec(1024)` vectors with HNSW cosine and embeddings through OpenRouter with a zero-retention flag (§4.2, §4.3, §9)<br>• browser error path through the Sentry `tunnel` (§2.2)<br>• standalone evals runner (§7.2)<br>• logging, configuration, and health checks (§9)<br>**Added:**<br>• S6(h) criteria<br>• `halfvec` limit and HNSW query-level checks in S3<br>• Pro package telemetry check in S1<br>• rows for open business decisions and design findings (§9) |
+| 1.6 | **Removed from the MVP:**<br>• `pgvector`, `halfvec` columns, the HNSW index, and the two-path vector search strategy<br>• the embedding pipeline (`embedding` status, `ai-embed` queue, OpenRouter embeddings endpoint) and embedding model selection<br>MVP document scale does not need them.<br>**Changed:**<br>• retrieval becomes FTS + trigram with RRF fusion and a full-context path (§4.3)<br>• the document pipeline status ends at `chunking` → `indexed` (§4.2)<br>• S3 and S6(h) criteria adjusted (§10)<br>**Added:** rules for adding vector search later through an explicit stack change (§4.3) |
+| 1.7 | **Added:**<br>• §4.7 AI Run Engine (one run engine with run profiles, context providers, tool providers, and a capability policy)<br>• MVP product capabilities (Workflows and Quick Actions, Playbooks, Memory, Subagents, Web research, personal data export) with their domains and modules (§1, §3.1, §3.4, §3.6, §6.3, §9)<br>• a reference to the Design System<br>**Set:** English as the MVP language (UI, content, reference documents, engineering documents)<br>**Changed:** frontend components use shadcn/ui on Base UI (Stack v1.7)<br>**Translated:** the document into English |

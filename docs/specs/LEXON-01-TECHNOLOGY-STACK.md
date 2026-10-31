@@ -1,231 +1,257 @@
 # LEXON
 ## Technology Stack Specification
 
-| Informasi | Detail |
+| Field | Detail |
 |---|---|
-| **Dokumen** | LEX-TS-001 |
-| **Versi** | 1.7 |
-| **Status** | **LOCKED** — dengan prasyarat validasi (§9) |
-| **Tanggal** | 31 Oktober 2026 |
-| **Menggantikan** | v1.6 (31 Oktober 2026) |
-| **Produk** | Lexon — Indonesian Legal AI Workspace |
-| **Klasifikasi** | Internal · Product & Engineering |
+| **Document** | LEX-TS-001 |
+| **Version** | 1.7 |
+| **Status** | **LOCKED** — subject to validation prerequisites (§9) |
+| **Date** | 31 October 2026 |
+| **Supersedes** | v1.6 (31 October 2026) |
+| **Product** | Lexon — Indonesian Legal AI Workspace |
+| **Classification** | Internal · Product & Engineering |
 
-## 1. Ringkasan
+## 1. Summary
 
-Lexon merupakan platform kerja berbantuan kecerdasan buatan untuk praktik hukum Indonesia. Platform dirancang untuk mendukung percakapan dan analisis hukum, peninjauan dokumen secara terstruktur, serta penyusunan dan penyuntingan dokumen dalam satu lingkungan kerja.
+Lexon is an AI-assisted work platform for Indonesian legal practice. It supports legal conversation and analysis, structured document review, and document drafting and editing in one workspace.
 
-Spesifikasi ini mendefinisikan teknologi dasar yang digunakan untuk membangun dan mengoperasikan Lexon. Seluruh komponen yang tercantum membentuk **baseline teknologi v1.6** bagi pengembangan aplikasi, integrasi sistem, pengujian, dan deployment.
+This specification defines the base technology used to build and operate Lexon. All components listed here form the **v1.7 technology baseline** for application development, system integration, testing, and deployment.
 
-**Pola sistem:** frontend dan backend terpisah dalam satu pnpm workspace, dengan struktur folder root yang mengikuti Mike OSS: `backend/` (NestJS), `frontend/` (Next.js), dan `word-add-in/`. Backend adalah satu codebase modular; pemrosesan AI dan dokumen berjalan sebagai entrypoint terpisah dari codebase backend yang sama. Deployment awal menggunakan Linux VPS dan Docker Compose.
+**System pattern:** separate frontend and backend in one pnpm workspace, with a root folder structure that follows Mike OSS: `backend/` (NestJS), `frontend/` (Next.js), and `word-add-in/`. The backend is one modular codebase; AI and document processing run as separate entrypoints of the same backend codebase. Initial deployment uses a Linux VPS and Docker Compose.
 
-**Cakupan bahasa awal (MVP):** seluruhnya berbahasa **Inggris** — antarmuka aplikasi, pesan error, email transaksional, konten dan OCR dokumen, serta dokumentasi engineering turunan (brief, spec, dan plan superpowers). Dokumen acuan di `docs/specs/` tetap berbahasa Indonesia. Dukungan bahasa Indonesia disiapkan secara konfigurasi (lihat §4 dan §6) sehingga penambahannya tidak mengubah skema data; i18n antarmuka tidak dibangun di MVP, namun teks UI tidak di-hardcode tersebar agar dapat diekstraksi kemudian.
+**Language scope (MVP):** everything is in **English**: the application UI, error messages, transactional email, document content and OCR, the reference documents in `docs/specs/`, and the derived engineering documents (briefs, superpowers specs and plans). Indonesian support is prepared through configuration (see §4 and §6), so adding it does not change the data schema. UI internationalization is not built in the MVP, but UI strings are not hard-coded in scattered places so they can be extracted later.
 
-**Perubahan v1.7 terhadap v1.6:** (1) adaptor assistant-ui memakai `@assistant-ui/ai-sdk` (paket `@assistant-ui/react-ai-sdk` kini hanya re-export); (2) fondasi UI shadcn/ui memakai primitives **Base UI** (`@base-ui/react`, style `base-nova`) menggantikan Radix UI; (3) titik awal scaffold ditetapkan (§2); (4) bahasa MVP ditetapkan Inggris; (5) design system mengacu pada [Design System](./LEXON-03-DESIGN-SYSTEM.md).
+**Changes in v1.7 versus v1.6:**
+1. The assistant-ui adapter is `@assistant-ui/ai-sdk`; `@assistant-ui/react-ai-sdk` is now only a re-export.
+2. shadcn/ui uses **Base UI** primitives (`@base-ui/react`, style `base-nova`) instead of Radix UI.
+3. The scaffold starting points are set (§2).
+4. The MVP language is English, including this document.
+5. The design system refers to the [Design System](./LEXON-03-DESIGN-SYSTEM.md).
 
-**Perubahan v1.6 terhadap v1.5:** pencarian semantik berbasis vektor (`pgvector`, kolom `halfvec`, indeks HNSW, dan jalur embedding OpenRouter) dikeluarkan dari baseline MVP karena skala dokumen MVP tidak memerlukannya; retrieval memakai PostgreSQL FTS + `pg_trgm` dan jalur konteks penuh (Arsitektur §4.3). Penambahannya kembali memerlukan keputusan stack yang eksplisit.
+**Changes in v1.6 versus v1.5:** vector-based semantic search (`pgvector`, `halfvec` columns, HNSW index, and the OpenRouter embedding path) is removed from the MVP baseline because MVP document scale does not need it. Retrieval uses PostgreSQL FTS + `pg_trgm` and a full-context path (Architecture §4.3). Adding it back requires an explicit stack decision.
 
-**Perubahan utama v1.5 terhadap v1.4:** (1) item yang sebelumnya "ditentukan nanti" ditetapkan: adaptor Better Auth, TypeScript 6.x, Zod 4.x, PostgreSQL 17.x, logging/konfigurasi/health, lapisan data frontend, alat uji beban dan rantai pasok, pin image, jalur error browser, dan runner evaluasi; (2) koreksi: toolchain backend memakai `tsc` (bukan Webpack), Valkey 9.0.x, klien MCP v2, `proxy.ts` pada Next.js 16, dan policy RLS dengan `NULLIF`; (3) catatan lisensi dan risiko baru (Mike OSS AGPL-3.0, ExcelJS, EigenPal Pro); (4) tabel baseline versi (§7). Daftar lengkap ada di §11. Keputusan bisnis dan legal (penyedia dan wilayah infrastruktur, bahasa MVP, model chat, angka retensi dan RPO/RTO) tetap terbuka dan dicatat pada Arsitektur §9.
+**Main changes in v1.5 versus v1.4:**
+1. Items previously "to be decided" were set: the Better Auth adapter, TypeScript 6.x, Zod 4.x, PostgreSQL 17.x, logging/configuration/health, the frontend data layer, load-testing and supply-chain tools, image pinning, the browser error path, and the evaluation runner.
+2. Corrections: the backend toolchain uses `tsc` (not Webpack), Valkey 9.0.x, MCP client v2, `proxy.ts` in Next.js 16, and RLS policies with `NULLIF`.
+3. New license and risk notes (Mike OSS AGPL-3.0, ExcelJS, EigenPal Pro).
+4. A version baseline table (§7).
+
+The full list is in §11. Business and legal decisions remain open and are recorded in Architecture §9: infrastructure provider and region, chat model, and the retention and RPO/RTO figures.
 
 ## 2. Application Platform
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| Architecture | Modular Backend (NestJS) + Frontend terpisah + Dedicated Workers | Frontend dan backend terpisah pada batas deploy dan kepercayaan; modul bisnis berada di backend; workers adalah entrypoint dari codebase backend |
-| Source repository | Monorepo · pnpm Workspaces (`backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`) | Struktur root mengikuti Mike OSS; `shared/` adalah satu-satunya paket bersama (kontrak) |
-| Implementation languages | TypeScript 6.x (strict; versi di-pin; satu versi untuk seluruh workspace), JavaScript, SQL | Bahasa aplikasi, integrasi, dan query data. Templat assistant-ui memakai TypeScript 7 dan diturunkan ke 6.x saat scaffold: NestJS 12 (CLI memakai `~6.0`), metadata dekorator, Vitest, dan Stryker belum diverifikasi pada TS 7 |
-| Module format | ESM-only (`"type": "module"` di seluruh paket) | Dipersyaratkan oleh AI SDK 7; Better Auth pada server Node juga hanya mendukung ESM. Backend memakai mode proyek ESM NestJS 12 dan dikompilasi dengan `tsc` (`nest build`); konfigurasi TypeScript dan Vitest disesuaikan. Webpack hanya dipakai pada `word-add-in/` |
-| Frontend framework | Next.js 16 | App Router dan Server Components untuk UI dan SSR. Tanpa akses database dan tanpa logika bisnis; Route Handlers dan Server Actions tidak dipakai untuk logika bisnis; `proxy.ts` (pengganti `middleware.ts` pada Next.js 16, runtime Node.js) hanya untuk pengalihan cepat berdasarkan keberadaan cookie sesi (Arsitektur §3.5) |
-| Backend framework | NestJS 12 (adaptor Express; proyek ESM) | HTTP API, SSE, modul domain, guard autentikasi dan otorisasi, serta entrypoint worker |
-| UI runtime | React 19 | Komposisi antarmuka dan interaksi klien |
-| Server runtime | Node.js 24 LTS | Eksekusi backend, workers, dan server Next.js |
-| Scaffold awal | Frontend: templat `default` assistant-ui (`npx assistant-ui@latest create`), lalu disesuaikan ke baseline ini (TypeScript 6.x, ESLint + Prettier, `@assistant-ui/ai-sdk`). Backend: `nest new` (NestJS 12, mode proyek ESM) dengan pola streaming dari cookbook AI SDK untuk Nest.js (`pipeUIMessageStreamToResponse`) | Templat hanya titik awal: pada arsitektur Lexon generation berjalan di AI Worker dan dikirim melalui Valkey Streams → SSE (Arsitektur §4.1), bukan langsung dari controller |
-| Package management | pnpm (versi dependensi di-pin eksak; `pnpm.overrides` untuk paket yang harus tunggal) | Instalasi dan resolusi dependensi |
-| Input validation | Zod 4.x (satu versi untuk seluruh workspace melalui `pnpm.overrides`; skema di `shared/`; dipakai langsung pada decorator route NestJS melalui dukungan Standard Schema) | Validasi data pada batas sistem; kontrak yang sama dipakai frontend, backend, dan add-in (diverifikasi pada S6) |
+| Architecture | Modular Backend (NestJS) + separate Frontend + Dedicated Workers | Frontend and backend are separated at the deploy and trust boundary; business modules live in the backend; workers are entrypoints of the backend codebase |
+| Source repository | Monorepo · pnpm Workspaces (`backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`) | Root structure follows Mike OSS; `shared/` is the only shared package (contracts) |
+| Implementation languages | TypeScript 6.x (strict; pinned; one version for the whole workspace), JavaScript, SQL | Application, integration, and data query languages. The assistant-ui template ships TypeScript 7 and is downgraded to 6.x at scaffold time. Reason: NestJS 12 (its CLI uses `~6.0`), decorator metadata, Vitest, and Stryker are not yet verified on TS 7 |
+| Module format | ESM-only (`"type": "module"` in every package) | Required by AI SDK 7; Better Auth on a Node server also supports ESM only. The backend uses the NestJS 12 ESM project mode and is compiled with `tsc` (`nest build`); TypeScript and Vitest configuration are adjusted accordingly. Webpack is used only in `word-add-in/` |
+| Frontend framework | Next.js 16 | App Router and Server Components for UI and SSR. Rules: no database access and no business logic; Route Handlers and Server Actions are not used for business logic. `proxy.ts` (the Next.js 16 replacement for `middleware.ts`, Node.js runtime) is used only for fast redirects based on the presence of a session cookie (Architecture §3.5) |
+| Backend framework | NestJS 12 (Express adapter; ESM project) | HTTP API, SSE, domain modules, authentication and authorization guards, and worker entrypoints |
+| Initial scaffold | Frontend: the assistant-ui `default` template (`npx assistant-ui@latest create`), then aligned to this baseline (TypeScript 6.x, ESLint + Prettier, `@assistant-ui/ai-sdk`). Backend: `nest new` (NestJS 12, ESM project mode) with the streaming pattern from the AI SDK Nest.js cookbook (`pipeUIMessageStreamToResponse`) | The templates are only a starting point. In Lexon, generation runs in the AI Worker and is delivered through Valkey Streams → SSE (Architecture §4.1, §4.7), not directly from a controller |
+| UI runtime | React 19 | Interface composition and client interaction |
+| Server runtime | Node.js 24 LTS | Execution of the backend, workers, and the Next.js server |
+| Package management | pnpm (dependency versions pinned exactly; `pnpm.overrides` for packages that must be single) | Dependency installation and resolution |
+| Input validation | Zod 4.x (one version for the whole workspace via `pnpm.overrides`; schemas in `shared/`; used directly on NestJS route decorators through Standard Schema support) | Validation at system boundaries; the same contracts are used by the frontend, backend, and add-in (verified in S6) |
 
 ## 3. User Interface & Document Experience
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| Styling | Tailwind CSS 4 | Utility styles, responsivitas, dan design tokens |
-| UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Komponen dan primitives antarmuka. Base UI dipilih karena menjadi default templat dan registry komponen assistant-ui (komponen chat tidak perlu ditulis ulang), dipelihara aktif, dan didukung penuh shadcn/ui. Radix UI tidak dipakai; satu pustaka primitives untuk seluruh `frontend/` |
-| Iconography | Lucide | Sistem ikon aplikasi |
-| AI chat interface | assistant-ui (`@assistant-ui/react` + `@assistant-ui/ai-sdk`, jalur `ai@^7` + `@ai-sdk/react@^4`; komponen dari registry `@assistant-ui` style `base-nova`) | Primitives percakapan, streaming, reasoning, dan rendering (di `frontend/`). `@assistant-ui/react-ai-sdk` hanya re-export dari `@assistant-ui/ai-sdk` dan tidak dipakai |
-| Rich-text editing (non-DOCX) | Tiptap 3 + ProseMirror | **Dibatasi** pada konten non-DOCX: instruksi project, composer dengan mention, catatan, dan pratinjau draf AI. Dokumen hukum tidak disunting di Tiptap |
-| DOCX editing — Core | EigenPal DOCX Editor: `@docx-editor.dev/core` + `@docx-editor.dev/react` (Apache-2.0) | Membuka, menyunting, dan menyimpan DOCX dengan OOXML kanonik, di browser (`frontend/`) |
-| DOCX editing — Review | `@docx-editor.dev/pro` (lisensi komersial EigenPal Pro) | Tracked changes dan komentar. **Wajib berlisensi sebelum penggunaan produksi** (§9, §10) |
-| DOCX automation (opsional) | `@docx-editor.dev/editor-api` (EigenPal Pro) | Otomasi dokumen di browser/server; dipakai di backend untuk membuat OOXML beratribusi bagi Word add-in dan bila hasil spike S1 memerlukannya |
-| Editor abstraction | `EditorPort` (antarmuka di `shared/`; adaptor di `frontend/` dan `backend/`) | Antarmuka internal (open, save, applySuggestions, listChanges, export) agar EigenPal dapat diganti tanpa mengubah domain |
-| PDF experience | PDF.js | Rendering, navigasi, seleksi teks, dan penyorotan sumber sitasi |
-| Tabular review interface | TanStack Table + TanStack Virtual (pola shadcn/ui data table) | Grid dokumen × kolom dengan virtualisasi, status sel, dan sitasi per sel |
-| Data fetching (frontend) | TanStack Query (versi di-pin) | Cache, retry, dan sinkronisasi klien API bertipe (`shared/`) di `frontend/` |
-| Forms (frontend) | React Hook Form + Zod resolver | Formulir dengan skema Zod dari `shared/` yang sama dengan validasi backend |
-| Spreadsheet processing | ExcelJS 4.4.0 (di-pin; satu-satunya pustaka XLSX) | Impor workbook sebagai input dan ekspor hasil review; hanya dijalankan di Document Worker (tanpa internet) karena pustaka tidak aktif dipelihara (§10) |
-| Microsoft Word add-in | Office.js + React + Webpack (folder `word-add-in/`, bundel statis) | Integrasi pengalaman Lexon dalam Microsoft Word; autentikasi berbasis token (§4) |
+| Styling | Tailwind CSS 4 | Utility styles, responsiveness, and design tokens |
+| UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used; one primitives library for the whole `frontend/` |
+| Iconography | Lucide | Application icon system |
+| AI chat interface | assistant-ui (`@assistant-ui/react` + `@assistant-ui/ai-sdk`, on the `ai@^7` + `@ai-sdk/react@^4` line; components from the `@assistant-ui` registry, style `base-nova`) | Conversation primitives, streaming, reasoning, and rendering (in `frontend/`). `@assistant-ui/react-ai-sdk` is only a re-export of `@assistant-ui/ai-sdk` and is not used |
+| Rich-text editing (non-DOCX) | Tiptap 3 + ProseMirror | **Restricted** to non-DOCX content: project instructions, the composer with mentions, notes, and AI draft previews. Legal documents are not edited in Tiptap |
+| DOCX editing — Core | EigenPal DOCX Editor: `@docx-editor.dev/core` + `@docx-editor.dev/react` (Apache-2.0) | Opening, editing, and saving DOCX with canonical OOXML, in the browser (`frontend/`) |
+| DOCX editing — Review | `@docx-editor.dev/pro` (EigenPal Pro commercial license) | Tracked changes and comments. **Must be licensed before production use** (§9, §10) |
+| DOCX automation (optional) | `@docx-editor.dev/editor-api` (EigenPal Pro) | Document automation in the browser/server; used in the backend to create attributed OOXML for the Word add-in, and if the S1 spike requires it |
+| Editor abstraction | `EditorPort` (interface in `shared/`; adapters in `frontend/` and `backend/`) | Internal interface (open, save, applySuggestions, listChanges, export) so EigenPal can be replaced without changing the domain |
+| PDF experience | PDF.js | Rendering, navigation, text selection, and highlighting of citation sources |
+| Tabular review interface | TanStack Table + TanStack Virtual (shadcn/ui data table pattern) | Document × column grid with virtualization, cell states, and per-cell citations |
+| Data fetching (frontend) | TanStack Query (pinned) | Caching, retries, and synchronization of the typed API client (`shared/`) in `frontend/` |
+| Forms (frontend) | React Hook Form + Zod resolver | Forms using the same Zod schemas from `shared/` as backend validation |
+| Spreadsheet processing | ExcelJS 4.4.0 (pinned; the only XLSX library) | Importing workbooks as input and exporting review results; runs only in the Document Worker (no internet) because the library is not actively maintained (§10) |
+| Microsoft Word add-in | Office.js + React + Webpack (folder `word-add-in/`, static bundle) | Lexon experience inside Microsoft Word; token-based authentication (§4) |
 
-*Catatan paket EigenPal:* paket lama `@eigenpal/*` (seri 1.x) tidak digunakan. Baseline memakai `@docx-editor.dev/*` (seri 2.x).
+*Note on EigenPal packages:* the old `@eigenpal/*` packages (1.x series) are not used. The baseline uses `@docx-editor.dev/*` (2.x series).
 
 ## 4. Identity, Authorization & Data
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| Authentication | Better Auth (plugin: Organization, Admin, Two-Factor, Bearer), dipasang di backend NestJS pada `/api/auth/*` melalui adaptor NestJS (adaptor: pustaka komunitas `@thallesp/nestjs-better-auth`; adaptor internal tipis di atas `toNodeHandler` hanya bila S6 menunjukkan ketidakcocokan dengan NestJS 12 atau ESM) | Identitas, sesi, organisasi, 2FA, dan token untuk klien non-cookie (Word add-in); frontend memakai klien `better-auth/react` pada origin yang sama; tabel Better Auth berada di skema `auth` dengan role database tersendiri (Arsitektur §3.2) |
-| Transactional email | SMTP melalui Nodemailer (penyedia ditetapkan saat deployment) | Verifikasi akun, undangan organisasi, notifikasi keamanan |
-| Authorization | Lexon RBAC + resource-level policies (guard dan policy services NestJS) | Kontrol akses organisasi, workspace, project, dan konten |
-| Tenant isolation | PostgreSQL Row-Level Security (RLS) | Lapis pertahanan kedua isolasi antar-organisasi di bawah policies aplikasi; konteks ditetapkan melalui wrapper `withTenant` (`set_config` lokal-transaksi) dan bersifat fail-closed; policy memakai `NULLIF(current_setting('app.org_id', true), '')::uuid` agar koneksi pool bekas pakai tidak melempar error cast |
-| Primary database | PostgreSQL 17.x (minor di-pin) | Penyimpanan transaksional dan sumber data bisnis utama |
-| Database extensions | `pg_trgm` | Pencarian trigram untuk nomor pasal, pola sitasi, dan pencocokan teks tidak persis |
-| ORM | Drizzle ORM (hanya di `backend/`) | Model relasional dan typed database access |
-| Database connection | node-postgres (`pg`) (hanya di `backend/`) | Driver PostgreSQL dan connection pooling |
-| Schema management | Drizzle Kit + versioned SQL migrations di `backend/drizzle/` (termasuk definisi RLS dan role) | Evolusi skema terkontrol |
-| Data access | Drizzle + parameterized SQL + PostgreSQL functions | Query aplikasi dan operasi database terstruktur |
-| Keyword search | PostgreSQL Full-Text Search (konfigurasi bahasa per chunk) + `pg_trgm` | Pencarian teks, percakapan, metadata, dan pola sitasi |
-| Retrieval (fusi RRF) | Fusi peringkat (Reciprocal Rank Fusion) di SQL, dibangun di domain Knowledge & Retrieval | Menggabungkan hasil FTS dan trigram dengan filter otorisasi terpusat; konteks penuh untuk dokumen tunggal |
-| Konfigurasi bahasa FTS | v1: `english`. Berikutnya: `indonesian` (stemmer Snowball bawaan PostgreSQL) + dictionary sinonim singkatan hukum | Penambahan bahasa Indonesia berupa perubahan konfigurasi dan re-index, bukan perubahan skema |
+| Authentication | Better Auth (plugins: Organization, Admin, Two-Factor, Bearer), mounted in the NestJS backend at `/api/auth/*` through a NestJS adapter. Adapter: the community library `@thallesp/nestjs-better-auth`; a thin internal adapter over `toNodeHandler` is built only if S6 shows an incompatibility with NestJS 12 or ESM | Identity, sessions, organizations, 2FA, and tokens for non-cookie clients (Word add-in). The frontend uses the `better-auth/react` client on the same origin; Better Auth tables live in the `auth` schema with their own database role (Architecture §3.2) |
+| Transactional email | SMTP via Nodemailer (provider chosen at deployment) | Account verification, organization invitations, security notifications |
+| Authorization | Lexon RBAC + resource-level policies (NestJS guards and policy services) | Access control for organizations, workspaces, projects, and content |
+| Tenant isolation | PostgreSQL Row-Level Security (RLS) | Second line of defense for cross-organization isolation, under the application policies. Context is set through the `withTenant` wrapper (transaction-local `set_config`) and is fail-closed. Policies use `NULLIF(current_setting('app.org_id', true), '')::uuid` so reused pool connections do not throw a cast error |
+| Primary database | PostgreSQL 17.x (minor pinned) | Transactional storage and the main source of business data |
+| Database extensions | `pg_trgm` | Trigram search for article numbers, citation patterns, and inexact text matching |
+| ORM | Drizzle ORM (only in `backend/`) | Relational model and typed database access |
+| Database connection | node-postgres (`pg`) (only in `backend/`) | PostgreSQL driver and connection pooling |
+| Schema management | Drizzle Kit + versioned SQL migrations in `backend/drizzle/` (including RLS and role definitions) | Controlled schema evolution |
+| Data access | Drizzle + parameterized SQL + PostgreSQL functions | Application queries and structured database operations |
+| Keyword search | PostgreSQL Full-Text Search (language configuration per chunk) + `pg_trgm` | Search over text, conversations, metadata, and citation patterns |
+| Retrieval (RRF fusion) | Rank fusion (Reciprocal Rank Fusion) in SQL, built in the Knowledge & Retrieval domain | Combines FTS and trigram results with centralized authorization filters; full context for single documents |
+| FTS language configuration | v1: `english`. Next: `indonesian` (PostgreSQL's built-in Snowball stemmer) + a synonym dictionary for legal abbreviations | Adding Indonesian is a configuration change and re-index, not a schema change |
 
 ## 5. AI & Asynchronous Processing
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| AI SDK | Vercel AI SDK 7 (ESM-only) | Streaming model, structured output, dan tool execution |
-| AI provider integration | `@openrouter/ai-sdk-provider` (seri 3.x, target `ai@^7`) | Integrasi model melalui AI SDK |
-| AI inference gateway | OpenRouter (preferensi provider dikirim eksplisit per request) | Akses model AI dengan kebijakan routing retensi nol dan allowlist model/provider terverifikasi (Arsitektur §6.2) |
-| Model Context Protocol | MCP · `@modelcontextprotocol/client` v2 (spec 2026-07-28; peer dependency Zod 4) | Protokol dan SDK klien integrasi AI dengan tool dari layanan eksternal; diuji terhadap server berspec lama |
-| MCP transport | Streamable HTTP | Koneksi server MCP jarak jauh |
-| MCP connector authentication | OAuth 2.0 (validasi issuer metadata ketat, RFC 8414), bearer token, dan custom headers | Otorisasi koneksi eksternal yang dikelola pengguna |
-| MCP tool integration | Connector management, tool discovery, dan tool policies | Pemilihan serta pengendalian tool yang tersedia untuk AI |
-| AI execution | Dedicated Node.js AI Worker — entrypoint tersendiri dari codebase `backend/`, dijalankan sebagai container terpisah | Eksekusi generation dan pekerjaan AI |
-| Background jobs | BullMQ 6 (integrasi NestJS melalui `@nestjs/bullmq`; kompatibilitas dengan BullMQ 6 dan NestJS 12 diverifikasi pada S6, cadangan: pembungkus provider NestJS tipis di atas `Queue`/`Worker` BullMQ) | Antrean, scheduling, concurrency, dan retry |
-| Queue infrastructure | Valkey 9.0.x, patch ≥ 9.0.6 dan di-pin (`maxmemory-policy noeviction`, AOF `everysec`, autentikasi, jaringan internal, anggaran memori per penggunaan) | Penyimpanan operasional antrean, event, dan rate limiting; koneksi dikonfigurasi terpisah per penggunaan agar dapat dipisah ke instance lain (Arsitektur §5.4) |
-| Durable work coordination | PostgreSQL + Transactional Outbox + Outbox Dispatcher (entrypoint tersendiri dari `backend/`, satu instance aktif melalui advisory lock) | Pencatatan pekerjaan, konsistensi, dan pemulihan pengiriman |
-| Streaming delivery | Server-Sent Events (SSE) + Valkey Streams (dengan `MAXLEN` dan TTL per run) + stream hub per proses Backend API | Pengiriman event real-time ke klien dengan dukungan resume; jumlah koneksi Valkey tetap per proses, tidak bertambah per klien (Arsitektur §4.1) |
-| Rate limiting & quota | Limiter berbasis Valkey (`rate-limiter-flexible`) + pencatatan `usage_events` di PostgreSQL | Pembatasan laju, kuota per organisasi, dan metering biaya |
-| AI telemetry | `@ai-sdk/otel` → OpenTelemetry | Tracing generation dan tool; isi prompt tidak direkam secara default |
-| Evaluation | Harness evaluasi berbasis Vitest (`evals/`), dijalankan pada application context NestJS standalone (tanpa HTTP) ditambah sejumlah kecil skenario end-to-end melalui API publik | Pengujian kualitas jawaban, akurasi sitasi, dan ketahanan terhadap prompt injection |
+| AI SDK | Vercel AI SDK 7 (ESM-only) | Model streaming, structured output, and tool execution |
+| AI provider integration | `@openrouter/ai-sdk-provider` (3.x series, targeting `ai@^7`) | Model integration through the AI SDK |
+| AI inference gateway | OpenRouter (provider preferences sent explicitly per request) | Access to AI models with a zero-retention routing policy and a verified model/provider allowlist (Architecture §6.2) |
+| Model Context Protocol | MCP · `@modelcontextprotocol/client` v2 (spec 2026-07-28; Zod 4 peer dependency) | Protocol and client SDK for integrating AI with tools from external services; tested against older-spec servers |
+| MCP transport | Streamable HTTP | Connections to remote MCP servers |
+| MCP connector authentication | OAuth 2.0 (strict issuer metadata validation, RFC 8414), bearer tokens, and custom headers | Authorization of user-managed external connections |
+| MCP tool integration | Connector management, tool discovery, and tool policies | Selecting and controlling which tools the AI can use |
+| AI execution | Dedicated Node.js AI Worker — a separate entrypoint of the `backend/` codebase, run as a separate container; hosts the AI Run Engine (Architecture §4.7) | Generation and AI work |
+| Background jobs | BullMQ 6 (NestJS integration via `@nestjs/bullmq`). Compatibility with BullMQ 6 and NestJS 12 is verified in S6; the fallback is a thin NestJS provider wrapper over BullMQ `Queue`/`Worker` | Queues, scheduling, concurrency, and retries |
+| Queue infrastructure | Valkey 9.0.x, patch ≥ 9.0.6 and pinned. Configuration: `maxmemory-policy noeviction`, AOF `everysec`, authentication, internal network only, memory budget per use | Operational storage for queues, events, and rate limiting. Connections are configured separately per use so they can be split onto another instance later (Architecture §5.4) |
+| Durable work coordination | PostgreSQL + Transactional Outbox + Outbox Dispatcher (a separate `backend/` entrypoint; one active instance via an advisory lock) | Work recording, consistency, and delivery recovery |
+| Streaming delivery | Server-Sent Events (SSE) + Valkey Streams (with `MAXLEN` and a TTL per run) + a stream hub per Backend API process | Real-time event delivery to clients with resume support. The number of Valkey connections per process is fixed and does not grow per client (Architecture §4.1) |
+| Rate limiting & quota | Valkey-based limiter (`rate-limiter-flexible`) + `usage_events` recorded in PostgreSQL | Rate limiting, per-organization quotas, and cost metering |
+| AI telemetry | `@ai-sdk/otel` → OpenTelemetry | Tracing of generation and tools; prompt content is not recorded by default |
+| Evaluation | Vitest-based evaluation harness (`evals/`) running on a standalone NestJS application context (no HTTP), plus a small number of end-to-end scenarios through the public API | Testing answer quality, citation accuracy, and resistance to prompt injection |
 
 ## 6. Document Processing & Storage
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| Document execution | Dedicated Node.js Document Worker — entrypoint dari codebase `backend/`, container tanpa akses internet | Pipeline pemindaian, ekstraksi, OCR, chunking, dan konversi |
-| Object storage | **SeaweedFS** seri 4.x (tag eksak di-pin saat S5 dimulai; S3 gateway; Apache-2.0) | Penyimpanan objek berbasis S3-compatible API; menggantikan RustFS |
-| Storage contract | Antarmuka S3 + contract test di CI | Batas yang dapat ditukar (SeaweedFS, Garage, RustFS, atau S3 terkelola) tanpa mengubah aplikasi |
-| Storage client | AWS SDK for JavaScript v3 | Akses penyimpanan, presigned uploads, dan lifecycle objek |
-| Object encryption | Node.js `crypto`: AES-256-GCM tersegmentasi dengan DEK per organisasi (envelope encryption) | Enkripsi level aplikasi atas konten klien di penyimpanan objek; mendukung baca `Range` dan crypto-shredding (Arsitektur §5.6) |
-| Upload scanning | ClamAV (`clamd`, layanan terpisah) | Pemindaian malware sebelum dokumen diproses |
-| OCR | OCRmyPDF + Tesseract (v1: bahasa `eng`; berikutnya `eng+ind`) | Mengubah PDF/gambar hasil scan menjadi PDF dengan text layer |
-| Office conversion | LibreOffice Headless dalam container sandbox terpisah | Konversi format dokumen Office dengan isolasi |
-| Document text extraction | Mammoth + PDF.js (build legacy untuk Node) | Ekstraksi isi DOCX dan PDF (termasuk posisi teks untuk sitasi) |
-| DOCX generation | `docx` | Pembuatan dokumen Word terprogram |
+| Document execution | Dedicated Node.js Document Worker — an entrypoint of the `backend/` codebase, in a container without internet access | Pipeline for scanning, extraction, OCR, chunking, and conversion |
+| Object storage | **SeaweedFS** 4.x series (exact tag pinned when S5 starts; S3 gateway; Apache-2.0) | Object storage through an S3-compatible API; replaces RustFS |
+| Storage contract | S3 interface + contract tests in CI | A swappable boundary (SeaweedFS, Garage, RustFS, or managed S3) without application changes |
+| Storage client | AWS SDK for JavaScript v3 | Storage access, presigned uploads, and object lifecycle |
+| Object encryption | Node.js `crypto`: segmented AES-256-GCM with a per-organization DEK (envelope encryption) | Application-level encryption of client content in object storage; supports `Range` reads and crypto-shredding (Architecture §5.6) |
+| Upload scanning | ClamAV (`clamd`, separate service) | Malware scanning before documents are processed |
+| OCR | OCRmyPDF + Tesseract (v1: language `eng`; next `eng+ind`) | Turns scanned PDFs/images into PDFs with a text layer |
+| Office conversion | LibreOffice Headless in a separate sandbox container | Isolated conversion of Office document formats |
+| Document text extraction | Mammoth + PDF.js (legacy build for Node) | Extracting DOCX and PDF content (including text positions for citations) |
+| DOCX generation | `docx` | Programmatic creation of Word documents |
 
 ## 7. Operations, Quality & Delivery
 
-| Area | Teknologi | Peran |
+| Area | Technology | Role |
 |---|---|---|
-| Reverse proxy & HTTPS | Caddy (buffering respons SSE dinonaktifkan) | Terminasi TLS dan routing: `/api/*` ke backend, selainnya ke frontend; menyajikan bundel statis add-in pada domain tersendiri |
-| Containerization | Docker + Docker Compose (batas memori/CPU per layanan; seluruh image di-pin dengan tag eksak dan digest, tidak pernah `latest`) | Packaging, isolasi, dan orkestrasi layanan awal; image `frontend`, `backend` (target `api`, `ai-worker`, `dispatcher`), dan `document-worker` (target backend dengan toolchain OCR) |
-| Hosting | Linux VPS (disk terenkripsi LUKS; profil awal produksi minimum 8 vCPU, 32 GB RAM, NVMe) | Infrastruktur aplikasi dan data; profil dikalibrasi melalui uji beban (Arsitektur §5.3) |
-| Secrets | Docker secrets / file secret berizin ketat | Penyimpanan kredensial dan key-encryption-key di luar repositori dan database |
-| Backup | pgBackRest (full + WAL archiving, terenkripsi) + replikasi objek terjadwal ke penyimpanan off-site (`rclone sync`, terenkripsi, mempropagasikan penghapusan), dengan jendela retensi W | Pemulihan point-in-time dan pemulihan objek; ledger penghapusan diputar ulang setelah restore (Arsitektur §6.3) |
-| Error monitoring | Sentry (scrubbing sebelum dikirim) + Sentry Relay internal | Pelacakan error aplikasi tanpa konten dokumen; runtime tanpa egress (Document Worker) mengirim melalui Relay; error sisi browser dikirim melalui `tunnel` Sentry pada endpoint Backend API (Arsitektur §2.2) |
-| Observability | OpenTelemetry + OpenTelemetry Collector (layanan internal) | Tracing dan metrics lintas runtime; Collector menjadi satu-satunya jalur ekspor telemetri dan lapis kedua penghapusan atribut sensitif |
-| Logging | pino (`nestjs-pino`) dengan daftar redaksi bawaan | Log terstruktur tanpa isi dokumen atau prompt (Arsitektur §6.2) |
-| Configuration & health | `@nestjs/config` dengan skema Zod (Standard Schema); `@nestjs/terminus` | Validasi variabel lingkungan saat boot dan health check tiap runtime backend |
-| Unit & integration tests | Vitest + `@nestjs/testing`; endpoint backend diuji melalui HTTP ke port efemeral memakai `fetch` (Supertest tetap tidak dipakai) | Verifikasi modul dan antarmuka HTTP; transformer dekorator mengikuti templat resmi NestJS 12 dan diverifikasi bersama Stryker pada S6 |
-| End-to-end & API tests | Playwright (termasuk `APIRequestContext`) | Verifikasi workflow melalui browser dan HTTP |
-| Mutation tests | Stryker | Evaluasi kekuatan assertion pada test suite |
-| Load testing | k6 | Uji beban SSE (S2: ≥ 500 koneksi), Tabular Review (S4), dan kalibrasi profil sumber daya (Arsitektur §5.3) |
-| Code quality | ESLint + Prettier + TypeScript strict; aturan batas modul (impor lintas modul, driver database, gateway model) | Pemeriksaan kualitas dan konsistensi kode. Templat `nest new` dan assistant-ui memakai oxlint/oxfmt; Lexon tetap memakai ESLint + Prettier karena aturan batas modul dan folder (Arsitektur §3.4) memerlukan ekosistem plugin ESLint (`no-restricted-imports`, aturan boundaries) |
-| CI/CD | GitHub Actions (job per folder workspace dengan filter `pnpm --filter`) | Otomasi verifikasi, build, dan delivery |
-| Software supply chain | Syft (SBOM format CycloneDX) + Trivy (image, dependensi, lisensi) + OSV-Scanner (lockfile) + Renovate | Inventaris, pemantauan, dan pembaruan dependensi terkelola; kebijakan lisensi berupa daftar izin (MIT, Apache-2.0, BSD, ISC), AGPL/GPL hanya sebagai layanan terpisah |
+| Reverse proxy & HTTPS | Caddy (SSE response buffering disabled) | TLS termination and routing: `/api/*` to the backend, everything else to the frontend; serves the add-in static bundle on its own domain |
+| Containerization | Docker + Docker Compose (memory/CPU limits per service; every image pinned by exact tag and digest, never `latest`) | Packaging, isolation, and initial service orchestration. Images: `frontend`, `backend` (targets `api`, `ai-worker`, `dispatcher`), and `document-worker` (a backend target with the OCR toolchain) |
+| Hosting | Linux VPS (LUKS-encrypted disk; minimum initial production profile 8 vCPU, 32 GB RAM, NVMe) | Application and data infrastructure; the profile is calibrated through load testing (Architecture §5.3) |
+| Secrets | Docker secrets / tightly permissioned secret files | Storage of credentials and the key-encryption-key outside the repository and database |
+| Backup | pgBackRest (full + WAL archiving, encrypted) + scheduled object replication to off-site storage (`rclone sync`, encrypted, propagating deletions), with a retention window W | Point-in-time recovery and object recovery; the deletion ledger is replayed after a restore (Architecture §6.3) |
+| Error monitoring | Sentry (scrubbing before send) + internal Sentry Relay | Application error tracking without document content. Runtimes without egress (Document Worker) send through Relay; browser errors are sent through the Sentry `tunnel` on a Backend API endpoint (Architecture §2.2) |
+| Observability | OpenTelemetry + OpenTelemetry Collector (internal service) | Tracing and metrics across runtimes; the Collector is the only telemetry export path and a second layer of sensitive-attribute removal |
+| Logging | pino (`nestjs-pino`) with a built-in redaction list | Structured logs without document content or prompts (Architecture §6.2) |
+| Configuration & health | `@nestjs/config` with a Zod schema (Standard Schema); `@nestjs/terminus` | Environment variable validation at boot and health checks for each backend runtime |
+| Unit & integration tests | Vitest + `@nestjs/testing`; backend endpoints are tested over HTTP on an ephemeral port using `fetch` (Supertest is still not used) | Verification of modules and HTTP interfaces. The decorator transformer follows the official NestJS 12 template and is verified together with Stryker in S6 |
+| End-to-end & API tests | Playwright (including `APIRequestContext`) | Verification of workflows through the browser and HTTP |
+| Mutation tests | Stryker | Assessing the strength of the test suite's assertions |
+| Load testing | k6 | SSE load testing (S2: ≥ 500 connections), Tabular Review (S4), and resource profile calibration (Architecture §5.3) |
+| Code quality | ESLint + Prettier + TypeScript strict; module boundary rules (cross-module imports, database driver, model gateway) | Code quality and consistency checks. The `nest new` and assistant-ui templates use oxlint/oxfmt; Lexon keeps ESLint + Prettier because the module and folder boundary rules (Architecture §3.4) need the ESLint plugin ecosystem (`no-restricted-imports`, boundaries rules) |
+| CI/CD | GitHub Actions (jobs per workspace folder using `pnpm --filter`) | Automated verification, build, and delivery |
+| Software supply chain | Syft (CycloneDX SBOM) + Trivy (images, dependencies, licenses) + OSV-Scanner (lockfile) + Renovate | Inventory, monitoring, and managed dependency updates. License policy is an allowlist (MIT, Apache-2.0, BSD, ISC); AGPL/GPL only as separate services |
 
-*Kebijakan versi:* dependensi di-pin eksak dengan lockfile. Pembaruan dilakukan terjadwal melalui Renovate; pembaruan AI SDK, provider, dan model wajib lolos subset evaluasi (`evals/`) sebelum digabung.
+*Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Baseline versi (v1.7).** Patch eksak di-pin saat scaffold dan dinaikkan Renovate.
+**Version baseline (v1.7).** Exact patches are pinned at scaffold time and raised by Renovate.
 
-| Komponen | Baseline | Catatan |
+| Component | Baseline | Notes |
 |---|---|---|
-| Node.js | 24 LTS | AI SDK 7 diuji pada Node 24; NestJS 12 mensyaratkan Node 20.19+ atau 22.12+ |
-| TypeScript | 6.x | TS 7 (native) hanya dievaluasi untuk typecheck CI |
-| NestJS | 12.x (adaptor Express, proyek ESM) | Kompatibilitas pustaka integrasi diverifikasi pada S6 |
-| Next.js dan React | Next.js 16.x, React 19 | `proxy.ts` menggantikan `middleware.ts` |
-| assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Komponen dari registry style `base-nova` |
-| UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | Tanpa Radix UI |
+| Node.js | 24 LTS | AI SDK 7 is tested on Node 24; NestJS 12 requires Node 20.19+ or 22.12+ |
+| TypeScript | 6.x | TS 7 (native) is only evaluated for CI typechecking |
+| NestJS | 12.x (Express adapter, ESM project) | Integration library compatibility verified in S6 |
+| Next.js and React | Next.js 16.x, React 19 | `proxy.ts` replaces `middleware.ts` |
+| assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style |
+| UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No Radix UI |
 | AI SDK | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/otel` | Node ≥ 22, ESM-only |
-| Provider OpenRouter | `@openrouter/ai-sdk-provider` 3.x | Dipakai AI Worker untuk generation |
-| Antrean | BullMQ 6.x dengan `@nestjs/bullmq` | Diverifikasi pada S6 |
-| Valkey | 9.0.x (≥ 9.0.6) | Konfigurasi `noeviction` dan AOF tidak berubah |
-| PostgreSQL | PostgreSQL 17.x (ekstensi: `pg_trgm`) | Pindah versi mayor dijadwalkan terpisah |
-| Zod | 4.x | Dibutuhkan MCP SDK v2 dan Standard Schema |
-| MCP | `@modelcontextprotocol/client` v2 | Spec 2026-07-28; diuji terhadap server berspec lama |
-| Better Auth | 1.x dengan `@thallesp/nestjs-better-auth` | Diverifikasi pada S6 |
-| Logging dan health | `nestjs-pino`, `@nestjs/terminus` | Diverifikasi pada S6 |
-| Spreadsheet | ExcelJS 4.4.0 | Risiko pemeliharaan, lihat §10 |
-| Penyimpanan objek | SeaweedFS 4.x | Tag eksak ditetapkan saat S5 |
+| OpenRouter provider | `@openrouter/ai-sdk-provider` 3.x | Used by the AI Worker for generation |
+| Queue | BullMQ 6.x with `@nestjs/bullmq` | Verified in S6 |
+| Valkey | 9.0.x (≥ 9.0.6) | `noeviction` and AOF configuration unchanged |
+| PostgreSQL | PostgreSQL 17.x (extension: `pg_trgm`) | Major version moves are scheduled separately |
+| Zod | 4.x | Required by MCP SDK v2 and Standard Schema |
+| MCP | `@modelcontextprotocol/client` v2 | Spec 2026-07-28; tested against older-spec servers |
+| Better Auth | 1.x with `@thallesp/nestjs-better-auth` | Verified in S6 |
+| Logging and health | `nestjs-pino`, `@nestjs/terminus` | Verified in S6 |
+| Spreadsheet | ExcelJS 4.4.0 | Maintenance risk, see §10 |
+| Object storage | SeaweedFS 4.x | Exact tag set at S5 |
 
-## 8. Prinsip Integrasi
+## 8. Integration Principles
 
-1. **Satu sumber kontrak:** frontend, backend, worker, dan add-in memakai skema Zod dan kontrak event yang sama dari `shared/`; logika domain hanya berada di backend.
-2. **Tanggung jawab terpisah:** frontend melayani UI dan SSR; Backend API melayani interaksi pengguna dan seluruh akses data; AI Worker mengeksekusi tugas AI; Document Worker menangani pemrosesan dokumen. Worker dan dispatcher adalah entrypoint dari codebase backend, masing-masing dengan root module yang hanya memuat modul yang dibutuhkan.
-3. **Data bisnis terpusat:** PostgreSQL menyimpan identitas resource, metadata, akses, chunk, dan status proses; penyimpanan objek S3 menyimpan file.
-4. **Batas S3 sebagai kontrak:** aplikasi hanya bergantung pada API S3 dan diuji dengan contract test, sehingga implementasi penyimpanan dapat diganti.
-5. **DOCX adalah format kanonik dokumen hukum:** tracked changes dan komentar berada di dalam OOXML sehingga dokumen tetap valid di Microsoft Word tanpa bergantung pada editor tertentu.
-6. **Operasi asinkron terkelola:** BullMQ, Valkey, dan PostgreSQL digunakan sesuai perannya dalam antrean, pengiriman event, serta ketahanan pekerjaan.
-7. **Integrasi tool terkendali:** MCP menyediakan koneksi ke layanan eksternal melalui connector yang memiliki autentikasi, batas akses, kebijakan tool, dan persetujuan operasi yang memodifikasi data.
-8. **Konten tidak tepercaya diisolasi:** file unggahan diproses dalam batas yang terkendali (pemindaian, sandbox, batas sumber daya); isi dokumen dan hasil tool diperlakukan sebagai data, bukan instruksi.
-9. **Kerahasiaan sebagai batasan desain:** pengiriman data ke model, logging, retensi, dan penghapusan mengikuti kontrol pada Arsitektur §6.
-10. **Komponen UI konsisten:** pengalaman pengguna dibangun di atas fondasi antarmuka dan editor yang telah ditetapkan.
-11. **Integrasi terukur:** kontrak antar-runtime, kontrol akses, isolasi tenant, kualitas jawaban, dan perubahan data diuji sesuai kebutuhan setiap workflow.
-12. **Frontend tanpa akses data:** frontend tidak memiliki koneksi ke PostgreSQL, Valkey, atau penyimpanan objek dan tidak memegang rahasia server; seluruh akses data melalui API backend pada origin yang sama.
+1. **One source of contracts:** the frontend, backend, workers, and add-in use the same Zod schemas and event contracts from `shared/`; domain logic lives only in the backend.
+2. **Separated responsibilities:** each runtime has one job:
+   - the frontend serves UI and SSR;
+   - the Backend API serves user interaction and all data access;
+   - the AI Worker executes AI tasks;
+   - the Document Worker handles document processing.
 
-## 9. Prasyarat Validasi Sebelum Penggunaan Produksi
+   Workers and the dispatcher are entrypoints of the backend codebase, each with a root module that loads only the modules it needs.
+3. **Centralized business data:** PostgreSQL stores resource identity, metadata, access, chunks, and process status; S3 object storage stores files.
+4. **The S3 boundary is a contract:** the application depends only on the S3 API and is tested with contract tests, so the storage implementation can be replaced.
+5. **DOCX is the canonical format for legal documents:** tracked changes and comments live inside the OOXML, so documents stay valid in Microsoft Word without depending on a particular editor.
+6. **Managed asynchronous operations:** BullMQ, Valkey, and PostgreSQL are used according to their roles in queuing, event delivery, and work durability.
+7. **Controlled tool integration:** MCP connects to external services through connectors. Each connector has authentication, access limits, tool policies, and approval for operations that modify data.
+8. **Untrusted content is isolated:** uploaded files are processed inside controlled boundaries (scanning, sandboxing, resource limits); document content and tool results are treated as data, not instructions.
+9. **Confidentiality as a design constraint:** sending data to models, logging, retention, and deletion follow the controls in Architecture §6.
+10. **Consistent UI components:** the user experience is built on the established interface and editor foundations.
+11. **Measured integration:** cross-runtime contracts, access control, tenant isolation, answer quality, and data changes are tested according to the needs of each workflow.
+12. **Frontend without data access:** the frontend has no connection to PostgreSQL, Valkey, or object storage and holds no server secrets; all data access goes through the backend API on the same origin.
 
-Baseline ini berstatus LOCKED untuk pengembangan. Item berikut harus selesai sebelum fitur terkait dianggap siap produksi. Perincian kriteria spike ada pada [System Architecture §10](./LEXON-02-SYSTEM-ARCHITECTURE.md).
+## 9. Validation Prerequisites Before Production Use
 
-| # | Prasyarat | Alasan |
+This baseline is LOCKED for development. The items below must be completed before the related features are considered production-ready. Spike criteria are detailed in [System Architecture §10](./LEXON-02-SYSTEM-ARCHITECTURE.md).
+
+| # | Prerequisite | Reason |
 |---|---|---|
-| P1 | **Lisensi EigenPal Pro aktif** sebelum penggunaan produksi, pilot pelanggan, atau POC berbayar; konfirmasi bahwa satu langganan mencakup pemakaian paket `@docx-editor.dev/*` di `frontend/`, `backend/` (`editor-api`), dan `word-add-in/` sebagai satu produk (hubungi `licensing@eigenpal.com`); verifikasi bahwa paket Pro (termasuk `telemetry` bila dipakai) tidak mengirim konten dokumen ke luar dari runtime yang memiliki egress; minta klausul keberlangsungan (akses sumber bila vendor berhenti) | Lisensi evaluasi pada repositori hanya mengizinkan penggunaan non-produksi (§10) |
-| P2 | Spike S1 — fidelitas DOCX dan tracked changes lintas Microsoft Word, termasuk pembuatan OOXML beratribusi di backend dan penyisipannya dari Word add-in | Inti pengalaman drafting dan redlining |
-| P3 | Spike S2 — kontrak streaming worker → Valkey → SSE → assistant-ui, termasuk resume, cancel, penutupan graceful saat deploy, dan uji beban stream hub pada Backend API | Menentukan model persistensi message dan kapasitas koneksi |
-| P4 | Spike S3 — pipeline OCR + retrieval keyword (FTS + trigram) dengan sitasi terverifikasi, termasuk kualitas retrieval (Recall@K, MRR) dan rencana query dengan RLS aktif | Fondasi grounding |
-| P5 | Spike S4 — Tabular Review skala 50 dokumen × 20 kolom | Validasi grid, penjadwalan job, dan akurasi estimasi biaya |
-| P6 | Spike S5 — contract test S3 pada SeaweedFS, termasuk presigned upload, multipart, lifecycle, dan latihan restore | Pemilihan penyimpanan dinyatakan valid hanya setelah teruji |
-| P7 | Konsultasi hukum atas kerahasiaan dan kepatuhan (Arsitektur §6.4) | Produk memproses dokumen klien dan data pribadi |
-| P8 | Verifikasi bahwa setiap model dalam allowlist memiliki endpoint yang memenuhi kebijakan retensi nol, beserta wilayah pemrosesan provider-nya | Prasyarat pengiriman konten klien ke model (Arsitektur §6.2, §6.4) |
-| P9 | Spike S6 — fondasi backend NestJS 12: proyek ESM dengan AI SDK 7, verifikasi adaptor Better Auth (`@thallesp/nestjs-better-auth`), validasi Zod 4 melalui Standard Schema, `withTenant` dan RLS dari controller dan processor, entrypoint worker, `@nestjs/bullmq` dengan BullMQ 6 pada Valkey 9.0.x, `nestjs-pino` dan `@nestjs/terminus`, klien MCP v2, serta Vitest dan Stryker | NestJS 12 dan komponen integrasinya baru; kompatibilitasnya dengan komponen baseline lain belum teruji pada proyek ini |
+| P1 | **An active EigenPal Pro license**, required before production use, customer pilots, or paid POCs. Also: (1) confirm with `licensing@eigenpal.com` that one subscription covers using the `@docx-editor.dev/*` packages in `frontend/`, `backend/` (`editor-api`), and `word-add-in/` as one product; (2) verify that the Pro packages (including `telemetry` if used) do not send document content out of runtimes that have egress; (3) request a continuity clause (source access if the vendor stops) | The evaluation license in the repository only allows non-production use (§10) |
+| P2 | Spike S1 — DOCX fidelity and tracked changes across Microsoft Word, including generating attributed OOXML in the backend and inserting it from the Word add-in | Core of the drafting and redlining experience |
+| P3 | Spike S2 — the worker → Valkey → SSE → assistant-ui streaming contract, including resume, cancel, graceful close during deploys, and load testing of the stream hub on the Backend API | Determines the message persistence model and connection capacity |
+| P4 | Spike S3 — OCR pipeline + keyword retrieval (FTS + trigram) with verified citations, including retrieval quality (Recall@K, MRR) and query plans with RLS active | Foundation of grounding |
+| P5 | Spike S4 — Tabular Review at 50 documents × 20 columns | Validates the grid, job scheduling, and cost estimate accuracy |
+| P6 | Spike S5 — S3 contract tests on SeaweedFS, including presigned upload, multipart, lifecycle, and a restore drill | The storage choice is valid only after it is tested |
+| P7 | Legal consultation on confidentiality and compliance (Architecture §6.4) | The product processes client documents and personal data |
+| P8 | Verification that every model in the allowlist has an endpoint that meets the zero-retention policy, together with its provider's processing region | Prerequisite for sending client content to models (Architecture §6.2, §6.4) |
+| P9 | Spike S6 — the NestJS 12 backend foundation. It covers:<br>• an ESM project with AI SDK 7<br>• verification of the Better Auth adapter (`@thallesp/nestjs-better-auth`)<br>• Zod 4 validation through Standard Schema<br>• `withTenant` and RLS from controllers and processors<br>• worker entrypoints<br>• `@nestjs/bullmq` with BullMQ 6 on Valkey 9.0.x<br>• `nestjs-pino` and `@nestjs/terminus`<br>• MCP client v2<br>• Vitest and Stryker | NestJS 12 and its integration components are new; their compatibility with the other baseline components is not yet tested in this project |
 
-## 10. Catatan Lisensi Komponen Penting
+## 10. License Notes for Key Components
 
-Dibaca dari sumber resmi pada 21 Oktober 2026; verifikasi ulang saat pengadaan. Baris NestJS ditambahkan pada 28 Oktober 2026 berdasarkan pemberitaan rilis NestJS 12 dan juga perlu diverifikasi ulang saat pengadaan. Baris Mike OSS dan catatan ExcelJS ditambahkan pada 29 Oktober 2026 dari hasil review dan juga perlu diverifikasi ulang saat pengadaan. Bagian ini bukan nasihat hukum.
+Read from official sources on 21 October 2026; re-verify at procurement time. Some rows were added later and also need re-verification at procurement:
+- The NestJS row was added on 28 October 2026, based on NestJS 12 release coverage.
+- The Mike OSS row and the ExcelJS note were added on 29 October 2026, based on review findings.
 
-| Komponen | Lisensi | Catatan untuk Lexon |
+This section is not legal advice.
+
+| Component | License | Notes for Lexon |
 |---|---|---|
-| EigenPal Core + React | Apache-2.0 | Gratis, termasuk untuk produk komersial |
-| EigenPal Pro (`pro`, `editor-api`, `docx-to-pdf`, `telemetry`) | Komersial; **repositori memuat "Evaluation License"** | Evaluasi **non-produksi** gratis. "Production Use" mencakup lingkungan live, pemrosesan data pelanggan atau operasional, pilot pelanggan, POC berbayar, dan operasional bisnis internal rutin. Penggunaan produksi memerlukan perjanjian komersial. Paket dapat terpasang di tiga folder (`frontend/`, `backend/`, `word-add-in/`); cakupan "satu produk" dikonfirmasi pada P1 |
-| Skema harga EigenPal Pro | US$500 per bulan **per produk**; Enterprise adalah perangkat lunak yang sama ditambah dukungan langsung | Perpanjangan otomatis bulanan; biaya renewal dapat disesuaikan dengan pemberitahuan 30 hari; EigenPal dapat mengubah syarat dengan pemberitahuan 30 hari; tanpa dukungan pada tier Pro; bila berhenti, paket Pro wajib dihapus dari produk |
-| Modifikasi pada paket Pro | Modifikasi yang diungkapkan ke EigenPal atau pihak ketiga (termasuk saat meminta dukungan) otomatis berlisensi Apache-2.0 | Jangan melampirkan kode internal ke tiket dukungan tanpa tinjauan |
-| NestJS | MIT | Dipakai sebagai framework backend |
-| Mike OSS (acuan struktur) | AGPL-3.0 | Hanya struktur folder yang diacu; tidak ada kode Mike OSS (termasuk `word-addin/` dan workflow-nya) yang disalin ke Lexon. Menyalin kode mewajibkan Lexon mematuhi AGPL-3.0 |
-| ExcelJS | MIT | Versi 4.4.0 tidak dirilis ulang lebih dari setahun dan dinilai tidak aktif dipelihara. Mitigasi: dijalankan hanya di Document Worker tanpa internet, dengan batas rasio kompresi dan ukuran terurai, dan versi di-pin; fork pihak ketiga hanya dievaluasi, bukan default |
-| SeaweedFS | Apache-2.0 | Dijalankan sebagai layanan terpisah |
-| Garage | AGPL-3.0 | Tidak dipilih sebagai default; tetap kandidat pengganti bila kontrak S3 lolos uji |
-| ClamAV | GPL-2.0 | Dijalankan sebagai layanan terpisah, tidak ditautkan ke kode aplikasi |
-| OCRmyPDF / Tesseract / LibreOffice | MPL-2.0 / Apache-2.0 / MPL-2.0 | Dijalankan sebagai proses atau layanan terpisah |
+| EigenPal Core + React | Apache-2.0 | Free, including for commercial products |
+| EigenPal Pro (`pro`, `editor-api`, `docx-to-pdf`, `telemetry`) | Commercial; **the repository contains an "Evaluation License"** | Free **non-production** evaluation. "Production Use" covers live environments, processing of customer or operational data, customer pilots, paid POCs, and routine internal business operations, and requires a commercial agreement. The packages may be installed in three folders (`frontend/`, `backend/`, `word-add-in/`); "one product" coverage is confirmed under P1 |
+| EigenPal Pro pricing | US$500 per month **per product**; Enterprise is the same software plus direct support | Monthly auto-renewal; renewal pricing can change with 30 days' notice; EigenPal can change terms with 30 days' notice; no support on the Pro tier; if the subscription stops, the Pro packages must be removed from the product |
+| Modifications to Pro packages | Modifications disclosed to EigenPal or third parties (including when requesting support) are automatically licensed under Apache-2.0 | Do not attach internal code to support tickets without review |
+| NestJS | MIT | Used as the backend framework |
+| Mike OSS (structure reference) | AGPL-3.0 | Only the folder structure is referenced; no Mike OSS code (including `word-addin/` and its workflows) is copied into Lexon. Copying code would require Lexon to comply with AGPL-3.0 |
+| ExcelJS | MIT | Version 4.4.0 has not been re-released in over a year and is considered unmaintained. Mitigations:<br>• runs only in the Document Worker without internet<br>• compression-ratio and uncompressed-size limits<br>• pinned version<br>Third-party forks are only evaluated, not the default |
+| SeaweedFS | Apache-2.0 | Runs as a separate service |
+| Garage | AGPL-3.0 | Not the default; remains a replacement candidate if it passes the S3 contract tests |
+| ClamAV | GPL-2.0 | Runs as a separate service, not linked into application code |
+| OCRmyPDF / Tesseract / LibreOffice | MPL-2.0 / Apache-2.0 / MPL-2.0 | Run as separate processes or services |
 
-**Mitigasi ketergantungan EigenPal:** (a) `EditorPort` mengisolasi editor dari domain; (b) tracked changes tersimpan di OOXML sehingga dokumen tetap terbaca di Word jika editor diganti; (c) biaya langganan tercatat sebagai biaya operasional tetap; (d) pantau perubahan syarat melalui kontak lisensi; (e) minta klausul keberlangsungan (akses sumber bila vendor berhenti), karena menurut arsip pihak ketiga (belum diverifikasi) repositori dan situs vendor sempat tidak dapat diakses pada Juni 2026.
+**Mitigating EigenPal dependency:**
+1. `EditorPort` isolates the editor from the domain.
+2. Tracked changes are stored in OOXML, so documents stay readable in Word if the editor is replaced.
+3. The subscription cost is recorded as a fixed operating cost.
+4. Changes to terms are monitored through the licensing contact.
+5. A continuity clause (source access if the vendor stops) is requested. According to an unverified third-party archive, the vendor's repository and site were briefly unreachable in June 2026.
 
-## 11. Kendali Dokumen dan Riwayat Perubahan
+## 11. Document Control and Change History
 
-Dokumen ini merupakan **sumber acuan teknologi yang telah disetujui**. Penetapan struktur modul, API, alur data, dan deployment dijelaskan dalam dokumen pendamping [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md); bahasa visual dan design tokens dalam [Design System](./LEXON-03-DESIGN-SYSTEM.md).
+This document is the **approved technology reference**. Module structure, APIs, data flows, and deployment are described in the companion [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md); the visual language and design tokens are in the [Design System](./LEXON-03-DESIGN-SYSTEM.md).
 
-Perubahan terhadap pilihan teknologi pada versi ini memerlukan keputusan produk dan engineering yang eksplisit. Pembaruan kompatibilitas, keamanan, dan dependensi dievaluasi terhadap baseline tersebut.
+Changing a technology choice in this version requires an explicit product and engineering decision. Compatibility, security, and dependency updates are evaluated against this baseline.
 
-| Versi | Perubahan |
+| Version | Changes |
 |---|---|
-| 1.1 | Baseline awal |
-| 1.2 | **Diganti:** FortuneSheet + LuckyExcel → TanStack Table + TanStack Virtual; RustFS → SeaweedFS di balik kontrak S3; SheetJS dihapus, ExcelJS menjadi satu-satunya pustaka XLSX; Supertest dihapus, Route Handler diuji langsung. **Ditambah:** `pgvector` dan hybrid retrieval; OCRmyPDF + Tesseract; ClamAV; LibreOffice sandbox; PostgreSQL RLS; plugin Better Auth Two-Factor dan Bearer; Nodemailer; rate limiting dan metering; harness evaluasi; `@ai-sdk/otel`; pgBackRest dan replikasi off-site; Docker secrets; Renovate dan kebijakan pin versi. **Diperjelas:** skema lisensi EigenPal (Core vs Pro) dan nama paket `@docx-editor.dev/*`; peran Tiptap dibatasi pada konten non-DOCX; format ESM-only; konfigurasi Valkey (`noeviction`, AOF, MAXLEN/TTL); `EditorPort`; konfigurasi bahasa FTS (Inggris dahulu, Indonesia disiapkan) |
-| 1.3 | **Ditambah:** strategi pencarian vektor dua jalur dan `pgvector` ≥ 0.8; stream hub SSE; Outbox Dispatcher sebagai proses tersendiri; enkripsi objek per organisasi (`crypto`, AES-256-GCM tersegmentasi); OpenTelemetry Collector dan Sentry Relay; profil sumber daya VPS awal; prasyarat P8 (verifikasi model terhadap kebijakan retensi). **Diperjelas:** skema `auth` dan role database untuk Better Auth; wrapper `withTenant` yang fail-closed; anggaran memori Valkey dan koneksi per penggunaan; replikasi objek dengan propagasi penghapusan, jendela retensi W, dan ledger penghapusan; kriteria P2–P5 |
-| 1.4 | **Diganti:** Next.js "Web & API" → Next.js 16 sebagai frontend saja + **NestJS 12** sebagai backend (adaptor Express, proyek ESM); struktur `apps/*` dan `packages/*` → struktur root `backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`, `infra/`, `docs/` yang mengikuti Mike OSS; pengujian Route Handler langsung → `@nestjs/testing` dan HTTP ke port efemeral (Supertest tetap tidak dipakai). **Ditambah:** `shared/` sebagai satu-satunya paket bersama; adaptor Better Auth untuk NestJS; `@nestjs/bullmq` (dengan cadangan pembungkus tipis); aturan batas modul pada ESLint; baris lisensi NestJS; prasyarat P9 (spike S6). **Diubah:** Better Auth dipasang di backend dan diakses frontend pada origin yang sama; AI Worker, Document Worker, dan Outbox Dispatcher menjadi entrypoint codebase backend; stream hub berada pada Backend API; routing Caddy `/api/*` ke backend; `EditorPort` didefinisikan di `shared/` dengan adaptor di frontend dan backend. **Diperjelas:** cakupan lisensi EigenPal Pro pada P1 (tiga folder); prinsip integrasi 1, 2, dan 12; P2 dan P3 |
-| 1.5 | **Diganti:** Webpack dihapus dari toolchain backend (backend memakai `tsc`; Webpack tetap untuk `word-add-in/`); Valkey 8.1 → 9.0.x; `@modelcontextprotocol/sdk` (v1) → `@modelcontextprotocol/client` v2; "middleware" Next.js → `proxy.ts`. **Ditetapkan (sebelumnya terbuka):** adaptor Better Auth `@thallesp/nestjs-better-auth`; TypeScript 6.x; Zod 4.x; PostgreSQL 17.x dengan pgvector 0.8.3; dimensi vektor `halfvec(1024)`; jalur embedding melalui endpoint embeddings OpenRouter dengan flag retensi nol; logging pino, `@nestjs/config`, `@nestjs/terminus`; TanStack Query dan React Hook Form; k6, Syft, Trivy, OSV-Scanner; pin image dengan tag eksak dan digest; Sentry `tunnel`; runner evals standalone. **Diperbaiki:** policy RLS memakai `NULLIF` (Arsitektur §3.2). **Ditambah:** tabel baseline versi (§7); baris lisensi Mike OSS (AGPL-3.0) dan catatan ExcelJS (§10); pemeriksaan telemetri dan keberlangsungan EigenPal pada P1; cakupan P9 diperluas |
-| 1.7 | **Diganti:** `@assistant-ui/react-ai-sdk` → `@assistant-ui/ai-sdk`; Radix UI → Base UI (`@base-ui/react`, shadcn style `base-nova`). **Ditetapkan:** scaffold awal (templat `default` assistant-ui; `nest new` + cookbook AI SDK Nest.js); bahasa MVP Inggris untuk UI, konten, dan dokumentasi engineering; TypeScript tetap 6.x dan ESLint + Prettier tetap (alasan dicatat). **Ditambah:** rujukan ke Design System (LEX-DS-001) |
-| 1.6 | **Dikeluarkan dari MVP:** `pgvector` 0.8.3, kolom `halfvec(1024)`, indeks HNSW, pencarian semantik, dan jalur embedding OpenRouter (beserta cadangan `@ai-sdk/openai-compatible`). **Diubah:** "Hybrid retrieval" menjadi retrieval keyword (FTS + `pg_trgm`) dengan konteks penuh untuk dokumen tunggal; AI SDK tidak lagi dipakai untuk embeddings; Document Worker mengakhiri pipeline pada chunking; P4 dan P9 disesuaikan; tabel baseline versi diperbarui. Penambahan kembali pencarian vektor memerlukan keputusan stack eksplisit (Arsitektur §4.3) |
+| 1.1 | Initial baseline |
+| 1.2 | **Replaced:**<br>• FortuneSheet + LuckyExcel → TanStack Table + TanStack Virtual<br>• RustFS → SeaweedFS behind an S3 contract<br>• SheetJS removed; ExcelJS becomes the only XLSX library<br>• Supertest removed; Route Handlers tested directly<br>**Added:**<br>• `pgvector` and hybrid retrieval<br>• OCRmyPDF + Tesseract, ClamAV, LibreOffice sandbox<br>• PostgreSQL RLS<br>• Better Auth Two-Factor and Bearer plugins<br>• Nodemailer<br>• rate limiting and metering<br>• evaluation harness; `@ai-sdk/otel`<br>• pgBackRest and off-site replication<br>• Docker secrets<br>• Renovate and a version pinning policy<br>**Clarified:**<br>• EigenPal licensing (Core vs Pro) and the `@docx-editor.dev/*` package names<br>• Tiptap's role limited to non-DOCX content<br>• ESM-only format<br>• Valkey configuration (`noeviction`, AOF, MAXLEN/TTL)<br>• `EditorPort`<br>• FTS language configuration (English first, Indonesian prepared) |
+| 1.3 | **Added:**<br>• a two-path vector search strategy and `pgvector` ≥ 0.8<br>• the SSE stream hub<br>• the Outbox Dispatcher as its own process<br>• per-organization object encryption (`crypto`, segmented AES-256-GCM)<br>• the OpenTelemetry Collector and Sentry Relay<br>• the initial VPS resource profile<br>• prerequisite P8 (verifying models against the retention policy)<br>**Clarified:**<br>• the `auth` schema and database role for Better Auth<br>• the fail-closed `withTenant` wrapper<br>• Valkey memory budgets and connections per use<br>• object replication with deletion propagation, retention window W, and the deletion ledger<br>• criteria P2–P5 |
+| 1.4 | **Replaced:**<br>• Next.js "Web & API" → Next.js 16 as frontend only + **NestJS 12** as backend (Express adapter, ESM project)<br>• the `apps/*` and `packages/*` structure → a root structure of `backend/`, `frontend/`, `word-add-in/`, `shared/`, `evals/`, `infra/`, `docs/` following Mike OSS<br>• direct Route Handler testing → `@nestjs/testing` and HTTP on an ephemeral port (Supertest still not used)<br>**Added:**<br>• `shared/` as the only shared package<br>• a Better Auth adapter for NestJS<br>• `@nestjs/bullmq` (with a thin wrapper fallback)<br>• module boundary rules in ESLint<br>• the NestJS license row<br>• prerequisite P9 (spike S6)<br>**Changed:**<br>• Better Auth is mounted in the backend and reached by the frontend on the same origin<br>• the AI Worker, Document Worker, and Outbox Dispatcher become backend codebase entrypoints<br>• the stream hub lives in the Backend API<br>• Caddy routes `/api/*` to the backend<br>• `EditorPort` is defined in `shared/` with adapters in the frontend and backend<br>**Clarified:**<br>• EigenPal Pro license coverage in P1 (three folders)<br>• integration principles 1, 2, and 12<br>• P2 and P3 |
+| 1.5 | **Replaced:**<br>• Webpack removed from the backend toolchain (the backend uses `tsc`; Webpack stays for `word-add-in/`)<br>• Valkey 8.1 → 9.0.x<br>• `@modelcontextprotocol/sdk` (v1) → `@modelcontextprotocol/client` v2<br>• Next.js "middleware" → `proxy.ts`<br>**Set (previously open):**<br>• Better Auth adapter `@thallesp/nestjs-better-auth`<br>• TypeScript 6.x, Zod 4.x<br>• PostgreSQL 17.x with pgvector 0.8.3; vector dimension `halfvec(1024)`<br>• embedding path through the OpenRouter embeddings endpoint with a zero-retention flag<br>• pino logging, `@nestjs/config`, `@nestjs/terminus`<br>• TanStack Query and React Hook Form<br>• k6, Syft, Trivy, OSV-Scanner<br>• image pinning by exact tag and digest<br>• Sentry `tunnel`<br>• standalone evals runner<br>**Fixed:** RLS policies use `NULLIF` (Architecture §3.2)<br>**Added:**<br>• the version baseline table (§7)<br>• the Mike OSS (AGPL-3.0) license row and the ExcelJS note (§10)<br>• EigenPal telemetry and continuity checks in P1<br>• expanded P9 scope |
+| 1.6 | **Removed from the MVP:**<br>• `pgvector` 0.8.3, `halfvec(1024)` columns, the HNSW index, and semantic search<br>• the OpenRouter embedding path, with its `@ai-sdk/openai-compatible` fallback<br>**Changed:**<br>• "Hybrid retrieval" becomes keyword retrieval (FTS + `pg_trgm`) with full context for single documents<br>• the AI SDK is no longer used for embeddings<br>• the Document Worker ends its pipeline at chunking<br>• P4 and P9 adjusted; the version baseline table updated<br>Re-adding vector search requires an explicit stack decision (Architecture §4.3) |
+| 1.7 | **Replaced:**<br>• `@assistant-ui/react-ai-sdk` → `@assistant-ui/ai-sdk`<br>• Radix UI → Base UI (`@base-ui/react`, shadcn style `base-nova`)<br>**Set:**<br>• the initial scaffold (assistant-ui `default` template; `nest new` + the AI SDK Nest.js cookbook)<br>• English as the MVP language for the UI, content, reference documents, and engineering documents<br>• TypeScript stays 6.x and ESLint + Prettier stay (reasons recorded)<br>**Added:**<br>• a reference to the Design System (LEX-DS-001)<br>• the AI Worker hosts the AI Run Engine<br>**Translated:** the document into English |
