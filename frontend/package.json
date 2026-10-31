@@ -1,0 +1,41 @@
+{
+  "name": "@lexon/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && node ../scripts/check-boundaries.mjs",
+    "test": "vitest run --config ../vitest.config.ts --project frontend",
+    "test:e2e": "node ../scripts/e2e.mjs --package frontend",
+    "dev": "node ../scripts/dev.mjs --package frontend",
+    "format": "prettier --write --ignore-path ../.prettierignore ."
+  },
+  "dependencies": {
+    "@ai-sdk/react": "4.0.163",
+    "@assistant-ui/ai-sdk": "0.0.16",
+    "@assistant-ui/react": "0.15.32",
+    "@base-ui/react": "1.9.0",
+    "@hookform/resolvers": "6.0.2",
+    "@lexon/contracts": "workspace:*",
+    "@tanstack/react-query": "5.105.0",
+    "ai": "7.0.159",
+    "lucide-react": "1.66.0",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "7.91.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "jsdom": "30.1.3",
+    "tailwindcss": "4.3.3"
+  }
+}

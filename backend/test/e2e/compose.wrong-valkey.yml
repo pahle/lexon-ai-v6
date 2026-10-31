@@ -1,0 +1,8 @@
+services:
+  valkey:
+    command:
+      [
+        sh,
+        -c,
+        'exec valkey-server --requirepass "$$VALKEY_PASSWORD" --maxmemory 96mb --maxmemory-policy ${TEST_EVICTION_POLICY:-allkeys-lru} --appendonly ${TEST_AOF:-yes} --appendfsync ${TEST_FSYNC:-everysec}',
+      ]

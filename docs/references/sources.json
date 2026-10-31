@@ -1,43 +1,281 @@
 {
   "$comment": "Official documentation sources per technology in LEX-TS-001. 'llms' is fetched by scripts/fetch-docs.mjs; null means no llms.txt exists (checked 2026-10-31) and agents read 'docs' pages directly.",
   "sources": [
-    { "id": "nestjs", "name": "NestJS", "version": "12.x", "docs": "https://docs.nestjs.com", "llms": "https://docs.nestjs.com/llms.txt", "llmsFull": "https://docs.nestjs.com/llms-full.txt" },
-    { "id": "nextjs", "name": "Next.js", "version": "16.x", "docs": "https://nextjs.org/docs", "llms": "https://nextjs.org/docs/llms.txt", "llmsFull": "https://nextjs.org/docs/llms-full.txt" },
-    { "id": "react", "name": "React", "version": "19", "docs": "https://react.dev", "llms": "https://react.dev/llms.txt" },
-    { "id": "ai-sdk", "name": "Vercel AI SDK", "version": "7.x", "docs": "https://ai-sdk.dev/docs", "llms": "https://ai-sdk.dev/llms.txt" },
-    { "id": "openrouter", "name": "OpenRouter", "version": "provider 3.x", "docs": "https://openrouter.ai/docs", "llms": "https://openrouter.ai/docs/llms.txt", "llmsFull": "https://openrouter.ai/docs/llms-full.txt" },
-    { "id": "assistant-ui", "name": "assistant-ui", "version": "@assistant-ui/react 0.15.x", "docs": "https://www.assistant-ui.com/docs", "llms": "https://www.assistant-ui.com/llms.txt", "llmsFull": "https://www.assistant-ui.com/llms-full.txt" },
-    { "id": "better-auth", "name": "Better Auth", "version": "1.x", "docs": "https://www.better-auth.com/docs", "llms": "https://better-auth.com/docs/llms.txt", "$note": "Versioned indexes exist (e.g. /docs/1.6/llms.txt); use the one matching the installed version" },
-    { "id": "drizzle", "name": "Drizzle ORM", "version": "pinned at scaffold", "docs": "https://orm.drizzle.team/docs", "llms": "https://orm.drizzle.team/llms.txt", "llmsFull": "https://orm.drizzle.team/llms-full.txt" },
-    { "id": "zod", "name": "Zod", "version": "4.x", "docs": "https://zod.dev", "llms": "https://zod.dev/llms.txt", "llmsFull": "https://zod.dev/llms-full.txt" },
-    { "id": "shadcn", "name": "shadcn/ui", "version": "CLI, style base-nova", "docs": "https://ui.shadcn.com/docs", "llms": "https://ui.shadcn.com/llms.txt" },
-    { "id": "base-ui", "name": "Base UI", "version": "1.x", "docs": "https://base-ui.com", "llms": "https://base-ui.com/llms.txt" },
-    { "id": "tanstack", "name": "TanStack (Query, Table, Virtual)", "version": "pinned at scaffold", "docs": "https://tanstack.com", "llms": "https://tanstack.com/llms.txt" },
-    { "id": "react-hook-form", "name": "React Hook Form", "version": "pinned at scaffold", "docs": "https://react-hook-form.com", "llms": "https://react-hook-form.com/llms.txt" },
-    { "id": "lucide", "name": "Lucide", "version": "pinned at scaffold", "docs": "https://lucide.dev", "llms": "https://lucide.dev/llms.txt" },
-    { "id": "mcp", "name": "Model Context Protocol (client v2)", "version": "spec 2026-07-28", "docs": "https://modelcontextprotocol.io", "llms": "https://modelcontextprotocol.io/llms.txt", "llmsFull": "https://modelcontextprotocol.io/llms-full.txt" },
-    { "id": "vitest", "name": "Vitest", "version": "pinned at scaffold", "docs": "https://vitest.dev", "llms": "https://vitest.dev/llms.txt", "llmsFull": "https://vitest.dev/llms-full.txt" },
-    { "id": "docker", "name": "Docker / Compose", "version": "-", "docs": "https://docs.docker.com/compose/", "llms": "https://docs.docker.com/llms.txt" },
-    { "id": "tiptap", "name": "Tiptap", "version": "3.x", "docs": "https://tiptap.dev/docs", "llms": "https://tiptap.dev/llms.txt" },
-    { "id": "eigenpal", "name": "EigenPal DOCX Editor (@docx-editor.dev)", "version": "2.x", "docs": "https://www.docx-editor.dev", "llms": "https://www.docx-editor.dev/llms.txt", "llmsFull": "https://www.docx-editor.dev/llms-full.txt" },
-    { "id": "sentry", "name": "Sentry", "version": "-", "docs": "https://docs.sentry.io", "llms": "https://docs.sentry.io/llms.txt" },
-    { "id": "opentelemetry", "name": "OpenTelemetry", "version": "-", "docs": "https://opentelemetry.io/docs/", "llms": "https://opentelemetry.io/llms.txt" },
-    { "id": "nodejs", "name": "Node.js", "version": "24 LTS", "docs": "https://nodejs.org/docs/latest-v24.x/api/", "llms": "https://nodejs.org/llms.txt" },
-    { "id": "aws-sdk-s3", "name": "AWS SDK for JavaScript v3 (S3)", "version": "v3", "docs": "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/", "llms": null },
-    { "id": "typescript", "name": "TypeScript", "version": "6.x", "docs": "https://www.typescriptlang.org/docs/", "llms": null },
-    { "id": "pnpm", "name": "pnpm", "version": "pinned at scaffold", "docs": "https://pnpm.io/motivation", "llms": null },
-    { "id": "postgresql", "name": "PostgreSQL", "version": "17.x", "docs": "https://www.postgresql.org/docs/17/", "llms": null },
-    { "id": "bullmq", "name": "BullMQ", "version": "6.x", "docs": "https://docs.bullmq.io", "llms": null },
-    { "id": "valkey", "name": "Valkey", "version": "9.0.x", "docs": "https://valkey.io/topics/", "llms": null },
-    { "id": "seaweedfs", "name": "SeaweedFS (S3 gateway)", "version": "4.x", "docs": "https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API", "llms": null },
-    { "id": "playwright", "name": "Playwright", "version": "pinned at scaffold", "docs": "https://playwright.dev/docs/intro", "llms": null },
-    { "id": "stryker", "name": "StrykerJS", "version": "pinned at scaffold", "docs": "https://stryker-mutator.io/docs/stryker-js/introduction/", "llms": null },
-    { "id": "eslint", "name": "ESLint (flat config)", "version": "pinned at scaffold", "docs": "https://eslint.org/docs/latest/", "llms": null },
-    { "id": "tailwind", "name": "Tailwind CSS", "version": "4.x", "docs": "https://tailwindcss.com/docs", "llms": null },
-    { "id": "pino", "name": "pino / nestjs-pino", "version": "pinned at scaffold", "docs": "https://github.com/iamolegga/nestjs-pino", "llms": null },
-    { "id": "pdfjs", "name": "PDF.js", "version": "pinned at scaffold", "docs": "https://mozilla.github.io/pdf.js/", "llms": null },
-    { "id": "office-js", "name": "Office Add-ins (Office.js)", "version": "-", "docs": "https://learn.microsoft.com/office/dev/add-ins/", "llms": null },
-    { "id": "caddy", "name": "Caddy", "version": "2.x", "docs": "https://caddyserver.com/docs/", "llms": null },
-    { "id": "k6", "name": "k6", "version": "-", "docs": "https://grafana.com/docs/k6/latest/", "llms": null }
+    {
+      "id": "nestjs",
+      "name": "NestJS",
+      "version": "12.x",
+      "docs": "https://docs.nestjs.com",
+      "llms": "https://docs.nestjs.com/llms.txt",
+      "llmsFull": "https://docs.nestjs.com/llms-full.txt"
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "version": "16.x",
+      "docs": "https://nextjs.org/docs",
+      "llms": "https://nextjs.org/docs/llms.txt",
+      "llmsFull": "https://nextjs.org/docs/llms-full.txt"
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "version": "19",
+      "docs": "https://react.dev",
+      "llms": "https://react.dev/llms.txt"
+    },
+    {
+      "id": "ai-sdk",
+      "name": "Vercel AI SDK",
+      "version": "7.x",
+      "docs": "https://ai-sdk.dev/docs",
+      "llms": "https://ai-sdk.dev/llms.txt"
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "version": "provider 3.x",
+      "docs": "https://openrouter.ai/docs",
+      "llms": "https://openrouter.ai/docs/llms.txt",
+      "llmsFull": "https://openrouter.ai/docs/llms-full.txt"
+    },
+    {
+      "id": "assistant-ui",
+      "name": "assistant-ui",
+      "version": "@assistant-ui/react 0.15.x",
+      "docs": "https://www.assistant-ui.com/docs",
+      "llms": "https://www.assistant-ui.com/llms.txt",
+      "llmsFull": "https://www.assistant-ui.com/llms-full.txt"
+    },
+    {
+      "id": "better-auth",
+      "name": "Better Auth",
+      "version": "1.x",
+      "docs": "https://www.better-auth.com/docs",
+      "llms": "https://better-auth.com/docs/llms.txt",
+      "$note": "Versioned indexes exist (e.g. /docs/1.6/llms.txt); use the one matching the installed version"
+    },
+    {
+      "id": "drizzle",
+      "name": "Drizzle ORM",
+      "version": "pinned at scaffold",
+      "docs": "https://orm.drizzle.team/docs",
+      "llms": "https://orm.drizzle.team/llms.txt",
+      "llmsFull": "https://orm.drizzle.team/llms-full.txt"
+    },
+    {
+      "id": "zod",
+      "name": "Zod",
+      "version": "4.x",
+      "docs": "https://zod.dev",
+      "llms": "https://zod.dev/llms.txt",
+      "llmsFull": "https://zod.dev/llms-full.txt"
+    },
+    {
+      "id": "shadcn",
+      "name": "shadcn/ui",
+      "version": "CLI, style base-nova",
+      "docs": "https://ui.shadcn.com/docs",
+      "llms": "https://ui.shadcn.com/llms.txt"
+    },
+    {
+      "id": "base-ui",
+      "name": "Base UI",
+      "version": "1.x",
+      "docs": "https://base-ui.com",
+      "llms": "https://base-ui.com/llms.txt"
+    },
+    {
+      "id": "tanstack",
+      "name": "TanStack (Query, Table, Virtual)",
+      "version": "pinned at scaffold",
+      "docs": "https://tanstack.com",
+      "llms": "https://tanstack.com/llms.txt"
+    },
+    {
+      "id": "react-hook-form",
+      "name": "React Hook Form",
+      "version": "pinned at scaffold",
+      "docs": "https://react-hook-form.com",
+      "llms": "https://react-hook-form.com/llms.txt"
+    },
+    {
+      "id": "lucide",
+      "name": "Lucide",
+      "version": "pinned at scaffold",
+      "docs": "https://lucide.dev",
+      "llms": "https://lucide.dev/llms.txt"
+    },
+    {
+      "id": "mcp",
+      "name": "Model Context Protocol (client v2)",
+      "version": "spec 2026-07-28",
+      "docs": "https://modelcontextprotocol.io",
+      "llms": "https://modelcontextprotocol.io/llms.txt",
+      "llmsFull": "https://modelcontextprotocol.io/llms-full.txt"
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "version": "pinned at scaffold",
+      "docs": "https://vitest.dev",
+      "llms": "https://vitest.dev/llms.txt",
+      "llmsFull": "https://vitest.dev/llms-full.txt"
+    },
+    {
+      "id": "docker",
+      "name": "Docker / Compose",
+      "version": "-",
+      "docs": "https://docs.docker.com/compose/",
+      "llms": "https://docs.docker.com/llms.txt"
+    },
+    {
+      "id": "tiptap",
+      "name": "Tiptap",
+      "version": "3.x",
+      "docs": "https://tiptap.dev/docs",
+      "llms": "https://tiptap.dev/llms.txt"
+    },
+    {
+      "id": "eigenpal",
+      "name": "EigenPal DOCX Editor (@docx-editor.dev)",
+      "version": "2.x",
+      "docs": "https://www.docx-editor.dev",
+      "llms": "https://www.docx-editor.dev/llms.txt",
+      "llmsFull": "https://www.docx-editor.dev/llms-full.txt"
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "version": "-",
+      "docs": "https://docs.sentry.io",
+      "llms": "https://docs.sentry.io/llms.txt"
+    },
+    {
+      "id": "opentelemetry",
+      "name": "OpenTelemetry",
+      "version": "-",
+      "docs": "https://opentelemetry.io/docs/",
+      "llms": "https://opentelemetry.io/llms.txt"
+    },
+    {
+      "id": "nodejs",
+      "name": "Node.js",
+      "version": "24 LTS",
+      "docs": "https://nodejs.org/docs/latest-v24.x/api/",
+      "llms": "https://nodejs.org/llms.txt"
+    },
+    {
+      "id": "aws-sdk-s3",
+      "name": "AWS SDK for JavaScript v3 (S3)",
+      "version": "v3",
+      "docs": "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/",
+      "llms": null
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "version": "6.x",
+      "docs": "https://www.typescriptlang.org/docs/",
+      "llms": null
+    },
+    {
+      "id": "pnpm",
+      "name": "pnpm",
+      "version": "pinned at scaffold",
+      "docs": "https://pnpm.io/motivation",
+      "llms": null
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "version": "17.x",
+      "docs": "https://www.postgresql.org/docs/17/",
+      "llms": null
+    },
+    {
+      "id": "bullmq",
+      "name": "BullMQ",
+      "version": "6.x",
+      "docs": "https://docs.bullmq.io",
+      "llms": null
+    },
+    {
+      "id": "valkey",
+      "name": "Valkey",
+      "version": "9.0.x",
+      "docs": "https://valkey.io/topics/",
+      "llms": null
+    },
+    {
+      "id": "seaweedfs",
+      "name": "SeaweedFS (S3 gateway)",
+      "version": "4.x",
+      "docs": "https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API",
+      "llms": null
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "version": "pinned at scaffold",
+      "docs": "https://playwright.dev/docs/intro",
+      "llms": null
+    },
+    {
+      "id": "stryker",
+      "name": "StrykerJS",
+      "version": "pinned at scaffold",
+      "docs": "https://stryker-mutator.io/docs/stryker-js/introduction/",
+      "llms": null
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint (flat config)",
+      "version": "pinned at scaffold",
+      "docs": "https://eslint.org/docs/latest/",
+      "llms": null
+    },
+    {
+      "id": "tailwind",
+      "name": "Tailwind CSS",
+      "version": "4.x",
+      "docs": "https://tailwindcss.com/docs",
+      "llms": null
+    },
+    {
+      "id": "pino",
+      "name": "pino / nestjs-pino",
+      "version": "pinned at scaffold",
+      "docs": "https://github.com/iamolegga/nestjs-pino",
+      "llms": null
+    },
+    {
+      "id": "pdfjs",
+      "name": "PDF.js",
+      "version": "pinned at scaffold",
+      "docs": "https://mozilla.github.io/pdf.js/",
+      "llms": null
+    },
+    {
+      "id": "office-js",
+      "name": "Office Add-ins (Office.js)",
+      "version": "-",
+      "docs": "https://learn.microsoft.com/office/dev/add-ins/",
+      "llms": null
+    },
+    {
+      "id": "caddy",
+      "name": "Caddy",
+      "version": "2.x",
+      "docs": "https://caddyserver.com/docs/",
+      "llms": null
+    },
+    {
+      "id": "k6",
+      "name": "k6",
+      "version": "-",
+      "docs": "https://grafana.com/docs/k6/latest/",
+      "llms": null
+    }
   ]
 }

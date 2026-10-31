@@ -1,0 +1,338 @@
+[
+  {
+    "name": "frontend backend package",
+    "importer": "frontend/src/page.ts",
+    "code": "import '@lexon/backend';",
+    "rule": "frontend-backend"
+  },
+  {
+    "name": "frontend eval entry",
+    "importer": "frontend/src/page.ts",
+    "code": "import '@lexon/backend/evaluation';",
+    "rule": "frontend-backend"
+  },
+  {
+    "name": "frontend relative backend",
+    "importer": "frontend/src/page.ts",
+    "code": "import '../../backend/src/modules/platform/index.js';",
+    "rule": "frontend-backend"
+  },
+  {
+    "name": "frontend postgres",
+    "importer": "frontend/src/page.ts",
+    "code": "import 'pg';",
+    "rule": "database-owner"
+  },
+  {
+    "name": "frontend drizzle subpath",
+    "importer": "frontend/src/page.ts",
+    "code": "import 'drizzle-orm/pg-core';",
+    "rule": "database-owner"
+  },
+  {
+    "name": "frontend provider",
+    "importer": "frontend/src/page.ts",
+    "code": "import '@openrouter/ai-sdk-provider';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "frontend server-only",
+    "importer": "frontend/src/page.ts",
+    "code": "import 'server-only';",
+    "rule": "frontend-server"
+  },
+  {
+    "name": "frontend node builtin",
+    "importer": "frontend/src/page.ts",
+    "code": "import 'node:fs';",
+    "rule": "frontend-server"
+  },
+  {
+    "name": "frontend model call",
+    "importer": "frontend/src/page.ts",
+    "code": "import { streamText } from 'ai';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "frontend AI client type",
+    "importer": "frontend/src/page.ts",
+    "code": "import type { UIMessage } from 'ai';",
+    "rule": null
+  },
+  {
+    "name": "frontend AI SDK hook",
+    "importer": "frontend/src/page.ts",
+    "code": "import { useChatRuntime } from '@assistant-ui/ai-sdk';",
+    "rule": null
+  },
+  {
+    "name": "frontend contracts",
+    "importer": "frontend/src/page.ts",
+    "code": "import '@lexon/contracts';",
+    "rule": null
+  },
+  {
+    "name": "frontend local alias",
+    "importer": "frontend/src/page.ts",
+    "code": "import '@/components/health.js';",
+    "rule": null
+  },
+  {
+    "name": "eval public entry",
+    "importer": "evals/src/context.ts",
+    "code": "import '@lexon/backend/evaluation';",
+    "rule": null
+  },
+  {
+    "name": "eval backend root",
+    "importer": "evals/src/context.ts",
+    "code": "import '@lexon/backend';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "eval deep module",
+    "importer": "evals/src/context.ts",
+    "code": "import '@lexon/backend/src/modules/platform/index.js';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "eval infrastructure",
+    "importer": "evals/src/context.ts",
+    "code": "import '@lexon/backend/infrastructure/db';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "eval relative internal",
+    "importer": "evals/src/context.ts",
+    "code": "import '../../backend/src/modules/platform/index.js';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "eval alias internal",
+    "importer": "evals/src/context.ts",
+    "code": "import '@backend/modules/platform/index.js';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "shared workspace",
+    "importer": "shared/src/index.ts",
+    "code": "export * from '@lexon/frontend';",
+    "rule": "shared-browser"
+  },
+  {
+    "name": "shared node",
+    "importer": "shared/src/index.ts",
+    "code": "import 'fs';",
+    "rule": "shared-browser"
+  },
+  {
+    "name": "shared prefixed node",
+    "importer": "shared/src/index.ts",
+    "code": "import 'node:crypto';",
+    "rule": "shared-browser"
+  },
+  {
+    "name": "shared local",
+    "importer": "shared/src/index.ts",
+    "code": "export * from './identity.js';",
+    "rule": null
+  },
+  {
+    "name": "backend frontend",
+    "importer": "backend/src/config/index.ts",
+    "code": "import '@lexon/frontend';",
+    "rule": "backend-frontend"
+  },
+  {
+    "name": "cross-domain deep",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import '../documents/service.js';",
+    "rule": "domain-public"
+  },
+  {
+    "name": "cross-domain public",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import '../documents/index.js';",
+    "rule": null
+  },
+  {
+    "name": "same domain private",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import './jobs/private.js';",
+    "rule": null
+  },
+  {
+    "name": "domain postgres type",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import type { Pool } from 'pg';",
+    "rule": "database-owner"
+  },
+  {
+    "name": "domain drizzle alias",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import 'drizzle-orm';",
+    "rule": "database-owner"
+  },
+  {
+    "name": "db postgres",
+    "importer": "backend/src/infrastructure/db/client.ts",
+    "code": "import 'pg';",
+    "rule": null
+  },
+  {
+    "name": "db drizzle",
+    "importer": "backend/src/infrastructure/db/client.ts",
+    "code": "import 'drizzle-orm/node-postgres';",
+    "rule": null
+  },
+  {
+    "name": "domain AI",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import 'ai';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "AI provider",
+    "importer": "backend/src/infrastructure/ai/provider.ts",
+    "code": "import '@openrouter/ai-sdk-provider';",
+    "rule": null
+  },
+  {
+    "name": "AI sdk",
+    "importer": "backend/src/infrastructure/ai/provider.ts",
+    "code": "import 'ai/test';",
+    "rule": null
+  },
+  {
+    "name": "dynamic literal",
+    "importer": "frontend/src/page.ts",
+    "code": "void import('@lexon/backend/evaluation');",
+    "rule": "frontend-backend"
+  },
+  {
+    "name": "dynamic unknown",
+    "importer": "frontend/src/page.ts",
+    "code": "const target = location.hash; void import(target);",
+    "rule": "dynamic-import"
+  },
+  {
+    "name": "export deep",
+    "importer": "backend/src/modules/platform/index.ts",
+    "code": "export * from '../documents/service.js';",
+    "rule": "domain-public"
+  },
+  {
+    "name": "traversal",
+    "importer": "frontend/src/page.ts",
+    "code": "import '../src/../../backend/src/infrastructure/db/index.js';",
+    "rule": "frontend-backend"
+  },
+  {
+    "name": "shared external browser library",
+    "importer": "shared/src/schema.ts",
+    "code": "import { z } from 'zod';",
+    "rule": null
+  },
+  {
+    "name": "frontend root utility",
+    "importer": "frontend/src/page.ts",
+    "code": "import '../../scripts/server.js';",
+    "rule": "frontend-local"
+  },
+  {
+    "name": "eval relative public still not export",
+    "importer": "evals/src/context.ts",
+    "code": "import '../../backend/src/evaluation/index.js';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "frontend require bypass",
+    "importer": "frontend/src/page.ts",
+    "code": "const load = require; load('pg');",
+    "rule": "require-import"
+  },
+  {
+    "name": "backend test still restricted",
+    "importer": "backend/test/import.spec.ts",
+    "code": "import 'pg';",
+    "rule": "database-owner"
+  },
+  {
+    "name": "package export alias bypass",
+    "importer": "evals/src/context.ts",
+    "code": "import '#private-backend';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "eval root-barrel bypass",
+    "importer": "evals/src/context.ts",
+    "code": "import '../../scripts/server.js';",
+    "rule": "eval-entry"
+  },
+  {
+    "name": "frontend inline type import",
+    "importer": "frontend/src/page.ts",
+    "code": "import { type UIMessage } from 'ai';",
+    "rule": null
+  },
+  {
+    "name": "domain private db session bypass",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/tenant-session.js';",
+    "rule": "database-public"
+  },
+  {
+    "name": "domain db public API",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/index.js';",
+    "rule": null
+  },
+  {
+    "name": "domain test helper bypass",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/testing/provision.js';",
+    "rule": "database-public"
+  },
+  {
+    "name": "backend test helper allowed",
+    "importer": "backend/test/fixture.spec.ts",
+    "code": "import '../src/infrastructure/db/testing/provision.js';",
+    "rule": null
+  },
+  {
+    "name": "domain raw provider wrapper bypass",
+    "importer": "backend/src/modules/platform/engine.ts",
+    "code": "import '../../infrastructure/ai/openrouter-provider.js';",
+    "rule": "ai-public"
+  },
+  {
+    "name": "AI root public module",
+    "importer": "backend/src/entrypoints/ai-worker/root.module.ts",
+    "code": "import '../../infrastructure/ai/index.js';",
+    "rule": null
+  },
+  {
+    "name": "infrastructure imports domain module",
+    "importer": "backend/src/infrastructure/queue/queue-consumer.ts",
+    "code": "import '../../modules/platform/index.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
+    "name": "infrastructure imports domain module internals",
+    "importer": "backend/src/infrastructure/db/outbox.repository.ts",
+    "code": "import '../../modules/platform/job-envelope.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
+    "name": "infrastructure imports sibling infrastructure",
+    "importer": "backend/src/infrastructure/queue/queue-producer.ts",
+    "code": "import '../db/index.js';",
+    "rule": null
+  },
+  {
+    "name": "domain module imports infrastructure",
+    "importer": "backend/src/modules/platform/service.ts",
+    "code": "import '../../infrastructure/db/index.js';",
+    "rule": null
+  }
+]

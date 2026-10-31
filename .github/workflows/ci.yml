@@ -1,0 +1,68 @@
+name: Foundation
+on:
+  pull_request:
+  push:
+    branches: [f0-foundation]
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unit-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: true
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Root lint and formatting
+        run: pnpm lint && pnpm format:check
+      - name: Package gates in dependency order
+        run: |
+          for package in contracts backend frontend evals; do
+            pnpm --filter "@lexon/$package" lint
+            pnpm --filter "@lexon/$package" build
+            pnpm --filter "@lexon/$package" typecheck
+          done
+      - name: Unit and isolated Testcontainers integration
+        run: pnpm test
+      - name: Tooling and cleanup assertions
+        run: node --test scripts/test/*.spec.mjs
+  compose-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @lexon/contracts build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Full Compose browser API and topology layer
+        run: pnpm test:e2e
+      - name: Sanitized test artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: foundation-e2e-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

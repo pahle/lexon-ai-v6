@@ -1,3 +1,18 @@
 # Fetched documentation (scripts/fetch-docs.mjs)
 .cache/
 .DS_Store
+
+# Workspace build and private local configuration
+node_modules/
+**/dist/
+**/.next/
+**/.test-build/
+**/*.tsbuildinfo
+.env
+.env.local
+coverage/
+playwright-report/
+test-results/
+
+**/reports/mutation/
+**/.stryker-tmp/

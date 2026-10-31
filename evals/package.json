@@ -1,0 +1,21 @@
+{
+  "name": "@lexon/evals",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && node ../scripts/check-boundaries.mjs",
+    "test": "vitest run --config ../vitest.config.ts --project evals",
+    "test:e2e": "node ../scripts/e2e.mjs --package evals",
+    "dev": "node ../scripts/dev.mjs --package evals",
+    "format": "prettier --write --ignore-path ../.prettierignore ."
+  },
+  "dependencies": {
+    "@lexon/backend": "workspace:*"
+  }
+}

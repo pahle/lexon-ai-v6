@@ -1,0 +1,258 @@
+x-backend-build: &backend-build
+  context: .
+  dockerfile: backend/Dockerfile
+  args:
+    NODE_IMAGE: ${NODE_IMAGE:?Use the manifest loader}
+x-runtime: &runtime
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  tmpfs:
+    - /run/lexon/health:size=1048576,uid=1000,gid=1000,mode=0700
+    - /tmp:size=16777216,uid=1000,gid=1000,mode=0700
+  mem_limit: 384m
+  cpus: 0.5
+  stop_grace_period: 12s
+x-runtime-env: &runtime-env
+  DATABASE_APP_URL: ${DATABASE_APP_URL:?}
+  VALKEY_QUEUE_URL: ${VALKEY_QUEUE_URL:?}
+  VALKEY_STREAMS_URL: ${VALKEY_STREAMS_URL:?}
+  VALKEY_LIMITER_URL: ${VALKEY_LIMITER_URL:?}
+  QUEUE_PREFIX: ${QUEUE_PREFIX:-bull}
+  HEALTH_FILE: /run/lexon/health/status.json
+  HEALTH_WRITE_INTERVAL_MS: ${HEALTH_WRITE_INTERVAL_MS:-5000}
+  HEALTH_STALE_MS: ${HEALTH_STALE_MS:-20000}
+  DEPENDENCY_TIMEOUT_MS: ${DEPENDENCY_TIMEOUT_MS:-2000}
+  DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-5}
+  DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-10000}
+  JOB_RECEIPT_RETENTION_SECONDS: ${JOB_RECEIPT_RETENTION_SECONDS:-2592000}
+x-storage-env: &storage-env
+  S3_ENDPOINT: http://seaweedfs:8333
+  S3_BUCKET: ${S3_BUCKET:?}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?}
+x-runtime-dependencies: &runtime-dependencies
+  migrate:
+    condition: service_completed_successfully
+  valkey:
+    condition: service_healthy
+x-worker-health: &worker-health
+  test: [CMD, node, backend/dist/bootstrap/health-check.js, --mode, readiness]
+  interval: 5s
+  timeout: 3s
+  retries: 8
+  start_period: 10s
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?Use the manifest loader}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    networks: [core]
+    mem_limit: 384m
+    cpus: 0.75
+    healthcheck:
+      test: [CMD, pg_isready, -U, postgres, -d, postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  valkey:
+    image: ${VALKEY_IMAGE:?Use the manifest loader}
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?}
+    command:
+      [
+        sh,
+        -c,
+        'exec valkey-server --requirepass "$$VALKEY_PASSWORD" --maxmemory 96mb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec',
+      ]
+    volumes: [valkey-data:/data]
+    networks: [core]
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'VALKEYCLI_AUTH="$$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  seaweedfs:
+    image: ${SEAWEEDFS_IMAGE:?Use the manifest loader}
+    command:
+      [
+        server,
+        -s3,
+        -filer,
+        -dir=/data,
+        -ip=seaweedfs,
+        -ip.bind=0.0.0.0,
+        -master.telemetry=false,
+        -volume.max=64,
+        -master.volumeSizeLimitMB=64,
+        -s3.config=/etc/lexon-s3.json,
+      ]
+    volumes:
+      - seaweed-data:/data
+      - ${S3_CONFIG_PATH:?Use the manifest loader}:/etc/lexon-s3.json:ro
+    networks: [core]
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:9333/cluster/status]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  bootstrap:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: api
+    command: [node, backend/dist/infrastructure/db/setup-command.js, bootstrap]
+    environment:
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL:?}
+      DATABASE_NAME: ${DATABASE_NAME:-lexon}
+      DATABASE_MIGRATOR_PASSWORD: ${DATABASE_MIGRATOR_PASSWORD:?}
+    networks: [core]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  migrate:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: api
+    command: [node, backend/dist/infrastructure/db/setup-command.js, migrate]
+    environment:
+      DATABASE_MIGRATOR_URL: ${DATABASE_MIGRATOR_URL:?}
+      DATABASE_APP_PASSWORD: ${DATABASE_APP_PASSWORD:?}
+      DATABASE_AUTH_PASSWORD: ${DATABASE_AUTH_PASSWORD:?}
+    networks: [core]
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+  storage-bootstrap:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: api
+    command: [node, backend/dist/infrastructure/storage/setup-command.js]
+    environment: *storage-env
+    networks: [core]
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+  api:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: api
+    environment:
+      <<: [*runtime-env, *storage-env]
+      PORT: 3001
+    networks: [edge, core, egress]
+    ports: ['127.0.0.1:${API_HOST_PORT:-3001}:3001']
+    depends_on:
+      <<: *runtime-dependencies
+      storage-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 8
+      start_period: 10s
+  ai-worker:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: ai-worker
+    environment: *runtime-env
+    networks: [core, egress]
+    depends_on: *runtime-dependencies
+    healthcheck: *worker-health
+  document-worker:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: document-worker
+    environment:
+      <<: [*runtime-env, *storage-env]
+    networks: [core, sandbox]
+    depends_on:
+      <<: *runtime-dependencies
+      storage-bootstrap:
+        condition: service_completed_successfully
+    healthcheck: *worker-health
+  dispatcher:
+    <<: *runtime
+    build:
+      <<: *backend-build
+      target: dispatcher
+    environment:
+      <<: *runtime-env
+      DISPATCHER_POLL_MS: ${DISPATCHER_POLL_MS:-1000}
+      DISPATCHER_RETRY_BASE_MS: ${DISPATCHER_RETRY_BASE_MS:-250}
+      DISPATCHER_RETRY_CAP_MS: ${DISPATCHER_RETRY_CAP_MS:-30000}
+      DISPATCHER_BATCH_SIZE: ${DISPATCHER_BATCH_SIZE:-20}
+      DISPATCHER_LEASE_MS: ${DISPATCHER_LEASE_MS:-15000}
+      QUEUE_ENQUEUE_TIMEOUT_MS: ${QUEUE_ENQUEUE_TIMEOUT_MS:-2000}
+    networks: [core]
+    depends_on: *runtime-dependencies
+    healthcheck: *worker-health
+  frontend:
+    init: true
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?Use the manifest loader}
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      BACKEND_INTERNAL_URL: http://api:3001
+    ports: ['127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000']
+    networks: [edge]
+    mem_limit: 256m
+    cpus: 0.5
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 8
+      start_period: 10s
+networks:
+  edge:
+    internal: false
+  egress:
+    internal: false
+  core:
+    internal: true
+  sandbox:
+    internal: true
+volumes:
+  postgres-data:
+  valkey-data:
+  seaweed-data:

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793404800000,
+      "tag": "0000_foundation_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793404800001,
+      "tag": "0001_outbox_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793404800002,
+      "tag": "0002_outbox_claims",
+      "breakpoints": true
+    }
+  ]
+}

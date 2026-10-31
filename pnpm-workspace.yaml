@@ -1,0 +1,16 @@
+packages:
+  - backend
+  - frontend
+  - shared
+  - evals
+saveExact: true
+autoInstallPeers: false
+strictPeerDependencies: true
+overrides:
+  typescript: 6.0.3
+  zod: 4.6.7
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - esbuild
+  - sharp
+  - unrs-resolver
