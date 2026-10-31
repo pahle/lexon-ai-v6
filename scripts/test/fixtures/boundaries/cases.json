@@ -298,5 +298,17 @@
     "importer": "backend/test/fixture.spec.ts",
     "code": "import '../src/infrastructure/db/testing/provision.js';",
     "rule": null
+  },
+  {
+    "name": "domain raw provider wrapper bypass",
+    "importer": "backend/src/modules/platform/engine.ts",
+    "code": "import '../../infrastructure/ai/openrouter-provider.js';",
+    "rule": "ai-public"
+  },
+  {
+    "name": "AI root public module",
+    "importer": "backend/src/entrypoints/ai-worker/root.module.ts",
+    "code": "import '../../infrastructure/ai/index.js';",
+    "rule": null
   }
 ]

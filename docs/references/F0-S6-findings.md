@@ -113,3 +113,20 @@ Pino's out-of-context binding is process-scoped; the production roots run in
 separate processes as designed. In-process composition checks focus on module
 registration and lifecycle; child-process import/boot tests exercise the real
 process boundary. Compose networking remains pending Tasks 15–16.
+
+## Task 13: AI SDK/OpenRouter/MCP ESM proof
+
+AI SDK 7.0.159 / OpenRouter 3.1.0 constructs a language-model-v4 provider
+without a request. The SDK's MockLanguageModelV4 streams Hello world and
+finishes with stop; injected provider fetch count is zero. MCP client/server
+2.4.0 uses StreamableHTTPClientTransport with fetch delegated to the actual
+createMcpHandler in-process. It negotiates 2026-07-28, lists/calls the probe
+tool, returns structured accepted:true and closes both sides. Global external
+fetch is rejected; no transport fallback was needed.
+
+Allowlist tests enforce region, literal ZDR, provider, ISO review timestamp
+and unique model-provider pairs. The checked-in F0 file remains empty. The AI
+module exports no raw provider; an additional negative lint fixture rejects
+private provider-wrapper imports outside the AI folder. The only AI module
+registration is the AI-worker root; document-worker tracing is re-run after
+registration. Production model selection and inference remain F3 work.

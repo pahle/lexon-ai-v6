@@ -59,3 +59,5 @@ Task 8 pins (2026-10-31): bullmq 6.5.3 and @nestjs/bullmq 12.0.0. Published peer
 Task 10 reverified AWS SDK client-s3/s3-request-presigner 3.1161.0 APIs and SeaweedFS 4.51 contract on 2026-10-31; no version change.
 
 Task 11 pin (2026-10-31): @nestjs/terminus 12.1.0, peer-compatible with Nest12. Its installed HealthIndicatorService.check().attempt().withTimeout() API is exercised directly; sanitized status mapping discards all library error details. Node24.22.1 fs docs read from the exact release URL.
+
+Task 13 pins (2026-10-31): backend ai 7.0.159 matches the exact frontend client pin; @openrouter/ai-sdk-provider 3.1.0 peers ai^7/Zod4; @modelcontextprotocol/client and dev-only @modelcontextprotocol/server 2.4.0. Strict-peer install, v4 provider construction and protocol2026-07-28 in-process exchange pass.

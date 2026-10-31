@@ -174,6 +174,15 @@ export function classifyImport({
       target.startsWith('backend/src/infrastructure/db/testing/');
     if (!publicEntry && !testHelper) return deny('database-public');
   }
+  if (
+    target?.startsWith('backend/src/infrastructure/ai/') &&
+    !inAi &&
+    ![
+      'backend/src/infrastructure/ai/index.ts',
+      'backend/src/infrastructure/ai/index.js',
+    ].includes(target)
+  )
+    return deny('ai-public');
   const domain = source.match(/^backend\/src\/modules\/([^/]+)\//)?.[1];
   const targetDomain = target?.match(/^backend\/src\/modules\/([^/]+)\/(.*)$/);
   if (
