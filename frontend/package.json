@@ -9,7 +9,7 @@
   "scripts": {
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . && node ../scripts/check-boundaries.mjs",
     "test": "vitest run --config ../vitest.config.ts --project frontend",
     "test:e2e": "node ../scripts/e2e.mjs --package frontend",
     "dev": "node ../scripts/dev.mjs --package frontend",

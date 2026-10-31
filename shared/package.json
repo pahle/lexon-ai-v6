@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . && node ../scripts/check-boundaries.mjs",
     "test": "vitest run --config ../vitest.config.ts --project contracts",
     "test:e2e": "node ../scripts/e2e.mjs --package shared",
     "dev": "node ../scripts/dev.mjs --package shared",

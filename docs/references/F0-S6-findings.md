@@ -20,3 +20,7 @@ Task 1 final checks: root test 1/1; backend typecheck; TS6 fixture compilation a
 ## Task 2 contracts
 
 18 contract cases pass (19 total with metadata proof). Shared build/typecheck, filtered package test, and Vite browser-target bundle/import succeed. The failing first run found the missing contract export; implemented only browser-safe schemas/types/interfaces.
+
+## Task 3 boundaries
+
+47 executable ESLint fixture cases pass, including alias/relative path normalization, type imports, re-exports, dynamic-import bypass rejection, privileged-driver ownership, and exactly one public eval entry. Root and filtered frontend lint execute the fixtures. Root application tests remain 19/19. Fixtures run in a temporary tree with real ESLint10/TypeScript parser; no blanket test-file exemption.

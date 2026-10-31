@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "pnpm -r --sort build",
-    "lint": "eslint .",
+    "lint": "eslint . && node scripts/check-boundaries.mjs",
     "typecheck": "pnpm -r --sort typecheck",
     "test": "vitest run",
     "test:unit": "vitest run --project backend-unit",

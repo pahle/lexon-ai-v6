@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 import globals from 'globals';
 import prettier from 'eslint-config-prettier';
+import lexon from './scripts/eslint/lexon-boundaries.mjs';
 export default ts.config(
   {
     ignores: [
@@ -16,6 +17,10 @@ export default ts.config(
   },
   js.configs.recommended,
   ...ts.configs.recommended,
-  { languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  {
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    plugins: { lexon },
+    rules: { 'lexon/boundaries': ['error', { root: import.meta.dirname }] },
+  },
   prettier,
 );
