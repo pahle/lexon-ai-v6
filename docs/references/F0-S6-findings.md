@@ -130,3 +130,24 @@ module exports no raw provider; an additional negative lint fixture rejects
 private provider-wrapper imports outside the AI folder. The only AI module
 registration is the AI-worker root; document-worker tracing is re-run after
 registration. Production model selection and inference remain F3 work.
+
+## Task 14: frontend contracts and retained chat toolchain
+
+Next16.4.3 / React19.3.1 / TypeScript6.0.3 builds with an unreachable backend
+URL. connection() keeps the page dynamic; the server HTTP request has a
+one-second deadline, while browser queries stay on /api. Nine tests cover
+loading/version/unavailable states, schema-validated client responses, exact
+UUID request body, local invalid input with no fetch, and safe backend errors.
+Base UI1.9.0, Query5.105.0 and RHF7.91.0/Zod resolver6.0.2 are exercised.
+
+The existing assistant-ui0.15.32 supported local runtime renders under the
+actual provider with a state-reading child; adapter and network calls remain
+zero. Adapter/AI SDK React exports compile. This package characterization
+passed on its first run; the missing frontend clients/components supplied the
+implementation RED tests. No fake runtime cast or disconnected chat was added.
+Style base-nova and the style-aware assistant-ui registry remain validated by
+shadcn info. Scaffold TS7/oxlint/oxfmt settings were replaced with TS6 and
+ESLint/Prettier. The actual route inventory contains only / and _not-found,
+plus the no-op proxy. No Route Handler/server model implementation exists.
+Turbopack rejected emitted .js paths to TypeScript source, so this Bundler-mode
+package uses standard extensionless local imports; Node packages retain .js.
