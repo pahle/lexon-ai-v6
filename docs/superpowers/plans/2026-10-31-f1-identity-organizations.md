@@ -51,7 +51,8 @@
 - Infrastructure audit repositories consume a low-level write-record type owned
   by the database boundary, never modules/audit types. Domain audit validation
   maps to that record; the narrow SQL function independently validates its input.
-- Execution is subagent-driven. After each task passes its task review, commit
+- Execution is inline/native, as requested on 2026-11-01, preserving existing
+  Task 1 work. After each task passes verification and self-review, commit
   completion bookkeeping and push `f1-identity-organizations` to origin. Never
   push to main. When all tasks and final review pass, open a PR from this branch
   to main; do not merge it.
@@ -173,7 +174,7 @@ so existing build/global setup and file isolation remain active.
 
 **Interfaces:** Consumes existing `FileServices` and role/migration harness. Produces `AuthIntegration`, opaque `AuthCommandSession`, inferred `LexonServerApi`, and the test fixture above; extends `FileServices` with `authUrl: string`. `createAuthIntegration(options:AuthEngineOptions):Promise<AuthIntegration>` is the private factory; AuthEngineOptions specifies the role URL, origin, secret, plugin configuration and injected mail callbacks used by the proof. The production API root is not mounted yet.
 
-- [ ] **Step 1 — RED tests:** Add assertions for Nest12 ESM boot with all four plugins, raw auth body plus a normal Nest JSON route, cookie/Bearer native `getSession`, and tables solely in `auth` using the auth role. The transaction proof also enables native TOTP and injects rollback to ensure its direct base-adapter writes do not escape. The transaction test calls two real `auth.api.*` operations inside `integration.transaction`, injects an error, and asserts neither write survived. Two simultaneous callbacks must not share connection/state. Capture the Response and inject a commit failure: no successful auth cookie or token reaches the caller. Add an expired-capability assertion:
+- [x] **Step 1 — RED tests:** Add assertions for Nest12 ESM boot with all four plugins, raw auth body plus a normal Nest JSON route, cookie/Bearer native `getSession`, and tables solely in `auth` using the auth role. The transaction proof also enables native TOTP and injects rollback to ensure its direct base-adapter writes do not escape. The transaction test calls two real `auth.api.*` operations inside `integration.transaction`, injects an error, and asserts neither write survived. Two simultaneous callbacks must not share connection/state. Capture the Response and inject a commit failure: no successful auth cookie or token reaches the caller. Add an expired-capability assertion:
   ```ts
   await expect(
     integration.transaction(async (tx) => {
@@ -183,10 +184,10 @@ so existing build/global setup and file isolation remain active.
   ).rejects.toThrow();
   expect(await inspect.countUsers(signupInput.body.email)).toBe(0);
   ```
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/auth-compatibility.spec.ts`; expect missing integration/schema assertions, not an infrastructure error.
-- [ ] **Step 3 — Minimal implementation:** Construct a public-interface adapter facade routing direct base-adapter operations into the current transaction as well as native current-adapter-aware operations, with no package patch. Pin backend `better-auth`, `@better-auth/core`, `@better-auth/drizzle-adapter` to `1.7.14`, Nest adapter `2.8.0`; add dev CLI `auth: 1.7.14`. Generate the four-plugin schema with `schemaName: 'auth'`, UUID IDs and additional fields from the design; commit generated SQL. Implement the private typed capability using public `@better-auth/core/context` exports and `transaction: true`. Its transaction callback also binds narrow-function execution to that same Drizzle transaction, never exporting it. Wrap the public Web Request→Response handler so commit occurs before Response release. Test the Nest adapter through an isolated test module. Disable telemetry and noisy BA logging. Record real S6 evidence, clearly separating later not-yet-proven requirements. Exclude `src/**/testing/**` from production compilation while keeping source/test-harness imports valid, and verify a clean build ships no inspection helpers. Do not fall back to `toNodeHandler` unless this proof demonstrates an incompatibility; stop on an unsupported transaction API rather than inventing one.
-- [ ] **Step 4 — GREEN:** Re-run Step 2, then `pnpm --filter @lexon/backend typecheck` and the two existing test-bed isolation files. Expect real rollback/connection isolation, successful normal parsing, and a clean typecheck.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(identity): establish Better Auth adapter transaction boundary"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/auth-compatibility.spec.ts`; expect missing integration/schema assertions, not an infrastructure error.
+- [x] **Step 3 — Minimal implementation:** Construct a public-interface adapter facade routing direct base-adapter operations into the current transaction as well as native current-adapter-aware operations, with no package patch. Pin backend `better-auth`, `@better-auth/core`, `@better-auth/drizzle-adapter` to `1.7.14`, Nest adapter `2.8.0`; add dev CLI `auth: 1.7.14`. Generate the four-plugin schema with `schemaName: 'auth'`, UUID IDs and additional fields from the design; commit generated SQL. Implement the private typed capability using public `@better-auth/core/context` exports and `transaction: true`. Its transaction callback also binds narrow-function execution to that same Drizzle transaction, never exporting it. Wrap the public Web Request→Response handler so commit occurs before Response release. Test the Nest adapter through an isolated test module. Disable telemetry and noisy BA logging. Record real S6 evidence, clearly separating later not-yet-proven requirements. Exclude `src/**/testing/**` from production compilation while keeping source/test-harness imports valid, and verify a clean build ships no inspection helpers. Do not fall back to `toNodeHandler` unless this proof demonstrates an incompatibility; stop on an unsupported transaction API rather than inventing one.
+- [x] **Step 4 — GREEN:** Re-run Step 2, then `pnpm --filter @lexon/backend typecheck` and the two existing test-bed isolation files. Expect real rollback/connection isolation, successful normal parsing, and a clean typecheck.
+- [x] **Step 5 — Commit:** `git commit -m "feat(identity): establish Better Auth adapter transaction boundary"`.
 
 ### Task 2: Enforce atomic Personal creation and auth column privileges
 
@@ -777,7 +778,7 @@ so existing build/global setup and file isolation remain active.
 Before handing over this plan, check every approved-design section against a
 task, every named interface against its producer, and every Review Focus item
 against its test owner. Fix gaps inline. This is self-review, not another
-subagent dispatch. The product owner approved this plan and selected subagent-driven execution,
+subagent dispatch. The product owner approved this plan and subsequently selected inline/native execution,
 including the clarifications and per-task push/PR process above.
 
 Coverage map: S6/integration1; Personal/grants2; audit3; shared contracts4;

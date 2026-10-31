@@ -13,6 +13,7 @@ export interface FileServices {
   runId: string;
   dbName: string;
   appUrl: string;
+  authUrl: string;
   migratorUrl: string;
   valkey: { queueUrl: string; streamsUrl: string; limiterUrl: string };
   queuePrefix: string;
