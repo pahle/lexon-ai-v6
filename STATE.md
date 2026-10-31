@@ -20,7 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Brief merged (PR #9); implementer brainstorming next | Notes: `notes/F1-identity-organizations.md` |
+| F1 Identity & Organizations | Design approved with amendments; Codex writing plan on branch `f1-identity-organizations` | Next: review the plan | Notes: `notes/F1-identity-organizations.md` |
 | F2–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -64,7 +64,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F1: both sign-up paths (open + invitation) with an invitation-only switch;
   multiple organizations per user with a server-side active organization and
   a hidden personal organization; no Google/Microsoft/SSO login in the MVP.
-- F1 brainstorming answers: platform-created orgs start `provisioning` (PR #10); invitation re-acceptance idempotent only while still a member (PR #11); Bearer = separate short session class, 15 min hard expiry, F19 owns renewal; audit store `ops.audit_events` with a narrow SECURITY DEFINER writer for `lexon_auth`, HMAC for unknown emails; Mailpit approved as dev-only (PR #12); personal org atomic at DB level + operator-only CLI for the first platform admin (PR #13).
+- F1 brainstorming answers: platform-created orgs start `provisioning` (PR #10); invitation re-acceptance idempotent only while still a member (PR #11); Bearer = separate short session class, 15 min hard expiry, F19 owns renewal; audit store `ops.audit_events` with a narrow SECURITY DEFINER writer for `lexon_auth`, HMAC for unknown emails; Mailpit approved as dev-only (PR #12); personal org atomic at DB level + operator-only CLI for the first platform admin (PR #13); departure recorded only as an audit event, no outbox changes (PR #14); approach 2 (Lexon org API over Better Auth, deny-by-default plugin endpoints); auth pages scaffolded from shadcn base-nova login-02/signup-02 (product owner's choice) + input-otp.
 - Better Auth skills (5, upstream has no license file) vendored by product-owner decision; `karpathy-guidelines` (MIT) vendored for all slices (PR #9).
 
 ## Lessons learned (apply to every brief)
