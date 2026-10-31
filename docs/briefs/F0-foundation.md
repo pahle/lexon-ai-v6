@@ -34,7 +34,8 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
    F19; `infra/` is created in F20. `docs/` already exists. ESM only
    (`"type": "module"` everywhere).
 2. One TypeScript 6.x and one Zod 4.x for the whole workspace, enforced with
-   `pnpm.overrides`. All dependency versions are pinned exactly, and a
+   `overrides` in `pnpm-workspace.yaml` (pnpm no longer reads the `pnpm`
+   field of `package.json`). All dependency versions are pinned exactly, and a
    lockfile is committed. Node 24 LTS is declared (`engines` and
    `.nvmrc` / `.node-version`).
 3. Root scripts: `dev` (whole stack), `build`, `lint`, `typecheck`, `test`,
