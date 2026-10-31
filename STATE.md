@@ -64,7 +64,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F1: both sign-up paths (open + invitation) with an invitation-only switch;
   multiple organizations per user with a server-side active organization and
   a hidden personal organization; no Google/Microsoft/SSO login in the MVP.
-- `better-auth/skills` not vendored: the repository has no license.
+- Better Auth skills (5, upstream has no license file) vendored by product-owner decision; `karpathy-guidelines` (MIT) vendored for all slices (PR #9).
 
 ## Lessons learned (apply to every brief)
 
