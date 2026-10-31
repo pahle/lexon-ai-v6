@@ -13,7 +13,7 @@ import { test } from '../setup/file-services.js';
 import { createApi } from '../../src/bootstrap/api.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
-import { runtimeEnvironment } from '../setup/runtime-environment.js';
+import { createAuthEnvironment } from '../setup/auth-environment.js';
 
 test('serves native shared-schema validation and sanitized errors with correlated request IDs', async ({
   services,
@@ -38,7 +38,7 @@ test('serves native shared-schema validation and sanitized errors with correlate
   const app = await createApi(
     loadRuntimeConfig(
       'api',
-      runtimeEnvironment(services, join(directory, 'health.json')),
+      createAuthEnvironment(services, join(directory, 'health.json')),
     ),
   );
   try {
@@ -91,7 +91,7 @@ test('readiness fails safely during a dependency outage while HTTP liveness stay
 }) => {
   const directory = await mkdtemp(join(tmpdir(), 'lexon-api-down-'));
   const proxy = await FaultProxy.start(services.valkey.queueUrl);
-  const env = runtimeEnvironment(services, join(directory, 'health.json'));
+  const env = createAuthEnvironment(services, join(directory, 'health.json'));
   const app = await createApi(
     loadRuntimeConfig('api', {
       ...env,
@@ -135,7 +135,7 @@ test('API startup failure closes resources and exits with sanitized logs', async
     {
       env: {
         ...process.env,
-        ...runtimeEnvironment(services, join(directory, 'health.json')),
+        ...createAuthEnvironment(services, join(directory, 'health.json')),
         PORT: String(address.port),
       },
       stdio: ['ignore', 'pipe', 'pipe'],

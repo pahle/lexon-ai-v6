@@ -1,13 +1,9 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 
-export class RuntimeConfigurationError extends Error {
-  readonly fields: readonly string[];
-  constructor(fields: readonly string[]) {
-    super(`Invalid configuration: ${fields.join(', ')}`);
-    this.fields = Object.freeze([...fields]);
-  }
-}
+import { RuntimeConfigurationError } from './configuration-error.js';
+import { readAuthConfig, type AuthConfig } from './auth-config.js';
+export { RuntimeConfigurationError } from './configuration-error.js';
 export type RuntimeName =
   'api' | 'ai-worker' | 'document-worker' | 'dispatcher';
 const positive = (fallback: number) =>
@@ -138,6 +134,7 @@ export type RuntimeConfig =
       runtime: 'api';
       storage: ReturnType<typeof readStorage>;
       port: number;
+      auth: AuthConfig;
     })
   | (CommonConfig & {
       runtime: 'document-worker';
@@ -165,6 +162,7 @@ export function loadRuntimeConfig(
         runtime,
         storage: readStorage(env),
         port: read(apiSchema, env).PORT,
+        auth: readAuthConfig(env),
       };
     case 'document-worker':
       return { ...config, runtime, storage: readStorage(env) };

@@ -11,6 +11,7 @@ import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.j
 import { QueueConsumer } from '../../src/infrastructure/queue/index.js';
 import { RuntimeLifecycle } from '../../src/bootstrap/runtime-lifecycle.js';
 import { runtimeEnvironment } from '../setup/runtime-environment.js';
+import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { dispatcherConnections } from '../../src/infrastructure/db/testing/dispatcher.js';
 
 test('API and dispatcher register no processors; standby is ready and lock loss is unready', async ({
@@ -19,7 +20,12 @@ test('API and dispatcher register no processors; standby is ready and lock loss 
   const directory = await mkdtemp(join(tmpdir(), 'lexon-roots-'));
   const env = runtimeEnvironment(services, join(directory, 'a.json'));
   const proxy = await FaultProxy.start(services.appUrl);
-  const api = await createApi(loadRuntimeConfig('api', env));
+  const api = await createApi(
+    loadRuntimeConfig(
+      'api',
+      createAuthEnvironment(services, join(directory, 'a.json')),
+    ),
+  );
   const active = await createRuntimeContext(
     'dispatcher',
     loadRuntimeConfig('dispatcher', { ...env, DATABASE_APP_URL: proxy.url }),

@@ -12,6 +12,8 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { composeAuthIntegration } from '../auth/auth-integration.js';
 import { createAuthInspector } from './auth-inspect.js';
+import nodemailer from 'nodemailer';
+import { SmtpMailer } from '../../email/index.js';
 export type { AuthCommandSession } from '../auth/auth-types.js';
 
 @Controller('probe')
@@ -28,6 +30,14 @@ export async function createAuthFixture(
 ) {
   const origin = 'http://localhost:3000';
   const mail = new Map<string, string>();
+  const mailer = new SmtpMailer({
+    origin,
+    from: 'lexon@example.test',
+    transport: nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+    }),
+  });
   const { auth, integration } = await composeAuthIntegration({
     authUrl: services.authUrl,
     origin,
@@ -53,9 +63,16 @@ export async function createAuthFixture(
       : [],
     mail: {
       sendVerification: async ({ email, url }) => {
+        await mailer.send({ kind: 'verification', to: email, actionUrl: url });
+        // Fixture-only synchronization: production delivery never determines
+        // account-existence-sensitive response timing.
+        await mailer.drain(1000);
         mail.set(email, url);
       },
-      sendPasswordReset: async () => {},
+      sendPasswordReset: async ({ email, url }) => {
+        await mailer.send({ kind: 'reset', to: email, actionUrl: url });
+        await mailer.drain(1000);
+      },
     },
   });
   const inspect = createAuthInspector(services);
@@ -138,7 +155,11 @@ export async function createAuthFixture(
       try {
         await app?.close();
       } finally {
-        await Promise.all([integration.close(), inspect.close()]);
+        await Promise.all([
+          integration.close(),
+          inspect.close(),
+          mailer.onApplicationShutdown(),
+        ]);
       }
     },
   };
