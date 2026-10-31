@@ -4,30 +4,15 @@ Last updated: 2026-10-31 by the brief generator (session 1).
 
 ## Next action
 
-**Ask the product owner the three F1 questions below, then write
-`docs/briefs/F1-identity-organizations.md`.** The product owner asked to
-pause F1 until the branch rename/handoff work was done (done).
+**F1 brief is in PR #9** (`docs/briefs/F1-identity-organizations.md`, plus
+LEX-ARC-001 §1/§3.2 decisions). Wait for the product owner to merge it, then
+support Codex through F1 brainstorming/spec/plan
+(`playbooks/support-implementer.md`), review the plan, and later review the
+implementation.
 
-### Housekeeping in flight
-
-- PR #8 (`AGENTS.md` on `main` names `brief-generator`) is merged.
-- Remote branches `contaminated`, `f0-foundation`, and
-  `claude/focused-shannon-b5cmwe` are obsolete; the product owner deletes
-  them on GitHub (the brief generator's sandbox could not delete refs).
-
-### Pending questions for the product owner (F1)
-
-Ask these in Indonesian, short; they change F1's content and are not answered
-by the documents:
-
-1. Sign-up model: open self-serve sign-up (anyone creates an account and an
-   organization) or **invite-only** (platform admin creates organizations,
-   members are invited)?
-2. Can one user belong to **several organizations** and switch between them
-   (affects tenant context on every request)?
-3. Google/Microsoft social login in the MVP? The stack only names
-   email/password, 2FA, Bearer; adding social login needs a LEX-TS-001
-   revision.
+Housekeeping: obsolete remote branches `contaminated`, `f0-foundation`,
+`claude/focused-shannon-b5cmwe` (the last one is reused for brief PRs) may
+need deleting by the product owner; this sandbox cannot delete remote refs.
 
 ## Slice status
 
@@ -36,7 +21,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Next — waiting for the pending questions | — |
+| F1 Identity & Organizations | Brief in PR #9 | Notes: `notes/F1-identity-organizations.md` |
 | F2–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -76,6 +61,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   merged with Squash and merge, then deleted.
 - `contaminated` branch renamed to `brief-generator` and made a handoff kit
   for any model/session (2026-10-31).
+- F1: both sign-up paths (open + invitation) with an invitation-only switch;
+  multiple organizations per user with a server-side active organization and
+  a hidden personal organization; no Google/Microsoft/SSO login in the MVP.
+- `better-auth/skills` not vendored: the repository has no license.
 
 ## Lessons learned (apply to every brief)
 
