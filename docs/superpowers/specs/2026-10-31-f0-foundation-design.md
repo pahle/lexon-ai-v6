@@ -2,7 +2,7 @@
 
 Date: 2026-10-31
 
-Status: Draft for approval
+Status: Approved, including the brief-owner corrections in PR #5
 
 Scope: `docs/briefs/F0-foundation.md`, including the decisions below
 
@@ -29,6 +29,10 @@ The F0 brief remains the acceptance checklist. This document resolves its open q
 | Brief question 3 | Stack-prescribed compatibility gate: try `@nestjs/bullmq`; use the pre-approved thin BullMQ provider wrapper only on demonstrated incompatibility. Better Auth is F1. Any other incompatibility with the locked stack returns to the human. |
 | Brief question 4 | Human choice: remove disconnected chat UI, retain `components.json`, `base-nova`, the style-aware `@assistant-ui` registry, four exact-pinned client packages, and a stub-runtime provider render test. No chat Route Handler or server model code. |
 | CI layers | Human decision supersedes the brief's GitHub service-container wording: CI runs Testcontainers integration tests and the separate full Compose smoke/E2E layer. It does not start redundant GitHub service containers for the integration layer. |
+| Evaluation boundary | Human correction, now in PR #5 and Architecture §3.4: `evals/` may import exactly one public evaluation entry exported by the backend package, sufficient to boot a standalone application context. F3 exposes the AI Run Engine through that entry. Module internals and `infrastructure/*` remain forbidden. |
+| Development frontend egress | Human correction, now in PR #5: keep `edge` non-internal and preserve host access in development. Frontend no-egress enforcement and testing move to F20 with Caddy and the host firewall. F0 retains frontend/core separation and no infrastructure secrets. |
+
+All work and commits for this slice belong on branch `f0-foundation`, never `main`.
 
 ### Goals, non-goals, and failure conditions
 
@@ -56,7 +60,7 @@ Use Nest's ESM scaffold and assistant-ui's `default` template, then align them b
 
 Root commands are `dev`, `build`, `lint`, `typecheck`, `test`, `test:e2e`, and `format`; package commands work through `pnpm --filter`. The builder may choose script filenames and package names other than the required `@lexon/contracts`. Root `dev` starts the complete Compose development stack, including ordered migration/bootstrap, without asking developers to start dependencies separately. Backend package development can select an entrypoint; documented frontend development uses the API rewrite.
 
-ESLint enforces the brief's entire import matrix, including package names, aliases, relative paths, and package subpaths. Domain modules expose a public `index.ts`; database and AI imports stay in their respective infrastructure folders. Frontend AI SDK client imports explicitly approved above are allowed; provider imports, server-only model execution, and backend/data-driver imports are forbidden. `evals/` cannot import backend code. `shared/` cannot import any workspace package or Node-only API. Include negative fixtures and positive controls for each rule, including misleading relative paths and aliases. Resolve paths rather than trusting textual package prefixes alone. Fixture execution is part of `lint`.
+ESLint enforces the brief's entire import matrix, including package names, aliases, relative paths, and package subpaths. Domain modules expose a public `index.ts`; database and AI imports stay in their respective infrastructure folders. Frontend AI SDK client imports explicitly approved above are allowed; provider imports, server-only model execution, and backend/data-driver imports are forbidden. `evals/` may import backend code only through its single public evaluation package entry; backend root imports, other subpaths, module internals, and `infrastructure/*` are forbidden. `shared/` cannot import any workspace package or Node-only API. Include negative fixtures and positive controls for each rule, including misleading relative paths and aliases. Specifically prove the evaluation entry is allowed from `evals/`, forbidden from the frontend, and that relative/alias imports of backend internals fail from `evals/`. Resolve paths rather than trusting textual package prefixes alone. Fixture execution is part of `lint`.
 
 Infrastructure implementation and test-only privileged helpers stay inside their permitted boundary. Do not exempt all test files from the import rules. Root tooling is not a runtime escape hatch.
 
@@ -147,7 +151,9 @@ One backend Dockerfile supplies four targets, each launching its own entrypoint.
 
 Designer proposal for shared pins: a checked-in root `config/container-images.env` contains literal `tag@sha256:digest` references. Compose uses required variable interpolation supplied by the root command; Testcontainers reads the same file. Do not duplicate defaults in YAML, tests, or CI. A static check rejects unresolved variables and divergent image references. Bootstrap/migrations use these same PostgreSQL pins. Local and CI code paths pass the manifest explicitly.
 
-Compose defines `edge`, `egress`, internal `core`, and internal `sandbox` with membership from Architecture §2.2. Document worker joins only `core` and `sandbox`; frontend joins only `edge` and receives only non-secret API/presentation configuration. Because frontend must have no egress, explicitly prevent an outbound route on its network, rather than assuming the name `edge` restricts traffic. API can join `edge`, `core`, and `egress`. No frontend data-plane credentials or core membership.
+Compose defines non-internal `edge` and `egress`, internal `core`, and internal `sandbox`, with membership from Architecture §2.2 and the F0 development exception in brief item 29. Preserve published-port access from the host; do not make `edge` internal or add development restrictions that break that access. Document worker joins only `core` and `sandbox`; frontend joins only `edge` and receives only non-secret API/presentation configuration. API can join `edge`, `core`, and `egress`. No frontend data-plane credentials or core membership.
+
+Known F0 gap: the development frontend can have outbound connectivity through `edge`. Frontend no-egress enforcement and its test belong to F20, with Caddy as the public entry and host-firewall controls. F0 must not claim or test that this deferred protection exists; its frontend topology tests instead prove host access, absence from `core`, and absence of infrastructure secrets. The document-worker no-egress requirement and test remain mandatory in F0.
 
 `pnpm test` runs unit/integration projects without pre-started services. The integration project's Vitest global setup starts one Postgres, one authenticated/persistent-policy Valkey, and one SeaweedFS topology per invocation, migrates a template database, closes template connections, and shares only serializable endpoints/namespace metadata with test workers via `provide`/`inject`. Each file clones the template to a unique database, owns a Valkey prefix (including BullMQ's supported queue prefix), and owns an S3 bucket; cleanup is scoped to that file. PostgreSQL roles are cluster-global: provision them once, do not drop/recreate them per file. Template cloning must not overlap open template connections. Limit concurrency to a documented development memory budget.
 
@@ -168,9 +174,9 @@ TDD applies to every production behavior: add the meaningful failing proof first
 | Jobs | Processing/backoff/outage recovery, standby/lock takeover, cleanup redelivery, rollback/concurrency, crash-after-commit receipt proof. |
 | Storage/AI/MCP | Real S3 contract, mocked stream, provider construction, v2 MCP proof, Streams round trip. |
 | Topology | Full Compose health, browser/API cases, internal dependencies reachable, document-worker internet unreachable, Valkey configuration rejection. |
-| Mutation/evals | Stryker runs against db and platform with a recorded baseline and no threshold; evals boots its own standalone Nest context and passes one trivial case. |
+| Mutation/evals | Stryker runs against db and platform with a recorded baseline and no threshold; evals boots a standalone backend application context through the single public evaluation entry and passes one trivial case. |
 
-The eval harness owns a minimal F0 Nest module and imports only allowed contracts/framework dependencies, never backend internals; F3 owns its real engine integration design. Stryker uses the verified Vitest transform/config, records selected files, versions, score, and exclusions, and must not quietly exclude the meaningful db/platform logic. Provide an executable documented mutation command; F0 does not require it on every PR.
+The backend package exports one public evaluation entry that boots a minimal standalone F0 application context, without HTTP or unnecessary infrastructure dependencies, and provides explicit shutdown. The eval harness imports that entry, never backend module internals or `infrastructure/*`, and proves boot/use/close with one trivial passing case. F3 exposes the actual AI Run Engine through the same entry rather than recreating it in `evals/`. Stryker uses the verified Vitest transform/config, records selected files, versions, score, and exclusions, and must not quietly exclude the meaningful db/platform logic. Provide an executable documented mutation command; F0 does not require it on every PR.
 
 GitHub Actions runs frozen-lockfile install, per-package lint/typecheck/build, root/package-equivalent unit/integration coverage with Testcontainers, and full Compose E2E on PRs. Do not run only unit tests in CI while calling them integration coverage. The builder may split jobs for speed without duplicating the infrastructure source of truth. Unit-suite time under a minute is a target, not a gate on image pull/build/integration time.
 
