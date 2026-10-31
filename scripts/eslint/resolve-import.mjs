@@ -165,6 +165,15 @@ export function classifyImport({
     return deny('eval-entry');
   if (owner === 'backend' && targetOwner === 'frontend')
     return deny('backend-frontend');
+  if (target?.startsWith('backend/src/infrastructure/db/') && !inDb) {
+    const publicEntry =
+      target === 'backend/src/infrastructure/db/index.ts' ||
+      target === 'backend/src/infrastructure/db/index.js';
+    const testHelper =
+      source.startsWith('backend/test/') &&
+      target.startsWith('backend/src/infrastructure/db/testing/');
+    if (!publicEntry && !testHelper) return deny('database-public');
+  }
   const domain = source.match(/^backend\/src\/modules\/([^/]+)\//)?.[1];
   const targetDomain = target?.match(/^backend\/src\/modules\/([^/]+)\/(.*)$/);
   if (

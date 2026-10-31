@@ -274,5 +274,29 @@
     "importer": "frontend/src/page.ts",
     "code": "import { type UIMessage } from 'ai';",
     "rule": null
+  },
+  {
+    "name": "domain private db session bypass",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/tenant-session.js';",
+    "rule": "database-public"
+  },
+  {
+    "name": "domain db public API",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/index.js';",
+    "rule": null
+  },
+  {
+    "name": "domain test helper bypass",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/testing/provision.js';",
+    "rule": "database-public"
+  },
+  {
+    "name": "backend test helper allowed",
+    "importer": "backend/test/fixture.spec.ts",
+    "code": "import '../src/infrastructure/db/testing/provision.js';",
+    "rule": null
   }
 ]

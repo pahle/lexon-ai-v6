@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { inspectFoundation } from '../../src/infrastructure/db/testing/inspect.js';
-import { migrateDatabase } from '../../src/infrastructure/db/migrate.js';
+import { migrateDatabase } from '../../src/infrastructure/db/testing/provision.js';
 
 test('migrates as non-superuser owner with isolated application roles', async ({
   services,

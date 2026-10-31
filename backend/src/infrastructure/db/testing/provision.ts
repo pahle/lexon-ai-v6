@@ -1,4 +1,9 @@
 import { Client } from 'pg';
+export {
+  bootstrapDatabase,
+  configureRuntimeRolePasswords,
+} from '../bootstrap.js';
+export { migrateDatabase } from '../migrate.js';
 
 export function roleUrl(
   base: string,

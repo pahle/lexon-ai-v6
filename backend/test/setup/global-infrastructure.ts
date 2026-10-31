@@ -7,8 +7,8 @@ import { readContainerImages } from '../../../scripts/container-images.mjs';
 import {
   bootstrapDatabase,
   configureRuntimeRolePasswords,
-} from '../../src/infrastructure/db/bootstrap.js';
-import { migrateDatabase } from '../../src/infrastructure/db/migrate.js';
+} from '../../src/infrastructure/db/testing/provision.js';
+import { migrateDatabase } from '../../src/infrastructure/db/testing/provision.js';
 import {
   dropDatabase,
   roleUrl,
