@@ -61,3 +61,8 @@ Task 10 reverified AWS SDK client-s3/s3-request-presigner 3.1161.0 APIs and Seaw
 Task 11 pin (2026-10-31): @nestjs/terminus 12.1.0, peer-compatible with Nest12. Its installed HealthIndicatorService.check().attempt().withTimeout() API is exercised directly; sanitized status mapping discards all library error details. Node24.22.1 fs docs read from the exact release URL.
 
 Task 13 pins (2026-10-31): backend ai 7.0.159 matches the exact frontend client pin; @openrouter/ai-sdk-provider 3.1.0 peers ai^7/Zod4; @modelcontextprotocol/client and dev-only @modelcontextprotocol/server 2.4.0. Strict-peer install, v4 provider construction and protocol2026-07-28 in-process exchange pass.
+
+Task 17 pins (2026-10-31): @stryker-mutator/core and vitest-runner 10.1.1;
+runner peers Vitest>=2 and exact matching core. Node24 and Vitest5.0.5 pass
+actual mutation execution with the same Vite transform. No TS checker plugin
+or alternate TypeScript/test runner is installed.

@@ -10,6 +10,8 @@ export default ts.config(
       '**/dist/**',
       '**/.next/**',
       '**/.test-build/**',
+      '**/.stryker-tmp/**',
+      '**/reports/**',
       '.agents/**',
       '.superpowers/**',
       '.cache/**',

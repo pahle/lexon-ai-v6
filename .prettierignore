@@ -5,3 +5,6 @@ pnpm-lock.yaml
 **/dist/
 **/.next/
 **/.test-build/
+
+**/reports/mutation/
+**/.stryker-tmp/

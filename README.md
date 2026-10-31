@@ -70,3 +70,10 @@ Wrong Valkey policy/AOF/fsync cases run serially in a separate nested project,
 then correct settings recover. These tests never reconfigure the integration
 bed or an existing development project. Startup interruption and failure both
 tear down the owned E2E project and remove its private credential directory.
+
+Run `pnpm --filter @lexon/backend test:mutation` for the recorded Stryker
+baseline. It mutates authorization-predicate and job-envelope validation only,
+using normal assertions and the same Vitest transform. HTML/JSON reports are
+written to `backend/reports/mutation/`. F0 sets no threshold and does not claim
+transactional mutation coverage; real RLS/receipt/crash integration tests cover
+that behavior separately. See the S6 findings for counts and limitations.

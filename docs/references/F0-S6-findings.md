@@ -192,3 +192,37 @@ running-state requirement. Test fixtures use same-package working directories
 for Node self exports and distinguish the form's alert from Next's announcer.
 Cleanup unit tests verify failed startup, abort and failed teardown always
 remove only owned resources/private files; signals propagate to child commands.
+
+## Task 17: bounded mutation baseline
+
+Command: `pnpm --filter @lexon/backend test:mutation`.
+Stryker core/vitest-runner10.1.1, Vitest5.0.5, TypeScript6.0.3, Node24.22.1.
+The runner plugin is explicitly listed because pnpm's strict package layout
+prevented automatic discovery. Two worker processes use the same native Vite
+TS/decorator transform as normal tests. The focused configuration selects five
+real assertion tests; no containers start per mutant and no empty-suite bypass
+exists. No TypeScript checker is needed for this runtime baseline; typecheck
+remains an independent required gate.
+
+Final measured baseline (4 seconds): **96.77%**, 31 mutants, 30 killed,
+1 survived, 0 no-coverage, 0 timeouts, 0 runtime/compile errors.
+
+| Mutated file | Killed | Survived | Score |
+| --- | ---: | ---: | ---: |
+| infrastructure/db/authorization-predicate.ts | 15 | 1 | 93.75% |
+| modules/platform/job-envelope.ts | 15 | 0 | 100% |
+
+The first run scored77.42%; surviving optional-user mutants exposed missing
+assertions in this focused scope. Added strict equality, own-key absence,
+validated user preservation and sanitized two-field error assertions. The
+remaining mutant changes `issue.path.join('.')` to `join('')`; the current
+flat context schema only produces one-segment paths, so it is equivalent for
+all possible current paths. It remains visible and unsuppressed.
+
+Artifacts: `backend/reports/mutation/mutation.html` and `mutation.json`
+(regenerated locally, ignored). F0 sets no score threshold. Scope deliberately
+covers only these two meaningful policy/validation files. Transaction/receipt/
+dispatcher/queue/RLS behavior is covered by the real integration/crash suites,
+not claimed as mutation coverage. `job-executor.ts` is excluded because its
+transactional proof would otherwise restart infrastructure per mutant. This
+limitation is the approved Task17 amendment.
