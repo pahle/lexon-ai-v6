@@ -300,12 +300,14 @@ Read at the versions pinned in `pnpm-lock.yaml` / LEX-TS-001 (see `AGENTS.md`):
 
 ## Skills to use
 
-From `.agents/skills/`: `shadcn` (forms and pages, `base-nova`),
-`playwright-cli` (E2E), `vitest`, `pnpm`, `valkey` (limiter keys).
+From `.agents/skills/` (read the conflict table in its README first):
 
-The official `better-auth/skills` repository was not vendored because it
-publishes no license. Use the Better Auth documentation (and optionally its
-docs MCP server) instead.
+- Better Auth: `better-auth-best-practices`, `email-and-password-best-practices`,
+  `organization-best-practices`, `two-factor-authentication-best-practices`,
+  `better-auth-security-best-practices`.
+- Frontend and tests: `shadcn` (forms and pages, `base-nova`),
+  `playwright-cli` (E2E), `vitest`, `pnpm`, `valkey` (limiter keys).
+- `karpathy-guidelines` for every task.
 
 ## Acceptance criteria
 

@@ -26,6 +26,8 @@ by Codex from `.agents/skills/`. Sources and pinned commits are in
 | `docker-compose-patterns`, `docker-build-strategies` | docker/skills | F0, F20 |
 | `valkey` | valkey-io/valkey-skills | F0, F3 |
 | `vitest`, `pnpm` | antfu/skills | F0 |
+| `better-auth-best-practices`, `email-and-password-best-practices`, `organization-best-practices`, `two-factor-authentication-best-practices`, `better-auth-security-best-practices` | better-auth/skills (no license file upstream; vendored by product-owner decision) | F1 |
+| `karpathy-guidelines` | multica-ai/andrej-karpathy-skills (MIT) | All slices: think before coding, simplicity, surgical changes, verifiable goals. Superpowers' workflow and `AGENTS.md` take precedence |
 
 ## Known conflicts with Lexon documents
 
@@ -38,3 +40,7 @@ by Codex from `.agents/skills/`. Sources and pinned commits are in
 | `vitest`, `pnpm`: Vite/Nuxt-oriented examples; `curl … \| sh` pnpm install | NestJS + Next.js workspace; install pnpm via Corepack or the pinned version, never piped shell scripts |
 | `docker-*`: generic Compose and Dockerfile layouts | Networks, targets, limits, and pinning per LEX-ARC-001 §2.2, §3.6, §5.3 and LEX-TS-001 §7 |
 | `valkey`: cluster, eviction, and caching patterns | Single instance, `noeviction`, AOF `everysec`, per-use connections (LEX-ARC-001 §5.4) |
+| Better Auth skills: `npx auth migrate`/`generate`, `drizzle-kit push`, Prisma/Kysely setups | Schema in the `auth` schema through the Drizzle adapter; versioned SQL migrations run as `lexon_migrator`; never `push` |
+| Better Auth skills: `socialProviders`, stateless `cookieCache` mode | No social login or SSO in the MVP; sessions are stored in the database (LEX-ARC-001 §1, §3.2) |
+| Better Auth skills: Admin plugin impersonation | Disabled; platform staff never act as users (LEX-ARC-001 §6.2 break-glass) |
+| Better Auth skills: `auth` CLI `mcp` setup for editors | Do not modify editor/agent configuration; propose tooling to the human |
