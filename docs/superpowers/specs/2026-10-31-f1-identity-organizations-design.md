@@ -338,10 +338,16 @@ above apply in addition to Better Auth's checks.
 | GET    | `/get-session`                                              | Safe session projection; no token material or stale authorization    |
 | POST   | `/revoke-sessions`, `/revoke-other-sessions`                | Policy-qualified own sessions                                        |
 | POST   | `/update-user`                                              | Own display name only, shared contract                               |
-| POST   | `/change-password`, `/change-email`, `/verify-password`     | Policy-qualified own account                                         |
+| POST   | `/change-password`, `/change-email`                         | Policy-qualified own account                                         |
 | POST   | `/two-factor/enable`, `/two-factor/get-totp-uri`            | Own TOTP enrollment, password/reauth checks                          |
 | POST   | `/two-factor/verify-totp`, `/two-factor/verify-backup-code` | Own enrollment or pending sign-in challenge, never arbitrary user ID |
 | POST   | `/two-factor/disable`, `/two-factor/generate-backup-codes`  | Recent reauth; admin requirements still apply                        |
+
+Planning verification: the pinned native `verifyPassword` method is server-only,
+so `/verify-password` is not an HTTP exception. Reauthentication calls it
+internally through the Lexon security endpoint; native session freshness checks
+are not forged or disabled. This narrows the earlier proposed HTTP list without
+removing any approved account capability.
 
 The stock Bearer plugin has no separate token-issuance HTTP endpoint. A Lexon
 issuance endpoint invokes the internal server-plugin API and returns the
@@ -727,6 +733,60 @@ inspection/version caveats listed below; planning must recheck each task's APIs.
 | R19 | [Vitest global setup](https://vitest.dev/config/globalsetup), [Testcontainers](https://node.testcontainers.org/features/containers/), [Playwright accessibility](https://playwright.dev/docs/accessibility-testing); Vitest5.0.5, TC12.2.1, Playwright1.64.1                                                                                                                                                                                                            | Preserve run-scoped infrastructure and file isolation; Playwright plus axe for browser accessibility. Reuse F0 harness and cleanup rather than introducing pre-started services.                                                                                                                                                                            |
 | R20 | [pnpm settings](https://pnpm.io/settings), [F0 research](2026-10-31-f0-foundation-design.md#research-notes); pnpm10.33.1, Node24.22.1, TS6.0.3                                                                                                                                                                                                                                                                                                                          | Existing YAML overrides/settings and exact singleton pins remain. Public pnpm settings page is newer than installed pnpm; use current workspace behavior and installed-version checks when planning dependency edits.                                                                                                                                       |
 | R21 | [shadcn CLI](https://ui.shadcn.com/docs/cli), [base-nova login-02](https://ui.shadcn.com/r/styles/base-nova/login-02.json), [signup-02](https://ui.shadcn.com/r/styles/base-nova/signup-02.json), [card](https://ui.shadcn.com/r/styles/base-nova/card.json), [field](https://ui.shadcn.com/r/styles/base-nova/field.json), [input-otp](https://ui.shadcn.com/r/styles/base-nova/input-otp.json); official registry read 2026-10-31, CLI version to pin during planning | Registry responses confirm both named blocks and the three primitives exist; input-otp declares its own package dependency. Product owner requires CLI generation, removal of social/decorative content, shared-schema RHF adaptation, token-only styling, minimal owned code, and axe verification. No scaffold was generated during brainstorming.        |
+
+### Planning verification supplement
+
+The following checks were repeated while writing the plan on 2026-10-31.
+Each task cites the relevant research IDs; its brief/spec references, cached
+official pages and exact published artifacts were re-read before defining it.
+These checks establish available interfaces, not successful runtime integration.
+
+- **R22 — exact planning pins and image identity.** Official npm metadata for
+  [auth1.7.14](https://registry.npmjs.org/auth/1.7.14),
+  [shadcn4.23.0](https://registry.npmjs.org/shadcn/4.23.0),
+  [input-otp1.5.0](https://registry.npmjs.org/input-otp/1.5.0),
+  [axe Playwright4.14.0](https://registry.npmjs.org/@axe-core/playwright/4.14.0),
+  and [Nodemailer10.3.1](https://registry.npmjs.org/nodemailer/10.3.1)
+  checked against Node24/React19 peers. Nodemailer10 bundles declarations; no
+  additional older @types package is required. The older `@better-auth/cli` is deprecated;
+  the [official CLI guide](https://better-auth.com/docs/concepts/cli) uses `auth`.
+  Its stock create-admin command can mark email verified and is not Lexon's setup
+  flow. Registry inspection confirms component helper dependencies; use
+  clsx2.1.1, tailwind-merge3.7.0 and class-variance-authority0.7.1 with their
+  [official](https://github.com/lukeed/clsx)
+  [maintainer](https://github.com/dcastil/tailwind-merge)
+  [documentation](https://cva.style/docs/getting-started/installation).
+  Docker registry inspection of `axllent/mailpit:v1.33.0` resolved the multiarch
+  digest `sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231`.
+  [Mailpit runtime options](https://mailpit.axllent.org/docs/configuration/runtime-options/)
+  confirm temporary storage and version-check controls; no image was installed
+  or service added during planning.
+- **R23 — browser and test composition.** Rechecked the pinned React19.3.1,
+  Next16.4.3, Query5.105.0, RHF7.91.0, Playwright1.64.1 and Stryker10.1.1
+  manifests alongside [Query cancellation](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation),
+  [Playwright recording controls](https://playwright.dev/docs/test-use-options),
+  [Stryker Vitest runner](https://stryker-mutator.io/docs/stryker-js/vitest-runner/),
+  [Next route handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route)
+  and the actual F0 harness. Security projects disable credential-bearing
+  artifacts. A presentation-only frontend health response can remain public
+  without auth or business-data access. Test mail uses in-process Nodemailer
+  with operator/test-only IPC, not an HTTP inbox or production capture flag.
+  Existing F0 CSS has placeholder values; F1 maps only required form tokens
+  to LEX-DS-001 rather than building F2's full design system.
+- **R24 — native transaction/freshness details.** Re-read R04's exact1.7.14
+  transaction and API artifacts. Some 2FA operations use the base adapter
+  directly; the private public-interface facade must route those operations
+  into the active transaction too. S6(b) must test their rollback, not only
+  organization writes. Native `verifyPassword` is server-only; native session
+  list freshness is based on session creation. Lexon exposes its own safe
+  session-ID API and recent-reauthentication evidence, without forging native
+  freshness or returning tokens. [PG17 isolation](https://www.postgresql.org/docs/17/transaction-iso.html)
+  was checked for owner/admission race tests. Installed Drizzle Kit0.31.11
+  `generate --help` confirmed schema/dialect/out/name/breakpoints flags; isolated
+  auth-only generation avoids recreating the snapshot-less F0 ops migrations. The test-only TOTP oracle uses
+  [RFC6238](https://www.rfc-editor.org/rfc/rfc6238) vectors and
+  [Node24 crypto](https://nodejs.org/download/release/v24.22.1/docs/api/crypto.html);
+  runtime verification remains entirely Better Auth's responsibility.
 
 Vendored guidance consulted: Better Auth integration, organization, password,
 2FA and security skills; shadcn forms; Valkey; pnpm/Vitest/Playwright; and
