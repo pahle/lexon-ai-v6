@@ -20,7 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Design approved with amendments; Codex writing plan on branch `f1-identity-organizations` | Next: review the plan | Notes: `notes/F1-identity-organizations.md` |
+| F1 Identity & Organizations | Plan (24 tasks) approved with 2 clarifications (infra plugins stay dumb primitives under `infrastructure-domain` lint; org-less audit via auth writer); executing on `f1-identity-organizations` | Next: review each pushed task, then the PR | Notes: `notes/F1-identity-organizations.md` |
 | F2–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
