@@ -151,3 +151,22 @@ ESLint/Prettier. The actual route inventory contains only / and _not-found,
 plus the no-op proxy. No Route Handler/server model implementation exists.
 Turbopack rejected emitted .js paths to TypeScript source, so this Bundler-mode
 package uses standard extensionless local imports; Node packages retain .js.
+
+## Task 15: real Compose foundation
+
+The pinned Node24.22.1 build creates four backend targets from one compiled
+codebase and a production-only deployed dependency closure. Next standalone
+build is separate and receives no infrastructure credentials. All runtime
+images run non-root. Backend filesystems are read-only with writable health
+and temporary tmpfs mounts. Docker/Compose render checks prove the same image
+manifest, service limits, networks, and secret scope as the integration bed.
+Compose5.1.1 runs the v2-compatible service specification.
+
+A fresh unique E2E stack completed bootstrap, migrations and bucket setup,
+then all four runtimes/data services became healthy. Playwright runtime-health
+passed API shared health/version, worker readiness+liveness exec checks, and
+host access to frontend/API. The documented development launcher also booted
+a fresh lexon-dev stack using temporary local .env credentials and separate
+host ports, returned version0.0.1, and was removed with only its own resources.
+No data-plane host ports are published. Frontend's development edge remains
+non-internal; the F20 no-egress gap is explicitly retained.

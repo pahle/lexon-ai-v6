@@ -29,3 +29,30 @@ global setup also compiles child-process fixtures before starting its single
 infrastructure set. `evals` consumes only `@lexon/backend/evaluation`; its F0
 context boots actual Nest DI without HTTP, infrastructure or model credentials.
 Compose startup and E2E commands are completed in their later plan tasks.
+
+For the development Compose stack, copy `.env.example` to `.env` and replace
+all `REPLACE_ME` values with independently generated local secrets. The launcher
+derives database/Valkey URLs from those secrets and writes SeaweedFS credentials
+to ignored `.cache/compose-development/s3.json` with restricted permissions.
+Run `pnpm dev`; it supplies the shared pinned-image manifest explicitly, builds
+images, bootstraps the database, runs migrations and creates the S3 bucket before
+starting dependent runtimes. Visit http://localhost:3000 and
+http://localhost:3001/api/health. No data service publishes a host port.
+
+`pnpm --filter @lexon/frontend dev` selects the frontend and its dependencies;
+`pnpm --filter @lexon/backend dev` selects the API by default. Set
+`LEXON_RUNTIME=ai-worker`, `document-worker` or `dispatcher` to select that root.
+Ctrl-C stops attached development containers; persistent volumes are retained.
+No command prunes unrelated Docker resources. `pnpm test:e2e -- --project
+runtime-health` creates a uniquely named stack with temporary random secrets and
+host ports, then removes only its own containers/networks/volumes on completion.
+Integration tests continue to run independently through `pnpm test`.
+
+Development resource limits: Postgres 384MiB/0.75 CPU, Valkey128MiB/0.25CPU
+(with a 96MiB key budget), SeaweedFS256MiB/0.5CPU, each backend384MiB/0.5CPU,
+frontend256MiB/0.5CPU. Setup jobs have the same bounded backend limits and exit.
+These are development budgets; production calibration belongs to later slices.
+Backend roots run as non-root with read-only filesystems and writable tmpfs for
+health and temporary files. Frontend remains off core and secret-free; outbound
+connectivity on the non-internal development edge is the recorded F0 gap, with
+frontend no-egress enforcement deferred to F20.
