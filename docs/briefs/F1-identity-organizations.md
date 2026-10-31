@@ -104,7 +104,21 @@ tenant selection right here matters more than UI polish (F2 owns the shell).
 
 9. Personal organization created atomically with the account; protected
    from organization operations as described in **Concepts**.
-10. Create a team organization (name, slug); creator becomes owner, and the
+   - Better Auth `after` hooks run after commit, so atomicity is enforced
+     at the database level in the account's transaction. An account without
+     its personal organization and owner membership must be impossible to
+     observe (tested by failing after the user insert).
+10. **First platform administrator:** an operator-only CLI setup command
+    (run via `docker compose run`); there is no web endpoint and no env-var
+    allowlist.
+    - It takes an email and sends a setup link. Sign-up is allowed for that
+      email even in invitation-only mode.
+    - Platform-admin rights stay inactive until the email is verified and
+      2FA is enrolled.
+    - It refuses when a platform administrator already exists, unless an
+      explicit additional-admin flag is given.
+    - It is idempotent for a pending setup, and every run is audited.
+10a. Create a team organization (name, slug); creator becomes owner, and the
     organization is `active` at once.
     - **Platform-admin provisioning.** A platform administrator creates an
       organization in state **`provisioning`** together with exactly one
