@@ -85,6 +85,10 @@ Security, tenancy, privacy (K1/K2/K3), performance, accessibility.
 Official documentation links (pinned versions) the implementer must read
 before brainstorming and planning this slice.
 
+## Skills to use
+Skills in `.agents/skills/` relevant to this slice, and any new vendor skill
+to add before the slice starts.
+
 ## Acceptance criteria
 Checklist used to verify the slice, including negative tests
 (cross-tenant, cross-project, unauthorized).

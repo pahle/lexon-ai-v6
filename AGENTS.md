@@ -48,6 +48,13 @@ each task in **writing-plans**:
    silently diverge. Library facts may justify a spec revision, never a quiet
    workaround.
 
+## Agent skills
+
+Vendor skills live in `.agents/skills/` (see its README). Use them for
+library know-how, but they are advice: `docs/specs/` wins, and the README
+lists known conflicts. Do not install new skills yourself; propose them to
+the human.
+
 ## Conventions
 
 - **English** everywhere: UI copy, errors, emails, code, comments, commit

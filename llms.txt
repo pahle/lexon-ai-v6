@@ -22,3 +22,4 @@ over everything else.
 ## Third-party documentation
 
 - [Technology references](docs/references/README.md): official docs and llms.txt per technology; `node scripts/fetch-docs.mjs`
+- [Agent skills](.agents/skills/README.md): vendored vendor skills and their known conflicts with Lexon rules
