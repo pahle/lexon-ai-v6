@@ -24,3 +24,7 @@ Task 1 final checks: root test 1/1; backend typecheck; TS6 fixture compilation a
 ## Task 3 boundaries
 
 47 executable ESLint fixture cases pass, including alias/relative path normalization, type imports, re-exports, dynamic-import bypass rejection, privileged-driver ownership, and exactly one public eval entry. Root and filtered frontend lint execute the fixtures. Root application tests remain 19/19. Fixtures run in a temporary tree with real ESLint10/TypeScript parser; no blanket test-file exemption.
+
+## Task 4 configuration and logging
+
+Runtime-specific config and actual Pino/HTTP logging tests pass (36 tests total). Invalid URL exceptions were caught by the failing privacy test and are now reduced to configuration field names. A failing child-logger test demonstrated Pino child bindings bypass log formatters; a final streamWrite allowlist now removes arbitrary bindings while preserving request IDs. Captured real log JSON excludes all tested credential/content sentinels. Backend build/typecheck and root lint pass.

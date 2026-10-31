@@ -49,3 +49,5 @@ Scaffolds: Nest CLI 12.0.11 (ESM, no Observe) and assistant-ui 0.0.127 default r
 Peer checks: Nest 12 packages agree on ^12; TypeScript ESLint accepts >=4.8.4 <6.1; assistant-ui accepts React 19; adapter accepts ai ^7.0.101; AI SDK React accepts React ^19.2.1. Image pins arrive with Task 5.
 
 Vitest 5.0.5 / Vite 8.3.5 natively emit the decorator metadata from the Nest TypeScript config. The real Nest DI characterization test passes without an added SWC plugin; no unused transformer dependency is retained.
+
+Task 4 exact pins: @nestjs/config 12.0.1; nestjs-pino 5.3.1; pino 10.4.0; pino-http 11.0.0. Official package metadata on 2026-10-31 confirms Nest12 peers and the Pino10/pino-http11 peer pair.

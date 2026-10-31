@@ -1,0 +1,109 @@
+import { expect, it } from 'vitest';
+import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
+
+const base = {
+  DATABASE_APP_URL: 'postgresql://app:secret@localhost/test',
+  VALKEY_QUEUE_URL: 'redis://:secret@localhost:6379/0',
+  VALKEY_STREAMS_URL: 'redis://:secret@localhost:6379/1',
+  VALKEY_LIMITER_URL: 'redis://:secret@localhost:6379/2',
+};
+const storage = {
+  S3_ENDPOINT: 'http://localhost:8333',
+  S3_BUCKET: 'test',
+  S3_ACCESS_KEY: 'key',
+  S3_SECRET_KEY: 'secret',
+  S3_REGION: 'us-east-1',
+};
+
+it('names invalid configuration fields without printing their supplied values', () => {
+  const secret = 'PRIVATE_SENTINEL';
+  try {
+    loadRuntimeConfig('dispatcher', { ...base, DATABASE_APP_URL: secret });
+    expect.unreachable('must reject invalid URL');
+  } catch (error) {
+    expect(String(error)).toContain('DATABASE_APP_URL');
+    expect(String(error)).not.toContain(secret);
+    expect(JSON.stringify(error)).not.toContain(secret);
+  }
+});
+
+it('requires the application database URL', () => {
+  expect(() =>
+    loadRuntimeConfig('dispatcher', { ...base, DATABASE_APP_URL: undefined }),
+  ).toThrow('DATABASE_APP_URL');
+});
+
+it.each(['api', 'document-worker'] as const)(
+  'requires storage only for %s',
+  (runtime) => {
+    expect(() => loadRuntimeConfig(runtime, base)).toThrow('S3_ENDPOINT');
+    expect(
+      loadRuntimeConfig(runtime, { ...base, ...storage }).storage.bucket,
+    ).toBe('test');
+  },
+);
+
+it.each(['dispatcher', 'ai-worker'] as const)(
+  'boots %s without storage or model credentials',
+  (runtime) => {
+    const config = loadRuntimeConfig(runtime, base);
+    expect(config.runtime).toBe(runtime);
+    expect(config.valkey).toEqual({
+      queueUrl: base.VALKEY_QUEUE_URL,
+      streamsUrl: base.VALKEY_STREAMS_URL,
+      limiterUrl: base.VALKEY_LIMITER_URL,
+    });
+    expect(config).not.toHaveProperty('storage');
+  },
+);
+
+it.each(['0', '-1', 'NaN', 'Infinity', '', '1.5'])(
+  'rejects invalid integer timing %j',
+  (value) => {
+    expect(() =>
+      loadRuntimeConfig('dispatcher', {
+        ...base,
+        HEALTH_WRITE_INTERVAL_MS: value,
+      }),
+    ).toThrow('HEALTH_WRITE_INTERVAL_MS');
+  },
+);
+
+it('rejects a staleness budget shorter than the health cycle', () => {
+  expect(() =>
+    loadRuntimeConfig('dispatcher', { ...base, HEALTH_STALE_MS: '6000' }),
+  ).toThrow('HEALTH_STALE_MS');
+});
+
+it('sets explicit bounded defaults and a tmpfs-ready health path', () => {
+  const config = loadRuntimeConfig('dispatcher', base);
+  expect(config.health).toEqual({
+    path: '/run/lexon/health/status.json',
+    writeIntervalMs: 5000,
+    staleMs: 20000,
+    dependencyTimeoutMs: 2000,
+  });
+  expect(config.database).toEqual({
+    appUrl: base.DATABASE_APP_URL,
+    poolMax: 5,
+    statementTimeoutMs: 10000,
+  });
+  expect(config.dispatcher).toEqual({
+    pollMs: 1000,
+    retryBaseMs: 250,
+    retryCapMs: 30000,
+    batchSize: 20,
+    leaseMs: 15000,
+    enqueueTimeoutMs: 2000,
+  });
+});
+
+it('does not validate settings unused by a runtime', () => {
+  expect(
+    loadRuntimeConfig('ai-worker', {
+      ...base,
+      S3_ENDPOINT: 'bad',
+      DISPATCHER_POLL_MS: 'NaN',
+    }).runtime,
+  ).toBe('ai-worker');
+});
