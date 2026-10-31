@@ -5,3 +5,5 @@ export {
   type TenantContext,
 } from './authorization-predicate.js';
 export type { TenantSession } from './tenant-session.js';
+export { OutboxRepository } from './outbox.repository.js';
+export { ProcessedJobsRepository } from './processed-jobs.repository.js';

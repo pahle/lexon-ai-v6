@@ -107,3 +107,16 @@ it('does not validate settings unused by a runtime', () => {
     }).runtime,
   ).toBe('ai-worker');
 });
+
+it('records retention metadata without enabling receipt cleanup', () => {
+  expect(
+    loadRuntimeConfig('ai-worker', base).jobs.receiptRetentionSeconds,
+  ).toBe(2592000);
+  for (const value of ['0', '-1', 'NaN', '1.5'])
+    expect(() =>
+      loadRuntimeConfig('ai-worker', {
+        ...base,
+        JOB_RECEIPT_RETENTION_SECONDS: value,
+      }),
+    ).toThrow('JOB_RECEIPT_RETENTION_SECONDS');
+});

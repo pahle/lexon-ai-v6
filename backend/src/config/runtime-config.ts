@@ -16,6 +16,7 @@ const url = (protocols: string[]) =>
 const common = z.object({
   DATABASE_APP_URL: url(['postgres:', 'postgresql:']),
   DATABASE_POOL_MAX: positive(5),
+  JOB_RECEIPT_RETENTION_SECONDS: positive(2592000),
   DATABASE_STATEMENT_TIMEOUT_MS: positive(10000),
   VALKEY_QUEUE_URL: url(['redis:', 'rediss:']),
   VALKEY_STREAMS_URL: url(['redis:', 'rediss:']),
@@ -71,6 +72,7 @@ function readCommon(env: Record<string, string | undefined>) {
     throw new Error('Invalid configuration: HEALTH_STALE_MS');
   }
   return {
+    jobs: { receiptRetentionSeconds: values.JOB_RECEIPT_RETENTION_SECONDS },
     database: {
       appUrl: values.DATABASE_APP_URL,
       poolMax: values.DATABASE_POOL_MAX,
