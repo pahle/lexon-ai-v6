@@ -8,6 +8,14 @@ Last updated: 2026-10-31 by the brief generator (session 1).
 `docs/briefs/F1-identity-organizations.md`.** The product owner asked to
 pause F1 until the branch rename/handoff work was done (done).
 
+### Housekeeping in flight
+
+- PR #8 (`AGENTS.md` on `main` names `brief-generator`) waits for the product
+  owner to merge.
+- Remote branches `contaminated`, `f0-foundation`, and
+  `claude/focused-shannon-b5cmwe` are obsolete; the product owner deletes
+  them on GitHub (the brief generator's sandbox could not delete refs).
+
 ### Pending questions for the product owner (F1)
 
 Ask these in Indonesian, short; they change F1's content and are not answered
