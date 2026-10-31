@@ -1,6 +1,13 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 
+export class RuntimeConfigurationError extends Error {
+  readonly fields: readonly string[];
+  constructor(fields: readonly string[]) {
+    super(`Invalid configuration: ${fields.join(', ')}`);
+    this.fields = Object.freeze([...fields]);
+  }
+}
 export type RuntimeName =
   'api' | 'ai-worker' | 'document-worker' | 'dispatcher';
 const positive = (fallback: number) =>
@@ -60,7 +67,7 @@ function read<S extends z.ZodType>(
     const fields = [
       ...new Set(result.error.issues.map((issue) => issue.path.join('.'))),
     ];
-    throw new Error(`Invalid configuration: ${fields.join(', ')}`);
+    throw new RuntimeConfigurationError(fields);
   }
   return result.data;
 }
@@ -71,7 +78,7 @@ function readCommon(env: Record<string, string | undefined>) {
     values.HEALTH_STALE_MS <=
     values.HEALTH_WRITE_INTERVAL_MS + values.DEPENDENCY_TIMEOUT_MS
   ) {
-    throw new Error('Invalid configuration: HEALTH_STALE_MS');
+    throw new RuntimeConfigurationError(['HEALTH_STALE_MS']);
   }
   return {
     queuePrefix: values.QUEUE_PREFIX,
@@ -111,9 +118,10 @@ function readDispatcher(env: Record<string, string | undefined>) {
     values.DISPATCHER_RETRY_CAP_MS < values.DISPATCHER_RETRY_BASE_MS ||
     values.DISPATCHER_LEASE_MS <= values.QUEUE_ENQUEUE_TIMEOUT_MS
   )
-    throw new Error(
-      'Invalid configuration: DISPATCHER_RETRY_CAP_MS, DISPATCHER_LEASE_MS',
-    );
+    throw new RuntimeConfigurationError([
+      'DISPATCHER_RETRY_CAP_MS',
+      'DISPATCHER_LEASE_MS',
+    ]);
   return {
     pollMs: values.DISPATCHER_POLL_MS,
     retryBaseMs: values.DISPATCHER_RETRY_BASE_MS,

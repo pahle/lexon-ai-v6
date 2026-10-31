@@ -8,3 +8,8 @@ pnpm-lock.yaml
 
 **/reports/mutation/
 **/.stryker-tmp/
+
+# Source-of-truth inputs retain their authored formatting.
+docs/specs/
+docs/briefs/
+**/next-env.d.ts

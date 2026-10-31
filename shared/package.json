@@ -13,7 +13,7 @@
     "test": "vitest run --config ../vitest.config.ts --project contracts",
     "test:e2e": "node ../scripts/e2e.mjs --package shared",
     "dev": "node ../scripts/dev.mjs --package shared",
-    "format": "prettier --write ."
+    "format": "prettier --write --ignore-path ../.prettierignore ."
   },
   "dependencies": {
     "zod": "4.6.7"

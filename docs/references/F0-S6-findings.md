@@ -1,13 +1,13 @@
 # F0 S6 findings
 
-Status: in progress. No foundation acceptance criterion is complete yet.
+Status: implementation and local validation complete through Task 17. Final CI acceptance is recorded below after the PR checks run.
 
 ## Task 1 toolchain
 
 - Source generators: Nest CLI 12.0.11 ESM and assistant-ui CLI 0.0.127 default.
 - Nest emitted Vitest/Vite configuration with no explicit metadata plugin; characterize this before selecting a transform.
 - Exact dependency versions and peer evidence are recorded in F0-versions.md.
-- Real runtime, database, queue, AI/MCP, storage and topology proofs remain pending.
+- The chronological task sections below record the subsequently completed runtime/database/queue/AI/MCP/storage/topology proofs.
 
 ### Verified result
 
@@ -207,10 +207,10 @@ remains an independent required gate.
 Final measured baseline (4 seconds): **96.77%**, 31 mutants, 30 killed,
 1 survived, 0 no-coverage, 0 timeouts, 0 runtime/compile errors.
 
-| Mutated file | Killed | Survived | Score |
-| --- | ---: | ---: | ---: |
-| infrastructure/db/authorization-predicate.ts | 15 | 1 | 93.75% |
-| modules/platform/job-envelope.ts | 15 | 0 | 100% |
+| Mutated file                                 | Killed | Survived |  Score |
+| -------------------------------------------- | -----: | -------: | -----: |
+| infrastructure/db/authorization-predicate.ts |     15 |        1 | 93.75% |
+| modules/platform/job-envelope.ts             |     15 |        0 |   100% |
 
 The first run scored77.42%; surviving optional-user mutants exposed missing
 assertions in this focused scope. Added strict equality, own-key absence,
@@ -226,3 +226,67 @@ dispatcher/queue/RLS behavior is covered by the real integration/crash suites,
 not claimed as mutation coverage. `job-executor.ts` is excluded because its
 transactional proof would otherwise restart infrastructure per mutant. This
 limitation is the approved Task17 amendment.
+
+## Final acceptance evidence
+
+Read the updated brief and approved decisions again on 2026-10-31. The table
+maps each numbered requirement to executable evidence; chronological sections
+above retain compatibility decisions and concrete failure/fix findings.
+
+| Brief item | Evidence                                                                                     |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| 1          | Four workspace manifests; pnpm recursive and filtered gates                                  |
+| 2          | Exact manifests/lockfile; workspace overrides; one TS6.0.3/Zod4.6.7 resolution               |
+| 3          | Root/filtered build/lint/typecheck/test/E2E; real dev launcher; owned format scripts         |
+| 4          | 53 real ESLint boundary fixtures, invoked by lint; negative alias/path/export controls       |
+| 5          | Browser-safe shared package tests and browser bundle proof (Task2)                           |
+| 6          | 18 shared contract tests; HTTP/browser health and diagnostic contracts                       |
+| 7          | Only platform domain; five infrastructure folders with rule pages                            |
+| 8          | Runtime-composition and compiled child import/listen trace; actual four-target Compose       |
+| 9          | Runtime-config tests plus compiled boot-failure field-name/privacy regression                |
+| 10         | Real serialized Pino HTTP/child-binding privacy tests and request-ID tests                   |
+| 11         | Native Terminus timeouts, file checker/writer failures; API and Compose probes               |
+| 12         | Native Body/schema StandardSchemaValidationPipe HTTP cases and shared form schema            |
+| 13         | AI7/OpenRouter3 v4 construction and Hello world mock, zero fetch; empty reviewed schema      |
+| 14         | MCP2.4 real in-process handler, protocol2026-07-28, list/call/close, zero external fetch     |
+| 15         | Fresh migrated template, role/schema/pg_trgm/ownership/privilege assertions                  |
+| 16         | Db-private bounded pools and statement-timeout rollback/reuse proof                          |
+| 17         | Explicit org/user transaction context, expired session and absent-context assertions         |
+| 18         | Exact NULLIF USING/WITH CHECK + FORCE fixture pattern and db README                          |
+| 19         | Authorization predicate assertions and bounded Stryker baseline                              |
+| 20         | Populated fresh/reused/rollback fail-closed, A/B read/write/delete and auth-role tests       |
+| 21         | Real receipt/effect concurrency/rollback/crash tests; leader/fencing/lease/outage/poll tests |
+| 22         | Native @nestjs/bullmq12/BullMQ6 retries, retention, queue-removal and SIGKILL redelivery     |
+| 23         | Real CONFIG GET plus isolated wrong eviction/AOF/fsync startup rejection/recovery            |
+| 24         | Next16/React19 build, BaseUI/RHF/Query rendering, retained base-nova registry                |
+| 25         | No model/Route Handler/chat UI; built route inventory and /api/chat404; no secret assets     |
+| 26         | Browser same-origin requests and SSR/backend version agreement through actual Compose        |
+| 27         | Empty route groups and compiled no-op proxy                                                  |
+| 28         | Two successful images; four backend Dockerfile targets; pinned manifest; resource checks     |
+| 29         | Actual network inspection and direct-IP egress positive/negative/core controls               |
+| 30         | SeaweedFS binary/range/delete/presign/signature/HEAD/outage contract                         |
+| 31         | Vitest metadata/HTTP/integration, Playwright browser/API, Stryker96.77%, actual eval DI      |
+| 32         | .github/workflows/ci.yml: exact tools, frozen install, package gates, both test layers       |
+| 33         | Root developer flow, migration/rollback/retention guidance and five infrastructure READMEs   |
+
+Final local root run: frozen install, lint, typecheck, build, format check,
+**123/123 Vitest tests (31 files)** and **58/58 Node tooling assertions** pass.
+The previously measured Stryker baseline remains 30/31 killed, one equivalent
+survivor, no uncovered/errors/timeouts. No mutated file changed afterward.
+Package gates and Compose verification are reported with their final run below;
+GitHub CI is a distinct acceptance result and is not inferred from local success.
+
+Known limitations: no F1 authentication/Better Auth proof; no production model
+selection, populated allowlist, AI engine, chat or document processing; no
+external-effect idempotency guarantee; no receipt deletion; bounded health-file
+failure latency; two-file mutation scope; frontend outbound connectivity remains
+the explicit F20 gap. No locked technology revision or compatibility fallback
+was needed. Native Vite metadata replaced the unnecessary planned transformer.
+
+Final package runs: contracts18, backend95, frontend9, evals1 tests pass;
+each package lint/build/typecheck also passes. Final Compose run passes9/9,
+including browser and separate nested-policy recovery. Filtered E2E commands
+passed backend7, frontend1, contracts2 and evals1. Final root build/format and
+frozen lockfile gates pass. Tooling tests total58, including53 lint-boundary
+fixtures and5 rendered-topology/setup/cleanup cases. CI evidence follows the
+review PR; local results are not presented as a GitHub result.

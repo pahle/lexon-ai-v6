@@ -66,3 +66,12 @@ Task 17 pins (2026-10-31): @stryker-mutator/core and vitest-runner 10.1.1;
 runner peers Vitest>=2 and exact matching core. Node24 and Vitest5.0.5 pass
 actual mutation execution with the same Vite transform. No TS checker plugin
 or alternate TypeScript/test runner is installed.
+
+Final CI/tooling verification (2026-10-31): Playwright1.64.1; local Docker29.3.1
+and Compose5.1.1. CI selects ubuntu-24.04 and Node24.22.1/pnpm10.33.1 exactly.
+Official action tag refs were resolved and commit objects verified: checkout v6
+`d23441a48e516b6c34aea4fa41551a30e30af803`, setup-node v6
+`249970729cb0ef3589644e2896645e5dc5ba9c38`, pnpm/action-setup v4
+`b906affcce14559ad1aafd4ab0e942779e9f58b1`, upload-artifact v4
+`ea165f8d65b6e75b540449e92b4886f43607fa02`. These are immutable workflow pins,
+not floating action major tags.

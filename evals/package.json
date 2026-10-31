@@ -13,7 +13,7 @@
     "test": "vitest run --config ../vitest.config.ts --project evals",
     "test:e2e": "node ../scripts/e2e.mjs --package evals",
     "dev": "node ../scripts/dev.mjs --package evals",
-    "format": "prettier --write ."
+    "format": "prettier --write --ignore-path ../.prettierignore ."
   },
   "dependencies": {
     "@lexon/backend": "workspace:*"

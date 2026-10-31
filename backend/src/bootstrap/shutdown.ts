@@ -1,7 +1,10 @@
 import { pathToFileURL } from 'node:url';
 import pino from 'pino';
 import type { INestApplicationContext } from '@nestjs/common';
-import type { RuntimeName } from '../config/runtime-config.js';
+import {
+  RuntimeConfigurationError,
+  type RuntimeName,
+} from '../config/runtime-config.js';
 import { createLoggingOptions } from '../infrastructure/telemetry/index.js';
 export function installShutdown(app: INestApplicationContext): void {
   let stopping = false;
@@ -30,9 +33,12 @@ export async function runEntrypoint(
   if (!process.argv[1] || url !== pathToFileURL(process.argv[1]).href) return;
   try {
     await boot();
-  } catch {
+  } catch (error) {
     pino(createLoggingOptions(runtime).pinoHttp).error({
       event: 'boot_failed',
+      ...(error instanceof RuntimeConfigurationError
+        ? { fields: error.fields }
+        : {}),
     });
     process.exitCode = 1;
   }

@@ -1,79 +1,155 @@
 # Lexon
 
-English-language legal AI workspace. The repository is being built slice by slice from `docs/`.
+Lexon is an English-language legal AI workspace, built slice by slice from
+`docs/`. F0 provides the foundation and developer checks; it has no application
+users, authentication, chat, or document pipeline yet.
 
-## Foundation development (in progress)
+## Start locally
 
-Prerequisites: Node 24.22.1, pnpm 10.33.1, and a running Docker Engine. Install with `pnpm install --frozen-lockfile`. Application startup and full Compose E2E are introduced later in F0; their scripts are not yet usable.
+Use Node **24.22.1**, pnpm **10.33.1**, and Docker Engine with Compose. A Docker
+Desktop installation or Linux Docker daemon works; allow roughly 4GB of memory
+for the development stack plus image builds. Run:
 
-`pnpm test` starts one private Postgres/Valkey/SeaweedFS test stack. Each integration file owns a fresh database cloned from a migrated template, Valkey prefix, and S3 bucket. The default has no pre-started-stack requirement and destroys its owned resources at teardown. `pnpm --filter @lexon/backend test` runs backend unit and integration projects. `pnpm test:unit` runs unit/contract projects without containers. Integration parallelism is capped at two files; image pulls/startup are outside the unit-suite speed target.
+```sh
+pnpm install --frozen-lockfile
+cp .env.example .env
+```
 
-Optional local speed-up: `LEXON_TEST_REUSE=1 pnpm test` retains reusable test containers but still creates fresh migrated templates and per-file resources. Its local credential is generated in ignored `.cache/` with restrictive file permissions. Never enable reuse in CI; the runner rejects it. Stop retained test containers through Docker when finished. No test cleanup flushes all Valkey keys or drops a database outside its generated namespace.
+Replace every `REPLACE_ME` in `.env` with independently generated local values.
+For each password/access key, `node -e
+"console.log(require('node:crypto').randomBytes(24).toString('hex'))"` produces a
+suitable value. Keep `.env` private. The launcher derives database/Valkey URLs
+from the individual secret fields, overriding the example URLs. It writes the
+SeaweedFS credential config only to ignored `.cache/compose-development/` with
+restricted permissions. No model key is needed.
 
-Container pins live only in `config/container-images.env`, as exact tags and digests. Testcontainers reads this file; the Compose task uses the same manifest.
+```sh
+pnpm dev
+```
 
-Migration bootstrap connects with an administrative identity only to provision the non-superuser migrator login and database. Versioned SQL migrations then run as `lexon_migrator`, which owns `app`, `auth`, and `ops`. `lexon_app` and `lexon_auth` are created by those migrations; their passwords come from secret runtime inputs, never committed SQL. Runtime processes must never receive administrative or migrator credentials. `backend/drizzle.config.ts` describes the Drizzle Kit migration location; do not run schema push against deployed databases.
-
-The backend now has independent API, AI-worker, document-worker and dispatcher
-roots. After building shared/backend, their commands are respectively
-`node backend/dist/entrypoints/api/main.js`,
-`node backend/dist/entrypoints/ai-worker/main.js`,
-`node backend/dist/entrypoints/document-worker/main.js`, and
-`node backend/dist/entrypoints/dispatcher/main.js`. Boot validates only the
-selected role's settings. API serves `/api/health`, `/api/health/live`, and the
-shared-schema diagnostic POST `/api/diagnostics/validation`. Workers expose
-health through the exec checker and a writable health-file path.
-
-All test entrypoints build the package exports they exercise. Integration
-global setup also compiles child-process fixtures before starting its single
-infrastructure set. `evals` consumes only `@lexon/backend/evaluation`; its F0
-context boots actual Nest DI without HTTP, infrastructure or model credentials.
-Compose startup and E2E commands are completed in their later plan tasks.
-
-For the development Compose stack, copy `.env.example` to `.env` and replace
-all `REPLACE_ME` values with independently generated local secrets. The launcher
-derives database/Valkey URLs from those secrets and writes SeaweedFS credentials
-to ignored `.cache/compose-development/s3.json` with restricted permissions.
-Run `pnpm dev`; it supplies the shared pinned-image manifest explicitly, builds
-images, bootstraps the database, runs migrations and creates the S3 bucket before
-starting dependent runtimes. Visit http://localhost:3000 and
+This one command builds the images, starts the data services, bootstraps the
+database, runs migrations, creates the S3 bucket, and starts the four backend
+roots and frontend. Visit http://localhost:3000 and
 http://localhost:3001/api/health. No data service publishes a host port.
+Ctrl-C stops the attached services and retains development data volumes.
+`pnpm dev -- --detach --wait` starts in the background. Stop the `lexon-dev` project in Docker Desktop to retain its data. No command
+prunes Docker resources.
 
-`pnpm --filter @lexon/frontend dev` selects the frontend and its dependencies;
-`pnpm --filter @lexon/backend dev` selects the API by default. Set
-`LEXON_RUNTIME=ai-worker`, `document-worker` or `dispatcher` to select that root.
-Ctrl-C stops attached development containers; persistent volumes are retained.
-No command prunes unrelated Docker resources. `pnpm test:e2e -- --project
-runtime-health` creates a uniquely named stack with temporary random secrets and
-host ports, then removes only its own containers/networks/volumes on completion.
-Integration tests continue to run independently through `pnpm test`.
+`pnpm --filter @lexon/frontend dev` selects frontend plus its dependencies.
+`pnpm --filter @lexon/backend dev` selects the API. Set
+`LEXON_RUNTIME=ai-worker`, `document-worker`, or `dispatcher` to select a
+standalone backend root. Shared/evals development selects the API proof.
+Frontend browser requests use `/api`; Next forwards to `BACKEND_INTERNAL_URL`.
+Server rendering uses the internal API URL with a deadline, and builds require
+no running backend.
 
-Development resource limits: Postgres 384MiB/0.75 CPU, Valkey128MiB/0.25CPU
-(with a 96MiB key budget), SeaweedFS256MiB/0.5CPU, each backend384MiB/0.5CPU,
-frontend256MiB/0.5CPU. Setup jobs have the same bounded backend limits and exit.
-These are development budgets; production calibration belongs to later slices.
-Backend roots run as non-root with read-only filesystems and writable tmpfs for
-health and temporary files. Frontend remains off core and secret-free; outbound
-connectivity on the non-internal development edge is the recorded F0 gap, with
-frontend no-egress enforcement deferred to F20.
+## Checks
 
-E2E project filters are `runtime-health`, `backend-api`, `frontend-browser`,
-`topology`, and `evaluation-smoke`. `pnpm --filter @lexon/backend test:e2e`
-runs runtime/API/topology checks; frontend runs the browser project; contracts
-runs the shared API contract project; evals runs the image's public evaluation
-context proof. All launch their own real stack, including when filtered.
+```sh
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm test:e2e
+pnpm format:check
+```
 
-The topology test uses a fixed-response endpoint on egress and a direct-IP
-TCP attempt. API reachability is the positive control before document-worker
-failure is accepted; core services must remain reachable from that worker.
-Wrong Valkey policy/AOF/fsync cases run serially in a separate nested project,
-then correct settings recover. These tests never reconfigure the integration
-bed or an existing development project. Startup interruption and failure both
-tear down the owned E2E project and remove its private credential directory.
+Each workspace also supports `lint`, `typecheck`, `build`, `test`, `test:e2e`,
+and `format` through `pnpm --filter @lexon/<package>`. Build `contracts` before
+backend/frontend, and backend before evals. Vitest test commands prepare the
+built package exports automatically. Formatting skips vendored skills,
+generated outputs, and source specification/brief inputs.
 
-Run `pnpm --filter @lexon/backend test:mutation` for the recorded Stryker
-baseline. It mutates authorization-predicate and job-envelope validation only,
-using normal assertions and the same Vitest transform. HTML/JSON reports are
-written to `backend/reports/mutation/`. F0 sets no threshold and does not claim
-transactional mutation coverage; real RLS/receipt/crash integration tests cover
-that behavior separately. See the S6 findings for counts and limitations.
+`pnpm test` runs unit/contracts and real integration tests independently of any
+running stack. Vitest global setup starts one Postgres, Valkey and SeaweedFS set
+per integration run, migrates a template, then isolates each file with a cloned
+database, a Valkey prefix and an S3 bucket. Parallel integration files are capped
+at two. Teardown removes owned resources only; it never flushes shared keys.
+`pnpm test:unit` excludes integration containers. The backend filtered `test`
+command includes its unit and integration projects.
+
+Optional local reuse: `LEXON_TEST_REUSE=1 pnpm test` retains reusable containers,
+while still creating new templates and file resources. Its ignored local
+credential has restricted permissions. Reuse is never the default and is
+rejected in CI. Stop retained test containers by their IDs when finished.
+
+`pnpm test:e2e` starts a unique Compose project with random temporary secrets
+and host ports, runs Playwright, then removes that project's containers,
+networks, volumes and private files, including on startup failure/interruption.
+Install the exact runner's browser first: `pnpm exec playwright install chromium`
+(on Linux, add `--with-deps`). Project filters are:
+
+| Project            | Proof                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `runtime-health`   | Four runtime/data health checks and host access                                                |
+| `backend-api`      | Shared health/validation contracts and built eval export                                       |
+| `frontend-browser` | SSR/browser version, same-origin query and validation                                          |
+| `topology`         | Network memberships, document-worker no-egress, secret scope, Valkey policy rejection/recovery |
+| `evaluation-smoke` | Public evaluation context in the built backend image                                           |
+
+For example, `pnpm test:e2e -- --project runtime-health`. Filtered backend E2E
+runs runtime/API/topology; frontend runs browser; contracts runs backend API;
+evals runs evaluation smoke. Wrong-Valkey tests use a separate nested project,
+never an integration container or developer stack. The direct-IP no-egress
+probe has a successful API control and verifies permitted core connectivity.
+
+Run `pnpm --filter @lexon/backend test:mutation` for the Stryker baseline.
+It covers authorization-predicate and job-envelope validation only, with normal
+Vitest assertions. Reports are regenerated under `backend/reports/mutation/`.
+F0 sets no threshold. Transaction/receipt/crash coverage comes from the real
+integration tests; the accepted mutation scope does not include that behavior.
+See [S6 findings](docs/references/F0-S6-findings.md) for measured counts.
+
+## Database changes
+
+Bootstrap uses an administrator only to create the non-superuser migrator and
+database. Versioned SQL runs as `lexon_migrator`, owner of `app`, `auth`, and
+`ops`; it creates the application/auth roles and grants. Passwords arrive through
+setup-only inputs. Runtime containers receive only the application URL.
+No frontend database role exists.
+
+For a new migration, add the Drizzle schema under the db infrastructure folder,
+generate/review SQL with `pnpm --filter @lexon/backend exec drizzle-kit generate`,
+and commit the SQL plus migration metadata. Test it against a newly migrated
+template using `pnpm --filter @lexon/backend test`. Apply it through the same
+migration setup job; never schema-push a deployed database. Use a forward
+corrective migration for defects. Destructive rollback requires an explicit
+backup/restore decision; F0 supplies no automatic down-migration or production
+backup system. Updating role secrets on an existing volume requires a deliberate
+credential rotation; changing `.env` is not an administrative password reset.
+
+All tenant access uses `withTenant(ctx, fn)` and the central authorization
+predicate. Jobs use a processed-job receipt and the handler's database effect
+in that same transaction: at-least-once delivery, effectively-once PostgreSQL
+effects. Receipt retention metadata defaults to 30 days, but F0 never deletes
+receipts. Later cleanup must exceed every redelivery window. External API
+effects need their own idempotency design.
+
+## Runtime boundaries
+
+The backend API, AI worker, document worker and dispatcher have independent
+entrypoints under `backend/src/entrypoints/`. Workers bind no HTTP port. Health
+files live on writable tmpfs and are read by the compiled checker; liveness and
+readiness are separate. The document worker loads no AI infrastructure.
+Evals imports only `@lexon/backend/evaluation`, which boots an actual standalone
+Nest context without F0 infrastructure/model secrets.
+
+Container pins are literal exact tags/digests in
+`config/container-images.env`, shared by Compose and Testcontainers. Development
+limits are Postgres384MiB/0.75CPU, Valkey128MiB/0.25CPU (96MiB key budget),
+SeaweedFS256MiB/0.5CPU, each backend384MiB/0.5CPU and frontend256MiB/0.5CPU.
+Backend roots run non-root with read-only filesystems and health/temp tmpfs.
+Production sizing is later work.
+
+The frontend is edge-only and receives no infrastructure secrets. **Known F0
+gap:** its non-internal development edge permits outbound connectivity to
+preserve host access. Frontend no-egress/Caddy/firewall enforcement belongs to
+F20. Authentication is F1, workspace design F2, AI execution F3, chat F4,
+processing/encryption F7, add-in F19, production operations F20.
+
+Each infrastructure folder has its own rule page:
+[db](backend/src/infrastructure/db/README.md),
+[queue](backend/src/infrastructure/queue/README.md),
+[storage](backend/src/infrastructure/storage/README.md),
+[AI](backend/src/infrastructure/ai/README.md), and
+[telemetry](backend/src/infrastructure/telemetry/README.md).

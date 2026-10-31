@@ -13,7 +13,7 @@
     "test": "vitest run --config ../vitest.config.ts --project backend-unit --project backend-integration",
     "test:e2e": "node ../scripts/e2e.mjs --package backend",
     "dev": "node ../scripts/dev.mjs --package backend",
-    "format": "prettier --write .",
+    "format": "prettier --write --ignore-path ../.prettierignore .",
     "test:fixtures:build": "tsc -p test/process/tsconfig.json",
     "test:mutation": "stryker run stryker.config.mjs"
   },

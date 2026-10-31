@@ -37,18 +37,16 @@ it('shows loading then backend version through a same-origin query', async () =>
   }
 });
 it('renders unavailable status safely', async () => {
-  const network = vi
-    .spyOn(globalThis, 'fetch')
-    .mockResolvedValue(
-      Response.json(
-        {
-          status: 'unavailable',
-          version: '0.0.1',
-          dependencies: { postgres: 'down' },
-        },
-        { status: 503 },
-      ),
-    );
+  const network = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    Response.json(
+      {
+        status: 'unavailable',
+        version: '0.0.1',
+        dependencies: { postgres: 'down' },
+      },
+      { status: 503 },
+    ),
+  );
   const view = await render(
     <QueryProvider>
       <HealthStatus />

@@ -13,7 +13,7 @@
     "test": "vitest run --config ../vitest.config.ts --project frontend",
     "test:e2e": "node ../scripts/e2e.mjs --package frontend",
     "dev": "node ../scripts/dev.mjs --package frontend",
-    "format": "prettier --write ."
+    "format": "prettier --write --ignore-path ../.prettierignore ."
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.163",
