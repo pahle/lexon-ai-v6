@@ -11,6 +11,8 @@ import type {
 } from '@better-auth/core/db/adapter';
 import type { BetterAuthOptions } from 'better-auth';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { sql } from 'drizzle-orm';
+import { bindAuthAudit, endAuthAudit } from './auth-functions.js';
 import * as schema from './auth-schema.js';
 import type { AuthCommandSession, LexonServerApi } from './auth-types.js';
 
@@ -116,10 +118,18 @@ export function createAuthTransactions(database: Database) {
             return result;
           },
         }) as AuthCommandSession;
+        bindAuthAudit(session, async (event) => {
+          if (!active || !state.active || scope.getStore() !== state)
+            throw new Error('Auth command session expired');
+          await state.database.execute(
+            sql`SELECT auth.lexon_append_audit(${JSON.stringify(event)}::jsonb)`,
+          );
+        });
         try {
           return await work(session);
         } finally {
           active = false;
+          endAuthAudit(session);
         }
       }),
     );
