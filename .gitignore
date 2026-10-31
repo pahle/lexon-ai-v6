@@ -1,2 +1,3 @@
 # Fetched documentation (scripts/fetch-docs.mjs)
 .cache/
+.DS_Store
