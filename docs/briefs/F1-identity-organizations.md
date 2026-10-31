@@ -169,7 +169,9 @@ tenant selection right here matters more than UI polish (F2 owns the shell).
       sessions whose active organization was that one (they fall back to
       personal).
     - Content handover and archival on departure are **F18** (no content
-      exists yet). F1 emits the departure event that F18 builds on.
+      exists yet). F1 records the departure only as an ID-only audit
+      event (`ops.audit_events`); F18 designs its own handover mechanism.
+      F1 adds no outbox or dispatcher changes for it.
 15. Organization settings basics: rename, slug, "require 2FA for members"
     toggle (owner only). The org-level "project access by role" option from
     LEX-ARC-001 §3.2 belongs to F6.
