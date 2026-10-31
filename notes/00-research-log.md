@@ -54,3 +54,11 @@ Lexon's stack comes only from LEX-TS-001.
   standing in the chat; untrusted content is fenced with a per-turn nonce;
   memory is injected as an untrusted reference turn and its policy depends on
   whether the conversation is shared.
+
+## F0 brainstorming feedback (2026-10-31)
+
+- Codex (superpowers brainstorming, research-first) caught that the F0 brief
+  promised "exactly once" while BullMQ dedups job ids only while the job is
+  retained. Brief corrected (PR #3): at-least-once delivery + effectively-once
+  effects via a Postgres processed-job receipt written in the effect's
+  transaction. Lesson for future briefs: state delivery guarantees precisely.
