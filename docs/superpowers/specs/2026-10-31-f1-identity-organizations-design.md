@@ -1,6 +1,6 @@
 # F1 — Identity and Organizations design
 
-Status: proposed for product-owner approval; builder check completed.
+Status: approved by the product owner, including the amendments below; builder check completed.
 Date: 2026-10-31.
 Branch: `f1-identity-organizations`; do not commit to `main`.
 Input: [F1 brief](../../briefs/F1-identity-organizations.md), including the
@@ -85,9 +85,13 @@ Required constraints on the selected approach:
    verified email and enrolled 2FA. It refuses if an administrator already exists
    unless `--additional` is explicit, is idempotent while pending, and audits
    every invocation. No bootstrap web endpoint or environment allowlist.
+9. Departure is recorded only as an ID-only audit event in `ops.audit_events`,
+   in the membership-change transaction. No departure rows in `ops.outbox`,
+   outbox dispatch metadata, dispatcher changes, or auth-role outbox writer.
+   F18 designs its own handover mechanism (brief PR #14).
 
 The repository already includes the brief corrections through PRs #10, #11,
-and #13 and the Mailpit stack addition in PR #12. Session and audit decisions
+and #13–#14 and the Mailpit stack addition in PR #12. Session and audit decisions
 above are authoritative conversation amendments where the brief remains terse.
 
 ## Architecture and storage boundary
@@ -126,7 +130,7 @@ checks enforce required values independently of JavaScript defaults.
 
 | Record       | Lexon extension and purpose                                                                                                                                                       |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization | `kind: personal                                                                                                                                                                   | team`, `state: provisioning | active`, `require2fa`; an immutable personal-owner user reference for uniqueness/protection |
+| Organization | `kind: personal \| team`, `state: provisioning \| active`, `require2fa`; an immutable personal-owner user reference for uniqueness/protection                                     |
 | Invitation   | Accepted-recipient user ID, purpose (`team` or `first_owner`), and lifecycle metadata needed for recipient binding and resend/replacement                                         |
 | Session      | Channel (`cookie` or `bearer`), immutable hard-expiry for Bearer, server-owned authentication/reauthentication evidence, and optional pending organization selection              |
 | User         | Onboarding completion and pending administrator activation, where cleanly represented as server-owned fields; the Admin plugin remains the authority for active platform role/ban |
@@ -428,21 +432,14 @@ verified enrollment, recheck membership/state/policy and switch. A normal switch
 to such a team similarly keeps the old active organization until requirements
 are met. No target content can be read in the meantime.
 
-Departure removes membership and durably records a versioned ID-only
-`organization.member_departed.v1` event in the same transaction, together with
-its audit event. Its immutable envelope carries event ID, organization ID,
-departing user ID, actor ID, membership ID, time, and a fixed leave/remove reason.
-Use a narrow migrator-owned function/trigger to insert into F0's outbox without
-granting the auth role table access to `ops`.
-
-Design decision: distinguish ordinary jobs from deferred domain events with
-explicit outbox dispatch metadata, defaulting existing rows to ordinary jobs.
-F0's job dispatcher claims only ordinary jobs. F1 departure events are retained
-as deferred events, excluded from job parsing, queue publication, retry churn,
-and cleanup. No fake noop handler acknowledges them. F18 will add their consumer
-and replay/retention policy. Tests prove event insertion rolls back with failed
-departure and the existing dispatcher leaves it intact. Future actual jobs keep
-F0's processed-job receipt mechanism; this reservation does not add a runtime.
+Departure removes membership and writes only the ID-only
+`organization.member_departed.v1` audit event to `ops.audit_events` in the same
+transaction. The record identifies the organization, departing user, actor,
+and membership, with a timestamp and fixed leave/remove reason under the audit
+field rules. A rollback leaves neither a successful departure nor its audit.
+F1 writes no departure rows to `ops.outbox`, adds no dispatch metadata, changes
+no dispatcher behavior, and creates no auth-role function that writes to the
+outbox. F18 designs its own handover mechanism.
 
 ## Operator administrator setup
 
@@ -674,15 +671,16 @@ when planning; do not claim the F0 limited mutation result covers F1 security.
 
 ## Builder decisions and review checkpoints
 
-The following are design proposals rather than product-owner quotations:
+The following design decisions were proposed by the agent and accepted by the
+product owner with design approval:
 additional fields instead of separate organization settings; seven-day browser
 session/one-day refresh/five-minute reauth defaults; 24-hour setup link; no trusted
 device bypass; token-free web session API; enrollment-required acceptance keeps
 the old active organization until requirements are met; tracked email delivery
 with resend recovery; internal server-plugin commands for semantics missing from
-stock server APIs; cookie-only Bearer issuance; ordinary access preserved during
-pending admin setup; and deferred departure-event storage excluded from job
-dispatch. Review these alongside the product requirements.
+stock server APIs; cookie-only Bearer issuance; and ordinary access preserved
+during pending admin setup. Durations remain boot-validated configuration values,
+not hard-coded policy. Departure uses audit only, as amended by the product owner.
 
 The builder chooses final class/file names, safe pagination limits, endpoint
 nouns for Lexon controllers, template wording consistent with English/accessibility,
