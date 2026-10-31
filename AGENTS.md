@@ -18,12 +18,12 @@ Changing a technology choice requires an explicit revision of LEX-TS-001.
 
 ## Clean-room rule (mandatory)
 
-- **Never read, search, list, or open anything under `contaminated/`.** It holds
-  research notes about a third-party AGPL-3.0 reference product. Implementation
-  work must be derived only from `docs/`.
-- Never fetch, clone, or browse the reference product's source code.
-- If a brief seems to be missing information, ask the human; do not look for it
-  in `contaminated/` or elsewhere.
+- Work only from `docs/`. Never fetch, clone, browse, or search for the source
+  code of any third-party legal AI product, and never check out the
+  `contaminated` branch of this repository (it holds clean-room research about
+  an AGPL-3.0 reference product and is never merged into `main`).
+- If a brief seems to be missing information, ask the human; do not look for
+  it elsewhere.
 
 ## Research first (mandatory, every slice)
 
