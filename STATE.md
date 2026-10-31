@@ -34,6 +34,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   and MCP actions need their own idempotency or reconciliation.
 - **F3:** `evals/` reaches the backend only via `@lexon/backend/evaluation`;
   F3 extends that entry to expose the real engine.
+- **F17:** `ops.audit_events` has no tenant RLS; org-scoped audit views must filter through the authorization predicate builder.
 - **F20:** frontend no-egress is not enforced in dev Compose (edge must stay
   non-internal for host ports); enforce with Caddy + host firewall and test it.
 - **F18/ops:** processed-job receipts are never deleted in F0; cleanup must
@@ -63,6 +64,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F1: both sign-up paths (open + invitation) with an invitation-only switch;
   multiple organizations per user with a server-side active organization and
   a hidden personal organization; no Google/Microsoft/SSO login in the MVP.
+- F1 brainstorming answers: platform-created orgs start `provisioning` (PR #10); invitation re-acceptance idempotent only while still a member (PR #11); Bearer = separate short session class, 15 min hard expiry, F19 owns renewal; audit store `ops.audit_events` with a narrow SECURITY DEFINER writer for `lexon_auth`, HMAC for unknown emails; Mailpit approved as dev-only (PR #12).
 - Better Auth skills (5, upstream has no license file) vendored by product-owner decision; `karpathy-guidelines` (MIT) vendored for all slices (PR #9).
 
 ## Lessons learned (apply to every brief)
