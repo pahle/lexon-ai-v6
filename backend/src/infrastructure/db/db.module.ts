@@ -9,7 +9,12 @@ export class DbModule {
     return {
       module: DbModule,
       providers: [
-        OutboxRepository,
+        {
+          provide: OutboxRepository,
+          inject: [TenantDatabase],
+          useFactory: (database: TenantDatabase) =>
+            new OutboxRepository(database),
+        },
         ProcessedJobsRepository,
         {
           provide: TenantDatabase,

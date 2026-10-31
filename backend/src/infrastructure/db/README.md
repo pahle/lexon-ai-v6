@@ -31,3 +31,17 @@ positive integer. It is retention metadata only: F0 never deletes receipts.
 A later cleanup implementation must retain receipts beyond every configured
 maximum redelivery window, including stalled jobs, retries and operational
 replay. Changing this value alone must never remove a receipt.
+
+The dispatcher owns a dedicated `lexon_app` session for the database-scoped
+advisory key `(1279613007, 0)` and `LISTEN lexon_outbox`. It commits LISTEN
+before the first scan and polls even if a notification is missed. A failed
+connection immediately drops cached leadership; a new session must acquire
+the lock before work resumes. Standby never claims work.
+
+Claims use a single short autocommit CTE with `FOR UPDATE SKIP LOCKED`. Each
+row gets a fresh UUID token, an expiry and an incremented attempt count before
+enqueue starts. No transaction stays open during queue I/O. Completion and
+rescheduling require the current, unexpired token. Lost leadership, shutdown,
+uncertain enqueue outcomes and crashes leave a recoverable lease. Invalid
+metadata stays unsent with capped backoff and a fixed `invalid_job` code;
+queue failures use only `enqueue_failed`. No payload or exception is stored.

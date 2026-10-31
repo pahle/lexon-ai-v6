@@ -15,6 +15,13 @@
       "when": 1793404800001,
       "tag": "0001_outbox_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793404800002,
+      "tag": "0002_outbox_claims",
+      "breakpoints": true
     }
   ]
 }

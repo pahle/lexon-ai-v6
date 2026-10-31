@@ -16,6 +16,10 @@ export const outbox = ops.table('outbox', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  claimToken: uuid('claim_token'),
+  claimExpiresAt: timestamp('claim_expires_at', { withTimezone: true }),
+  lastErrorCode: text('last_error_code'),
   sentAt: timestamp('sent_at', { withTimezone: true }),
   attempts: integer().default(0).notNull(),
   nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true })

@@ -7,3 +7,5 @@ export {
 export type { TenantSession } from './tenant-session.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';
+export { DispatcherSession } from './dispatcher-session.js';
+export type { ClaimedOutbox } from './outbox.repository.js';
