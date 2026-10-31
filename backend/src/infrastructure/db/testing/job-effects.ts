@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import type { TenantJobHandler } from '../../../modules/platform/index.js';
+import type { TenantJobHandler } from '../job-envelope.js';
 import { requireSession } from '../tenant-session.js';
 interface Services {
   migratorUrl: string;

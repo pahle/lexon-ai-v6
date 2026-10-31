@@ -3,18 +3,23 @@ import { Module, type INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { BullModule, Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
-import {
-  JobExecutor,
-  type TenantJobHandler,
-} from '../../modules/platform/index.js';
+import type { JobEnvelope, TenantJobHandler } from '../db/index.js';
 import { QUEUE_NAME, type QueueOptions } from './queue-producer.js';
+
+/** Runs one delivered job; implemented by the platform module's JobExecutor. */
+export interface JobRunner {
+  execute(
+    job: JobEnvelope,
+    handler: TenantJobHandler,
+  ): Promise<'processed' | 'duplicate'>;
+}
 
 export class QueueConsumer {
   #app: INestApplicationContext | undefined;
   #busySince: number | undefined;
   constructor(
     private readonly options: QueueOptions,
-    private readonly executor: JobExecutor,
+    private readonly executor: JobRunner,
     private readonly timing: {
       lockDuration: number;
       stalledInterval: number;

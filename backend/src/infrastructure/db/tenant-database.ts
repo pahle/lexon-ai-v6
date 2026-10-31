@@ -38,6 +38,9 @@ export class TenantDatabase {
     const context = validateTenantContext(ctx);
     const client = await this.#pool.connect();
     let session: TenantSession | undefined;
+    // A connection whose ROLLBACK failed may still hold an open transaction
+    // and this tenant's context, so it is destroyed instead of reused.
+    let releaseError: Error | undefined;
     try {
       await client.query('BEGIN');
       await client.query(
@@ -50,11 +53,13 @@ export class TenantDatabase {
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => undefined);
+      await client.query('ROLLBACK').catch(() => {
+        releaseError = new Error('Rollback failed');
+      });
       throw error;
     } finally {
       if (session) endSession(session);
-      client.release();
+      client.release(releaseError);
     }
   }
 

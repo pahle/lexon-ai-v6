@@ -183,6 +183,13 @@ export function classifyImport({
     ].includes(target)
   )
     return deny('ai-public');
+  // Infrastructure adapters never depend on domain modules (dependencies point
+  // from domain to infrastructure, LEX-ARC-001 §3.1).
+  if (
+    source.startsWith('backend/src/infrastructure/') &&
+    target?.startsWith('backend/src/modules/')
+  )
+    return deny('infrastructure-domain');
   const domain = source.match(/^backend\/src\/modules\/([^/]+)\//)?.[1];
   const targetDomain = target?.match(/^backend\/src\/modules\/([^/]+)\/(.*)$/);
   if (

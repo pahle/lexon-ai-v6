@@ -4,7 +4,7 @@ export default {
   vitest: { configFile: 'vitest.mutation.config.ts', related: false },
   mutate: [
     'src/infrastructure/db/authorization-predicate.ts',
-    'src/modules/platform/job-envelope.ts',
+    'src/infrastructure/db/job-envelope.ts',
   ],
   reporters: ['clear-text', 'html', 'json'],
   concurrency: 2,

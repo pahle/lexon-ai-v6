@@ -8,4 +8,9 @@ export type { TenantSession } from './tenant-session.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
+export {
+  parseJobEnvelope,
+  type JobEnvelope,
+  type TenantJobHandler,
+} from './job-envelope.js';
 export type { ClaimedOutbox } from './outbox.repository.js';
