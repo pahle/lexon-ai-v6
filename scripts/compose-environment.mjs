@@ -1,4 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { parseEnv } from 'node:util';
 import { join } from 'node:path';
 import { readContainerImages } from './container-images.mjs';
@@ -53,23 +54,29 @@ export async function composeEnvironment(input, directory) {
     env[`VALKEY_${kind}_URL`] = redis.href;
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const configPath = join(directory, 's3.json');
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      identities: [
-        {
-          name: 'lexon',
-          credentials: [
-            { accessKey: env.S3_ACCESS_KEY, secretKey: env.S3_SECRET_KEY },
-          ],
-          actions: ['Admin', 'Read', 'Write', 'List', 'Tagging'],
-        },
-      ],
-    }),
-    // The private parent directory protects host access. The read-only file
-    // mount must remain readable after the image drops to its seaweed user.
-    { mode: 0o444 },
-  );
+  const temporary = join(directory, `s3-${randomUUID()}.tmp`);
+  try {
+    await writeFile(
+      temporary,
+      JSON.stringify({
+        identities: [
+          {
+            name: 'lexon',
+            credentials: [
+              { accessKey: env.S3_ACCESS_KEY, secretKey: env.S3_SECRET_KEY },
+            ],
+            actions: ['Admin', 'Read', 'Write', 'List', 'Tagging'],
+          },
+        ],
+      }),
+      // The private parent directory protects host access. The read-only file
+      // mount must remain readable after the image drops to its seaweed user.
+      { mode: 0o444 },
+    );
+    await rename(temporary, configPath);
+  } finally {
+    await rm(temporary, { force: true });
+  }
   env.S3_CONFIG_PATH = configPath;
   return env;
 }

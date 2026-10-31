@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { composeEnvironment } from '../compose-environment.mjs';
@@ -19,9 +19,11 @@ test('SeaweedFS credentials remain host-private and readable after privilege dro
         'S3_BUCKET',
       ].map((key) => [key, 'test-value']),
     );
+    await writeFile(join(directory, 's3.json'), '{}', { mode: 0o600 });
     const env = await composeEnvironment(input, directory);
     assert.equal((await stat(directory)).mode & 0o777, 0o700);
     assert.equal((await stat(env.S3_CONFIG_PATH)).mode & 0o777, 0o444);
+    await composeEnvironment(input, directory);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
