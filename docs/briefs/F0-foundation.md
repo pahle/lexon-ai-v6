@@ -157,6 +157,17 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     - It enqueues to BullMQ with **job id = outbox id**.
     - It retries with backoff when Valkey is unavailable. The row stays in
       the outbox, so nothing is lost.
+    - **Delivery semantics: at-least-once delivery, effectively-once
+      effects.** BullMQ's job-id deduplication only holds while the earlier
+      job is still stored, and a worker can crash after doing its work but
+      before acknowledging it. Neither the job id nor BullMQ is the guarantee.
+      The guarantee comes from a durable **processed-job receipt** in
+      PostgreSQL (in `ops`), keyed by the outbox id. A handler writes the
+      receipt **in the same transaction as its effect**. A redelivered job
+      whose receipt already exists commits nothing new and acknowledges.
+      Every later job type (F3 onward) uses this same mechanism.
+    - Receipts are kept longer than the longest possible redelivery window
+      (configurable); their cleanup is a later operational task.
     - F0 proves this with a no-op job type. The domain job types come with
       their slices.
 
@@ -168,9 +179,14 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
     - Queue names follow LEX-ARC-001 §5.3. F0 creates them only if they are
       needed by tests.
     - Producers are in `api` and `dispatcher`; processors are in workers only.
-    - Tests: a job is processed; a failure is retried with backoff; enqueuing
-      the same job id twice processes it once; `removeOnComplete` and
-      `removeOnFail` are set.
+    - Tests:
+      - a job is processed;
+      - a failure is retried with backoff;
+      - `removeOnComplete` and `removeOnFail` are set;
+      - the same outbox entry delivered twice produces its effect once, even
+        after the first job was removed from Valkey;
+      - a worker that commits its effect and then crashes before
+        acknowledging produces no second effect when the job is redelivered.
 23. Valkey 9.0.x (≥ 9.0.6) in Compose with `maxmemory-policy noeviction`,
     AOF `everysec`, a password, and internal networking. A test asserts the
     eviction policy at startup, and the `api` refuses to become ready if the
@@ -272,7 +288,8 @@ F0 is the implementation of spike **S6** (LEX-ARC-001 §10), except S6(b)
 3. **Missing config:** removing a required variable makes the runtime exit at
    boot and name the variable, without printing values.
 4. **Valkey down:** the dispatcher keeps outbox rows and retries. When Valkey
-   returns, the queued no-op jobs are processed exactly once.
+   returns, every queued no-op job is delivered at least once, and its effect
+   (a test row) exists exactly once.
 5. **Two dispatchers:** only one claims work; the other waits on the lock.
 
 ## Data and contracts
@@ -357,8 +374,10 @@ RLS; use `docs/references/` for those.
       the cross-tenant read, write, and delete tests pass.
 - [ ] `lexon_app` has no `BYPASSRLS`, owns no table, and cannot read `auth`
       secret columns (tested).
-- [ ] Outbox → BullMQ: idempotent job id, retry with backoff, no loss while
-      Valkey is down, single active dispatcher (tested).
+- [ ] Outbox → BullMQ: at-least-once delivery with effectively-once effects
+      through the processed-job receipt (including crash-before-ack and
+      redelivery after job removal), retry with backoff, no loss while Valkey
+      is down, single active dispatcher (tested).
 - [ ] Valkey `noeviction` and AOF are verified at startup.
 - [ ] Config validation fails fast without leaking values; log redaction is
       tested.
