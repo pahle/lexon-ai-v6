@@ -83,7 +83,7 @@ Follow existing F1 clients, test renderer, integration fixture, and Compose brow
 
 **Interfaces:** Existing boundaries remain unchanged. Export `presentationRules` as ESLint rules; `lexon/circular-shape` reports forbidden rounded-full usage. no-restricted-imports applies to frontend and word-add-in source/test globs, with `paths: ['radix-ui']` and patterns covering `radix-ui/*`, `@radix-ui/*`.
 
-- [ ] **Step1 — Write failing actual-config fixtures.** Lint import/re-export/type-only forms for radix-ui and @radix-ui/react-dialog; assert ruleId no-restricted-imports, and permit @base-ui/react. Shape fixtures permit explicit radio indicator/switch thumb/initials avatar/status-dot slots, reject rounded-full on button, input, badge, and arbitrary div. Keep this rule small: allowlist semantic slots and their owning control files; cover static JSX className strings and cva base/variant strings only. Do not build a general cn/class-variable/arbitrary-radius analyzer. Fixed slots must belong to radio indicators, switch thumbs, initials avatars, or status dots; an attribute on a button is not an exemption. Document dynamic-expression coverage limits in F2-acceptance.
+- [x] **Step1 — Write failing actual-config fixtures.** Lint import/re-export/type-only forms for radix-ui and @radix-ui/react-dialog; assert ruleId no-restricted-imports, and permit @base-ui/react. Shape fixtures permit explicit radio indicator/switch thumb/initials avatar/status-dot slots, reject rounded-full on button, input, badge, and arbitrary div. Keep this rule small: allowlist semantic slots and their owning control files; cover static JSX className strings and cva base/variant strings only. Do not build a general cn/class-variable/arbitrary-radius analyzer. Fixed slots must belong to radio indicators, switch thumbs, initials avatars, or status dots; an attribute on a button is not an exemption. Document dynamic-expression coverage limits in F2-acceptance.
 
 ```js
 assert.equal(
@@ -97,10 +97,10 @@ assert.equal(
 assert.equal(allowedMessages.length, 0);
 ```
 
-- [ ] **Step2 — RED:** `node --test scripts/test/presentation-policy.spec.mjs`; expect behavioral failures because restrictions are absent.
-- [ ] **Step3 — Implement policy.** Use existing typescript-eslint AST support for static JSX className and cva base/variant strings plus a small semantic-slot/file allowlist. Stop at that bounded coverage; do not expand into general class evaluation. Keep scope to owned code; no scanning vendor node_modules. Wire fixture command into existing check-boundaries runner so root/package lint and CI run it. Do not ban the allowed internal dependency in lockfile.
-- [ ] **Step4 — GREEN:** rerun fixture command and `node scripts/check-boundaries.mjs`; all existing boundary fixtures and new policy fixtures pass. Inspect existing owned source for violations and fix only actual shape violations, with tokens unchanged until Task2.
-- [ ] **Step5 — Commit:** stage only the changed config, rule, fixtures, runner, and any existing owned shape violations; commit `chore(ui): enforce Base UI imports and semantic circular shapes`.
+- [x] **Step2 — RED:** `node --test scripts/test/presentation-policy.spec.mjs`; expect behavioral failures because restrictions are absent.
+- [x] **Step3 — Implement policy.** Use existing typescript-eslint AST support for static JSX className and cva base/variant strings plus a small semantic-slot/file allowlist. Stop at that bounded coverage; do not expand into general class evaluation. Keep scope to owned code; no scanning vendor node_modules. Wire fixture command into existing check-boundaries runner so root/package lint and CI run it. Do not ban the allowed internal dependency in lockfile.
+- [x] **Step4 — GREEN:** rerun fixture command and `node scripts/check-boundaries.mjs`; all existing boundary fixtures and new policy fixtures pass. Inspect existing owned source for violations and fix only actual shape violations, with tokens unchanged until Task2.
+- [x] **Step5 — Commit:** stage only the changed config, rule, fixtures, runner, and any existing owned shape violations; commit `chore(ui): enforce Base UI imports and semantic circular shapes`.
 
 ### Task 2: Correct tokens and normalize existing controls
 
@@ -110,7 +110,7 @@ assert.equal(allowedMessages.length, 0);
 
 **Interfaces:** CSS exports canonical theme tokens plus shadcn aliases; `--right-panel-width:320px`, `--sidebar-width:256px`, rectangular radius5px. No JS color constants. Token test uses node:fs and parses actual CSS variable sets; browser tests consume computed styles later.
 
-- [ ] **Step1 — Write failing token/contrast tests.** Read both :root and .dark sets, resolve var aliases, compare all DSv1.2 values (not just chosen colors). Assert surface light #f7f7f8/raised #ffffff; dark background #121214; all required aliases resolve. Text/muted/status vs applicable surfaces >=4.5, button text/fill >=4.5, focus and actual non-text accent adjacencies >=3. Assert rectangle radius5px; circular exceptions retained. Check no web-font import and reduced-motion duration0ms.
+- [x] **Step1 — Write failing token/contrast tests.** Read both :root and .dark sets, resolve var aliases, compare all DSv1.2 values (not just chosen colors). Assert surface light #f7f7f8/raised #ffffff; dark background #121214; all required aliases resolve. Text/muted/status vs applicable surfaces >=4.5, button text/fill >=4.5, focus and actual non-text accent adjacencies >=3. Assert rectangle radius5px; circular exceptions retained. Check no web-font import and reduced-motion duration0ms.
 
 ```js
 assert.equal(light.surface, '#f7f7f8');
@@ -119,10 +119,10 @@ assert.ok(contrast(light.text, light.surface) >= 4.5);
 assert.equal(tokens.rightPanelWidth, '320px');
 ```
 
-- [ ] **Step2 — RED:** `node --test scripts/test/design-tokens.spec.mjs`; expect missing dark/mismapped surface assertions, not missing harness dependencies.
-- [ ] **Step3 — Implement mapping and control normalization.** globals.css owns values and aliases, including sidebar, popover, warning/success, accent-strong and safe foreground pairs. One5px rectangular scale, semantic circular controls, flat cards, overlays-only light shadows, dark overlay borders, system fonts, grid spacing, 400ms ease and reduced motion. Existing controls meet44px target and visible focus without per-component color literals. Avoid white secondary-button text in dark theme.
-- [ ] **Step4 — GREEN:** token command, presentation-policy fixtures, `pnpm --filter @lexon/frontend test`, `pnpm --filter @lexon/frontend typecheck`; all pass. Browser contrast verification belongs to Task12.
-- [ ] **Step5 — Commit:** stage only Task2 CSS/controls/checks; commit `feat(ui): apply Lexon light and dark design tokens`.
+- [x] **Step2 — RED:** `node --test scripts/test/design-tokens.spec.mjs`; expect missing dark/mismapped surface assertions, not missing harness dependencies.
+- [x] **Step3 — Implement mapping and control normalization.** globals.css owns values and aliases, including sidebar, popover, warning/success, accent-strong and safe foreground pairs. One5px rectangular scale, semantic circular controls, flat cards, overlays-only light shadows, dark overlay borders, system fonts, grid spacing, 400ms ease and reduced motion. Existing controls meet44px target and visible focus without per-component color literals. Avoid white secondary-button text in dark theme.
+- [x] **Step4 — GREEN:** token command, presentation-policy fixtures, `pnpm --filter @lexon/frontend test`, `pnpm --filter @lexon/frontend typecheck`; all pass. Browser contrast verification belongs to Task12.
+- [x] **Step5 — Commit:** stage only Task2 CSS/controls/checks; commit `feat(ui): apply Lexon light and dark design tokens`.
 
 ### Task 3: Publish safe platform flag and Personal-first cursor traversal
 

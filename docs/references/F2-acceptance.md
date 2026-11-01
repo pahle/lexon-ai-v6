@@ -28,3 +28,13 @@ boundary/presentation fixtures; frontend-cwd source lint also passed.
 Implementation model and reasoning were verified from local runtime metadata as
 `gpt-6-luna` / `high` under Codex CLI 0.166.0. Full scratch reports remain in the
 ignored per-plan SDD workspace; this reference retains the reviewable evidence.
+
+## Task 2 verification
+
+Commits: `0052bcc`, `f003504`. Main-session spec and quality reviews passed
+after one focused fix round. The initial token tests reproduced missing dark
+and layout tokens (3 failures); added review regressions reproduced focus,
+radius-alias, and grid gaps (3 failures). Final token checks passed6/6,
+presentation checks6/6, boundary checks90/90, frontend tests21 across11 files,
+and frontend typecheck/formatting/diff checks passed. Browser-computed style
+verification remains in Task12; these are source-token and control-style checks.
