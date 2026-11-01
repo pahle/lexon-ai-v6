@@ -20,10 +20,13 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Plan (24 tasks) approved with 2 clarifications (infra plugins stay dumb primitives under `infrastructure-domain` lint; org-less audit via auth writer); executing on `f1-identity-organizations` | Next: review each pushed task, then the PR | Notes: `notes/F1-identity-organizations.md` |
+| F1 Identity & Organizations | Implemented (PR #15, CI green); review fix PR into f1 branch (limiter coupling) | Review: `reviews/F1-review.md`; after merge → F2 brief | Notes: `notes/F1-identity-organizations.md` |
 | F2–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
+
+- **F2:** extend `proxy.ts` matcher beyond `/workspace/*` when the shell routes land; replace F1's minimal auth styling.
+- **F6:** TenantGuard rejects bodies containing `userId`/`organizationId`/`orgId` keys on all workspace routes; project-member endpoints need a per-route allowance.
 
 - **F3 (AI Run Engine):** the production `ai-worker` currently starts a
   consumer on queue `ai-interactive` with a no-op handler, and each consumer
