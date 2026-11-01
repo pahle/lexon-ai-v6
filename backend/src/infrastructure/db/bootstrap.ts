@@ -41,7 +41,11 @@ export async function bootstrapDatabase(
 
 export async function configureRuntimeRolePasswords(
   migratorUrl: string,
-  secrets: { appPassword: string; authPassword: string },
+  secrets: {
+    appPassword: string;
+    authPassword: string;
+    setupPassword?: string;
+  },
 ): Promise<void> {
   const client = new Client({ connectionString: migratorUrl });
   try {
@@ -49,6 +53,9 @@ export async function configureRuntimeRolePasswords(
     for (const [name, password] of [
       ['lexon_app', secrets.appPassword],
       ['lexon_auth', secrets.authPassword],
+      ...(secrets.setupPassword
+        ? [['lexon_setup', secrets.setupPassword]]
+        : []),
     ]) {
       const query = await client.query<{ sql: string }>(
         "SELECT format('ALTER ROLE %I PASSWORD %L', $1::text, $2::text) AS sql",

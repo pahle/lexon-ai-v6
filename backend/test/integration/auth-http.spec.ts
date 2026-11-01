@@ -1,3 +1,4 @@
+import { DEFAULT_AUTH_RATE_RULES } from '../../src/config/auth-rate-config.js';
 import { randomUUID } from 'node:crypto';
 import { request as nodeRequest } from 'node:http';
 import { Redis } from 'ioredis';
@@ -355,5 +356,46 @@ test('healthy session routes preserve sign-in quotas and use expiring availabili
     expect(out.headers.getSetCookie().length).toBeGreaterThan(0);
   } finally {
     await Promise.all([limiter.close(), proof.close(), inspector.quit()]);
+  }
+});
+
+test('invalid factor challenges consume the IP ceiling before account resolution', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const limiter = await createAuthLimiter({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:invalid-factor:`,
+    rules: {
+      ...DEFAULT_AUTH_RATE_RULES,
+      totp: { account: 5, ip: 2, windowSeconds: 300 },
+    },
+  });
+  const handler = createAuthHttp(proof.integration, {
+    origin: proof.origin,
+    correlationSecret: 'q'.repeat(48),
+    limiter,
+    context: () => ({
+      rawPath: '/api/auth/two-factor/verify-totp',
+      peerAddress: '127.0.0.1',
+    }),
+    accountKey: async () => undefined,
+    authorize: async () => {},
+  });
+  try {
+    const attempt = () =>
+      handler(
+        new Request(`${proof.origin}/api/auth/two-factor/verify-totp`, {
+          method: 'POST',
+          headers: { origin: proof.origin, 'content-type': 'application/json' },
+          body: JSON.stringify({ code: '123456' }),
+        }),
+      );
+    expect((await attempt()).status).toBe(401);
+    expect((await attempt()).status).toBe(401);
+    expect((await attempt()).status).toBe(429);
+  } finally {
+    await limiter.close();
+    await proof.close();
   }
 });

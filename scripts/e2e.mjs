@@ -45,6 +45,13 @@ try {
       DATABASE_MIGRATOR_PASSWORD: secret(),
       DATABASE_APP_PASSWORD: secret(),
       DATABASE_AUTH_PASSWORD: secret(),
+      DATABASE_SETUP_PASSWORD: secret(),
+      AUTH_SECRET: secret(),
+      AUTH_AUDIT_HMAC_SECRET: secret(),
+      AUTH_AUDIT_HMAC_KEY_ID: 'e2e-v1',
+      AUTH_LOCAL_DEVELOPMENT: 'true',
+      SMTP_URL: 'smtp://127.0.0.1:2525',
+      SMTP_FROM: 'lexon@example.test',
       VALKEY_PASSWORD: secret(),
       S3_ACCESS_KEY: secret(),
       S3_SECRET_KEY: secret(),
@@ -54,8 +61,14 @@ try {
     },
     directory,
   );
+  env.AUTH_PUBLIC_ORIGIN = `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`;
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
-  const files = [root + 'backend/test/e2e/compose.egress-probe.yml'];
+  env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
+  env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
+  const files = [
+    root + 'backend/test/e2e/compose.egress-probe.yml',
+    root + 'backend/test/e2e/compose.identity.yml',
+  ];
   await withOwnedStack({
     project,
     directory,

@@ -1,3 +1,4 @@
+import { authenticateApi } from './identity-support.js';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import {
@@ -14,8 +15,10 @@ test('public API follows shared contracts and has no chat endpoint', async ({
   expect(health.status()).toBe(200);
   const version = HealthResponseSchema.parse(await health.json()).version;
   expect(version).toBeTruthy();
+  const headers = await authenticateApi(request);
   const id = randomUUID();
   const accepted = await request.post(origin + '/api/diagnostics/validation', {
+    headers,
     data: { probeId: id },
   });
   expect(accepted.status()).toBe(200);
@@ -24,6 +27,7 @@ test('public API follows shared contracts and has no chat endpoint', async ({
     accepted: true,
   });
   const rejected = await request.post(origin + '/api/diagnostics/validation', {
+    headers,
     data: { probeId: 'secret-content' },
   });
   expect(rejected.status()).toBe(400);

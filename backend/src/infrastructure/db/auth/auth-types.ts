@@ -63,6 +63,7 @@ export interface AuthCommandSession {
   ): Promise<Awaited<ReturnType<LexonServerApi[K]>>>;
 }
 export interface AuthIntegration {
+  check(): Promise<'up' | 'down'>;
   transaction<T>(work: (session: AuthCommandSession) => Promise<T>): Promise<T>;
   handle(request: Request): Promise<Response>;
   close(): Promise<void>;

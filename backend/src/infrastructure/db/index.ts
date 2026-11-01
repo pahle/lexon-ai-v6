@@ -25,3 +25,8 @@ export type {
   AdminSetupGrant,
 } from './auth/admin-setup-operator.js';
 export { createAdminSetupOperator } from './auth/admin-setup-operator.js';
+export async function createAuthRuntime(
+  options: import('./auth/auth-types.js').AuthEngineOptions,
+) {
+  return (await import('./auth/auth-runtime.js')).createAuthRuntime(options);
+}

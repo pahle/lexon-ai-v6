@@ -69,6 +69,7 @@ export class AuthLimiter {
     action: AuthLimitAction;
     clientAddress: string;
     accountKey?: string;
+    scope?: 'ip' | 'account' | 'both';
   }): Promise<void> {
     if (
       !AUTH_LIMIT_ACTIONS.includes(input.action) ||
@@ -78,8 +79,9 @@ export class AuthLimiter {
     )
       throw new Error('Invalid authentication limit input');
     const limits = this.#limits[input.action];
-    const requests = [limits.ip.consume(input.clientAddress)];
-    if (input.accountKey !== undefined)
+    const requests: Promise<unknown>[] =
+      input.scope === 'account' ? [] : [limits.ip.consume(input.clientAddress)];
+    if (input.scope !== 'ip' && input.accountKey !== undefined)
       requests.push(limits.account.consume(input.accountKey));
     const failures = (await Promise.allSettled(requests)).filter(
       (result) => result.status === 'rejected',

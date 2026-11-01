@@ -277,13 +277,18 @@ export function createAuthHttp(
             .update(body.email.trim().toLowerCase())
             .digest('hex');
         else if (rule.scope !== 'public') {
-          await deps.limiter.assertAvailable();
+          await deps.limiter.consume({
+            action: rule.action,
+            clientAddress,
+            scope: 'ip',
+          });
           accountKey = await deps.accountKey?.(rule, request, body);
           if (!accountKey) throw new IdentityError('AUTH_REQUIRED', 401);
         }
         await deps.limiter.consume({
           action: rule.action,
           clientAddress,
+          ...(rule.scope !== 'public' ? { scope: 'account' as const } : {}),
           ...(accountKey ? { accountKey } : {}),
         });
       } else await deps.limiter.assertAvailable();

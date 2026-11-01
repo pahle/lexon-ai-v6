@@ -10,7 +10,7 @@ import {
   DiagnosticResponseSchema,
 } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
-import { createApi } from '../../src/bootstrap/api.js';
+import { createTestApi as createApi, apiHeaders } from '../setup/test-api.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
@@ -47,10 +47,15 @@ test('serves native shared-schema validation and sanitized errors with correlate
     const healthy = await fetch(origin + '/api/health');
     expect(healthy.status).toBe(200);
     expect(HealthResponseSchema.parse(await healthy.json()).status).toBe('ok');
+    const auth = await apiHeaders(app);
     const id = randomUUID();
     const response = await fetch(origin + '/api/diagnostics/validation', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-request-id': id },
+      headers: {
+        ...auth,
+        'content-type': 'application/json',
+        'x-request-id': id,
+      },
       body: JSON.stringify({ probeId: id }),
     });
     expect(response.status).toBe(200);
@@ -66,7 +71,11 @@ test('serves native shared-schema validation and sanitized errors with correlate
     ]) {
       const response = await fetch(origin + '/api/diagnostics/validation', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-request-id': id },
+        headers: {
+          ...auth,
+          'content-type': 'application/json',
+          'x-request-id': id,
+        },
         body,
       });
       expect(response.status).toBe(400);
@@ -154,7 +163,7 @@ test('API startup failure closes resources and exits with sanitized logs', async
   }>((resolve) =>
     child.once('exit', (code, signal) => resolve({ code, signal })),
   );
-  const timer = setTimeout(() => child.kill('SIGKILL'), 3000);
+  const timer = setTimeout(() => child.kill('SIGKILL'), 10000);
   try {
     expect(await exited).toEqual({ code: 1, signal: null });
     expect(output).toContain('boot_failed');

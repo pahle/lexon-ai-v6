@@ -13,10 +13,13 @@ import { DiagnosticController } from '../../modules/platform/diagnostic.controll
 export class ApiRootModule {
   static forConfig(
     config: Extract<RuntimeConfig, { runtime: 'api' }>,
+    identityModules: DynamicModule[] = [],
+    auth?: { check(): Promise<'up' | 'down'> },
   ): DynamicModule {
     return {
       module: ApiRootModule,
       imports: [
+        ...identityModules,
         RuntimeConfigModule.forConfig(config),
         TelemetryModule.forRuntime('api'),
         DbModule.forOptions(config.database),
@@ -37,7 +40,7 @@ export class ApiRootModule {
           prefix: config.queuePrefix,
         }),
       ],
-      providers: runtimeProviders(config),
+      providers: runtimeProviders(config, auth),
       controllers: [HealthController, DiagnosticController],
     };
   }

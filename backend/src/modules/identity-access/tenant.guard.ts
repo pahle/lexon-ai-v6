@@ -33,15 +33,27 @@ export class TenantGuard implements CanActivate {
     private readonly requests: RequestIdentity,
     private readonly availability: Pick<AuthLimiter, 'assertAvailable'>,
     private readonly reflector: Reflector,
+    private readonly requestPolicy?: (
+      request: Request,
+      headers: Headers,
+      userId?: string,
+    ) => Promise<void>,
   ) {}
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const access = this.reflector.getAllAndOverride<RouteAccess>(ROUTE_ACCESS, [
       context.getHandler(),
       context.getClass(),
     ]) ?? { kind: 'workspace' };
-    if (access.kind === 'public') return true;
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
+    const policyHeaders = new Headers();
+    for (const [name, value] of Object.entries(request.headers))
+      if (value !== undefined)
+        policyHeaders.set(name, Array.isArray(value) ? value.join(',') : value);
+    if (access.kind === 'public') {
+      await this.requestPolicy?.(request, policyHeaders);
+      return true;
+    }
     for (const name of [
       'x-org-id',
       'x-organization-id',
@@ -63,6 +75,7 @@ export class TenantGuard implements CanActivate {
         headers.set(name, Array.isArray(value) ? value.join(',') : value);
     credentialChannel(headers, request.rawHeaders);
     try {
+      await this.requestPolicy?.(request, headers);
       await this.availability.assertAvailable();
       const resolved = await this.identities.resolve(
         headers,
@@ -79,6 +92,7 @@ export class TenantGuard implements CanActivate {
           ]);
         },
       );
+      await this.requestPolicy?.(request, headers, resolved.identity.userId);
       if (resolved.summary.fallbackReason)
         response.setHeader(
           'x-lexon-fallback-reason',

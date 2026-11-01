@@ -8,7 +8,13 @@ import type { AuthEngineOptions, AuthIntegration } from './auth-types.js';
 // Infrastructure composition only. Neither this engine nor its context is
 // returned by createAuthIntegration or exported through the database barrel.
 export async function composeAuthIntegration(options: AuthEngineOptions) {
-  const pool = new Pool({ connectionString: options.authUrl, max: 5 });
+  const pool = new Pool({
+    connectionString: options.authUrl,
+    max: 5,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 5000,
+  });
+  pool.on('error', () => undefined);
   try {
     const result = await pool.query<{ current_user: string }>(
       'SELECT current_user',
@@ -56,6 +62,14 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
     let closing: Promise<void> | undefined;
     const integration: AuthIntegration = Object.freeze({
       transaction,
+      check: async () => {
+        try {
+          await pool.query('SELECT 1');
+          return 'up' as const;
+        } catch {
+          return 'down' as const;
+        }
+      },
       // A Response may carry session cookies/tokens. It must remain private
       // until the real PostgreSQL COMMIT has succeeded.
       handle: async (request: Request) => {

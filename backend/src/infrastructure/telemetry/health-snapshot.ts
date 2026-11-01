@@ -1,6 +1,7 @@
 import { z } from 'zod';
 export const dependencyNames = [
   'postgres',
+  'auth',
   'queue',
   'streams',
   'limiter',

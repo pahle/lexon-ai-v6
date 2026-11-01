@@ -25,6 +25,9 @@ export async function runDatabaseSetup(
     await configureRuntimeRolePasswords(url, {
       appPassword: value('DATABASE_APP_PASSWORD'),
       authPassword: value('DATABASE_AUTH_PASSWORD'),
+      ...(env.DATABASE_SETUP_PASSWORD
+        ? { setupPassword: value('DATABASE_SETUP_PASSWORD') }
+        : {}),
     });
   } else throw new Error('Invalid database setup command');
 }

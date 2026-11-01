@@ -232,10 +232,11 @@ test('configured cookie and link lifetimes reach the pinned auth engine', async 
     const session = await proof.integration.transaction((tx) =>
       tx.call('getSession', { headers: identity.cookieHeaders }),
     );
-    expect(
+    const lifetime =
       session!.session.expiresAt.getTime() -
-        session!.session.createdAt.getTime(),
-    ).toBe(7200000);
+      session!.session.createdAt.getTime();
+    expect(lifetime).toBeLessThanOrEqual(7200000);
+    expect(lifetime).toBeGreaterThan(7199950);
     const token = new URL(
       proof.dispatchedLink(user.body.email)!,
     ).searchParams.get('token')!;

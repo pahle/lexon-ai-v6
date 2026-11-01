@@ -1,3 +1,4 @@
+import { PublicRoute } from '../identity-access/index.js';
 import { Controller, Get, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { HealthResponse } from '@lexon/contracts';
@@ -10,6 +11,7 @@ export class HealthController {
     private readonly version: PlatformVersionService,
   ) {}
   @Get()
+  @PublicRoute()
   async ready(
     @Res({ passthrough: true }) response: Response,
   ): Promise<HealthResponse> {
@@ -23,6 +25,7 @@ export class HealthController {
     };
   }
   @Get('live')
+  @PublicRoute()
   live() {
     return { status: 'ok' };
   }

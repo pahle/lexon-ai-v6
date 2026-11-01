@@ -30,6 +30,7 @@ export class IdentityAccessModule {
     availability: Pick<AuthLimiter, 'assertAvailable'>;
     bearerSeconds?: number;
     reauthSeconds?: number;
+    requestPolicy?: ConstructorParameters<typeof TenantGuard>[4];
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);
     const requests = new RequestIdentity();
@@ -82,6 +83,7 @@ export class IdentityAccessModule {
             requests,
             options.availability,
             new Reflector(),
+            options.requestPolicy,
           ),
         },
         {

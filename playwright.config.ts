@@ -7,7 +7,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: 'list',
-  use: { headless: true, trace: 'retain-on-failure' },
+  use: { headless: true, trace: 'off' },
   projects: [
     {
       name: 'runtime-health',

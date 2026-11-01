@@ -12,12 +12,18 @@ export async function composeEnvironment(input, directory) {
     POSTGRES_IMAGE: images.postgres,
     VALKEY_IMAGE: images.valkey,
     SEAWEEDFS_IMAGE: images.seaweedfs,
+    MAILPIT_IMAGE: images.mailpit,
   };
   const required = [
     'POSTGRES_ADMIN_PASSWORD',
     'DATABASE_MIGRATOR_PASSWORD',
     'DATABASE_APP_PASSWORD',
     'DATABASE_AUTH_PASSWORD',
+    'DATABASE_SETUP_PASSWORD',
+    'AUTH_SECRET',
+    'AUTH_AUDIT_HMAC_SECRET',
+    'SMTP_URL',
+    'SMTP_FROM',
     'VALKEY_PASSWORD',
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
@@ -48,6 +54,17 @@ export async function composeEnvironment(input, directory) {
     dbName,
   );
   env.DATABASE_APP_URL = dbUrl('lexon_app', env.DATABASE_APP_PASSWORD, dbName);
+  env.DATABASE_AUTH_URL = dbUrl(
+    'lexon_auth',
+    env.DATABASE_AUTH_PASSWORD,
+    dbName,
+  );
+  if (env.DATABASE_SETUP_PASSWORD)
+    env.LEXON_SETUP_DATABASE_URL = dbUrl(
+      'lexon_setup',
+      env.DATABASE_SETUP_PASSWORD,
+      dbName,
+    );
   const redis = new URL('redis://valkey:6379/0');
   redis.password = env.VALKEY_PASSWORD;
   for (const kind of ['QUEUE', 'STREAMS', 'LIMITER'])
