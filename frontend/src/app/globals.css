@@ -1,40 +1,156 @@
 @import 'tailwindcss';
+@custom-variant dark (&:is(.dark *));
+
 :root {
+  color-scheme: light;
   --background: #ffffff;
-  --surface: #ffffff;
-  --raised: #f7f7f8;
-  --foreground: #0d0d0d;
-  --muted-foreground: #6e6e80;
+  --surface: #f7f7f8;
+  --surface-raised: #ffffff;
   --border: #e5e5e9;
+  --text: #0d0d0d;
+  --text-muted: #6e6e80;
   --primary: #0d0d0d;
-  --primary-foreground: #ffffff;
-  --ring: #5d5d6e;
-  --destructive: #b42318;
+  --on-primary: #ffffff;
+  --accent: #8e8ea0;
+  --accent-strong: #5d5d6e;
+  --on-accent: #ffffff;
+  --focus-ring: #5d5d6e;
+  --danger: #b42318;
+  --on-danger: #ffffff;
+  --warning: #8a5a00;
   --success: #1f7a3d;
   --radius: 5px;
-  --card: var(--surface);
-  --card-foreground: var(--foreground);
-  --muted: var(--raised);
+  --font-system: system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-size-display: 48px;
+  --font-size-heading: 32px;
+  --font-size-body: 16px;
+  --font-weight-display: 700;
+  --font-weight-heading: 600;
+  --font-weight-body: 400;
+  --line-height-body: 1.5;
+  --spacing-base: 8px;
+  --spacing-scale: 4px 8px 16px 24px 32px 40px 48px 64px;
+  --breakpoint-app: 768px;
+  --right-panel-width: 320px;
+  --sidebar-width: 256px;
+  --motion-duration: 400ms;
+  --motion-easing: ease;
+
+  --foreground: var(--text);
+  --muted-foreground: var(--text-muted);
+  --primary-foreground: var(--on-primary);
+  --accent-foreground: var(--on-accent);
+  --ring: var(--focus-ring);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--on-danger);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text);
+  --muted: var(--surface);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--text);
   --input: var(--border);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
 }
+
+.dark {
+  color-scheme: dark;
+  --background: #121214;
+  --surface: #1c1c20;
+  --surface-raised: #26262b;
+  --border: #34343c;
+  --text: #ececf1;
+  --text-muted: #a0a0b0;
+  --primary: #ececf1;
+  --on-primary: #0d0d0d;
+  --accent: #7a7a8c;
+  --accent-strong: #c2c2d0;
+  --on-accent: #0d0d0d;
+  --focus-ring: #c2c2d0;
+  --danger: #f97066;
+  --on-danger: #0d0d0d;
+  --warning: #e0a83a;
+  --success: #4cc276;
+
+  --foreground: var(--text);
+  --muted-foreground: var(--text-muted);
+  --primary-foreground: var(--on-primary);
+  --accent-foreground: var(--on-accent);
+  --ring: var(--focus-ring);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--on-danger);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text);
+  --muted: var(--surface);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--text);
+  --input: var(--border);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --radius-md: var(--radius);
+  --default-transition-duration: var(--motion-duration);
+  --default-transition-timing-function: var(--motion-easing);
 }
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-system);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration: 0ms;
+  }
 }
