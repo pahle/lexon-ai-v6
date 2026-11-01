@@ -158,3 +158,16 @@ remains unchanged.
 The remaining limitation is deliberate: post-commit SMTP is not durable. F18
 handover, F19 renewal, F20 frontend no-egress and F2 shell remain outside F1.
 See [acceptance evidence](F1-acceptance.md) for final gates and coverage limits.
+
+## Brief-owner review fix (2026-11-01)
+
+- `TenantGuard` called the auth limiter's `assertAvailable()` (a Valkey
+  write) on every authenticated workspace request, so a limiter outage made
+  every authenticated route return 503. LEX-ARC-001 §5.4 makes the limiter
+  fail-closed for authentication endpoints only. The guard no longer depends
+  on the limiter. Auth endpoints (`auth-http`) and the security actions in the
+  request policy (setup redemption, Bearer issuance, reauthentication) still
+  consume the limiter and fail closed. Unit regression:
+  `backend/test/unit/tenant-guard-availability.spec.ts`.
+- LEX-ARC-001 §3.2 now lists the `lexon_setup` operator role introduced by
+  Task 16.

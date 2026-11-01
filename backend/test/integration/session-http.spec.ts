@@ -29,7 +29,6 @@ test('session HTTP returns token only once with no-store and lists safe revocabl
       IdentityAccessModule.forPolicy({
         integration: proof.integration,
         frameworkModule: { module: Framework },
-        availability: { assertAvailable: async () => {} },
       }),
     ],
   })

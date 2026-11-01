@@ -78,7 +78,25 @@ test('real successful rejected malformed and unavailable identity traffic keeps 
     });
     sentinels.push('Malformed-private-sentinel');
     fault.disconnect();
-    expect((await api.call('/identity', actor.headers)).status).toBe(503);
+    // LEX-ARC-001 §5.4: workspace routes stay available during a limiter
+    // outage; authentication endpoints still fail closed.
+    expect((await api.call('/identity', actor.headers)).status).toBe(200);
+    const unavailable = await fetch(api.origin + '/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: {
+        origin: api.config.auth.origin,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'outage-private-sentinel@example.test',
+        password: 'Outage-private-sentinel',
+      }),
+    });
+    expect(unavailable.status).toBe(503);
+    sentinels.push(
+      'outage-private-sentinel@example.test',
+      'Outage-private-sentinel',
+    );
     const events = await audit.serializedEvents();
     const failed = JSON.parse(events) as {
       type: string;

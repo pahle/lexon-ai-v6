@@ -18,7 +18,6 @@ test('guarded Lexon invitation routes use the authenticated recipient and shared
 }) => {
   const proof = await createAuthFixture(services);
   const inspect = createOrganizationInspector(services);
-  const availability = { assertAvailable: async () => {} };
   @Module({})
   class FrameworkModule {}
   @Module({
@@ -26,7 +25,6 @@ test('guarded Lexon invitation routes use the authenticated recipient and shared
       IdentityAccessModule.forPolicy({
         integration: proof.integration,
         frameworkModule: { module: FrameworkModule },
-        availability,
       }),
       OrganizationsModule.forPolicy({
         port: new OrganizationAuthPort(proof.integration),
