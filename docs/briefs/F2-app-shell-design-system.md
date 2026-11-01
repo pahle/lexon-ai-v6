@@ -68,7 +68,7 @@ the same denial as in F1, rendered inside the shell.
    - F1's `globals.css` swaps `surface` and `surface-raised` against
      LEX-DS-001 and omits `accent`, `accent-strong`, and `warning`; F2
      corrects this.
-2. Light and dark values for every token come from LEX-DS-001 v1.1. A unit
+2. Light and dark values for every token come from LEX-DS-001 v1.2. A unit
    test reads the token values from `globals.css` and checks the contrast
    pairs that LEX-DS-001 §2 requires, for both themes.
 3. Typography, spacing, radius, and motion follow LEX-DS-001 §3–§5:
@@ -368,7 +368,7 @@ Record the verified facts and versions in the superpowers spec's
 
 ## References
 
-- LEX-DS-001 v1.1: §1 visual theme, §2 color (light and dark), §3
+- LEX-DS-001 v1.2: §1 visual theme, §2 color (light and dark), §3
   typography, §4 components, §5 layout, §6 accessibility.
 - LEX-ARC-001: §3.4 frontend layout, §3.5 frontend–backend boundary and
   `proxy.ts`, §4.1 chat contract (for what F2 must not do), §4.7 one engine,
