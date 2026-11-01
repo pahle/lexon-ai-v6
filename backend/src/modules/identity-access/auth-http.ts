@@ -105,6 +105,7 @@ export interface AuthHttpPolicyDependencies {
   failed?: (
     rule: AuthEndpointRule,
     body: Record<string, unknown>,
+    request: Request,
   ) => Promise<void>;
   // Required before non-public attempts can run; resolve from trusted identity
   // facts, never a client-supplied account key. It must not mutate auth state.
@@ -194,7 +195,12 @@ export function createAuthHttp(
   return async (request) => {
     let failure: Response | undefined;
     let failedAttempt:
-      { rule: AuthEndpointRule; body: Record<string, unknown> } | undefined;
+      | {
+          rule: AuthEndpointRule;
+          body: Record<string, unknown>;
+          request: Request;
+        }
+      | undefined;
     const abort = new Error('Auth operation failed');
     try {
       const context = deps.context();
@@ -270,6 +276,19 @@ export function createAuthHttp(
       } else await deps.limiter.assertAvailable();
       const headers = new Headers(request.headers);
       headers.delete('content-length');
+      // F1 always challenges enabled MFA accounts. Never let a native trusted
+      // device cookie select a weaker sign-in path.
+      const cookies = headers.get('cookie');
+      if (cookies) {
+        const permitted = cookies
+          .split(';')
+          .filter(
+            (pair) => !pair.trim().split('=')[0]!.endsWith('.trust_device'),
+          )
+          .join(';');
+        if (permitted.trim()) headers.set('cookie', permitted);
+        else headers.delete('cookie');
+      }
       for (const name of [
         'forwarded',
         'x-forwarded-for',
@@ -294,7 +313,7 @@ export function createAuthHttp(
         const native = await integration.handle(forwarded);
         if (native.status >= 400) {
           failure = native;
-          failedAttempt = { rule, body };
+          failedAttempt = { rule, body, request: forwarded };
           throw abort;
         }
         return complete ? complete(native) : native;
@@ -318,7 +337,11 @@ export function createAuthHttp(
       if (error === abort && failure) {
         if (failedAttempt) {
           try {
-            await deps.failed?.(failedAttempt.rule, failedAttempt.body);
+            await deps.failed?.(
+              failedAttempt.rule,
+              failedAttempt.body,
+              failedAttempt.request,
+            );
           } catch {
             return errorResponse('AUTH_UNAVAILABLE', 503);
           }

@@ -18,6 +18,7 @@ import {
 } from './identity.types.js';
 import { appendAuthAudit, correlateEmail } from '../audit/index.js';
 import { IdentityError } from './identity-error.js';
+import { authResponseCookies } from './auth-response-cookies.js';
 
 @Injectable()
 export class AccountService {
@@ -112,17 +113,14 @@ export class AccountService {
         // Pinned Better Auth's email-change verification can create a session
         // even when autoSignInAfterVerification=false. Remove only the session
         // named by its response, never another concurrent sign-in's session.
-        const cookie = response.headers
-          .getSetCookie()
-          .map((value) => value.split(';')[0])
-          .join('; ');
-        if (cookie) {
+        const credentials = authResponseCookies(response);
+        if (credentials) {
           const issued = await tx.call('getSession', {
-            headers: new Headers({ cookie }),
+            headers: credentials,
           });
           if (issued && issued.session.id !== session?.session.id)
             await tx.call('revokeSession', {
-              headers: new Headers({ cookie }),
+              headers: credentials,
               body: { token: issued.session.token },
             });
         }

@@ -15,6 +15,7 @@ import { sql } from 'drizzle-orm';
 import { bindAuthAudit, endAuthAudit } from './auth-functions.js';
 import * as schema from './auth-schema.js';
 import type { AuthCommandSession, LexonServerApi } from './auth-types.js';
+import type { SecurityPrimitives } from './security-plugin.js';
 
 type Database = NodePgDatabase<typeof schema>;
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -160,5 +161,27 @@ export function createAuthTransactions(database: Database) {
       );
     },
   };
-  return { adapterFactory, transaction, afterCommit, accountLocks };
+  const securityPrimitives: SecurityPrimitives = {
+    async lock(userId, sessionId) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_lock_security(${userId}::uuid,${sessionId}::uuid)`,
+      );
+    },
+    async write(input) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_write_session_security(${JSON.stringify(input)}::jsonb)`,
+      );
+    },
+  };
+  return {
+    adapterFactory,
+    transaction,
+    afterCommit,
+    accountLocks,
+    securityPrimitives,
+  };
 }

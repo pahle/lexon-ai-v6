@@ -15,6 +15,7 @@ export interface VerifiedIdentity {
 const scope = new AsyncLocalStorage<{
   identity: VerifiedIdentity;
   active: boolean;
+  headers?: Headers;
 }>();
 
 // Module-private minting boundary, used only after the guard verifies the
@@ -22,9 +23,14 @@ const scope = new AsyncLocalStorage<{
 export async function withVerifiedIdentity<T>(
   facts: Omit<VerifiedIdentity, typeof verified>,
   work: (identity: VerifiedIdentity) => Promise<T>,
+  headers?: Headers,
 ): Promise<T> {
   const identity = Object.freeze({ ...facts }) as VerifiedIdentity;
-  const state = { identity, active: true };
+  const state = {
+    identity,
+    active: true,
+    ...(headers ? { headers: new Headers(headers) } : {}),
+  };
   try {
     return await scope.run(state, () => work(identity));
   } finally {
@@ -40,4 +46,10 @@ export function currentVerifiedIdentity(): VerifiedIdentity {
   const state = scope.getStore();
   if (!state?.active) throw new IdentityError('AUTH_REQUIRED', 401);
   return state.identity;
+}
+export function verifiedIdentityHeaders(identity: VerifiedIdentity): Headers {
+  assertVerifiedIdentity(identity);
+  const headers = scope.getStore()?.headers;
+  if (!headers) throw new IdentityError('AUTH_REQUIRED', 401);
+  return new Headers(headers);
 }

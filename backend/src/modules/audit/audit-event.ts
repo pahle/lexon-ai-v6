@@ -100,12 +100,30 @@ const account = z.strictObject({
     ]),
   }),
 });
+const security = z.strictObject({
+  ...base,
+  type: z.literal('identity.security_changed.v1'),
+  outcome: z.literal('success'),
+  subjectUserId: UuidSchema,
+  actorUserId: UuidSchema,
+  sessionId: UuidSchema,
+  metadata: z.strictObject({
+    action: z.enum([
+      'enrollment_started',
+      'disabled',
+      'recovery_regenerated',
+      'mfa_verified',
+      'reauthenticated',
+    ]),
+  }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
   organization,
   setup,
   account,
+  security,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

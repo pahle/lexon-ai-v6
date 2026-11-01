@@ -18,6 +18,30 @@ const event = () => ({
   },
 });
 
+test('security audits contain only the verified actor, session IDs and a closed action', () => {
+  const security = {
+    version: 1,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    type: 'identity.security_changed.v1',
+    outcome: 'success',
+    subjectUserId: randomUUID(),
+    actorUserId: randomUUID(),
+    sessionId: randomUUID(),
+    metadata: { action: 'mfa_verified' },
+  };
+  expect(AuditEventSchema.safeParse(security).success).toBe(true);
+  for (const metadata of [
+    { action: 'unknown' },
+    { action: 'mfa_verified', code: '123456' },
+    { action: 'mfa_verified', secret: 'private' },
+    { action: 'mfa_verified', backupCodes: ['private'] },
+  ])
+    expect(AuditEventSchema.safeParse({ ...security, metadata }).success).toBe(
+      false,
+    );
+});
+
 test('strict audit schema accepts only versioned events, IDs and event-specific metadata', () => {
   expect(AuditEventSchema.safeParse(event()).success).toBe(true);
   for (const invalid of [
