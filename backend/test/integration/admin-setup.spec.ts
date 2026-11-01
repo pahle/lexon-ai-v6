@@ -176,7 +176,6 @@ test('setup HTTP exposes redemption but never operator initiation', async ({
       IdentityAccessModule.forPolicy({
         integration: proof.integration,
         frameworkModule: { module: Framework },
-        availability: { assertAvailable: async () => {} },
       }),
     ],
   })

@@ -3,7 +3,6 @@ import { AdminSetupController } from './admin-setup.controller.js';
 import { Module, type DynamicModule } from '@nestjs/common';
 import type { AuthIntegration } from '../../infrastructure/db/index.js';
 import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
-import type { AuthLimiter } from '../../infrastructure/queue/index.js';
 import {
   IdentitySessionService,
   ORGANIZATION_SELECTION,
@@ -27,10 +26,9 @@ export class IdentityAccessModule {
   static forPolicy(options: {
     integration: AuthIntegration;
     frameworkModule: DynamicModule;
-    availability: Pick<AuthLimiter, 'assertAvailable'>;
     bearerSeconds?: number;
     reauthSeconds?: number;
-    requestPolicy?: ConstructorParameters<typeof TenantGuard>[4];
+    requestPolicy?: ConstructorParameters<typeof TenantGuard>[3];
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);
     const requests = new RequestIdentity();
@@ -81,7 +79,6 @@ export class IdentityAccessModule {
           useValue: new TenantGuard(
             identities,
             requests,
-            options.availability,
             new Reflector(),
             options.requestPolicy,
           ),

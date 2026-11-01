@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
-import type { AuthLimiter } from '../../infrastructure/queue/index.js';
 import { IdentitySessionService } from './identity-session.service.js';
 import { RequestIdentity } from './request-identity.js';
 import { ROUTE_ACCESS, type RouteAccess } from './route-access.js';
@@ -31,7 +30,6 @@ export class TenantGuard implements CanActivate {
   constructor(
     private readonly identities: IdentitySessionService,
     private readonly requests: RequestIdentity,
-    private readonly availability: Pick<AuthLimiter, 'assertAvailable'>,
     private readonly reflector: Reflector,
     private readonly requestPolicy?: (
       request: Request,
@@ -76,7 +74,6 @@ export class TenantGuard implements CanActivate {
     credentialChannel(headers, request.rawHeaders);
     try {
       await this.requestPolicy?.(request, headers);
-      await this.availability.assertAvailable();
       const resolved = await this.identities.resolve(
         headers,
         access,

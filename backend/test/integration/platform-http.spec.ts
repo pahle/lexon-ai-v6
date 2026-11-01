@@ -34,7 +34,6 @@ test('every platform route denies ordinary and incomplete-MFA identities and per
       IdentityAccessModule.forPolicy({
         integration: proof.integration,
         frameworkModule: { module: Framework },
-        availability: { assertAvailable: async () => {} },
       }),
       OrganizationsModule.forPolicy({
         port: new OrganizationAuthPort(proof.integration),

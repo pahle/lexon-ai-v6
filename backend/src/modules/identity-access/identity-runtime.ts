@@ -146,7 +146,6 @@ export async function createIdentityRuntime(
     const module: DynamicModule = IdentityAccessModule.forPolicy({
       integration,
       frameworkModule: runtime.mount(handler, context.middleware),
-      availability: limiter,
       bearerSeconds: settings.bearerSeconds,
       reauthSeconds: settings.reauthSeconds,
       requestPolicy: async (request, headers, userId) => {
