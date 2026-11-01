@@ -24,6 +24,7 @@ import { RecoveryCodes } from './recovery-codes';
 import { FormInput } from './form-input';
 import { FieldGroup, FieldError } from '../ui/field';
 import { Button } from '../ui/button';
+import { LoadingState } from '../states/page-states';
 const api = createIdentityClient({ baseUrl: '/api' });
 export function AccountSecurity() {
   const query = useQueryClient();
@@ -55,12 +56,13 @@ export function AccountSecurity() {
   const refresh = async () => {
     await query.invalidateQueries({ queryKey: ['account'] });
   };
-  if (!security.data) return <p role="status">Loading account security…</p>;
+  if (!security.data)
+    return <LoadingState message="Loading account security…" />;
   return (
     <div className="flex flex-col gap-6">
       <a href="/workspace">Return to workspace</a>
       {security.data.twoFactorEnabled && !security.data.mfaVerified ? (
-        <a href="/two-factor?returnTo=%2Faccount%2Fsecurity">
+        <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
           Verify your sign-in
         </a>
       ) : null}
@@ -93,6 +95,7 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
   return (
     <AuthCard
       title="Confirm your identity"
+      headingLevel={2}
       description="Confirm your password and, when enabled, one authentication code before security changes."
     >
       <form
@@ -164,6 +167,7 @@ function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
   return (
     <AuthCard
       title="Manage authenticator"
+      headingLevel={2}
       description="Confirm your identity above before changing security settings."
     >
       <form
@@ -231,6 +235,7 @@ function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
   return (
     <AuthCard
       title="Change password"
+      headingLevel={2}
       description="Confirm your identity first. Other sessions will be revoked."
     >
       <form
@@ -282,6 +287,7 @@ function EmailChange() {
   return (
     <AuthCard
       title="Change email"
+      headingLevel={2}
       description="Confirm your identity first. Verify your new address to complete the change."
     >
       <form

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 export const metadata = {
+  title: 'Lexon account',
+  description: 'Sign in and manage your Lexon account.',
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

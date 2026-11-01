@@ -32,18 +32,18 @@ export function AppSidebar() {
     },
     {
       label: 'Settings',
-      href: '/account/security',
+      href: '/settings/profile',
       icon: Settings,
-      active: pathname.startsWith('/account/'),
+      active: pathname.startsWith('/settings/'),
     },
     ...(identity.organization.kind === 'team'
       ? [
           {
             label: 'Organization settings',
-            href: `/organizations/${identity.organization.id}/${identity.organization.role === 'owner' ? 'settings' : 'members'}`,
+            href: `/organizations/${identity.organization.id}/settings/members`,
             icon: Building2,
             active: pathname.startsWith(
-              `/organizations/${identity.organization.id}/`,
+              `/organizations/${identity.organization.id}/settings/`,
             ),
           },
         ]

@@ -15,8 +15,10 @@ export async function loadIdentityPage() {
       view: (
         <section className="mx-auto max-w-md p-6">
           <p>Verify your sign-in to continue.</p>
-          <a href="/two-factor?returnTo=%2Fworkspace">Verify your sign-in</a>
-          <a href="/account/security">Account security</a>
+          <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+            Verify your sign-in
+          </a>
+          <a href="/settings/security">Account security</a>
         </section>
       ),
     };

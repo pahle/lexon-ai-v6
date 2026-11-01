@@ -29,8 +29,10 @@ export function QueryFailure({ error }: { error: unknown }) {
           className="flex flex-wrap gap-2 px-6 pb-6"
           aria-label="Access options"
         >
-          <a href="/two-factor?returnTo=%2Fworkspace">Verify your sign-in</a>
-          <a href="/account/security">Account security</a>
+          <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+            Verify your sign-in
+          </a>
+          <a href="/settings/security">Account security</a>
           <a href="/workspace">Return to workspace</a>
         </nav>
       </>

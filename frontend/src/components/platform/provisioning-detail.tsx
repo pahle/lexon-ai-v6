@@ -13,6 +13,7 @@ import {
   QueryFailure,
 } from '../organizations/page-state';
 import { AuthCard } from '../auth/auth-card';
+import { LoadingState } from '../states/page-states';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup, FieldError } from '../ui/field';
 import { Button } from '../ui/button';
@@ -35,7 +36,8 @@ export function ProvisioningDetail({
     defaultValues: { email: '' },
   });
   if (result.error) return <QueryFailure error={result.error} />;
-  if (!result.data) return <p role="status">Loading provisioning metadata…</p>;
+  if (!result.data)
+    return <LoadingState message="Loading provisioning metadata…" />;
   async function mutate(action: () => Promise<unknown>) {
     setBusy(true);
     setFailure('');
@@ -54,6 +56,7 @@ export function ProvisioningDetail({
       <a href="/platform/accounts">Account status</a>
       <AuthCard
         title={result.data.name}
+        headingLevel={2}
         description="Provisioning metadata and invitation status only."
       >
         <dl>
@@ -127,7 +130,7 @@ export function ProvisioningDetail({
           </Button>
         )}
         {failure ? <FieldError>{failure}</FieldError> : null}
-        <a href="/account/security">Account security</a>
+        <a href="/settings/security">Account security</a>
       </AuthCard>
     </div>
   );

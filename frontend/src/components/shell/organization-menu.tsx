@@ -138,7 +138,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
               {message ? (
                 <p role="status" className="p-2">
                   {message}{' '}
-                  <a href="/account/security" className="underline">
+                  <a href="/settings/security" className="underline">
                     Account security
                   </a>
                 </p>

@@ -6,6 +6,8 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Lexon',
   description: 'Your legal workspace',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
 };
 export default function Layout({ children }: { children: ReactNode }) {
   return (

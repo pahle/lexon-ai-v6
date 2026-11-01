@@ -11,6 +11,7 @@ export function RecoveryCodes({
   return (
     <AuthCard
       title="Save your recovery codes"
+      headingLevel={2}
       description="Save these codes somewhere secure. Each code can be used once. They will not be shown again."
     >
       <section data-testid="recovery-codes" aria-label="Recovery codes">

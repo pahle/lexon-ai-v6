@@ -7,7 +7,7 @@ import { SidebarTrigger, useSidebarOptional } from '../ui/sidebar';
 import { useIsMobile } from '../../hooks/use-mobile';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
-const securityPaths = new Set(['/account/security', '/settings/security']);
+const securityPaths = new Set(['/settings/security']);
 function SkipLink() {
   return (
     <a className="sr-only focus:not-sr-only" href="#main">
@@ -47,8 +47,8 @@ export function WorkspaceShell({
         <SkipLink />
         <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
           <nav className="flex flex-wrap gap-4" aria-label="Account recovery">
-            <a href="/account/security">Account security</a>
-            <a href="/two-factor?returnTo=%2Faccount%2Fsecurity">
+            <a href="/settings/security">Account security</a>
+            <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
               Verify your sign-in
             </a>
           </nav>

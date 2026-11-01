@@ -16,6 +16,7 @@ export function SessionList({
   return (
     <AuthCard
       title="Your sessions"
+      headingLevel={2}
       description="Revoke access for a browser or add-in session."
     >
       <ul>

@@ -1,35 +1,45 @@
 'use client';
+import { useLayoutEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../shell/workspace-provider';
 import { Members } from './members';
 import { Invitations } from './invitations';
 import { OrganizationSettings } from './organization-settings';
+import { LoadingState, NoAccessState } from '../states/page-states';
 export function OrganizationPage({
   organizationId,
   view,
 }: {
   organizationId: string;
-  view: 'members' | 'invitations' | 'settings';
+  view: 'members' | 'invitations' | 'general';
 }) {
+  const queryClient = useQueryClient();
   const { identity } = useWorkspace();
   const org = identity?.organization;
   const lost = !!org && org.id !== organizationId;
-  if (!org) return <p role="status">Loading organization…</p>;
+  const allowed =
+    !!org &&
+    org.id === organizationId &&
+    org.kind === 'team' &&
+    (view !== 'invitations' || org.role !== 'member') &&
+    (view !== 'general' || org.role === 'owner');
+  useLayoutEffect(() => {
+    if (allowed) return;
+    const queryKey = ['tenant', organizationId];
+    void queryClient.cancelQueries({ queryKey });
+    queryClient.removeQueries({ queryKey });
+  }, [allowed, organizationId, queryClient]);
+  if (!org) return <LoadingState message="Loading organization…" />;
   if (lost)
     return (
-      <section>
-        <p role="status">
-          You no longer have access to this organization in the current
-          workspace.{' '}
-          {org.kind === 'personal'
-            ? 'Personal is selected.'
-            : 'Return to your selected organization.'}
-        </p>
-        <a href="/workspace">Return to workspace</a>
-      </section>
+      <NoAccessState message="This organization is not selected in the current workspace." />
+    );
+  if (!allowed)
+    return (
+      <NoAccessState message="You do not have access to this organization setting." />
     );
   return (
     <div className="flex flex-col gap-6">
-      <a href="/workspace">Return to workspace</a>
       {view === 'members' ? (
         <Members organization={org} />
       ) : view === 'invitations' ? (

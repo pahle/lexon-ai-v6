@@ -145,4 +145,21 @@ A synthetic Tab assertion was replaced during review with a real primitive
 focus-guard test; temporarily disabling modal behavior made it fail, then restoring
 modal passed. This proves guard containment in jsdom, not native browser Tab.
 Focused5 tests/full frontend86 tests passed, with types/lint/build/format checks.
-No new dependency, production fixture route, or navigation destination.
+No new dependency, production fixture route, or navigation destination. Settings URLs
+still use the working F1 destinations until the planned Task 10 migration.
+
+## Task 10 verification
+
+Settings now use `/settings/profile`, `/settings/security`, and
+`/settings/appearance`. Organization settings use
+`/organizations/[orgId]/settings/{members,invitations,general}`; the two index
+routes redirect to Profile and Members. Old F1 leaves have no compatibility
+redirect. Organization bare-root, bare-ID, and nested unknown paths use the
+workspace not-found view. App action links and MFA `returnTo` values use the new
+settings routes.
+
+Coverage includes profile validation/update and read-only email, real section
+links and active state, role and cross-org denial before loaders mount, role
+refresh cache removal, platform loader denial, index redirects, shell-prefix
+catch-alls, safe errors, and the three organization not-found cases. Detailed
+RED/GREEN commands and commit are recorded in the Task 10 report.

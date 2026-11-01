@@ -191,9 +191,7 @@ test('every active team role gets organization settings; only platform admins ge
         links
           .find((link) => link.textContent?.trim() === 'Organization settings')
           ?.getAttribute('href'),
-      ).toBe(
-        `/organizations/${organization.id}/${organization.role === 'owner' ? 'settings' : 'members'}`,
-      );
+      ).toBe(`/organizations/${organization.id}/settings/members`);
     }
     await view.unmount();
   }
@@ -286,7 +284,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
     'Your current organization is unchanged.',
   );
   expect(
-    document.body.querySelector('a[href="/account/security"]'),
+    document.body.querySelector('a[href="/settings/security"]'),
   ).not.toBeNull();
   expect(
     document.body.querySelector('button[aria-label="Organization: Personal"]'),

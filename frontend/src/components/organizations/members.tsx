@@ -46,7 +46,11 @@ export function Members({
     }
   }
   return (
-    <AuthCard title="Members" description="Manage access to your team.">
+    <AuthCard
+      title="Members"
+      headingLevel={2}
+      description="Manage access to your team."
+    >
       <ul>
         {members.data?.items.map((member) => (
           <li

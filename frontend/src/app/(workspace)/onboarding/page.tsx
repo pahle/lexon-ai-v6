@@ -16,6 +16,8 @@ export default async function OnboardingPage() {
   );
 }
 export const metadata = {
+  title: 'Get started | Lexon',
+  description: 'Set up your Lexon workspace.',
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

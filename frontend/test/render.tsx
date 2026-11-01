@@ -8,6 +8,9 @@ export async function render(node: ReactNode) {
   await act(async () => root.render(node));
   return {
     container,
+    async rerender(next: ReactNode) {
+      await act(async () => root.render(next));
+    },
     async unmount() {
       await act(async () => root.unmount());
       container.remove();

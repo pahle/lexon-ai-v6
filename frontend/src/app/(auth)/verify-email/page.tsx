@@ -22,3 +22,9 @@ export default async function VerifyEmailPage({
     />
   );
 }
+export const metadata = {
+  title: 'Verify email | Lexon',
+  description: 'Verify the email address for your Lexon account.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

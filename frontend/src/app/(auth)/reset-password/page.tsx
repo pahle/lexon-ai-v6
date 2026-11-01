@@ -15,3 +15,9 @@ export default async function ResetPasswordPage({
     />
   );
 }
+export const metadata = {
+  title: 'Choose a new password | Lexon',
+  description: 'Choose a new password for your Lexon account.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

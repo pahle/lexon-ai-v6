@@ -17,3 +17,9 @@ export default async function SignupPage({
     />
   );
 }
+export const metadata = {
+  title: 'Create an account | Lexon',
+  description: 'Create your Lexon account.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

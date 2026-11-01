@@ -67,7 +67,7 @@ export function UserMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem
-            render={<Link href="/account/security" />}
+            render={<Link href="/settings/profile" />}
             onClick={() => {
               if (sidebar?.isMobile) sidebar.setOpenMobile(false);
             }}

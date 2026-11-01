@@ -61,6 +61,7 @@ export function Invitations({
   return (
     <AuthCard
       title="Invitations"
+      headingLevel={2}
       description="Invite members or manage pending invitations."
     >
       <form

@@ -11,6 +11,7 @@ import {
   QueryFailure,
 } from '../organizations/page-state';
 import { AuthCard } from '../auth/auth-card';
+import { LoadingState } from '../states/page-states';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup, FieldError } from '../ui/field';
 import { Button } from '../ui/button';
@@ -29,7 +30,7 @@ export function AccountStatusForm() {
     defaultValues: { userId: '' },
   });
   if (access.error) return <QueryFailure error={access.error} />;
-  if (!access.data) return <p role="status">Checking platform access…</p>;
+  if (!access.data) return <LoadingState message="Checking platform access…" />;
   async function update(userId: string, disabled: boolean) {
     setBusy(true);
     setFailure('');
@@ -47,6 +48,7 @@ export function AccountStatusForm() {
     <div className="flex flex-col gap-6">
       <a href="/platform/provisioning">Provisioning</a>
       <AuthCard
+        headingLevel={2}
         title="Account status"
         description="Disable or enable an account by its user ID. This grants no access to its organizations or content."
       >
@@ -77,7 +79,7 @@ export function AccountStatusForm() {
             </Button>
           </FieldGroup>
         </form>
-        <a href="/account/security">Account security</a>
+        <a href="/settings/security">Account security</a>
       </AuthCard>
     </div>
   );

@@ -3,6 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, settle } from './render';
 import { AdminSetup } from '../src/components/auth/admin-setup';
 import { ProvisioningList } from '../src/components/platform/provisioning';
+import { PlatformPage } from '../src/components/platform/platform-page';
+const workspaceState = vi.hoisted(() => ({ identity: null as unknown }));
+vi.mock('../src/components/shell/workspace-provider', () => ({
+  useWorkspace: () => ({ identity: workspaceState.identity }),
+}));
 vi.mock('../src/lib/auth-client', () => ({
   authClient: { signOut: async () => ({ error: null }) },
 }));
@@ -49,6 +54,27 @@ test('platform forms remain hidden before server authorization and after denial'
   expect(view.container.querySelector('form')).toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
+});
+test('non-platform administrators do not mount provisioning data loaders', async () => {
+  workspaceState.identity = {
+    platformAdmin: false,
+    organization: { id: '00000000-0000-4000-8000-000000000001' },
+    user: { id: '00000000-0000-4000-8000-000000000002' },
+  };
+  const fetcher = vi.fn(async () => Response.json({ items: [] }));
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PlatformPage title="Platform">
+        <ProvisioningList />
+      </PlatformPage>
+    </QueryClientProvider>,
+  );
+  expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
+  expect(fetcher).not.toHaveBeenCalled();
+  await view.unmount();
+  vi.unstubAllGlobals();
+  workspaceState.identity = null;
 });
 import { act } from 'react';
 test('completed setup discards its proof without redeeming it again', async () => {

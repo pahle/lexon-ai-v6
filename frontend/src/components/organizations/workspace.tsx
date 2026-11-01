@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '../shell/workspace-provider';
 import { PageHeader } from '../shell/page-header';
+import { LoadingState } from '../states/page-states';
 
 export function Workspace() {
   const router = useRouter();
@@ -11,8 +12,8 @@ export function Workspace() {
     if (identity && !identity.user.onboardingCompleted)
       router.replace('/onboarding');
   }, [identity, router]);
-  if (!identity) return <p role="status">Verifying your workspace…</p>;
+  if (!identity) return <LoadingState message="Verifying your workspace…" />;
   if (!identity.user.onboardingCompleted)
-    return <p role="status">Opening onboarding…</p>;
+    return <LoadingState message="Opening onboarding…" />;
   return <PageHeader title="Home" />;
 }

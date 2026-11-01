@@ -272,14 +272,14 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
     'Protected organization data',
   );
   expect(
-    restricted.container.querySelector('a[href="/account/security"]'),
+    restricted.container.querySelector('a[href="/settings/security"]'),
   ).not.toBeNull();
   await restricted.unmount();
   identityCall.mockRestore();
   const securityIdentityCall = vi
     .spyOn(identityApi, 'identity')
     .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
-  navigation.path = '/account/security';
+  navigation.path = '/settings/security';
   const recovery = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider bootstrap={{ status: 'mfa-required' }}>
@@ -296,7 +296,7 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
 });
 
 test('security recovery works at both preserved paths and keeps direct sign-in verification available', async () => {
-  for (const path of ['/account/security', '/settings/security']) {
+  for (const path of ['/settings/security']) {
     const identityCall = vi
       .spyOn(identityApi, 'identity')
       .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
@@ -313,7 +313,7 @@ test('security recovery works at both preserved paths and keeps direct sign-in v
     expect(view.container.textContent).toContain('Recovery controls');
     expect(
       view.container.querySelector(
-        'a[href="/two-factor?returnTo=%2Faccount%2Fsecurity"]',
+        'a[href="/two-factor?returnTo=%2Fsettings%2Fsecurity"]',
       ),
     ).not.toBeNull();
     await view.unmount();
@@ -379,7 +379,7 @@ test('only AUTH_2FA_REQUIRED is classified as MFA recovery', async () => {
     await vi.advanceTimersByTimeAsync(1);
   });
   expect(
-    view.container.querySelector('a[href="/account/security"]'),
+    view.container.querySelector('a[href="/settings/security"]'),
   ).toBeNull();
   expect(view.container.textContent).toContain(
     'Service temporarily unavailable',

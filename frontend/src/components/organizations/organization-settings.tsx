@@ -27,7 +27,7 @@ export function OrganizationSettings({
   });
   if (organization.kind === 'personal' || organization.role !== 'owner')
     return (
-      <AuthCard title="Organization settings">
+      <AuthCard title="Organization settings" headingLevel={2}>
         <p>
           Only team owners can change organization settings. Personal cannot be
           renamed.
@@ -49,6 +49,7 @@ export function OrganizationSettings({
   return (
     <AuthCard
       title="Organization settings"
+      headingLevel={2}
       description="Manage your team name and authentication requirements."
     >
       <form noValidate onSubmit={form.handleSubmit(update)}>
