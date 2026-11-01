@@ -218,7 +218,7 @@ expect(container.textContent).not.toContain('Private dependency detail');
 
 **Interfaces:** `WorkspaceBootstrap = {status:'ready';identity:IdentitySummary}|{status:'mfa-required'|'expired'|'unavailable'}`; `loadWorkspaceBootstrap():Promise<WorkspaceBootstrap>` request-local, never global cache. `WorkspaceProvider({bootstrap,children})`; `useWorkspace():{identity:IdentitySummary|null,status:WorkspaceBootstrap['status']|'loading',transitioning:boolean,fallbackNotice:string|null,refreshIdentity:()=>Promise<void>}`. `WorkspaceShell({children,sidebar?})` owns main and desktop panel host. Export `usePanelHost():HTMLElement|null` for Task9; host stores a DOM node, never panel open state.
 
-- [ ] **Step1 — Write failing lifecycle tests.** Seed identity, mount navigation children and rerender without remounting provider; assert one identity query with5000ms interval. Test fallback once, later distinct fallback again; remove/demote while a deferred old-org query is pending, then resolve it and assert no old content/cache reappears. Test401/503 hiding protected children, incomplete onboarding no sidebar, MFA-required restricted frame keeps Security reachable but no protected children/nav. Inject sidebar_state values and assert backend identity request inputs are identical cookie-auth semantics, with no parsed display preference passed as policy input.
+- [x] **Step1 — Write failing lifecycle tests.** Seed identity, mount navigation children and rerender without remounting provider; assert one identity query with5000ms interval. Test fallback once, later distinct fallback again; remove/demote while a deferred old-org query is pending, then resolve it and assert no old content/cache reappears. Test401/503 hiding protected children, incomplete onboarding no sidebar, MFA-required restricted frame keeps Security reachable but no protected children/nav. Inject sidebar_state values and assert backend identity request inputs are identical cookie-auth semantics, with no parsed display preference passed as policy input.
 
 ```ts
 expect(queryClient.getQueriesData({ queryKey: ['tenant', oldId] })).toEqual([]);
@@ -226,10 +226,10 @@ expect(container.textContent).not.toContain('Old private members');
 expect(identityCallCountAfterAdvance5000).toBe(identityCallCountBefore + 1);
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/workspace-shell.spec.tsx frontend/test/identity-page.spec.tsx frontend/test/tenant-queries.spec.tsx`.
-- [ ] **Step3 — Implement one owner for identity observation.** Seed shared ['identity'] with safe bootstrap; retain5s/no-retry. Hide protected descendants before transition, cancel/remove obsolete tenant and disallowed role data, then update active-org state. Keep existing page/API checks and targeted recovery branch so rejected normal bootstrap cannot block security enrollment. Onboarding has frame/no sidebar until complete. Do not mount sidebar/tenant runtime until verified ready; keep header/main/skip-link unique. Existing individual page loaders may verify data but must not create independent polling loops or global identity caches.
-- [ ] **Step4 — GREEN:** focused tests plus frontend organizations/security suites and typecheck. Ensure restricted recovery is a tested branch, not a newly permitted identity endpoint.
-- [ ] **Step5 — Commit:** stage Task7 files; commit `feat(ui): add persistent verified workspace shell`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/workspace-shell.spec.tsx frontend/test/identity-page.spec.tsx frontend/test/tenant-queries.spec.tsx`.
+- [x] **Step3 — Implement one owner for identity observation.** Seed shared ['identity'] with safe bootstrap; retain5s/no-retry. Hide protected descendants before transition, cancel/remove obsolete tenant and disallowed role data, then update active-org state. Keep existing page/API checks and targeted recovery branch so rejected normal bootstrap cannot block security enrollment. Onboarding has frame/no sidebar until complete. Do not mount sidebar/tenant runtime until verified ready; keep header/main/skip-link unique. Existing individual page loaders may verify data but must not create independent polling loops or global identity caches.
+- [x] **Step4 — GREEN:** focused tests plus frontend organizations/security suites and typecheck. Ensure restricted recovery is a tested branch, not a newly permitted identity endpoint.
+- [x] **Step5 — Commit:** stage Task7 files; commit `feat(ui): add persistent verified workspace shell`.
 
 ### Task 8: Adapt sidebar-07 to F1 organizations and sign-out
 

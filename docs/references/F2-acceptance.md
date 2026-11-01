@@ -107,3 +107,16 @@ skeletons before implementation (initial import failure excluded). Correction
 RED reproduced spacing and heading mismatches; GREEN8 tests/3 files, frontend
 types/ESLint,90 presentation/boundary checks, formatting/diff checks passed.
 Embedded expiry retains F1 auto-sign-out and a sanitized sign-in recovery link.
+
+## Task 7 verification
+
+Commits `b994153`, `8073e8e`, `5f447b0`: main-session spec and quality reviews
+passed after two focused correction rounds. Regressions covered stale bootstrap
+cache, recovery/polling, authentication and role/MFA cache cleanup, late tenant
+responses, fallback notices, onboarding redirect, cache-clear scope, and a neutral
+panel host outside main. RED reproduced the review findings (9 then3 failures);
+final focused25 tests/6 files and full frontend71 tests/15 files passed, as did
+typecheck/build/lint90/format checks. Model/effort verified Luna/high. Browser
+navigation proof remains in Task12. Task9 owns the actual named panel; an empty
+host reserves no width. Duplicate tenant cleanup calls on MFA changes are minor
+redundant work, retained for final review.
