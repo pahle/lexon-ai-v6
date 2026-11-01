@@ -1,6 +1,6 @@
 # F2 — App shell and design system
 
-Date: 2026-11-01. Status: proposed for approval; fresh builder check found nothing important left.
+Date: 2026-11-01. Status: approved with the amendments recorded on 2026-11-01; fresh builder check found nothing important left.
 Branch: `f2-app-shell-design-system`; never commit to or push `main`.
 
 ## Intent and authority
@@ -11,7 +11,7 @@ presentation while preserving its authentication, authorization, organization,
 security, and platform workflows. Home is an inert assistant-ui scaffold for F4.
 
 Authority: LEX-TS-001 v1.9; LEX-ARC-001 §3.4, §3.5, §4.1, §4.7, §6;
-LEX-DS-001 v1.1 §1–§6; `docs/briefs/F2-app-shell-design-system.md`;
+LEX-DS-001 v1.2 §1–§6; `docs/briefs/F2-app-shell-design-system.md`;
 F1 approved design and acceptance references. The product owner's conversation
 amendments below bind the design. Existing backend checks remain authoritative.
 
@@ -106,7 +106,9 @@ following its server mutation and cache transition.
 
 Generate `sidebar-07` through the shadcn CLI in the existing base-nova project.
 Keep the Sidebar provider, collapse toggle, keyboard shortcut, cookie-backed
-collapsed state, and mobile Sheet behavior. Read the cookie server-side for
+collapsed state, and mobile Sheet behavior. The `sidebar_state` cookie is a
+frontend display preference only: the Backend API never reads it and it never
+affects access. Read the cookie in the Next.js layout for
 initial state so reload does not first paint the wrong sidebar width. Use one
 768px boundary for both CSS and the mobile hook, including tests at 767/768px.
 Close the mobile sidebar on successful navigation and Escape, retaining the
@@ -124,7 +126,8 @@ favorites, subscription labels, support links, or sample keyboard shortcuts.
   personal organization's internal name, including accessible names and errors.
 - Guarantee Personal-first ordering across pages at the backend read boundary,
   not by sorting one arbitrary UUID page in the browser. Keep the existing
-  public UUID cursor shape: first page prepends the authorized Personal fact;
+  public list contract and UUID cursor shape unchanged; extend F1 pagination tests
+  without weakening them. First page prepends the authorized Personal fact;
   subsequent team pages are stable by organization UUID, omit Personal, and
   derive cursor position from the authorized cursor organization. A cursor for
   Personal starts the team portion. No unbounded scan or frontend-only lookup
@@ -187,7 +190,7 @@ horizontal overflow. A later content-heavy viewer can revise this design.
 
 `globals.css` defines the light/dark LEX-DS-001 values once and maps them onto
 all retained shadcn/assistant variables. Canonical surface is #f7f7f8 in light,
-raised is #ffffff; dark values come verbatim from v1.1. Cards/popovers map to
+raised is #ffffff; dark values come verbatim from v1.2. Cards/popovers map to
 raised, sidebar/panels to surface, page to background. Text maps to text;
 secondary text to text-muted; inputs/dividers to border; rings to focus-ring;
 primary fills to primary with on-primary text. Add warning, success, danger,
@@ -196,8 +199,12 @@ surface role must use a safe surface/text pairing rather than copying the brand
 accent into text. All sidebar foreground, primary, hover, border, and ring
 variables are explicitly mapped; no leftover generator palette.
 
-All retained radius utilities resolve to 5px (including sm/md/lg/xl/full used by
-registry parts); remove unused rounded variants rather than leaving pill styles.
+Rectangular elements use the one 5px radius. Radio indicators, switch thumbs,
+initials avatars, and status dots remain circular; `rounded-full` is allowed only
+on those element types. Buttons, badges, and inputs must never become pills.
+Add a test or lint check proving every owned `rounded-full` use belongs to one of
+those four categories, with negative fixtures for buttons, badges, and inputs.
+Map rectangular radius utilities to 5px and remove unused variants.
 No decorative shadows; light overlays may have one subtle shadow, dark overlays
 use borders. System fonts only. Apply DS typography, 8px layout spacing (4px
 only tight inline gaps), 400ms ease reveals, and zero-duration reduced motion.
@@ -271,8 +278,10 @@ and operational documentation. Historical route-migration descriptions may
 name old paths as removed examples; do not leave actionable stale links.
 Backend `/api/...` routes and verification/invitation email URLs are unchanged.
 
-Settings sections use vertical named navigation on desktop and a labeled select
-below 768px (builder call), using client navigation. One page header/h1 and
+Settings sections use the same component of real links in both layouts: vertical
+on desktop, stacked or horizontally scrollable below 768px. Each active link has
+`aria-current="page"`; targets are at least 44px and cause no page-level horizontal
+overflow. Never navigate on select/input change. Links use client navigation. One page header/h1 and
 descriptive title per page. Cards inside pages use h2/h3 via explicit heading
 composition; retain h1 for standalone auth cards only. Remove nested main tags.
 
@@ -344,7 +353,7 @@ and browser checks remain `pnpm test:e2e`, both in CI. Reuse F0/F1 ownership and
 cleanup, in-process test mail, and production-denied test controls.
 
 1. Parse both CSS theme variable sets, resolve aliases, compare canonical values
-   to DS v1.1, and calculate WCAG contrast: normal/muted/status text against
+   to DS v1.2, and calculate WCAG contrast: normal/muted/status text against
    applicable background/surface/raised (4.5:1), on-primary/primary (4.5:1),
    secondary foreground/fill (4.5:1), focus and applicable non-text accents
    against their actual adjacent surfaces (3:1). Accent cannot become text.
@@ -371,10 +380,17 @@ cleanup, in-process test mail, and production-denied test controls.
 7. Keyboard-only sign-in to Home, switch team, Settings, theme change, sign-out;
    dialogs/sheets return focus appropriately. Mobile 375px plus 767/768 boundary;
    sidebar button/shortcut collapse, persistence, sheet navigation/Escape.
-8. Theme reload tests seed saved preference before navigation, observe the first
-   painted frame (not just eventual hydration), cover system default and live OS
-   changes, and verify no new theme request. Reduced-motion tests verify zero
-   transition duration. Test panel aside/dialog/focus/width via test-only harness.
+8. Deterministic pre-hydration theme test: Playwright addInitScript seeds the
+   next-themes localStorage key (`theme`), then navigation aborts every
+   `/_next/static/` script request so React never hydrates. Assert html already
+   has the expected class and computed background equals the theme background
+   token. Repeat for light, dark, and system with emulateMedia colorScheme
+   (both system resolutions). No timing-based first-frame capture. Separately
+   test live OS changes, saved preference reload, and absence of theme requests.
+   Reduced-motion tests verify zero transition duration. Test panel
+   aside/dialog/focus/width via test-only harness. Radius lint/test checks allow
+   rounded-full only for radio indicators, switch thumbs, initials avatars,
+   and status dots; mobile settings remain real links.
 9. Full F1 regression suite, formatting, lint, typecheck, production build, root
    tests, existing tooling fixtures, and Compose E2E. Do not alter F0/F1 security
    expectations merely to accommodate the new layout.
@@ -424,9 +440,9 @@ Lexon-owned menus and sheets use Base UI. No owned registry overflow component
 using ThreadListItemMorePrimitive is kept. The manifest's assistant-cloud
 presence does not authorize cloud initialization, persistence, or outbound calls.
 
-### Builder calls to review
+### Approved builder calls
 
-320px fixed right panel; 256px expanded sidebar; mobile settings section select;
+320px fixed right panel; 256px expanded sidebar; mobile settings section links;
 Platform entry opens provisioning; preserve full reload on explicit org switch;
 scoped unmatched-route handling stays presentation-only. Detailed file names,
 component extraction, and test fixture mechanics are left to planning, bounded
