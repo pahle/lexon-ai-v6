@@ -33,6 +33,9 @@ importers:
       globals:
         specifier: 17.13.0
         version: 17.13.0
+      playwright-core:
+        specifier: 1.64.1
+        version: 1.64.1
       prettier:
         specifier: 3.9.10
         version: 3.9.10
@@ -235,9 +238,6 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
-      cn:
-        specifier: 0.5.1
-        version: 0.5.1
       input-otp:
         specifier: 1.5.0
         version: 1.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -3973,11 +3973,6 @@ packages:
   cn@0.2.6:
     resolution: {integrity: sha512-+i4L0zUGgRcEnhsxueVrP7iBGxBx5iD0WOTYg1MwFEu2ZyCmH5Ov2V1cul2Ht5UchRQQgftCf4be/RxspuW6QQ==}
     engines: {node: '>=20'}
-    hasBin: true
-
-  cn@0.5.1:
-    resolution: {integrity: sha512-SA06SpzSWXRNrt/EQWnRpck9jEVDfVJonw8ZewiNR6pOC4U0SQ81tWaQ9/PKNPh/lWvjuY4CMlxpc8tJViiX6Q==}
-    engines: {node: '>=22'}
     hasBin: true
 
   code-block-writer@13.0.3:
@@ -10090,8 +10085,6 @@ snapshots:
   cluster-key-slot@1.1.1: {}
 
   cn@0.2.6: {}
-
-  cn@0.5.1: {}
 
   code-block-writer@13.0.3: {}
 
