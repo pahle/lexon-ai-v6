@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -65,6 +65,13 @@ try {
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
   env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
   env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
+  env.IDENTITY_SETUP_TEST_ENTRY_PATH =
+    root + 'backend/test/e2e/admin-setup-main.mjs';
+  env.IDENTITY_SETUP_TEST_IMAGE = project + '-api';
+  const operatorEnvironmentPath = join(directory, 'operator-environment.json');
+  await writeFile(operatorEnvironmentPath, JSON.stringify(env), {
+    mode: 0o600,
+  });
   const files = [
     root + 'backend/test/e2e/compose.egress-probe.yml',
     root + 'backend/test/e2e/compose.identity.yml',
@@ -96,6 +103,7 @@ try {
     async exercise(signal) {
       const descriptor = {
         project,
+        operatorEnvironmentPath,
         apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
         frontendUrl: `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`,
       };

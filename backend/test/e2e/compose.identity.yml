@@ -10,3 +10,10 @@ services:
         source: ${IDENTITY_MAIL_CONTROL_PATH:?}
         target: /app/backend/test/e2e/mail-control.mjs
         read_only: true
+  admin-setup:
+    image: ${IDENTITY_SETUP_TEST_IMAGE:?}
+    volumes:
+      - type: bind
+        source: ${IDENTITY_SETUP_TEST_ENTRY_PATH:?}
+        target: /app/backend/test/e2e/admin-setup-main.mjs
+        read_only: true
