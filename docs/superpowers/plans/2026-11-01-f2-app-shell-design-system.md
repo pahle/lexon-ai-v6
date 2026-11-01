@@ -265,7 +265,7 @@ expect(events).toEqual(['cancel', 'clear', 'signOut', 'navigate']);
 
 **Interfaces:** `RightPanel({open,onOpenChange,title,triggerRef,children}:{open:boolean;onOpenChange:(open:boolean)=>void;title:string;triggerRef:RefObject<HTMLElement|null>;children:ReactNode}):ReactElement|null`. Consumes usePanelHost. Page owns open state; desktop aside portals into shell host; mobile same Base Sheet/Dialog. No URL/storage API.
 
-- [ ] **Step1 — Write failing controlled harness tests.** At768desktop assert named aside,320px token width across close/open/navigation to a new page harness, no drag control. At767 assert named dialog, no aside duplicate, focus cannot escape, Escape and close call false and return focus. Change breakpoint while open: exactly one semantic surface, focus remains usable. Unmount page disposes panel; reopen on another page starts false. Storage/URL spies observe no writes.
+- [x] **Step1 — Write failing controlled harness tests.** At768desktop assert named aside,320px token width across close/open/navigation to a new page harness, no drag control. At767 assert named dialog, no aside duplicate, focus cannot escape, Escape and close call false and return focus. Change breakpoint while open: exactly one semantic surface, focus remains usable. Unmount page disposes panel; reopen on another page starts false. Storage/URL spies observe no writes.
 
 ```ts
 expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
@@ -275,10 +275,10 @@ expect(document.querySelectorAll('aside[aria-label="Details"]')).toHaveLength(
 expect(document.activeElement).toBe(opener);
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/right-panel.spec.tsx`.
-- [ ] **Step3 — Implement controlled surface.** Use existing mobile hook and Sheet; override mobile width/max-width to full viewport. Desktop fixed token width, min-width-zero main. Primitive handles focus trap; explicit triggerRef supplies return target when no declarative Trigger exists. Use named fallback focus target if opener unmounts. No sidebar-state coupling or new persistence.
-- [ ] **Step4 — GREEN:** focused test, presentation checks and frontend typecheck. Same modal behavior also exercised by real mobile sidebar in Task12; no browser fixture dependency is required for panel component tests.
-- [ ] **Step5 — Commit:** stage Task9 files; commit `feat(ui): add controlled desktop panel and mobile sheet`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/right-panel.spec.tsx`.
+- [x] **Step3 — Implement controlled surface.** Use existing mobile hook and Sheet; override mobile width/max-width to full viewport. Desktop fixed token width, min-width-zero main. Primitive handles focus trap; explicit triggerRef supplies return target when no declarative Trigger exists. Use named fallback focus target if opener unmounts. No sidebar-state coupling or new persistence.
+- [x] **Step4 — GREEN:** focused test, presentation checks and frontend typecheck. Same modal behavior also exercised by real mobile sidebar in Task12; no browser fixture dependency is required for panel component tests.
+- [x] **Step5 — Commit:** stage Task9 files; commit `feat(ui): add controlled desktop panel and mobile sheet`.
 
 ### Task 10: Migrate settings and integrate F1 pages with shared frame/states
 

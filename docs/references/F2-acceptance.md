@@ -134,3 +134,15 @@ Final sidebar11 tests and frontend81 tests/16 files passed; backend283 tests/74
 files include display-cookie independence. Typecheck/lint/build/format passed.
 No dependency/lockfile changes. Browser proof remains Task12. Settings URLs
 still use the working F1 destinations until the planned Task10 migration.
+
+## Task 9 verification
+
+Commits `f59a781`, `81d099f`: main-session spec/quality reviews passed.
+Controlled desktop aside uses the320px CSS token; mobile uses the existing
+full-width Base UI Sheet, with naming, Escape/close/focus return, breakpoint
+handoff and no persistence. Initial assertion RED3 failures preceded implementation.
+A synthetic Tab assertion was replaced during review with a real primitive
+focus-guard test; temporarily disabling modal behavior made it fail, then restoring
+modal passed. This proves guard containment in jsdom, not native browser Tab.
+Focused5 tests/full frontend86 tests passed, with types/lint/build/format checks.
+No new dependency, production fixture route, or navigation destination.
