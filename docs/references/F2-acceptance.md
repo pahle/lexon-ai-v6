@@ -84,3 +84,8 @@ per-test media query stub fixed that test-environment issue. After restoring
 `pnpm --filter @lexon/frontend build`, and
 `pnpm --filter @lexon/frontend lint` passed; lint included all 90 boundary,
 design-token, and presentation-policy assertions. `git diff --check` passed.
+
+Task4 commits: `0a7a9cc`, `1d2cf9a`. Main-session spec and quality reviews
+passed after the focused corrections, with the initial process limitation above
+retained. Lockfile review confirms only next-themes0.4.6 was added; all other
+pins remain unchanged. This task does not claim browser first-paint proof.

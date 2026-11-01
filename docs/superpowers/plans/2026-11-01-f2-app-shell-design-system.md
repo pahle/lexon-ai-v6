@@ -154,7 +154,7 @@ expect(summary.platformAdmin).toBe(false);
 
 **Interfaces:** `ThemeProvider({children}: {children:ReactNode}):ReactElement`; `AppearanceSettings():ReactElement`. next-themes owns `theme` localStorage and class attribute; no backend preference or new context API. Appearance route is added in Task10.
 
-- [ ] **Step1 — Write failing component tests.** Mount provider/chooser, assert labeled Light/Dark/System radio controls and default System after mount, set Dark and assert storage theme=dark and html.dark, set Light and assert html.light, emulate OS updates in System, spy fetch and assert no preference request. Assert circular radio indicator and rectangular preview card.
+- [x] **Step1 — Write failing component tests.** Mount provider/chooser, assert labeled Light/Dark/System radio controls and default System after mount, set Dark and assert storage theme=dark and html.dark, set Light and assert html.light, emulate OS updates in System, spy fetch and assert no preference request. Assert circular radio indicator and rectangular preview card.
 
 ```ts
 expect(localStorage.getItem('theme')).toBe('dark');
@@ -162,10 +162,10 @@ expect(document.documentElement.classList.contains('dark')).toBe(true);
 expect(fetchSpy).not.toHaveBeenCalled();
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/theme.spec.tsx`; fail on absent provider/chooser behavior.
-- [ ] **Step3 — Implement minimal provider/chooser.** Install `pnpm --filter @lexon/frontend add --save-exact next-themes@0.4.6`; retain pins. Provider class/system/enableSystem/disableTransitionOnChange; html suppressHydrationWarning. Delay selection-dependent UI until mounted; labeled radio group and CSS-only previews. Generate base-nova control, inspect imports/dependency closure, and keep only used variants. Do not add a theme network call or auth toggle.
-- [ ] **Step4 — GREEN:** focused tests, token/shape checks, frontend typecheck/build. Confirm only intended dependency pins changed. Deterministic no-hydration browser proof is Task12, not a claim from jsdom.
-- [ ] **Step5 — Commit:** stage Task4 provider/controls/tests/manifests; commit `feat(ui): add browser-local light dark and system themes`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/theme.spec.tsx`; fail on absent provider/chooser behavior.
+- [x] **Step3 — Implement minimal provider/chooser.** Install `pnpm --filter @lexon/frontend add --save-exact next-themes@0.4.6`; retain pins. Provider class/system/enableSystem/disableTransitionOnChange; html suppressHydrationWarning. Delay selection-dependent UI until mounted; labeled radio group and CSS-only previews. Generate base-nova control, inspect imports/dependency closure, and keep only used variants. Do not add a theme network call or auth toggle.
+- [x] **Step4 — GREEN:** focused tests, token/shape checks, frontend typecheck/build. Confirm only intended dependency pins changed. Deterministic no-hydration browser proof is Task12, not a claim from jsdom.
+- [x] **Step5 — Commit:** stage Task4 provider/controls/tests/manifests; commit `feat(ui): add browser-local light dark and system themes`.
 
 ### Task 5: Protect all shell route prefixes
 
