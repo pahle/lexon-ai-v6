@@ -179,6 +179,25 @@ const sessionChange = z.strictObject({
   sessionId: UuidSchema,
   metadata: z.strictObject({ action: z.enum(['bearer_issued', 'revoked']) }),
 });
+const provisioning = z.strictObject({
+  ...base,
+  type: z.literal('platform.provisioning_changed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  orgId: UuidSchema,
+  invitationId: UuidSchema,
+  metadata: z.strictObject({
+    action: z.enum(['created', 'resent', 'owner_replaced', 'cancelled']),
+  }),
+});
+const disabledUser = z.strictObject({
+  ...base,
+  type: z.literal('platform.user_disabled_changed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ disabled: z.boolean() }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -191,6 +210,8 @@ export const AuditEventSchema = z.union([
   departure,
   roleChange,
   sessionChange,
+  provisioning,
+  disabledUser,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

@@ -95,6 +95,9 @@ export class OrganizationService {
   ): Promise<OrganizationSummary> {
     const body = CreateOrganizationInputSchema.parse(input);
     return this.port.transaction(identity, async (tx, headers) => {
+      const actor = await tx.call('lexonSecurityFacts', { headers });
+      if (actor.user?.role === 'admin')
+        throw new IdentityError('ORG_FORBIDDEN', 403);
       this.policy.require({
         action: 'create_team',
         actorRole: null,

@@ -81,7 +81,7 @@ One plan is intentional: sessions, organization policy, and audit share security
 | Proofs                   | Existing Vitest global setup and file fixtures, private DB test helpers, Compose test-only mail IPC and Playwright identity projects                          |
 
 Use migration numbers `0003_auth.sql`, `0004_personal.sql`, `0005_audit.sql`,
-`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0013_admin_setup.sql`.
+`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0014_admin_setup.sql`.
 Generate auth schema through `auth@1.7.14`, not the deprecated
 `@better-auth/cli@1.4.21`. Drizzle generation uses existing 0.31.11; SQL migrations
 run as `lexon_migrator`. Do not import the v1.0 Drizzle Relations v2 adapter.
@@ -536,7 +536,7 @@ so existing build/global setup and file isolation remain active.
 
 **Interfaces:** `ProvisioningService.create(identity,input:{name:string;slug:string;ownerEmail:string}):Promise<ProvisioningSummary>`; `list`, `get`, `resend`, `replaceOwnerEmail`, `cancel` with identity/orgId. `PlatformAdminService.setDisabled(identity,userId,disabled:boolean):Promise<void>`. Routes `GET/POST /api/platform/provisioning`, `GET/DELETE /api/platform/provisioning/:orgId`, `POST /:orgId/resend`, `PATCH /:orgId/owner-email`, `PATCH /api/platform/users/:userId/disabled`. ProvisioningSummary exposes only org metadata/current invite status, never member/content data.
 
-- [ ] **Step 1 — RED tests:** Non-admin/incomplete-MFA/cookie-before-MFA/session-before-enrollment denied on every platform route. Creation commits a provisioning org+one first-owner invitation and zero staff memberships. All user lists/switch/content proofs exclude it. Expired invite leaves provisioning; resend retains one current invite; replacing email invalidates the old action link; cancel deletes org/invite while preserving audit. Verified first-owner acceptance atomically creates owner+active state or rolls back all three, including audit. Concurrent cancellation/replacement/acceptance has one coherent result. Staff cannot use their platform role to read members/invitations of active customer teams or become owners. Disable revokes all cookie/Bearer sessions; re-enable does not resurrect them. Impersonation unavailable both server-side and HTTP.
+- [x] **Step 1 — RED tests:** Non-admin/incomplete-MFA/cookie-before-MFA/session-before-enrollment denied on every platform route. Creation commits a provisioning org+one first-owner invitation and zero staff memberships. All user lists/switch/content proofs exclude it. Expired invite leaves provisioning; resend retains one current invite; replacing email invalidates the old action link; cancel deletes org/invite while preserving audit. Verified first-owner acceptance atomically creates owner+active state or rolls back all three, including audit. Concurrent cancellation/replacement/acceptance has one coherent result. Staff cannot use their platform role to read members/invitations of active customer teams or become owners. Disable revokes all cookie/Bearer sessions; re-enable does not resurrect them. Impersonation unavailable both server-side and HTTP.
 
   Representative assertion, after arranging the case above:
 
@@ -547,16 +547,16 @@ so existing build/global setup and file isolation remain active.
   });
   ```
 
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/provisioning.spec.ts backend/test/integration/platform-admin.spec.ts`.
-- [ ] **Step 3 — Implement:** The platform domain service computes provisioning authorization and explicit organization/invitation values, then calls server-only `lexonProvisionTeam`, a dumb transactional primitive, because native create always adds creator membership. It uses the same BA adapter/tables and transaction, records one owner invite, sends mail after commit, and no membership. Acceptance uses Task12's module-owned decision and expected-state server primitive atomically; platform-only cancel is the sole F1 team-delete exception. Native Admin ban/unban APIs are behind fresh full-MFA platform policy and transactional audit, with permissions restricted to disable/re-enable and allowed metadata. No platform web promotion/create-user/impersonation endpoint. Never invoke the stock create-admin CLI, which can mark emails verified.
-- [ ] **Step 4 — GREEN:** Re-run Step 2, owner/invitation race tests, exhaustive allowlist and safe audit tests.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(organizations): add memberless platform provisioning"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/provisioning.spec.ts backend/test/integration/platform-admin.spec.ts`.
+- [x] **Step 3 — Implement:** The platform domain service computes provisioning authorization and explicit organization/invitation values, then calls server-only `lexonProvisionTeam`, a dumb transactional primitive, because native create always adds creator membership. It uses the same BA adapter/tables and transaction, records one owner invite, sends mail after commit, and no membership. Acceptance uses Task12's module-owned decision and expected-state server primitive atomically; platform-only cancel is the sole F1 team-delete exception. Native Admin ban/unban APIs are behind fresh full-MFA platform policy and transactional audit, with permissions restricted to disable/re-enable and allowed metadata. No platform web promotion/create-user/impersonation endpoint. Never invoke the stock create-admin CLI, which can mark emails verified.
+- [x] **Step 4 — GREEN:** Re-run Step 2, owner/invitation race tests, exhaustive allowlist and safe audit tests.
+- [x] **Step 5 — Commit:** `git commit -m "feat(organizations): add memberless platform provisioning"`.
 
 ### Task 16: Establish platform administrators through an audited operator command
 
 **Research:** R03–R04, R06–R07, R09, R12, R14; re-read plugin authoring/verified enrollment, CLI defaults, setup brief item10 and Postgres admission locking before this task.
 
-**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0013_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
+**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0014_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
 
 **Interfaces:** `runAdminSetup(input:{email:string;additional:boolean}, dependencies):Promise<{status:'created'|'pending'|'refused'}>` runs one-shot without HTTP. Server-only `lexonBeginAdminSetup`, `lexonRedeemAdminSetup`, `lexonActivateAdmin` APIs. Public `POST /api/identity/admin-setup/redeem` validates the emailed grant only, never begins setup; authenticated `POST /api/identity/admin-setup/complete` activates after verified email and TOTP. Command `node backend/dist/entrypoints/admin-setup/main.js --email <email> [--additional]`; package script `identity:setup-admin` invokes that entrypoint. No env-var admin allowlist. The domain setup service decides eligibility/activation from locked facts and passes explicit expected-state parameters to its dumb server primitives. A setup-redemption HTTP route only consumes an emailed grant; it can never begin operator setup.
 

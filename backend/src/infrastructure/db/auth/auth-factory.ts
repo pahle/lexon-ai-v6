@@ -5,6 +5,10 @@ import { defaultAc, userAc } from 'better-auth/plugins/admin/access';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
+import {
+  provisioningPlugin,
+  type ProvisioningPrimitives,
+} from './provisioning-plugin.js';
 import { sessionPlugin } from './session-plugin.js';
 import { invitationPlugin } from './invitation-plugin.js';
 import { accountPlugin, type AccountLocks } from './account-plugin.js';
@@ -48,6 +52,11 @@ export function createAuthEngine(
       throw new Error('Auth transaction unavailable');
     },
     write: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
+  provisioning: ProvisioningPrimitives = {
+    cancel: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -149,6 +158,7 @@ export function createAuthEngine(
       accountPlugin(locks),
       securityPlugin(security),
       sessionPlugin(security),
+      provisioningPlugin(organizations, provisioning),
       organizationPrimitivesPlugin(organizations),
       selectionPlugin(selection),
       organization({

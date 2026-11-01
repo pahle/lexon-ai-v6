@@ -212,5 +212,15 @@ export function createAuthTransactions(database: Database) {
     securityPrimitives,
     organizationPrimitives,
     selectionPrimitives,
+    provisioningPrimitives: {
+      async cancel(organizationId: string, invitationId: string) {
+        const state = scope.getStore();
+        if (!state?.active) throw new Error('Auth transaction unavailable');
+        const result = await state.database.execute<{ cancelled: boolean }>(
+          sql`SELECT auth.lexon_cancel_provisioning(${organizationId}::uuid,${invitationId}::uuid) AS cancelled`,
+        );
+        return result.rows[0]?.cancelled === true;
+      },
+    },
   };
 }

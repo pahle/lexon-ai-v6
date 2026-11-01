@@ -22,6 +22,7 @@ export interface InvitationRow {
   purpose: string;
 }
 export interface InvitationUserRow {
+  role: string | null;
   id: string;
   email: string;
   emailVerified: boolean;
@@ -352,6 +353,7 @@ export function invitationPlugin(
           const orgs = rows.length
             ? await ctx.context.adapter.findMany<OrgRow>({
                 model: 'organization',
+                limit: rows.length,
                 where: [
                   {
                     field: 'id',

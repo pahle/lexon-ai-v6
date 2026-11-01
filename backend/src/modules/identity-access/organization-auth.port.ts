@@ -45,6 +45,28 @@ export function isRetryableAuthError(error: unknown): boolean {
 @Injectable()
 export class OrganizationAuthPort {
   constructor(private readonly integration: AuthIntegration) {}
+  async platformTransaction<T>(
+    identity: VerifiedIdentity,
+    reauthSeconds: number,
+    work: (commands: AuthCommandSession, headers: Headers) => Promise<T>,
+  ): Promise<T> {
+    return this.transaction(identity, async (tx, headers) => {
+      const facts = await tx.call('lexonSecurityFacts', { headers });
+      if (!facts.user || !facts.session)
+        throw new IdentityError('AUTH_REQUIRED', 401);
+      new IdentityPolicy().requireAccount(
+        facts.user,
+        facts.session.mfaVerifiedAt,
+        { platform: true },
+      );
+      const age = facts.session.reauthenticatedAt
+        ? Date.now() - facts.session.reauthenticatedAt.getTime()
+        : Number.NaN;
+      if (!Number.isFinite(age) || age < 0 || age >= reauthSeconds * 1000)
+        throw new IdentityError('AUTH_REAUTH_REQUIRED', 403);
+      return work(tx, headers);
+    });
+  }
   async transaction<T>(
     identity: VerifiedIdentity,
     work: (commands: AuthCommandSession, headers: Headers) => Promise<T>,

@@ -59,6 +59,31 @@ export function createInvitationInspector(options: { migratorUrl: string }) {
         },
       };
     },
+    async seedProvisioningPage(inviterId: string, count: number) {
+      const data = Array.from({ length: count }, () => ({
+        id: randomUUID(),
+        invite: randomUUID(),
+      }));
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          "INSERT INTO auth.organization(id,name,slug,kind,state,created_at) SELECT id::uuid,'Page firm','page-'||id,'team','provisioning',now() FROM jsonb_to_recordset($1::jsonb) AS rows(id text,invite text)",
+          [JSON.stringify(data)],
+        );
+        await client.query(
+          "INSERT INTO auth.invitation(id,organization_id,email,role,purpose,status,expires_at,inviter_id) SELECT invite::uuid,id::uuid,'page@example.test','owner','first_owner','pending',now()+interval '1 day',$2 FROM jsonb_to_recordset($1::jsonb) AS rows(id text,invite text)",
+          [JSON.stringify(data), inviterId],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+      return data;
+    },
     async outboxCount() {
       return (
         await pool.query<{ count: number }>(

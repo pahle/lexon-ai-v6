@@ -359,7 +359,13 @@ export class InvitationService {
       const row = facts.invitation;
       const org = facts.organization;
       const user = facts.user;
-      if (!row || !org || !user?.emailVerified || identity.platformAdmin)
+      if (
+        !row ||
+        !org ||
+        !user?.emailVerified ||
+        user.role === 'admin' ||
+        identity.platformAdmin
+      )
         throw new IdentityError('ORG_FORBIDDEN', 403);
       const classification = classifyInvitationAcceptance({
         status: row.status,

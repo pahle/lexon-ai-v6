@@ -3,6 +3,8 @@ import type {
   OrganizationAuthPort,
   OrganizationSelectionPort,
 } from '../identity-access/index.js';
+import { ProvisioningService } from './provisioning.service.js';
+import { ProvisioningController } from './provisioning.controller.js';
 import { OrganizationController } from './organization.controller.js';
 import { MembershipService } from './membership.service.js';
 import { MembershipController } from './membership.controller.js';
@@ -22,10 +24,12 @@ export class OrganizationsModule {
     selection: OrganizationSelectionPort;
     pagination: { defaultLimit: number; maxLimit: number };
     invitationSeconds: number;
+    reauthSeconds?: number;
   }): DynamicModule {
     return {
       module: OrganizationsModule,
       controllers: [
+        ProvisioningController,
         MembershipController,
         OrganizationController,
         InvitationController,
@@ -33,6 +37,15 @@ export class OrganizationsModule {
         RecipientInvitationController,
       ],
       providers: [
+        {
+          provide: ProvisioningService,
+          useFactory: () =>
+            new ProvisioningService(options.port, {
+              invitationSeconds: options.invitationSeconds,
+              reauthSeconds: options.reauthSeconds ?? 300,
+              pagination: options.pagination,
+            }),
+        },
         {
           provide: MembershipService,
           useFactory: () =>
