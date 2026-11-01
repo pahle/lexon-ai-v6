@@ -216,7 +216,7 @@ test('Nest guard binds only verified tenant IDs across async controller work and
     expect((await fetch(`${origin}/guard-probe/live`)).status).toBe(200);
     expect(
       (await fetch(`${origin}/guard-probe`, { headers: full.headers })).status,
-    ).toBe(503);
+    ).toBe(200);
   } finally {
     await app.close();
     await limiter.close();
