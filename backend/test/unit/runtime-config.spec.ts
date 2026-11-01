@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
+import { authConfigEnvironment } from '../setup/auth-environment.js';
 
 const base = {
   DATABASE_APP_URL: 'postgresql://app:secret@localhost/test',
@@ -38,7 +39,11 @@ it.each(['api', 'document-worker'] as const)(
   (runtime) => {
     expect(() => loadRuntimeConfig(runtime, base)).toThrow('S3_ENDPOINT');
     expect(
-      loadRuntimeConfig(runtime, { ...base, ...storage }).storage.bucket,
+      loadRuntimeConfig(runtime, {
+        ...base,
+        ...storage,
+        ...(runtime === 'api' ? authConfigEnvironment() : {}),
+      }).storage.bucket,
     ).toBe('test');
   },
 );
@@ -126,6 +131,7 @@ it('validates an optional caller-reachable S3 endpoint separately from its inter
     loadRuntimeConfig('api', {
       ...base,
       ...storage,
+      ...authConfigEnvironment(),
       S3_PUBLIC_ENDPOINT: 'http://localhost:8334',
     }).storage.publicEndpoint,
   ).toBe('http://localhost:8334');
@@ -133,6 +139,7 @@ it('validates an optional caller-reachable S3 endpoint separately from its inter
     loadRuntimeConfig('api', {
       ...base,
       ...storage,
+      ...authConfigEnvironment(),
       S3_PUBLIC_ENDPOINT: 'redis://secret-host',
     }),
   ).toThrow('S3_PUBLIC_ENDPOINT');

@@ -1,0 +1,173 @@
+import { randomUUID } from 'node:crypto';
+import { Pool } from 'pg';
+export function createInvitationInspector(options: { migratorUrl: string }) {
+  const pool = new Pool({ connectionString: options.migratorUrl });
+  return {
+    async holdEmailChange(userId: string, email: string) {
+      const client = await pool.connect();
+      await client.query('BEGIN');
+      await client.query('UPDATE auth."user" SET email=$2 WHERE id=$1', [
+        userId,
+        email,
+      ]);
+      return {
+        async waitForAuthWaiter() {
+          const deadline = Date.now() + 5000;
+          while (Date.now() < deadline) {
+            const result = await pool.query<{ blocked: number }>(
+              "SELECT count(*) FILTER(WHERE cardinality(pg_blocking_pids(pid))>0)::int AS blocked FROM pg_stat_activity WHERE datname=current_database() AND usename='lexon_auth'",
+            );
+            if (result.rows[0]!.blocked > 0) return;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+          }
+          throw new Error('Email race synchronization timed out');
+        },
+        async release() {
+          try {
+            await client.query('COMMIT');
+          } finally {
+            client.release();
+          }
+        },
+      };
+    },
+    async holdRoleChange(memberId: string, role: string) {
+      const client = await pool.connect();
+      await client.query('BEGIN');
+      await client.query('UPDATE auth.member SET role=$2 WHERE id=$1', [
+        memberId,
+        role,
+      ]);
+      return {
+        async waitForAuthWaiter() {
+          const deadline = Date.now() + 5000;
+          while (Date.now() < deadline) {
+            const result = await pool.query<{ blocked: number }>(
+              "SELECT count(*) FILTER(WHERE cardinality(pg_blocking_pids(pid))>0)::int AS blocked FROM pg_stat_activity WHERE datname=current_database() AND usename='lexon_auth'",
+            );
+            if (result.rows[0]!.blocked > 0) return;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+          }
+          throw new Error('Role race synchronization timed out');
+        },
+        async release() {
+          try {
+            await client.query('COMMIT');
+          } finally {
+            client.release();
+          }
+        },
+      };
+    },
+    async seedProvisioningPage(inviterId: string, count: number) {
+      const data = Array.from({ length: count }, () => ({
+        id: randomUUID(),
+        invite: randomUUID(),
+      }));
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          "INSERT INTO auth.organization(id,name,slug,kind,state,created_at) SELECT id::uuid,'Page firm','page-'||id,'team','provisioning',now() FROM jsonb_to_recordset($1::jsonb) AS rows(id text,invite text)",
+          [JSON.stringify(data)],
+        );
+        await client.query(
+          "INSERT INTO auth.invitation(id,organization_id,email,role,purpose,status,expires_at,inviter_id) SELECT invite::uuid,id::uuid,'page@example.test','owner','first_owner','pending',now()+interval '1 day',$2 FROM jsonb_to_recordset($1::jsonb) AS rows(id text,invite text)",
+          [JSON.stringify(data), inviterId],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+      return data;
+    },
+    async outboxCount() {
+      return (
+        await pool.query<{ count: number }>(
+          'SELECT count(*)::int AS count FROM ops.outbox',
+        )
+      ).rows[0]!.count;
+    },
+    async departureAudits(orgId: string) {
+      return (
+        await pool.query(
+          "SELECT actor_user_id,subject_user_id,member_id,metadata FROM ops.audit_events WHERE org_id=$1 AND type='organization.member_departed.v1'",
+          [orgId],
+        )
+      ).rows;
+    },
+    async email(id: string): Promise<string> {
+      return (
+        await pool.query<{ email: string }>(
+          'SELECT email FROM auth."user" WHERE id=$1',
+          [id],
+        )
+      ).rows[0]!.email;
+    },
+    async changeEmail(id: string, email: string) {
+      await pool.query('UPDATE auth."user" SET email=$2 WHERE id=$1', [
+        id,
+        email,
+      ]);
+    },
+    async member(userId: string, orgId: string) {
+      return (
+        (
+          await pool.query<{ id: string; role: string }>(
+            'SELECT id,role FROM auth.member WHERE user_id=$1 AND organization_id=$2',
+            [userId, orgId],
+          )
+        ).rows[0] ?? null
+      );
+    },
+    async addMember(orgId: string, userId: string, role: string) {
+      await pool.query(
+        'INSERT INTO auth.member(id,organization_id,user_id,role,created_at) VALUES($1,$2,$3,$4,now())',
+        [randomUUID(), orgId, userId, role],
+      );
+    },
+    async setRole(id: string, role: string) {
+      await pool.query('UPDATE auth.member SET role=$2 WHERE id=$1', [
+        id,
+        role,
+      ]);
+    },
+    async removeMember(id: string) {
+      await pool.query('DELETE FROM auth.member WHERE id=$1', [id]);
+    },
+    async requireMfa(id: string) {
+      await pool.query(
+        'UPDATE auth.organization SET require2fa=true WHERE id=$1',
+        [id],
+      );
+    },
+    async expire(id: string) {
+      await pool.query(
+        "UPDATE auth.invitation SET expires_at=now()-interval '1 second' WHERE id=$1",
+        [id],
+      );
+    },
+    async pendingCount(orgId: string, email: string) {
+      return (
+        await pool.query<{ count: number }>(
+          "SELECT count(*)::int AS count FROM auth.invitation WHERE organization_id=$1 AND lower(email)=lower($2) AND status='pending'",
+          [orgId, email],
+        )
+      ).rows[0]!.count;
+    },
+    async acceptAuditCount(invitationId: string) {
+      return (
+        await pool.query<{ count: number }>(
+          "SELECT count(*)::int AS count FROM ops.audit_events WHERE invitation_id=$1 AND type='organization.invitation_changed.v1' AND metadata->>'action'='accepted'",
+          [invitationId],
+        )
+      ).rows[0]!.count;
+    },
+    async close() {
+      await pool.end();
+    },
+  };
+}

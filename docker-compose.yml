@@ -44,6 +44,38 @@ x-worker-health: &worker-health
   retries: 8
   start_period: 10s
 services:
+  mailpit:
+    image: ${MAILPIT_IMAGE:?Use the manifest loader}
+    profiles: [dev-mail]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_DISABLE_VERSION_CHECK: 'true'
+      MP_MAX_MESSAGES: '500'
+      MP_QUIET: 'true'
+    tmpfs: [/data]
+    networks: [core]
+    ports: ['127.0.0.1:${MAILPIT_HOST_PORT:-8025}:8025']
+    mem_limit: 128m
+    cpus: 0.25
+  admin-setup:
+    <<: *runtime
+    profiles: [operator]
+    build:
+      <<: *backend-build
+      target: api
+    command: [node, backend/dist/entrypoints/admin-setup/main.js]
+    environment:
+      LEXON_SETUP_DATABASE_URL: ${LEXON_SETUP_DATABASE_URL:-}
+      AUTH_PUBLIC_ORIGIN: ${AUTH_PUBLIC_ORIGIN:-http://localhost:3000}
+      AUTH_AUDIT_HMAC_SECRET: ${AUTH_AUDIT_HMAC_SECRET:-}
+      AUTH_AUDIT_HMAC_KEY_ID: ${AUTH_AUDIT_HMAC_KEY_ID:-v1}
+      AUTH_SETUP_SECONDS: ${AUTH_SETUP_SECONDS:-86400}
+      SMTP_URL: ${SMTP_URL:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    networks: [core, egress]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   postgres:
     image: ${POSTGRES_IMAGE:?Use the manifest loader}
     environment:
@@ -132,6 +164,7 @@ services:
       DATABASE_MIGRATOR_URL: ${DATABASE_MIGRATOR_URL:?}
       DATABASE_APP_PASSWORD: ${DATABASE_APP_PASSWORD:?}
       DATABASE_AUTH_PASSWORD: ${DATABASE_AUTH_PASSWORD:?}
+      DATABASE_SETUP_PASSWORD: ${DATABASE_SETUP_PASSWORD:-}
     networks: [core]
     depends_on:
       bootstrap:
@@ -154,6 +187,15 @@ services:
       target: api
     environment:
       <<: [*runtime-env, *storage-env]
+      DATABASE_AUTH_URL: ${DATABASE_AUTH_URL:?}
+      AUTH_PUBLIC_ORIGIN: ${AUTH_PUBLIC_ORIGIN:-http://localhost:3000}
+      AUTH_LOCAL_DEVELOPMENT: ${AUTH_LOCAL_DEVELOPMENT:-true}
+      AUTH_SECRET: ${AUTH_SECRET:?}
+      AUTH_AUDIT_HMAC_SECRET: ${AUTH_AUDIT_HMAC_SECRET:?}
+      AUTH_AUDIT_HMAC_KEY_ID: ${AUTH_AUDIT_HMAC_KEY_ID:-v1}
+      AUTH_OPEN_SIGNUP: ${AUTH_OPEN_SIGNUP:-true}
+      SMTP_URL: ${SMTP_URL:?}
+      SMTP_FROM: ${SMTP_FROM:?}
       PORT: 3001
     networks: [edge, core, egress]
     ports: ['127.0.0.1:${API_HOST_PORT:-3001}:3001']
@@ -237,7 +279,7 @@ services:
           CMD,
           node,
           -e,
-          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 5s
       timeout: 3s

@@ -32,10 +32,16 @@ test('migrates as non-superuser owner with isolated application roles', async ({
       bypassRls: false,
       createRole: true,
     },
+    {
+      name: 'lexon_setup',
+      superuser: false,
+      bypassRls: false,
+      createRole: false,
+    },
   ]);
   expect(before.appCanAssumeMigrator).toBe(false);
   expect(before.appCanAssumeAuth).toBe(false);
-  expect(before.appAuthUsage).toBe(false);
+  expect(before.appAuthUsage).toBe(true);
   await migrateDatabase(services.migratorUrl);
   expect((await inspectFoundation(services)).migrationCount).toBe(
     before.migrationCount,

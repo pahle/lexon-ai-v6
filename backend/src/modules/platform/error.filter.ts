@@ -1,3 +1,5 @@
+import { IdentityError } from '../identity-access/index.js';
+import { z } from 'zod';
 import {
   Catch,
   HttpException,
@@ -25,7 +27,13 @@ export class SafeErrorFilter implements ExceptionFilter {
       code: 'INTERNAL_ERROR',
       message: 'Internal server error',
     };
-    if (error instanceof ValidationFailure) {
+    if (error instanceof IdentityError) {
+      status = error.status;
+      detail = { code: error.code, message: error.message };
+    } else if (error instanceof z.ZodError) {
+      status = 400;
+      detail = { code: 'VALIDATION_ERROR', message: 'Invalid request' };
+    } else if (error instanceof ValidationFailure) {
       status = 400;
       detail = {
         code: 'VALIDATION_ERROR',

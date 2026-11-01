@@ -5,5 +5,12 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "test", "dist", "node_modules"]
+  "exclude": [
+    "**/*.spec.ts",
+    "src/**/testing/**",
+    "src/**/auth-generation.config.ts",
+    "test",
+    "dist",
+    "node_modules"
+  ]
 }

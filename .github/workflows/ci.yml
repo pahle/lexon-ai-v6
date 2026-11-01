@@ -1,12 +1,12 @@
-name: Foundation
+name: Lexon
 on:
   pull_request:
   push:
-    branches: [f0-foundation]
+    branches: [f0-foundation, f1-identity-organizations]
 permissions:
   contents: read
 concurrency:
-  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  group: lexon-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   unit-integration:
@@ -36,6 +36,8 @@ jobs:
           done
       - name: Unit and isolated Testcontainers integration
         run: pnpm test
+      - name: Identity policy mutation gate
+        run: pnpm --filter @lexon/backend test:mutation:identity
       - name: Tooling and cleanup assertions
         run: node --test scripts/test/*.spec.mjs
   compose-e2e:
@@ -62,7 +64,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: foundation-e2e-results
+          name: lexon-e2e-results
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore

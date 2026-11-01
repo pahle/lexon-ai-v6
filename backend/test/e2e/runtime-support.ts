@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 export interface E2EDescriptor {
   project: string;
+  operatorEnvironmentPath: string;
   apiUrl: string;
   frontendUrl: string;
 }

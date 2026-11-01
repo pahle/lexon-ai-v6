@@ -17,16 +17,20 @@
     "test:unit": "vitest run --project '!backend-integration'",
     "test:e2e": "node scripts/e2e.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "identity:setup-admin": "node scripts/setup-admin.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
     "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.13.0",
+    "playwright-core": "1.64.1",
     "prettier": "3.9.10",
+    "shadcn": "4.23.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",

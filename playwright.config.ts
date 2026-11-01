@@ -7,8 +7,23 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: 'list',
-  use: { headless: true, trace: 'retain-on-failure' },
+  use: { headless: true, trace: 'off' },
   projects: [
+    {
+      name: 'identity-api',
+      testMatch: 'backend/test/e2e/identity-api.spec.ts',
+      use: { trace: 'off', video: 'off', screenshot: 'off' },
+    },
+    {
+      name: 'identity-browser',
+      use: { trace: 'off', video: 'off', screenshot: 'off' },
+      testMatch: [
+        'backend/test/e2e/*entry.spec.ts',
+        'backend/test/e2e/account-security.spec.ts',
+        'backend/test/e2e/organizations.spec.ts',
+        'backend/test/e2e/platform-identity.spec.ts',
+      ],
+    },
     {
       name: 'runtime-health',
       testMatch: 'backend/test/e2e/runtime-health.spec.ts',

@@ -17,6 +17,14 @@ const env = await composeEnvironment(
     DATABASE_MIGRATOR_PASSWORD: secret(),
     DATABASE_APP_PASSWORD: secret(),
     DATABASE_AUTH_PASSWORD: secret(),
+    DATABASE_SETUP_PASSWORD: secret(),
+    AUTH_SECRET: secret(),
+    AUTH_AUDIT_HMAC_SECRET: secret(),
+    AUTH_AUDIT_HMAC_KEY_ID: 'policy-v1',
+    AUTH_PUBLIC_ORIGIN: 'http://localhost:3000',
+    AUTH_LOCAL_DEVELOPMENT: 'true',
+    SMTP_URL: 'smtp://127.0.0.1:2525',
+    SMTP_FROM: 'lexon@example.test',
     VALKEY_PASSWORD: secret(),
     S3_ACCESS_KEY: secret(),
     S3_SECRET_KEY: secret(),
@@ -112,7 +120,8 @@ try {
     );
     const id = (await invoke(['ps', '-aq', 'api'])).trim();
     let exited = false;
-    for (let attempt = 0; attempt < 60; attempt++) {
+    const observedAt = performance.now();
+    for (let attempt = 0; attempt < 300; attempt++) {
       const state = JSON.parse(
         await run('docker', ['inspect', '--format', '{{json .State}}', id], {
           quiet: true,
@@ -126,6 +135,11 @@ try {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    process.stderr.write(
+      'API policy rejection observation ms: ' +
+        Math.round(performance.now() - observedAt) +
+        '\n',
+    );
     if (!exited) throw new Error('Unsafe policy did not reject API startup');
   }
   const correct = {

@@ -12,6 +12,7 @@ interface Ports {
     limiter: 'up' | 'down';
   }>;
   storage?: Probe;
+  auth?: Probe;
 }
 export class HealthIndicators {
   readonly #pending = new Map<string, Promise<unknown>>();
@@ -56,6 +57,11 @@ export class HealthIndicators {
           this.ports.storage
             ? this.once('storage', () => this.ports.storage!.check())
             : 'down',
+      ]);
+    if (runtime === 'api' && this.ports.auth)
+      checks.push([
+        'auth',
+        () => this.once('auth', () => this.ports.auth!.check()),
       ]);
     const result: DependencyStatus = {};
     await Promise.all(

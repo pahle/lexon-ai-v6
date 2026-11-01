@@ -334,5 +334,131 @@
     "importer": "backend/src/modules/platform/service.ts",
     "code": "import '../../infrastructure/db/index.js';",
     "rule": null
+  },
+  {
+    "name": "policy require method is not a CommonJS import",
+    "importer": "backend/src/modules/identity-access/policy.ts",
+    "code": "export class Policy { require(input: unknown): void { if (!input) throw new Error(); } }",
+    "rule": null
+  },
+  {
+    "name": "typed require method is not a CommonJS import",
+    "importer": "backend/src/modules/identity-access/policy.ts",
+    "code": "export interface Policy { require(input: unknown): void; }",
+    "rule": null
+  },
+  {
+    "name": "CommonJS require object value remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "const loaders = { load: require };",
+    "rule": "require-import"
+  },
+  {
+    "name": "CommonJS require receiver remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "require.call(null, 'pg');",
+    "rule": "require-import"
+  },
+  {
+    "name": "CommonJS require computed property remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "const loader = loaders[require];",
+    "rule": "require-import"
+  },
+  {
+    "name": "frontend auth server",
+    "importer": "frontend/src/lib/unsafe.ts",
+    "code": "import {betterAuth} from 'better-auth';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "frontend auth adapter",
+    "importer": "frontend/src/lib/unsafe.ts",
+    "code": "import 'better-auth/adapters/drizzle';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "frontend auth core context",
+    "importer": "frontend/src/lib/unsafe.ts",
+    "code": "import '@better-auth/core/context';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "shared auth server",
+    "importer": "shared/src/unsafe.ts",
+    "code": "import 'better-auth';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "addin auth server",
+    "importer": "word-add-in/src/unsafe.ts",
+    "code": "import 'better-auth/plugins';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "domain auth vendor bypass",
+    "importer": "backend/src/modules/documents/wrapper.ts",
+    "code": "import {betterAuth} from 'better-auth';",
+    "rule": "auth-owner"
+  },
+  {
+    "name": "worker auth factory wrapper",
+    "importer": "backend/src/entrypoints/ai-worker/wrapper.ts",
+    "code": "import {createAuthRuntime} from '../../infrastructure/db/index.js';",
+    "rule": "auth-runtime-owner"
+  },
+  {
+    "name": "eval auth factory wrapper",
+    "importer": "backend/src/evaluation/wrapper.ts",
+    "code": "import {createAuthRuntime} from '../infrastructure/db/index.js';",
+    "rule": "auth-runtime-owner"
+  },
+  {
+    "name": "worker auth namespace wrapper",
+    "importer": "backend/src/entrypoints/ai-worker/wrapper.ts",
+    "code": "import * as db from '../../infrastructure/db/index.js';",
+    "rule": "database-named"
+  },
+  {
+    "name": "frontend auth React client",
+    "importer": "frontend/src/lib/client.ts",
+    "code": "import {createAuthClient} from 'better-auth/react';",
+    "rule": null
+  },
+  {
+    "name": "frontend factor client",
+    "importer": "frontend/src/lib/client.ts",
+    "code": "import {twoFactorClient} from 'better-auth/client/plugins';",
+    "rule": null
+  },
+  {
+    "name": "domain identity public barrel",
+    "importer": "backend/src/modules/documents/commands.ts",
+    "code": "import {IdentityPolicy} from '../identity-access/index.js';",
+    "rule": null
+  },
+  {
+    "name": "worker private identity runtime wrapper",
+    "importer": "backend/src/entrypoints/ai-worker/wrapper.ts",
+    "code": "import {createIdentityRuntime} from '../../modules/identity-access/identity-runtime.js';",
+    "rule": "auth-runtime-owner"
+  },
+  {
+    "name": "eval API bootstrap wrapper",
+    "importer": "backend/src/evaluation/wrapper.ts",
+    "code": "import {createApi} from '../bootstrap/api.js';",
+    "rule": "auth-runtime-owner"
+  },
+  {
+    "name": "renamed auth factory export",
+    "importer": "backend/src/wrapper.ts",
+    "code": "export {createAuthRuntime as load} from './infrastructure/db/index.js';",
+    "rule": "auth-runtime-owner"
+  },
+  {
+    "name": "auth capability star export wrapper",
+    "importer": "backend/src/wrapper.ts",
+    "code": "export * from './infrastructure/db/index.js';",
+    "rule": "database-named"
   }
 ]

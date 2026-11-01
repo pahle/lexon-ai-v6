@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { E2E_PROJECTS } from './e2e-projects.mjs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -18,12 +19,7 @@ async function port() {
 const args = process.argv.slice(2).filter((arg) => arg !== '--');
 const packageIndex = args.indexOf('--package');
 const selected = packageIndex < 0 ? undefined : args.splice(packageIndex, 2)[1];
-const mappings = {
-  backend: ['runtime-health', 'backend-api', 'topology'],
-  frontend: ['frontend-browser'],
-  shared: ['backend-api'],
-  evals: ['evaluation-smoke'],
-};
+const mappings = E2E_PROJECTS;
 if (selected && !mappings[selected]) throw new Error('Unknown E2E package');
 if (selected && !args.includes('--project'))
   for (const project of mappings[selected]) args.push('--project', project);
@@ -45,6 +41,15 @@ try {
       DATABASE_MIGRATOR_PASSWORD: secret(),
       DATABASE_APP_PASSWORD: secret(),
       DATABASE_AUTH_PASSWORD: secret(),
+      DATABASE_SETUP_PASSWORD: secret(),
+      AUTH_SECRET: secret(),
+      AUTH_AUDIT_HMAC_SECRET: secret(),
+      AUTH_AUDIT_HMAC_KEY_ID: 'e2e-v1',
+      AUTH_OPEN_SIGNUP: 'true',
+      COMPOSE_PROFILES: '',
+      AUTH_LOCAL_DEVELOPMENT: 'true',
+      SMTP_URL: 'smtp://127.0.0.1:2525',
+      SMTP_FROM: 'lexon@example.test',
       VALKEY_PASSWORD: secret(),
       S3_ACCESS_KEY: secret(),
       S3_SECRET_KEY: secret(),
@@ -54,8 +59,21 @@ try {
     },
     directory,
   );
+  env.AUTH_PUBLIC_ORIGIN = `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`;
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
-  const files = [root + 'backend/test/e2e/compose.egress-probe.yml'];
+  env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
+  env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
+  env.IDENTITY_SETUP_TEST_ENTRY_PATH =
+    root + 'backend/test/e2e/admin-setup-main.mjs';
+  env.IDENTITY_SETUP_TEST_IMAGE = project + '-api';
+  const operatorEnvironmentPath = join(directory, 'operator-environment.json');
+  await writeFile(operatorEnvironmentPath, JSON.stringify(env), {
+    mode: 0o600,
+  });
+  const files = [
+    root + 'backend/test/e2e/compose.egress-probe.yml',
+    root + 'backend/test/e2e/compose.identity.yml',
+  ];
   await withOwnedStack({
     project,
     directory,
@@ -83,6 +101,7 @@ try {
     async exercise(signal) {
       const descriptor = {
         project,
+        operatorEnvironmentPath,
         apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
         frontendUrl: `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`,
       };
@@ -93,6 +112,8 @@ try {
           env: {
             ...process.env,
             LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+            PLAYWRIGHT_NO_COPY_PROMPT: '1',
+            COMPOSE_PROFILES: '',
           },
           signal,
         },

@@ -33,7 +33,9 @@ export default {
             (node.specifiers?.length > 0 &&
               node.specifiers.every((item) => item.importKind === 'type'));
           const names = (node.specifiers ?? []).map(
-            (item) => item.imported?.name ?? '*',
+            (item) =>
+              item.imported?.name ??
+              (item.type === 'ExportSpecifier' ? item.local?.name : '*'),
           );
           const decision = classifyImport({
             root,
@@ -41,6 +43,7 @@ export default {
             specifier: source.value,
             names,
             typeOnly,
+            loadKind: node.type,
           });
           if (!decision.allowed) report(source, decision.ruleId, source.value);
         }
@@ -60,10 +63,23 @@ export default {
             else inspect(node, node.source);
           },
           Identifier(node) {
-            if (
-              node.name === 'require' &&
-              !['Property', 'MemberExpression'].includes(node.parent.type)
-            )
+            const parent = node.parent;
+            const namedKey =
+              [
+                'Property',
+                'MethodDefinition',
+                'PropertyDefinition',
+                'TSMethodSignature',
+                'TSPropertySignature',
+              ].includes(parent.type) &&
+              parent.key === node &&
+              !parent.computed &&
+              !parent.shorthand;
+            const memberKey =
+              parent.type === 'MemberExpression' &&
+              parent.property === node &&
+              !parent.computed;
+            if (node.name === 'require' && !namedKey && !memberKey)
               report(node, 'require-import', 'require');
           },
         };

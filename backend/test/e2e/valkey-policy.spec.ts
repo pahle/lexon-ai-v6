@@ -26,6 +26,10 @@ test('isolated wrong eviction/AOF/fsync configurations reject startup and correc
     ['scripts/policy-smoke.mjs', descriptor().project],
     { timeout: 170000, maxBuffer: 1024 * 1024 },
   );
+  for (const timing of result.stderr.matchAll(
+    /API policy rejection observation ms: (\d+)/g,
+  ))
+    console.info('Policy rejection observed after ms:', Number(timing[1]));
   expect(result.stdout.trim()).toBe(
     'Valkey startup rejection and recovery passed',
   );

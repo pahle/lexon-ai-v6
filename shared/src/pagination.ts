@@ -11,3 +11,9 @@ export const PageInfoSchema = z.strictObject({
 
 export type Pagination = z.infer<typeof PaginationSchema>;
 export type PageInfo = z.infer<typeof PageInfoSchema>;
+export interface Page<T> {
+  items: T[];
+  pageInfo: PageInfo;
+}
+export const pageSchema = <T extends z.ZodType>(item: T) =>
+  z.strictObject({ items: z.array(item), pageInfo: PageInfoSchema });

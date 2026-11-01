@@ -15,7 +15,10 @@ import { StoragePort } from '../infrastructure/storage/index.js';
 import { HealthIndicators } from '../infrastructure/telemetry/index.js';
 import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
-export function runtimeProviders(config: RuntimeConfig): Provider[] {
+export function runtimeProviders(
+  config: RuntimeConfig,
+  auth?: { check(): Promise<'up' | 'down'> },
+): Provider[] {
   const providers: Provider[] = [
     {
       provide: HealthIndicators,
@@ -29,6 +32,7 @@ export function runtimeProviders(config: RuntimeConfig): Provider[] {
         new HealthIndicators(
           {
             database: db,
+            ...(auth ? { auth } : {}),
             valkey: () => checkValkeyPolicy(config.valkey),
             ...(storage ? { storage } : {}),
           },

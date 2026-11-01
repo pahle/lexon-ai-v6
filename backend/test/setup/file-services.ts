@@ -84,6 +84,12 @@ export const test = base.extend(
         descriptor.passwords.app,
         dbName,
       ),
+      authUrl: roleUrl(
+        descriptor.adminUrl,
+        'lexon_auth',
+        descriptor.passwords.auth,
+        dbName,
+      ),
       migratorUrl: roleUrl(
         descriptor.adminUrl,
         'lexon_migrator',

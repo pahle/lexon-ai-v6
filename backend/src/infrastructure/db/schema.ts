@@ -32,3 +32,18 @@ export const processedJobs = ops.table('processed_jobs', {
     .defaultNow()
     .notNull(),
 });
+export const auditEvents = ops.table('audit_events', {
+  eventId: uuid('event_id').primaryKey(),
+  version: integer().notNull(),
+  type: text().notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+  outcome: text().notNull(),
+  actorUserId: uuid('actor_user_id'),
+  subjectUserId: uuid('subject_user_id'),
+  sessionId: uuid('session_id'),
+  orgId: uuid('org_id'),
+  invitationId: uuid('invitation_id'),
+  memberId: uuid('member_id'),
+  requestId: uuid('request_id'),
+  metadata: jsonb().notNull(),
+});
