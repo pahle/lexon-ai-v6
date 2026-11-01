@@ -73,6 +73,15 @@ export async function createAuthFixture(
         ]
       : [],
     mail: {
+      sendInvitation: async ({ email, url, organizationName }) => {
+        await mailer.send({
+          kind: 'invitation',
+          to: email,
+          actionUrl: url,
+          organizationName,
+        });
+        mail.set(`invitation:${email}`, url);
+      },
       sendVerification: async ({ email, url }) => {
         await mailer.send({ kind: 'verification', to: email, actionUrl: url });
         mail.set(email, url);
@@ -100,8 +109,8 @@ export async function createAuthFixture(
     mailWasDispatched: (email: string) => mail.has(email),
     dispatchedLink: (
       email: string,
-      kind: 'verification' | 'reset' = 'verification',
-    ) => mail.get(kind === 'reset' ? `reset:${email}` : email),
+      kind: 'verification' | 'reset' | 'invitation' = 'verification',
+    ) => mail.get(kind === 'verification' ? email : `${kind}:${email}`),
     mailDeliveryState: () => mailer.deliveryState(),
     drainMail: () => mailer.drain(1000),
     pluginIds: () => auth.options.plugins.map((plugin) => plugin.id),

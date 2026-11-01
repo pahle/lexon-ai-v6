@@ -4,6 +4,12 @@ import type {
   OrganizationSelectionPort,
 } from '../identity-access/index.js';
 import { OrganizationController } from './organization.controller.js';
+import { InvitationService } from './invitation.service.js';
+import {
+  InvitationController,
+  OrganizationInvitationController,
+  RecipientInvitationController,
+} from './invitation.controller.js';
 import { OrganizationService } from './organization.service.js';
 import { OrganizationSwitchService } from './organization-switch.service.js';
 
@@ -13,11 +19,25 @@ export class OrganizationsModule {
     port: OrganizationAuthPort;
     selection: OrganizationSelectionPort;
     pagination: { defaultLimit: number; maxLimit: number };
+    invitationSeconds: number;
   }): DynamicModule {
     return {
       module: OrganizationsModule,
-      controllers: [OrganizationController],
+      controllers: [
+        OrganizationController,
+        InvitationController,
+        OrganizationInvitationController,
+        RecipientInvitationController,
+      ],
       providers: [
+        {
+          provide: InvitationService,
+          useFactory: () =>
+            new InvitationService(options.port, options.selection, {
+              invitationSeconds: options.invitationSeconds,
+              pagination: options.pagination,
+            }),
+        },
         {
           provide: OrganizationSwitchService,
           useFactory: () => new OrganizationSwitchService(options.selection),

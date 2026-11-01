@@ -19,6 +19,11 @@ export interface AuthEngineOptions {
   };
   plugins?: BetterAuthPlugin[];
   mail: {
+    sendInvitation?: (message: {
+      email: string;
+      url: string;
+      organizationName: string;
+    }) => Promise<void>;
     sendVerification: (message: {
       email: string;
       url: string;

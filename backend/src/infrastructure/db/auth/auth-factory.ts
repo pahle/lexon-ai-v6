@@ -5,6 +5,7 @@ import { defaultAc, userAc } from 'better-auth/plugins/admin/access';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
+import { invitationPlugin } from './invitation-plugin.js';
 import { accountPlugin, type AccountLocks } from './account-plugin.js';
 import { securityPlugin, type SecurityPrimitives } from './security-plugin.js';
 import {
@@ -133,11 +134,40 @@ export function createAuthEngine(
       },
     },
     plugins: [
+      invitationPlugin(organizations, async (invitation, organization) => {
+        if (!options.mail.sendInvitation)
+          throw new Error('Invitation delivery unavailable');
+        const url = new URL('/accept-invitation', options.origin);
+        url.searchParams.set('id', invitation.id);
+        await options.mail.sendInvitation({
+          email: invitation.email,
+          url: url.toString(),
+          organizationName: organization.name,
+        });
+      }),
       accountPlugin(locks),
       securityPlugin(security),
       organizationPrimitivesPlugin(organizations),
       selectionPlugin(selection),
       organization({
+        sendInvitationEmail: async ({
+          id,
+          email,
+          organization,
+        }: {
+          id: string;
+          email: string;
+          organization: { name: string };
+        }) => {
+          if (!options.mail.sendInvitation) return;
+          const url = new URL('/accept-invitation', options.origin);
+          url.searchParams.set('id', id);
+          await options.mail.sendInvitation({
+            email,
+            url: url.toString(),
+            organizationName: organization.name,
+          });
+        },
         allowUserToCreateOrganization:
           options.pluginConfiguration?.allowUserToCreateOrganization ?? true,
         invitationExpiresIn: options.policy?.invitationSeconds ?? 1209600,

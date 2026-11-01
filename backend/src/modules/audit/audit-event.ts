@@ -131,6 +131,24 @@ const settings = z.strictObject({
       .refine((fields) => new Set(fields).size === fields.length),
   }),
 });
+const invitation = z.strictObject({
+  ...base,
+  type: z.literal('organization.invitation_changed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  orgId: UuidSchema,
+  invitationId: UuidSchema,
+  metadata: z.strictObject({
+    action: z.enum([
+      'created',
+      'resent',
+      'cancelled',
+      'declined',
+      'accepted',
+      'expired_replaced',
+    ]),
+  }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -139,6 +157,7 @@ export const AuditEventSchema = z.union([
   account,
   security,
   settings,
+  invitation,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };
