@@ -138,6 +138,12 @@ test('provisioning exposes metadata/status only and pagination keeps foundation 
 });
 
 test('settings accept explicit false and forbid empty or owner-field mutation', () => {
+  expect(
+    OrganizationSettingsInputSchema.parse({ slug: 'updated-team' }),
+  ).toEqual({ slug: 'updated-team' });
+  expect(
+    OrganizationSettingsInputSchema.safeParse({ slug: 'Invalid slug' }).success,
+  ).toBe(false);
   expect(OrganizationSettingsInputSchema.parse({ require2fa: false })).toEqual({
     require2fa: false,
   });

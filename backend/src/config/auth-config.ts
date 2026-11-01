@@ -39,6 +39,18 @@ const schema = z.object({
   AUTH_INVITATION_SECONDS: duration(1209600),
   AUTH_VERIFICATION_SECONDS: duration(3600),
   AUTH_RESET_SECONDS: duration(1800),
+  AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(20),
+  AUTH_ORGANIZATION_PAGE_MAX_LIMIT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(100),
   DATABASE_AUTH_URL: url(['postgres:', 'postgresql:']),
   SMTP_URL: url(['smtp:', 'smtps:']),
   SMTP_FROM: z.email(),
@@ -55,6 +67,11 @@ export function readAuthConfig(env: Record<string, string | undefined>) {
     invalid.push('AUTH_AUDIT_HMAC_SECRET');
   if (value.AUTH_COOKIE_REFRESH_SECONDS > value.AUTH_COOKIE_SECONDS)
     invalid.push('AUTH_COOKIE_REFRESH_SECONDS');
+  if (
+    value.AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT >
+    value.AUTH_ORGANIZATION_PAGE_MAX_LIMIT
+  )
+    invalid.push('AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT');
   const origin = new URL(value.AUTH_PUBLIC_ORIGIN);
   const secureCookies = origin.protocol === 'https:';
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(
@@ -79,6 +96,10 @@ export function readAuthConfig(env: Record<string, string | undefined>) {
     invitationSeconds: value.AUTH_INVITATION_SECONDS,
     verificationSeconds: value.AUTH_VERIFICATION_SECONDS,
     resetSeconds: value.AUTH_RESET_SECONDS,
+    organizationPagination: {
+      defaultLimit: value.AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT,
+      maxLimit: value.AUTH_ORGANIZATION_PAGE_MAX_LIMIT,
+    },
     database: { authUrl: value.DATABASE_AUTH_URL },
     smtp: { url: value.SMTP_URL, from: value.SMTP_FROM },
     rateRules: readAuthRateRules(env.AUTH_RATE_RULES_JSON),

@@ -177,11 +177,21 @@ export function createAuthTransactions(database: Database) {
       );
     },
   };
+  const organizationPrimitives = {
+    async lock(id: string) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_lock_organization(${id}::uuid)`,
+      );
+    },
+  };
   return {
     adapterFactory,
     transaction,
     afterCommit,
     accountLocks,
     securityPrimitives,
+    organizationPrimitives,
   };
 }

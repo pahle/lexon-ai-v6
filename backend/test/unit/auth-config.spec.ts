@@ -30,6 +30,29 @@ test('approved defaults remain configurable and false is parsed as false', () =>
     secureCookies: false,
   });
 });
+test('organization pagination has configurable boot-validated workspace bounds', () => {
+  const env = authConfigEnvironment();
+  expect(readAuthConfig(env).organizationPagination).toEqual({
+    defaultLimit: 20,
+    maxLimit: 100,
+  });
+  expect(
+    readAuthConfig({
+      ...env,
+      AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT: '5',
+      AUTH_ORGANIZATION_PAGE_MAX_LIMIT: '10',
+    }).organizationPagination,
+  ).toEqual({ defaultLimit: 5, maxLimit: 10 });
+  for (const config of [
+    { AUTH_ORGANIZATION_PAGE_MAX_LIMIT: '101' },
+    { AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT: '0' },
+    {
+      AUTH_ORGANIZATION_PAGE_DEFAULT_LIMIT: '11',
+      AUTH_ORGANIZATION_PAGE_MAX_LIMIT: '10',
+    },
+  ])
+    expect(() => readAuthConfig({ ...env, ...config })).toThrow();
+});
 test('durations, independent secrets, identifiers and origins are boot-validated without leaking values', () => {
   const env = authConfigEnvironment();
   for (const invalid of [

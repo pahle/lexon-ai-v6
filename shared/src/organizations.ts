@@ -117,10 +117,14 @@ export type InvitationAcceptance = z.infer<typeof InvitationAcceptanceSchema>;
 export const OrganizationSettingsInputSchema = z
   .strictObject({
     name: DisplayNameSchema.optional(),
+    slug: TeamSlugSchema.optional(),
     require2fa: z.boolean().optional(),
   })
   .refine(
-    (input) => input.name !== undefined || input.require2fa !== undefined,
+    (input) =>
+      input.name !== undefined ||
+      input.slug !== undefined ||
+      input.require2fa !== undefined,
     { message: 'Choose a setting to update.' },
   );
 export type OrganizationSettingsInput = z.infer<

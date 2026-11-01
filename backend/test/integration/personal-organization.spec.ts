@@ -97,7 +97,10 @@ test('runtime callers cannot mutate, delete, duplicate or share Personal', async
         proof.inspect.changePersonal(user.user.id, other.user.id, action),
         action,
       ).rejects.toMatchObject({
-        code: action === 'duplicate' ? '23505' : '23514',
+        code:
+          action === 'duplicate' || action === 'duplicateMember'
+            ? '23505'
+            : '23514',
       });
     }
     expect(await proof.inspect.personalFor(user.user.id)).toMatchObject({

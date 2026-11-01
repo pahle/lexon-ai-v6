@@ -334,5 +334,35 @@
     "importer": "backend/src/modules/platform/service.ts",
     "code": "import '../../infrastructure/db/index.js';",
     "rule": null
+  },
+  {
+    "name": "policy require method is not a CommonJS import",
+    "importer": "backend/src/modules/identity-access/policy.ts",
+    "code": "export class Policy { require(input: unknown): void { if (!input) throw new Error(); } }",
+    "rule": null
+  },
+  {
+    "name": "typed require method is not a CommonJS import",
+    "importer": "backend/src/modules/identity-access/policy.ts",
+    "code": "export interface Policy { require(input: unknown): void; }",
+    "rule": null
+  },
+  {
+    "name": "CommonJS require object value remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "const loaders = { load: require };",
+    "rule": "require-import"
+  },
+  {
+    "name": "CommonJS require receiver remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "require.call(null, 'pg');",
+    "rule": "require-import"
+  },
+  {
+    "name": "CommonJS require computed property remains forbidden",
+    "importer": "frontend/src/page.ts",
+    "code": "const loader = loaders[require];",
+    "rule": "require-import"
   }
 ]

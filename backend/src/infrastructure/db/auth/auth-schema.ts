@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   integer,
+  bigint,
   uuid,
   index,
 } from 'drizzle-orm/pg-core';
@@ -111,6 +112,9 @@ export const verification = authSchema.table(
 );
 
 export const organization = authSchema.table('organization', {
+  policyVersion: bigint('policy_version', { mode: 'number' })
+    .default(0)
+    .notNull(),
   id: uuid('id')
     .default(sql`pg_catalog.gen_random_uuid()`)
     .primaryKey(),

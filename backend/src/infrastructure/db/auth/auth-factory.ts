@@ -7,6 +7,10 @@ import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
 import { accountPlugin, type AccountLocks } from './account-plugin.js';
 import { securityPlugin, type SecurityPrimitives } from './security-plugin.js';
+import {
+  organizationPrimitivesPlugin,
+  type OrganizationPrimitives,
+} from './organization-plugin.js';
 
 // Private composition shared by schema generation and the runtime boundary.
 export function createAuthEngine(
@@ -25,6 +29,11 @@ export function createAuthEngine(
       throw new Error('Auth transaction unavailable');
     },
     write: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
+  organizations: OrganizationPrimitives = {
+    lock: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -103,6 +112,7 @@ export function createAuthEngine(
     plugins: [
       accountPlugin(locks),
       securityPlugin(security),
+      organizationPrimitivesPlugin(organizations),
       organization({
         allowUserToCreateOrganization:
           options.pluginConfiguration?.allowUserToCreateOrganization ?? true,
@@ -110,6 +120,12 @@ export function createAuthEngine(
         schema: {
           organization: {
             additionalFields: {
+              policyVersion: {
+                type: 'number',
+                defaultValue: 0,
+                required: true,
+                input: false,
+              },
               kind: {
                 type: ['personal', 'team'],
                 defaultValue: 'team',
