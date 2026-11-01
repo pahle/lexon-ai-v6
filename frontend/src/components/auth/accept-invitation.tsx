@@ -37,11 +37,7 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
                   await transitionTenant(query, result.selection.organization);
                   window.history.replaceState(null, '', '/accept-invitation');
                   window.location.assign('/workspace');
-                } else
-                  window.location.assign(
-                    '/workspace/security?pendingOrganizationId=' +
-                      result.selection.pendingOrganizationId,
-                  );
+                } else window.location.assign('/account/security');
               } catch (error) {
                 setFailure(
                   error instanceof IdentityClientError && error.status === 503

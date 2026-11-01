@@ -22,7 +22,6 @@ test('invitation new recipient signs up verifies and accepts without exposing an
     { headers, data: { email, role: 'member' } },
   );
   expect(invited.status()).toBe(201);
-  const invitation = (await invited.json()) as { id: string };
   await page.goto(
     (await readCapturedMail(stack.project, email, 'invitation')).actionUrl,
   );
