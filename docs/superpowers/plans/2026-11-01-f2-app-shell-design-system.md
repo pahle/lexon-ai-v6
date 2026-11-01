@@ -239,7 +239,7 @@ expect(identityCallCountAfterAdvance5000).toBe(identityCallCountBefore + 1);
 
 **Interfaces:** `AppSidebar():ReactElement` consumes useWorkspace; `OrganizationMenu():ReactElement` consumes existing identityApi list/switch and transitionTenant; `UserMenu():ReactElement` consumes profile and authClient. SidebarProvider keeps native props; width256px; cookie sidebar_state; mobile boundary768px. No new shared business API.
 
-- [ ] **Step1 — Write failing sidebar tests.** Assert exact nav set by kind/role/platformAdmin, Lexon text only, initials/name/email, active aria-current/non-color cue. Real cursor list Personal label, page2, busy switch awaiting transitionTenant/reload, enrollment_required selection unchanged + Security link, create-team named dialog refreshes list without changing selection. Sign-out order cancel→clear→auth→navigate; failure exact F1 message/no navigation. Collapse cookie reload, shortcut, mobile close/Escape/focus, navigation opener removal and767→768 while open. Backend identity authorization succeeds/fails identically across sidebar_state=true/false/malformed, without backend code reading it.
+- [x] **Step1 — Write failing sidebar tests.** Assert exact nav set by kind/role/platformAdmin, Lexon text only, initials/name/email, active aria-current/non-color cue. Real cursor list Personal label, page2, busy switch awaiting transitionTenant/reload, enrollment_required selection unchanged + Security link, create-team named dialog refreshes list without changing selection. Sign-out order cancel→clear→auth→navigate; failure exact F1 message/no navigation. Collapse cookie reload, shortcut, mobile close/Escape/focus, navigation opener removal and767→768 while open. Backend identity authorization succeeds/fails identically across sidebar_state=true/false/malformed, without backend code reading it.
 
 ```ts
 expect(labels).toEqual([
@@ -252,10 +252,10 @@ expect(container.textContent).not.toContain(personalInternalName);
 expect(events).toEqual(['cancel', 'clear', 'signOut', 'navigate']);
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/sidebar.spec.tsx`; distinguish missing block from failed meaningful behavior after harness loads.
-- [ ] **Step3 — Generate then adapt block.** Use `pnpm dlx shadcn@4.23.0 add sidebar-07` with existing base-nova config; dry-run/diff existing controls first, no blind overwrite. Remove projects/sample logos/data/actions and all unused variants/files. Use Base UI dialog/popover composition for cursor controls, F1 CreateTeam in dialog, real switch and sign-out sequences. Keep native Sidebar behavior; cookie is read only by Next layout for display. Layout attaches AppSidebar; user links use Next Link. Preserve org-switch full reload.
-- [ ] **Step4 — GREEN:** focused frontend tests, `pnpm exec vitest run --project backend-integration backend/test/integration/session-http.spec.ts`, lint/presentation checks, frontend typecheck/build; inspect package diff and pin any genuinely retained approved dependencies exactly (expected existing closure). No Radix-owned imports/menus.
-- [ ] **Step5 — Commit:** stage Task8 generated/owned files and exact dependency changes; commit `feat(ui): adapt sidebar to organization and session workflows`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/sidebar.spec.tsx`; distinguish missing block from failed meaningful behavior after harness loads.
+- [x] **Step3 — Generate then adapt block.** Use `pnpm dlx shadcn@4.23.0 add sidebar-07` with existing base-nova config; dry-run/diff existing controls first, no blind overwrite. Remove projects/sample logos/data/actions and all unused variants/files. Use Base UI dialog/popover composition for cursor controls, F1 CreateTeam in dialog, real switch and sign-out sequences. Keep native Sidebar behavior; cookie is read only by Next layout for display. Layout attaches AppSidebar; user links use Next Link. Preserve org-switch full reload.
+- [x] **Step4 — GREEN:** focused frontend tests, `pnpm exec vitest run --project backend-integration backend/test/integration/session-http.spec.ts`, lint/presentation checks, frontend typecheck/build; inspect package diff and pin any genuinely retained approved dependencies exactly (expected existing closure). No Radix-owned imports/menus.
+- [x] **Step5 — Commit:** stage Task8 generated/owned files and exact dependency changes; commit `feat(ui): adapt sidebar to organization and session workflows`.
 
 ### Task 9: Add page-controlled responsive right panel
 

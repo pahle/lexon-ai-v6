@@ -120,3 +120,17 @@ typecheck/build/lint90/format checks. Model/effort verified Luna/high. Browser
 navigation proof remains in Task12. Task9 owns the actual named panel; an empty
 host reserves no width. Duplicate tenant cleanup calls on MFA changes are minor
 redundant work, retained for final review.
+
+## Task 8 verification
+
+Commits `aa98ae4`, `dab5b3f`, `214707a`: main-session spec and quality gates
+passed after two correction rounds. Sidebar07 generated through CLI4.23.0,
+then sample data/pages and unused registry variants removed; existing controls
+and dependency pins preserved. Tests cover navigation by role, cursor paging,
+MFA-denied and successful switch, team creation/cancel/focus, sign-out ordering,
+collapse/cookie/shortcut and mobile navigation/Escape. Review RED reproduced7
+behavior/style gaps, followed by focused dark-shadow/gutter/mobile-menu failures.
+Final sidebar11 tests and frontend81 tests/16 files passed; backend283 tests/74
+files include display-cookie independence. Typecheck/lint/build/format passed.
+No dependency/lockfile changes. Browser proof remains Task12. Settings URLs
+still use the working F1 destinations until the planned Task10 migration.
