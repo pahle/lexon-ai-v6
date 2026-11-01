@@ -1,5 +1,5 @@
 ---
-version: "1.1"
+version: "1.2"
 name: Lexon
 description: "Calm, flat, engineer-first interface in light and dark themes: near-black text, a muted purple-gray brand accent, 8px spacing, system-ui type."
 inspiration: "Initial tokens were measured from openai.com (a public site) and then corrected for accessibility. Lexon does not reuse OpenAI brand assets, logos, or names."
@@ -62,7 +62,7 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Date** | 1 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 
@@ -151,6 +151,10 @@ colors inside components.
   white text), ghost (text only, `surface` on hover), destructive (`danger`).
   Minimum height 40px, touch target ≥ 44×44px including padding.
 - **Inputs:** 1px `border`, 5px radius, focus shows `focus-ring`.
+- **Radius:** every rectangular element uses the one 5px radius (`sm`).
+  Elements whose shape carries meaning stay circular: radio indicators,
+  switch thumbs, initials avatars, and status dots. No pill-shaped buttons,
+  badges, or inputs.
 - **Cards and panels:** flat, 1px `border` or `surface` background, no shadow.
   Overlays (dialogs, menus, popovers) may use one subtle shadow for
   separation from content; that is the only shadow in the system.
@@ -178,5 +182,6 @@ colors inside components.
 
 | Version | Change |
 |---|---|
+| 1.2 | Clarified (F2 design review): the 5px radius applies to rectangular elements; radio indicators, switch thumbs, initials avatars, and status dots stay circular (§4) |
 | 1.1 | Dark theme added by product-owner decision (F2): `colors-dark` token set with measured contrast (§2.1); Light / Dark / System selection with System as default (§1). Light values unchanged |
 | 1.0 | Adopted from the measured design file with corrections: text and primary moved to near-black; `#8e8ea0` restricted to non-text accent; inverted "text-muted" fixed; added surface, border, focus, status tokens, mono font, spacing scale, reduced motion, and AA as a requirement; components mapped to shadcn/ui `base-nova` and assistant-ui |
