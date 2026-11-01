@@ -212,6 +212,31 @@ export function createAuthTransactions(database: Database) {
     securityPrimitives,
     organizationPrimitives,
     selectionPrimitives,
+    adminSetupPrimitives: {
+      async lock(digest: string, userId: string | null) {
+        const state = scope.getStore();
+        if (!state?.active) throw new Error('Auth transaction unavailable');
+        await state.database.execute(
+          sql`SELECT auth.lexon_lock_admin_setup(${digest}::text,${userId}::uuid)`,
+        );
+      },
+      async hasTeamMembership(userId: string) {
+        const state = scope.getStore();
+        if (!state?.active) throw new Error('Auth transaction unavailable');
+        const result = await state.database.execute<{ present: boolean }>(
+          sql`SELECT auth.lexon_setup_has_team(${userId}::uuid) AS present`,
+        );
+        return result.rows[0]?.present === true;
+      },
+      async consume(digest: string, userId: string, expectedValue: string) {
+        const state = scope.getStore();
+        if (!state?.active) throw new Error('Auth transaction unavailable');
+        const result = await state.database.execute<{ applied: boolean }>(
+          sql`SELECT auth.lexon_consume_admin_setup(${digest}::text,${userId}::uuid,${expectedValue}::text) AS applied`,
+        );
+        return result.rows[0]?.applied === true;
+      },
+    },
     provisioningPrimitives: {
       async cancel(organizationId: string, invitationId: string) {
         const state = scope.getStore();

@@ -198,6 +198,15 @@ const disabledUser = z.strictObject({
   subjectUserId: UuidSchema,
   metadata: z.strictObject({ disabled: z.boolean() }),
 });
+const adminActivated = z.strictObject({
+  ...base,
+  type: z.literal('platform.admin_activated.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  sessionId: UuidSchema,
+  metadata: z.strictObject({ additional: z.boolean() }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -212,6 +221,7 @@ export const AuditEventSchema = z.union([
   sessionChange,
   provisioning,
   disabledUser,
+  adminActivated,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

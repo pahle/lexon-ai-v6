@@ -1,3 +1,7 @@
+import {
+  adminSetupPlugin,
+  type AdminSetupPrimitives,
+} from './admin-setup-plugin.js';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { organization } from 'better-auth/plugins/organization';
 import { admin } from 'better-auth/plugins/admin';
@@ -57,6 +61,17 @@ export function createAuthEngine(
   },
   provisioning: ProvisioningPrimitives = {
     cancel: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
+  adminSetup: AdminSetupPrimitives = {
+    lock: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    hasTeamMembership: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    consume: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -156,6 +171,7 @@ export function createAuthEngine(
         });
       }),
       accountPlugin(locks),
+      adminSetupPlugin(adminSetup),
       securityPlugin(security),
       sessionPlugin(security),
       provisioningPlugin(organizations, provisioning),

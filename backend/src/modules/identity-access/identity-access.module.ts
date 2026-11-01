@@ -1,3 +1,5 @@
+import { AdminSetupService } from './admin-setup.service.js';
+import { AdminSetupController } from './admin-setup.controller.js';
 import { Module, type DynamicModule } from '@nestjs/common';
 import type { AuthIntegration } from '../../infrastructure/db/index.js';
 import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
@@ -35,11 +37,19 @@ export class IdentityAccessModule {
       module: IdentityAccessModule,
       imports: [this.forIntegration(options)],
       controllers: [
+        AdminSetupController,
         IdentityController,
         SessionController,
         PlatformAdminController,
       ],
       providers: [
+        {
+          provide: AdminSetupService,
+          useValue: new AdminSetupService(
+            options.integration,
+            new OrganizationAuthPort(options.integration),
+          ),
+        },
         {
           provide: PlatformAdminService,
           useValue: new PlatformAdminService(

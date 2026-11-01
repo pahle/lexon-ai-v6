@@ -99,6 +99,13 @@
       "when": 1793404800013,
       "tag": "0013_platform_provisioning",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793404800014,
+      "tag": "0014_admin_setup",
+      "breakpoints": true
     }
   ]
 }

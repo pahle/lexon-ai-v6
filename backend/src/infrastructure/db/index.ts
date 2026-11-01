@@ -19,3 +19,9 @@ export {
   type TenantJobHandler,
 } from './job-envelope.js';
 export type { ClaimedOutbox } from './outbox.repository.js';
+export type {
+  AdminSetupOperator,
+  AdminSetupOperatorFacts,
+  AdminSetupGrant,
+} from './auth/admin-setup-operator.js';
+export { createAdminSetupOperator } from './auth/admin-setup-operator.js';
