@@ -11,6 +11,7 @@ import type {
   AuthIntegration,
   AuthCommandSession,
 } from '../../infrastructure/db/index.js';
+import { credentialChannel } from './credential-channel.js';
 import { IdentityError } from './identity-error.js';
 import { IdentityPolicy } from './identity-policy.js';
 import {
@@ -91,15 +92,12 @@ export class IdentitySessionService implements OrganizationSelectionPort {
     headers: Headers,
     expected?: VerifiedIdentity,
   ) {
-    if (headers.has('authorization') && headers.has('cookie'))
-      throw new IdentityError('AUTH_REQUIRED', 401);
+    const channel = credentialChannel(headers);
     const facts = await tx.call('lexonSecurityFacts', { headers });
     const user = facts.user;
     const session = facts.session;
     if (!user || !session) throw new IdentityError('AUTH_REQUIRED', 401);
-    const channel: 'cookie' | 'bearer' = headers.has('authorization')
-      ? 'bearer'
-      : 'cookie';
+
     if (
       session.channel !== channel ||
       (session.hardExpiresAt && session.hardExpiresAt <= new Date())

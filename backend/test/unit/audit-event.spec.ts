@@ -120,3 +120,24 @@ test('departure audit accepts fixed reasons and rejects recipient email metadata
     }).success,
   ).toBe(false);
 });
+
+test('session lifecycle audit metadata cannot contain Bearer tokens', () => {
+  const event = {
+    version: 1,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    type: 'identity.session_changed.v1',
+    outcome: 'success',
+    actorUserId: randomUUID(),
+    subjectUserId: randomUUID(),
+    sessionId: randomUUID(),
+    metadata: { action: 'bearer_issued' },
+  };
+  expect(AuditEventSchema.safeParse(event).success).toBe(true);
+  expect(
+    AuditEventSchema.safeParse({
+      ...event,
+      metadata: { ...event.metadata, token: 'secret' },
+    }).success,
+  ).toBe(false);
+});

@@ -12,6 +12,8 @@ import {
 } from './request-identity.js';
 import { TenantGuard } from './tenant.guard.js';
 import { IdentityController } from './identity.controller.js';
+import { SessionService } from './session.service.js';
+import { SessionController } from './session.controller.js';
 import { OrganizationAuthPort } from './organization-auth.port.js';
 
 export const AUTH_INTEGRATION = Symbol('AuthIntegration');
@@ -22,14 +24,22 @@ export class IdentityAccessModule {
     integration: AuthIntegration;
     frameworkModule: DynamicModule;
     availability: Pick<AuthLimiter, 'assertAvailable'>;
+    bearerSeconds?: number;
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);
     const requests = new RequestIdentity();
     return {
       module: IdentityAccessModule,
       imports: [this.forIntegration(options)],
-      controllers: [IdentityController],
+      controllers: [IdentityController, SessionController],
       providers: [
+        {
+          provide: SessionService,
+          useValue: new SessionService(
+            new OrganizationAuthPort(options.integration),
+            { bearerSeconds: options.bearerSeconds ?? 900 },
+          ),
+        },
         { provide: RequestIdentity, useValue: requests },
         {
           provide: OrganizationAuthPort,

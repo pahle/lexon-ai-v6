@@ -30,6 +30,7 @@ import {
   sanitizeAuthResponse,
   normalizeAuthDestination,
 } from './auth-output.js';
+import { credentialChannel } from './credential-channel.js';
 import { IdentityError } from './identity-error.js';
 import { resolveClientAddress } from './client-address.js';
 
@@ -72,6 +73,22 @@ export function createAuthRequestContext() {
         : 0;
     if (status) {
       res.statusCode = status;
+      res.setHeader('cache-control', 'no-store');
+      res.end();
+      req.resume();
+      return;
+    }
+    try {
+      credentialChannel(
+        new Headers(
+          Object.entries(req.headers).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
+        ),
+        req.rawHeaders,
+      );
+    } catch {
+      res.statusCode = 401;
       res.setHeader('cache-control', 'no-store');
       res.end();
       req.resume();
@@ -206,11 +223,7 @@ export function createAuthHttp(
       const context = deps.context();
       const rule = classifyAuthEndpoint(request.method, context.rawPath);
       if (!rule) return errorResponse('VALIDATION_ERROR', 404);
-      const authorization = request.headers.get('authorization');
-      const cookie = request.headers.get('cookie');
-      if (authorization && (!/^Bearer [^\s,]+$/i.test(authorization) || cookie))
-        throw new IdentityError('AUTH_REQUIRED', 401);
-      const channel = authorization ? 'bearer' : 'cookie';
+      const channel = credentialChannel(request.headers);
       const origin = request.headers.get('origin');
       if (
         (origin && origin !== deps.origin) ||
@@ -305,6 +318,13 @@ export function createAuthHttp(
         ...(request.method === 'POST' ? { body: JSON.stringify(body) } : {}),
       });
       const response = await integration.transaction(async (tx) => {
+        if (rule.scope !== 'public') {
+          const facts = await tx.call('lexonSecurityFacts', {
+            headers: forwarded.headers,
+          });
+          if (facts.session && facts.session.channel !== channel)
+            throw new IdentityError('AUTH_REQUIRED', 401);
+        }
         const complete = await deps.authorize(rule, {
           request: forwarded,
           body,

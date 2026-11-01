@@ -170,6 +170,15 @@ const roleChange = z.strictObject({
     role: z.enum(['member', 'admin', 'owner']),
   }),
 });
+const sessionChange = z.strictObject({
+  ...base,
+  type: z.literal('identity.session_changed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  sessionId: UuidSchema,
+  metadata: z.strictObject({ action: z.enum(['bearer_issued', 'revoked']) }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -181,6 +190,7 @@ export const AuditEventSchema = z.union([
   invitation,
   departure,
   roleChange,
+  sessionChange,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

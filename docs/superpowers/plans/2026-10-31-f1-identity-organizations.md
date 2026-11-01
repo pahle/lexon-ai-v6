@@ -81,7 +81,7 @@ One plan is intentional: sessions, organization policy, and audit share security
 | Proofs                   | Existing Vitest global setup and file fixtures, private DB test helpers, Compose test-only mail IPC and Playwright identity projects                          |
 
 Use migration numbers `0003_auth.sql`, `0004_personal.sql`, `0005_audit.sql`,
-`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0012_admin_setup.sql`.
+`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0013_admin_setup.sql`.
 Generate auth schema through `auth@1.7.14`, not the deprecated
 `@better-auth/cli@1.4.21`. Drizzle generation uses existing 0.31.11; SQL migrations
 run as `lexon_migrator`. Do not import the v1.0 Drizzle Relations v2 adapter.
@@ -508,11 +508,11 @@ so existing build/global setup and file isolation remain active.
 
 **Research:** R04, R07–R08; re-read Bearer header hooks, internal createSession override type, refresh and safe/native session list differences before this task.
 
-**Files:** Create `backend/src/infrastructure/db/auth/session-plugin.ts`; `backend/src/modules/identity-access/session.service.ts`, `session.controller.ts`; `backend/test/integration/bearer-sessions.spec.ts`, `own-sessions.spec.ts`. Modify session-security migration, auth factory/schema/HTTP channel checks and audit variants.
+**Files:** Create `backend/src/infrastructure/db/auth/session-plugin.ts`; `backend/src/modules/identity-access/session.service.ts`, `session.controller.ts`; `backend/test/integration/bearer-sessions.spec.ts`, `own-sessions.spec.ts`. Append session-audit migration (keep committed session-security migration immutable); modify auth factory/schema/HTTP channel checks and audit variants.
 
 **Interfaces:** `SessionService.issueBearer(identity:VerifiedIdentity):Promise<{token:string;sessionId:Uuid;expiresAt:string}>`, `list(identity):Promise<OwnSessionSummary[]>`, `revoke(identity,sessionId:Uuid):Promise<void>`. Routes `POST /api/identity/bearer-sessions`, `GET /api/identity/sessions`, `DELETE /api/identity/sessions/:sessionId`. Internal `lexonIssueBearer`, `lexonListOwnSessions`, `lexonRevokeOwnSession` are server-only plugin APIs.
 
-- [ ] **Step 1 — RED tests:** Valid fully authenticated cookie creates a separate Bearer row; enabled2FA requires completed MFA, not just password/challenge/enabled flag. Bearer and ambiguous cookie+Bearer requests cannot issue replacements. Web cookies replayed as Authorization and Bearer tokens replayed as cookies are rejected. Test exactly900 seconds by controlled timestamps/clock, plus a non-default configured lifetime; native get-session refresh and session-replacing security endpoints never extend the hard cap. Cookie source expiry/revoke policy is independent; revoking the Bearer row returns401 immediately. Bearer has its own active org and membership checks and cannot switch to a non-member team. Safe list includes both classes but no tokens, cookies, email, IP or user agent; another user's sessionId cannot be revoked. Expired listed entries are excluded. Token response has no-store and no URL/log/audit/error leakage.
+- [x] **Step 1 — RED tests:** Valid fully authenticated cookie creates a separate Bearer row; enabled2FA requires completed MFA, not just password/challenge/enabled flag. Bearer and ambiguous cookie+Bearer requests cannot issue replacements. Web cookies replayed as Authorization and Bearer tokens replayed as cookies are rejected. Test exactly900 seconds by controlled timestamps/clock, plus a non-default configured lifetime; native get-session refresh and session-replacing security endpoints never extend the hard cap. Cookie source expiry/revoke policy is independent; revoking the Bearer row returns401 immediately. Bearer has its own active org and membership checks and cannot switch to a non-member team. Safe list includes both classes but no tokens, cookies, email, IP or user agent; another user's sessionId cannot be revoked. Expired listed entries are excluded. Token response has no-store and no URL/log/audit/error leakage.
 
   Representative assertion, after arranging the case above:
 
@@ -523,10 +523,10 @@ so existing build/global setup and file isolation remain active.
   });
   ```
 
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/bearer-sessions.spec.ts backend/test/integration/own-sessions.spec.ts`.
-- [ ] **Step 3 — Implement:** The identity session service computes cookie-only/full-authentication eligibility and the expiry/selection from locked facts, then calls the dumb private server primitive with explicit values and source-state preconditions. That primitive invokes BA-supported session creation, storing immutable `channel`/`hardExpiresAt`; source credentials never convert to Bearer. Enforce channel before native auth and again after resolution. Clamp/deny all expiry writes in DB triggers and preserve caps on replacement sessions. Map session IDs to own native sessions within the private plugin; never send a native session token to the web to support revocation. Safe list can use the server plugin's adapter API rather than exposing native token-bearing/fresh-session-only HTTP output. Reuse one global guard, limiter and policy. No refresh token or F19 renewal endpoint.
-- [ ] **Step 4 — GREEN:** Re-run Step 2 and session-evidence, switch and allowlist suites. Confirm hard-expiry enforcement independently at SQL and HTTP levels.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(identity): add isolated short-lived Bearer sessions"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/bearer-sessions.spec.ts backend/test/integration/own-sessions.spec.ts`.
+- [x] **Step 3 — Implement:** The identity session service computes cookie-only/full-authentication eligibility and the expiry/selection from locked facts, then calls the dumb private server primitive with explicit values and source-state preconditions. That primitive invokes BA-supported session creation, storing immutable `channel`/`hardExpiresAt`; source credentials never convert to Bearer. Enforce channel before native auth and again after resolution. Clamp/deny all expiry writes in DB triggers and preserve caps on replacement sessions. Map session IDs to own native sessions within the private plugin; never send a native session token to the web to support revocation. Safe list can use the server plugin's adapter API rather than exposing native token-bearing/fresh-session-only HTTP output. Reuse one global guard, limiter and policy. No refresh token or F19 renewal endpoint.
+- [x] **Step 4 — GREEN:** Re-run Step 2 and session-evidence, switch and allowlist suites. Confirm hard-expiry enforcement independently at SQL and HTTP levels.
+- [x] **Step 5 — Commit:** `git commit -m "feat(identity): add isolated short-lived Bearer sessions"`.
 
 ### Task 15: Provision teams without staff membership and restrict platform actions
 
@@ -556,7 +556,7 @@ so existing build/global setup and file isolation remain active.
 
 **Research:** R03–R04, R06–R07, R09, R12, R14; re-read plugin authoring/verified enrollment, CLI defaults, setup brief item10 and Postgres admission locking before this task.
 
-**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0012_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
+**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0013_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
 
 **Interfaces:** `runAdminSetup(input:{email:string;additional:boolean}, dependencies):Promise<{status:'created'|'pending'|'refused'}>` runs one-shot without HTTP. Server-only `lexonBeginAdminSetup`, `lexonRedeemAdminSetup`, `lexonActivateAdmin` APIs. Public `POST /api/identity/admin-setup/redeem` validates the emailed grant only, never begins setup; authenticated `POST /api/identity/admin-setup/complete` activates after verified email and TOTP. Command `node backend/dist/entrypoints/admin-setup/main.js --email <email> [--additional]`; package script `identity:setup-admin` invokes that entrypoint. No env-var admin allowlist. The domain setup service decides eligibility/activation from locked facts and passes explicit expected-state parameters to its dumb server primitives. A setup-redemption HTTP route only consumes an emailed grant; it can never begin operator setup.
 

@@ -85,6 +85,13 @@
       "when": 1793404800011,
       "tag": "0011_membership_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793404800012,
+      "tag": "0012_session_audit",
+      "breakpoints": true
     }
   ]
 }

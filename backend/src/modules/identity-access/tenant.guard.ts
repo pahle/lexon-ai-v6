@@ -9,6 +9,7 @@ import type { AuthLimiter } from '../../infrastructure/queue/index.js';
 import { IdentitySessionService } from './identity-session.service.js';
 import { RequestIdentity } from './request-identity.js';
 import { ROUTE_ACCESS, type RouteAccess } from './route-access.js';
+import { credentialChannel } from './credential-channel.js';
 import { IdentityError } from './identity-error.js';
 
 const overrideKeys = [
@@ -60,6 +61,7 @@ export class TenantGuard implements CanActivate {
     for (const [name, value] of Object.entries(request.headers))
       if (value !== undefined)
         headers.set(name, Array.isArray(value) ? value.join(',') : value);
+    credentialChannel(headers, request.rawHeaders);
     try {
       await this.availability.assertAvailable();
       const resolved = await this.identities.resolve(

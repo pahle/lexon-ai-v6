@@ -35,7 +35,7 @@ export function createSecurityInspector(options: {
             reauthenticatedAt: Date | null;
             activeOrganizationId: string | null;
           }>(
-            `SELECT id,created_at AS "createdAt",expires_at AS "expiresAt",channel,hard_expires_at AS "hardExpiresAt",authenticated_at AS "authenticatedAt",mfa_verified_at AS "mfaVerifiedAt",reauthenticated_at AS "reauthenticatedAt",active_organization_id AS "activeOrganizationId" FROM auth.session WHERE id=$1`,
+            `SELECT id,created_at AT TIME ZONE 'UTC' AS "createdAt",expires_at AT TIME ZONE 'UTC' AS "expiresAt",channel,hard_expires_at AT TIME ZONE 'UTC' AS "hardExpiresAt",authenticated_at AS "authenticatedAt",mfa_verified_at AS "mfaVerifiedAt",reauthenticated_at AS "reauthenticatedAt",active_organization_id AS "activeOrganizationId" FROM auth.session WHERE id=$1`,
             [id],
           )
         ).rows[0] ?? null
@@ -62,7 +62,7 @@ export function createSecurityInspector(options: {
     },
     async seedBearer(id: string, cap: Date, organizationId: string) {
       await migrator.query(
-        'UPDATE auth.session SET channel=$2,hard_expires_at=$3,expires_at=$3,active_organization_id=$4 WHERE id=$1',
+        `UPDATE auth.session SET channel=$2,hard_expires_at=$3::timestamptz AT TIME ZONE 'UTC',expires_at=$3::timestamptz AT TIME ZONE 'UTC',active_organization_id=$4 WHERE id=$1`,
         [id, 'bearer', cap, organizationId],
       );
     },

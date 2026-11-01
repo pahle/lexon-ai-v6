@@ -5,6 +5,7 @@ import { defaultAc, userAc } from 'better-auth/plugins/admin/access';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { bearer } from 'better-auth/plugins/bearer';
 import type { AuthEngineOptions } from './auth-types.js';
+import { sessionPlugin } from './session-plugin.js';
 import { invitationPlugin } from './invitation-plugin.js';
 import { accountPlugin, type AccountLocks } from './account-plugin.js';
 import { securityPlugin, type SecurityPrimitives } from './security-plugin.js';
@@ -147,6 +148,7 @@ export function createAuthEngine(
       }),
       accountPlugin(locks),
       securityPlugin(security),
+      sessionPlugin(security),
       organizationPrimitivesPlugin(organizations),
       selectionPlugin(selection),
       organization({
