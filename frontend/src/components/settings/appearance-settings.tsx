@@ -29,7 +29,7 @@ export function AppearanceSettings(): React.ReactElement {
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="grid grid-cols-1 gap-3 min-[768px]:grid-cols-3"
+        className="grid grid-cols-1 gap-2 min-[768px]:grid-cols-3"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -37,14 +37,10 @@ export function AppearanceSettings(): React.ReactElement {
             <Label
               key={value}
               htmlFor={id}
-              className="flex min-h-28 cursor-pointer flex-col items-stretch gap-3 rounded-[var(--radius)] border border-border bg-surface-raised p-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+              className="flex min-h-28 cursor-pointer flex-col items-stretch gap-2 rounded-[var(--radius)] border border-border bg-surface-raised p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
             >
               <div className="flex min-h-8 items-center gap-2">
-                <RadioGroupItem
-                  id={id}
-                  value={value}
-                  aria-label={label}
-                />
+                <RadioGroupItem id={id} value={value} aria-label={label} />
                 <span>{label}</span>
               </div>
               <div

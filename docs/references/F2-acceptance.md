@@ -55,3 +55,32 @@ formatting passed. The plan's `--project shared` typo was corrected to the actua
 Vitest project `contracts`; the earlier separate unfiltered schema/client run
 also passed7 tests. Listing adds two bounded Personal fact lookups, no new
 endpoint or migration. Implementation model was verified as Luna/high.
+
+## Task 4 review fix round 1
+
+The original implementation attempt's first focused run failed during module
+resolution before tests were collected because the provider file did not yet
+exist. That was not a behavioral RED and is not claimed as valid TDD evidence.
+In this review round, the new spacing assertion was added before changing the
+styles; it failed on the rendered `gap-3` class. After correcting spacing, a
+temporary local change from `attribute="class"` to `attribute="data-theme"`
+made both theme application assertions fail on the expected missing HTML
+classes. The provider was restored to `class`; the temporary edit was not
+committed. A separate SSR render assertion confirms that no radio selection is
+rendered before mount; it makes no browser first-paint or hydration-warning
+claim.
+
+Task 4 review validation: The spacing RED command,
+`pnpm exec vitest run --project frontend frontend/test/theme.spec.tsx`, failed
+with 1 test failure: expected the radio group to contain `gap-2`, received
+`gap-3`. The controlled temporary-attribute run used the same command and
+produced 3 failures: the two expected missing-class assertions, plus the SSR
+case initially lacked a `window.matchMedia` stub after test cleanup. Adding a
+per-test media query stub fixed that test-environment issue. After restoring
+`attribute="class"`, the focused command passed 3 tests.
+
+`pnpm exec prettier --check frontend/src/components/theme-provider.tsx frontend/src/components/settings/appearance-settings.tsx frontend/src/components/ui/radio-group.tsx frontend/test/theme.spec.tsx` passed.
+`pnpm --filter @lexon/frontend typecheck`,
+`pnpm --filter @lexon/frontend build`, and
+`pnpm --filter @lexon/frontend lint` passed; lint included all 90 boundary,
+design-token, and presentation-policy assertions. `git diff --check` passed.

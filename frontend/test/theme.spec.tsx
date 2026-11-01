@@ -1,8 +1,19 @@
 import { act } from 'react';
-import { expect, test, vi } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import { afterEach, expect, test, vi } from 'vitest';
 import { render, settle } from './render';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AppearanceSettings } from '../src/components/settings/appearance-settings';
+
+const mountedViews: Array<{ unmount: () => Promise<void> }> = [];
+
+afterEach(async () => {
+  await Promise.all(mountedViews.splice(0).map((view) => view.unmount()));
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  localStorage.clear();
+  document.documentElement.className = '';
+});
 
 function installMatchMedia(initialDark = false) {
   const listeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -14,16 +25,26 @@ function installMatchMedia(initialDark = false) {
       listeners.add(listener),
     removeListener: (listener: (event: MediaQueryListEvent) => void) =>
       listeners.delete(listener),
-    addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) =>
-      listeners.add(listener),
-    removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) =>
-      listeners.delete(listener),
+    addEventListener: (
+      _type: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => listeners.add(listener),
+    removeEventListener: (
+      _type: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => listeners.delete(listener),
     dispatchEvent: () => true,
   } as MediaQueryList;
-  vi.stubGlobal('matchMedia', vi.fn(() => media));
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => media),
+  );
   return {
     setDark(matches: boolean) {
-      Object.defineProperty(media, 'matches', { configurable: true, value: matches });
+      Object.defineProperty(media, 'matches', {
+        configurable: true,
+        value: matches,
+      });
       const event = { matches, media: media.media } as MediaQueryListEvent;
       for (const listener of listeners) listener(event);
     },
@@ -40,27 +61,41 @@ test('appearance selection stores and applies light and dark themes locally', as
       <AppearanceSettings />
     </ThemeProvider>,
   );
+  mountedViews.push(view);
   await settle();
 
   expect(view.container.querySelector('[role="radiogroup"]')).not.toBeNull();
-  expect(view.container.querySelector('[role="radio"][aria-checked="true"]')?.getAttribute('aria-label')).toBe('System');
+  expect(
+    view.container
+      .querySelector('[role="radio"][aria-checked="true"]')
+      ?.getAttribute('aria-label'),
+  ).toBe('System');
+  const group = view.container.querySelector('[data-slot="radio-group"]');
+  const card = view.container.querySelector(
+    '[data-slot="appearance-preview"]',
+  )?.parentElement;
+  expect(group?.className).toContain('gap-2');
+  expect(card?.className).toContain('gap-2');
+  expect(card?.className).toContain('p-4');
 
   await act(async () => {
-    (view.container.querySelector('[aria-label="Dark"]') as HTMLElement).click();
+    (
+      view.container.querySelector('[aria-label="Dark"]') as HTMLElement
+    ).click();
   });
   await settle();
   expect(localStorage.getItem('theme')).toBe('dark');
   expect(document.documentElement.classList.contains('dark')).toBe(true);
 
   await act(async () => {
-    (view.container.querySelector('[aria-label="Light"]') as HTMLElement).click();
+    (
+      view.container.querySelector('[aria-label="Light"]') as HTMLElement
+    ).click();
   });
   await settle();
   expect(localStorage.getItem('theme')).toBe('light');
   expect(document.documentElement.classList.contains('light')).toBe(true);
   expect(fetchSpy).not.toHaveBeenCalled();
-  await view.unmount();
-  fetchSpy.mockRestore();
 });
 
 test('system selection follows operating system changes and uses rectangular previews', async () => {
@@ -72,9 +107,14 @@ test('system selection follows operating system changes and uses rectangular pre
       <AppearanceSettings />
     </ThemeProvider>,
   );
+  mountedViews.push(view);
   await settle();
 
-  expect(view.container.querySelector('[role="radio"][aria-checked="true"]')?.getAttribute('aria-label')).toBe('System');
+  expect(
+    view.container
+      .querySelector('[role="radio"][aria-checked="true"]')
+      ?.getAttribute('aria-label'),
+  ).toBe('System');
   await act(async () => {
     os.setDark(true);
   });
@@ -84,10 +124,24 @@ test('system selection follows operating system changes and uses rectangular pre
   });
   expect(document.documentElement.classList.contains('light')).toBe(true);
 
-  const indicator = view.container.querySelector('[data-slot="radio-indicator"]');
-  const preview = view.container.querySelector('[data-slot="appearance-preview"]');
+  const indicator = view.container.querySelector(
+    '[data-slot="radio-indicator"]',
+  );
+  const preview = view.container.querySelector(
+    '[data-slot="appearance-preview"]',
+  );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
   expect(preview?.className).toContain('rounded-[var(--radius)]');
-  await view.unmount();
+});
+
+test('does not render a theme selection before the client mount', () => {
+  installMatchMedia();
+  const markup = renderToString(
+    <ThemeProvider>
+      <AppearanceSettings />
+    </ThemeProvider>,
+  );
+
+  expect(markup).not.toContain('role="radio"');
 });

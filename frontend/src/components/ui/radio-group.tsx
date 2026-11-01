@@ -11,7 +11,7 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
       className={cn('grid w-full gap-2', className)}
       {...props}
     />
-  )
+  );
 }
 
 function RadioGroupItem(props: RadioPrimitive.Root.Props) {
@@ -31,7 +31,7 @@ function RadioGroupItem(props: RadioPrimitive.Root.Props) {
         />
       </RadioPrimitive.Indicator>
     </RadioPrimitive.Root>
-  )
+  );
 }
 
 export { RadioGroup, RadioGroupItem };
