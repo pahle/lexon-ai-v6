@@ -149,6 +149,27 @@ const invitation = z.strictObject({
     ]),
   }),
 });
+const memberAudit = {
+  ...base,
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  orgId: UuidSchema,
+  memberId: UuidSchema,
+};
+const departure = z.strictObject({
+  ...memberAudit,
+  type: z.literal('organization.member_departed.v1'),
+  metadata: z.strictObject({ reason: z.enum(['leave', 'remove']) }),
+});
+const roleChange = z.strictObject({
+  ...memberAudit,
+  type: z.literal('organization.member_role_changed.v1'),
+  metadata: z.strictObject({
+    previousRole: z.enum(['member', 'admin', 'owner']),
+    role: z.enum(['member', 'admin', 'owner']),
+  }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -158,6 +179,8 @@ export const AuditEventSchema = z.union([
   security,
   settings,
   invitation,
+  departure,
+  roleChange,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

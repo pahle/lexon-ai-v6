@@ -98,3 +98,25 @@ test('email correlation uses domain-separated keyed SHA256 and safe key identifi
     ),
   ).toThrow();
 });
+
+test('departure audit accepts fixed reasons and rejects recipient email metadata', () => {
+  const departure = {
+    version: 1,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    type: 'organization.member_departed.v1',
+    outcome: 'success',
+    actorUserId: randomUUID(),
+    subjectUserId: randomUUID(),
+    orgId: randomUUID(),
+    memberId: randomUUID(),
+    metadata: { reason: 'leave' },
+  };
+  expect(AuditEventSchema.safeParse(departure).success).toBe(true);
+  expect(
+    AuditEventSchema.safeParse({
+      ...departure,
+      metadata: { reason: 'leave', email: 'private@example.test' },
+    }).success,
+  ).toBe(false);
+});

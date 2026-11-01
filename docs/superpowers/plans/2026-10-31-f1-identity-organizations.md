@@ -81,7 +81,7 @@ One plan is intentional: sessions, organization policy, and audit share security
 | Proofs                   | Existing Vitest global setup and file fixtures, private DB test helpers, Compose test-only mail IPC and Playwright identity projects                          |
 
 Use migration numbers `0003_auth.sql`, `0004_personal.sql`, `0005_audit.sql`,
-`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0011_admin_setup.sql`.
+`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0012_admin_setup.sql`.
 Generate auth schema through `auth@1.7.14`, not the deprecated
 `@better-auth/cli@1.4.21`. Drizzle generation uses existing 0.31.11; SQL migrations
 run as `lexon_migrator`. Do not import the v1.0 Drizzle Relations v2 adapter.
@@ -486,7 +486,7 @@ so existing build/global setup and file isolation remain active.
 
 **Interfaces:** `MembershipService.list(identity,orgId,page):Promise<Page<MemberSummary>>`, `changeRole(identity,orgId,memberId,role):Promise<MemberSummary>`, `remove(identity,orgId,memberId):Promise<void>`, `leave(identity,orgId):Promise<void>`. Routes `GET /api/organizations/:orgId/members`, `PATCH /api/organizations/:orgId/members/:memberId`, `DELETE` same member path, `POST /api/organizations/:orgId/leave`.
 
-- [ ] **Step 1 — RED tests:** Exhaust actor/target matrix over real HTTP/native service commands. Removed users lose next-request access across existing sessions; Personal is retained. Actor demotion racing a role/remove request cannot use stale privilege. Last-owner protections work through every service path. Successful leave/remove yields exactly one `organization.member_departed.v1` audit with IDs and fixed leave/remove reason; an audit failure rolls back membership removal. Record `ops.outbox` count before and after successful, failed, repeated and concurrent departures: unchanged. No outbox schema or dispatcher change is needed.
+- [x] **Step 1 — RED tests:** Exhaust actor/target matrix over real HTTP/native service commands. Removed users lose next-request access across existing sessions; Personal is retained. Actor demotion racing a role/remove request cannot use stale privilege. Last-owner protections work through every service path. Successful leave/remove yields exactly one `organization.member_departed.v1` audit with IDs and fixed leave/remove reason; an audit failure rolls back membership removal. Record `ops.outbox` count before and after successful, failed, repeated and concurrent departures: unchanged. No outbox schema or dispatcher change is needed.
 
   Representative assertion, after arranging the case above:
 
@@ -499,10 +499,10 @@ so existing build/global setup and file isolation remain active.
   });
   ```
 
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/membership-actions.spec.ts backend/test/integration/departure-audit.spec.ts`.
-- [ ] **Step 3 — Implement:** Reuse Task10 locking/policy and native `updateMemberRole`, `removeMember`, `leaveOrganization` server APIs. Audit in the same auth transaction, bind the removed member/user IDs and actor, and let Task11 repair sessions on their next request. No asynchronous handover, content mutation, outbox append, job handler or dispatcher metadata. F18 owns handover design. Deny non-members before returning lists/role details.
-- [ ] **Step 4 — GREEN:** Re-run Step 2 plus owner-invariant, invitation replay and tenant-guard tests. Inspect unchanged outbox rows rather than merely asserting a mock producer was not called.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(organizations): manage membership with atomic departure audit"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/membership-actions.spec.ts backend/test/integration/departure-audit.spec.ts`.
+- [x] **Step 3 — Implement:** Reuse Task10 locking/policy and native `updateMemberRole`, `removeMember`, `leaveOrganization` server APIs. Audit in the same auth transaction, bind the removed member/user IDs and actor, and let Task11 repair sessions on their next request. No asynchronous handover, content mutation, outbox append, job handler or dispatcher metadata. F18 owns handover design. Deny non-members before returning lists/role details.
+- [x] **Step 4 — GREEN:** Re-run Step 2 plus owner-invariant, invitation replay and tenant-guard tests. Inspect unchanged outbox rows rather than merely asserting a mock producer was not called.
+- [x] **Step 5 — Commit:** `git commit -m "feat(organizations): manage membership with atomic departure audit"`.
 
 ### Task 14: Issue hard-expiry Bearer sessions and expose safe session management
 
@@ -556,7 +556,7 @@ so existing build/global setup and file isolation remain active.
 
 **Research:** R03–R04, R06–R07, R09, R12, R14; re-read plugin authoring/verified enrollment, CLI defaults, setup brief item10 and Postgres admission locking before this task.
 
-**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0011_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
+**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0012_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
 
 **Interfaces:** `runAdminSetup(input:{email:string;additional:boolean}, dependencies):Promise<{status:'created'|'pending'|'refused'}>` runs one-shot without HTTP. Server-only `lexonBeginAdminSetup`, `lexonRedeemAdminSetup`, `lexonActivateAdmin` APIs. Public `POST /api/identity/admin-setup/redeem` validates the emailed grant only, never begins setup; authenticated `POST /api/identity/admin-setup/complete` activates after verified email and TOTP. Command `node backend/dist/entrypoints/admin-setup/main.js --email <email> [--additional]`; package script `identity:setup-admin` invokes that entrypoint. No env-var admin allowlist. The domain setup service decides eligibility/activation from locked facts and passes explicit expected-state parameters to its dumb server primitives. A setup-redemption HTTP route only consumes an emailed grant; it can never begin operator setup.
 

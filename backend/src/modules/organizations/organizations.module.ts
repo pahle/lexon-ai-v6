@@ -4,6 +4,8 @@ import type {
   OrganizationSelectionPort,
 } from '../identity-access/index.js';
 import { OrganizationController } from './organization.controller.js';
+import { MembershipService } from './membership.service.js';
+import { MembershipController } from './membership.controller.js';
 import { InvitationService } from './invitation.service.js';
 import {
   InvitationController,
@@ -24,12 +26,20 @@ export class OrganizationsModule {
     return {
       module: OrganizationsModule,
       controllers: [
+        MembershipController,
         OrganizationController,
         InvitationController,
         OrganizationInvitationController,
         RecipientInvitationController,
       ],
       providers: [
+        {
+          provide: MembershipService,
+          useFactory: () =>
+            new MembershipService(options.port, {
+              pagination: options.pagination,
+            }),
+        },
         {
           provide: InvitationService,
           useFactory: () =>

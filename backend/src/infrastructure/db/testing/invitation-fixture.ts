@@ -31,6 +31,49 @@ export function createInvitationInspector(options: { migratorUrl: string }) {
         },
       };
     },
+    async holdRoleChange(memberId: string, role: string) {
+      const client = await pool.connect();
+      await client.query('BEGIN');
+      await client.query('UPDATE auth.member SET role=$2 WHERE id=$1', [
+        memberId,
+        role,
+      ]);
+      return {
+        async waitForAuthWaiter() {
+          const deadline = Date.now() + 5000;
+          while (Date.now() < deadline) {
+            const result = await pool.query<{ blocked: number }>(
+              "SELECT count(*) FILTER(WHERE cardinality(pg_blocking_pids(pid))>0)::int AS blocked FROM pg_stat_activity WHERE datname=current_database() AND usename='lexon_auth'",
+            );
+            if (result.rows[0]!.blocked > 0) return;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+          }
+          throw new Error('Role race synchronization timed out');
+        },
+        async release() {
+          try {
+            await client.query('COMMIT');
+          } finally {
+            client.release();
+          }
+        },
+      };
+    },
+    async outboxCount() {
+      return (
+        await pool.query<{ count: number }>(
+          'SELECT count(*)::int AS count FROM ops.outbox',
+        )
+      ).rows[0]!.count;
+    },
+    async departureAudits(orgId: string) {
+      return (
+        await pool.query(
+          "SELECT actor_user_id,subject_user_id,member_id,metadata FROM ops.audit_events WHERE org_id=$1 AND type='organization.member_departed.v1'",
+          [orgId],
+        )
+      ).rows;
+    },
     async email(id: string): Promise<string> {
       return (
         await pool.query<{ email: string }>(

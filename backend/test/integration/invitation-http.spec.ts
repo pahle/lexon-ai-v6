@@ -81,6 +81,31 @@ test('guarded Lexon invitation routes use the authenticated recipient and shared
       invitation: { id: invitation.id, status: 'accepted' },
       selection: { organization: { id: team.id } },
     });
+    const members = await fetch(
+      `${origin}/api/organizations/${team.id}/members`,
+      { headers: owner.cookieHeaders },
+    );
+    expect(members.status).toBe(200);
+    const rows = (await members.json()) as {
+      items: Array<{ id: string; userId: string }>;
+    };
+    const target = rows.items.find((row) => row.userId === recipient.userId)!;
+    expect(
+      (
+        await fetch(
+          `${origin}/api/organizations/${team.id}/members/${target.id}`,
+          { method: 'PATCH', headers, body: JSON.stringify({ role: 'admin' }) },
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await fetch(
+          `${origin}/api/organizations/${team.id}/members/${target.id}`,
+          { method: 'DELETE', headers: owner.cookieHeaders },
+        )
+      ).status,
+    ).toBe(204);
   } finally {
     await app.close();
     await inspect.close();
