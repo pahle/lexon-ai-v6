@@ -20,7 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
-| F2 App shell & design system | Brief in PR #17 | Notes: `notes/F2-app-shell.md` |
+| F2 App shell & design system | Brief merged (PR #17); awaiting Codex brainstorming | Notes: `notes/F2-app-shell.md` |
 | F3–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
