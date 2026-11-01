@@ -3,6 +3,17 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
+
+const PanelHostContext = createContext<HTMLElement | null>(null);
+const securityPaths = new Set(['/account/security', '/settings/security']);
+function SkipLink() {
+  return (
+    <a className="sr-only focus:not-sr-only" href="#main">
+      Skip to content
+    </a>
+  );
+}
+
 export function WorkspaceShell({
   children,
   sidebar,
@@ -13,41 +24,69 @@ export function WorkspaceShell({
   const { identity, status, transitioning, fallbackNotice } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
-  const securityRoute = pathname === '/account/security';
+  const securityRoute = securityPaths.has(pathname ?? '');
+
   if (status === 'expired' || status === 'unavailable')
-    return <SessionBoundary state={status}>{null}</SessionBoundary>;
+    return (
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
+          <SessionBoundary embedded state={status}>
+            {null}
+          </SessionBoundary>
+        </main>
+      </>
+    );
   if (status === 'mfa-required')
     return (
-      <main id="main" className="mx-auto max-w-2xl p-6">
-        <a href="/account/security">Account security</a>
-        {securityRoute ? children : null}
-      </main>
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
+          <nav className="flex flex-wrap gap-4" aria-label="Account recovery">
+            <a href="/account/security">Account security</a>
+            <a href="/two-factor?returnTo=%2Faccount%2Fsecurity">
+              Verify your sign-in
+            </a>
+          </nav>
+          {securityRoute && !transitioning ? children : null}
+        </main>
+      </>
     );
   if (status !== 'ready' || transitioning || !identity)
     return (
-      <main id="main" aria-busy="true" role="status">
-        Verifying your workspace…
-      </main>
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} aria-busy="true" role="status">
+          Verifying your workspace…
+        </main>
+      </>
     );
   return (
     <PanelHostContext.Provider value={panelHost}>
       <>
-        <a className="sr-only focus:not-sr-only" href="#main">
-          Skip to content
-        </a>
-        {identity.user.onboardingCompleted && sidebar ? (
-          <aside>{sidebar}</aside>
-        ) : null}
-        <main id="main" className="mx-auto max-w-6xl p-6">
-          {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
-          {children}
-          <div ref={setPanelHost} data-panel-host="" />
-        </main>
+        <SkipLink />
+        <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 p-6 md:flex-row">
+          {identity.user.onboardingCompleted && sidebar ? (
+            <aside aria-label="Workspace navigation" className="shrink-0">
+              {sidebar}
+            </aside>
+          ) : null}
+          <main id="main" tabIndex={-1} className="min-w-0 flex-1">
+            {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
+            {children}
+          </main>
+          <aside
+            ref={setPanelHost}
+            aria-label="Context panel"
+            className="w-full shrink-0 md:w-80"
+            data-panel-host=""
+          />
+        </div>
       </>
     </PanelHostContext.Provider>
   );
 }
-const PanelHostContext = createContext<HTMLElement | null>(null);
+
 export function usePanelHost(): HTMLElement | null {
   return useContext(PanelHostContext);
 }

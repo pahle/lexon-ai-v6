@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { authClient } from '../../lib/auth-client';
 import { OrganizationSwitcher } from './organization-switcher';
 import { identityApi, QueryFailure, useCursorPage } from './page-state';
@@ -10,6 +11,7 @@ import { Button } from '../ui/button';
 import { useWorkspace } from '../shell/workspace-provider';
 export function Workspace() {
   const query = useQueryClient();
+  const router = useRouter();
   const { identity } = useWorkspace();
   const orgs = useCursorPage(
     ['organizations'],
@@ -18,12 +20,18 @@ export function Workspace() {
         limit: 20,
         ...(cursor ? { cursor } : {}),
       }),
-    !!identity,
+    !!identity && identity.user.onboardingCompleted,
   );
   const [signingOut, setSigningOut] = useState(false);
   const [failure, setFailure] = useState(false);
+  useEffect(() => {
+    if (identity && !identity.user.onboardingCompleted)
+      router.replace('/onboarding');
+  }, [identity, router]);
   if (orgs.query.error) return <QueryFailure error={orgs.query.error} />;
   if (!identity) return <p role="status">Verifying your workspace…</p>;
+  if (!identity.user.onboardingCompleted)
+    return <p role="status">Opening onboarding…</p>;
   if (signingOut) return <p role="status">Updating your workspace…</p>;
   return (
     <div className="flex flex-col gap-6">

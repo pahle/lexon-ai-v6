@@ -27,8 +27,22 @@ type WorkspaceContextValue = {
 };
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 function accessKey(identity: IdentitySummary) {
-  return `${identity.organization.id}:${identity.organization.role}:${identity.platformAdmin}`;
+  return `${identity.user.id}:${identity.organization.id}:${identity.organization.role}:${identity.platformAdmin}`;
 }
+function sameIdentity(left: IdentitySummary, right: IdentitySummary) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+async function clearQueryFamilies(
+  queryClient: ReturnType<typeof useQueryClient>,
+  families: readonly (readonly unknown[])[],
+) {
+  await Promise.all(
+    families.map((queryKey) => queryClient.cancelQueries({ queryKey })),
+  );
+  for (const queryKey of families) queryClient.removeQueries({ queryKey });
+}
+const fallbackMessage =
+  'You no longer have access to the previous organization. Personal is selected.';
 
 export function WorkspaceProvider({
   bootstrap,
@@ -38,69 +52,169 @@ export function WorkspaceProvider({
   children: ReactNode;
 }) {
   const queryClient = useQueryClient();
-  const [committedAccess, setCommittedAccess] = useState(
-    bootstrap.status === 'ready' ? accessKey(bootstrap.identity) : null,
+  const cachedIdentity = queryClient.getQueryData<IdentitySummary>([
+    'identity',
+  ]);
+  const cachedIdentityState = queryClient.getQueryState(['identity']);
+  const initialBootstrapSync =
+    bootstrap.status === 'ready' &&
+    ((cachedIdentity !== undefined &&
+      !sameIdentity(cachedIdentity, bootstrap.identity)) ||
+      (cachedIdentityState !== undefined &&
+        (cachedIdentity === undefined || cachedIdentityState.error !== null)));
+  const [bootstrapSyncPending, setBootstrapSyncPending] =
+    useState(initialBootstrapSync);
+  const [committedIdentity, setCommittedIdentity] =
+    useState<IdentitySummary | null>(
+      bootstrap.status === 'ready' ? bootstrap.identity : null,
+    );
+  const [freshQueryIdentity, setFreshQueryIdentity] =
+    useState<IdentitySummary | null>(null);
+  const [untrustedCacheClearPending, setUntrustedCacheClearPending] = useState(
+    bootstrap.status !== 'ready',
   );
-  const [seenFallbacks, setSeenFallbacks] = useState<Set<string>>(
-    () => new Set(),
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(
+    bootstrap.status === 'ready' && bootstrap.identity.fallbackReason
+      ? fallbackMessage
+      : null,
   );
+
   const identityQuery = useQuery({
     queryKey: ['identity'],
-    queryFn: () => identityApi.identity(),
+    queryFn: async () => {
+      const verified = await identityApi.identity();
+      setFreshQueryIdentity(verified);
+      return verified;
+    },
     initialData: bootstrap.status === 'ready' ? bootstrap.identity : undefined,
-    enabled: bootstrap.status === 'ready',
-    refetchInterval: bootstrap.status === 'ready' ? 5000 : false,
-    staleTime: 5000,
+    enabled:
+      (bootstrap.status === 'ready' && !bootstrapSyncPending) ||
+      bootstrap.status === 'mfa-required',
+    refetchInterval:
+      bootstrap.status === 'ready' || bootstrap.status === 'mfa-required'
+        ? 5000
+        : false,
+    staleTime: bootstrap.status === 'ready' ? 5000 : 0,
     retry: false,
   });
-  const { data: identityData, error: identityError, refetch } = identityQuery;
-  const identity = identityData ?? null;
+  const { data: queryIdentity, error: identityError, refetch } = identityQuery;
+  const identity =
+    bootstrap.status === 'ready'
+      ? bootstrapSyncPending
+        ? bootstrap.identity
+        : (queryIdentity ?? bootstrap.identity)
+      : freshQueryIdentity;
   const nextAccess = identity ? accessKey(identity) : null;
-  const transitioning = !!identity && nextAccess !== committedAccess;
+  const transitioning =
+    untrustedCacheClearPending ||
+    bootstrapSyncPending ||
+    (!!identity &&
+      nextAccess !== (committedIdentity ? accessKey(committedIdentity) : null));
 
   useEffect(() => {
-    if (!identity || !transitioning) return;
+    if (bootstrap.status !== 'ready' || !bootstrapSyncPending) return;
     let current = true;
-    void transitionTenant(queryClient, identity.organization).then(() => {
-      if (current) setCommittedAccess(accessKey(identity));
-    });
+    void (async () => {
+      const old = queryClient.getQueryData<IdentitySummary>(['identity']);
+      if (old && accessKey(old) !== accessKey(bootstrap.identity)) {
+        await transitionTenant(queryClient, bootstrap.identity.organization);
+        if (old.user.id !== bootstrap.identity.user.id) {
+          await clearQueryFamilies(queryClient, [
+            ['account'],
+            ['platform'],
+            ['organizations'],
+          ]);
+        } else if (old.platformAdmin && !bootstrap.identity.platformAdmin) {
+          await clearQueryFamilies(queryClient, [['platform']]);
+        }
+        if (old.organization.id !== bootstrap.identity.organization.id) {
+          await queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        }
+      }
+      if (!current) return;
+      queryClient.setQueryData(['identity'], bootstrap.identity);
+      setCommittedIdentity(bootstrap.identity);
+      setBootstrapSyncPending(false);
+    })();
     return () => {
       current = false;
     };
-  }, [identity, queryClient, transitioning]);
+  }, [bootstrap, bootstrapSyncPending, queryClient]);
 
-  const fallbackKey = identity?.fallbackReason
-    ? `${identity.fallbackReason}:${identity.previousOrganizationName ?? ''}`
-    : null;
   useEffect(() => {
-    if (!fallbackKey || seenFallbacks.has(fallbackKey)) return;
-    setSeenFallbacks((current) => new Set(current).add(fallbackKey));
-  }, [fallbackKey, seenFallbacks]);
+    if (!identity || bootstrapSyncPending || !transitioning) return;
+    const previous = committedIdentity;
+    let current = true;
+    void (async () => {
+      await transitionTenant(queryClient, identity.organization);
+      if (previous?.user.id !== identity.user.id) {
+        await clearQueryFamilies(queryClient, [
+          ['account'],
+          ['platform'],
+          ['organizations'],
+        ]);
+      } else if (previous?.platformAdmin && !identity.platformAdmin) {
+        await clearQueryFamilies(queryClient, [['platform']]);
+      }
+      if (previous?.organization.id !== identity.organization.id) {
+        await queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      }
+      if (!current) return;
+      setCommittedIdentity(identity);
+      if (
+        identity.fallbackReason &&
+        previous?.organization.id !== identity.organization.id
+      ) {
+        setFallbackNotice(fallbackMessage);
+      } else if (!identity.fallbackReason) {
+        setFallbackNotice(null);
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [
+    bootstrapSyncPending,
+    committedIdentity,
+    identity,
+    queryClient,
+    transitioning,
+  ]);
+
+  useEffect(() => {
+    if (!identity?.fallbackReason) setFallbackNotice(null);
+  }, [identity?.fallbackReason, identity?.organization.id]);
+
+  const status: WorkspaceStatus =
+    bootstrap.status === 'expired' || bootstrap.status === 'unavailable'
+      ? bootstrap.status
+      : identityError
+        ? identityError instanceof IdentityClientError &&
+          identityError.status === 401
+          ? 'expired'
+          : identityError instanceof IdentityClientError &&
+              identityError.code === 'AUTH_2FA_REQUIRED'
+            ? 'mfa-required'
+            : 'unavailable'
+        : identity
+          ? 'ready'
+          : bootstrap.status;
+
+  useEffect(() => {
+    if (status === 'ready') return;
+    void clearQueryFamilies(queryClient, [
+      ['tenant'],
+      ['account'],
+      ['platform'],
+      ['organizations'],
+    ]).then(() => {
+      setUntrustedCacheClearPending(false);
+    });
+  }, [queryClient, status]);
 
   const refreshIdentity = useCallback(async () => {
     await refetch();
   }, [refetch]);
-  const status: WorkspaceStatus =
-    identityError instanceof IdentityClientError
-      ? identityError.status === 401
-        ? 'expired'
-        : identityError.status === 403
-          ? 'mfa-required'
-          : 'unavailable'
-      : identityError
-        ? 'unavailable'
-        : identity
-          ? 'ready'
-          : bootstrap.status === 'mfa-required'
-            ? 'mfa-required'
-            : bootstrap.status === 'expired' ||
-                bootstrap.status === 'unavailable'
-              ? bootstrap.status
-              : 'loading';
-  const fallbackNotice =
-    fallbackKey && seenFallbacks.has(fallbackKey)
-      ? 'You no longer have access to the previous organization. Personal is selected.'
-      : null;
   const value = useMemo(
     () => ({
       identity: status === 'ready' && !transitioning ? identity : null,
