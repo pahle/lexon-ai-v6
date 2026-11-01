@@ -8,6 +8,7 @@ import {
 } from '../../lib/identity-client';
 import { SessionBoundary } from '../auth/session-boundary';
 import { Button } from '../ui/button';
+import { ErrorState } from '../states/page-states';
 export const identityApi = createIdentityClient({ baseUrl: '/api' });
 export function identityMessage(error: unknown): string {
   return error instanceof IdentityClientError && error.code === 'ORG_LAST_OWNER'
@@ -22,15 +23,21 @@ export function identityMessage(error: unknown): string {
 export function QueryFailure({ error }: { error: unknown }) {
   if (error instanceof IdentityClientError && error.status === 403)
     return (
-      <div role="alert">
-        <p>{identityMessage(error)}</p>
-        <a href="/two-factor?returnTo=%2Fworkspace">Verify your sign-in</a>
-        <a href="/account/security">Account security</a>
-        <a href="/workspace">Return to workspace</a>
-      </div>
+      <>
+        <ErrorState message={identityMessage(error)} />
+        <nav
+          className="flex flex-wrap gap-2 px-6 pb-6"
+          aria-label="Access options"
+        >
+          <a href="/two-factor?returnTo=%2Fworkspace">Verify your sign-in</a>
+          <a href="/account/security">Account security</a>
+          <a href="/workspace">Return to workspace</a>
+        </nav>
+      </>
     );
   return (
     <SessionBoundary
+      embedded
       state={
         error instanceof IdentityClientError && error.status === 401
           ? 'expired'

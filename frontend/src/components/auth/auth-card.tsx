@@ -11,16 +11,19 @@ export function AuthCard({
   title,
   description,
   children,
+  headingLevel = 1,
 }: {
   title: string;
   description?: string | undefined;
   children?: ReactNode;
+  headingLevel?: 1 | 2 | 3;
 }) {
+  const Heading = `h${headingLevel}` as const;
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>
-          <h1>{title}</h1>
+          <Heading>{title}</Heading>
         </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
