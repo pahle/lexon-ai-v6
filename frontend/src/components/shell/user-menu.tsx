@@ -29,7 +29,8 @@ export function UserMenu() {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
   const { identity } = useWorkspace();
-  const collapsed = useSidebarOptional()?.state === 'collapsed';
+  const sidebar = useSidebarOptional();
+  const collapsed = sidebar?.state === 'collapsed';
   const name = identity?.user.name ?? 'Account';
   const email = identity?.user.email ?? '';
   return (
@@ -65,7 +66,12 @@ export function UserMenu() {
           ) : null}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem render={<Link href="/account/security" />}>
+          <DropdownMenuItem
+            render={<Link href="/account/security" />}
+            onClick={() => {
+              if (sidebar?.isMobile) sidebar.setOpenMobile(false);
+            }}
+          >
             Settings
           </DropdownMenuItem>
           <DropdownMenuItem

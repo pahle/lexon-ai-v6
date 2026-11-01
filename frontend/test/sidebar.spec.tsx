@@ -118,11 +118,14 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     )?.click(),
   );
   await settle();
+  const settingsItem = [
+    ...document.body.querySelectorAll('[role="menuitem"]'),
+  ].find((item) => item.textContent?.trim() === 'Settings') as HTMLElement;
+  expect(settingsItem).toBeDefined();
   expect(
-    [...document.body.querySelectorAll('[role="menuitem"]')].map((item) =>
-      item.textContent?.trim(),
-    ),
-  ).toContain('Settings');
+    document.body.querySelector('[data-slot="dropdown-menu-content"]')
+      ?.className,
+  ).toContain('dark:shadow-none');
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -263,6 +266,10 @@ test('organization menu paginates and a denied switch preserves Personal', async
     (view.container.querySelector('button') as HTMLButtonElement).click(),
   );
   await settle();
+  const organizationPopover = document.body.querySelector(
+    '[data-slot="popover-popup"]',
+  );
+  expect(organizationPopover?.className).toContain('dark:shadow-none');
   expect(document.body.textContent).toContain('Personal');
   expect(document.body.textContent).not.toContain('private-personal-slug');
   const next = [...document.body.querySelectorAll('button')].find(
@@ -342,6 +349,10 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   );
   expect(dialogOverlay.getAttribute('class')).not.toContain('bg-black');
   expect(dialog.getAttribute('class')).not.toContain('sm:');
+  expect(dialog.getAttribute('class')).toContain('w-[calc(100%-2rem)]');
+  expect(
+    dialog.querySelector('[data-slot="dialog-title"]')?.className,
+  ).toContain('pr-12');
   expect(dialog.getAttribute('aria-labelledby')).not.toBeNull();
   expect(dialog.textContent).toContain('Create a team');
   const inputs = [...dialog.querySelectorAll('input')];
@@ -639,6 +650,24 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const userSettingsTrigger = document.body.querySelector(
+    'button[aria-label="Settings: Ada Lovelace"]',
+  ) as HTMLButtonElement;
+  await act(async () => userSettingsTrigger.click());
+  await settle();
+  const settingsItem = [
+    ...document.body.querySelectorAll('[role="menuitem"]'),
+  ].find((item) => item.textContent?.trim() === 'Settings') as HTMLElement;
+  settingsItem.addEventListener('click', (event) => event.preventDefault(), {
+    capture: true,
+    once: true,
+  });
+  await act(async () => settingsItem.click());
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 450)));
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => opener.click());
+  await settle();
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   const sheetOverlay = document.body.querySelector(
     '[data-slot="sheet-overlay"]',
   )!;
@@ -650,6 +679,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   expect(sheetOverlay.className).not.toContain('bg-black');
   expect(sheetContent.className).toContain('shadow-sm');
   expect(sheetContent.className).toContain('dark:border-border');
+  expect(sheetContent.className).toContain('dark:shadow-none');
   expect(sheetContent.className).not.toContain('sm:');
   const homeLink = document.body.querySelector(
     '[role="dialog"] a[href="/workspace"]',

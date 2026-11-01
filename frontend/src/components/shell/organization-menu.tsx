@@ -79,7 +79,10 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             sideOffset={4}
             className="z-50"
           >
-            <Popover.Popup className="w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border">
+            <Popover.Popup
+              data-slot="popover-popup"
+              className="w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border dark:shadow-none"
+            >
               <p className="px-2 py-1 text-sm font-medium">Organizations</p>
               {pages.query.isError ? (
                 <div className="p-2">
