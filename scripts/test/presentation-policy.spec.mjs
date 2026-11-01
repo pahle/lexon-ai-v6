@@ -7,9 +7,12 @@ const eslint = new ESLint({
   overrideConfigFile: new URL('../../eslint.config.mjs', import.meta.url)
     .pathname,
 });
+const frontendEslint = new ESLint({
+  cwd: new URL('../../frontend/', import.meta.url).pathname,
+});
 
-async function lint(filePath, code) {
-  const [result] = await eslint.lintText(code, { filePath });
+async function lint(filePath, code, config = eslint) {
+  const [result] = await config.lintText(code, { filePath });
   assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages));
   return result.messages;
 }
@@ -83,6 +86,14 @@ test('permits rounded-full only on named semantic slots in their owning files', 
     assert.deepEqual(messages, [], `${path}: ${JSON.stringify(messages)}`);
   }
 
+  const frontendCwdMessages = await lint(
+    new URL('../../frontend/src/components/ui/radio-group.tsx', import.meta.url)
+      .pathname,
+    '<span data-slot="radio-indicator" className="rounded-full" />',
+    frontendEslint,
+  );
+  assert.deepEqual(frontendCwdMessages, []);
+
   const cvaMessages = await lint(
     new URL('../../frontend/src/components/ui/radio-group.tsx', import.meta.url)
       .pathname,
@@ -117,6 +128,18 @@ test('rejects rounded-full on buttons, inputs, badges, and arbitrary elements', 
       'frontend/src/components/ui/radio-group.tsx',
       '<span data-slot="radio-root" className="rounded-full" />',
     ],
+    [
+      'frontend/src/components/ui/radio-group.tsx',
+      '<button data-slot="radio-indicator" className="rounded-full" />',
+    ],
+    [
+      'frontend/src/components/ui/switch.tsx',
+      '<input data-slot="switch-thumb" className="rounded-full" />',
+    ],
+    [
+      'frontend/src/components/ui/avatar.tsx',
+      '<Badge data-slot="avatar-initials" className="rounded-full" />',
+    ],
   ];
 
   for (const [path, code] of fixtures) {
@@ -149,4 +172,18 @@ test('checks static JSX className and cva base/variant strings', async () => {
     4,
     JSON.stringify(messages),
   );
+});
+
+test('rejects variant-prefixed rounded-full class tokens', async () => {
+  for (const token of ['md:rounded-full', 'hover:rounded-full']) {
+    const messages = await lint(
+      new URL('../../frontend/src/components/ui/button.tsx', import.meta.url)
+        .pathname,
+      `<button className="${token}" />`,
+    );
+    assert.ok(
+      messages.some((message) => message.ruleId === 'lexon/circular-shape'),
+      `${token} was not rejected: ${JSON.stringify(messages)}`,
+    );
+  }
 });

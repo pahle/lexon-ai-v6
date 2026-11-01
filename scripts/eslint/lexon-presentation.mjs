@@ -1,4 +1,10 @@
-import { relative, sep } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repositoryRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../..',
+);
 
 const circularSlots = new Map([
   ['frontend/src/components/ui/radio-group.tsx', 'radio-indicator'],
@@ -8,7 +14,7 @@ const circularSlots = new Map([
 ]);
 
 function containsCircularShape(value) {
-  return value.split(/\s+/).includes('rounded-full');
+  return value.split(/\s+/).some((token) => /(?:^|:)rounded-full$/.test(token));
 }
 
 function propertyValue(node, name) {
@@ -54,7 +60,9 @@ const circularShape = {
     },
   },
   create(context) {
-    const file = relative(context.cwd, context.filename).split(sep).join('/');
+    const file = relative(repositoryRoot, context.filename)
+      .split(sep)
+      .join('/');
     const allowedSlot = circularSlots.get(file);
 
     function report(node) {
@@ -67,6 +75,12 @@ const circularShape = {
 
     function isAllowedSlot(node) {
       if (!allowedSlot) return false;
+      const elementName = node.name?.type === 'JSXIdentifier' && node.name.name;
+      if (
+        elementName &&
+        ['button', 'input', 'badge'].includes(elementName.toLowerCase())
+      )
+        return false;
       const slot = node.attributes.find(
         (attribute) =>
           attribute.type === 'JSXAttribute' &&

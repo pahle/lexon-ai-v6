@@ -48,8 +48,8 @@ presentation-policy fixtures.
 
 Command: `pnpm exec prettier --check eslint.config.mjs scripts/check-boundaries.mjs scripts/eslint/lexon-boundaries.mjs scripts/eslint/lexon-presentation.mjs scripts/test/presentation-policy.spec.mjs docs/references/F2-acceptance.md`
 
-Result: exit code `0`; all matched files use Prettier code style. `git diff
---check` also succeeded.
+Result: exit code `0`; all matched files use Prettier code style. The
+`git diff --check` command also succeeded.
 
 ## Changed files
 
@@ -73,3 +73,44 @@ Result: exit code `0`; all matched files use Prettier code style. `git diff
   `rounded-full` violations, so no production component files needed edits.
 - No changes were made to business behavior, dependencies, lockfile, or
   existing boundary rules.
+
+## Review fix 1
+
+Addressed review commit `2da297e` findings:
+
+- Resolve allowlist paths from the rule module's repository root, so package
+  lint invocations use the same file keys as root lint.
+- Do not honor circular slots on `button`, `input`, or `Badge` elements.
+- Match `rounded-full` tokens preceded by static Tailwind variants, such as
+  `md:rounded-full` and `hover:rounded-full`.
+- Added regressions for frontend-cwd package lint, same-owner disallowed
+  elements, and variant-prefixed classes.
+
+### Fix RED
+
+Command: `node --test scripts/test/presentation-policy.spec.mjs`
+
+On the reviewed implementation: exit code `1`; 6 tests, 3 passed and 3 failed.
+The failures showed a valid radio slot rejected with ESLint cwd `frontend`, a
+button carrying that slot allowed in the owning file, and variant-prefixed
+classes unreported.
+
+### Fix GREEN
+
+Command: `node --test scripts/test/presentation-policy.spec.mjs`
+
+Result: exit code `0`; 6 tests passed, 0 failed.
+
+Command: `(cd frontend && pnpm exec eslint src)`
+
+Result: exit code `0`; frontend package source lint passed with package cwd.
+
+Command: `pnpm lint`
+
+Result: exit code `0`; root ESLint succeeded and the boundary runner passed 84
+tests (84 passed, 0 failed).
+
+Command: `pnpm exec prettier --check scripts/eslint/lexon-presentation.mjs scripts/test/presentation-policy.spec.mjs .superpowers/sdd/2026-11-01-f2-app-shell-design-system/task-1-report.md`
+
+Result: exit code `0`; all matched files use Prettier code style. The
+`git diff --check` command also succeeded.
