@@ -146,3 +146,45 @@ test('audit failure rolls back Bearer creation and own-session revocation withou
     await proof.close();
   }
 });
+
+test('all live sessions remain discoverable and revocable beyond the adapter default page', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const email = `${randomUUID()}@example.test`;
+    await proof.signIn({
+      body: {
+        name: 'Many sessions',
+        email,
+        password,
+      },
+    });
+    const harness = securityHarness(proof);
+    const service = new SessionService(
+      new OrganizationAuthPort(proof.integration),
+      { bearerSeconds: 900 },
+    );
+    const cookie = responseCookies(
+      await harness.run('/sign-in/email', { email, password }, new Headers()),
+    );
+    await harness.identity(cookie, async (identity) => {
+      const issuedIds: string[] = [];
+      for (let index = 0; index < 101; index++) {
+        issuedIds.push((await service.issueBearer(identity)).sessionId);
+      }
+      const listed = await service.list(identity);
+      expect(listed).toHaveLength(103);
+      expect(listed.find((row) => row.current)?.id).toBe(identity.sessionId);
+      expect(listed.map((row) => row.id)).toEqual(
+        expect.arrayContaining([identity.sessionId, ...issuedIds]),
+      );
+      await service.revoke(identity, issuedIds[0]!);
+      const remaining = await service.list(identity);
+      expect(remaining).toHaveLength(102);
+      expect(remaining.some((row) => row.id === issuedIds[0])).toBe(false);
+    });
+  } finally {
+    await proof.close();
+  }
+});

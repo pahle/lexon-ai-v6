@@ -103,14 +103,27 @@ export function sessionPlugin(security: SecurityPrimitives) {
           }),
         },
         async (ctx) => {
-          const rows = await ctx.context.adapter.findMany<SessionRow>({
-            model: 'session',
-            where: [
-              { field: 'userId', value: ctx.body.userId },
-              { field: 'expiresAt', operator: 'gt', value: new Date() },
-            ],
-            sortBy: { field: 'createdAt', direction: 'desc' },
-          });
+          const rows: SessionRow[] = [];
+          let cursor: string | undefined;
+          const now = new Date();
+          for (;;) {
+            const page = await ctx.context.adapter.findMany<SessionRow>({
+              model: 'session',
+              where: [
+                { field: 'userId', value: ctx.body.userId },
+                { field: 'expiresAt', operator: 'gt', value: now },
+                ...(cursor
+                  ? [{ field: 'id', operator: 'gt' as const, value: cursor }]
+                  : []),
+              ],
+              sortBy: { field: 'id', direction: 'asc' },
+              limit: 100,
+            });
+            rows.push(...page);
+            if (page.length < 100) break;
+            cursor = page[page.length - 1]!.id;
+          }
+          rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
           return rows
             .filter(
               (row) =>

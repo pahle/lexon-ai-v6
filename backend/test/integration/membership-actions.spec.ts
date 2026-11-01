@@ -89,50 +89,64 @@ test('member role commands enforce actor and target matrix with owner safety', a
   }
 });
 
-test('actor demotion while remove is waiting cannot retain stale authority', async ({
-  services,
-}) => {
-  const proof = await createAuthFixture(services);
-  const organizations = createOrganizationInspector(services);
-  const inspect = createInvitationInspector(services);
-  try {
-    const users = await Promise.all(
-      ['Owner', 'Admin', 'Target'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
-    const team = await organizations.seedTeam(users.map((user) => user.userId));
-    await inspect.setRole(team.members[1]!.id, 'admin');
-    await inspect.setRole(team.members[2]!.id, 'member');
-    const harness = securityHarness(proof);
-    const service = new MembershipService(
-      new OrganizationAuthPort(proof.integration),
-      { pagination: { defaultLimit: 20, maxLimit: 100 } },
-    );
-    const held = await inspect.holdRoleChange(team.members[1]!.id, 'member');
-    const outcome = harness
-      .identity(users[1]!.cookieHeaders, (identity) =>
-        service.remove(identity, team.id, team.members[2]!.id),
-      )
-      .then(
-        () => null,
-        (error) => error as unknown,
-      );
+for (const action of ['remove', 'change-role'] as const) {
+  test(`actor demotion while ${action} is waiting cannot retain stale authority`, async ({
+    services,
+  }) => {
+    const proof = await createAuthFixture(services);
+    const organizations = createOrganizationInspector(services);
+    const inspect = createInvitationInspector(services);
     try {
-      await held.waitForAuthWaiter();
+      const users = await Promise.all(
+        ['Owner', 'Admin', 'Target'].map((name) =>
+          proof.signIn({
+            body: { name, email: `${randomUUID()}@example.test`, password },
+          }),
+        ),
+      );
+      const team = await organizations.seedTeam(
+        users.map((user) => user.userId),
+      );
+      await inspect.setRole(team.members[1]!.id, 'admin');
+      await inspect.setRole(team.members[2]!.id, 'member');
+      const harness = securityHarness(proof);
+      const service = new MembershipService(
+        new OrganizationAuthPort(proof.integration),
+        { pagination: { defaultLimit: 20, maxLimit: 100 } },
+      );
+      const held = await inspect.holdRoleChange(team.members[1]!.id, 'member');
+      const outcome = harness
+        .identity(users[1]!.cookieHeaders, async (identity) => {
+          if (action === 'remove')
+            await service.remove(identity, team.id, team.members[2]!.id);
+          else
+            await service.changeRole(
+              identity,
+              team.id,
+              team.members[2]!.id,
+              'admin',
+            );
+        })
+        .then(
+          () => null,
+          (error) => error as unknown,
+        );
+      try {
+        await held.waitForAuthWaiter();
+      } finally {
+        await held.release();
+      }
+      expect(await outcome).toMatchObject({ status: 403 });
+      expect(await inspect.member(users[2]!.userId, team.id)).toMatchObject({
+        role: 'member',
+      });
     } finally {
-      await held.release();
+      await inspect.close();
+      await organizations.close();
+      await proof.close();
     }
-    expect(await outcome).toMatchObject({ status: 403 });
-    expect(await inspect.member(users[2]!.userId, team.id)).not.toBeNull();
-  } finally {
-    await inspect.close();
-    await organizations.close();
-    await proof.close();
-  }
-});
+  });
+}
 
 test('real role and removal commands exhaust every actor and target role combination', async ({
   services,

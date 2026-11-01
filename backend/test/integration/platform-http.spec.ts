@@ -90,6 +90,16 @@ test('every platform route denies ordinary and incomplete-MFA identities and per
         ).toBe(403);
     }
     const full = await securityHarness(proof).enroll(email, password);
+    // Enrollment in another session must not upgrade the old cookie's evidence.
+    for (const [method, path] of routes)
+      expect(
+        (
+          await fetch(`${origin}/api${path}`, {
+            method,
+            headers: user.cookieHeaders,
+          })
+        ).status,
+      ).toBe(403);
     const headers = new Headers(full.headers);
     headers.set('content-type', 'application/json');
     const created = await fetch(`${origin}/api/platform/provisioning`, {

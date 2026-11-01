@@ -97,3 +97,11 @@ Handoff: [PR15](https://github.com/pahle/lexon-ai-v6/pull/15),
 `f1-identity-organizations`→`main`. All24plan tasks are checked from actual
 verification. The final push starts fresh CI; local passing results above are
 for the final implementation, not a claim about an unfinished remote run.
+
+## Supplemental assurance
+
+The [F0/F1 assurance pass](F0-F1-assurance.md) supplies the missing independent
+F0 review and targeted Tasks 12–15 coverage review. It records two additional
+Important F1 defects, their test-first fixes, explicit coverage limits and the
+historical workflow exceptions. These results supplement the original handoff;
+they do not retroactively certify its test ordering.

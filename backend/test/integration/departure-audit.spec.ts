@@ -122,3 +122,54 @@ test('an audit failure rolls back native membership deletion and leaves the outb
     await proof.close();
   }
 });
+
+test('successful leave commits one ID-only leave audit and retries cannot add audit or outbox effects', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const organizations = createOrganizationInspector(services);
+  const inspect = createInvitationInspector(services);
+  try {
+    const [owner, departing] = await Promise.all(
+      ['Owner', 'Departing'].map((name) =>
+        proof.signIn({
+          body: { name, email: `${randomUUID()}@example.test`, password },
+        }),
+      ),
+    );
+    const team = await organizations.seedTeam([
+      owner!.userId,
+      departing!.userId,
+    ]);
+    await inspect.setRole(team.members[1]!.id, 'member');
+    const harness = securityHarness(proof);
+    const service = new MembershipService(
+      new OrganizationAuthPort(proof.integration),
+      { pagination: { defaultLimit: 20, maxLimit: 100 } },
+    );
+    const before = await inspect.outboxCount();
+    await harness.identity(departing!.cookieHeaders, (identity) =>
+      service.leave(identity, team.id),
+    );
+    await harness.identity(departing!.cookieHeaders, async (identity) => {
+      await expect(service.leave(identity, team.id)).rejects.toMatchObject({
+        status: 403,
+      });
+    });
+    expect(await inspect.member(departing!.userId, team.id)).toBeNull();
+    expect(await proof.inspect.personalFor(departing!.userId)).not.toBeNull();
+    expect(await inspect.departureAudits(team.id)).toMatchObject([
+      {
+        actor_user_id: departing!.userId,
+        subject_user_id: departing!.userId,
+        member_id: team.members[1]!.id,
+        metadata: { reason: 'leave' },
+      },
+    ]);
+    expect(await inspect.outboxCount()).toBe(before);
+  } finally {
+    await inspect.close();
+    await organizations.close();
+    await proof.close();
+  }
+});

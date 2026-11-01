@@ -448,3 +448,85 @@ test('audit failure rolls back invitation creation before any invitation mail di
     await proof.close();
   }
 });
+
+// Managing an existing invitation must not apply the role's creation permission.
+for (const action of ['resend', 'cancel', 'replace-expired'] as const) {
+  test(`organization admin can ${action} an owner-created admin invitation without changing its grant`, async ({
+    services,
+  }) => {
+    const proof = await createAuthFixture(services);
+    const organizations = createOrganizationInspector(services);
+    const inspect = createInvitationInspector(services);
+    try {
+      const [owner, admin, recipient] = await Promise.all(
+        ['Owner', 'Admin', 'Recipient'].map((name) =>
+          proof.signIn({
+            body: { name, email: `${randomUUID()}@example.test`, password },
+          }),
+        ),
+      );
+      const team = await organizations.seedTeam([owner!.userId, admin!.userId]);
+      await inspect.setRole(team.members[1]!.id, 'admin');
+      const harness = securityHarness(proof);
+      const service = new InvitationService(
+        new OrganizationAuthPort(proof.integration),
+        new IdentitySessionService(proof.integration),
+        {
+          invitationSeconds: 1209600,
+          pagination: { defaultLimit: 20, maxLimit: 100 },
+        },
+      );
+      const email = await inspect.email(recipient!.userId);
+      const original = await harness.identity(
+        owner!.cookieHeaders,
+        (identity) =>
+          service.create(identity, team.id, { email, role: 'admin' }),
+      );
+      if (action === 'replace-expired') await inspect.expire(original.id);
+      const managed = await harness.identity(
+        admin!.cookieHeaders,
+        (identity) =>
+          action === 'cancel'
+            ? service.cancel(identity, original.id)
+            : service.resend(identity, original.id),
+      );
+      expect(managed).toMatchObject({
+        email,
+        role: 'admin',
+        organizationId: team.id,
+        status: action === 'cancel' ? 'cancelled' : 'pending',
+      });
+      if (action === 'replace-expired') {
+        expect(managed.id).not.toBe(original.id);
+        await harness.identity(recipient!.cookieHeaders, async (identity) => {
+          await expect(
+            service.accept(identity, original.id),
+          ).rejects.toMatchObject({ status: 403 });
+        });
+      } else expect(managed.id).toBe(original.id);
+      expect(await inspect.pendingCount(team.id, email)).toBe(
+        action === 'cancel' ? 0 : 1,
+      );
+      if (action !== 'cancel') {
+        await harness.identity(recipient!.cookieHeaders, (identity) =>
+          service.accept(identity, managed.id),
+        );
+        expect(await inspect.member(recipient!.userId, team.id)).toMatchObject({
+          role: 'admin',
+        });
+      }
+      await harness.identity(admin!.cookieHeaders, async (identity) => {
+        await expect(
+          service.create(identity, team.id, {
+            email: `${randomUUID()}@example.test`,
+            role: 'admin',
+          }),
+        ).rejects.toMatchObject({ status: 403 });
+      });
+    } finally {
+      await inspect.close();
+      await organizations.close();
+      await proof.close();
+    }
+  });
+}

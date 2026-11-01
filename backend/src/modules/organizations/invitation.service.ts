@@ -280,24 +280,41 @@ export class InvitationService {
     identity: VerifiedIdentity,
     invitationId: string,
   ): Promise<InvitationSummary> {
-    return this.port.transaction(identity, async (tx, headers) => {
+    return this.port.transaction(identity, async (tx) => {
       const facts = await this.facts(tx, identity, { invitationId });
       const row = facts.invitation;
       if (!row || row.status !== 'pending' || row.purpose !== 'team')
         throw new IdentityError('ORG_FORBIDDEN', 403);
-      const organization = this.manager(
-        identity,
-        facts,
-        row.role === 'admin' ? 'invite_admin' : 'invite_member',
-      );
-      if (row.expiresAt <= new Date())
-        return this.createInTransaction(
-          tx,
-          headers,
-          identity,
-          row.organizationId,
-          InvitationInputSchema.parse({ email: row.email, role: row.role }),
-        );
+      const organization = this.manager(identity, facts, 'read_invitations');
+      if (row.expiresAt <= new Date()) {
+        const replacement = await tx.call('lexonReplaceInvitation', {
+          body: {
+            invitationId: row.id,
+            expectedEmail: row.email,
+            expectedRole: InvitationInputSchema.parse({
+              email: row.email,
+              role: row.role,
+            }).role,
+            expectedExpiresAt: row.expiresAt.toISOString(),
+            expiresAt: new Date(
+              Date.now() + this.config.invitationSeconds * 1000,
+            ).toISOString(),
+          },
+        });
+        await tx.call('lexonDeliverInvitation', {
+          body: { invitationId: replacement.id },
+        });
+        await tx.call('lexonInvitationMetadata', {
+          body: {
+            invitationId: replacement.id,
+            expectedStatus: 'pending',
+            lastSentAt: new Date().toISOString(),
+          },
+        });
+        await this.audit(tx, identity, row, 'expired_replaced');
+        await this.audit(tx, identity, replacement, 'created');
+        return summary(replacement, organization);
+      }
       await tx.call('lexonDeliverInvitation', { body: { invitationId } });
       await tx.call('lexonInvitationMetadata', {
         body: {
@@ -319,11 +336,7 @@ export class InvitationService {
       const row = facts.invitation;
       if (!row || row.status !== 'pending' || row.purpose !== 'team')
         throw new IdentityError('ORG_FORBIDDEN', 403);
-      const organization = this.manager(
-        identity,
-        facts,
-        row.role === 'admin' ? 'invite_admin' : 'invite_member',
-      );
+      const organization = this.manager(identity, facts, 'read_invitations');
       await tx.call('cancelInvitation', { headers, body: { invitationId } });
       await this.audit(tx, identity, row, 'cancelled');
       return summary({ ...row, status: 'canceled' }, organization);

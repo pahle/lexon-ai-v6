@@ -796,9 +796,12 @@ Nodemailer bundled declarations, callback-lifetime/credential capabilities,
 worker import isolation, frontend liveness during scaffolding, and audit-only
 departure. No implementation or application-test result is claimed by this plan.
 
-
 Final handoff: all24tasks completed, both Important final-review findings fixed
 with failing-then-passing regressions,328tests and22Compose scenarios passing.
 [PR15](https://github.com/pahle/lexon-ai-v6/pull/15) targets main from
 f1-identity-organizations; no merge or main push. Full execution rulings and
 review limits are in docs/references/F1-execution-decisions.md.
+
+Supplemental review: [F0/F1 assurance](../../references/F0-F1-assurance.md)
+records the independent F0 review, Tasks 12–15 findings and corrections, and
+historical execution exceptions separately from the original task checkboxes.

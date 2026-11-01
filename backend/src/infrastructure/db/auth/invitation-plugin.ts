@@ -248,6 +248,70 @@ export function invitationPlugin(
           });
         },
       ),
+      lexonReplaceInvitation: createAuthEndpoint(
+        '/lexon/invitation/replace',
+        {
+          method: 'POST',
+          metadata: scope,
+          body: z.strictObject({
+            invitationId: z.uuid(),
+            expectedEmail: z.string(),
+            expectedRole: z.enum(['member', 'admin']),
+            expectedExpiresAt: z.iso.datetime(),
+            expiresAt: z.iso.datetime(),
+          }),
+        },
+        async (ctx) => {
+          const input = ctx.body;
+          const initial = await ctx.context.adapter.findOne<InvitationRow>({
+            model: 'invitation',
+            where: [{ field: 'id', value: input.invitationId }],
+          });
+          if (!initial)
+            throw new APIError('CONFLICT', { message: 'State changed' });
+          await organizations.lock(initial.organizationId);
+          const row = await ctx.context.adapter.findOne<InvitationRow>({
+            model: 'invitation',
+            where: [{ field: 'id', value: input.invitationId }],
+          });
+          if (
+            !row ||
+            row.status !== 'pending' ||
+            row.email !== input.expectedEmail ||
+            row.role !== input.expectedRole ||
+            row.expiresAt.toISOString() !== input.expectedExpiresAt
+          )
+            throw new APIError('CONFLICT', { message: 'State changed' });
+          await ctx.context.adapter.update({
+            model: 'invitation',
+            where: [{ field: 'id', value: row.id }],
+            update: { status: 'canceled' },
+          });
+          const replacement = await ctx.context.adapter.create<InvitationRow>({
+            model: 'invitation',
+            data: {
+              organizationId: row.organizationId,
+              email: row.email,
+              role: row.role,
+              purpose: row.purpose,
+              inviterId: row.inviterId,
+              status: 'pending',
+              expiresAt: new Date(input.expiresAt),
+              createdAt: new Date(),
+              acceptedByUserId: null,
+              acceptedAt: null,
+              lastSentAt: null,
+              replacedByInvitationId: null,
+            },
+          });
+          await ctx.context.adapter.update({
+            model: 'invitation',
+            where: [{ field: 'id', value: row.id }],
+            update: { replacedByInvitationId: replacement.id },
+          });
+          return replacement;
+        },
+      ),
       lexonDeliverInvitation: createAuthEndpoint(
         '/lexon/invitation/deliver',
         {
