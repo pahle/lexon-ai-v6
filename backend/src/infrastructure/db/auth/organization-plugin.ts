@@ -13,6 +13,7 @@ export interface OrgRow {
   state: string;
   require2fa: boolean;
   createdAt: Date;
+  personalOwnerId?: string | null;
 }
 export interface MemberRow {
   id: string;
@@ -86,11 +87,43 @@ export function organizationPrimitivesPlugin(
             .strict(),
         },
         async (ctx) => {
+          const personal = await ctx.context.adapter.findOne<OrgRow>({
+            model: 'organization',
+            where: [
+              { field: 'personalOwnerId', value: ctx.body.userId },
+              { field: 'kind', value: 'personal' },
+            ],
+          });
+          const personalMember = personal
+            ? await ctx.context.adapter.findOne<MemberRow>({
+                model: 'member',
+                where: [
+                  { field: 'organizationId', value: personal.id },
+                  { field: 'userId', value: ctx.body.userId },
+                ],
+              })
+            : null;
+          const cursorIsPersonal = ctx.body.cursor === personal?.id;
+          const includePersonal =
+            !ctx.body.cursor && !!personal && !!personalMember;
+          const teamLimit = Math.max(
+            1,
+            ctx.body.limit - (includePersonal ? 1 : 0),
+          );
           const members = await ctx.context.adapter.findMany<MemberRow>({
             model: 'member',
             where: [
               { field: 'userId', value: ctx.body.userId },
-              ...(ctx.body.cursor
+              ...(personal
+                ? [
+                    {
+                      field: 'organizationId',
+                      operator: 'ne' as const,
+                      value: personal.id,
+                    },
+                  ]
+                : []),
+              ...(!cursorIsPersonal && ctx.body.cursor
                 ? [
                     {
                       field: 'organizationId',
@@ -101,7 +134,7 @@ export function organizationPrimitivesPlugin(
                 : []),
             ],
             sortBy: { field: 'organizationId', direction: 'asc' },
-            limit: ctx.body.limit,
+            limit: teamLimit,
           });
           const organizations = members.length
             ? await ctx.context.adapter.findMany<OrgRow>({
@@ -113,16 +146,22 @@ export function organizationPrimitivesPlugin(
                     value: members.map((member) => member.organizationId),
                   },
                 ],
-                limit: ctx.body.limit,
+                limit: teamLimit,
               })
             : [];
-          return members.map((member) => ({
+          const teams = members.map((member) => ({
             member,
             organization:
               organizations.find(
                 (organization) => organization.id === member.organizationId,
               ) ?? null,
           }));
+          return [
+            ...(includePersonal
+              ? [{ member: personalMember!, organization: personal }]
+              : []),
+            ...teams,
+          ];
         },
       ),
       lexonSetOrganizationRequirement: createAuthEndpoint(

@@ -26,6 +26,13 @@ test('identity read inventory isolates account organization invitation session a
         text.includes(other.profile.id) || text.includes(other.profile.email),
       ).toBe(false);
     }
+    expect(
+      (
+        (await (await api.call('/identity', actor.headers)).json()) as {
+          platformAdmin: boolean;
+        }
+      ).platformAdmin,
+    ).toBe(false);
     for (const path of [
       '/identity/profile',
       '/identity/sessions',
@@ -82,7 +89,21 @@ test('identity read inventory isolates account organization invitation session a
     ).json()) as { items: unknown[] };
     expect(notMine.items.length).toBe(0);
     await api.enroll(actor);
+    expect(
+      (
+        (await (await api.call('/identity', actor.headers)).json()) as {
+          platformAdmin: boolean;
+        }
+      ).platformAdmin,
+    ).toBe(false);
     await inspect.makeAdmin(actor.profile.id);
+    expect(
+      (
+        (await (await api.call('/identity', actor.headers)).json()) as {
+          platformAdmin: boolean;
+        }
+      ).platformAdmin,
+    ).toBe(true);
     const provisioning = await api.call(
       '/platform/provisioning',
       actor.headers,

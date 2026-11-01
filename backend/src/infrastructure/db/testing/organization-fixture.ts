@@ -137,8 +137,7 @@ export function createOrganizationInspector(options: { migratorUrl: string }) {
         client.release();
       }
     },
-    async seedTeam(userIds: string[]) {
-      const id = randomUUID();
+    async seedTeam(userIds: string[], id = randomUUID()) {
       const members = userIds.map((userId) => ({ id: randomUUID(), userId }));
       const client = await pool.connect();
       try {

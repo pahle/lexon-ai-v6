@@ -56,3 +56,35 @@ test('SSR clients scope cookies to each instance and never cache personalized re
     true,
   );
 });
+
+test('identity client validates the safe platform eligibility summary field', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+    Response.json({
+      version: 1,
+      platformAdmin: true,
+      user: {
+        version: 1,
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        email: 'admin@example.test',
+        name: 'Admin',
+        emailVerified: true,
+        twoFactorEnabled: true,
+        onboardingCompleted: true,
+      },
+      organization: {
+        version: 1,
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        name: 'Personal',
+        slug: 'personal-admin',
+        kind: 'personal',
+        state: 'active',
+        require2fa: false,
+        role: 'owner',
+        createdAt: '2026-11-01T00:00:00.000Z',
+      },
+    }),
+  );
+  await expect(
+    createIdentityClient({ baseUrl: '/api', fetch }).identity(),
+  ).resolves.toMatchObject({ platformAdmin: true });
+});

@@ -76,14 +76,15 @@ export class OrganizationService {
       const eligible = rows.filter(
         (row) => row.organization?.state === 'active',
       );
+      const pageItems = eligible.slice(0, page.limit);
       return {
-        items: eligible
-          .slice(0, page.limit)
-          .map((row) => summary(row.organization!, row.member.role)),
+        items: pageItems.map((row) =>
+          summary(row.organization!, row.member.role),
+        ),
         pageInfo: {
           nextCursor:
             eligible.length > page.limit
-              ? eligible[page.limit - 1]!.member.organizationId
+              ? pageItems[pageItems.length - 1]!.member.organizationId
               : null,
         },
       };

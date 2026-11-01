@@ -106,6 +106,101 @@ test('team create/settings/list are actor-bound, audited, paginated and preserve
   }
 });
 
+test('Personal-first pagination traverses every team once when Personal sorts last', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const fixture = createOrganizationInspector(services);
+  try {
+    const owner = await proof.signIn({
+      body: {
+        name: 'Pagination owner',
+        email: `${randomUUID()}@example.test`,
+        password: 'Organization-password-42!',
+      },
+    });
+    const outsider = await proof.signIn({
+      body: {
+        name: 'Pagination outsider',
+        email: `${randomUUID()}@example.test`,
+        password: 'Organization-password-42!',
+      },
+    });
+    const personal = await proof.inspect.personalFor(owner.userId);
+    expect(personal).not.toBeNull();
+    const firstTeam = '00000000-0000-4000-8000-000000000001';
+    const secondTeam = '00000000-0000-4000-8000-000000000002';
+    expect(personal!.orgId.localeCompare(secondTeam)).toBeGreaterThan(0);
+    await fixture.seedTeam([owner.userId], firstTeam);
+    await fixture.seedTeam([owner.userId], secondTeam);
+    const organizations = new OrganizationService(
+      new OrganizationAuthPort(proof.integration),
+      { pagination: { defaultLimit: 20, maxLimit: 100 } },
+    );
+    await securityHarness(proof).identity(
+      owner.cookieHeaders,
+      async (identity) => {
+        for (const limit of [1, 2]) {
+          const first = await organizations.list(identity, { limit });
+          expect(first.items.map((organization) => organization.id)).toEqual(
+            limit === 1 ? [personal!.orgId] : [personal!.orgId, firstTeam],
+          );
+          expect(first.pageInfo.nextCursor).toBe(
+            limit === 1 ? personal!.orgId : firstTeam,
+          );
+          expect(first.pageInfo.nextCursor).toMatch(/^[0-9a-f-]{36}$/);
+          const all = [...first.items];
+          let cursor = first.pageInfo.nextCursor;
+          do {
+            const page = await organizations.list(identity, {
+              limit,
+              cursor: cursor!,
+            });
+            all.push(...page.items);
+            cursor = page.pageInfo.nextCursor;
+          } while (cursor !== null);
+          expect(all.map((organization) => organization.id)).toEqual([
+            personal!.orgId,
+            firstTeam,
+            secondTeam,
+          ]);
+          expect(all.map((organization) => organization.kind)).toEqual([
+            'personal',
+            'team',
+            'team',
+          ]);
+          expect(new Set(all.map((organization) => organization.id)).size).toBe(
+            all.length,
+          );
+        }
+      },
+    );
+    await securityHarness(proof).identity(
+      outsider.cookieHeaders,
+      async (identity) => {
+        const empty = await organizations.list(identity, { limit: 1 });
+        expect(empty.items.map((organization) => organization.kind)).toEqual([
+          'personal',
+        ]);
+        expect(empty.pageInfo.nextCursor).toBeNull();
+        const page = await organizations.list(identity, {
+          limit: 1,
+          cursor: firstTeam,
+        });
+        expect(page.items.map((organization) => organization.id)).not.toContain(
+          firstTeam,
+        );
+        expect(page.items.map((organization) => organization.id)).not.toContain(
+          secondTeam,
+        );
+      },
+    );
+  } finally {
+    await fixture.close();
+    await proof.close();
+  }
+});
+
 test('a target team MFA requirement cannot be disabled through a Personal session without MFA', async ({
   services,
 }) => {

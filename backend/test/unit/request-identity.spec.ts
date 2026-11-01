@@ -30,6 +30,7 @@ test('request identity and tenant context survive async work and expire together
       tenant: { orgId, userId, role: 'owner' },
       summary: {
         version: 1,
+        platformAdmin: false,
         user: {
           version: 1,
           id: userId,

@@ -245,6 +245,10 @@ export class IdentitySessionService implements OrganizationSelectionPort {
         headers,
         returnHeaders: true,
       });
+      const platformAdmin =
+        actor.user.role === 'admin' &&
+        actor.user.twoFactorEnabled &&
+        !!actor.session.mfaVerifiedAt;
       return {
         resolved: {
           identity: {
@@ -252,10 +256,7 @@ export class IdentitySessionService implements OrganizationSelectionPort {
             sessionId: actor.session.id,
             activeOrganizationId: selection.organization.id,
             channel: actor.channel,
-            platformAdmin:
-              actor.user.role === 'admin' &&
-              actor.user.twoFactorEnabled &&
-              !!actor.session.mfaVerifiedAt,
+            platformAdmin,
             mfaVerifiedAt: actor.session.mfaVerifiedAt,
             reauthenticatedAt: actor.session.reauthenticatedAt,
           },
@@ -266,6 +267,7 @@ export class IdentitySessionService implements OrganizationSelectionPort {
           },
           summary: IdentitySummarySchema.parse({
             version: 1,
+            platformAdmin,
             user: profile,
             organization: selection.organization,
             ...(selection.fallbackReason
