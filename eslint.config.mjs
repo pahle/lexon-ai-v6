@@ -24,5 +24,31 @@ export default ts.config(
     plugins: { lexon },
     rules: { 'lexon/boundaries': ['error', { root: import.meta.dirname }] },
   },
+  {
+    files: [
+      'frontend/**/*.{js,jsx,mjs,cjs,ts,tsx}',
+      'word-add-in/**/*.{js,jsx,mjs,cjs,ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'radix-ui',
+              message: 'Lexon UI uses Base UI; do not import Radix directly.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['radix-ui/*', '@radix-ui/*'],
+              message: 'Lexon UI uses Base UI; do not import Radix directly.',
+            },
+          ],
+        },
+      ],
+      'lexon/circular-shape': 'error',
+    },
+  },
   prettier,
 );
