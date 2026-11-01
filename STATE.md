@@ -1,17 +1,16 @@
 # Project state
 
-Last updated: 2026-10-31 by the brief generator (session 1).
+Last updated: 2026-11-01 by the brief generator (session 1).
 
 ## Next action
 
-**F1 brief merged to `main` (PR #9)** with LEX-ARC-001 §1/§3.2 decisions and
-the F1 skills. Next: Codex through F1 brainstorming/spec/plan
-(`playbooks/support-implementer.md`), review the plan, and later review the
-implementation.
+**F1 merged to `main` (PR #15, review fix PR #16).** F2 brief in draft
+PR #17 (with LEX-DS-001 v1.1 dark tokens and LEX-TS-001 v1.8 `next-themes`).
+Next: product owner merges PR #17, then Codex brainstorms F2
+(`playbooks/support-implementer.md`); review spec and plan.
 
-Housekeeping: obsolete remote branches `contaminated`, `f0-foundation`,
-`claude/focused-shannon-b5cmwe` (the last one is reused for brief PRs) may
-need deleting by the product owner; this sandbox cannot delete remote refs.
+Housekeeping: obsolete remote branches may need deleting by the product
+owner; this sandbox cannot delete remote refs.
 
 ## Slice status
 
@@ -20,12 +19,12 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | Slice | Status | Notes |
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
-| F1 Identity & Organizations | Implemented (PR #15, CI green); review fix PR into f1 branch (limiter coupling) | Review: `reviews/F1-review.md`; after merge → F2 brief | Notes: `notes/F1-identity-organizations.md` |
-| F2–F20 | Not started | — |
+| F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
+| F2 App shell & design system | Brief in PR #17 | Notes: `notes/F2-app-shell.md` |
+| F3–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
 
-- **F2:** extend `proxy.ts` matcher beyond `/workspace/*` when the shell routes land; replace F1's minimal auth styling.
 - **F6:** TenantGuard rejects bodies containing `userId`/`organizationId`/`orgId` keys on all workspace routes; project-member endpoints need a per-route allowance.
 
 - **F3 (AI Run Engine):** the production `ai-worker` currently starts a
@@ -69,6 +68,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   a hidden personal organization; no Google/Microsoft/SSO login in the MVP.
 - F1 brainstorming answers: platform-created orgs start `provisioning` (PR #10); invitation re-acceptance idempotent only while still a member (PR #11); Bearer = separate short session class, 15 min hard expiry, F19 owns renewal; audit store `ops.audit_events` with a narrow SECURITY DEFINER writer for `lexon_auth`, HMAC for unknown emails; Mailpit approved as dev-only (PR #12); personal org atomic at DB level + operator-only CLI for the first platform admin (PR #13); departure recorded only as an audit event, no outbox changes (PR #14); approach 2 (Lexon org API over Better Auth, deny-by-default plugin endpoints); auth pages scaffolded from shadcn base-nova login-02/signup-02 (product owner's choice) + input-otp.
 - Better Auth skills (5, upstream has no license file) vendored by product-owner decision; `karpathy-guidelines` (MIT) vendored for all slices (PR #9).
+
+- F2 brainstorming (2026-11-01): dark mode in the MVP (LEX-DS-001 v1.1, `next-themes` in LEX-TS-001 v1.8); scaffold from shadcn blocks and assistant-ui registry/examples; sidebar shows only working destinations; Home = assistant-ui chat scaffold (disabled composer, F4 connects it); settings URLs tidied without redirects (F1 paths never used in production).
 
 ## Lessons learned (apply to every brief)
 
