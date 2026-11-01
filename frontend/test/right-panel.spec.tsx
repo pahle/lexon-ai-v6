@@ -7,6 +7,10 @@ const panelHost = vi.hoisted(() => ({ element: null as HTMLElement | null }));
 vi.mock('../src/components/shell/workspace-shell', () => ({
   usePanelHost: () => panelHost.element,
 }));
+const mountedViews: Array<{
+  mounted: boolean;
+  view: Awaited<ReturnType<typeof render>>;
+}> = [];
 
 function button(name: string): HTMLButtonElement {
   return [...document.querySelectorAll('button')].find(
@@ -66,7 +70,10 @@ function PageWithRemovedOpener() {
   );
 }
 
-afterEach(() => {
+afterEach(async () => {
+  for (const entry of mountedViews.splice(0)) {
+    if (entry.mounted) await entry.view.unmount();
+  }
   panelHost.element?.remove();
   vi.restoreAllMocks();
   window.innerWidth = 1024;
@@ -76,7 +83,17 @@ async function renderPageContent(node: ReactNode) {
   panelHost.element = document.createElement('div');
   panelHost.element.dataset.panelHost = '';
   document.body.append(panelHost.element);
-  return render(node);
+  const view = await render(node);
+  const entry = { mounted: true, view };
+  mountedViews.push(entry);
+  return {
+    ...view,
+    async unmount() {
+      if (!entry.mounted) return;
+      entry.mounted = false;
+      await view.unmount();
+    },
+  };
 }
 
 async function renderPage(page = 'first') {
@@ -118,14 +135,15 @@ test('mobile panel is one named modal dialog and returns focus when closed', asy
   expect(document.querySelector('[role="dialog"]')?.className).toContain(
     '!w-screen',
   );
-  const close = document.querySelector<HTMLButtonElement>(
-    '[role="dialog"] button[aria-label="Close panel"]',
-  );
-  close?.focus();
+  const focusGuards = [
+    ...document.querySelectorAll<HTMLElement>(
+      '[data-base-ui-focus-guard][data-type="inside"]',
+    ),
+  ];
+  expect(focusGuards).toHaveLength(2);
   await act(async () => {
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
-    );
+    focusGuards.at(-1)?.focus();
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
   expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
   await act(async () => {
