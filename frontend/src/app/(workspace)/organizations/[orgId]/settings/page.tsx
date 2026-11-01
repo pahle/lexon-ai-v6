@@ -5,8 +5,8 @@ export default async function Page({
   params: Promise<{ orgId: string }>;
 }) {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl">
       <OrganizationPage organizationId={(await params).orgId} view="settings" />
-    </main>
+    </div>
   );
 }

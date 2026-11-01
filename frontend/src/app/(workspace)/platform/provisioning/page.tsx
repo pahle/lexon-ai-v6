@@ -1,9 +1,9 @@
 import { ProvisioningList } from '../../../../components/platform/provisioning';
 export default function ProvisioningPage() {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl">
       <ProvisioningList />
-    </main>
+    </div>
   );
 }
 export const metadata = {

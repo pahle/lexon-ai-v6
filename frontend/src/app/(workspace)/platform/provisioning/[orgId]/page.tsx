@@ -5,9 +5,9 @@ export default async function ProvisioningDetailPage({
   params: Promise<{ orgId: string }>;
 }) {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl">
       <ProvisioningDetail organizationId={(await params).orgId} />
-    </main>
+    </div>
   );
 }
 export const metadata = {

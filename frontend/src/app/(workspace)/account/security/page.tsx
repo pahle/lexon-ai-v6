@@ -1,9 +1,9 @@
 import { AccountSecurity } from '../../../../components/auth/account-security';
 export default function AccountSecurityPage() {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl">
       <AccountSecurity />
-    </main>
+    </div>
   );
 }
 export const metadata = {
