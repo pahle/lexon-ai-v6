@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
 | **Date** | 1 November 2026 |
-| **Supersedes** | v1.7 (31 October 2026) |
+| **Supersedes** | v1.8 (1 November 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -59,7 +59,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Area | Technology | Role |
 |---|---|---|
 | Styling | Tailwind CSS 4 | Utility styles, responsiveness, and design tokens |
-| UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used; one primitives library for the whole `frontend/` |
+| UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used in Lexon-owned code; one primitives library for the whole `frontend/`. A transitive dependency of a pinned library (assistant-ui depends on `radix-ui` internally) is allowed, but Lexon code never imports `radix-ui` or `@radix-ui/*` directly, and registry components that need it are not added (enforced by lint) |
 | Theme switching | `next-themes` | Light / Dark / System theme on the `class` attribute, applied before first paint; the approach of shadcn/ui's official Next.js dark-mode guide. Preference stored in the browser only (Design System §1) |
 | Iconography | Lucide | Application icon system |
 | AI chat interface | assistant-ui (`@assistant-ui/react` + `@assistant-ui/ai-sdk`, on the `ai@^7` + `@ai-sdk/react@^4` line; components from the `@assistant-ui` registry, style `base-nova`) | Conversation primitives, streaming, reasoning, and rendering (in `frontend/`). `@assistant-ui/react-ai-sdk` is only a re-export of `@assistant-ui/ai-sdk` and is not used |
@@ -154,7 +154,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 
 *Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Version baseline (v1.8).** Exact patches are pinned at scaffold time and raised by Renovate.
+**Version baseline (v1.9).** Exact patches are pinned at scaffold time and raised by Renovate.
 
 | Component | Baseline | Notes |
 |---|---|---|
@@ -163,7 +163,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | NestJS | 12.x (Express adapter, ESM project) | Integration library compatibility verified in S6 |
 | Next.js and React | Next.js 16.x, React 19 | `proxy.ts` replaces `middleware.ts` |
 | assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style |
-| UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No Radix UI |
+| UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No direct Radix UI imports; assistant-ui's internal `radix-ui` dependency is allowed |
 | Theme switching | `next-themes` 0.4.x | React 19 support verified when pinned (F2) |
 | AI SDK | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/otel` | Node ≥ 22, ESM-only |
 | OpenRouter provider | `@openrouter/ai-sdk-provider` 3.x | Used by the AI Worker for generation |
@@ -259,3 +259,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.6 | **Removed from the MVP:**<br>• `pgvector` 0.8.3, `halfvec(1024)` columns, the HNSW index, and semantic search<br>• the OpenRouter embedding path, with its `@ai-sdk/openai-compatible` fallback<br>**Changed:**<br>• "Hybrid retrieval" becomes keyword retrieval (FTS + `pg_trgm`) with full context for single documents<br>• the AI SDK is no longer used for embeddings<br>• the Document Worker ends its pipeline at chunking<br>• P4 and P9 adjusted; the version baseline table updated<br>Re-adding vector search requires an explicit stack decision (Architecture §4.3) |
 | 1.7 | **Replaced:**<br>• `@assistant-ui/react-ai-sdk` → `@assistant-ui/ai-sdk`<br>• Radix UI → Base UI (`@base-ui/react`, shadcn style `base-nova`)<br>**Set:**<br>• the initial scaffold (assistant-ui `default` template; `nest new` + the AI SDK Nest.js cookbook)<br>• English as the MVP language for the UI, content, reference documents, and engineering documents<br>• TypeScript stays 6.x and ESLint + Prettier stay (reasons recorded)<br>**Added:**<br>• a reference to the Design System (LEX-DS-001)<br>• the AI Worker hosts the AI Run Engine<br>**Translated:** the document into English<br>**Added (F1, product owner):** Mailpit as a development-only email catcher (§7)<br>**Corrected (F0 research):** workspace overrides live in `pnpm-workspace.yaml`, not the `pnpm.overrides` field of `package.json`, which current pnpm no longer reads |
 | 1.8 | **Added (F2, product owner):** `next-themes` for the Light / Dark / System theme that Design System v1.1 introduces |
+| 1.9 | **Clarified (F2 research):** "Radix UI is not used" applies to Lexon-owned code. `@assistant-ui/react` 0.15.x depends on `radix-ui` internally; that transitive dependency is allowed, while direct imports of `radix-ui` / `@radix-ui/*` in Lexon code are forbidden and checked by lint |

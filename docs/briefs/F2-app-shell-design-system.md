@@ -373,7 +373,7 @@ Record the verified facts and versions in the superpowers spec's
 - LEX-ARC-001: §3.4 frontend layout, §3.5 frontend–backend boundary and
   `proxy.ts`, §4.1 chat contract (for what F2 must not do), §4.7 one engine,
   §6 privacy.
-- LEX-TS-001 v1.8: Next.js 16, shadcn/ui `base-nova` + Base UI,
+- LEX-TS-001 v1.9: Next.js 16, shadcn/ui `base-nova` + Base UI,
   assistant-ui, Tailwind CSS 4, `next-themes`, Playwright.
 - F1 brief and `docs/references/F1-*.md` for the identity behaviors F2 keeps.
 
