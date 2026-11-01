@@ -88,25 +88,55 @@ test('identity read inventory isolates account organization invitation session a
       await api.call('/identity/invitations', actor.headers)
     ).json()) as { items: unknown[] };
     expect(notMine.items.length).toBe(0);
-    await api.enroll(actor);
+    const nativeAdmin = await api.user('Native admin without MFA');
+    await inspect.makeAdmin(nativeAdmin.profile.id);
+    const nativeAdminIdentity = await api.call(
+      '/identity',
+      nativeAdmin.headers,
+    );
+    expect(nativeAdminIdentity.status).toBe(403);
+    expect(await nativeAdminIdentity.json()).toMatchObject({
+      error: { code: 'AUTH_2FA_REQUIRED' },
+    });
+    const originalSessionHeaders = { ...actor.headers };
+    const secondSignIn = await api.call('/auth/sign-in/email', {}, 'POST', {
+      email: actor.profile.email,
+      password: actor.password,
+    });
+    expect(secondSignIn.status).toBe(200);
+    const enrolledAdmin = {
+      ...actor,
+      headers: {
+        cookie: secondSignIn.headers
+          .getSetCookie()
+          .map((value) => value.split(';')[0])
+          .join('; '),
+      },
+    };
+    await api.enroll(enrolledAdmin);
     expect(
       (
-        (await (await api.call('/identity', actor.headers)).json()) as {
+        (await (await api.call('/identity', enrolledAdmin.headers)).json()) as {
           platformAdmin: boolean;
         }
       ).platformAdmin,
     ).toBe(false);
     await inspect.makeAdmin(actor.profile.id);
+    const staleIdentity = await api.call('/identity', originalSessionHeaders);
+    expect(staleIdentity.status).toBe(403);
+    expect(await staleIdentity.json()).toMatchObject({
+      error: { code: 'AUTH_2FA_REQUIRED' },
+    });
     expect(
       (
-        (await (await api.call('/identity', actor.headers)).json()) as {
+        (await (await api.call('/identity', enrolledAdmin.headers)).json()) as {
           platformAdmin: boolean;
         }
       ).platformAdmin,
     ).toBe(true);
     const provisioning = await api.call(
       '/platform/provisioning',
-      actor.headers,
+      enrolledAdmin.headers,
       'POST',
       {
         name: 'Metadata only',
@@ -120,7 +150,7 @@ test('identity read inventory isolates account organization invitation session a
       '/platform/provisioning',
       '/platform/provisioning/' + provisioned.id,
     ]) {
-      const response = await api.call(path, actor.headers);
+      const response = await api.call(path, enrolledAdmin.headers);
       expect(response.status).toBe(200);
       const text = await response.text();
       expect(
