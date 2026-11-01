@@ -8,6 +8,7 @@ import { AppSidebar } from '../src/components/shell/app-sidebar';
 import { OrganizationMenu } from '../src/components/shell/organization-menu';
 import { UserMenu } from '../src/components/shell/user-menu';
 import { WorkspaceShell } from '../src/components/shell/workspace-shell';
+import { sidebarDefaultOpen } from '../src/components/shell/sidebar-cookie';
 
 const identity: IdentitySummary = {
   version: 1,
@@ -94,16 +95,39 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
       .filter((link) => link.getAttribute('aria-current') === 'page')
       .map((link) => link.textContent?.trim()),
   ).toEqual(['Home']);
+  const activeLink = links.find(
+    (link) => link.getAttribute('aria-current') === 'page',
+  )!;
+  expect(activeLink.hasAttribute('data-active')).toBe(true);
+  expect(activeLink.className).toContain('data-active:font-medium');
+  expect(
+    links
+      .find((link) => link.textContent?.trim() === 'Platform')
+      ?.getAttribute('href'),
+  ).toBe('/platform/provisioning');
   expect(view.container.textContent).toContain('Lexon');
   expect(view.container.textContent).toContain('Ada Lovelace');
   expect(view.container.textContent).toContain('ada@example.test');
   expect(view.container.textContent).not.toContain('private-personal-slug');
   expect(view.container.textContent).not.toContain('Hidden personal name');
+  await act(async () =>
+    (
+      view.container.querySelector(
+        'button[aria-haspopup="menu"]',
+      ) as HTMLButtonElement
+    )?.click(),
+  );
+  await settle();
+  expect(
+    [...document.body.querySelectorAll('[role="menuitem"]')].map((item) =>
+      item.textContent?.trim(),
+    ),
+  ).toContain('Settings');
   await view.unmount();
   vi.unstubAllGlobals();
 });
 
-test('team owner gets organization settings; member and personal users do not', async () => {
+test('every active team role gets organization settings; only platform admins get Platform', async () => {
   vi.stubGlobal('innerWidth', 1280);
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -132,7 +156,16 @@ test('team owner gets organization settings; member and personal users do not', 
         name: 'Lexon Team',
         role: 'member' as const,
       },
-      ['Home', 'Settings', 'Platform'],
+      ['Home', 'Settings', 'Organization settings', 'Platform'],
+    ],
+    [
+      {
+        ...identity.organization,
+        kind: 'team' as const,
+        name: 'Lexon Team',
+        role: 'admin' as const,
+      },
+      ['Home', 'Settings', 'Organization settings', 'Platform'],
     ],
   ] as const) {
     workspace.identity = { ...identity, organization };
@@ -150,9 +183,27 @@ test('team owner gets organization settings; member and personal users do not', 
       ),
     ];
     expect(links.map((link) => link.textContent?.trim())).toEqual(expected);
+    if (organization.kind === 'team') {
+      expect(
+        links
+          .find((link) => link.textContent?.trim() === 'Organization settings')
+          ?.getAttribute('href'),
+      ).toBe(
+        `/organizations/${organization.id}/${organization.role === 'owner' ? 'settings' : 'members'}`,
+      );
+    }
     await view.unmount();
   }
-  workspace.identity = { ...identity, platformAdmin: false };
+  workspace.identity = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      kind: 'team',
+      name: 'Lexon Team',
+      role: 'admin',
+    },
+    platformAdmin: false,
+  };
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <SidebarProvider>
@@ -167,7 +218,7 @@ test('team owner gets organization settings; member and personal users do not', 
         'nav[aria-label="Primary navigation"] a',
       ),
     ].map((link) => link.textContent?.trim()),
-  ).toEqual(['Home', 'Settings']);
+  ).toEqual(['Home', 'Settings', 'Organization settings']);
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -269,6 +320,9 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
     </QueryClientProvider>,
   );
   await settle();
+  const organizationTrigger = view.container.querySelector(
+    'button[aria-label="Organization: Personal"]',
+  )!;
   await act(async () =>
     (view.container.querySelector('button') as HTMLButtonElement).click(),
   );
@@ -279,6 +333,15 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   await act(async () => create.click());
   await settle();
   const dialog = document.body.querySelector('[role="dialog"]')!;
+  const dialogOverlay = document.body.querySelector(
+    '[data-slot="dialog-overlay"]',
+  )!;
+  expect(dialogOverlay.getAttribute('class')).toContain('bg-overlay-scrim');
+  expect(dialogOverlay.getAttribute('class')).toContain(
+    'duration-[var(--motion-duration)]',
+  );
+  expect(dialogOverlay.getAttribute('class')).not.toContain('bg-black');
+  expect(dialog.getAttribute('class')).not.toContain('sm:');
   expect(dialog.getAttribute('aria-labelledby')).not.toBeNull();
   expect(dialog.textContent).toContain('Create a team');
   const inputs = [...dialog.querySelectorAll('input')];
@@ -304,6 +367,76 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   expect(
     view.container.querySelector('button[aria-label="Organization: Personal"]'),
   ).not.toBeNull();
+  expect(document.activeElement).toBe(organizationTrigger);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('organization list failure hides fallback choices and retries safely', async () => {
+  let attempts = 0;
+  vi.stubGlobal('fetch', async () => {
+    attempts++;
+    if (attempts === 1) throw new Error('private server detail');
+    return Response.json({
+      items: [identity.organization],
+      pageInfo: { nextCursor: null },
+    });
+  });
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationMenu identity={identity} />
+    </QueryClientProvider>,
+  );
+  await settle();
+  await act(async () =>
+    (view.container.querySelector('button') as HTMLButtonElement).click(),
+  );
+  await settle();
+  expect(document.body.textContent).toContain('Unable to load organizations.');
+  expect(document.body.textContent).not.toContain('private server detail');
+  const retry = [...document.body.querySelectorAll('button')].find(
+    (button) => button.textContent === 'Retry',
+  )!;
+  expect(retry).toBeDefined();
+  await act(async () => retry.click());
+  await settle();
+  expect(attempts).toBe(2);
+  expect(document.body.textContent).not.toContain(
+    'Unable to load organizations.',
+  );
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('canceling Create team returns focus to the stable organization trigger', async () => {
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      items: [identity.organization],
+      pageInfo: { nextCursor: null },
+    }),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationMenu identity={identity} />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const trigger = view.container.querySelector(
+    'button[aria-label="Organization: Personal"]',
+  ) as HTMLButtonElement;
+  await act(async () => trigger.click());
+  await settle();
+  const create = [...document.body.querySelectorAll('button')].find(
+    (button) => button.textContent === 'Create a team',
+  )!;
+  await act(async () => create.click());
+  await settle();
+  const cancel = [...document.body.querySelectorAll('button')].find(
+    (button) => button.textContent === 'Cancel',
+  )!;
+  await act(async () => cancel.click());
+  await settle();
+  expect(document.activeElement).toBe(trigger);
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -506,6 +639,18 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const sheetOverlay = document.body.querySelector(
+    '[data-slot="sheet-overlay"]',
+  )!;
+  const sheetContent = document.body.querySelector(
+    '[data-slot="sheet-content"]',
+  )!;
+  expect(sheetOverlay.className).toContain('bg-overlay-scrim');
+  expect(sheetOverlay.className).toContain('duration-[var(--motion-duration)]');
+  expect(sheetOverlay.className).not.toContain('bg-black');
+  expect(sheetContent.className).toContain('shadow-sm');
+  expect(sheetContent.className).toContain('dark:border-border');
+  expect(sheetContent.className).not.toContain('sm:');
   const homeLink = document.body.querySelector(
     '[role="dialog"] a[href="/workspace"]',
   ) as HTMLAnchorElement;
@@ -514,7 +659,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
     once: true,
   });
   await act(async () => homeLink.click());
-  await settle();
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 450)));
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   await act(async () => opener.click());
   await settle();
@@ -524,7 +669,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     ),
   );
-  await settle();
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 450)));
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.activeElement).toBe(opener);
   await act(async () => opener.click());
@@ -541,6 +686,9 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
 });
 
 test('native collapse persists sidebar_state and the keyboard shortcut toggles it', async () => {
+  expect(sidebarDefaultOpen('false')).toBe(false);
+  expect(sidebarDefaultOpen('true')).toBe(true);
+  expect(sidebarDefaultOpen('malformed')).toBe(true);
   workspace.identity = identity;
   vi.stubGlobal('innerWidth', 1280);
   vi.stubGlobal('matchMedia', () => ({
@@ -575,6 +723,30 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   await act(async () => toggle.click());
   expect(sidebar.getAttribute('data-state')).toBe('collapsed');
   expect(document.cookie).toContain('sidebar_state=false');
+  const collapsedHeader = sidebar.querySelector(
+    '[data-slot="sidebar-header"]',
+  )!;
+  expect(collapsedHeader.className).toContain(
+    'group-data-[collapsible=icon]:p-0',
+  );
+  expect(collapsedHeader.querySelector('span')?.className).toContain(
+    'group-data-[collapsible=icon]:sr-only',
+  );
+  expect(collapsedHeader.textContent).toContain('Lexon');
+  const collapsedMenuButton = sidebar.querySelector(
+    '[data-slot="sidebar-menu-button"]',
+  )!;
+  expect(collapsedMenuButton.className).toContain('min-h-11');
+  expect(collapsedMenuButton.className).toContain('min-w-11');
+  expect(collapsedMenuButton.className).not.toContain('size-8!');
+  expect(sidebar.textContent).not.toContain('ada@example.test');
+  expect(
+    sidebar.querySelector('[data-slot="avatar-initials"]')?.className,
+  ).toContain('rounded-full');
+  for (const button of sidebar.querySelectorAll('button[aria-haspopup]')) {
+    expect(button.className).toContain('min-h-11');
+    expect(button.className).toContain('min-w-11');
+  }
   await act(async () =>
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true }),

@@ -13,7 +13,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from '../ui/sidebar';
 import { OrganizationMenu } from './organization-menu';
@@ -21,7 +20,7 @@ import { UserMenu } from './user-menu';
 
 export function AppSidebar() {
   const { identity } = useWorkspace();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
   const pathname = usePathname() ?? '';
   if (!identity) return null;
   const items = [
@@ -37,16 +36,15 @@ export function AppSidebar() {
       icon: Settings,
       active: pathname.startsWith('/account/'),
     },
-    ...(identity.organization.kind === 'team' &&
-    identity.organization.role === 'owner'
+    ...(identity.organization.kind === 'team'
       ? [
           {
             label: 'Organization settings',
-            href: `/organizations/${identity.organization.id}/settings`,
+            href: `/organizations/${identity.organization.id}/${identity.organization.role === 'owner' ? 'settings' : 'members'}`,
             icon: Building2,
-            active:
-              pathname ===
-              `/organizations/${identity.organization.id}/settings`,
+            active: pathname.startsWith(
+              `/organizations/${identity.organization.id}/`,
+            ),
           },
         ]
       : []),
@@ -54,7 +52,7 @@ export function AppSidebar() {
       ? [
           {
             label: 'Platform',
-            href: '/platform/accounts',
+            href: '/platform/provisioning',
             icon: Shield,
             active: pathname.startsWith('/platform/'),
           },
@@ -68,7 +66,12 @@ export function AppSidebar() {
     >
       <SidebarHeader className="p-2">
         <div className="flex min-h-11 items-center px-2 text-sm font-semibold">
-          <span className="truncate">Lexon</span>
+          <span
+            className="truncate group-data-[collapsible=icon]:sr-only"
+            title={state === 'collapsed' ? 'Lexon' : undefined}
+          >
+            Lexon
+          </span>
         </div>
         <OrganizationMenu identity={identity} />
       </SidebarHeader>
@@ -80,7 +83,7 @@ export function AppSidebar() {
               {items.map(({ label, href, icon: Icon, active }) => (
                 <SidebarMenuItem key={label}>
                   <SidebarMenuButton
-                    className="min-h-11"
+                    className="min-h-11 min-w-11"
                     isActive={active}
                     tooltip={label}
                     aria-current={active ? 'page' : undefined}
@@ -90,7 +93,9 @@ export function AppSidebar() {
                     render={<Link href={href} />}
                   >
                     <Icon aria-hidden="true" />
-                    <span>{label}</span>
+                    <span className="group-data-[collapsible=icon]:sr-only">
+                      {label}
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -101,7 +106,6 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <UserMenu />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   );
 }

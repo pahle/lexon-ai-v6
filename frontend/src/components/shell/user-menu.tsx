@@ -1,12 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
 import { fullReload } from '../../lib/full-reload';
-import { identityApi } from '../organizations/page-state';
+import { useWorkspace } from './workspace-provider';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
+import { useSidebarOptional } from '../ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,13 +28,10 @@ export function UserMenu() {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
-  const profile = useQuery({
-    queryKey: ['account', 'profile'],
-    queryFn: identityApi.profile,
-    retry: false,
-  });
-  const name = profile.data?.name ?? 'Account';
-  const email = profile.data?.email ?? '';
+  const { identity } = useWorkspace();
+  const collapsed = useSidebarOptional()?.state === 'collapsed';
+  const name = identity?.user.name ?? 'Account';
+  const email = identity?.user.email ?? '';
   return (
     <div>
       <DropdownMenu>
@@ -41,7 +39,13 @@ export function UserMenu() {
           render={
             <Button
               variant="ghost"
-              className="w-full justify-start gap-2"
+              aria-label={`Settings: ${name}`}
+              title={collapsed ? name : undefined}
+              className={
+                collapsed
+                  ? 'w-11 min-h-11 min-w-11 justify-center px-0'
+                  : 'w-full min-h-11 justify-start gap-2'
+              }
               disabled={busy}
             />
           }
@@ -51,16 +55,18 @@ export function UserMenu() {
               {initials(name)}
             </AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate">{name}</span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {email}
+          {!collapsed ? (
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate">{name}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {email}
+              </span>
             </span>
-          </span>
+          ) : null}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem render={<Link href="/account/security" />}>
-            Account security
+            Settings
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={busy}

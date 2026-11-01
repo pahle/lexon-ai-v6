@@ -5,9 +5,9 @@ import { cn } from '../../lib/utils';
 function Avatar({ className, ...props }: AvatarPrimitive.Root.Props) {
   return (
     <AvatarPrimitive.Root
-      data-slot="avatar"
+      data-slot="avatar-initials"
       className={cn(
-        'relative flex size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted',
+        'relative flex size-10 shrink-0 overflow-hidden rounded-full border border-border bg-muted',
         className,
       )}
       {...props}

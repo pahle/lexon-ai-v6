@@ -5,6 +5,7 @@ import { WorkspaceShell } from '../../components/shell/workspace-shell';
 import { AppSidebar } from '../../components/shell/app-sidebar';
 import { SidebarProvider } from '../../components/ui/sidebar';
 import { TooltipProvider } from '../../components/ui/tooltip';
+import { sidebarDefaultOpen } from '../../components/shell/sidebar-cookie';
 import { loadWorkspaceBootstrap } from '../../lib/workspace-bootstrap';
 
 export const metadata = {
@@ -22,7 +23,7 @@ export default async function WorkspaceLayout({
   return (
     <WorkspaceProvider bootstrap={bootstrap}>
       <TooltipProvider>
-        <SidebarProvider defaultOpen={sidebarCookie !== 'false'}>
+        <SidebarProvider defaultOpen={sidebarDefaultOpen(sidebarCookie)}>
           <WorkspaceShell sidebar={<AppSidebar />}>{children}</WorkspaceShell>
         </SidebarProvider>
       </TooltipProvider>
