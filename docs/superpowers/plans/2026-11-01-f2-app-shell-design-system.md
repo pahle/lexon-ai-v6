@@ -197,7 +197,7 @@ expect(location.pathname).toBe('/sign-in');
 
 **Interfaces:** `LoadingState({message?})`, `EmptyState({title,description,action?})`, `ErrorState({message?,onRetry?})`, `NoAccessState({message?})` produce sections/status/alert, no main. `PageHeader({title,actions?})` owns page h1. AuthCard adds `headingLevel?:1|2|3` default1; SessionBoundary adds `embedded?:boolean` defaultfalse, preserving existing state/children props and lifecycle.
 
-- [ ] **Step1 — Write failing composition tests.** Loading has role=status, error role=alert/retry calls once, empty optional real action, no-access safe copy; embedded SessionBoundary has no main and still signs out with safe returnTo. AuthCard headingLevel2 renders h2, standalone default h1. Error input with secret details is never rendered/logged; pass safe state/copy, not raw Error into shared view.
+- [x] **Step1 — Write failing composition tests.** Loading has role=status, error role=alert/retry calls once, empty optional real action, no-access safe copy; embedded SessionBoundary has no main and still signs out with safe returnTo. AuthCard headingLevel2 renders h2, standalone default h1. Error input with secret details is never rendered/logged; pass safe state/copy, not raw Error into shared view.
 
 ```ts
 expect(container.querySelectorAll('main')).toHaveLength(1); // harness owns main
@@ -205,10 +205,10 @@ expect(container.querySelectorAll('h1')).toHaveLength(1); // page header only
 expect(container.textContent).not.toContain('Private dependency detail');
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/page-states.spec.tsx frontend/test/session-boundary.spec.tsx`.
-- [ ] **Step3 — Implement presentational extraction.** Preserve F1 expired-session sign-out, errors and redirect behavior; do not put auth policy in state components. Use semantic tokens and owned controls.
-- [ ] **Step4 — GREEN:** focused tests, existing auth-primitives tests, presentation checks and frontend typecheck.
-- [ ] **Step5 — Commit:** stage Task6 files; commit `refactor(ui): share safe page states and heading composition`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/page-states.spec.tsx frontend/test/session-boundary.spec.tsx`.
+- [x] **Step3 — Implement presentational extraction.** Preserve F1 expired-session sign-out, errors and redirect behavior; do not put auth policy in state components. Use semantic tokens and owned controls.
+- [x] **Step4 — GREEN:** focused tests, existing auth-primitives tests, presentation checks and frontend typecheck.
+- [x] **Step5 — Commit:** stage Task6 files; commit `refactor(ui): share safe page states and heading composition`.
 
 ### Task 7: Introduce persistent verified workspace and identity lifecycle
 

@@ -97,3 +97,13 @@ Behavioral RED11 failures/7 passes preceded the proxy change; GREEN23 tests,
 frontend lint90, typecheck/format/diff checks passed. Every shell prefix and
 slash descendant is protected without lookalike overmatching, existing return
 path/auth-entry tests remain, and sidebar_state alone never authenticates.
+
+## Task 6 verification
+
+Commits `d205824`, `f678c13`: main-session spec/quality reviews passed after
+spacing/heading corrections. Existing-component RED reproduced nested main and
+multiple h1 problems; new-module assertions were reached through minimal export
+skeletons before implementation (initial import failure excluded). Correction
+RED reproduced spacing and heading mismatches; GREEN8 tests/3 files, frontend
+types/ESLint,90 presentation/boundary checks, formatting/diff checks passed.
+Embedded expiry retains F1 auto-sign-out and a sanitized sign-in recovery link.
