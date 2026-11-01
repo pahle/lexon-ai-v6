@@ -1,7 +1,7 @@
 ---
-version: "1.0"
+version: "1.1"
 name: Lexon
-description: "Calm, flat, engineer-first light interface: near-black text, a muted purple-gray brand accent, 8px spacing, system-ui type."
+description: "Calm, flat, engineer-first interface in light and dark themes: near-black text, a muted purple-gray brand accent, 8px spacing, system-ui type."
 inspiration: "Initial tokens were measured from openai.com (a public site) and then corrected for accessibility. Lexon does not reuse OpenAI brand assets, logos, or names."
 
 colors:
@@ -19,6 +19,22 @@ colors:
   danger: "#b42318"
   warning: "#8a5a00"
   success: "#1f7a3d"
+
+colors-dark:
+  background: "#121214"
+  surface: "#1c1c20"
+  surface-raised: "#26262b"
+  border: "#34343c"
+  text: "#ececf1"
+  text-muted: "#a0a0b0"
+  primary: "#ececf1"
+  on-primary: "#0d0d0d"
+  accent: "#7a7a8c"
+  accent-strong: "#c2c2d0"
+  focus-ring: "#c2c2d0"
+  danger: "#f97066"
+  warning: "#e0a83a"
+  success: "#4cc276"
 
 typography:
   display: { fontFamily: "system-ui, sans-serif", fontSize: 48px, fontWeight: 700, lineHeight: 1.5 }
@@ -46,8 +62,8 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 1.0 |
-| **Date** | 31 October 2026 |
+| **Version** | 1.1 |
+| **Date** | 1 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 
 ## Rationale
@@ -63,9 +79,10 @@ does not call attention to itself while a lawyer reads a 60-page contract.
 - **Calculated simplicity.** No decorative shadows, gradients, or illustrations.
   Grouping comes from spacing, 1px borders (`border`), and surface shifts
   (`surface`).
-- **Light mode only in the MVP.** Tokens are defined as CSS variables
-  (shadcn/ui convention) so a dark theme can be added later without touching
-  components.
+- **Light and dark themes.** Tokens are defined as CSS variables (shadcn/ui
+  convention) with one value set per theme (§2.1). Users choose Light, Dark,
+  or System (follows the operating system); System is the default.
+  Components never branch on the theme; only token values change.
 - **Desktop and tablet first** (≥ 768px). Below 768px, layouts stack and
   remain usable, but dense views (Tabular Review grid, DOCX editor) may show
   a "best on a larger screen" notice.
@@ -83,6 +100,25 @@ does not call attention to itself while a lawyer reads a 60-page contract.
 | `surface` | `#f7f7f8` | Sidebars, panels, table headers | — |
 | `border` | `#e5e5e9` | Dividers, input borders (inputs also need a 3:1 cue on focus) | — |
 | `danger` / `warning` / `success` | `#b42318` / `#8a5a00` / `#1f7a3d` | Status text and icons; always paired with an icon or label, never color alone | ≥ 4.5:1 (also on `surface`) |
+
+### 2.1 Dark theme
+
+The same tokens and rules apply. Contrast is measured against `background`
+(`#121214`); every text token also passes on `surface` and `surface-raised`.
+
+| Token | Value | Use | Contrast on `#121214` |
+|---|---|---|---|
+| `background` / `surface` / `surface-raised` | `#121214` / `#1c1c20` / `#26262b` | Page, sidebars and panels, raised elements (menus, dialogs) | — |
+| `border` | `#34343c` | Dividers, input borders (inputs also need a 3:1 cue on focus) | — |
+| `text` | `#ececf1` | All body and heading text | 15.9:1 |
+| `text-muted` | `#a0a0b0` | Secondary text, metadata, placeholders | 7.3:1 (5.8:1 on `surface-raised`) |
+| `primary` / `on-primary` | `#ececf1` / `#0d0d0d` | Primary buttons (light fill, dark text), selected states | 16.5:1 (text on fill) |
+| `accent` | `#7a7a8c` | Non-text accent only, as in light | 4.5:1 (≥ 3:1 non-text) |
+| `accent-strong` | `#c2c2d0` | Secondary buttons (dark `#0d0d0d` text), accent text | 10.6:1; 11.0:1 for dark text on it |
+| `focus-ring` | `#c2c2d0` | 2px focus outline, 2px offset | 10.6:1 |
+| `danger` / `warning` / `success` | `#f97066` / `#e0a83a` / `#4cc276` | Status text and icons; always with an icon or label | ≥ 5.4:1 on every surface |
+
+Overlays in the dark theme use a border (`border`) instead of a shadow.
 
 **Correction from the measured source.** The measured palette used `#8e8ea0`
 for body text and claimed ~8:1 for white on `#8e8ea0`. Both are wrong for
@@ -142,4 +178,5 @@ colors inside components.
 
 | Version | Change |
 |---|---|
+| 1.1 | Dark theme added by product-owner decision (F2): `colors-dark` token set with measured contrast (§2.1); Light / Dark / System selection with System as default (§1). Light values unchanged |
 | 1.0 | Adopted from the measured design file with corrections: text and primary moved to near-black; `#8e8ea0` restricted to non-text accent; inverted "text-muted" fixed; added surface, border, focus, status tokens, mono font, spacing scale, reduced motion, and AA as a requirement; components mapped to shadcn/ui `base-nova` and assistant-ui |

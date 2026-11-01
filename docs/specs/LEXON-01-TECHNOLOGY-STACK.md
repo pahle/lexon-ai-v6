@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.7 |
+| **Version** | 1.8 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
-| **Date** | 31 October 2026 |
-| **Supersedes** | v1.6 (31 October 2026) |
+| **Date** | 1 November 2026 |
+| **Supersedes** | v1.7 (31 October 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -60,6 +60,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 |---|---|---|
 | Styling | Tailwind CSS 4 | Utility styles, responsiveness, and design tokens |
 | UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used; one primitives library for the whole `frontend/` |
+| Theme switching | `next-themes` | Light / Dark / System theme on the `class` attribute, applied before first paint; the approach of shadcn/ui's official Next.js dark-mode guide. Preference stored in the browser only (Design System §1) |
 | Iconography | Lucide | Application icon system |
 | AI chat interface | assistant-ui (`@assistant-ui/react` + `@assistant-ui/ai-sdk`, on the `ai@^7` + `@ai-sdk/react@^4` line; components from the `@assistant-ui` registry, style `base-nova`) | Conversation primitives, streaming, reasoning, and rendering (in `frontend/`). `@assistant-ui/react-ai-sdk` is only a re-export of `@assistant-ui/ai-sdk` and is not used |
 | Rich-text editing (non-DOCX) | Tiptap 3 + ProseMirror | **Restricted** to non-DOCX content: project instructions, the composer with mentions, notes, and AI draft previews. Legal documents are not edited in Tiptap |
@@ -153,7 +154,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 
 *Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Version baseline (v1.7).** Exact patches are pinned at scaffold time and raised by Renovate.
+**Version baseline (v1.8).** Exact patches are pinned at scaffold time and raised by Renovate.
 
 | Component | Baseline | Notes |
 |---|---|---|
@@ -163,6 +164,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Next.js and React | Next.js 16.x, React 19 | `proxy.ts` replaces `middleware.ts` |
 | assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style |
 | UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No Radix UI |
+| Theme switching | `next-themes` 0.4.x | React 19 support verified when pinned (F2) |
 | AI SDK | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/otel` | Node ≥ 22, ESM-only |
 | OpenRouter provider | `@openrouter/ai-sdk-provider` 3.x | Used by the AI Worker for generation |
 | Queue | BullMQ 6.x with `@nestjs/bullmq` | Verified in S6 |
@@ -256,3 +258,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.5 | **Replaced:**<br>• Webpack removed from the backend toolchain (the backend uses `tsc`; Webpack stays for `word-add-in/`)<br>• Valkey 8.1 → 9.0.x<br>• `@modelcontextprotocol/sdk` (v1) → `@modelcontextprotocol/client` v2<br>• Next.js "middleware" → `proxy.ts`<br>**Set (previously open):**<br>• Better Auth adapter `@thallesp/nestjs-better-auth`<br>• TypeScript 6.x, Zod 4.x<br>• PostgreSQL 17.x with pgvector 0.8.3; vector dimension `halfvec(1024)`<br>• embedding path through the OpenRouter embeddings endpoint with a zero-retention flag<br>• pino logging, `@nestjs/config`, `@nestjs/terminus`<br>• TanStack Query and React Hook Form<br>• k6, Syft, Trivy, OSV-Scanner<br>• image pinning by exact tag and digest<br>• Sentry `tunnel`<br>• standalone evals runner<br>**Fixed:** RLS policies use `NULLIF` (Architecture §3.2)<br>**Added:**<br>• the version baseline table (§7)<br>• the Mike OSS (AGPL-3.0) license row and the ExcelJS note (§10)<br>• EigenPal telemetry and continuity checks in P1<br>• expanded P9 scope |
 | 1.6 | **Removed from the MVP:**<br>• `pgvector` 0.8.3, `halfvec(1024)` columns, the HNSW index, and semantic search<br>• the OpenRouter embedding path, with its `@ai-sdk/openai-compatible` fallback<br>**Changed:**<br>• "Hybrid retrieval" becomes keyword retrieval (FTS + `pg_trgm`) with full context for single documents<br>• the AI SDK is no longer used for embeddings<br>• the Document Worker ends its pipeline at chunking<br>• P4 and P9 adjusted; the version baseline table updated<br>Re-adding vector search requires an explicit stack decision (Architecture §4.3) |
 | 1.7 | **Replaced:**<br>• `@assistant-ui/react-ai-sdk` → `@assistant-ui/ai-sdk`<br>• Radix UI → Base UI (`@base-ui/react`, shadcn style `base-nova`)<br>**Set:**<br>• the initial scaffold (assistant-ui `default` template; `nest new` + the AI SDK Nest.js cookbook)<br>• English as the MVP language for the UI, content, reference documents, and engineering documents<br>• TypeScript stays 6.x and ESLint + Prettier stay (reasons recorded)<br>**Added:**<br>• a reference to the Design System (LEX-DS-001)<br>• the AI Worker hosts the AI Run Engine<br>**Translated:** the document into English<br>**Added (F1, product owner):** Mailpit as a development-only email catcher (§7)<br>**Corrected (F0 research):** workspace overrides live in `pnpm-workspace.yaml`, not the `pnpm.overrides` field of `package.json`, which current pnpm no longer reads |
+| 1.8 | **Added (F2, product owner):** `next-themes` for the Light / Dark / System theme that Design System v1.1 introduces |
