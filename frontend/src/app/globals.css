@@ -139,6 +139,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --radius-md: var(--radius);
+  --radius-xs: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
   --default-transition-duration: var(--motion-duration);
   --default-transition-timing-function: var(--motion-easing);
 }

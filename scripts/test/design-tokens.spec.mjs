@@ -6,6 +6,15 @@ const css = readFileSync(
   new URL('../../frontend/src/app/globals.css', import.meta.url),
   'utf8',
 );
+const controls = Object.fromEntries(
+  ['button', 'input', 'input-otp', 'field'].map((name) => [
+    name,
+    readFileSync(
+      new URL(`../../frontend/src/components/ui/${name}.tsx`, import.meta.url),
+      'utf8',
+    ),
+  ]),
+);
 
 const expected = {
   light: {
@@ -19,10 +28,12 @@ const expected = {
     'on-primary': '#ffffff',
     accent: '#8e8ea0',
     'accent-strong': '#5d5d6e',
+    'on-accent': '#ffffff',
     'focus-ring': '#5d5d6e',
     danger: '#b42318',
     warning: '#8a5a00',
     success: '#1f7a3d',
+    'on-danger': '#ffffff',
   },
   dark: {
     background: '#121214',
@@ -35,10 +46,12 @@ const expected = {
     'on-primary': '#0d0d0d',
     accent: '#7a7a8c',
     'accent-strong': '#c2c2d0',
+    'on-accent': '#0d0d0d',
     'focus-ring': '#c2c2d0',
     danger: '#f97066',
     warning: '#e0a83a',
     success: '#4cc276',
+    'on-danger': '#0d0d0d',
   },
 };
 
@@ -65,9 +78,16 @@ function resolve(tokens, key, seen = new Set()) {
 function luminance(hex) {
   const channels = hex.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
   assert.ok(channels, `expected opaque hex color, received ${hex}`);
-  return channels.slice(1).map((part) => parseInt(part, 16) / 255)
-    .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
-    .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  return channels
+    .slice(1)
+    .map((part) => parseInt(part, 16) / 255)
+    .map((value) =>
+      value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+    )
+    .reduce(
+      (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+      0,
+    );
 }
 
 function contrast(first, second) {
@@ -82,11 +102,24 @@ test('exports every DSv1.2 color token in both themes and resolves shadcn aliase
       assert.equal(resolve(themes[theme], name), value, `${theme} --${name}`);
     }
     for (const alias of [
-      'foreground', 'muted-foreground', 'primary-foreground', 'ring',
-      'destructive', 'card', 'card-foreground', 'popover',
-      'popover-foreground', 'muted', 'input', 'sidebar',
-      'sidebar-foreground', 'sidebar-primary', 'sidebar-primary-foreground',
-      'sidebar-accent', 'sidebar-accent-foreground', 'sidebar-border',
+      'foreground',
+      'muted-foreground',
+      'primary-foreground',
+      'ring',
+      'destructive',
+      'card',
+      'card-foreground',
+      'popover',
+      'popover-foreground',
+      'muted',
+      'input',
+      'sidebar',
+      'sidebar-foreground',
+      'sidebar-primary',
+      'sidebar-primary-foreground',
+      'sidebar-accent',
+      'sidebar-accent-foreground',
+      'sidebar-border',
       'sidebar-ring',
     ]) {
       assert.ok(resolve(themes[theme], alias), `${theme} --${alias} resolves`);
@@ -98,23 +131,96 @@ test('meets DSv1.2 text, button, focus, and non-text accent contrast rules', () 
   const themes = { light: parseBlock(':root'), dark: parseBlock('\\.dark') };
   for (const [theme, expectedTokens] of Object.entries(expected)) {
     const colors = Object.fromEntries(
-      Object.keys(expectedTokens).map((key) => [key, resolve(themes[theme], key)]),
+      Object.keys(expectedTokens).map((key) => [
+        key,
+        resolve(themes[theme], key),
+      ]),
     );
     for (const surface of ['background', 'surface', 'surface-raised']) {
-      for (const text of ['text', 'text-muted', 'danger', 'warning', 'success']) {
-        assert.ok(contrast(colors[text], colors[surface]) >= 4.5,
-          `${theme} ${text} on ${surface} must be >= 4.5:1`);
+      for (const text of [
+        'text',
+        'text-muted',
+        'danger',
+        'warning',
+        'success',
+      ]) {
+        assert.ok(
+          contrast(colors[text], colors[surface]) >= 4.5,
+          `${theme} ${text} on ${surface} must be >= 4.5:1`,
+        );
       }
     }
-    assert.ok(contrast(colors['on-primary'], colors.primary) >= 4.5,
-      `${theme} primary button text must be >= 4.5:1`);
+    assert.ok(
+      contrast(colors['on-primary'], colors.primary) >= 4.5,
+      `${theme} primary button text must be >= 4.5:1`,
+    );
+    assert.ok(
+      contrast(colors['on-accent'], colors['accent-strong']) >= 4.5,
+      `${theme} secondary button text on accent-strong must be >= 4.5:1`,
+    );
+    assert.ok(
+      contrast(colors['on-danger'], colors.danger) >= 4.5,
+      `${theme} destructive button text must be >= 4.5:1`,
+    );
     for (const surface of ['background', 'surface', 'surface-raised']) {
-      assert.ok(contrast(colors['focus-ring'], colors[surface]) >= 3,
-        `${theme} focus ring on ${surface} must be >= 3:1`);
+      assert.ok(
+        contrast(colors['focus-ring'], colors[surface]) >= 3,
+        `${theme} focus ring on ${surface} must be >= 3:1`,
+      );
     }
-    assert.ok(contrast(colors.accent, colors.background) >= 3,
-      `${theme} accent non-text adjacency must be >= 3:1`);
+    assert.ok(
+      contrast(colors.accent, colors.background) >= 3,
+      `${theme} accent non-text adjacency must be >= 3:1`,
+    );
   }
+});
+
+test('maps every rectangular Tailwind radius alias to 5px and preserves circular full', () => {
+  const theme = css.match(/@theme inline\s*\{([^}]*)\}/);
+  assert.ok(theme, 'missing Tailwind inline theme block');
+  for (const alias of ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl']) {
+    assert.match(
+      theme[1],
+      new RegExp(`--radius-${alias}:\\s*var\\(--radius\\)`),
+      `--radius-${alias} must use the 5px rectangular radius`,
+    );
+  }
+  assert.doesNotMatch(
+    theme[1],
+    /--radius-full:/,
+    'rounded-full remains Tailwind’s circular exception',
+  );
+});
+
+test('uses a solid 2px focus ring with a 2px background offset on form controls', () => {
+  for (const name of ['button', 'input']) {
+    const code = controls[name];
+    assert.match(
+      code,
+      /focus-visible:ring-2\s+focus-visible:ring-ring\s+focus-visible:ring-offset-2\s+focus-visible:ring-offset-background/,
+      `${name} focus style must use the solid token ring and offset`,
+    );
+    assert.doesNotMatch(
+      code,
+      /focus-visible:ring-(?:3|ring\/50)/,
+      `${name} focus style must not use translucent three-pixel rings`,
+    );
+  }
+  assert.match(
+    controls['input-otp'],
+    /data-\[active=true\]:ring-2\s+data-\[active=true\]:ring-ring\s+data-\[active=true\]:ring-offset-2\s+data-\[active=true\]:ring-offset-background/,
+  );
+});
+
+test('keeps button, input, and field spacing on the 4px/8px grid', () => {
+  assert.match(controls.button, /gap-2 px-2/);
+  assert.doesNotMatch(controls.button, /gap-1\.5|px-2\.5|pr-1\.5|pl-1\.5/);
+  assert.match(controls.input, /px-2(?:\s|')/);
+  assert.doesNotMatch(controls.input, /px-2\.5/);
+  assert.doesNotMatch(
+    controls.field,
+    /gap-0\.5|gap-1\.5|gap-3\b|gap-5\b|p-2\.5|mb-1\.5|-mt-1\.5/,
+  );
 });
 
 test('keeps shell dimensions, rectangular radius, system font, and reduced motion tokens', () => {
@@ -125,7 +231,10 @@ test('keeps shell dimensions, rectangular radius, system font, and reduced motio
   assert.equal(resolve(tokens, 'motion-duration'), '400ms');
   assert.equal(resolve(tokens, 'motion-easing'), 'ease');
   assert.equal(resolve(tokens, 'font-system'), 'system-ui, sans-serif');
-  assert.equal(resolve(tokens, 'font-mono'), 'ui-monospace, sfmono-regular, menlo, monospace');
+  assert.equal(
+    resolve(tokens, 'font-mono'),
+    'ui-monospace, sfmono-regular, menlo, monospace',
+  );
   assert.equal(resolve(tokens, 'font-size-display'), '48px');
   assert.equal(resolve(tokens, 'font-size-heading'), '32px');
   assert.equal(resolve(tokens, 'font-size-body'), '16px');
@@ -134,9 +243,18 @@ test('keeps shell dimensions, rectangular radius, system font, and reduced motio
   assert.equal(resolve(tokens, 'font-weight-body'), '400');
   assert.equal(resolve(tokens, 'line-height-body'), '1.5');
   assert.equal(resolve(tokens, 'spacing-base'), '8px');
-  assert.equal(resolve(tokens, 'spacing-scale'), '4px 8px 16px 24px 32px 40px 48px 64px');
+  assert.equal(
+    resolve(tokens, 'spacing-scale'),
+    '4px 8px 16px 24px 32px 40px 48px 64px',
+  );
   assert.equal(resolve(tokens, 'breakpoint-app'), '768px');
-  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?--motion-duration:\s*0ms/);
+  assert.match(
+    css,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?--motion-duration:\s*0ms/,
+  );
   assert.match(css, /font-family:\s*var\(--font-system\)/);
-  assert.doesNotMatch(css, /@import\s+(?:url\()?['"]https?:\/\/[^'"]+\.(?:woff2?|ttf|otf)/i);
+  assert.doesNotMatch(
+    css,
+    /@import\s+(?:url\()?['"]https?:\/\/[^'"]+\.(?:woff2?|ttf|otf)/i,
+  );
 });
