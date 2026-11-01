@@ -138,8 +138,10 @@ export class OrganizationService {
         actorRole: role,
         kind: OrgKindSchema.parse(organization.kind),
       });
-      if (organization.require2fa && !identity.mfaVerifiedAt)
-        throw new IdentityError('AUTH_2FA_REQUIRED', 403);
+      this.policy.requireOrganizationMfa(
+        organization.require2fa,
+        identity.mfaVerifiedAt,
+      );
       const fields: Array<'name' | 'slug' | 'require2fa'> = [];
       if (body.name !== undefined && body.name !== organization.name)
         fields.push('name');

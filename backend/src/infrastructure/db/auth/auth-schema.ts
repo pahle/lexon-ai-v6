@@ -53,7 +53,11 @@ export const session = authSchema.table(
     userId: uuid('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    activeOrganizationId: text('active_organization_id'),
+    activeOrganizationId: text('active_organization_id').notNull(),
+    activeOrganizationName: text('active_organization_name'),
+    selectionVersion: bigint('selection_version', { mode: 'number' })
+      .default(0)
+      .notNull(),
     impersonatedBy: text('impersonated_by'),
     channel: text('channel', { enum: ['cookie', 'bearer'] })
       .default('cookie')

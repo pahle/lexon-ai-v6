@@ -37,6 +37,12 @@ export const CreateOrganizationInputSchema = z.strictObject({
 export type CreateOrganizationInput = z.infer<
   typeof CreateOrganizationInputSchema
 >;
+export const ActiveOrganizationInputSchema = z.strictObject({
+  organizationId: UuidSchema,
+});
+export type ActiveOrganizationInput = z.infer<
+  typeof ActiveOrganizationInputSchema
+>;
 const organization = {
   version: z.literal(1),
   id: UuidSchema,

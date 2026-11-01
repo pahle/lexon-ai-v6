@@ -6,15 +6,21 @@ import {
   Patch,
   Post,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 import { z } from 'zod';
 import {
   CreateOrganizationInputSchema,
   OrganizationSettingsInputSchema,
   UuidSchema,
+  ActiveOrganizationInputSchema,
 } from '@lexon/contracts';
-import { currentVerifiedIdentity } from '../identity-access/index.js';
+import {
+  currentVerifiedIdentity,
+  AccountRoute,
+} from '../identity-access/index.js';
 import { OrganizationService } from './organization.service.js';
+import { OrganizationSwitchService } from './organization-switch.service.js';
 
 const querySchema = z
   .object({
@@ -24,8 +30,12 @@ const querySchema = z
   .strict();
 @Controller('organizations')
 export class OrganizationController {
-  constructor(private readonly organizations: OrganizationService) {}
+  constructor(
+    private readonly organizations: OrganizationService,
+    private readonly switching: OrganizationSwitchService,
+  ) {}
   @Get()
+  @AccountRoute()
   list(@Query() input: unknown) {
     const query = querySchema.parse(input);
     return this.organizations.list(currentVerifiedIdentity(), {
@@ -34,6 +44,7 @@ export class OrganizationController {
     });
   }
   @Post()
+  @AccountRoute()
   create(@Body() input: unknown) {
     return this.organizations.create(
       currentVerifiedIdentity(),
@@ -49,6 +60,15 @@ export class OrganizationController {
       currentVerifiedIdentity(),
       UuidSchema.parse(organizationId),
       OrganizationSettingsInputSchema.parse(input),
+    );
+  }
+  @Post('active')
+  @HttpCode(200)
+  @AccountRoute({ allowOrganizationSelection: true })
+  select(@Body() input: unknown) {
+    return this.switching.select(
+      currentVerifiedIdentity(),
+      ActiveOrganizationInputSchema.parse(input).organizationId,
     );
   }
 }

@@ -34,6 +34,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
       transactions.accountLocks,
       transactions.securityPrimitives,
       transactions.organizationPrimitives,
+      transactions.selectionPrimitives,
     );
     await auth.$context;
     const transaction: AuthIntegration['transaction'] = (work) =>

@@ -8,9 +8,22 @@ import {
   SwitchResultSchema,
   PaginationSchema,
   OrganizationSettingsInputSchema,
+  ActiveOrganizationInputSchema,
 } from '../src/index.js';
 
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+test('active organization commands require one explicit UUID and no actor override', () => {
+  expect(ActiveOrganizationInputSchema.parse({ organizationId: id })).toEqual({
+    organizationId: id,
+  });
+  for (const input of [
+    { organizationId: null },
+    { organizationId: id, userId: id },
+    { organizationId: id, role: 'owner' },
+    {},
+  ])
+    expect(ActiveOrganizationInputSchema.safeParse(input).success).toBe(false);
+});
 const organization = {
   version: 1,
   id,

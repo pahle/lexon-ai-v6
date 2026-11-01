@@ -9,6 +9,7 @@ import {
   type VerifiedIdentity,
 } from './identity.types.js';
 import { IdentityError } from './identity-error.js';
+import { IdentityPolicy } from './identity-policy.js';
 
 function databaseFailure(error: unknown): {
   code?: string;
@@ -37,6 +38,10 @@ function databaseFailure(error: unknown): {
   }
   return {};
 }
+export function isRetryableAuthError(error: unknown): boolean {
+  const failure = databaseFailure(error);
+  return failure.code === '40001' || failure.code === '40P01';
+}
 @Injectable()
 export class OrganizationAuthPort {
   constructor(private readonly integration: AuthIntegration) {}
@@ -61,13 +66,7 @@ export class OrganizationAuthPort {
             session.channel !== identity.channel
           )
             throw new IdentityError('AUTH_REQUIRED', 401);
-          if (!user.emailVerified)
-            throw new IdentityError('AUTH_EMAIL_VERIFICATION_REQUIRED', 403);
-          if (
-            (user.twoFactorEnabled || user.role === 'admin') &&
-            (!user.twoFactorEnabled || !session.mfaVerifiedAt)
-          )
-            throw new IdentityError('AUTH_2FA_REQUIRED', 403);
+          new IdentityPolicy().requireAccount(user, session.mfaVerifiedAt);
           if (identity.mfaVerifiedAt && !session.mfaVerifiedAt)
             throw new IdentityError('AUTH_2FA_REQUIRED', 403);
           if (session.hardExpiresAt && session.hardExpiresAt <= new Date())

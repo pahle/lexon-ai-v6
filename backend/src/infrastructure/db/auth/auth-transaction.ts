@@ -16,6 +16,7 @@ import { bindAuthAudit, endAuthAudit } from './auth-functions.js';
 import * as schema from './auth-schema.js';
 import type { AuthCommandSession, LexonServerApi } from './auth-types.js';
 import type { SecurityPrimitives } from './security-plugin.js';
+import type { SelectionPrimitives } from './selection-plugin.js';
 
 type Database = NodePgDatabase<typeof schema>;
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -186,6 +187,23 @@ export function createAuthTransactions(database: Database) {
       );
     },
   };
+  const selectionPrimitives: SelectionPrimitives = {
+    async lock(userId, sessionId, targetId) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      await state.database.execute(
+        sql`SELECT auth.lexon_lock_selection(${userId}::uuid,${sessionId}::uuid,${targetId ?? null}::uuid)`,
+      );
+    },
+    async write(input) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      const result = await state.database.execute<{ applied: boolean }>(
+        sql`SELECT auth.lexon_write_selection(${input.userId}::uuid,${input.sessionId}::uuid,${input.expectedOrganizationId}::text,${input.expectedVersion}::bigint,${input.organizationId}::uuid,${input.pendingOrganizationId}::uuid,${input.expectedMemberId}::uuid) AS applied`,
+      );
+      return result.rows[0]?.applied === true;
+    },
+  };
   return {
     adapterFactory,
     transaction,
@@ -193,5 +211,6 @@ export function createAuthTransactions(database: Database) {
     accountLocks,
     securityPrimitives,
     organizationPrimitives,
+    selectionPrimitives,
   };
 }

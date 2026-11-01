@@ -81,7 +81,7 @@ One plan is intentional: sessions, organization policy, and audit share security
 | Proofs                   | Existing Vitest global setup and file fixtures, private DB test helpers, Compose test-only mail IPC and Playwright identity projects                          |
 
 Use migration numbers `0003_auth.sql`, `0004_personal.sql`, `0005_audit.sql`,
-`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_admin_setup.sql`.
+`0006_account_primitives.sql`, `0007_session_security.sql`, `0008_org_invariants.sql`, `0009_session_selection.sql`, `0010_admin_setup.sql`.
 Generate auth schema through `auth@1.7.14`, not the deprecated
 `@better-auth/cli@1.4.21`. Drizzle generation uses existing 0.31.11; SQL migrations
 run as `lexon_migrator`. Do not import the v1.0 Drizzle Relations v2 adapter.
@@ -432,11 +432,11 @@ so existing build/global setup and file isolation remain active.
 
 **Research:** R05, R07–R08, R11–R12; re-read active-organization API, session resolution and F0 withTenant before this task.
 
-**Files:** Create `backend/src/modules/identity-access/tenant.guard.ts`, `request-identity.ts`, `route-access.ts`, `identity.controller.ts`; `backend/src/modules/organizations/organization-switch.service.ts`; `backend/src/infrastructure/db/auth/selection-plugin.ts`; `backend/test/integration/tenant-guard.spec.ts`, `organization-switch.spec.ts`. Modify identity module/index and org controller.
+**Files:** Create `backend/drizzle/0009_session_selection.sql`; create `backend/src/modules/identity-access/tenant.guard.ts`, `request-identity.ts`, `route-access.ts`, `identity.controller.ts`; `backend/src/modules/organizations/organization-switch.service.ts`; `backend/src/infrastructure/db/auth/selection-plugin.ts`; `backend/test/integration/tenant-guard.spec.ts`, `organization-switch.spec.ts`. Modify identity module/index and org controller.
 
 **Interfaces:** `TenantGuard.canActivate(context:ExecutionContext):Promise<boolean>` attaches safe `VerifiedIdentity` and `TenantRequestContext = {orgId:Uuid;userId:Uuid;role:OrgRole}`. `@PublicRoute()`, `@AccountRoute()` and `@PlatformRoute()` are explicit access metadata, with full workspace access the default. `OrganizationSwitchService.select(identity, orgId:Uuid):Promise<SwitchResult>`; `GET /api/identity` returns safe identity/current-org/fallback reason; `POST /api/organizations/active` accepts `{organizationId}`. `auth.api.lexonSelectOrganization` and `lexonRepairSelection` are server-only, transactional compare/recheck operations.
 
-- [ ] **Step 1 — RED tests:** All non-public controller routes reject absent/expired/disabled/unverified/incomplete-MFA identities. A platform-admin account with2FA disabled cannot retain operational access even if its native role remains admin. Public health works while auth dependencies are down. A user's Personal+two teams switch independently on two sessions; the next route calls `withTenant` with exactly the verified IDs. Reject tenant overrides in headers/body/query. Recheck membership/role every request despite cookie caching attempts. Removing the active membership falls back to Personal next request with a safe reason. Synchronize repair with explicit switching: repair cannot overwrite the newer selection. Requiring2FA keeps the original active org and returns enrollment-required; after enrollment membership/state/policy are rechecked before entry, including removal while enrolling. A503 must not be interpreted as logout/fallback.
+- [x] **Step 1 — RED tests:** All non-public controller routes reject absent/expired/disabled/unverified/incomplete-MFA identities. A platform-admin account with2FA disabled cannot retain operational access even if its native role remains admin. Public health works while auth dependencies are down. A user's Personal+two teams switch independently on two sessions; the next route calls `withTenant` with exactly the verified IDs. Reject tenant overrides in headers/body/query. Recheck membership/role every request despite cookie caching attempts. Removing the active membership falls back to Personal next request with a safe reason. Synchronize repair with explicit switching: repair cannot overwrite the newer selection. Requiring2FA keeps the original active org and returns enrollment-required; after enrollment membership/state/policy are rechecked before entry, including removal while enrolling. A503 must not be interpreted as logout/fallback.
 
   Representative assertion, after arranging the case above:
 
@@ -449,10 +449,10 @@ so existing build/global setup and file isolation remain active.
   });
   ```
 
-- [ ] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/tenant-guard.spec.ts backend/test/integration/organization-switch.spec.ts`.
-- [ ] **Step 3 — Implement:** Resolve credential/session through the private gateway, validate session evidence, then membership via BA server API. Use one policy service. The module computes selection eligibility from locked facts. Update selection only under current-session/organization locks via the dumb narrow function/BA command primitive, passing explicit target IDs and expected-state preconditions. Set Personal at session creation instead of nullable active organization; clients cannot unset it. `pendingOrganizationId` is server-owned and grants no access. Keep all app database contexts explicit. Fallback reasons use the shared IdentitySummary fields; previous organization name is returned only for that session's former selection, never an arbitrary org lookup. Use an isolated test controller/tenant fixture to prove RLS; do not add a production debug route.
-- [ ] **Step 4 — GREEN:** Re-run Step 2 and F0 tenant-isolation tests; prove role-removal changes behavior on a fresh request with the same cookie.
-- [ ] **Step 5 — Commit:** `git commit -m "feat(identity): derive and verify tenant context per request"`.
+- [x] **Step 2 — Confirm RED:** `pnpm exec vitest run --project backend-integration backend/test/integration/tenant-guard.spec.ts backend/test/integration/organization-switch.spec.ts`.
+- [x] **Step 3 — Implement:** Resolve credential/session through the private gateway, validate session evidence, then membership via BA server API. Use one policy service. The module computes selection eligibility from locked facts. Update selection only under current-session/organization locks via the dumb narrow function/BA command primitive, passing explicit target IDs and expected-state preconditions. Set Personal at session creation instead of nullable active organization; clients cannot unset it. `pendingOrganizationId` is server-owned and grants no access. Keep all app database contexts explicit. Fallback reasons use the shared IdentitySummary fields; previous organization name is returned only for that session's former selection, never an arbitrary org lookup. Use an isolated test controller/tenant fixture to prove RLS; do not add a production debug route.
+- [x] **Step 4 — GREEN:** Re-run Step 2 and F0 tenant-isolation tests; prove role-removal changes behavior on a fresh request with the same cookie.
+- [x] **Step 5 — Commit:** `git commit -m "feat(identity): derive and verify tenant context per request"`.
 
 ### Task 12: Implement invitation lifecycle, role floor and identity-bound retries
 
@@ -556,7 +556,7 @@ so existing build/global setup and file isolation remain active.
 
 **Research:** R03–R04, R06–R07, R09, R12, R14; re-read plugin authoring/verified enrollment, CLI defaults, setup brief item10 and Postgres admission locking before this task.
 
-**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0009_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
+**Files:** Create `backend/src/entrypoints/admin-setup/main.ts`; `backend/src/infrastructure/db/auth/admin-setup-plugin.ts`; `backend/drizzle/0010_admin_setup.sql`; `backend/src/modules/identity-access/admin-setup.service.ts`, `admin-setup.controller.ts`; `backend/test/integration/admin-setup.spec.ts`; `scripts/test/admin-setup-command.spec.mjs`. Modify config/schema/factory/journal and backend package commands.
 
 **Interfaces:** `runAdminSetup(input:{email:string;additional:boolean}, dependencies):Promise<{status:'created'|'pending'|'refused'}>` runs one-shot without HTTP. Server-only `lexonBeginAdminSetup`, `lexonRedeemAdminSetup`, `lexonActivateAdmin` APIs. Public `POST /api/identity/admin-setup/redeem` validates the emailed grant only, never begins setup; authenticated `POST /api/identity/admin-setup/complete` activates after verified email and TOTP. Command `node backend/dist/entrypoints/admin-setup/main.js --email <email> [--additional]`; package script `identity:setup-admin` invokes that entrypoint. No env-var admin allowlist. The domain setup service decides eligibility/activation from locked facts and passes explicit expected-state parameters to its dumb server primitives. A setup-redemption HTTP route only consumes an emailed grant; it can never begin operator setup.
 

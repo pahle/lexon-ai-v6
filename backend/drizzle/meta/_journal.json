@@ -64,6 +64,13 @@
       "when": 1793404800008,
       "tag": "0008_org_invariants",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793404800009,
+      "tag": "0009_session_selection",
+      "breakpoints": true
     }
   ]
 }

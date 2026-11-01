@@ -1,5 +1,5 @@
 import type { BetterAuthPlugin } from 'better-auth';
-import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api';
+import { createAuthEndpoint, getSession } from 'better-auth/api';
 import { z } from 'zod';
 
 const evidenceUpdate = z
@@ -49,10 +49,18 @@ export function securityPlugin(primitives: SecurityPrimitives) {
         '/lexon/security/facts',
         { method: 'POST', metadata: { scope: 'server' } },
         async (ctx) => {
-          const authenticated = await getSessionFromCtx(ctx, {
-            disableCookieCache: true,
-            disableRefresh: true,
+          // The convenience getSessionFromCtx helper converts database errors
+          // into null. Authoritative guards must distinguish outage from logout.
+          const read = await getSession()({
+            context: ctx.context,
+            headers: ctx.headers ?? new Headers(),
+            method: 'GET',
+            asResponse: false,
+            returnHeaders: true,
+            returnStatus: false,
+            query: { disableCookieCache: true, disableRefresh: true },
           });
+          const authenticated = read?.response ?? null;
           let userId = authenticated?.user.id;
           let challengeId: string | false | null = null;
           if (!userId) {

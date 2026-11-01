@@ -11,6 +11,10 @@ import {
   organizationPrimitivesPlugin,
   type OrganizationPrimitives,
 } from './organization-plugin.js';
+import {
+  selectionPlugin,
+  type SelectionPrimitives,
+} from './selection-plugin.js';
 
 // Private composition shared by schema generation and the runtime boundary.
 export function createAuthEngine(
@@ -34,6 +38,14 @@ export function createAuthEngine(
   },
   organizations: OrganizationPrimitives = {
     lock: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
+  selection: SelectionPrimitives = {
+    lock: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    write: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -75,6 +87,17 @@ export function createAuthEngine(
       freshAge: options.policy?.reauthSeconds ?? 300,
       cookieCache: { enabled: false },
       additionalFields: {
+        activeOrganizationName: {
+          type: 'string',
+          required: false,
+          input: false,
+        },
+        selectionVersion: {
+          type: 'number',
+          defaultValue: 0,
+          required: true,
+          input: false,
+        },
         channel: {
           type: ['cookie', 'bearer'],
           defaultValue: 'cookie',
@@ -113,6 +136,7 @@ export function createAuthEngine(
       accountPlugin(locks),
       securityPlugin(security),
       organizationPrimitivesPlugin(organizations),
+      selectionPlugin(selection),
       organization({
         allowUserToCreateOrganization:
           options.pluginConfiguration?.allowUserToCreateOrganization ?? true,

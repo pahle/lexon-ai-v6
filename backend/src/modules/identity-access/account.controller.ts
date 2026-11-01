@@ -2,8 +2,10 @@ import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { ProfileInputSchema } from '@lexon/contracts';
 import { AccountService } from './account.service.js';
 import { currentVerifiedIdentity } from './identity.types.js';
+import { AccountRoute } from './route-access.js';
 
 @Controller('identity')
+@AccountRoute()
 export class AccountController {
   constructor(private readonly accounts: AccountService) {}
 
