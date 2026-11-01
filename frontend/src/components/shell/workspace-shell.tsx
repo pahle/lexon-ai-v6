@@ -75,12 +75,7 @@ export function WorkspaceShell({
             {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
             {children}
           </main>
-          <aside
-            ref={setPanelHost}
-            aria-label="Context panel"
-            className="w-full shrink-0 md:w-80"
-            data-panel-host=""
-          />
+          <div ref={setPanelHost} data-panel-host="" />
         </div>
       </>
     </PanelHostContext.Provider>

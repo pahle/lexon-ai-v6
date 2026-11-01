@@ -1,5 +1,6 @@
 import { afterEach, test, expect, vi } from 'vitest';
 import { act, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import {
   QueryClient,
   QueryClientProvider,
@@ -81,10 +82,12 @@ function Protected() {
   return (
     <>
       <p>Protected {workspace.identity?.organization.name}</p>
+      <p>{workspace.identity?.user.name}</p>
       <button onClick={() => setRevision((value) => value + 1)}>
         Rerender child {revision}
       </button>
-      {workspace.identity?.organization.role === 'owner' ? (
+      {workspace.identity?.organization.kind === 'team' &&
+      workspace.identity.organization.role === 'owner' ? (
         <p>Old private members</p>
       ) : null}
     </>
@@ -508,6 +511,59 @@ test('same-organization role demotion hides and clears private tenant data befor
   vi.useRealTimers();
 });
 
+test('MFA policy changes clear same-organization tenant cache before publishing identity', async () => {
+  const requiredOrg: IdentitySummary = {
+    ...identity,
+    organization:
+      identity.organization.kind === 'team'
+        ? { ...identity.organization, require2fa: true }
+        : identity.organization,
+  };
+  const enrolled: IdentitySummary = {
+    ...identity,
+    user: { ...identity.user, twoFactorEnabled: true },
+  };
+  const cases: Array<[string, IdentitySummary, IdentitySummary]> = [
+    ['organization requirement', identity, requiredOrg],
+    ['user factor state', enrolled, identity],
+  ];
+  for (const [label, original, updated] of cases) {
+    const client = new QueryClient();
+    client.setQueryData(
+      ['tenant', identity.organization.id, 'members'],
+      [`Private data before ${label}`],
+    );
+    const identityCall = vi
+      .spyOn(identityApi, 'identity')
+      .mockResolvedValue(updated);
+    const view = await render(
+      <QueryClientProvider client={client}>
+        <WorkspaceProvider bootstrap={{ status: 'ready', identity: original }}>
+          <WorkspaceShell>
+            <Protected />
+          </WorkspaceShell>
+        </WorkspaceProvider>
+      </QueryClientProvider>,
+    );
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['identity'] });
+    });
+    await settle();
+    expect(
+      client.getQueriesData({ queryKey: ['tenant', identity.organization.id] }),
+    ).toEqual([]);
+    expect(client.getQueryData(['identity'])).toMatchObject({
+      user: { twoFactorEnabled: updated.user.twoFactorEnabled },
+      organization: { require2fa: updated.organization.require2fa },
+    });
+    expect(view.container.textContent).not.toContain(
+      `Private data before ${label}`,
+    );
+    await view.unmount();
+    identityCall.mockRestore();
+  }
+});
+
 test('identity rejection removes protected cache and platform loss removes platform data', async () => {
   vi.useFakeTimers();
   const client = new QueryClient();
@@ -617,6 +673,63 @@ test('organization transition cancels old tenant query, clears it, and refreshes
   vi.useRealTimers();
 });
 
+test('clearing the query cache never restores the initial bootstrap identity or queries its old tenant', async () => {
+  const client = new QueryClient();
+  const initial = identity;
+  const personal: IdentitySummary = {
+    ...identity,
+    user: { ...identity.user, name: 'Verified latest user' },
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+    fallbackReason: 'membership_removed',
+    previousOrganizationName: identity.organization.name,
+  };
+  const tenantRequests: string[] = [];
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(personal);
+  const makeTree = (bootstrap: IdentitySummary) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: bootstrap }}>
+        <WorkspaceShell>
+          <Protected />
+          <ActiveTenantProbe requests={tenantRequests} />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(makeTree(initial)));
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ['identity'] });
+  });
+  await settle();
+  expect(container.textContent).toContain('Personal');
+  expect(container.textContent).toContain('Verified latest user');
+  const requestsBeforeClear = tenantRequests.length;
+  client.clear();
+  await act(async () => root.render(makeTree(initial)));
+  await settle();
+  expect(container.textContent).toContain('Personal');
+  expect(container.textContent).toContain('Verified latest user');
+  expect(container.textContent).not.toContain('Old private members');
+  expect(tenantRequests.slice(requestsBeforeClear)).not.toContain(
+    initial.organization.id,
+  );
+  await act(async () => root.unmount());
+  container.remove();
+  identityCall.mockRestore();
+});
+
 function TenantMembers({
   request,
   orgId,
@@ -634,6 +747,20 @@ function TenantMembers({
     enabled: !!identity,
   });
   return <p>{query.data?.join(', ')}</p>;
+}
+
+function ActiveTenantProbe({ requests }: { requests: string[] }) {
+  const { identity } = useWorkspace();
+  const organizationId = identity?.organization.id;
+  useQuery({
+    queryKey: ['tenant', organizationId, 'identity-rewind-probe'],
+    enabled: !!organizationId,
+    queryFn: async () => {
+      requests.push(organizationId!);
+      return [];
+    },
+  });
+  return null;
 }
 
 function PanelHostProbe() {
@@ -654,12 +781,12 @@ test('panel host is a named aside beside a focusable main', async () => {
   const host = view.container.querySelector('[data-panel-host]');
   const main = view.container.querySelector('main');
   expect(host).not.toBeNull();
-  const panelAside = host?.closest('aside');
-  expect(panelAside).not.toBeNull();
-  expect(panelAside?.getAttribute('aria-label')).toBe('Context panel');
-  expect(panelAside?.contains(main)).toBe(false);
+  expect(host?.tagName).toBe('DIV');
+  expect(main?.contains(host)).toBe(false);
+  expect(host?.closest('aside[aria-label="Context panel"]')).toBeNull();
   expect(main?.tabIndex).toBe(-1);
   expect(main?.parentElement?.className).toContain('min-w-0');
   expect(view.container.querySelectorAll('main')).toHaveLength(1);
+  expect(host?.getAttribute('class') ?? '').not.toMatch(/w-80|w-full/);
   await view.unmount();
 });

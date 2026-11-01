@@ -27,7 +27,7 @@ type WorkspaceContextValue = {
 };
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 function accessKey(identity: IdentitySummary) {
-  return `${identity.user.id}:${identity.organization.id}:${identity.organization.role}:${identity.platformAdmin}`;
+  return `${identity.user.id}:${identity.organization.id}:${identity.organization.role}:${identity.organization.require2fa}:${identity.user.twoFactorEnabled}:${identity.platformAdmin}`;
 }
 function sameIdentity(left: IdentitySummary, right: IdentitySummary) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -68,8 +68,10 @@ export function WorkspaceProvider({
     useState<IdentitySummary | null>(
       bootstrap.status === 'ready' ? bootstrap.identity : null,
     );
-  const [freshQueryIdentity, setFreshQueryIdentity] =
-    useState<IdentitySummary | null>(null);
+  const [latestVerifiedIdentity, setLatestVerifiedIdentity] =
+    useState<IdentitySummary | null>(
+      bootstrap.status === 'ready' ? bootstrap.identity : null,
+    );
   const [untrustedCacheClearPending, setUntrustedCacheClearPending] = useState(
     bootstrap.status !== 'ready',
   );
@@ -83,10 +85,13 @@ export function WorkspaceProvider({
     queryKey: ['identity'],
     queryFn: async () => {
       const verified = await identityApi.identity();
-      setFreshQueryIdentity(verified);
+      setLatestVerifiedIdentity(verified);
       return verified;
     },
-    initialData: bootstrap.status === 'ready' ? bootstrap.identity : undefined,
+    initialData:
+      bootstrap.status === 'ready'
+        ? (latestVerifiedIdentity ?? bootstrap.identity)
+        : undefined,
     enabled:
       (bootstrap.status === 'ready' && !bootstrapSyncPending) ||
       bootstrap.status === 'mfa-required',
@@ -98,12 +103,13 @@ export function WorkspaceProvider({
     retry: false,
   });
   const { data: queryIdentity, error: identityError, refetch } = identityQuery;
-  const identity =
-    bootstrap.status === 'ready'
-      ? bootstrapSyncPending
-        ? bootstrap.identity
-        : (queryIdentity ?? bootstrap.identity)
-      : freshQueryIdentity;
+  const identity = bootstrapSyncPending
+    ? bootstrap.status === 'ready'
+      ? bootstrap.identity
+      : null
+    : bootstrap.status === 'ready'
+      ? (queryIdentity ?? latestVerifiedIdentity)
+      : latestVerifiedIdentity;
   const nextAccess = identity ? accessKey(identity) : null;
   const transitioning =
     untrustedCacheClearPending ||
@@ -127,12 +133,21 @@ export function WorkspaceProvider({
         } else if (old.platformAdmin && !bootstrap.identity.platformAdmin) {
           await clearQueryFamilies(queryClient, [['platform']]);
         }
+        if (
+          old.user.twoFactorEnabled !==
+            bootstrap.identity.user.twoFactorEnabled ||
+          old.organization.require2fa !==
+            bootstrap.identity.organization.require2fa
+        ) {
+          await transitionTenant(queryClient, bootstrap.identity.organization);
+        }
         if (old.organization.id !== bootstrap.identity.organization.id) {
           await queryClient.invalidateQueries({ queryKey: ['organizations'] });
         }
       }
       if (!current) return;
       queryClient.setQueryData(['identity'], bootstrap.identity);
+      setLatestVerifiedIdentity(bootstrap.identity);
       setCommittedIdentity(bootstrap.identity);
       setBootstrapSyncPending(false);
     })();
@@ -156,10 +171,17 @@ export function WorkspaceProvider({
       } else if (previous?.platformAdmin && !identity.platformAdmin) {
         await clearQueryFamilies(queryClient, [['platform']]);
       }
+      if (
+        previous?.user.twoFactorEnabled !== identity.user.twoFactorEnabled ||
+        previous?.organization.require2fa !== identity.organization.require2fa
+      ) {
+        await transitionTenant(queryClient, identity.organization);
+      }
       if (previous?.organization.id !== identity.organization.id) {
         await queryClient.invalidateQueries({ queryKey: ['organizations'] });
       }
       if (!current) return;
+      setLatestVerifiedIdentity(identity);
       setCommittedIdentity(identity);
       if (
         identity.fallbackReason &&
