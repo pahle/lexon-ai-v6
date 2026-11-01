@@ -89,3 +89,11 @@ Task4 commits: `0a7a9cc`, `1d2cf9a`. Main-session spec and quality reviews
 passed after the focused corrections, with the initial process limitation above
 retained. Lockfile review confirms only next-themes0.4.6 was added; all other
 pins remain unchanged. This task does not claim browser first-paint proof.
+
+## Task 5 verification
+
+Commit `6e37369`: main-session spec/quality reviews passed with no findings.
+Behavioral RED11 failures/7 passes preceded the proxy change; GREEN23 tests,
+frontend lint90, typecheck/format/diff checks passed. Every shell prefix and
+slash descendant is protected without lookalike overmatching, existing return
+path/auth-entry tests remain, and sidebar_state alone never authenticates.

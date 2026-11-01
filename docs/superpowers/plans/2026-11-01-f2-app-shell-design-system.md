@@ -175,7 +175,7 @@ expect(fetchSpy).not.toHaveBeenCalled();
 
 **Interfaces:** Existing `proxy(NextRequest):NextResponse` and exported matcher config; exact roots/slash descendants workspace/settings/organizations/platform/onboarding. Preserve safeReturnPath signature and auth-entry redirects.
 
-- [ ] **Step1 — Extend failing proxy table.** For each root and nested path without cookie, assert sign-in redirect and returnTo retains query. Cookie-present hint passes; sign-in/up with cookie goes Home. Prefix lookalikes not captured. Keep encoded/backslash/external return-path negatives.
+- [x] **Step1 — Extend failing proxy table.** For each root and nested path without cookie, assert sign-in redirect and returnTo retains query. Cookie-present hint passes; sign-in/up with cookie goes Home. Prefix lookalikes not captured. Keep encoded/backslash/external return-path negatives.
 
 ```ts
 expect(location.searchParams.get('returnTo')).toBe(
@@ -184,10 +184,10 @@ expect(location.searchParams.get('returnTo')).toBe(
 expect(location.pathname).toBe('/sign-in');
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/auth-proxy.spec.tsx`; new-prefix cases fail while F1 cases remain meaningful.
-- [ ] **Step3 — Implement explicit prefix/matcher coverage.** No startsWith('/settings') overmatch; no cookie parsing/auth authorization on frontend. The backend never reads sidebar_state; include a request carrying only sidebar_state and assert it is still signed out.
-- [ ] **Step4 — GREEN:** focused command plus frontend lint/typecheck; cookie-hint-only semantics remain covered.
-- [ ] **Step5 — Commit:** stage Task5 files; commit `fix(ui): protect every application shell route`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/auth-proxy.spec.tsx`; new-prefix cases fail while F1 cases remain meaningful.
+- [x] **Step3 — Implement explicit prefix/matcher coverage.** No startsWith('/settings') overmatch; no cookie parsing/auth authorization on frontend. The backend never reads sidebar_state; include a request carrying only sidebar_state and assert it is still signed out.
+- [x] **Step4 — GREEN:** focused command plus frontend lint/typecheck; cookie-hint-only semantics remain covered.
+- [x] **Step5 — Commit:** stage Task5 files; commit `fix(ui): protect every application shell route`.
 
 ### Task 6: Extract shared states and heading composition
 
