@@ -1,8 +1,9 @@
 # Lexon
 
 Lexon is an English-language legal AI workspace, built slice by slice from
-`docs/`. F0 provides the foundation and developer checks; it has no application
-users, authentication, chat, or document pipeline yet.
+`docs/`. F0 provides the foundation; F1 adds verified accounts, personal/team
+organizations, invitations, authenticator security, and operator-led platform
+setup. Chat, document pipelines, and the full application shell remain later slices.
 
 ## Start locally
 
@@ -153,3 +154,63 @@ Each infrastructure folder has its own rule page:
 [storage](backend/src/infrastructure/storage/README.md),
 [AI](backend/src/infrastructure/ai/README.md), and
 [telemetry](backend/src/infrastructure/telemetry/README.md).
+
+## Identity and organizations (F1)
+
+Use `pnpm dev -- --mail` for the optional development Mailpit profile. Its inbox
+is at http://127.0.0.1:8025; SMTP stays inside Compose, with ephemeral storage
+and no relay/forwarding. Configure `SMTP_URL=smtp://mailpit:1025` and a valid
+`SMTP_FROM` in your private `.env`. Without that profile, configure your SMTP
+transport. Mailpit is never required for automated tests or production.
+
+Register, verify the emailed link, then sign in and complete onboarding. Every
+account receives an atomic Personal organization. Team membership and selection
+are verified by the server on every request. Owners promote owners; invitations
+only grant member/admin roles. A consumed invitation can be retried only by its
+original recipient while their membership still exists. Departures produce an
+ID-only audit event; F18 will design handover.
+
+Bootstrap platform administrators from an operator terminal:
+
+```sh
+pnpm identity:setup-admin -- --email operator@example.com
+# Additional administrators require an explicit flag:
+pnpm identity:setup-admin -- --email second@example.com --additional
+```
+
+This wrapper runs the backend setup command with `docker compose run` under the
+operator profile. Configure an independent `DATABASE_SETUP_PASSWORD`; the wrapper
+derives the narrow `lexon_setup` credential, which is never supplied to the API,
+frontend or workers. Pending retries send a replacement setup link. The recipient
+sets a password, verifies email and enrolls TOTP before explicit activation.
+There is no setup-start web endpoint, env allowlist, impersonation, or automatic
+staff membership in customer teams. Platform pages are `/platform/provisioning`
+and `/platform/accounts`; account status operations take a user UUID.
+
+Defaults remain validated configuration: cookie lifetime 7 days with refresh at
+most daily; reauthentication 5 minutes; setup link 24 hours; Bearer session 15 minutes
+with a hard cap and no extension. Bearer issuance requires a fully authenticated
+cookie session at `POST /api/identity/bearer-sessions`. The web client never
+requests or stores Bearer tokens. Both channels use the same membership/MFA guard,
+have independent active organizations, appear in the safe session list and can
+be revoked immediately. Renewal UX belongs to F19.
+
+`pnpm --filter @lexon/backend test:mutation:identity` checks the three pure identity
+policies with an 80% gate. It does not replace transaction/concurrency, HTTP or
+browser tests. Filtered frontend E2E includes `identity-browser`; backend E2E
+includes `identity-api`. Both layers start and remove their own infrastructure.
+No pre-started stack, Mailpit or persisted container reuse is needed. Optional
+local reuse is never the CI default.
+
+Credential browser projects disable trace/video/screenshots, storage-state dumps
+and automatic page snapshots. Test mail is held in memory behind a private Unix
+socket; operator setup uses a separate bind-mounted test composition and a private
+mode0600 temporary environment file. These controls are absent from production
+images. Debug with fixed error codes, request IDs and sanitized test metadata;
+never retain passwords, cookies, tokens, TOTP seeds/codes, recovery codes or links.
+
+See [F1 acceptance evidence](docs/references/F1-acceptance.md) and
+[adapter findings](docs/references/F1-S6b-findings.md). F17 audit reads must use the
+authorization predicate builder; `ops` has no tenant RLS. F20 owns frontend
+no-egress enforcement: development `edge` remains host-accessible, with the
+frontend off `core` and free of backend secrets. F2 owns shell/navigation.

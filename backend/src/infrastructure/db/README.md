@@ -14,7 +14,7 @@ USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid)
 WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);
 ```
 
-`NULLIF` covers both fresh connections (NULL) and reused connections (empty string after context reset). No context returns zero rows rather than a cast error. The application role is not an owner, cannot bypass RLS, and receives only DML grants, not TRUNCATE/schema alteration. The migrator owns schemas/tables and is never used at runtime. Better Auth gets a separate role/pool in F1; it never shares the application role. Migrations require the named migrator identity.
+`NULLIF` covers both fresh connections (NULL) and reused connections (empty string after context reset). No context returns zero rows rather than a cast error. The application role is not an owner, cannot bypass RLS, and receives only DML grants, not TRUNCATE/schema alteration. The migrator owns schemas/tables and is never used at runtime. Better Auth uses a separate lexon_auth role/pool; it never shares the application role. Migrations require the named migrator identity.
 
 The `testing/` helpers alone install fixture tables, inspect privileged state, and probe the same pool outside the tenant wrapper to prove fail-closed behavior. They are not exported by the runtime module and must not enter runtime composition.
 
@@ -45,3 +45,41 @@ rescheduling require the current, unexpired token. Lost leadership, shutdown,
 uncertain enqueue outcomes and crashes leave a recoverable lease. Invalid
 metadata stays unsent with capped backoff and a fixed `invalid_job` code;
 queue failures use only `enqueue_failed`. No payload or exception is stored.
+
+## F1 auth and audit boundary
+
+Better Auth 1.7.14 and its Drizzle adapter own the authoritative auth tables.
+Generate their schema with the pinned CLI (from repository root):
+
+```sh
+pnpm --filter @lexon/backend exec auth generate --config src/infrastructure/db/auth/auth-generation.config.ts --output src/infrastructure/db/auth/auth-schema.ts --yes
+```
+
+Review generated changes before authoring an append-only migrator-owned SQL
+migration; never run schema push against runtime databases. Current migrations
+live in `backend/drizzle/`. The configured adapter transaction bridge binds native
+server APIs and narrow primitives to one callback-lifetime transaction; errors
+and unsuccessful native Responses roll back. Post-commit mail callbacks run only
+after the real outer commit. Personal creation is enforced by a migrator-owned
+trigger in the user insert transaction. Parent-row fencing plus constraints
+serialize concurrent last-owner and invitation transitions.
+
+Modules call native server APIs through the opaque AuthCommandSession. Private
+plugins perform dumb expected-state primitives; policy stays in modules. Auth SDK
+imports live here and runtime factories are limited to API/operator composition.
+Workers and the single public evaluation entry load neither auth nor SMTP SDKs.
+
+`lexon_auth` has no ops table privileges. Its audit writer is one fixed-search-path
+SECURITY DEFINER function validating event types and allowed metadata keys;
+only lexon_auth and lexon_app may execute it. lexon_app may INSERT directly;
+runtime roles cannot UPDATE/DELETE/TRUNCATE audit rows. Tenant AuditService.append
+requires a TenantSession and org-scoped event. Non-org events use the auth
+transaction writer. Unknown failed accounts use normalized-email HMAC correlation,
+never raw email/IP. Audit read access is test/later-view specific; F17 must filter
+through the authorization predicate builder because ops has no tenant RLS.
+
+The independent lexon_setup operator role has only narrow setup function grants,
+no table reads/writes, migrator privilege or direct audit INSERT. Each command
+attempt is audited, including pending/refused runs. API redemption and activation
+cannot begin grants. No member-departure outbox rows or dispatcher reservation
+exist; F18 owns that future mechanism.

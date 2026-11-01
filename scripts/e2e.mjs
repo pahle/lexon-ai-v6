@@ -1,3 +1,4 @@
+import { E2E_PROJECTS } from './e2e-projects.mjs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,12 +19,7 @@ async function port() {
 const args = process.argv.slice(2).filter((arg) => arg !== '--');
 const packageIndex = args.indexOf('--package');
 const selected = packageIndex < 0 ? undefined : args.splice(packageIndex, 2)[1];
-const mappings = {
-  backend: ['runtime-health', 'backend-api', 'topology'],
-  frontend: ['frontend-browser', 'identity-browser'],
-  shared: ['backend-api'],
-  evals: ['evaluation-smoke'],
-};
+const mappings = E2E_PROJECTS;
 if (selected && !mappings[selected]) throw new Error('Unknown E2E package');
 if (selected && !args.includes('--project'))
   for (const project of mappings[selected]) args.push('--project', project);
@@ -49,6 +45,8 @@ try {
       AUTH_SECRET: secret(),
       AUTH_AUDIT_HMAC_SECRET: secret(),
       AUTH_AUDIT_HMAC_KEY_ID: 'e2e-v1',
+      AUTH_OPEN_SIGNUP: 'true',
+      COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',
       SMTP_URL: 'smtp://127.0.0.1:2525',
       SMTP_FROM: 'lexon@example.test',
@@ -115,6 +113,7 @@ try {
             ...process.env,
             LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
             PLAYWRIGHT_NO_COPY_PROMPT: '1',
+            COMPOSE_PROFILES: '',
           },
           signal,
         },

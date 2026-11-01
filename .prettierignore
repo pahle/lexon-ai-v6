@@ -13,3 +13,5 @@ pnpm-lock.yaml
 docs/specs/
 docs/briefs/
 **/next-env.d.ts
+
+**/reports/mutation-identity/

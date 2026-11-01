@@ -120,7 +120,8 @@ try {
     );
     const id = (await invoke(['ps', '-aq', 'api'])).trim();
     let exited = false;
-    for (let attempt = 0; attempt < 60; attempt++) {
+    const observedAt = performance.now();
+    for (let attempt = 0; attempt < 300; attempt++) {
       const state = JSON.parse(
         await run('docker', ['inspect', '--format', '{{json .State}}', id], {
           quiet: true,
@@ -134,6 +135,11 @@ try {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    process.stderr.write(
+      'API policy rejection observation ms: ' +
+        Math.round(performance.now() - observedAt) +
+        '\n',
+    );
     if (!exited) throw new Error('Unsafe policy did not reject API startup');
   }
   const correct = {

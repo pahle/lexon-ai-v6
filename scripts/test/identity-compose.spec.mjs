@@ -89,3 +89,29 @@ test('identity Compose secrets are API/operator-only and Mailpit is optional eph
     await rm(directory, { recursive: true, force: true });
   }
 });
+test('package E2E filters include their identity projects and credential projects never retain browser state', async () => {
+  const { E2E_PROJECTS } = await import('../e2e-projects.mjs');
+  assert.ok(E2E_PROJECTS.frontend.includes('identity-browser'));
+  assert.ok(E2E_PROJECTS.backend.includes('identity-api'));
+  const config = (await import('../../playwright.config.ts')).default;
+  for (const name of ['identity-browser', 'identity-api']) {
+    const project = config.projects.find((project) => project.name === name);
+    assert.ok(project, name);
+    for (const setting of ['trace', 'video', 'screenshot'])
+      assert.equal(project.use?.[setting], 'off');
+    assert.equal(project.use?.storageState, undefined);
+  }
+});
+test('CI includes F1 pushes independent layers and the identity mutation gate', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
+  assert.match(workflow, /branches:.*f1-identity-organizations/);
+  assert.match(workflow, /unit-integration:/);
+  assert.match(workflow, /compose-e2e:/);
+  assert.match(
+    workflow,
+    /pnpm --filter @lexon\/backend test:mutation:identity/,
+  );
+  assert.match(workflow, /pnpm test:e2e/);
+  assert.ok(!workflow.includes('dev-mail'));
+});

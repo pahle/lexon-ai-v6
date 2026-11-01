@@ -60,3 +60,34 @@ test('cleanup failure still removes secret files and never accepts another proje
     /Invalid E2E project/,
   );
 });
+test('test and exercise-abort failures remove real private operator configuration', async () => {
+  const { mkdtemp, writeFile, stat, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  for (const abort of [false, true]) {
+    const directory = await mkdtemp(join(tmpdir(), 'lexon-cleanup-'));
+    const path = join(directory, 'operator-environment.json');
+    await writeFile(path, 'private-fixture', { mode: 0o600 });
+    assert.equal((await stat(path)).mode & 0o777, 0o600);
+    const controller = new AbortController();
+    let down = false;
+    await assert.rejects(
+      withOwnedStack({
+        project: 'lexon-e2e-abc123',
+        directory,
+        signal: controller.signal,
+        start: async () => {},
+        exercise: async () => {
+          if (abort) controller.abort();
+          throw new Error('exercise failed');
+        },
+        down: async () => {
+          down = true;
+        },
+        remove: (directory) => rm(directory, { recursive: true, force: true }),
+      }),
+    );
+    assert.equal(down, true);
+    await assert.rejects(stat(path), { code: 'ENOENT' });
+  }
+});

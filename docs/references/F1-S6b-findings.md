@@ -130,3 +130,31 @@ transport. Later F1 policy must prohibit that interchangeability and issue
 separate constrained Bearer sessions. Nothing is mounted in the production API
 root by this task. These limitations prevent calling the entire S6(b)/F1
 acceptance matrix complete at this stage.
+
+## Completed F1 follow-through (2026-11-01)
+
+The earlier section records the Task1 compatibility spike, not the final delivery
+status. The private transaction bridge is retained; a replacement adapter was not
+needed. Final production composition uses the community Nest adapter2.8.0 with
+its global native guard disabled, one deny-default raw auth handler and the Lexon
+membership/MFA guard. Non-auth JSON parsing remains owned by Nest composition;
+auth raw requests are bounded and validated before native dispatch. Guard session
+resolution and all four native plugins (organization, admin, two-factor, bearer)
+are exercised by actual PostgreSQL integration tests.
+
+`auth-compatibility`, `auth-http`, `auth-privileges`, `personal-organization`,
+`two-factor`, `reauthentication`, `tenant-guard`, `bearer-sessions`, and
+`identity-runtime` suites replace the spike's former unproven items with
+production-path evidence. Rollback after user insertion leaves neither user nor
+Personal; successful effects/audits share transactions. TOTP verification and
+recovery replacement sessions preserve explicit evidence and Bearer hard caps.
+Cookie and Bearer credentials are no longer interchangeable: issuance creates a
+separate session with hard expiry, independent selection and immediate revocation.
+No auth-role ops DML, arbitrary SQL port, impersonation or native organization
+HTTP escape is exposed. Strict pnpm deployment required explicit exact pins for
+already-locked Better Auth required peers; singleton TypeScript/Zod enforcement
+remains unchanged.
+
+The remaining limitation is deliberate: post-commit SMTP is not durable. F18
+handover, F19 renewal, F20 frontend no-egress and F2 shell remain outside F1.
+See [acceptance evidence](F1-acceptance.md) for final gates and coverage limits.
