@@ -38,3 +38,20 @@ radius-alias, and grid gaps (3 failures). Final token checks passed6/6,
 presentation checks6/6, boundary checks90/90, frontend tests21 across11 files,
 and frontend typecheck/formatting/diff checks passed. Browser-computed style
 verification remains in Task12; these are source-token and control-style checks.
+
+## Task 3 verification
+
+Commits: `51d019a`, `0a5750e`. Main-session spec and quality reviews passed.
+Personal-first traversal preserves Page/UUID cursor schemas, actor binding and
+existing pagination/selection/audit assertions; tests cover limits1/2, Personal
+sorting late, all teams once, Personal cursor and Personal-only accounts. The
+platform flag reuses the existing server-verified eligibility predicate. Real
+identity HTTP tests deny an unenrolled administrator and an old session after
+another session enrolls; those additional acceptance assertions passed immediately.
+
+Initial behavioral RED had3 failures; corrected-project GREEN passed17 tests in
+6 files. Contracts build, root typecheck/lint, backend typecheck and changed-file
+formatting passed. The plan's `--project shared` typo was corrected to the actual
+Vitest project `contracts`; the earlier separate unfiltered schema/client run
+also passed7 tests. Listing adds two bounded Personal fact lookups, no new
+endpoint or migration. Implementation model was verified as Luna/high.

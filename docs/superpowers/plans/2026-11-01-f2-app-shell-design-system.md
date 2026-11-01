@@ -132,7 +132,7 @@ assert.equal(tokens.rightPanelWidth, '320px');
 
 **Interfaces:** IdentitySummarySchema adds required `platformAdmin:z.boolean()` at top level; projection uses existing VerifiedIdentity eligibility, never a client claim. Existing list(input:Partial<Pagination>):Promise<Page<OrganizationSummary>> and UUID nextCursor unchanged. Private facts primitive may gain explicit presentation-order parameters; no policy imports in infrastructure.
 
-- [ ] **Step1 — Write failing schema/projection and cursor tests.** Required boolean accepted, missing/wrong type rejected; ordinary=false, eligible MFA-proven admin=true; pending/incomplete-MFA credentials retain existing denial. In real integration fixture create Personal with UUID after team UUIDs; traverse limits1 and2 until null, asserting Personal first then sorted teams, exact set, no duplicates. Assert personal cursor starts teams; unauthorized cursor cannot reveal another user's org; empty-team account yields Personal then null. Keep all F1 limit, selection and actor/audit assertions intact.
+- [x] **Step1 — Write failing schema/projection and cursor tests.** Required boolean accepted, missing/wrong type rejected; ordinary=false, eligible MFA-proven admin=true; pending/incomplete-MFA credentials retain existing denial. In real integration fixture create Personal with UUID after team UUIDs; traverse limits1 and2 until null, asserting Personal first then sorted teams, exact set, no duplicates. Assert personal cursor starts teams; unauthorized cursor cannot reveal another user's org; empty-team account yields Personal then null. Keep all F1 limit, selection and actor/audit assertions intact.
 
 ```ts
 expect(all.map((o) => o.kind)).toEqual(['personal', 'team', 'team']);
@@ -141,10 +141,10 @@ expect(first.pageInfo.nextCursor).toMatch(/^[0-9a-f-]{36}$/);
 expect(summary.platformAdmin).toBe(false);
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project shared --project backend-integration --project frontend shared/test/auth.spec.ts backend/test/integration/organizations.spec.ts backend/test/integration/identity-read-paths.spec.ts frontend/test/identity-client.spec.tsx`; expect schema/order failures.
-- [ ] **Step3 — Implement projection and bounded ordering.** Compute flag once from the same verified predicate already used by platform guards. First list page reserves a slot for actor's authorized Personal fact, then active teams in organization UUID order; subsequent cursors resume teams (Personal cursor means team start). Bound adapter reads and fill requested visible page/lookahead without counting Personal twice. Validate cursor against actor facts; retain existing F1 behavior for nonexistent/stale cursors unless tests/spec say otherwise. No broad SQL/native endpoint, parallel membership model, or cursor encoding change.
-- [ ] **Step4 — GREEN:** focused command, `pnpm --filter @lexon/contracts build`, root typecheck, backend identity privacy/platform HTTP tests. Verify exact preexisting list schema exported unchanged.
-- [ ] **Step5 — Commit:** stage Task3 files/fixture-only changes; commit `feat(identity): expose platform eligibility and order Personal first`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project contracts --project backend-integration --project frontend shared/test/auth.spec.ts backend/test/integration/organizations.spec.ts backend/test/integration/identity-read-paths.spec.ts frontend/test/identity-client.spec.tsx`; expect schema/order failures.
+- [x] **Step3 — Implement projection and bounded ordering.** Compute flag once from the same verified predicate already used by platform guards. First list page reserves a slot for actor's authorized Personal fact, then active teams in organization UUID order; subsequent cursors resume teams (Personal cursor means team start). Bound adapter reads and fill requested visible page/lookahead without counting Personal twice. Validate cursor against actor facts; retain existing F1 behavior for nonexistent/stale cursors unless tests/spec say otherwise. No broad SQL/native endpoint, parallel membership model, or cursor encoding change.
+- [x] **Step4 — GREEN:** focused command, `pnpm --filter @lexon/contracts build`, root typecheck, backend identity privacy/platform HTTP tests. Verify exact preexisting list schema exported unchanged.
+- [x] **Step5 — Commit:** stage Task3 files/fixture-only changes; commit `feat(identity): expose platform eligibility and order Personal first`.
 
 ### Task 4: Install theme provider and controlled appearance chooser
 
