@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
-import { descriptor } from './runtime-support';
-import { readCapturedMail } from './identity-support';
+import { descriptor } from './runtime-support.js';
+import { readCapturedMail } from './identity-support.js';
 test('entry pages are accessible and validate without social entry points', async ({
   page,
 }) => {

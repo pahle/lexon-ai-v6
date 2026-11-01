@@ -118,6 +118,7 @@ export function classifyImport({
   root,
   names = [],
   typeOnly = false,
+  loadKind,
 }) {
   const source = relative(root, resolve(importer)).replaceAll('\\', '/');
   const owner = source.split('/')[0];
@@ -129,6 +130,52 @@ export function classifyImport({
   const deny = (ruleId) => ({ allowed: false, ruleId });
   const inDb = source.startsWith('backend/src/infrastructure/db/');
   const inAi = source.startsWith('backend/src/infrastructure/ai/');
+  const authVendor =
+    /^(?:better-auth|@better-auth\/[^/]+|@thallesp\/nestjs-better-auth)(?:\/|$)/.test(
+      specifier,
+    );
+  const browserAuth =
+    owner === 'frontend' &&
+    ['better-auth/react', 'better-auth/client/plugins'].includes(specifier);
+  if (authVendor && !inDb && !browserAuth) return deny('auth-owner');
+  const dbPublic =
+    target === 'backend/src/infrastructure/db/index.ts' ||
+    target === 'backend/src/infrastructure/db/index.js';
+  const authTarget = target?.replace(/\.js$/, '.ts');
+  const testSource = source.startsWith('backend/test/');
+  if (dbPublic && owner === 'backend' && !inDb && !testSource && !typeOnly) {
+    if (
+      names.includes('*') ||
+      ['ImportExpression', 'ExportAllDeclaration'].includes(loadKind)
+    )
+      return deny('database-named');
+    if (
+      names.includes('createAuthRuntime') &&
+      source !== 'backend/src/modules/identity-access/identity-runtime.ts'
+    )
+      return deny('auth-runtime-owner');
+    if (
+      names.includes('createAdminSetupOperator') &&
+      source !== 'backend/src/entrypoints/admin-setup/main.ts'
+    )
+      return deny('auth-runtime-owner');
+  }
+  if (
+    owner === 'backend' &&
+    !testSource &&
+    !typeOnly &&
+    authTarget === 'backend/src/modules/identity-access/identity-runtime.ts' &&
+    source !== 'backend/src/bootstrap/api.ts'
+  )
+    return deny('auth-runtime-owner');
+  if (
+    owner === 'backend' &&
+    !testSource &&
+    !typeOnly &&
+    authTarget === 'backend/src/bootstrap/api.ts' &&
+    source !== 'backend/src/entrypoints/api/main.ts'
+  )
+    return deny('auth-runtime-owner');
   if (databasePackage(specifier) && !inDb) return deny('database-owner');
   if (aiPackage(specifier) && !inAi) {
     const client =

@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
-import { descriptor } from './runtime-support';
-import { readCapturedMail, authenticateApi } from './identity-support';
-import { operatorSetup, signupMode } from './setup-support';
-import { totpForUri } from '../setup/totp';
+import { descriptor } from './runtime-support.js';
+import { readCapturedMail, authenticateApi } from './identity-support.js';
+import { operatorSetup, signupMode } from './setup-support.js';
+import { totpForUri } from '../setup/totp.js';
 test('administrator setup is operator-only and platform provisioning never creates staff membership', async ({
   page,
   playwright,

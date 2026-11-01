@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { descriptor } from './runtime-support';
-import { authenticateApi } from './identity-support';
+import { descriptor } from './runtime-support.js';
+import { authenticateApi } from './identity-support.js';
 import { randomUUID } from 'node:crypto';
 test('onboarding and organization switches preserve Personal and last owner', async ({
   page,

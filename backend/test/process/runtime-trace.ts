@@ -17,11 +17,19 @@ registerHooks({
     return next(url, context);
   },
 });
-process.once('message', async (config: RuntimeConfig) => {
-  const { createRuntimeContext } =
-    await import('../../src/bootstrap/context.js');
-  const app = await createRuntimeContext('document-worker', config);
-  await app.close();
+process.once('message', async (config: RuntimeConfig | 'evaluation') => {
+  if (config === 'evaluation') {
+    const { createEvaluationContext } =
+      await import('../../src/evaluation/index.js');
+    const app = await createEvaluationContext();
+    await app.close();
+  } else {
+    if (config.runtime === 'api') throw new Error('Invalid import proof');
+    const { createRuntimeContext } =
+      await import('../../src/bootstrap/context.js');
+    const app = await createRuntimeContext(config.runtime, config);
+    await app.close();
+  }
   process.send?.({ loaded: [...loaded], listeners }, () =>
     process.disconnect(),
   );

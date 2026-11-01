@@ -33,7 +33,9 @@ export default {
             (node.specifiers?.length > 0 &&
               node.specifiers.every((item) => item.importKind === 'type'));
           const names = (node.specifiers ?? []).map(
-            (item) => item.imported?.name ?? '*',
+            (item) =>
+              item.imported?.name ??
+              (item.type === 'ExportSpecifier' ? item.local?.name : '*'),
           );
           const decision = classifyImport({
             root,
@@ -41,6 +43,7 @@ export default {
             specifier: source.value,
             names,
             typeOnly,
+            loadKind: node.type,
           });
           if (!decision.allowed) report(source, decision.ruleId, source.value);
         }

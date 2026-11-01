@@ -61,3 +61,57 @@ test('platform status grants no team privilege and denied policy has one safe er
     expect.objectContaining({ code: 'ORG_FORBIDDEN', status: 403 }),
   );
 });
+test('account and organization policy requires actual finite MFA evidence', () => {
+  const user = {
+    banned: false,
+    emailVerified: true,
+    twoFactorEnabled: false,
+    role: 'user',
+  };
+  expect(() => policy.requireAccount(user, null)).not.toThrow();
+  expect(() =>
+    policy.require({ action: 'leave', actorRole: 'member', kind: 'team' }),
+  ).not.toThrow();
+  for (const [account, mfa, options, code] of [
+    [{ ...user, banned: true }, null, {}, 'AUTH_REQUIRED'],
+    [
+      { ...user, emailVerified: false },
+      null,
+      {},
+      'AUTH_EMAIL_VERIFICATION_REQUIRED',
+    ],
+    [user, null, { platform: true }, 'ORG_FORBIDDEN'],
+    [{ ...user, role: 'admin' }, null, {}, 'AUTH_2FA_REQUIRED'],
+    [{ ...user, twoFactorEnabled: true }, null, {}, 'AUTH_2FA_REQUIRED'],
+    [
+      { ...user, twoFactorEnabled: true },
+      new Date(NaN),
+      {},
+      'AUTH_2FA_REQUIRED',
+    ],
+  ] as const)
+    expect(() => policy.requireAccount(account, mfa, options)).toThrow(
+      expect.objectContaining({ code }),
+    );
+  expect(() =>
+    policy.requireAccount({ ...user, twoFactorEnabled: true }, new Date()),
+  ).not.toThrow();
+  expect(() =>
+    policy.requireAccount(
+      { ...user, role: 'admin', twoFactorEnabled: true },
+      new Date(),
+      { platform: true },
+    ),
+  ).not.toThrow();
+  expect(() =>
+    policy.requireAccount({ ...user, twoFactorEnabled: true }, null, {
+      allowIncompleteMfa: true,
+    }),
+  ).not.toThrow();
+  for (const date of [null, new Date(NaN)])
+    expect(() => policy.requireOrganizationMfa(true, date)).toThrow(
+      expect.objectContaining({ code: 'AUTH_2FA_REQUIRED' }),
+    );
+  expect(() => policy.requireOrganizationMfa(true, new Date())).not.toThrow();
+  expect(() => policy.requireOrganizationMfa(false, null)).not.toThrow();
+});

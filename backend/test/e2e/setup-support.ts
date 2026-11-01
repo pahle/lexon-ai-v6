@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { descriptor } from './runtime-support';
+import { descriptor } from './runtime-support.js';
 async function compose(args: string[], overrides: Record<string, string> = {}) {
   const stack = descriptor();
   const env = JSON.parse(

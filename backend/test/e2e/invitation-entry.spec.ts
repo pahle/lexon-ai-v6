@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
-import { descriptor } from './runtime-support';
-import { authenticateApi, readCapturedMail } from './identity-support';
+import { descriptor } from './runtime-support.js';
+import { authenticateApi, readCapturedMail } from './identity-support.js';
 test('invitation new recipient signs up verifies and accepts without exposing another account', async ({
   page,
   playwright,

@@ -49,3 +49,53 @@ test('recent reauthentication expires at the boundary and rejects future or miss
     },
   );
 });
+test('nonfinite session MFA and clock evidence cannot authorize security changes', async () => {
+  const evidence = new SessionEvidence();
+  await withVerifiedIdentity(
+    {
+      ...facts,
+      mfaVerifiedAt: new Date(NaN),
+      reauthenticatedAt: new Date(NaN),
+    },
+    async (identity) => {
+      expect(() => evidence.requireMfa(identity)).toThrow(
+        expect.objectContaining({ code: 'AUTH_2FA_REQUIRED' }),
+      );
+      expect(() => evidence.requireRecent(identity, now, 300)).toThrow(
+        expect.objectContaining({ code: 'AUTH_REAUTH_REQUIRED' }),
+      );
+    },
+  );
+  await withVerifiedIdentity(
+    { ...facts, reauthenticatedAt: now },
+    async (identity) => {
+      expect(() => evidence.requireRecent(identity, now, 300)).not.toThrow();
+      expect(() =>
+        evidence.requireRecent(identity, new Date(NaN), 300),
+      ).toThrow();
+    },
+  );
+});
+import type { VerifiedIdentity } from '../../src/modules/identity-access/identity.types.js';
+test('forged and expired-scope identity objects cannot authorize even valid evidence', async () => {
+  const evidence = new SessionEvidence();
+  const valid = { ...facts, mfaVerifiedAt: now, reauthenticatedAt: now };
+  const forged = valid as unknown as VerifiedIdentity;
+  for (const operation of [
+    () => evidence.requireMfa(forged),
+    () => evidence.requireRecent(forged, now, 300),
+  ])
+    expect(operation).toThrow(
+      expect.objectContaining({ code: 'AUTH_REQUIRED' }),
+    );
+  let escaped: VerifiedIdentity | undefined;
+  await withVerifiedIdentity(valid, async (identity) => {
+    escaped = identity;
+  });
+  expect(() => evidence.requireMfa(escaped!)).toThrow(
+    expect.objectContaining({ code: 'AUTH_REQUIRED' }),
+  );
+  expect(() => evidence.requireRecent(escaped!, now, 300)).toThrow(
+    expect.objectContaining({ code: 'AUTH_REQUIRED' }),
+  );
+});

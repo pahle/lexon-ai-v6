@@ -51,3 +51,35 @@ test('consumed acceptance binds to the same user and requires extant membership'
     }),
   ).toBe('deny');
 });
+import { invitationStatus } from '../../src/modules/organizations/invitation-policy.js';
+test('status mapping expires exactly at deadline and rejects unknown native states', () => {
+  const now = new Date('2026-11-01T00:00:00Z');
+  expect(invitationStatus('pending', new Date(now.getTime() + 1), now)).toBe(
+    'pending',
+  );
+  for (const age of [0, 1])
+    expect(
+      invitationStatus('pending', new Date(now.getTime() - age), now),
+    ).toBe('expired');
+  for (const [native, publicStatus] of [
+    ['accepted', 'accepted'],
+    ['rejected', 'declined'],
+    ['canceled', 'cancelled'],
+  ] as const)
+    expect(invitationStatus(native, now, now)).toBe(publicStatus);
+  expect(() => invitationStatus('unknown', now, now)).toThrow(
+    'Invalid invitation status',
+  );
+});
+test('nonpending native states stay denied even before their recorded expiry', () => {
+  for (const status of ['rejected', 'canceled', 'expired', 'unknown'])
+    expect(
+      classifyInvitationAcceptance({
+        status,
+        expired: false,
+        acceptedByUserId: null,
+        actorUserId: 'recipient',
+        hasMembership: false,
+      }),
+    ).toBe('deny');
+});

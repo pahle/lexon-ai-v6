@@ -10,6 +10,15 @@ export function createAuditInspector(options: {
   const migrator = new Pool({ connectionString: options.migratorUrl });
   let fault = false;
   return {
+    async serializedEvents() {
+      return JSON.stringify(
+        (
+          await migrator.query(
+            'SELECT * FROM ops.audit_events ORDER BY occurred_at,event_id',
+          )
+        ).rows,
+      );
+    },
     async count(type: string) {
       return Number(
         (

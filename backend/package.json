@@ -16,7 +16,8 @@
     "format": "prettier --write --ignore-path ../.prettierignore .",
     "test:fixtures:build": "tsc -p test/process/tsconfig.json",
     "test:mutation": "stryker run stryker.config.mjs",
-    "identity:setup-admin": "node dist/entrypoints/admin-setup/main.js"
+    "identity:setup-admin": "node dist/entrypoints/admin-setup/main.js",
+    "test:mutation:identity": "stryker run stryker.identity.config.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",

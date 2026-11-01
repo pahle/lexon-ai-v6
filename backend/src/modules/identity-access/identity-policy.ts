@@ -26,7 +26,9 @@ export class IdentityPolicy {
     if (
       !options.allowIncompleteMfa &&
       (user.twoFactorEnabled || user.role === 'admin' || options.platform) &&
-      (!user.twoFactorEnabled || !mfaVerifiedAt)
+      (!user.twoFactorEnabled ||
+        !mfaVerifiedAt ||
+        !Number.isFinite(mfaVerifiedAt.getTime()))
     )
       throw new IdentityError('AUTH_2FA_REQUIRED', 403);
   }

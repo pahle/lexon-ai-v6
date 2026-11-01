@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { GenericContainer, Wait } from 'testcontainers';
@@ -28,6 +28,11 @@ export default async function setup(project: TestProject) {
       new URL('../process/tsconfig.json', import.meta.url).pathname,
     ],
     { timeout: 30000 },
+  );
+  await cp(
+    new URL('../../config/', import.meta.url),
+    new URL('../../.test-build/config/', import.meta.url),
+    { recursive: true },
   );
   const reuse = allowContainerReuse(process.env);
   const images = readContainerImages(

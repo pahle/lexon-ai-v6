@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
-import { descriptor } from './runtime-support';
-import { readCapturedMail } from './identity-support';
-import { totpForUri } from '../setup/totp';
+import { descriptor } from './runtime-support.js';
+import { readCapturedMail } from './identity-support.js';
+import { totpForUri } from '../setup/totp.js';
 test('security TOTP enrollment challenge and recovery are accessible and remain ephemeral', async ({
   page,
 }) => {
@@ -108,4 +108,22 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   expect(
     (await page.request.get(stack.frontendUrl + '/api/identity')).status(),
   ).toBe(200);
+});
+test('expired security session preserves its safe return intent', async ({
+  page,
+  context,
+}) => {
+  const stack = descriptor();
+  await context.addCookies([
+    {
+      name: 'better-auth.session_token',
+      value: 'expired-security-session',
+      url: stack.frontendUrl,
+    },
+  ]);
+  await page.goto(stack.frontendUrl + '/account/security');
+  await expect(page).toHaveURL(/\/sign-in/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe(
+    '/account/security',
+  );
 });

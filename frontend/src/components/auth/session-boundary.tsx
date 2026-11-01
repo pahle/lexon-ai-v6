@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
+import { safeReturnPath } from '../../lib/return-path';
 import { authClient } from '../../lib/auth-client';
 export function SessionBoundary({
   state,
@@ -20,7 +21,12 @@ export function SessionBoundary({
           setFailed(true);
           return;
         }
-        window.location.replace('/sign-in');
+        window.location.replace(
+          '/sign-in?returnTo=' +
+            encodeURIComponent(
+              safeReturnPath(window.location.pathname + window.location.search),
+            ),
+        );
       })
       .catch(() => {
         if (active) setFailed(true);
