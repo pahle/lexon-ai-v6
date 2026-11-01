@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { QueryProvider } from '../components/query-provider';
+import { ThemeProvider } from '../components/theme-provider';
 import './globals.css';
 export const metadata: Metadata = {
   title: 'Lexon',
@@ -8,9 +9,11 @@ export const metadata: Metadata = {
 };
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
