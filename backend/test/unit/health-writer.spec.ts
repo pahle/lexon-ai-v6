@@ -61,6 +61,7 @@ it('rejects snapshot fields that could carry secrets', async () => {
   ).toThrow('Invalid health snapshot');
 });
 it('marks EACCES unhealthy, attempts invalidation, and recovers on a later write', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
   let denied = true;
   const invalidate = vi.fn(async () => {
     await rm(path, { force: true });

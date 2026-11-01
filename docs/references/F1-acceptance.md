@@ -72,3 +72,23 @@ was used.
 - Tooling:89 tests passed, including isolation, manifest, boundaries and cleanup.
 - Identity mutation:218/218 killed,100%, no survivors/timeouts/no-coverage.
 - Filtered frontend Compose:12 scenarios passed. Filtered backend Compose:9 scenarios passed, including real wrong-policy rejection/recovery. Final full Compose:22/22 scenarios passed; owned-stack teardown left zero lexon-e2e containers.
+
+GitHub CI [run41287864124](https://github.com/pahle/lexon-ai-v6/actions/runs/41287864124) passed both jobs on682bc4a. Review fixes, if any, require fresh checks on the resulting revision.
+
+## Final review and fix verification
+
+The fresh targeted review found two Important issues: raw Express path aliases
+could bypass Lexon attempt quotas, and the operator CLI could report success
+while SMTP delivery was pending. Real HTTP IP/account quota and delayed SMTP
+CLI tests failed before fixes, then passed in the14-test focused regression set.
+Rate policy now uses the resolved canonical controller route. Operator success
+requires zero pending/failed deliveries; timeout leaves the committed grant and
+reports retry guidance. Out-of-order delivery proves only the latest issued setup
+proof remains live. No Critical or deferred Minor findings were reported.
+
+The first reviewer hit its model usage limit before verdict; the replacement
+completed the requested focused review. Review did not claim every changed line
+was independently read. See [execution decisions](F1-execution-decisions.md) for
+all recorded rulings, costs and corrections. The fixed revision passes328tests across89files, plus root lint/typecheck/build/format
+and89tooling checks. The fixed revision also passes all22Compose scenarios, with zero owned containers
+after cleanup. Both Important review findings are fixed; no deferred minors.

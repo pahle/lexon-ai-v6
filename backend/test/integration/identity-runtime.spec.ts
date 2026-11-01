@@ -124,3 +124,103 @@ test('auth database loss marks API readiness down while public liveness remains 
     await rm(directory, { recursive: true, force: true });
   }
 });
+test('Express case and trailing-slash aliases share preauthentication attempt quotas for every Lexon security route', async ({
+  services,
+}) => {
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-route-quota-'));
+  const config = loadRuntimeConfig('api', {
+    ...createAuthEnvironment(services, join(directory, 'health.json')),
+    AUTH_RATE_RULES_JSON: JSON.stringify(
+      Object.fromEntries(
+        ['signin', 'setup-redemption', 'bearer-issuance'].map((action) => [
+          action,
+          { account: 2, ip: 2, windowSeconds: 60 },
+        ]),
+      ),
+    ),
+  });
+  const app = await createApi(config, {
+    email: { send: async () => ({ messageId: 'test' }), drain: async () => {} },
+  });
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    for (const [path, body, initial] of [
+      [
+        '/identity/security/reauthenticate',
+        { password: 'Wrong-password-42!' },
+        401,
+      ],
+      ['/identity/admin-setup/redeem', { token: 'a'.repeat(43) }, 403],
+      ['/identity/bearer-sessions', {}, 401],
+    ] as const) {
+      const statuses = [];
+      for (const variant of [path, path + '/', path.toUpperCase()])
+        statuses.push(
+          (
+            await fetch(origin + '/api' + variant, {
+              method: 'POST',
+              headers: {
+                origin: config.auth.origin,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify(body),
+            })
+          ).status,
+        );
+      expect(statuses, path).toEqual([initial, initial, 429]);
+    }
+  } finally {
+    await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+test('resolved aliases share authenticated account quotas as well as IP quotas', async ({
+  services,
+}) => {
+  const { createTestApi, apiHeaders } = await import('../setup/test-api.js');
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-route-account-quota-'));
+  const config = loadRuntimeConfig('api', {
+    ...createAuthEnvironment(services, join(directory, 'health.json')),
+    AUTH_RATE_RULES_JSON: JSON.stringify(
+      Object.fromEntries(
+        ['signin', 'bearer-issuance'].map((action) => [
+          action,
+          { account: 2, ip: 100, windowSeconds: 60 },
+        ]),
+      ),
+    ),
+  });
+  const app = await createTestApi(config);
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    for (const path of [
+      '/identity/security/reauthenticate',
+      '/identity/bearer-sessions',
+    ]) {
+      const statuses = [];
+      for (const variant of [path, path + '/', path.toUpperCase()])
+        statuses.push(
+          (
+            await fetch(origin + '/api' + variant, {
+              method: 'POST',
+              headers: { ...headers, 'content-type': 'application/json' },
+              body: JSON.stringify(
+                path.includes('reauthenticate')
+                  ? { password: 'Authenticated-test-api-42!' }
+                  : {},
+              ),
+            })
+          ).status,
+        );
+      expect(statuses, path).toEqual(
+        path.includes('reauthenticate') ? [204, 204, 429] : [201, 201, 429],
+      );
+    }
+  } finally {
+    await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

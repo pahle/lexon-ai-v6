@@ -150,7 +150,11 @@ export async function createIdentityRuntime(
       bearerSeconds: settings.bearerSeconds,
       reauthSeconds: settings.reauthSeconds,
       requestPolicy: async (request, headers, userId) => {
-        const path = (request.originalUrl ?? request.url).split('?')[0]!;
+        // Express has already matched a controller route. Use its canonical
+        // template so accepted case/trailing-slash aliases share one policy.
+        const route = request.route as { path?: unknown } | undefined;
+        const path = typeof route?.path === 'string' ? route.path : '';
+        if (!path) throw new IdentityError('AUTH_REQUIRED', 403);
         if (path.startsWith('/api/health')) return;
         try {
           if (!userId && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {

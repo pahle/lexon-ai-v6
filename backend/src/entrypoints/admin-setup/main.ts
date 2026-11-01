@@ -66,12 +66,15 @@ if (input) {
       },
     });
     await mailer.drain(5000);
-    if (mailer.deliveryState().failed > 0)
-      throw new Error('Setup delivery failed');
+    const delivery = mailer.deliveryState();
+    if (delivery.failed > 0 || delivery.pending > 0)
+      throw new Error('Setup delivery incomplete');
     process.stdout.write(`Administrator setup: ${result.status}\n`);
     if (result.status === 'refused') process.exitCode = 1;
   } catch {
-    process.stderr.write('Administrator setup failed\n');
+    process.stderr.write(
+      'Administrator setup failed; retry the command to send a replacement link\n',
+    );
     process.exitCode = 1;
   } finally {
     try {

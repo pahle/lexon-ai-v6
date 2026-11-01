@@ -96,3 +96,68 @@ test('two actual operator CLI processes reserve at most one initial administrato
     );
   }
 });
+test('operator CLI reports retryable failure while SMTP is still pending beyond the delivery deadline', async ({
+  services,
+}) => {
+  const fixture = await createAdminSetupFixture(services);
+  const sockets = new Set<import('node:net').Socket>();
+  let rejected = false;
+  const smtp = createServer((socket) => {
+    sockets.add(socket);
+    socket.on('error', () => {});
+    socket.on('close', () => sockets.delete(socket));
+    const timer = setTimeout(() => {
+      rejected = true;
+      socket.end('421 delivery unavailable\r\n');
+    }, 8000);
+    socket.once('close', () => clearTimeout(timer));
+  });
+  await new Promise<void>((resolve) => smtp.listen(0, '127.0.0.1', resolve));
+  const address = smtp.address();
+  if (!address || typeof address === 'string')
+    throw new Error('SMTP fixture unavailable');
+  const before = await fixture.auditCount();
+  const email = randomUUID() + '@example.test';
+  try {
+    const command = new URL(
+      '../../dist/entrypoints/admin-setup/main.js',
+      import.meta.url,
+    ).pathname;
+    const outcome = await promisify(execFile)(
+      process.execPath,
+      [command, '--email', email, '--additional'],
+      {
+        env: {
+          PATH: process.env.PATH,
+          LEXON_SETUP_DATABASE_URL: fixture.url,
+          AUTH_PUBLIC_ORIGIN: 'http://localhost:3000',
+          AUTH_AUDIT_HMAC_SECRET: 'c'.repeat(48),
+          AUTH_AUDIT_HMAC_KEY_ID: 'cli-test',
+          SMTP_URL: 'smtp://127.0.0.1:' + address.port,
+          SMTP_FROM: 'lexon@example.test',
+        },
+        timeout: 15000,
+      },
+    ).then(
+      (result) => ({ code: 0, stdout: result.stdout, stderr: result.stderr }),
+      (error) => ({
+        code: (error as { code: number }).code,
+        stdout: (error as { stdout: string }).stdout,
+        stderr: (error as { stderr: string }).stderr,
+      }),
+    );
+    expect(rejected).toBe(true);
+    expect(outcome.code).toBe(1);
+    expect(
+      outcome.stdout.includes('created') || outcome.stdout.includes('pending'),
+    ).toBe(false);
+    expect(outcome.stderr).toContain('Administrator setup failed');
+    expect((outcome.stdout + outcome.stderr).includes(email)).toBe(false);
+    expect(await fixture.pendingCount(email)).toBe(1);
+    expect(await fixture.auditCount()).toBe(before + 1);
+  } finally {
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>((resolve) => smtp.close(() => resolve()));
+    await fixture.close();
+  }
+});

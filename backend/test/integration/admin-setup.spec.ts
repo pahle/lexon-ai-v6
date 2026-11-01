@@ -381,3 +381,65 @@ test('an existing team member cannot activate platform privileges through setup'
     await fixture.close();
   }
 });
+test('out-of-order setup delivery never restores a superseded pending token', async ({
+  services,
+}) => {
+  const fixture = await createAdminSetupFixture(services);
+  const proof = await createAuthFixture(services);
+  const email = randomUUID() + '@example.test';
+  const delivered: string[] = [];
+  let firstUrl = '';
+  let release: () => void = () => {};
+  let firstStarted: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    firstStarted = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const deps = {
+    operator: fixture.operator,
+    origin: proof.origin,
+    setupSeconds: 86400,
+    auditSecret: 'g'.repeat(48),
+    auditKeyId: 'ordering-test',
+    send: async ({ url }: { url: string }) => {
+      firstUrl = url;
+      firstStarted();
+      await pending;
+      delivered.push(url);
+    },
+  };
+  try {
+    const first = runAdminSetup({ email, additional: true }, deps);
+    await started;
+    const second = await runAdminSetup(
+      { email, additional: true },
+      {
+        ...deps,
+        send: async ({ url }) => {
+          delivered.push(url);
+        },
+      },
+    );
+    expect(second.status).toBe('pending');
+    release();
+    await first;
+    expect(delivered[1] === firstUrl).toBe(true);
+    expect(await fixture.pendingCount(email)).toBe(1);
+    const service = new AdminSetupService(
+      proof.integration,
+      new OrganizationAuthPort(proof.integration),
+    );
+    const newest = new URL(delivered[0]!).searchParams.get('token')!;
+    const obsolete = new URL(delivered[1]!).searchParams.get('token')!;
+    expect(await service.redeem(newest)).toEqual({ status: 'pending' });
+    await expect(service.redeem(obsolete)).rejects.toMatchObject({
+      status: 403,
+    });
+  } finally {
+    release();
+    await proof.close();
+    await fixture.close();
+  }
+});

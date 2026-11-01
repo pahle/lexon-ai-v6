@@ -6,7 +6,10 @@ Messages are dispatched after auth transaction commit; rollback discards callbac
 The delivery queue is process memory, not a durable mail outbox. SMTP failure does
 not reveal account existence or undo committed authorization; invitation resend
 and repeated operator setup provide explicit recovery. Process shutdown drains
-pending delivery within a bound. Later durable delivery requires a separate design.
+pending delivery within a bound. The operator command reports retryable failure if
+delivery is still pending or failed at its deadline, preserving the committed
+grant. Retry rotates the proof; an older message delivered later remains invalid.
+Later durable delivery requires a separate design.
 
 Runtime transport receives SMTP configuration only in API/operator composition.
 Mailpit is optional development-only, exact tag+digest in the shared image
