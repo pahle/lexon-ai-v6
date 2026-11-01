@@ -13,13 +13,15 @@ export function AuthCard({
   children,
 }: {
   title: string;
-  description?: string;
+  description?: string | undefined;
   children?: ReactNode;
 }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle>
+          <h1>{title}</h1>
+        </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent>{children}</CardContent>

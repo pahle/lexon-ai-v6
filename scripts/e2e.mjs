@@ -20,7 +20,7 @@ const packageIndex = args.indexOf('--package');
 const selected = packageIndex < 0 ? undefined : args.splice(packageIndex, 2)[1];
 const mappings = {
   backend: ['runtime-health', 'backend-api', 'topology'],
-  frontend: ['frontend-browser'],
+  frontend: ['frontend-browser', 'identity-browser'],
   shared: ['backend-api'],
   evals: ['evaluation-smoke'],
 };
@@ -106,6 +106,7 @@ try {
           env: {
             ...process.env,
             LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+            PLAYWRIGHT_NO_COPY_PROMPT: '1',
           },
           signal,
         },

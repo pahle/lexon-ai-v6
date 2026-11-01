@@ -9,6 +9,7 @@ export default defineConfig({
   reporter: 'list',
   use: { headless: true, trace: 'off' },
   projects: [
+    { name: 'identity-browser', testMatch: 'backend/test/e2e/*entry.spec.ts' },
     {
       name: 'runtime-health',
       testMatch: 'backend/test/e2e/runtime-health.spec.ts',

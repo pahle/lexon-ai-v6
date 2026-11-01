@@ -108,7 +108,13 @@ export async function createIdentityRuntime(
           );
         }
         if (rule.path === '/sign-up/email')
-          await accounts.authorizeSignup(tx, body);
+          await accounts.authorizeSignup(tx, {
+            name: body.name,
+            email: body.email,
+            password: body.password,
+            ...(body.invitationId ? { invitationId: body.invitationId } : {}),
+            ...(body.setupToken ? { setupToken: body.setupToken } : {}),
+          });
         const accountDone = await accounts.prepareOperation(
           tx,
           rule.path,

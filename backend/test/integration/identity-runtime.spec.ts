@@ -69,6 +69,7 @@ test('real API mounts restricted auth once, protects diagnostics and accepts inj
         name: 'Runtime identity',
         email,
         password: 'Runtime-identity-42!',
+        callbackURL: config.auth.origin + '/verify-email?state=confirmed',
       }),
     });
     expect(response.status).toBe(200);
