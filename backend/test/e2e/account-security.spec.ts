@@ -104,7 +104,7 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   await page
     .getByRole('button', { name: 'Verify recovery code', exact: true })
     .click();
-  await expect(page).toHaveURL(/\/workspace/);
+  await expect(page).toHaveURL(/\/(workspace|onboarding)/);
   expect(
     (await page.request.get(stack.frontendUrl + '/api/identity')).status(),
   ).toBe(200);

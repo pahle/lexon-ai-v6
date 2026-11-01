@@ -14,6 +14,7 @@ export default defineConfig({
       testMatch: [
         'backend/test/e2e/*entry.spec.ts',
         'backend/test/e2e/account-security.spec.ts',
+        'backend/test/e2e/organizations.spec.ts',
       ],
     },
     {

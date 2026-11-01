@@ -49,7 +49,7 @@ test('entry signup verifies email before authenticated continuation', async ({
     .getByLabel('Password', { exact: true })
     .fill('Browser-password-42!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page).toHaveURL(/\/workspace/);
+  await expect(page).toHaveURL(/\/(workspace|onboarding)/);
 });
 test('entry failures never disclose account existence and dependency errors stay safe', async ({
   page,

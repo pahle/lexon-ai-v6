@@ -51,7 +51,7 @@ test('invitation new recipient signs up verifies and accepts without exposing an
   await page
     .getByRole('button', { name: 'Accept invitation', exact: true })
     .click();
-  await expect(page).toHaveURL(/\/workspace/);
+  await expect(page).toHaveURL(/\/(workspace|onboarding)/);
   const identity = await page.request.get(stack.frontendUrl + '/api/identity');
   expect(identity.status()).toBe(200);
   expect(

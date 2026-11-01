@@ -78,5 +78,36 @@ test('invitation email id query reaches the acceptance action', async () => {
   expect(view.container.querySelector('button')?.textContent).toBe(
     'Accept invitation',
   );
+  expect(
+    [...view.container.querySelectorAll('button')].some(
+      (button) => button.textContent === 'Decline invitation',
+    ),
+  ).toBe(true);
   await view.unmount();
+});
+test('a rejected recipient can change accounts without losing invitation intent', async () => {
+  vi.stubGlobal('fetch', async () =>
+    Response.json(
+      { error: { code: 'INVITATION_UNAVAILABLE', message: 'Unavailable' } },
+      { status: 403 },
+    ),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      {await InvitationPage({
+        searchParams: Promise.resolve({
+          invitationId: '00000000-0000-4000-8000-000000000001',
+        }),
+      })}
+    </QueryClientProvider>,
+  );
+  await act(async () => view.container.querySelector('button')!.click());
+  await settle();
+  expect(
+    [...view.container.querySelectorAll('button')].some(
+      (button) => button.textContent === 'Use another account',
+    ),
+  ).toBe(true);
+  await view.unmount();
+  vi.unstubAllGlobals();
 });
