@@ -84,3 +84,49 @@ test('query failures show safe copy and never render or log exception details', 
   await act(async () => root.unmount());
   host.remove();
 });
+
+test('shared states use flex gaps on the design spacing grid', async () => {
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  await act(async () =>
+    root.render(
+      createElement(
+        'div',
+        null,
+        createElement(LoadingState, {}),
+        createElement(EmptyState, {
+          title: 'Empty',
+          description: 'Nothing here.',
+        }),
+        createElement(ErrorState, {}),
+        createElement(NoAccessState, {}),
+      ),
+    ),
+  );
+
+  const states = host.querySelectorAll('section');
+  expect(states).toHaveLength(4);
+  for (const state of states) {
+    expect(state.className).toContain('flex');
+    expect(state.className).toContain('flex-col');
+    expect(state.className).toContain('gap-2');
+    expect(state.className).not.toMatch(/space-y-/);
+  }
+  await act(async () => root.unmount());
+});
+
+test('page heading uses the design-system size, weight, and line height', async () => {
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  await act(async () =>
+    root.render(createElement(PageHeader, { title: 'Matters' })),
+  );
+
+  const heading = host.querySelector('h1');
+  expect(heading?.className).toContain(
+    'text-[length:var(--font-size-heading)]',
+  );
+  expect(heading?.className).toContain('font-semibold');
+  expect(heading?.className).toContain('leading-[1.5]');
+  await act(async () => root.unmount());
+});

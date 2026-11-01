@@ -7,7 +7,11 @@ export function LoadingState({
   message?: string | undefined;
 }) {
   return (
-    <section className="space-y-2 p-6" role="status" aria-live="polite">
+    <section
+      className="flex flex-col gap-2 p-6"
+      role="status"
+      aria-live="polite"
+    >
       <p>{message}</p>
     </section>
   );
@@ -23,7 +27,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <section className="space-y-2 p-6">
+    <section className="flex flex-col gap-2 p-6">
       <h2 className="text-xl font-semibold">{title}</h2>
       <p className="text-sm text-muted-foreground">{description}</p>
       {action ? <div className="pt-2">{action}</div> : null}
@@ -39,7 +43,7 @@ export function ErrorState({
   onRetry?: (() => void) | undefined;
 }) {
   return (
-    <section className="space-y-2 p-6" role="alert">
+    <section className="flex flex-col gap-2 p-6" role="alert">
       <p>{message}</p>
       {onRetry ? (
         <Button variant="outline" onClick={onRetry}>
@@ -56,7 +60,7 @@ export function NoAccessState({
   message?: string | undefined;
 }) {
   return (
-    <section className="space-y-2 p-6" role="alert">
+    <section className="flex flex-col gap-2 p-6" role="alert">
       <p>{message}</p>
     </section>
   );

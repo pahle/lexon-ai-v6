@@ -30,6 +30,7 @@ test('unavailable and expired states hide private content;503 preserves authenti
     ),
   );
   expect(host.querySelectorAll('main')).toHaveLength(0);
+  expect(host.querySelector('section')?.className).toContain('gap-2');
   expect(
     host.querySelector('a[href="/sign-in?returnTo=%2Fworkspace"]'),
   ).toBeNull();

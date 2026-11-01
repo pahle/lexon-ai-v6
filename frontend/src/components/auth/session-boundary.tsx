@@ -60,7 +60,7 @@ export function SessionBoundary({
   if (embedded) {
     return (
       <section
-        className="mx-auto max-w-md space-y-3 p-6"
+        className="mx-auto flex max-w-md flex-col gap-2 p-6"
         role="status"
         aria-live="polite"
       >
