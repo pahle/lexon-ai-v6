@@ -3,6 +3,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
+import { SidebarTrigger } from '../ui/sidebar';
+import { useIsMobile } from '../../hooks/use-mobile';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
 const securityPaths = new Set(['/account/security', '/settings/security']);
@@ -24,6 +26,7 @@ export function WorkspaceShell({
   const { identity, status, transitioning, fallbackNotice } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
+  const isMobile = useIsMobile();
   const securityRoute = securityPaths.has(pathname ?? '');
 
   if (status === 'expired' || status === 'unavailable')
@@ -72,6 +75,12 @@ export function WorkspaceShell({
             </aside>
           ) : null}
           <main id="main" tabIndex={-1} className="min-w-0 flex-1">
+            {sidebar && identity.user.onboardingCompleted ? (
+              <SidebarTrigger
+                className="mb-4"
+                aria-label={isMobile ? 'Open navigation' : 'Collapse sidebar'}
+              />
+            ) : null}
             {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
             {children}
           </main>

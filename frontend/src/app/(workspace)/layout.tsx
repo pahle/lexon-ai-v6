@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { WorkspaceProvider } from '../../components/shell/workspace-provider';
 import { WorkspaceShell } from '../../components/shell/workspace-shell';
+import { AppSidebar } from '../../components/shell/app-sidebar';
+import { SidebarProvider } from '../../components/ui/sidebar';
+import { TooltipProvider } from '../../components/ui/tooltip';
 import { loadWorkspaceBootstrap } from '../../lib/workspace-bootstrap';
 
 export const metadata = {
@@ -14,9 +18,14 @@ export default async function WorkspaceLayout({
   children: ReactNode;
 }) {
   const bootstrap = await loadWorkspaceBootstrap();
+  const sidebarCookie = (await cookies()).get('sidebar_state')?.value;
   return (
     <WorkspaceProvider bootstrap={bootstrap}>
-      <WorkspaceShell>{children}</WorkspaceShell>
+      <TooltipProvider>
+        <SidebarProvider defaultOpen={sidebarCookie !== 'false'}>
+          <WorkspaceShell sidebar={<AppSidebar />}>{children}</WorkspaceShell>
+        </SidebarProvider>
+      </TooltipProvider>
     </WorkspaceProvider>
   );
 }
