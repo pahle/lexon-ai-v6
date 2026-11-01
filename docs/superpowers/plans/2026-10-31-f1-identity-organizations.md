@@ -771,7 +771,7 @@ so existing build/global setup and file isolation remain active.
 - [x] **Step 2 — Confirm RED:** `node --test scripts/test/e2e-cleanup.spec.mjs scripts/test/identity-compose.spec.mjs`; inspect the acceptance matrix against the approved design and PR14 brief.
 - [x] **Step 3 — Implement:** Update workflow/project mappings/cleanup assertions and document local `.env` setup, optional `pnpm dev --mail`, the operator `docker compose run` wrapper, invitations/MFA/Bearer policy, test capture isolation and secret-safe debugging. Document exact BA schema generation and migrations, audit grants/F17 filtering, candidate incompatibility findings and resolved fallback decision, and F18/F19/F20 deferrals. S6(b) findings include the actual native 2FA/transaction bridge tests, all four plugins, raw body, guard getSession and role/schema proof. No handover/outbox reservation or full F2 shell appears in delivery.
 - [x] **Step 4 — Full verification:** Run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm build`, `pnpm test`, `node --test scripts/test/*.spec.mjs`, `pnpm --filter @lexon/backend test:mutation:identity`, and `pnpm test:e2e`. Verify filtered commands independently: `pnpm --filter @lexon/backend test`, `pnpm --filter @lexon/frontend test`, `pnpm --filter @lexon/contracts test`, and package-filtered E2E mappings. Expect all declared suites passing, axe zero violations in key states, no credentials in artifacts, clean owned-stack teardown and no runtime test-control code in production images. Record counts, meaningful limits and command/CI evidence without secrets. Repeat broad runs only after changes/failures justify them.
-- [ ] **Step 5 — Commit and handoff:** `git commit -m "ci(identity): verify F1 acceptance and document operations"`. Confirm branch and clean tree. Prepare the review description from actual behavior/evidence and push the completed branch and open the authorized PR from f1-identity-organizations to main after final review; never merge or push to main. Do not mark F1 complete if any integration proof or acceptance row remains unresolved.
+- [x] **Step 5 — Commit and handoff:** `git commit -m "ci(identity): verify F1 acceptance and document operations"`. Confirm branch and clean tree. Prepare the review description from actual behavior/evidence and push the completed branch and open the authorized PR from f1-identity-organizations to main after final review; never merge or push to main. Do not mark F1 complete if any integration proof or acceptance row remains unresolved.
 
 ## Self-review and execution handoff
 
@@ -795,3 +795,10 @@ items have test owners. Reconciled migration order, native server-only methods,
 Nodemailer bundled declarations, callback-lifetime/credential capabilities,
 worker import isolation, frontend liveness during scaffolding, and audit-only
 departure. No implementation or application-test result is claimed by this plan.
+
+
+Final handoff: all24tasks completed, both Important final-review findings fixed
+with failing-then-passing regressions,328tests and22Compose scenarios passing.
+[PR15](https://github.com/pahle/lexon-ai-v6/pull/15) targets main from
+f1-identity-organizations; no merge or main push. Full execution rulings and
+review limits are in docs/references/F1-execution-decisions.md.

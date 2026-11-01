@@ -92,3 +92,8 @@ was independently read. See [execution decisions](F1-execution-decisions.md) for
 all recorded rulings, costs and corrections. The fixed revision passes328tests across89files, plus root lint/typecheck/build/format
 and89tooling checks. The fixed revision also passes all22Compose scenarios, with zero owned containers
 after cleanup. Both Important review findings are fixed; no deferred minors.
+
+Handoff: [PR15](https://github.com/pahle/lexon-ai-v6/pull/15),
+`f1-identity-organizations`→`main`. All24plan tasks are checked from actual
+verification. The final push starts fresh CI; local passing results above are
+for the final implementation, not a claim about an unfinished remote run.
