@@ -1,0 +1,105 @@
+{
+  "version": "1.0",
+  "wordmark_artboard": {
+    "viewBox": "8 3 1631 472",
+    "width": 1631,
+    "height": 472
+  },
+  "monogram_geometry": {
+    "cap_width": 340,
+    "axis_x": 170.0,
+    "plate_tip_thickness": 37,
+    "pillars": [
+      {
+        "x": 104.0,
+        "width": 34
+      },
+      {
+        "x": 153.0,
+        "width": 34
+      },
+      {
+        "x": 202.0,
+        "width": 34
+      }
+    ],
+    "pillar_gutters": [
+      15,
+      15
+    ],
+    "cap_to_pillar_gap": 21,
+    "pillar_to_base_gap": 21
+  },
+  "exon": {
+    "source": "Georgia Regular (licensing is the owner's responsibility; no font files bundled)",
+    "scale": "uniform",
+    "x_height_units": 311
+  },
+  "L_foot_tip_vs_e_tail_apex_units": 0.0,
+  "letter_pair_min_gap_units": {
+    "L-e": 32,
+    "e-x": 54,
+    "x-o": 60,
+    "o-n": 58
+  },
+  "letter_pair_overlap": {
+    "L-e": false,
+    "e-x": false,
+    "x-o": false,
+    "o-n": false
+  },
+  "clear_space_units": {
+    "wordmark": 311,
+    "monogram": 132
+  },
+  "minimum_size_px": {
+    "wordmark": 200,
+    "wordmark_compact": 128,
+    "monogram": 64,
+    "monogram_small": 40,
+    "micro": 16
+  },
+  "marks": {
+    "files": 36,
+    "L_height_pct_of_container": {
+      "circle": [
+        61,
+        64,
+        67
+      ],
+      "square": [
+        71,
+        77,
+        83
+      ],
+      "tile": [
+        71,
+        77,
+        83
+      ]
+    },
+    "circle_max_radius_pct": [
+      81,
+      85,
+      89
+    ],
+    "tile_corner_radius_pct": 19
+  },
+  "contrast_wcag_2_2": {
+    "ink_on_parchment": 15.39,
+    "muted_on_parchment": 6.61,
+    "seal_on_parchment": 8.9,
+    "sage_on_parchment": 4.99,
+    "cream_on_seal": 8.9,
+    "cream_on_midnight": 15.06,
+    "cream_on_ink": 15.39,
+    "ink_on_vellum": 13.97,
+    "seal_on_vellum": 8.08,
+    "muted_on_vellum": 6.0
+  },
+  "checks_not_done": [
+    "trademark search",
+    "print proof (Pantone/CMYK)",
+    "user recognition test"
+  ]
+}

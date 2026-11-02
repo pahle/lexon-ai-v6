@@ -1,0 +1,78 @@
+{
+  "brand": "Lexon",
+  "description": "Legal AI Workspace for Indonesia",
+  "version": "1.0",
+  "palette": "Royal Seal",
+  "logo": {
+    "primary": "01_VECTOR/LEXON-wordmark-ink.svg",
+    "compact": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+    "monogram": "01_VECTOR/LEXON-monogram-ink.svg",
+    "monogram_small": "01_VECTOR/LEXON-monogram-small-ink.svg",
+    "micro": "01_VECTOR/LEXON-monogram-micro-ink.svg",
+    "favicon": "03_APP_ICONS/favicon.svg",
+    "marks": "01_VECTOR/marks/LEXON-mark-{circle|square|tile}-{seal|ink|midnight|parchment}[-small|-micro].svg",
+    "variants": [
+      "ink",
+      "seal",
+      "cream"
+    ],
+    "wordmark_aspect_ratio": {
+      "width": 1631,
+      "height": 472
+    },
+    "clear_space": "wordmark: the x-height (311 units, 19% of its width); monogram: the width of the pillar group (132 units, 22% of its width)",
+    "minimum_screen_size_px": {
+      "wordmark": 200,
+      "wordmark_compact": 128,
+      "monogram": 64,
+      "monogram_small": 40,
+      "micro": 16
+    }
+  },
+  "colors": {
+    "ink": "#1F1717",
+    "seal": "#7A1F2E",
+    "seal_deep": "#6A1A28",
+    "sage": "#5F6B48",
+    "parchment": "#F6EFE2",
+    "vellum": "#EEE4D2",
+    "mist": "#E5D9C3",
+    "border": "#D8C9AD",
+    "muted": "#5E5248",
+    "midnight": "#2A1519",
+    "slate": "#3A1E24"
+  },
+  "contrast_wcag_2_2": {
+    "ink_on_parchment": 15.39,
+    "muted_on_parchment": 6.61,
+    "seal_on_parchment": 8.9,
+    "sage_on_parchment": 4.99,
+    "cream_on_seal": 8.9,
+    "cream_on_midnight": 15.06,
+    "cream_on_ink": 15.39,
+    "ink_on_vellum": 13.97,
+    "seal_on_vellum": 8.08,
+    "muted_on_vellum": 6.0
+  },
+  "typography": {
+    "brand_wordmark": "outlined vector artwork only; never typeset live",
+    "headlines": "Georgia Regular (the typeface the wordmark letters come from; licensing is the owner's responsibility)",
+    "interface": "Inter",
+    "fallback": "system-ui, sans-serif"
+  },
+  "spacing_px": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    48,
+    64
+  ],
+  "radius_px": {
+    "small": 6,
+    "medium": 10,
+    "large": 16
+  }
+}

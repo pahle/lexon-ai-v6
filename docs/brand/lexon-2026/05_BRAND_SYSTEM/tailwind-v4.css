@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@theme inline {
+  --color-lexon-ink: #1F1717;
+  --color-lexon-seal: #7A1F2E;
+  --color-lexon-seal-deep: #6A1A28;
+  --color-lexon-sage: #5F6B48;
+  --color-lexon-parchment: #F6EFE2;
+  --color-lexon-vellum: #EEE4D2;
+  --color-lexon-mist: #E5D9C3;
+  --color-lexon-border: #D8C9AD;
+  --color-lexon-muted: #5E5248;
+  --color-lexon-midnight: #2A1519;
+  --color-lexon-slate: #3A1E24;
+}

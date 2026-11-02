@@ -12,6 +12,8 @@ pnpm-lock.yaml
 # Source-of-truth inputs retain their authored formatting.
 docs/specs/
 docs/briefs/
+# Product owner brand package; checksums in 08_QA must keep matching.
+docs/brand/
 **/next-env.d.ts
 
 **/reports/mutation-identity/
