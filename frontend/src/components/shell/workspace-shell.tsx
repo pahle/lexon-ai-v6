@@ -10,7 +10,10 @@ const PanelHostContext = createContext<HTMLElement | null>(null);
 const securityPaths = new Set(['/settings/security']);
 function SkipLink() {
   return (
-    <a className="sr-only focus:not-sr-only" href="#main">
+    <a
+      className="sr-only inline-flex min-h-11 items-center focus:not-sr-only"
+      href="#main"
+    >
       Skip to content
     </a>
   );

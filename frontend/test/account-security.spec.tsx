@@ -6,6 +6,34 @@ import { RecoveryCodes } from '../src/components/auth/recovery-codes';
 import { SessionList } from '../src/components/auth/session-list';
 import { AccountSecurity } from '../src/components/auth/account-security';
 import { PageHeader } from '../src/components/shell/page-header';
+import { TwoFactorEnrollment } from '../src/components/auth/two-factor-enrollment';
+
+vi.mock('../src/lib/auth-client', () => ({
+  authClient: {
+    twoFactor: {
+      enable: async () => ({
+        error: null,
+        data: {
+          totpURI:
+            'otpauth://totp/Lexon:person%40example.test?issuer=Lexon&secret=ABC123',
+          backupCodes: ['standalone-code'],
+        },
+      }),
+      verifyTotp: async () => ({ error: null, data: {} }),
+    },
+  },
+}));
+vi.mock('../src/components/auth/authentication-code-form', () => ({
+  AuthenticationCodeForm: ({
+    onSubmit,
+  }: {
+    onSubmit: (input: { code: string }) => Promise<void>;
+  }) => (
+    <button onClick={() => void onSubmit({ code: '123456' })}>
+      Complete enrollment
+    </button>
+  ),
+}));
 test('dismissed recovery codes leave no rendered copy or stored value', async () => {
   function Host() {
     const [show, setShow] = useState(true);
@@ -26,6 +54,50 @@ test('dismissed recovery codes leave no rendered copy or stored value', async ()
   );
   expect(sessionStorage.length + localStorage.length).toBe(0);
   await view.unmount();
+});
+
+test('recovery codes use h1 in standalone enrollment and h2 within account security', async () => {
+  vi.stubGlobal('fetch', async () => new Response(null, { status: 204 }));
+  const standalone = await render(
+    <TwoFactorEnrollment onComplete={async () => {}} />,
+  );
+  const password = standalone.container.querySelector(
+    'input[autocomplete="current-password"]',
+  ) as HTMLInputElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(password, 'Strong-password-4!');
+    password.dispatchEvent(new Event('input', { bubbles: true }));
+    password.dispatchEvent(new Event('change', { bubbles: true }));
+    standalone.container
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+  await settle();
+  await act(async () =>
+    (standalone.container.querySelector('button') as HTMLButtonElement).click(),
+  );
+  expect(standalone.container.querySelectorAll('h1')).toHaveLength(1);
+  expect(standalone.container.querySelectorAll('h2')).toHaveLength(0);
+  expect(standalone.container.textContent).toContain('standalone-code');
+  await standalone.unmount();
+
+  const embedded = await render(
+    <>
+      <PageHeader title="Security settings" />
+      <RecoveryCodes
+        codes={['embedded-code']}
+        headingLevel={2}
+        onDismiss={() => {}}
+      />
+    </>,
+  );
+  expect(embedded.container.querySelectorAll('h1')).toHaveLength(1);
+  expect(embedded.container.querySelectorAll('h2')).toHaveLength(1);
+  await embedded.unmount();
+  vi.unstubAllGlobals();
 });
 test('session list distinguishes Browser and Bearer and revokes only by safe id', async () => {
   const id = '00000000-0000-4000-8000-000000000001';

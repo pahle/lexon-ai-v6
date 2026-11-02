@@ -35,6 +35,7 @@ export function TwoFactorEnrollment({
     return (
       <RecoveryCodes
         codes={codes}
+        headingLevel={headingLevel}
         onDismiss={() => {
           setCodes(null);
           void onComplete();

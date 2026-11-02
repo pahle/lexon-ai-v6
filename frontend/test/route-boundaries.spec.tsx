@@ -23,6 +23,7 @@ import UnmatchedPlatformPage from '../src/app/(workspace)/platform/[...unmatched
 import UnmatchedOnboardingPage from '../src/app/(workspace)/onboarding/[...unmatched]/page';
 import RootError from '../src/app/error';
 import WorkspaceError from '../src/app/(workspace)/error';
+import AuthLayout from '../src/app/(auth)/layout';
 
 test('bare organizations, bare organization IDs, and nested unknown paths call notFound', async () => {
   expect(() => OrganizationsPage()).toThrow('not-found');
@@ -60,6 +61,10 @@ test('root not-found UI stays generic and links home', async () => {
   expect(view.container.querySelectorAll('h1')).toHaveLength(1);
   expect(view.container.textContent).not.toContain('internal');
   expect(view.container.querySelector('a[href="/workspace"]')).not.toBeNull();
+  expect(view.container.querySelector('a[href="#main"]')).not.toBeNull();
+  expect(view.container.querySelector('main')?.getAttribute('tabindex')).toBe(
+    '-1',
+  );
   await view.unmount();
 });
 
@@ -69,6 +74,10 @@ test('error boundaries show safe copy and retry without rendering error details'
   const root = await render(<RootError error={unsafe} retry={retry} />);
   expect(root.container.textContent).not.toContain(unsafe.message);
   expect(root.container.querySelectorAll('main')).toHaveLength(1);
+  expect(root.container.querySelector('a[href="#main"]')).not.toBeNull();
+  expect(root.container.querySelector('main')?.getAttribute('tabindex')).toBe(
+    '-1',
+  );
   await root.unmount();
   const workspace = await render(
     <WorkspaceError error={unsafe} retry={retry} />,
@@ -79,4 +88,20 @@ test('error boundaries show safe copy and retry without rendering error details'
     workspace.container.querySelector('a[href="/workspace"]'),
   ).not.toBeNull();
   await workspace.unmount();
+});
+
+test('auth layout includes a visible-on-focus skip link to its focusable main', async () => {
+  const view = await render(
+    <AuthLayout>
+      <h1>Sign in</h1>
+    </AuthLayout>,
+  );
+  const link = view.container.querySelector('a[href="#main"]');
+  const main = view.container.querySelector('main');
+  expect(link).not.toBeNull();
+  expect(link?.className).toContain('focus:not-sr-only');
+  expect(link?.className).toContain('min-h-11');
+  expect(main?.id).toBe('main');
+  expect(main?.getAttribute('tabindex')).toBe('-1');
+  await view.unmount();
 });
