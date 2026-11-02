@@ -166,3 +166,12 @@ links and active state, role and cross-org denial before loaders mount, role
 refresh cache removal, platform loader denial, index redirects, shell-prefix
 catch-alls, safe errors, and the three organization not-found cases. Detailed
 RED/GREEN commands and commit are recorded in the Task 10 report.
+
+Task10 review completion: commits `a5abc00`, `02ca5b6`, `cb4f901`. Main-session
+spec/quality reviews passed after role-filtered navigation, embedded Security
+composition, shared enrollment/recovery heading levels, skip links and lost-org
+recovery corrections. Browser test URLs/selectors are migrated without dropping
+F1 scenarios; actual browser execution remains Task12. Final frontend102 tests/19
+files, focused29 tests, typecheck/lint90/root build/format passed. The approved
+organization route tree compiles; the unit tests invoke its explicit notFound
+branches. Native browser in-shell404 rendering is still a Task12 assertion.
