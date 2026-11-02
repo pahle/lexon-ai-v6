@@ -367,6 +367,31 @@ The filtered keyboard-flow E2E passes 1/1 in the disposable stack at
 typecheck pass. The full local E2E suite was not repeated; CI is expected to
 rerun all cases at the new commit.
 
+## Final review correction 4: async organization-list keyboard focus
+
+Subsequent CI run `41476711106` passed unit/integration checks and failed only
+the popup's assertion that the first team row already held focus. The same case
+passed in the previous CI run and locally. A held-response browser diagnostic
+showed that while the organization list was pending, only the fallback
+Personal row and Create control were rendered. Base UI initially focused
+Create inside the popup; after the 19 choices rendered in both the mobile Sheet
+and desktop view, focus remained on Create. The failure was a test assumption
+that an async query was already committed when the popup opened.
+
+The popup acceptance case now opens while the real list response is held,
+checks the loading state and Create focus, releases the response, waits for 19
+rendered choices, then uses Shift+Tab to reach the first row and Tab through
+every choice to Next. Existing page-two Create and viewport reachability checks
+remain. It does not programmatically focus a team. The route gate is released
+and unregistered in `finally`. No production source changed.
+
+Playwright Route `fetch`/`fulfill` behavior was checked against the official
+1.64.1 API reference on 2026-11-02: https://playwright.dev/docs/api/class-route.
+The isolated two-viewport popup case passes 1/1 at
+`/tmp/f2-finalfix-logs/popup-final-ci-race.log`; targeted Prettier, ESLint and
+backend typecheck pass. The full E2E suite was not rerun locally; remote CI
+will verify all cases on this commit.
+
 ## Review closure and execution decisions
 
 The main session accepted the whole-branch review and scoped corrections.

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Route } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
@@ -259,29 +259,89 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     { width: 1024, height: 460 },
   ]) {
     await page.setViewportSize(viewport);
-    const organizationList = page.waitForResponse(
-      (response) =>
-        response.url().includes('/api/organizations?limit=20') &&
-        response.request().method() === 'GET',
-    );
-    await page.goto(stack.frontendUrl + '/workspace');
-    expect((await organizationList).status()).toBe(200);
-    if (viewport.width < 768) {
-      await page.getByRole('button', { name: 'Open navigation' }).click();
-    }
-    const organization = page.getByRole('button', {
-      name: 'Organization: Personal',
+    let releaseOrganizationResponse!: () => void;
+    let signalBufferedResponse!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseOrganizationResponse = resolve;
     });
-    await organization.focus();
-    await page.keyboard.press('Enter');
-    const popup = page.getByTestId('organization-popup');
-    await expect(popup).toBeVisible();
+    const responseBuffered = new Promise<void>((resolve) => {
+      signalBufferedResponse = resolve;
+    });
+    const organizationListPattern = /\/api\/organizations\?limit=20$/;
+    const organizationListRoute = async (route: Route) => {
+      const response = await route.fetch();
+      signalBufferedResponse();
+      await responseGate;
+      await route.fulfill({ response });
+    };
+    let popup!: Locator;
+    let create!: Locator;
+    let organizationListStatus: number;
+    await page.route(organizationListPattern, organizationListRoute);
+    try {
+      await page.goto(stack.frontendUrl + '/workspace');
+      await responseBuffered;
+      if (viewport.width < 768) {
+        await page.getByRole('button', { name: 'Open navigation' }).click();
+      }
+      const organization = page.getByRole('button', {
+        name: 'Organization: Personal',
+      });
+      await organization.focus();
+      await page.keyboard.press('Enter');
+      popup = page.getByTestId('organization-popup');
+      await expect(popup).toBeVisible();
+      create = popup.getByRole('button', { name: 'Create a team' });
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const popupElement = document.querySelector(
+              '[data-testid="organization-popup"]',
+            );
+            return popupElement?.contains(document.activeElement) ?? false;
+          }),
+        )
+        .toBe(true);
+      await expect(
+        popup.getByRole('button', { name: /^F2 popup team/ }),
+      ).toHaveCount(0);
+      await expect(create).toBeFocused();
+      const organizationList = page.waitForResponse(
+        (response) =>
+          response.url().includes('/api/organizations?limit=20') &&
+          response.request().method() === 'GET',
+      );
+      releaseOrganizationResponse();
+      organizationListStatus = (await organizationList).status();
+    } finally {
+      releaseOrganizationResponse();
+      await page.unroute(organizationListPattern, organizationListRoute);
+    }
+    expect(organizationListStatus).toBe(200);
     await expect(
       popup.getByRole('button', { name: /^F2 popup team/ }),
     ).toHaveCount(19);
     const firstChoice = popup
       .getByRole('button', { name: /^F2 popup team/ })
       .first();
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const focusState = await page.evaluate(() => {
+        const popupElement = document.querySelector(
+          '[data-testid="organization-popup"]',
+        );
+        const choices = Array.from(
+          popupElement?.querySelectorAll('button') ?? [],
+        ).filter((button) => button.textContent?.startsWith('F2 popup team'));
+        return {
+          insidePopup: !!popupElement?.contains(document.activeElement),
+          firstChoice: choices[0] === document.activeElement,
+        };
+      });
+      if (focusState.firstChoice) break;
+      if (!focusState.insidePopup)
+        throw new Error('Keyboard focus left the organization popup');
+      await page.keyboard.press('Shift+Tab');
+    }
     await expect(firstChoice).toBeFocused();
     const dimensions = await popup.evaluate((element) => ({
       height: element.clientHeight,
@@ -297,15 +357,12 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     const lastChoice = popup
       .getByRole('button', { name: /^F2 popup team/ })
       .last();
-    await lastChoice.scrollIntoViewIfNeeded();
-    await expect(lastChoice).toBeVisible();
-    // Start the paging assertion from the last in-popup row so keyboard Tab
-    // proves the next control is reachable without depending on popup autofocus.
-    await lastChoice.focus();
     const next = popup.getByRole('button', { name: 'Next page' });
-    for (let index = 0; index < 4; index++) {
-      if (await next.evaluate((element) => element === document.activeElement))
-        break;
+    for (let index = 0; index < 24; index++) {
+      const isFocused = await next.evaluate(
+        (element) => element === document.activeElement,
+      );
+      if (isFocused) break;
       await page.keyboard.press('Tab');
       const focusState = await page.evaluate(() => ({
         active: document.activeElement?.textContent?.trim(),
@@ -320,14 +377,22 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       }
     }
     await expect(next).toBeFocused();
+    await expect(lastChoice).toBeVisible();
+    const lastChoiceRect = await lastChoice.boundingBox();
     const nextRect = await next.boundingBox();
+    const popupRect = await popup.boundingBox();
+    expect(lastChoiceRect).not.toBeNull();
     expect(nextRect).not.toBeNull();
+    expect(popupRect).not.toBeNull();
+    expect(lastChoiceRect!.y).toBeGreaterThanOrEqual(popupRect!.y);
+    expect(lastChoiceRect!.y + lastChoiceRect!.height).toBeLessThanOrEqual(
+      popupRect!.y + popupRect!.height,
+    );
     expect(nextRect!.y + nextRect!.height).toBeLessThanOrEqual(viewport.height);
     await page.keyboard.press('Enter');
     await expect(
       popup.getByRole('button', { name: /^F2 popup team/ }),
     ).toHaveCount(1);
-    const create = popup.getByRole('button', { name: 'Create a team' });
     await popup.getByRole('button', { name: 'First page' }).focus();
     await page.keyboard.press('Tab');
     await expect(create).toBeFocused();
