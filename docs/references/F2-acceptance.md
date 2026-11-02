@@ -346,6 +346,27 @@ frontend production build pass. Logs: `/tmp/f2-finalfix-logs/identity-race-works
 `identity-race-build-final.log`. The prior 427-unit and 34-E2E results belong
 to the preceding fix commit and were not rerun for this narrow correction.
 
+## Final review correction 3: same-URL reload test synchronization
+
+CI run `41430736312` passed unit/integration checks, then failed one of 34 E2E
+cases at the organization switch reload assertion. The switch intentionally
+reloads `/workspace` at the same URL. Polling `page.evaluate(performance.timeOrigin)`
+could overlap that document replacement and throw `Execution context was
+destroyed`. The failure was in test synchronization; the app completed the
+expected full-document navigation.
+
+The browser test now registers `page.waitForEvent('domcontentloaded')` before
+Enter, awaits the next document event, verifies the changed document time
+origin, then confirms the newly selected organization. This avoids an already
+matching URL wait and does not retry evaluation errors or add a delay. The
+Playwright 1.64.1 Page API was checked against the official documentation on
+2026-11-02: https://playwright.dev/docs/api/class-page.
+
+The filtered keyboard-flow E2E passes 1/1 in the disposable stack at
+`/tmp/f2-finalfix-logs/reload-sync-e2e.log`; Prettier, focused ESLint, and backend
+typecheck pass. The full local E2E suite was not repeated; CI is expected to
+rerun all cases at the new commit.
+
 ## Review closure and execution decisions
 
 The main session accepted the whole-branch review and scoped corrections.

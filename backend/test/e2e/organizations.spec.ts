@@ -102,11 +102,13 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   });
   await expect(teamButton).toBeVisible();
   await tabTo(page, teamButton);
+  const nextDocumentLoaded = page.waitForEvent('domcontentloaded');
   await page.keyboard.press('Enter');
+  await nextDocumentLoaded;
   await expect(page).toHaveURL(/\/workspace$/);
-  await expect
-    .poll(() => page.evaluate(() => performance.timeOrigin))
-    .toBeGreaterThan(documentBeforeSwitch);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBeGreaterThan(
+    documentBeforeSwitch,
+  );
   await expect(
     page.getByRole('button', { name: 'Organization: Keyboard team' }),
   ).toBeVisible();
