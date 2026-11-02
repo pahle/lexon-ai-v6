@@ -702,8 +702,11 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.textContent).toContain('No conversations yet.');
   const userSettingsTrigger = document.body.querySelector(
-    'button[aria-label="Settings: Ada Lovelace"]',
-  ) as HTMLButtonElement;
+    'button[title="Ada Lovelace"]',
+  ) as HTMLButtonElement | null;
+  if (!userSettingsTrigger)
+    throw new Error('User menu trigger was not rendered');
+  expect(userSettingsTrigger.getAttribute('aria-label')).toBeNull();
   await act(async () => userSettingsTrigger.click());
   await settle();
   const settingsItem = [

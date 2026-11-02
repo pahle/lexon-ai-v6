@@ -40,7 +40,6 @@ export function UserMenu() {
           render={
             <Button
               variant="ghost"
-              aria-label={`Settings: ${name}`}
               title={collapsed ? name : undefined}
               className={
                 collapsed

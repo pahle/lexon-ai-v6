@@ -3,6 +3,185 @@ import AxeBuilder from '@axe-core/playwright';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { randomUUID } from 'node:crypto';
+
+async function tabTo(
+  page: import('@playwright/test').Page,
+  locator: import('@playwright/test').Locator,
+): Promise<void> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement))
+      return;
+    await page.keyboard.press('Tab');
+  }
+  throw new Error('Keyboard tab order did not reach the requested control');
+}
+
+test('F2 keyboard flow signs in, switches teams, changes appearance, and signs out', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const email = randomUUID() + '@example.test';
+  const password = 'F2-keyboard-42!';
+  const headers = { origin: stack.frontendUrl };
+  expect(
+    (
+      await page.request.post(stack.apiUrl + '/api/auth/sign-up/email', {
+        headers,
+        data: { name: 'F2 Keyboard', email, password },
+      })
+    ).status(),
+  ).toBe(200);
+  const mail = await (
+    await import('./identity-support.js')
+  ).readCapturedMail(stack.project, email, 'verification');
+  const verify = new URL(mail.actionUrl);
+  verify.searchParams.delete('callbackURL');
+  expect(
+    (
+      await page.request.get(stack.apiUrl + verify.pathname + verify.search)
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await page.request.post(stack.apiUrl + '/api/auth/sign-in/email', {
+        headers,
+        data: { email, password },
+      })
+    ).status(),
+  ).toBe(200);
+  const teamResponse = await page.request.post(
+    stack.apiUrl + '/api/organizations',
+    {
+      headers,
+      data: {
+        name: 'Keyboard team',
+        slug: 'keyboard-' + randomUUID().slice(0, 8),
+      },
+    },
+  );
+  expect(teamResponse.status()).toBe(201);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  await page.request.post(stack.frontendUrl + '/api/auth/sign-out', {
+    headers,
+    data: {},
+  });
+
+  await page.goto(stack.frontendUrl + '/sign-in');
+  const emailInput = page.getByLabel('Email', { exact: true });
+  await tabTo(page, emailInput);
+  await page.keyboard.type(email);
+  const passwordInput = page.getByLabel('Password', { exact: true });
+  await tabTo(page, passwordInput);
+  await page.keyboard.type(password);
+  const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
+  await tabTo(page, signIn);
+  const organizationListResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/organizations?limit=20') &&
+      response.request().method() === 'GET',
+  );
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/workspace$/);
+  expect((await organizationListResponse).status()).toBe(200);
+
+  const switcher = page.getByRole('button', { name: 'Organization: Personal' });
+  await tabTo(page, switcher);
+  await expect(switcher).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(switcher).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('Organizations', { exact: true })).toBeVisible();
+  const documentBeforeSwitch = await page.evaluate(
+    () => performance.timeOrigin,
+  );
+  const teamButton = page.getByRole('button', {
+    name: 'Keyboard team',
+    exact: true,
+  });
+  await expect(teamButton).toBeVisible();
+  await tabTo(page, teamButton);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/workspace$/);
+  await expect
+    .poll(() => page.evaluate(() => performance.timeOrigin))
+    .toBeGreaterThan(documentBeforeSwitch);
+  await expect(
+    page.getByRole('button', { name: 'Organization: Keyboard team' }),
+  ).toBeVisible();
+
+  const sidebarSettings = page.getByRole('link', {
+    name: 'Settings',
+    exact: true,
+  });
+  await tabTo(page, sidebarSettings);
+  const documentBeforeSettingsNavigation = await page.evaluate(
+    () => performance.timeOrigin,
+  );
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/settings\/profile$/);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(
+    documentBeforeSettingsNavigation,
+  );
+  const appearanceLink = page.getByRole('link', {
+    name: 'Appearance',
+    exact: true,
+  });
+  await tabTo(page, appearanceLink);
+  await page.keyboard.press('Enter');
+  const systemTheme = page.getByRole('radio', { name: 'System' });
+  await tabTo(page, systemTheme);
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+  const userMenu = page.getByRole('button', { name: /F2 Keyboard/ });
+  await tabTo(page, userMenu);
+  await page.keyboard.press('ArrowDown');
+  const settingsMenuItem = page.getByRole('menuitem', {
+    name: 'Settings',
+    exact: true,
+  });
+  await expect(settingsMenuItem).toBeFocused();
+  const signOut = page.getByRole('menuitem', { name: 'Sign out', exact: true });
+  await expect(signOut).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(signOut).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/sign-in$/);
+});
+
+test('F2 cross-organization settings URL shows no access without requesting protected data', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request);
+  const own = await page.request.post(stack.apiUrl + '/api/organizations', {
+    headers,
+    data: { name: 'Own team', slug: 'own-' + randomUUID().slice(0, 8) },
+  });
+  const otherId = randomUUID();
+  expect(own.status()).toBe(201);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  const protectedRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes(`/api/organizations/${otherId}/`))
+      protectedRequests.push(request.url());
+  });
+  await page.goto(
+    `${stack.frontendUrl}/organizations/${otherId}/settings/invitations`,
+  );
+  await expect(page.locator('section[role="alert"]')).toContainText(
+    'You no longer have access to this organization',
+  );
+  expect(protectedRequests).toEqual([]);
+});
+
 test('onboarding and organization switches preserve Personal and last owner', async ({
   page,
 }) => {
@@ -27,17 +206,18 @@ test('onboarding and organization switches preserve Personal and last owner', as
   await page
     .getByRole('button', { name: 'Finish onboarding', exact: true })
     .click();
-  await expect(page.getByTestId('active-organization')).toHaveText('Personal');
+  await expect(
+    page.getByRole('button', { name: 'Organization: Personal' }),
+  ).toBeVisible();
   await expect(
     page.getByRole('link', { name: 'Organization settings', exact: true }),
   ).toHaveCount(0);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page
-    .getByRole('button', { name: 'Switch to First team', exact: true })
-    .click();
-  await expect(page.getByTestId('active-organization')).toHaveText(
-    'First team',
-  );
+  await page.getByRole('button', { name: 'Organization: Personal' }).click();
+  await page.getByRole('button', { name: 'First team', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Organization: First team' }),
+  ).toBeVisible();
   await page
     .getByRole('link', { name: 'Organization settings', exact: true })
     .click();
@@ -50,7 +230,7 @@ test('onboarding and organization switches preserve Personal and last owner', as
   );
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
-test('organization entry clears stale cookies without a redirect loop', async ({
+test('F2 organization entry clears stale cookies without a redirect loop', async ({
   page,
   context,
 }) => {
@@ -68,10 +248,11 @@ test('organization entry clears stale cookies without a redirect loop', async ({
     page.getByRole('heading', { name: 'Sign in', exact: true }),
   ).toBeVisible();
 });
-test('organization 2FA standby and member removal preserve safe Personal selection', async ({
+test('F2 organization 2FA standby and active-page member removal preserve safe Personal selection', async ({
   page,
   playwright,
 }) => {
+  test.setTimeout(90000);
   const stack = descriptor();
   const owner = await playwright.request.newContext();
   const headers = await authenticateApi(owner);
@@ -90,7 +271,13 @@ test('organization 2FA standby and member removal preserve safe Personal selecti
     teams.push(team);
     const invite = await owner.post(
       stack.apiUrl + '/api/organizations/' + team.id + '/invitations',
-      { headers, data: { email: recipient.email, role: 'member' } },
+      {
+        headers,
+        data: {
+          email: recipient.email,
+          role: name === 'Ordinary team' ? 'admin' : 'member',
+        },
+      },
     );
     const invitation = (await invite.json()) as { id: string };
     expect(invite.status()).toBe(201);
@@ -129,27 +316,72 @@ test('organization 2FA standby and member removal preserve safe Personal selecti
     ).status(),
   ).toBe(200);
   await page.goto(stack.frontendUrl + '/workspace');
+  await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await page
-    .getByRole('button', { name: 'Switch to Protected team', exact: true })
+    .getByRole('button', { name: 'Protected team', exact: true })
     .click();
-  await expect(page.getByTestId('active-organization')).toHaveText('Personal');
+  await expect(
+    page.getByRole('button', { name: 'Organization: Personal' }),
+  ).toBeVisible();
   await expect(
     page
       .getByRole('status')
       .filter({ hasText: 'Your current organization is unchanged' }),
   ).toContainText('Your current organization is unchanged');
   await page
-    .getByRole('button', { name: 'Switch to Ordinary team', exact: true })
+    .getByRole('button', { name: 'Ordinary team', exact: true })
     .click();
-  await expect(page.getByTestId('active-organization')).toHaveText(
-    'Ordinary team',
-  );
+  await expect(
+    page.getByRole('button', { name: 'Organization: Ordinary team' }),
+  ).toBeVisible();
+  const invitationsPath = `${stack.frontendUrl}/organizations/${teams[1]!.id}/settings/invitations`;
+  const invitedDataRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      request.url().includes(`/api/organizations/${teams[1]!.id}/invitations`)
+    )
+      invitedDataRequests.push(request.url());
+  });
+  await page.goto(invitationsPath);
+  await expect(
+    page.getByRole('heading', { name: 'Invitations', exact: true }),
+  ).toBeVisible();
+  expect(invitedDataRequests.length).toBeGreaterThan(0);
   const members = (await (
     await owner.get(
       stack.apiUrl + '/api/organizations/' + teams[1]!.id + '/members',
     )
-  ).json()) as { items: { id: string; userId: string }[] };
+  ).json()) as { items: { id: string; userId: string; role: string }[] };
   const member = members.items.find((row) => row.userId === recipient.id)!;
+  expect(member.role).toBe('admin');
+  const protectedRoleRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      request.url().includes(`/api/organizations/${teams[1]!.id}/invitations`)
+    )
+      protectedRoleRequests.push(request.url());
+  });
+  expect(
+    (
+      await owner.patch(
+        `${stack.apiUrl}/api/organizations/${teams[1]!.id}/members/${member.id}`,
+        { headers, data: { role: 'member' } },
+      )
+    ).status(),
+  ).toBe(200);
+  await expect(page.locator('section[role="alert"]')).toContainText(
+    'You do not have access to this organization setting.',
+  );
+  expect(protectedRoleRequests).toEqual([]);
+  await page.goto(stack.frontendUrl + '/workspace');
+  await expect(
+    page.getByRole('button', { name: 'Organization: Ordinary team' }),
+  ).toBeVisible();
+  let identityRefreshes = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/identity')
+      identityRefreshes += 1;
+  });
   expect(
     (
       await owner.delete(
@@ -162,12 +394,30 @@ test('organization 2FA standby and member removal preserve safe Personal selecti
       )
     ).status(),
   ).toBe(204);
-  await expect(page.getByTestId('active-organization')).toHaveText('Personal');
   await expect(
-    page.getByRole('status').filter({ hasText: 'You no longer have access' }),
-  ).toContainText('You no longer have access');
+    page.getByRole('button', { name: 'Organization: Personal' }),
+  ).toBeVisible();
+  const fallback = page
+    .getByRole('status')
+    .filter({ hasText: 'You no longer have access' });
+  await expect(fallback).toContainText('You no longer have access');
+  await expect(fallback).toHaveCount(1);
+  const refreshesAfterFallback = identityRefreshes;
+  await expect
+    .poll(() => identityRefreshes, { timeout: 15000 })
+    .toBeGreaterThan(refreshesAfterFallback);
+  await expect(fallback).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Switch to Ordinary team', exact: true }),
+    page.getByRole('button', { name: 'Organization: Personal' }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(fallback).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Organization: Personal' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Organization: Personal' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Ordinary team', exact: true }),
   ).toHaveCount(0);
   await owner.dispose();
 });

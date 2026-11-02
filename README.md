@@ -80,13 +80,14 @@ networks, volumes and private files, including on startup failure/interruption.
 Install the exact runner's browser first: `pnpm exec playwright install chromium`
 (on Linux, add `--with-deps`). Project filters are:
 
-| Project            | Proof                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `runtime-health`   | Four runtime/data health checks and host access                                                |
-| `backend-api`      | Shared health/validation contracts and built eval export                                       |
-| `frontend-browser` | SSR/browser version, same-origin query and validation                                          |
-| `topology`         | Network memberships, document-worker no-egress, secret scope, Valkey policy rejection/recovery |
-| `evaluation-smoke` | Public evaluation context in the built backend image                                           |
+| Project            | Proof                                                                                           |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `runtime-health`   | Four runtime/data health checks and host access                                                 |
+| `backend-api`      | Shared health/validation contracts and built eval export                                        |
+| `frontend-browser` | SSR/browser version, same-origin query and validation                                           |
+| `identity-browser` | F1 identity journeys and F2 shell, themes, accessibility, route access, and keyboard regression |
+| `topology`         | Network memberships, document-worker no-egress, secret scope, Valkey policy rejection/recovery  |
+| `evaluation-smoke` | Public evaluation context in the built backend image                                            |
 
 For example, `pnpm test:e2e -- --project runtime-health`. Filtered backend E2E
 runs runtime/API/topology; frontend runs browser; contracts runs backend API;
@@ -214,3 +215,10 @@ See [F1 acceptance evidence](docs/references/F1-acceptance.md) and
 authorization predicate builder; `ops` has no tenant RLS. F20 owns frontend
 no-egress enforcement: development `edge` remains host-accessible, with the
 frontend off `core` and free of backend secrets. F2 owns shell/navigation.
+
+F2 user settings are `/settings/profile`, `/settings/security`, and
+`/settings/appearance`. Team settings are under
+`/organizations/<id>/settings/{members,invitations,general}` according to the
+member's role. Platform operators use `/platform/provisioning` and
+`/platform/accounts`. The sidebar is presentation only; each route still uses
+the F1 backend authorization checks. See [F2 acceptance evidence](docs/references/F2-acceptance.md).

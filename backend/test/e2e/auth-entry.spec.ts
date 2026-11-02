@@ -3,6 +3,20 @@ import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { readCapturedMail } from './identity-support.js';
+
+test('F2 auth entry pages expose the shared skip target and responsive page landmarks', async ({
+  page,
+}) => {
+  const base = descriptor().frontendUrl;
+  for (const path of ['sign-in', 'sign-up', 'two-factor']) {
+    await page.goto(base + '/' + path);
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('main')).toHaveCount(1);
+    await expect(page.locator('a[href="#main"]')).toHaveCount(1);
+    await expect(page).toHaveTitle(/\S/);
+  }
+});
+
 test('entry pages are accessible and validate without social entry points', async ({
   page,
 }) => {

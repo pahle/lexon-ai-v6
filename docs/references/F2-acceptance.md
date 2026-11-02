@@ -188,3 +188,84 @@ with typecheck/lint/build/format checks. No dependencies/lockfile changes.
 Registry inspection identified27 generated files/9 dependencies/5 overwrites;
 only the inert Thread/Composer/List primitive closure was retained. No New,
 Send, overflow, attachment, tool, voice, model or branch/edit/reload controls.
+
+## Task 12 acceptance coverage
+
+| Brief item | Acceptance evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–3        | `scripts/test/design-tokens.spec.mjs` checks the single light/dark token map, contrast, radius, spacing, focus, shell dimensions and reduced-motion tokens; `backend/test/e2e/app-shell.spec.ts` checks computed sidebar transition at normal and reduced motion.                                                                                                                                                                                                                            |
+| 4          | `backend/test/e2e/theme-before-hydration.spec.ts` checks light/dark/local-system values before React hydration while external scripts are blocked; `backend/test/e2e/shell-accessibility.spec.ts` checks System follows light/dark OS changes and no theme API request occurs; `backend/test/e2e/account-security.spec.ts` checks a saved browser theme survives reload and navigation.                                                                                                      |
+| 5          | `frontend/test/right-panel.spec.tsx` exercises the existing named RightPanel fixture and focus return; the live mobile sidebar sheet in `backend/test/e2e/app-shell.spec.ts` exercises actual browser Tab/Shift+Tab containment and close/Escape focus return. No production fixture route was added.                                                                                                                                                                                        |
+| 6          | `backend/test/e2e/app-shell.spec.ts` checks collapse button, Ctrl+B, persisted collapsed state after reload, mobile sheet at 375/767px and desktop sidebar at 768px; it checks route navigation closes the sheet.                                                                                                                                                                                                                                                                            |
+| 7          | `backend/test/e2e/app-shell.spec.ts`, `backend/test/e2e/organizations.spec.ts`, and `backend/test/e2e/platform-identity.spec.ts` exercise Home/settings/org/platform links, active-page state, organization-role visibility and platform hiding.                                                                                                                                                                                                                                             |
+| 8          | `backend/test/integration/organizations.spec.ts` and `frontend/test/sidebar.spec.tsx` retain F1 pagination and UUID cursor assertions; existing switch/create coverage remains in `backend/test/e2e/organizations.spec.ts`. The F2 keyboard flow waits for a real organization list response and performs a keyboard switch/full reload; the active-page test covers 2FA standby without selection change.                                                                                   |
+| 9          | Existing user-menu sign-out/error coverage remains in `frontend/test/sidebar.spec.tsx`; that fixture now selects by the rendered collapsed-state title and verifies no overriding accessible label. Keyboard sign-out runs in `backend/test/e2e/organizations.spec.ts`.                                                                                                                                                                                                                      |
+| 10         | `backend/test/e2e/organizations.spec.ts` changes a real active member from admin to member, verifies denied settings and no invitations-data fetch, then removes the member while active and checks Personal fallback/one notice after a subsequent identity refresh. `backend/test/e2e/platform-identity.spec.ts` verifies an ordinary user's denied route makes no platform API request.                                                                                                   |
+| 11–15      | `backend/test/e2e/shell-accessibility.spec.ts` scans actual Profile, Security, Appearance, General, Members and Invitations pages in both themes; `backend/test/e2e/platform-identity.spec.ts` scans the actual platform page in both themes under an operator session. `backend/test/e2e/auth-entry.spec.ts` covers auth landmarks; `backend/test/e2e/account-security.spec.ts` covers browser-local appearance persistence. Existing role, contract and F1 security flows remain in place. |
+| 16–18      | `backend/test/e2e/app-shell.spec.ts` verifies the Home welcome/empty scaffold, disabled composer, no `/api/chat` request, collapse state and in-shell error routes. `scripts/test/f2-route-inventory.spec.mjs` asserts the frontend contains no chat endpoint or backend theme-preference API path.                                                                                                                                                                                          |
+| 19–20      | `backend/test/e2e/app-shell.spec.ts` verifies workspace not-found for `/organizations`, valid organization bare-root, and unknown nested path while retaining Workspace navigation; it distinguishes root `/not-a-route` and legacy `/account/security` not-found from the shell and checks removed organization `/members` and `/invitations` paths. `backend/test/e2e/organizations.spec.ts` checks a stale session route and cross-organization no-access without protected data fetch.   |
+| 21         | `backend/test/e2e/shell-accessibility.spec.ts` scans rendered Sign in, Sign up and two-factor pages in both themes; `backend/test/e2e/auth-entry.spec.ts` retains sign-up/verification browser behavior.                                                                                                                                                                                                                                                                                     |
+| 22         | Existing `frontend/test/auth-proxy.spec.tsx` retains unauthenticated shell redirects and signed-in auth-entry redirects; `backend/test/e2e/organizations.spec.ts` verifies stale-session clearing.                                                                                                                                                                                                                                                                                           |
+| 23         | Existing identity contract/integration coverage retains the additive platform-admin summary and backend authorization checks; `backend/test/e2e/platform-identity.spec.ts` exercises real ordinary-user denial and a real operator's platform page. Default rate limits are covered by `backend/test/integration/auth-limiter.spec.ts` and `backend/test/integration/auth-http.spec.ts`, not by the identity policy mutation gate.                                                           |
+| 24         | `backend/test/e2e/shell-accessibility.spec.ts` scans auth, Home, Profile, Security, Appearance, General, Members and Invitations in light and dark with axe tags WCAG 2.0 A/AA, 2.1 A/AA and 2.2 AA. `backend/test/e2e/platform-identity.spec.ts` scans the rendered platform provisioning page in both themes under a real operator session.                                                                                                                                                |
+| 25         | `backend/test/e2e/organizations.spec.ts` performs sign-in, organization switch, Settings/Appearance, theme selection and sign-out by keyboard. The test waits for the real organizations-list response before tabbing to the switcher; settings client navigation retains document time origin while organization switching performs a full reload.                                                                                                                                          |
+| 26         | Every scanned auth/shell/settings/org/platform page asserts one `h1`, one `main`, one skip link, and a nonempty title. `backend/test/e2e/app-shell.spec.ts` separately checks workspace and root not-found landmarks.                                                                                                                                                                                                                                                                        |
+
+The F1 public `Page<OrganizationSummary>` response and UUID cursor shape are
+unchanged. `backend/test/integration/organizations.spec.ts` retains backend
+pagination/selection assertions, and `frontend/test/sidebar.spec.tsx` retains
+the list cursor UI coverage. Backend source continues to have no
+`sidebar_state` reference; the cookie controls display only.
+
+## Task 12 tools and harness
+
+No new dependency or test framework was added. The installed pins are
+`@playwright/test`/`playwright-core` 1.64.1, `@axe-core/playwright` 4.14.0,
+`next-themes` 0.4.6, and Playwright's browser installer supplied Chromium for
+the local acceptance run (`pnpm exec playwright install chromium`). The
+versioned Playwright API references were read on 2026-11-02:
+[page.addInitScript](https://playwright.dev/docs/api/class-page#page-add-init-script),
+[page.route](https://playwright.dev/docs/api/class-page#page-route),
+[page.emulateMedia](https://playwright.dev/docs/api/class-page#page-emulate-media),
+and [Playwright accessibility testing](https://playwright.dev/docs/accessibility-testing).
+The official [next-themes v0.4.6 documentation](https://github.com/pacocoursey/next-themes/tree/v0.4.6)
+supports the inline pre-hydration storage/class behavior under test. WCAG
+contrast and non-text contrast thresholds were checked against the W3C WCAG
+2.2 Recommendation on 2026-11-02.
+
+The owned disposable E2E Compose stack supplies a test-only IP budget of 100
+per 600 seconds for the `signup` and `verification-resend` actions through
+`compose.identity.yml`; each account limit remains 3 and each window remains
+600 seconds. Signup verification links consume the latter action. This override
+is not in the default production Compose file or production application
+configuration. The full E2E suite exercises auth flows without exhausting its
+single shared test client IP; `backend/test/integration/auth-limiter.spec.ts`
+and `backend/test/integration/auth-http.spec.ts` retain proof of the default
+production rate limits.
+
+## Task 12 final verification
+
+Final complete outputs are captured in `/tmp/task12-gates/*-final.log` and
+`/tmp/task12-gates/e2e-final.log`:
+
+- `pnpm format:check` — PASS.
+- `pnpm lint` — PASS, including 91 boundary/design-policy assertions.
+- `pnpm typecheck` — PASS across shared, backend, frontend and evals.
+- `pnpm build` — PASS across workspace packages; Next.js 16.4.3 emitted all
+  workspace/auth/settings/platform routes.
+- `pnpm test` — PASS, 421 tests across 99 files.
+- `node --test scripts/test/*.spec.mjs` — PASS, 104/104 tests.
+- `pnpm --filter @lexon/backend test:mutation:identity` — PASS, 218/218
+  mutants killed, 100.00% mutation score against an 80% break threshold.
+- `pnpm test:e2e` — PASS, 31/31 Playwright browser/API/topology tests, 0
+  failures; the command started and cleaned up its owned Compose stack.
+
+The required focused command was run during the verification cycle. Its early
+failures were setup/selector corrections and the user-menu axe defect described
+above; the final full E2E run includes the settled F2 cases and passes 31/31.
+The user-menu accessible-name correction is the only production source change
+in Task12 and is supported by the observed axe failure. The E2E-only override
+also received a test-first Compose assertion that failed before the overlay
+mapping and passed after it. Existing test selectors, CI branch trigger, route
+guidance and test-only harness settings do not alter production auth rules,
+public identity contracts, cursor behavior or backend authorization.

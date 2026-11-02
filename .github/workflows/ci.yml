@@ -2,7 +2,8 @@ name: Lexon
 on:
   pull_request:
   push:
-    branches: [f0-foundation, f1-identity-organizations]
+    branches:
+      [f0-foundation, f1-identity-organizations, f2-app-shell-design-system]
 permissions:
   contents: read
 concurrency:
