@@ -1,16 +1,13 @@
 # Project state
 
-Last updated: 2026-11-01 by the brief generator (session 1).
+Last updated: 2026-11-02 by the brief generator (session 1).
 
 ## Next action
 
-**F1 merged to `main` (PR #15, review fix PR #16).** F2 brief in draft
-PR #17 (with LEX-DS-001 v1.1 dark tokens and LEX-TS-001 v1.8 `next-themes`).
-Next: product owner merges PR #17, then Codex brainstorms F2
-(`playbooks/support-implementer.md`); review spec and plan.
-
-Housekeeping: obsolete remote branches may need deleting by the product
-owner; this sandbox cannot delete remote refs.
+**F2 merged to `main` (PR #20) and reviewed (`reviews/F2-review.md`, no
+fixes).** Next: F3 AI Run Engine brief (LEX-ARC-001 §4.7), carrying the F3
+follow-ups below. Execution preference: subagent-driven, implementers on
+"gpt-6 luna" high.
 
 ## Slice status
 
@@ -20,7 +17,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 |---|---|---|
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
-| F2 App shell & design system | Brief merged (PR #17); awaiting Codex brainstorming | Notes: `notes/F2-app-shell.md` |
+| F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F3–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -70,6 +67,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - Better Auth skills (5, upstream has no license file) vendored by product-owner decision; `karpathy-guidelines` (MIT) vendored for all slices (PR #9).
 
 - F2 brainstorming (2026-11-01): dark mode in the MVP (LEX-DS-001 v1.1, `next-themes` in LEX-TS-001 v1.8); scaffold from shadcn blocks and assistant-ui registry/examples; sidebar shows only working destinations; Home = assistant-ui chat scaffold (disabled composer, F4 connects it); settings URLs tidied without redirects (F1 paths never used in production).
+
+- F2 execution (2026-11-02): product owner wants subagent-driven execution with implementer model fixed (gpt-6 luna, high); main session reviews.
+- F4: replace F2's inert assistant-ui runtime with the ChatTransport; sidebar conversation group gets real history.
+- F18: org list pagination filters non-active orgs after the lookahead (see reviews/F2-review.md).
 
 ## Lessons learned (apply to every brief)
 
