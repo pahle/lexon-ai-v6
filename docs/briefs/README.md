@@ -16,6 +16,7 @@ third-party product.
 | F0 | Foundation: pnpm monorepo, `shared/`, frontend + backend scaffolds, four backend entrypoints, config/logging/health, local Docker Compose (Postgres, Valkey, SeaweedFS), DB roles + schemas, `withTenant` + fail-closed RLS, ESLint boundary rules, Vitest/Playwright/Stryker, CI | — | S6 | [F0](F0-foundation.md) |
 | F1 | Identity & Organizations: Better Auth (email/password, verification, password reset, 2FA, sessions and revocation), transactional email, onboarding, user profile, organizations, members, invitations, org roles, member offboarding, platform admin, `proxy.ts` redirects | F0 | S6 (b) | [F1](F1-identity-organizations.md) |
 | F2 | App shell & design system: tokens from LEX-DS-001 (light and dark), layout (sidebar / main / right panel), navigation, empty/error/loading states, user settings (profile, security, appearance), org settings, assistant-ui chat scaffold on Home, a11y checks | F1 | — | [F2](F2-app-shell-design-system.md) |
+| F2.1 | Visual rework: rebuild F1/F2 presentation 1:1 from shadcn `login-02`, `signup-02`, `sidebar-07` and the assistant-ui example; apply the Lexon brand (LEX-DS-001 v2.0); visual acceptance gate | F2 | — | [F2.1](F2.1-visual-rework.md) |
 | F3 | AI Run Engine (headless): run state machine, AI worker job processing, model/tool loop, run profiles, context providers, tool providers, capability policy, untrusted-data fencing, model allowlist + OpenRouter routing policy, usage events, checkpoints, cancel, approval pause/resume, events to Valkey Streams, first `evals/` harness (LEX-ARC-001 §4.7) | F0 | S2 (worker side) | — |
 | F4 | Chat: conversations and messages, run endpoints via outbox, SSE stream hub with `Last-Event-ID` replay, `ChatTransport` + assistant-ui, per-chat model/reasoning selection, chat history list with search and rename/delete | F2, F3 | S2 | — |
 | F5 | Tools & approvals: first real tools on the engine's tool-provider contract, read/write classification in practice, approval card UI, expiry of unanswered approvals, tool audit | F4 | — | — |
@@ -49,6 +50,10 @@ third-party product.
   `evals/` for its behavior, including prompt-injection cases.
 - **Privacy:** no K1 content in logs, traces, or errors (LEX-ARC-001 §6).
 - **Accessibility:** every new page passes the axe check (LEX-DS-001 §6).
+- **Visual acceptance:** every slice that adds or changes UI starts from the
+  closest published shadcn block/component or assistant-ui example, commits
+  screenshots (light/dark, desktop/mobile) for product-owner approval before
+  merge, and then locks them as Playwright screenshot baselines.
 - **Research first:** see `AGENTS.md`.
 
 Out of scope for the MVP: user-supplied API keys (BYOK), desktop app,

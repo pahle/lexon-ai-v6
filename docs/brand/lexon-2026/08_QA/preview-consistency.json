@@ -1,0 +1,684 @@
+{
+  "rule": "every logo is the original SVG, scaled by width only; variant chosen by size tier; aspect ratio, size tier, viewport containment and clear-space overlap verified in the rendered page",
+  "previews": {
+    "preview-website": [
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+        "rendered_width_px": 160,
+        "aspect_error_pct": 0.013,
+        "ok": true
+      }
+    ],
+    "preview-app-dashboard": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-cream.svg",
+        "rendered_width_px": 160,
+        "aspect_error_pct": 0.013,
+        "ok": true
+      }
+    ],
+    "preview-mobile-and-favicon": [
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-ink.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-midnight.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-parchment.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 72,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-small.svg",
+        "rendered_width_px": 44,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 29,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-ink.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      }
+    ],
+    "preview-stationery": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-cream.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      }
+    ],
+    "preview-social": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 400,
+        "aspect_error_pct": 0.006,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-ink.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-parchment.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 72,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-small.svg",
+        "rendered_width_px": 44,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-micro.svg",
+        "rendered_width_px": 29,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-parchment.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-ink.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-midnight.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      }
+    ],
+    "preview-legal-document": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 480,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-seal.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      }
+    ],
+    "preview-palette": [],
+    "preview-marks": [
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-ink.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-midnight.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-parchment.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-ink.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-midnight.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-parchment.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-ink.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-midnight.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-parchment.svg",
+        "rendered_width_px": 150,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      }
+    ],
+    "logo-sheet": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-seal.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-ink.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-seal.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-cream.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-cream.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-ink.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-midnight.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-parchment.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-ink.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-midnight.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-parchment.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-ink.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-midnight.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-parchment.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      }
+    ],
+    "logo-sizes": [
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 200,
+        "aspect_error_pct": 0.006,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 260,
+        "aspect_error_pct": 0.01,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 360,
+        "aspect_error_pct": 0.009,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-ink.svg",
+        "rendered_width_px": 500,
+        "aspect_error_pct": 0.006,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.03,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+        "rendered_width_px": 144,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+        "rendered_width_px": 160,
+        "aspect_error_pct": 0.013,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-ink.svg",
+        "rendered_width_px": 199,
+        "aspect_error_pct": 0.019,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-ink.svg",
+        "rendered_width_px": 64,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-ink.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-ink.svg",
+        "rendered_width_px": 128,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-small-ink.svg",
+        "rendered_width_px": 40,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-small-ink.svg",
+        "rendered_width_px": 48,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-small-ink.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-small-ink.svg",
+        "rendered_width_px": 63,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-micro-ink.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-micro-ink.svg",
+        "rendered_width_px": 24,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-micro-ink.svg",
+        "rendered_width_px": 32,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-micro-ink.svg",
+        "rendered_width_px": 39,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-circle-seal-micro.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-square-seal-micro.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-small.svg",
+        "rendered_width_px": 56,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/marks/LEXON-mark-tile-seal-micro.svg",
+        "rendered_width_px": 16,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-cream.svg",
+        "rendered_width_px": 240,
+        "aspect_error_pct": 0.002,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-wordmark-compact-cream.svg",
+        "rendered_width_px": 160,
+        "aspect_error_pct": 0.013,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-cream.svg",
+        "rendered_width_px": 96,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-small-cream.svg",
+        "rendered_width_px": 48,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      },
+      {
+        "file": "01_VECTOR/LEXON-monogram-micro-cream.svg",
+        "rendered_width_px": 28,
+        "aspect_error_pct": 0.0,
+        "ok": true
+      }
+    ]
+  }
+}

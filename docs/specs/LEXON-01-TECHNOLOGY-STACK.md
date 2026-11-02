@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.9 |
+| **Version** | 1.10 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
-| **Date** | 1 November 2026 |
-| **Supersedes** | v1.8 (1 November 2026) |
+| **Date** | 2 November 2026 |
+| **Supersedes** | v1.9 (1 November 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -59,6 +59,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Area | Technology | Role |
 |---|---|---|
 | Styling | Tailwind CSS 4 | Utility styles, responsiveness, and design tokens |
+| Fonts and brand assets | Inter through `next/font` (built into Next.js; files downloaded at build time and served from Lexon's own origin, no runtime request to a font host); Georgia as a system serif (not embedded); brand SVG/PNG/ICO assets from `docs/brand/lexon-2026/` served from `frontend/public/` | Interface and headline typography and the logo (Design System §3, §4). No other web font and no font CDN |
 | UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used in Lexon-owned code; one primitives library for the whole `frontend/`. A transitive dependency of a pinned library (assistant-ui depends on `radix-ui` internally) is allowed, but Lexon code never imports `radix-ui` or `@radix-ui/*` directly, and registry components that need it are not added (enforced by lint) |
 | Theme switching | `next-themes` | Light / Dark / System theme on the `class` attribute, applied before first paint; the approach of shadcn/ui's official Next.js dark-mode guide. Preference stored in the browser only (Design System §1) |
 | Iconography | Lucide | Application icon system |
@@ -154,7 +155,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 
 *Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Version baseline (v1.9).** Exact patches are pinned at scaffold time and raised by Renovate.
+**Version baseline (v1.10).** Exact patches are pinned at scaffold time and raised by Renovate.
 
 | Component | Baseline | Notes |
 |---|---|---|
@@ -260,3 +261,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.7 | **Replaced:**<br>• `@assistant-ui/react-ai-sdk` → `@assistant-ui/ai-sdk`<br>• Radix UI → Base UI (`@base-ui/react`, shadcn style `base-nova`)<br>**Set:**<br>• the initial scaffold (assistant-ui `default` template; `nest new` + the AI SDK Nest.js cookbook)<br>• English as the MVP language for the UI, content, reference documents, and engineering documents<br>• TypeScript stays 6.x and ESLint + Prettier stay (reasons recorded)<br>**Added:**<br>• a reference to the Design System (LEX-DS-001)<br>• the AI Worker hosts the AI Run Engine<br>**Translated:** the document into English<br>**Added (F1, product owner):** Mailpit as a development-only email catcher (§7)<br>**Corrected (F0 research):** workspace overrides live in `pnpm-workspace.yaml`, not the `pnpm.overrides` field of `package.json`, which current pnpm no longer reads |
 | 1.8 | **Added (F2, product owner):** `next-themes` for the Light / Dark / System theme that Design System v1.1 introduces |
 | 1.9 | **Clarified (F2 research):** "Radix UI is not used" applies to Lexon-owned code. `@assistant-ui/react` 0.15.x depends on `radix-ui` internally; that transitive dependency is allowed, while direct imports of `radix-ui` / `@radix-ui/*` in Lexon code are forbidden and checked by lint |
+| 1.10 | **Added (product owner, brand package):** Inter self-hosted through `next/font` and Georgia as a system serif; Lexon brand assets served from `frontend/public/` (Design System v2.0). No new npm dependency |

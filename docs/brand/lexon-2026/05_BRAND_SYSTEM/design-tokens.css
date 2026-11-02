@@ -1,0 +1,23 @@
+/* Lexon brand tokens, v1.0 (2026) - Royal Seal palette */
+:root {
+  /* Brand */
+  --lexon-ink: #1F1717;              /* old ink: logo, headings, body text */
+  --lexon-seal: #7A1F2E;            /* wax-seal burgundy: accent, buttons, links (8.9:1 on parchment) */
+  --lexon-seal-deep: #6A1A28;  /* hover / pressed */
+  --lexon-sage: #5F6B48;            /* secondary accent (5.0:1 on parchment) */
+
+  /* Light surfaces */
+  --lexon-parchment: #F6EFE2;  /* default page background */
+  --lexon-vellum: #EEE4D2;        /* cards, panels, alternate sections */
+  --lexon-mist: #E5D9C3;            /* subtle fills, table stripes */
+  --lexon-border: #D8C9AD;
+  --lexon-muted: #5E5248;          /* secondary text (6.6:1 on parchment) */
+
+  /* Dark surfaces */
+  --lexon-midnight: #2A1519;    /* dark background */
+  --lexon-slate: #3A1E24;          /* raised dark surface */
+
+  --lexon-radius-sm: 6px;
+  --lexon-radius-md: 10px;
+  --lexon-radius-lg: 16px;
+}
