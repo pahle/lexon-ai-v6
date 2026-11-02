@@ -9,9 +9,9 @@ export default function NotFound() {
       <p className="mt-4">The requested page could not be found.</p>
       <Link
         className="mt-4 inline-flex min-h-11 items-center underline"
-        href="/"
+        href="/workspace"
       >
-        Return home
+        Return to workspace
       </Link>
     </main>
   );

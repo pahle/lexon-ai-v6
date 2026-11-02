@@ -1,6 +1,7 @@
 'use client';
 
 import { ErrorState } from '../components/states/page-states';
+import Link from 'next/link';
 
 export default function RootError({
   retry,
@@ -14,6 +15,12 @@ export default function RootError({
         Something went wrong
       </h1>
       <ErrorState onRetry={retry} />
+      <Link
+        className="inline-flex min-h-11 items-center underline"
+        href="/workspace"
+      >
+        Return to workspace
+      </Link>
     </main>
   );
 }

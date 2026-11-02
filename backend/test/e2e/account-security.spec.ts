@@ -34,7 +34,7 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
       })
     ).status(),
   ).toBe(200);
-  await page.goto(stack.frontendUrl + '/account/security');
+  await page.goto(stack.frontendUrl + '/settings/security');
   await page.getByLabel('Enrollment password', { exact: true }).fill(password);
   await page
     .getByRole('button', { name: 'Set up authenticator', exact: true })
@@ -121,9 +121,9 @@ test('expired security session preserves its safe return intent', async ({
       url: stack.frontendUrl,
     },
   ]);
-  await page.goto(stack.frontendUrl + '/account/security');
+  await page.goto(stack.frontendUrl + '/settings/security');
   await expect(page).toHaveURL(/\/sign-in/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe(
-    '/account/security',
+    '/settings/security',
   );
 });

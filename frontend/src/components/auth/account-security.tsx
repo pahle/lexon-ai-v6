@@ -44,6 +44,7 @@ export function AccountSecurity() {
   if (error)
     return (
       <SessionBoundary
+        embedded
         state={
           error instanceof IdentityClientError && error.status === 401
             ? 'expired'
@@ -70,7 +71,7 @@ export function AccountSecurity() {
       {security.data.twoFactorEnabled ? (
         <FactorActions onComplete={refresh} />
       ) : (
-        <TwoFactorEnrollment onComplete={refresh} />
+        <TwoFactorEnrollment onComplete={refresh} headingLevel={2} />
       )}
       <PasswordChange onComplete={refresh} />
       <EmailChange />

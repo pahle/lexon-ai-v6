@@ -59,7 +59,7 @@ test('root not-found UI stays generic and links home', async () => {
   expect(view.container.querySelectorAll('main')).toHaveLength(1);
   expect(view.container.querySelectorAll('h1')).toHaveLength(1);
   expect(view.container.textContent).not.toContain('internal');
-  expect(view.container.querySelector('a[href="/"]')).not.toBeNull();
+  expect(view.container.querySelector('a[href="/workspace"]')).not.toBeNull();
   await view.unmount();
 });
 

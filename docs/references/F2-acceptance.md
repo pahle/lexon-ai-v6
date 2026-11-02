@@ -156,7 +156,10 @@ Settings now use `/settings/profile`, `/settings/security`, and
 routes redirect to Profile and Members. Old F1 leaves have no compatibility
 redirect. Organization bare-root, bare-ID, and nested unknown paths use the
 workspace not-found view. App action links and MFA `returnTo` values use the new
-settings routes.
+settings routes. Organization navigation is filtered by the verified active
+team role and ID, with a single vertical link layout at all widths. Existing
+security and organization browser flows now use their current route and link
+selectors. Root and workspace recovery views return to `/workspace`.
 
 Coverage includes profile validation/update and read-only email, real section
 links and active state, role and cross-org denial before loaders mount, role

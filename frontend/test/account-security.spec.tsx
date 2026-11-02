@@ -1,8 +1,11 @@
-import { test, expect } from 'vitest';
+import { test, expect, vi } from 'vitest';
 import { useState, act } from 'react';
-import { render } from './render';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, settle } from './render';
 import { RecoveryCodes } from '../src/components/auth/recovery-codes';
 import { SessionList } from '../src/components/auth/session-list';
+import { AccountSecurity } from '../src/components/auth/account-security';
+import { PageHeader } from '../src/components/shell/page-header';
 test('dismissed recovery codes leave no rendered copy or stored value', async () => {
   function Host() {
     const [show, setShow] = useState(true);
@@ -62,4 +65,51 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   await act(async () => view.container.querySelector('button')!.click());
   expect(revoked).toBe(id);
   await view.unmount();
+});
+
+test('security page embeds session errors without a nested main', async () => {
+  let sessionsFail = true;
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const path = new URL(String(input), window.location.origin).pathname;
+    if (path === '/api/identity/security')
+      return Response.json({
+        version: 1,
+        twoFactorEnabled: false,
+        mfaVerified: false,
+        reauthenticationExpiresAt: null,
+        recoveryCodesRemaining: 0,
+      });
+    if (path === '/api/identity/sessions' && sessionsFail)
+      return Response.json(
+        {
+          error: { code: 'AUTH_UNAVAILABLE', message: 'Unavailable' },
+        },
+        { status: 503 },
+      );
+    if (path === '/api/identity/sessions') return Response.json([]);
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PageHeader title="Security settings" />
+      <AccountSecurity />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.querySelectorAll('h1')).toHaveLength(1);
+  expect(view.container.querySelectorAll('main')).toHaveLength(0);
+  await view.unmount();
+
+  sessionsFail = false;
+  const normal = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PageHeader title="Security settings" />
+      <AccountSecurity />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(normal.container.querySelectorAll('h1')).toHaveLength(1);
+  expect(normal.container.querySelectorAll('h2').length).toBeGreaterThan(0);
+  await normal.unmount();
+  vi.unstubAllGlobals();
 });

@@ -4,6 +4,7 @@ import { render } from './render';
 import type { OrganizationSummary } from '@lexon/contracts';
 import { OrganizationSettings } from '../src/components/organizations/organization-settings';
 import { OrganizationPage } from '../src/components/organizations/organization-page';
+import { OrganizationSettingsPageFrame } from '../src/components/settings/organization-settings-page-frame';
 const workspaceState = vi.hoisted(() => ({ identity: null as unknown }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({ identity: workspaceState.identity }),
@@ -124,4 +125,108 @@ test('role refresh removes a formerly allowed settings view and its cached data'
   expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
   expect(queryClient.getQueryData(protectedKey)).toBeUndefined();
   await view.unmount();
+});
+
+test('organization settings navigation only shows sections permitted by live identity', async () => {
+  const identity = {
+    version: 1 as const,
+    user: {
+      version: 1 as const,
+      id: '00000000-0000-4000-8000-000000000003',
+      email: 'member@example.test',
+      name: 'Team Member',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: { ...team, role: 'member' as const },
+    platformAdmin: false,
+  };
+  const cases = [
+    {
+      identity,
+      expected: ['/organizations/' + team.id + '/settings/members'],
+    },
+    {
+      identity: {
+        ...identity,
+        organization: { ...team, role: 'admin' as const },
+      },
+      expected: [
+        '/organizations/' + team.id + '/settings/members',
+        '/organizations/' + team.id + '/settings/invitations',
+      ],
+    },
+    {
+      identity: {
+        ...identity,
+        organization: { ...team, role: 'owner' as const },
+      },
+      expected: [
+        '/organizations/' + team.id + '/settings/members',
+        '/organizations/' + team.id + '/settings/invitations',
+        '/organizations/' + team.id + '/settings/general',
+      ],
+    },
+    {
+      identity: { ...identity, organization: personal },
+      expected: [],
+    },
+    {
+      identity,
+      organizationId: '00000000-0000-4000-8000-000000000099',
+      expected: [],
+    },
+  ];
+  for (const item of cases) {
+    workspaceState.identity = item.identity;
+    const view = await render(
+      <OrganizationSettingsPageFrame
+        organizationId={item.organizationId ?? team.id}
+        current="members"
+      >
+        <p>Section content</p>
+      </OrganizationSettingsPageFrame>,
+    );
+    expect(
+      [...view.container.querySelectorAll('nav a')].map((link) =>
+        link.getAttribute('href'),
+      ),
+    ).toEqual(item.expected);
+    await view.unmount();
+  }
+  workspaceState.identity = null;
+});
+
+test('lost organization context retains F1 recovery copy and workspace link without loading old data', async () => {
+  workspaceState.identity = {
+    version: 1,
+    user: {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000003',
+      email: 'member@example.test',
+      name: 'Team Member',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: personal,
+    platformAdmin: false,
+  };
+  const fetcher = vi.fn(async () => {
+    throw new Error('old organization data should not load');
+  });
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationPage organizationId={team.id} view="members" />
+    </QueryClientProvider>,
+  );
+  expect(view.container.textContent).toContain(
+    'You no longer have access to this organization in the current workspace. Personal is selected.',
+  );
+  expect(view.container.querySelector('a[href="/workspace"]')).not.toBeNull();
+  expect(fetcher).not.toHaveBeenCalled();
+  await view.unmount();
+  vi.unstubAllGlobals();
 });

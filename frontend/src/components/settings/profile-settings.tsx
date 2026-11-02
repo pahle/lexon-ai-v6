@@ -10,6 +10,7 @@ import { AuthCard } from '../auth/auth-card';
 import { FormInput } from '../auth/form-input';
 import { FieldError, FieldGroup } from '../ui/field';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { identityApi, identityMessage } from '../organizations/page-state';
 
 export function ProfileSettings(): React.ReactElement {
@@ -48,11 +49,11 @@ export function ProfileSettings(): React.ReactElement {
           />
           <label className="flex flex-col gap-2 text-sm">
             Email address
-            <input
+            <Input
               aria-label="Email address"
               readOnly
               value={identity.user.email}
-              className="min-h-11 border border-border bg-muted px-3"
+              className="bg-muted"
             />
           </label>
           <Link href="/settings/security">Manage account security</Link>

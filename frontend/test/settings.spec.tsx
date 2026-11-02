@@ -52,6 +52,8 @@ test('section navigation uses actionable links and marks the current route', asy
   expect(links[1]?.getAttribute('aria-current')).toBe('page');
   expect(view.container.querySelector('select')).toBeNull();
   expect(links.every((link) => /min-h-11/.test(link.className))).toBe(true);
+  expect(view.container.querySelector('ul')?.className).toContain('flex-col');
+  expect(links[1]?.className).toContain('border-l-2');
   expect(view.container.querySelector('nav')?.className).toContain('min-w-0');
   await view.unmount();
 });
@@ -71,6 +73,7 @@ test('profile settings updates a validated display name and keeps email read-onl
     'input[aria-label="Email address"]',
   ) as HTMLInputElement;
   expect(email.readOnly).toBe(true);
+  expect(email.dataset.slot).toBe('input');
   expect(email.value).toBe('person@example.test');
   expect(view.container.querySelector('a[href="/settings/security"]')).not.toBe(
     null,

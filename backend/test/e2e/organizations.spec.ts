@@ -38,7 +38,10 @@ test('onboarding and organization switches preserve Personal and last owner', as
   await expect(page.getByTestId('active-organization')).toHaveText(
     'First team',
   );
-  await page.getByRole('link', { name: 'Members', exact: true }).click();
+  await page
+    .getByRole('link', { name: 'Organization settings', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/settings\/members$/);
   await page
     .getByRole('button', { name: 'Leave organization', exact: true })
     .click();

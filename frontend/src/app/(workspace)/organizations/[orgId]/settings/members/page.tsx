@@ -1,5 +1,5 @@
 import { OrganizationPage } from '../../../../../../components/organizations/organization-page';
-import { SettingsPageFrame } from '../../../../../../components/settings/settings-page-frame';
+import { OrganizationSettingsPageFrame } from '../../../../../../components/settings/organization-settings-page-frame';
 
 export default async function MembersPage({
   params,
@@ -7,27 +7,10 @@ export default async function MembersPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
-  const items = [
-    {
-      href: `/organizations/${orgId}/settings/members`,
-      label: 'Members',
-      current: true,
-    },
-    {
-      href: `/organizations/${orgId}/settings/invitations`,
-      label: 'Invitations',
-      current: false,
-    },
-    {
-      href: `/organizations/${orgId}/settings/general`,
-      label: 'General',
-      current: false,
-    },
-  ] as const;
   return (
-    <SettingsPageFrame title="Organization settings" items={items}>
+    <OrganizationSettingsPageFrame organizationId={orgId} current="members">
       <OrganizationPage organizationId={orgId} view="members" />
-    </SettingsPageFrame>
+    </OrganizationSettingsPageFrame>
   );
 }
 

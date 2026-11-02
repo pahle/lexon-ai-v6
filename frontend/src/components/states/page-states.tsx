@@ -56,12 +56,15 @@ export function ErrorState({
 
 export function NoAccessState({
   message = 'You do not have access to this page.',
+  action,
 }: {
   message?: string | undefined;
+  action?: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2 p-6" role="alert">
       <p>{message}</p>
+      {action ? <div className="pt-2">{action}</div> : null}
     </section>
   );
 }

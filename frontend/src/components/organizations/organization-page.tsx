@@ -1,6 +1,7 @@
 'use client';
 import { useLayoutEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useWorkspace } from '../shell/workspace-provider';
 import { Members } from './members';
 import { Invitations } from './invitations';
@@ -32,7 +33,21 @@ export function OrganizationPage({
   if (!org) return <LoadingState message="Loading organization…" />;
   if (lost)
     return (
-      <NoAccessState message="This organization is not selected in the current workspace." />
+      <NoAccessState
+        message={
+          org.kind === 'personal'
+            ? 'You no longer have access to this organization in the current workspace. Personal is selected.'
+            : 'You no longer have access to this organization in the current workspace. Return to your selected organization.'
+        }
+        action={
+          <Link
+            className="inline-flex min-h-11 items-center underline"
+            href="/workspace"
+          >
+            Return to workspace
+          </Link>
+        }
+      />
     );
   if (!allowed)
     return (
