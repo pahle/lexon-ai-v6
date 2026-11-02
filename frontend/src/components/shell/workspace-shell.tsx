@@ -1,0 +1,134 @@
+'use client';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { useWorkspace } from './workspace-provider';
+import { SessionBoundary } from '../auth/session-boundary';
+import { SidebarTrigger, useSidebarOptional } from '../ui/sidebar';
+import { useIsMobile } from '../../hooks/use-mobile';
+import { ChatRuntimeProvider } from './chat-runtime-provider';
+
+const PanelHostContext = createContext<HTMLElement | null>(null);
+const securityPaths = new Set(['/settings/security']);
+function SkipLink() {
+  return (
+    <a
+      className="sr-only inline-flex min-h-11 items-center focus:not-sr-only"
+      href="#main"
+    >
+      Skip to content
+    </a>
+  );
+}
+
+export function WorkspaceShell({
+  children,
+  sidebar,
+}: {
+  children: ReactNode;
+  sidebar?: ReactNode;
+}) {
+  const {
+    identity,
+    status,
+    transitioning,
+    fallbackNotice,
+    transitionNotice,
+    refreshIdentity,
+  } = useWorkspace();
+  const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const isMobile = useIsMobile();
+  const sidebarCollapsed = useSidebarOptional()?.state === 'collapsed';
+  const securityRoute = securityPaths.has(pathname ?? '');
+
+  if (status === 'expired' || status === 'unavailable')
+    return (
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
+          <SessionBoundary embedded state={status} onRetry={refreshIdentity}>
+            {null}
+          </SessionBoundary>
+        </main>
+      </>
+    );
+  if (status === 'mfa-required')
+    return (
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
+          <nav className="flex flex-wrap gap-4" aria-label="Account recovery">
+            <a href="/settings/security">Account security</a>
+            <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+              Verify your sign-in
+            </a>
+          </nav>
+          {securityRoute && !transitioning ? children : null}
+        </main>
+      </>
+    );
+  if (status !== 'ready' || transitioning || !identity)
+    return (
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} aria-busy="true" role="status">
+          Verifying your workspace…
+        </main>
+      </>
+    );
+  const shell = (
+    <PanelHostContext.Provider value={panelHost}>
+      <>
+        <SkipLink />
+        <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 p-6 md:flex-row">
+          {identity.user.onboardingCompleted && sidebar ? (
+            <aside aria-label="Workspace navigation" className="shrink-0">
+              {sidebar}
+            </aside>
+          ) : null}
+          <main id="main" tabIndex={-1} className="min-w-0 flex-1">
+            {sidebar && identity.user.onboardingCompleted ? (
+              <SidebarTrigger
+                className="mb-4"
+                aria-label={
+                  isMobile
+                    ? 'Open navigation'
+                    : sidebarCollapsed
+                      ? 'Expand sidebar'
+                      : 'Collapse sidebar'
+                }
+              />
+            ) : null}
+            {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
+            {transitionNotice ? (
+              <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
+                {transitionNotice.message}{' '}
+                {transitionNotice.securityLink ? (
+                  <a className="underline" href="/settings/security">
+                    Account security
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
+            {children}
+          </main>
+          <div ref={setPanelHost} data-panel-host="" />
+        </div>
+      </>
+    </PanelHostContext.Provider>
+  );
+  if (identity.user.onboardingCompleted) {
+    return (
+      <ChatRuntimeProvider
+        tenantId={`${identity.user.id}:${identity.organization.id}`}
+      >
+        {shell}
+      </ChatRuntimeProvider>
+    );
+  }
+  return shell;
+}
+
+export function usePanelHost(): HTMLElement | null {
+  return useContext(PanelHostContext);
+}

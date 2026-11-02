@@ -46,6 +46,10 @@ try {
       AUTH_AUDIT_HMAC_SECRET: secret(),
       AUTH_AUDIT_HMAC_KEY_ID: 'e2e-v1',
       AUTH_OPEN_SIGNUP: 'true',
+      E2E_AUTH_RATE_RULES_JSON: JSON.stringify({
+        signup: { account: 3, ip: 100, windowSeconds: 600 },
+        'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+      }),
       COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',
       SMTP_URL: 'smtp://127.0.0.1:2525',

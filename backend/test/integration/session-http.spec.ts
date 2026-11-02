@@ -58,6 +58,23 @@ test('session HTTP returns token only once with no-store and lists safe revocabl
       await harness.run('/sign-in/email', { email, password }, new Headers()),
     );
     const origin = await app.getUrl();
+    for (const sidebarState of ['true', 'false', 'not-a-boolean']) {
+      const cookieVariant = new Headers(headers);
+      cookieVariant.set(
+        'cookie',
+        `${headers.get('cookie')}; sidebar_state=${sidebarState}`,
+      );
+      expect(
+        (await fetch(`${origin}/api/identity`, { headers: cookieVariant }))
+          .status,
+      ).toBe(200);
+      const forgedOnly = new Headers({
+        cookie: `sidebar_state=${sidebarState}`,
+      });
+      expect(
+        (await fetch(`${origin}/api/identity`, { headers: forgedOnly })).status,
+      ).toBe(401);
+    }
     const issued = await fetch(`${origin}/api/identity/bearer-sessions`, {
       method: 'POST',
       headers,

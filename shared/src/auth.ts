@@ -57,6 +57,7 @@ export const SafeProfileSchema = z.strictObject({
 export type SafeProfile = z.infer<typeof SafeProfileSchema>;
 export const IdentitySummarySchema = z.strictObject({
   version: z.literal(1),
+  platformAdmin: z.boolean(),
   user: SafeProfileSchema,
   organization: OrganizationSummarySchema,
   fallbackReason: z

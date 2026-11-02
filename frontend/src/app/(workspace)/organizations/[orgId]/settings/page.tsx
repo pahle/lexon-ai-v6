@@ -1,12 +1,17 @@
-import { OrganizationPage } from '../../../../../components/organizations/organization-page';
-export default async function Page({
+import { redirect } from 'next/navigation';
+
+export default async function OrganizationSettingsIndexPage({
   params,
 }: {
   params: Promise<{ orgId: string }>;
-}) {
-  return (
-    <main className="mx-auto max-w-2xl p-6">
-      <OrganizationPage organizationId={(await params).orgId} view="settings" />
-    </main>
-  );
+}): Promise<never> {
+  const { orgId } = await params;
+  redirect(`/organizations/${orgId}/settings/members`);
 }
+
+export const metadata = {
+  title: 'Organization settings | Lexon',
+  description: 'Manage team settings and access.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

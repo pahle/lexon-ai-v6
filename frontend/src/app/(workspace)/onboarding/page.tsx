@@ -7,15 +7,17 @@ export default async function OnboardingPage() {
   if (result.identity.user.onboardingCompleted) redirect('/workspace');
   const invitations = await result.api.listMyInvitations({ limit: 100 });
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
+    <div className="flex min-h-svh items-center justify-center">
       <Onboarding
         profile={result.identity.user}
         invitations={invitations.items}
       />
-    </main>
+    </div>
   );
 }
 export const metadata = {
+  title: 'Get started | Lexon',
+  description: 'Set up your Lexon workspace.',
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

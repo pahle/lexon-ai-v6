@@ -1,12 +1,15 @@
 import { ProvisioningList } from '../../../../components/platform/provisioning';
+import { PlatformPage } from '../../../../components/platform/platform-page';
 export default function ProvisioningPage() {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <PlatformPage title="Organization provisioning">
       <ProvisioningList />
-    </main>
+    </PlatformPage>
   );
 }
 export const metadata = {
+  title: 'Organization provisioning | Lexon',
+  description: 'Review organizations waiting for platform provisioning.',
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

@@ -5,7 +5,36 @@ import { descriptor } from './runtime-support.js';
 import { readCapturedMail, authenticateApi } from './identity-support.js';
 import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
-test('administrator setup is operator-only and platform provisioning never creates staff membership', async ({
+
+test('F2 platform navigation remains hidden and direct routes are denied for ordinary users', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  await page.goto(stack.frontendUrl + '/workspace');
+  await expect(
+    page.getByRole('link', { name: 'Platform', exact: true }),
+  ).toHaveCount(0);
+  const platformRequests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/platform/'))
+      platformRequests.push(request.url());
+  });
+  await page.goto(stack.frontendUrl + '/platform/provisioning');
+  await expect(page.locator('section[role="alert"]')).toContainText(
+    'You do not have access to this page.',
+  );
+  await expect(
+    page.getByRole('link', { name: 'Platform', exact: true }),
+  ).toHaveCount(0);
+  expect(platformRequests).toEqual([]);
+});
+
+test('F2 platform page passes both-theme axe checks in the real operator flow and provisioning remains scoped', async ({
   page,
   playwright,
 }) => {
@@ -74,7 +103,24 @@ test('administrator setup is operator-only and platform provisioning never creat
     ).toBeVisible();
     expect(new URL(page.url()).search).toBe('');
     await page.getByRole('link', { name: 'Provisioning', exact: true }).click();
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('main')).toHaveCount(1);
+    await expect(page.locator('a[href="#main"]')).toHaveCount(1);
+    await expect(page).toHaveTitle(/\S/);
+    expect(
+      (await new AxeBuilder({ page }).withTags(axeTags).analyze()).violations,
+    ).toEqual([]);
+    await expect(page.locator('h1')).toHaveCount(1);
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('main')).toHaveCount(1);
+    await expect(page.locator('a[href="#main"]')).toHaveCount(1);
+    await expect(page).toHaveTitle(/\S/);
+    expect(
+      (await new AxeBuilder({ page }).withTags(axeTags).analyze()).violations,
+    ).toEqual([]);
     const ownerEmail = targetProfile.email;
     await page
       .getByLabel('Organization name', { exact: true })

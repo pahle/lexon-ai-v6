@@ -4,6 +4,33 @@ import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { readCapturedMail } from './identity-support.js';
 import { totpForUri } from '../setup/totp.js';
+
+test('F2 appearance preference persists in this browser without changing security page behavior', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await (
+    await import('./identity-support.js')
+  ).authenticateApi(page.request);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  await page.goto(stack.frontendUrl + '/settings/appearance');
+  await page.getByRole('radio', { name: 'Dark' }).check();
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  await expect(page.locator('body')).toHaveCSS(
+    'background-color',
+    'rgb(18, 18, 20)',
+  );
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  await page.goto(stack.frontendUrl + '/settings/security');
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  await expect(page.locator('main')).toHaveCount(1);
+  expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark');
+});
+
 test('security TOTP enrollment challenge and recovery are accessible and remain ephemeral', async ({
   page,
 }) => {
@@ -34,7 +61,7 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
       })
     ).status(),
   ).toBe(200);
-  await page.goto(stack.frontendUrl + '/account/security');
+  await page.goto(stack.frontendUrl + '/settings/security');
   await page.getByLabel('Enrollment password', { exact: true }).fill(password);
   await page
     .getByRole('button', { name: 'Set up authenticator', exact: true })
@@ -121,9 +148,9 @@ test('expired security session preserves its safe return intent', async ({
       url: stack.frontendUrl,
     },
   ]);
-  await page.goto(stack.frontendUrl + '/account/security');
+  await page.goto(stack.frontendUrl + '/settings/security');
   await expect(page).toHaveURL(/\/sign-in/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe(
-    '/account/security',
+    '/settings/security',
   );
 });

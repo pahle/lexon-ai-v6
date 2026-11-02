@@ -1,7 +1,9 @@
 import { classifyImport } from './resolve-import.mjs';
+import { presentationRules } from './lexon-presentation.mjs';
 
 export default {
   rules: {
+    ...presentationRules,
     boundaries: {
       meta: {
         type: 'problem',

@@ -46,13 +46,17 @@ export function Members({
     }
   }
   return (
-    <AuthCard title="Members" description="Manage access to your team.">
+    <AuthCard
+      title="Members"
+      headingLevel={2}
+      description="Manage access to your team."
+    >
       <ul>
         {members.data?.items.map((member) => (
           <li
             key={member.id}
             data-testid={'member-' + member.userId}
-            className="flex flex-col gap-2 py-3"
+            className="flex flex-col gap-2 py-4"
           >
             <strong>{member.name}</strong>
             <span>{member.email}</span>

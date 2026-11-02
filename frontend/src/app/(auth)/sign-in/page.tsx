@@ -7,3 +7,9 @@ export default async function SignInPage({
   const query = await searchParams;
   return <LoginForm returnTo={query.returnTo} />;
 }
+export const metadata = {
+  title: 'Sign in | Lexon',
+  description: 'Sign in to your Lexon workspace.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

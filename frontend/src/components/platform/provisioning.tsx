@@ -14,6 +14,7 @@ import {
   useCursorPage,
 } from '../organizations/page-state';
 import { AuthCard } from '../auth/auth-card';
+import { LoadingState } from '../states/page-states';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup, FieldError } from '../ui/field';
 import { Button } from '../ui/button';
@@ -28,13 +29,15 @@ export function ProvisioningList() {
     defaultValues: { name: '', slug: '', ownerEmail: '' },
   });
   if (list.query.error) return <QueryFailure error={list.query.error} />;
-  if (!list.query.data) return <p role="status">Checking platform access…</p>;
+  if (!list.query.data)
+    return <LoadingState message="Checking platform access…" />;
   return (
     <div className="flex flex-col gap-6">
       <a href="/workspace">Return to workspace</a>
       <a href="/platform/accounts">Account status</a>
       <AuthCard
         title="Provision a team organization"
+        headingLevel={2}
         description="A provisioning team has no members or content until its first owner accepts the invitation."
       >
         <form

@@ -12,3 +12,9 @@ export default async function InvitationPage({
     />
   );
 }
+export const metadata = {
+  title: 'Accept invitation | Lexon',
+  description: 'Review and accept your Lexon organization invitation.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

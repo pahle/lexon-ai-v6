@@ -4,6 +4,7 @@ import {
   SignInInputSchema,
   ProfileInputSchema,
   SafeProfileSchema,
+  IdentitySummarySchema,
   IdentityErrorCodeSchema,
   type IdentityApi,
 } from '../src/index.js';
@@ -73,4 +74,42 @@ test('safe own profile is versioned and has no session credentials', () => {
   expectTypeOf<
     'issueBearer' extends keyof IdentityApi ? true : false
   >().toEqualTypeOf<false>();
+});
+test('identity summary requires a boolean platform eligibility flag', () => {
+  const summary = {
+    version: 1 as const,
+    platformAdmin: false,
+    user: {
+      version: 1 as const,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'person@example.test',
+      name: 'A Person',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: false,
+    },
+    organization: {
+      version: 1 as const,
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      name: 'Personal',
+      slug: 'personal-test',
+      kind: 'personal' as const,
+      state: 'active' as const,
+      require2fa: false,
+      role: 'owner' as const,
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+  };
+  expect(IdentitySummarySchema.parse(summary).platformAdmin).toBe(false);
+  expect(
+    IdentitySummarySchema.safeParse(
+      Object.fromEntries(
+        Object.entries(summary).filter(([key]) => key !== 'platformAdmin'),
+      ),
+    ).success,
+  ).toBe(false);
+  expect(
+    IdentitySummarySchema.safeParse({ ...summary, platformAdmin: 'true' })
+      .success,
+  ).toBe(false);
 });

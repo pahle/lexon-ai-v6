@@ -16,8 +16,10 @@ import { AuthenticationCodeForm } from './authentication-code-form';
 import { RecoveryCodes } from './recovery-codes';
 export function TwoFactorEnrollment({
   onComplete,
+  headingLevel = 1,
 }: {
   onComplete: () => Promise<void>;
+  headingLevel?: 1 | 2 | 3;
 }) {
   const [setup, setSetup] = useState<{
     totpURI: string;
@@ -33,6 +35,7 @@ export function TwoFactorEnrollment({
     return (
       <RecoveryCodes
         codes={codes}
+        headingLevel={headingLevel}
         onDismiss={() => {
           setCodes(null);
           void onComplete();
@@ -44,6 +47,7 @@ export function TwoFactorEnrollment({
     return (
       <AuthCard
         title="Connect your authenticator"
+        headingLevel={headingLevel}
         description="Add this account manually in your authenticator app, then enter its six-digit code."
       >
         <dl>
@@ -74,6 +78,7 @@ export function TwoFactorEnrollment({
   return (
     <AuthCard
       title="Two-factor authentication"
+      headingLevel={headingLevel}
       description="Protect your account with an authenticator app."
     >
       <form

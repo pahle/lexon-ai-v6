@@ -1,48 +1,60 @@
 'use client';
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { identityApi, QueryFailure } from './page-state';
-import { transitionTenant } from '../../lib/tenant-queries';
+import { useLayoutEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useWorkspace } from '../shell/workspace-provider';
 import { Members } from './members';
 import { Invitations } from './invitations';
 import { OrganizationSettings } from './organization-settings';
+import { LoadingState, NoAccessState } from '../states/page-states';
 export function OrganizationPage({
   organizationId,
   view,
 }: {
   organizationId: string;
-  view: 'members' | 'invitations' | 'settings';
+  view: 'members' | 'invitations' | 'general';
 }) {
-  const query = useQueryClient();
-  const identity = useQuery({
-    queryKey: ['identity'],
-    queryFn: () => identityApi.identity(),
-    refetchInterval: 5000,
-    retry: false,
-  });
-  const org = identity.data?.organization;
+  const queryClient = useQueryClient();
+  const { identity } = useWorkspace();
+  const org = identity?.organization;
   const lost = !!org && org.id !== organizationId;
-  useEffect(() => {
-    if (lost && org) void transitionTenant(query, org);
-  }, [lost, org, query]);
-  if (identity.error) return <QueryFailure error={identity.error} />;
-  if (!org) return <p role="status">Loading organization…</p>;
+  const allowed =
+    !!org &&
+    org.id === organizationId &&
+    org.kind === 'team' &&
+    (view !== 'invitations' || org.role !== 'member') &&
+    (view !== 'general' || org.role === 'owner');
+  useLayoutEffect(() => {
+    if (allowed) return;
+    const queryKey = ['tenant', organizationId];
+    void queryClient.cancelQueries({ queryKey });
+    queryClient.removeQueries({ queryKey });
+  }, [allowed, organizationId, queryClient]);
+  if (!org) return <LoadingState message="Loading organization…" />;
   if (lost)
     return (
-      <section>
-        <p role="status">
-          You no longer have access to this organization in the current
-          workspace.{' '}
-          {org.kind === 'personal'
-            ? 'Personal is selected.'
-            : 'Return to your selected organization.'}
-        </p>
-        <a href="/workspace">Return to workspace</a>
-      </section>
+      <NoAccessState
+        message={
+          org.kind === 'personal'
+            ? 'You no longer have access to this organization in the current workspace. Personal is selected.'
+            : 'You no longer have access to this organization in the current workspace. Return to your selected organization.'
+        }
+        action={
+          <Link
+            className="inline-flex min-h-11 items-center underline"
+            href="/workspace"
+          >
+            Return to workspace
+          </Link>
+        }
+      />
+    );
+  if (!allowed)
+    return (
+      <NoAccessState message="You do not have access to this organization setting." />
     );
   return (
     <div className="flex flex-col gap-6">
-      <a href="/workspace">Return to workspace</a>
       {view === 'members' ? (
         <Members organization={org} />
       ) : view === 'invitations' ? (

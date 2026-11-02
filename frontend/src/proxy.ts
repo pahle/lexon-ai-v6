@@ -1,12 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { safeReturnPath } from './lib/return-path';
+
+const protectedPrefixes = [
+  '/workspace',
+  '/settings',
+  '/organizations',
+  '/platform',
+  '/onboarding',
+];
+
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const present = [
     'better-auth.session_token',
     '__Secure-better-auth.session_token',
   ].some((name) => request.cookies.has(name));
-  if (path.startsWith('/workspace') && !present) {
+  const isProtectedRoute = protectedPrefixes.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  );
+  if (isProtectedRoute && !present) {
     const url = new URL('/sign-in', request.url);
     url.searchParams.set(
       'returnTo',
@@ -19,5 +31,13 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 export const config = {
-  matcher: ['/workspace/:path*', '/sign-in', '/sign-up'],
+  matcher: [
+    '/workspace/:path*',
+    '/settings/:path*',
+    '/organizations/:path*',
+    '/platform/:path*',
+    '/onboarding/:path*',
+    '/sign-in',
+    '/sign-up',
+  ],
 };

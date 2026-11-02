@@ -61,6 +61,7 @@ export function Invitations({
   return (
     <AuthCard
       title="Invitations"
+      headingLevel={2}
       description="Invite members or manage pending invitations."
     >
       <form
@@ -107,7 +108,7 @@ export function Invitations({
       </form>
       <ul>
         {invitations.data?.items.map((invitation) => (
-          <li key={invitation.id} className="flex flex-col gap-2 py-3">
+          <li key={invitation.id} className="flex flex-col gap-2 py-4">
             <span>{invitation.email}</span>
             <span>
               {invitation.role} — {invitation.status}

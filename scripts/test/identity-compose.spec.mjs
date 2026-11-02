@@ -79,6 +79,46 @@ test('identity Compose secrets are API/operator-only and Mailpit is optional eph
       config.services.api.environment.DATABASE_AUTH_URL,
       env.DATABASE_AUTH_URL,
     );
+    assert.equal(
+      config.services.api.environment.AUTH_RATE_RULES_JSON,
+      undefined,
+    );
+    const e2ePolicy = JSON.stringify({
+      signup: { account: 3, ip: 100, windowSeconds: 600 },
+      'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+    });
+    const identityRendered = await promisify(execFile)(
+      'docker',
+      composeArgs(
+        'lexon-dev',
+        ['config', '--format', 'json'],
+        ['backend/test/e2e/compose.identity.yml'],
+      ),
+      {
+        env: {
+          ...process.env,
+          ...env,
+          E2E_AUTH_RATE_RULES_JSON: e2ePolicy,
+          IDENTITY_TEST_ENTRY_PATH: 'backend/test/e2e/auth-api-main.mjs',
+          IDENTITY_MAIL_CONTROL_PATH: 'backend/test/e2e/mail-control.mjs',
+          IDENTITY_SETUP_TEST_ENTRY_PATH:
+            'backend/test/e2e/admin-setup-main.mjs',
+          IDENTITY_SETUP_TEST_IMAGE: 'lexon-e2e-test-api',
+        },
+      },
+    );
+    const identityConfig = JSON.parse(identityRendered.stdout);
+    assert.equal(
+      identityConfig.services.api.environment.AUTH_RATE_RULES_JSON,
+      e2ePolicy,
+    );
+    assert.deepEqual(
+      JSON.parse(identityConfig.services.api.environment.AUTH_RATE_RULES_JSON),
+      {
+        signup: { account: 3, ip: 100, windowSeconds: 600 },
+        'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+      },
+    );
     assert.ok(!config.services.api.environment.LEXON_SETUP_DATABASE_URL);
     assert.deepEqual(config.services['admin-setup'].profiles, ['operator']);
     assert.ok(
@@ -102,10 +142,14 @@ test('package E2E filters include their identity projects and credential project
     assert.equal(project.use?.storageState, undefined);
   }
 });
-test('CI includes F1 pushes independent layers and the identity mutation gate', async () => {
+test('CI includes F1 and F2 pushes independent layers and the identity mutation gate', async () => {
   const { readFile } = await import('node:fs/promises');
   const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
-  assert.match(workflow, /branches:.*f1-identity-organizations/);
+  const normalizedWorkflow = workflow.replace(/\s+/g, ' ');
+  assert.match(
+    normalizedWorkflow,
+    /branches:.*f1-identity-organizations.*f2-app-shell-design-system/,
+  );
   assert.match(workflow, /unit-integration:/);
   assert.match(workflow, /compose-e2e:/);
   assert.match(

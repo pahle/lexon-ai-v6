@@ -6,3 +6,9 @@ export default async function AdminSetupPage({
 }) {
   return <AdminSetup setupToken={(await searchParams).token ?? ''} />;
 }
+export const metadata = {
+  title: 'Administrator setup | Lexon',
+  description: 'Complete the Lexon administrator setup process.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};

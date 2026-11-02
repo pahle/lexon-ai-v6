@@ -1,6 +1,8 @@
 services:
   api:
     command: [node, backend/test/e2e/auth-api-main.mjs]
+    environment:
+      AUTH_RATE_RULES_JSON: ${E2E_AUTH_RATE_RULES_JSON:?}
     volumes:
       - type: bind
         source: ${IDENTITY_TEST_ENTRY_PATH:?}
