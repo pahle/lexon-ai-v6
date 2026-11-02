@@ -16,6 +16,26 @@ async function tabTo(
   throw new Error('Keyboard tab order did not reach the requested control');
 }
 
+async function shiftTabTo(
+  page: import('@playwright/test').Page,
+  container: import('@playwright/test').Locator,
+  locator: import('@playwright/test').Locator,
+): Promise<void> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement))
+      return;
+    const focusIsInside = await container.evaluate((element) =>
+      element.contains(document.activeElement),
+    );
+    if (!focusIsInside)
+      throw new Error('Keyboard focus left the organization popup');
+    await page.keyboard.press('Shift+Tab');
+  }
+  throw new Error(
+    'Reverse keyboard tab order did not reach the requested control',
+  );
+}
+
 test('F2 keyboard flow signs in, switches teams, changes appearance, and signs out', async ({
   page,
 }) => {
@@ -101,7 +121,18 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
     exact: true,
   });
   await expect(teamButton).toBeVisible();
-  await tabTo(page, teamButton);
+  const organizationPopup = page.getByTestId('organization-popup');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const popup = document.querySelector(
+          '[data-testid="organization-popup"]',
+        );
+        return popup?.contains(document.activeElement) ?? false;
+      }),
+    )
+    .toBe(true);
+  await shiftTabTo(page, organizationPopup, teamButton);
   const nextDocumentLoaded = page.waitForEvent('domcontentloaded');
   await page.keyboard.press('Enter');
   await nextDocumentLoaded;
@@ -350,18 +381,23 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     page.getByRole('button', { name: 'Organization: Ordinary team' }),
   ).toBeVisible();
   const invitationsPath = `${stack.frontendUrl}/organizations/${teams[1]!.id}/settings/invitations`;
-  const invitedDataRequests: string[] = [];
-  page.on('request', (request) => {
-    if (
-      request.url().includes(`/api/organizations/${teams[1]!.id}/invitations`)
-    )
-      invitedDataRequests.push(request.url());
-  });
+  const invitedDataResponse = page.waitForResponse(
+    (response) =>
+      response
+        .url()
+        .includes(`/api/organizations/${teams[1]!.id}/invitations`) &&
+      response.request().method() === 'GET',
+  );
   await page.goto(invitationsPath);
   await expect(
     page.getByRole('heading', { name: 'Invitations', exact: true }),
   ).toBeVisible();
-  expect(invitedDataRequests.length).toBeGreaterThan(0);
+  expect((await invitedDataResponse).status()).toBe(200);
+  const acceptedInvitation = page
+    .locator('main li')
+    .filter({ hasText: recipient.email });
+  await expect(acceptedInvitation).toBeVisible();
+  await expect(acceptedInvitation).toContainText('admin — accepted');
   const members = (await (
     await owner.get(
       stack.apiUrl + '/api/organizations/' + teams[1]!.id + '/members',

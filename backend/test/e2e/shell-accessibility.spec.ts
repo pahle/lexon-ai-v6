@@ -74,6 +74,15 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
     );
     expect(created.status()).toBe(201);
     const team = (await created.json()) as { id: string };
+    const invitationEmail = `f2-a11y-${randomUUID()}@example.test`;
+    const invitation = await page.request.post(
+      `${stack.apiUrl}/api/organizations/${team.id}/invitations`,
+      {
+        headers,
+        data: { email: invitationEmail, role: 'member' },
+      },
+    );
+    expect(invitation.status()).toBe(201);
     const switched = await page.request.post(
       stack.apiUrl + '/api/organizations/active',
       {
@@ -108,6 +117,42 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         );
         await page.goto(stack.frontendUrl + path);
         await expect(page).toHaveURL(stack.frontendUrl + path);
+        if (path === '/workspace') {
+          await expect(
+            page.getByText('Chat is not available yet.'),
+          ).toBeVisible();
+          await expect(page.getByText('No conversations yet.')).toBeVisible();
+        } else if (path === '/settings/profile') {
+          await expect(
+            page.getByRole('button', { name: 'Save profile', exact: true }),
+          ).toBeVisible();
+        } else if (path === '/settings/security') {
+          await expect(
+            page.getByRole('button', {
+              name: 'Revoke browser session',
+              exact: true,
+            }),
+          ).toBeVisible();
+        } else if (path === '/settings/appearance') {
+          await expect(
+            page.getByRole('radio', { name: 'System', exact: true }),
+          ).toBeVisible();
+        } else if (path.endsWith('/members')) {
+          await expect(
+            page.locator('[data-testid^="member-"]').first(),
+          ).toBeVisible();
+        } else if (path.endsWith('/invitations')) {
+          await expect(
+            page.getByText(invitationEmail, { exact: true }),
+          ).toBeVisible();
+        } else if (path.endsWith('/general')) {
+          await expect(
+            page.getByRole('button', {
+              name: 'Save organization settings',
+              exact: true,
+            }),
+          ).toBeVisible();
+        }
         const violations = (
           await new AxeBuilder({ page }).withTags(axeTags).analyze()
         ).violations;
@@ -116,29 +161,6 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         await expect(page.locator('main')).toHaveCount(1);
         await expect(page.locator('a[href="#main"]')).toHaveCount(1);
         await expect(page).toHaveTitle(/\S/);
-        if (path === '/workspace') {
-          await expect(
-            page.getByText('Chat is not available yet.'),
-          ).toBeVisible();
-          await expect(page.getByText('No conversations yet.')).toBeVisible();
-        } else if (path.endsWith('/members')) {
-          await expect(
-            page.getByRole('heading', { name: 'Members', exact: true }),
-          ).toBeVisible();
-        } else if (path.endsWith('/invitations')) {
-          await expect(
-            page.getByRole('heading', { name: 'Invitations', exact: true }),
-          ).toBeVisible();
-        } else if (path.endsWith('/general')) {
-          await expect(
-            page
-              .getByRole('heading', {
-                name: 'Organization settings',
-                exact: true,
-              })
-              .nth(1),
-          ).toBeVisible();
-        }
         await page.keyboard.press('Tab');
         expect(
           await page.evaluate(() =>

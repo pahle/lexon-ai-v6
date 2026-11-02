@@ -392,6 +392,28 @@ The isolated two-viewport popup case passes 1/1 at
 backend typecheck pass. The full E2E suite was not rerun locally; remote CI
 will verify all cases on this commit.
 
+## Final review correction 5: await browser data before assertions
+
+CI run `41479761053` passed unit/integration checks and failed one of 34 E2E
+cases because the test expected an invitation-list request immediately after
+the SSR Invitations heading appeared. The CI log is
+`/tmp/f2-ci-popup-controlled.log`. The test now registers the GET response
+before navigation, waits for HTTP 200 and the accepted invitation row/status,
+then begins the role-demotion negative-fetch assertion. That row is scoped to
+`main li` because its email also appears in the sidebar identity.
+
+The keyboard switch case waits for popup focus and uses real Shift+Tab from
+Create into the asynchronously rendered team choices. The axe case now waits
+for actual page controls and loaded data, including the security session
+action, a members row, and a unique pending invitation, before each light and
+dark scan. No production code changed.
+
+The three affected E2E cases pass in a self-owned disposable Compose stack:
+`/tmp/f2-finalfix-logs/readiness-audit-e2e-final-verified.log`. Prettier,
+focused ESLint, and backend typecheck pass at
+`/tmp/f2-finalfix-logs/readiness-audit-quality-verified.log`. The full local
+E2E suite was not rerun; remote CI is the full-suite gate for this commit.
+
 ## Review closure and execution decisions
 
 The main session accepted the whole-branch review and scoped corrections.
