@@ -2,6 +2,7 @@ import { test, expect, vi } from 'vitest';
 import { render } from './render';
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/workspace',
   notFound: () => {
     throw new Error('not-found');
   },

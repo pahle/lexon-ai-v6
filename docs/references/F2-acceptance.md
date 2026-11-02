@@ -273,3 +273,47 @@ public identity contracts, cursor behavior or backend authorization.
 Task12 commit `25fa7bc`: main-session spec-compliance and code-quality reviews
 passed. Reviewed the complete task diff and clean final logs; all eight required
 gates passed. The owned E2E stack was removed. Whole-branch review follows.
+
+## Final review fix wave
+
+The consolidated final-review fixes retain the approved F1 auth, tenant,
+contract, and cursor boundaries. `scripts/test/f2-route-inventory.spec.mjs`
+now performs source traversal with Node APIs; the earlier no-`rg` failure was
+reproduced locally as `spawn rg ENOENT`, and the no-`rg` fixture now passes 2/2.
+The previous remote CI failure was not re-run remotely during this wave.
+
+Unavailable bootstrap recovery now requires a fresh verified identity and
+resumes five-second polling after recovery. Retry failure and failed sign-out
+with failed fresh identity verification leave protected content hidden and
+offer a safe retry; expired sessions remain terminal. Explicit switch and
+sign-out pending state suppresses protected content and runtime across async
+menu unmounts. It is tracked separately from access-key transitions, so MFA
+recovery preserves the current selection without duplicate tenant cleanup.
+
+The organization popup uses Base UI's position-aware `--available-height`,
+scrolls internally, and enters the list on keyboard open. Browser coverage
+checks 20 choices, viewport containment and keyboard reachability of Next/Create
+at 375×812 and 1024×460. The 768px shell/panel check uses the live host and
+production CSS with exact 256px sidebar/320px panel widths and text paint-bound
+measurement. Its test-only aside mirrors RightPanel markup; it is not an
+instance of the React RightPanel component, and no prior-constraint-disable
+sensitivity run is claimed. Existing RightPanel tests remain its component
+behavior check.
+
+Mobile sidebar and UserMenu route navigation focus the new level-one heading;
+Escape continues to return focus to the opener. Auth heading levels, 16px row
+spacing, panel surface tokens, scoped distinct theme previews, and destructive
+variant removal are covered by current unit/browser checks. The redundant MFA
+tenant cleanup call was removed.
+
+Final logs are captured in `/tmp/f2-finalfix-logs/`: `format-final.log`,
+`lint-final.log` (91 boundary/design-policy checks), `typecheck-final.log`,
+`test-final.log` (427 tests/99 files), `tooling-final.log` (104/104), and
+`e2e-final.log` (34/34). Focused popup and UserMenu keyboard runs passed 1/1 in
+`popup-focus2.log` and `usermenu-focus2.log`. The current source was rebuilt
+inside the final owned Compose E2E run; the separately captured local root
+`pnpm build` predates only the final Popover `initialFocus` setting. No remote
+CI rerun is claimed. Deferred-transition sensitivity evidence is documented
+as such, not as historical strict TDD RED. The existing E2E-only
+signup/verification-resend IP override remains 100/IP/600s with account limit
+3 and does not affect production configuration.

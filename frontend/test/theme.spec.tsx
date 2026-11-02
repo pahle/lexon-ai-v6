@@ -77,6 +77,17 @@ test('appearance selection stores and applies light and dark themes locally', as
   expect(group?.className).toContain('gap-2');
   expect(card?.className).toContain('gap-2');
   expect(card?.className).toContain('p-4');
+  const previews = [
+    ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
+  ];
+  expect(
+    previews.map((preview) => preview.getAttribute('data-theme-preview')),
+  ).toEqual(['light', 'dark', 'system']);
+  expect(
+    new Set(
+      previews.map((preview) => preview.getAttribute('data-theme-preview')),
+    ).size,
+  ).toBe(3);
 
   await act(async () => {
     (

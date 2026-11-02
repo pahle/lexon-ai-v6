@@ -21,7 +21,7 @@ export function SessionList({
     >
       <ul>
         {sessions.map((session) => (
-          <li key={session.id} className="flex flex-col gap-2 py-3">
+          <li key={session.id} className="flex flex-col gap-2 py-4">
             <strong>
               {session.channel === 'cookie' ? 'Browser' : 'Bearer'}
             </strong>

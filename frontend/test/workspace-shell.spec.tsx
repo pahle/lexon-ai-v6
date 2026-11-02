@@ -15,6 +15,9 @@ import {
 import { WorkspaceShell } from '../src/components/shell/workspace-shell';
 import { usePanelHost } from '../src/components/shell/workspace-shell';
 import { Workspace } from '../src/components/organizations/workspace';
+import { UserMenu } from '../src/components/shell/user-menu';
+import { OrganizationMenu } from '../src/components/shell/organization-menu';
+import { fullReload } from '../src/lib/full-reload';
 import { identityApi } from '../src/components/organizations/page-state';
 import { IdentityClientError } from '../src/lib/identity-client';
 const navigation = vi.hoisted(() => ({
@@ -22,6 +25,9 @@ const navigation = vi.hoisted(() => ({
   replace: vi.fn(),
   router: { replace: vi.fn() },
 }));
+const signOut = vi.hoisted(() => vi.fn());
+vi.mock('../src/lib/auth-client', () => ({ authClient: { signOut } }));
+vi.mock('../src/lib/full-reload', () => ({ fullReload: vi.fn() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.path,
   useRouter: () => navigation.router,
@@ -31,6 +37,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   navigation.path = '/workspace';
   navigation.router.replace.mockClear();
+  signOut.mockReset();
+  signOut.mockResolvedValue({ error: null });
 });
 
 const identity: IdentitySummary = {
@@ -87,12 +95,348 @@ function Protected() {
         Rerender child {revision}
       </button>
       {workspace.identity?.organization.kind === 'team' &&
-      workspace.identity.organization.role === 'owner' ? (
+      workspace.identity.organization.role === 'owner' &&
+      workspace.identity.user.name === 'Member' ? (
         <p>Old private members</p>
       ) : null}
     </>
   );
 }
+
+function RetryIdentity() {
+  const workspace = useWorkspace();
+  return (
+    <>
+      <button onClick={() => void workspace.refreshIdentity()}>
+        Retry identity
+      </button>
+      <p data-testid="workspace-status">{workspace.status}</p>
+      {workspace.identity ? <p>Fresh {workspace.identity.user.name}</p> : null}
+    </>
+  );
+}
+
+function BeginExplicitTransition() {
+  const workspace = useWorkspace();
+  return (
+    <button onClick={() => workspace.beginExplicitTransition()}>
+      Switch organization
+    </button>
+  );
+}
+
+test('shared explicit shell transition suppresses protected content and runtime host', async () => {
+  const client = new QueryClient();
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <WorkspaceShell sidebar={<BeginExplicitTransition />}>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  expect(view.container.textContent).toContain('Old private members');
+  await act(async () =>
+    (view.container.querySelector('button') as HTMLButtonElement).click(),
+  );
+  expect(view.container.textContent).toContain('Verifying your workspace');
+  expect(view.container.textContent).not.toContain('Old private members');
+  expect(view.container.querySelector('[data-slot="thread"]')).toBeNull();
+  await view.unmount();
+});
+
+test('organization switch hides old protected content and enrollment denial restores current content', async () => {
+  const target = {
+    ...identity.organization,
+    kind: 'team' as const,
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    name: 'Next team',
+    slug: 'next-team',
+  };
+  vi.spyOn(identityApi, 'listOrganizations').mockResolvedValue({
+    items: [identity.organization, target],
+    pageInfo: { nextCursor: null },
+  });
+  let finishSwitch!: (value: {
+    status: 'switched';
+    organization: typeof target;
+  }) => void;
+  let finishCleanup!: () => void;
+  const tenantQueries = await import('../src/lib/tenant-queries');
+  const cleanupSpy = vi
+    .spyOn(tenantQueries, 'transitionTenant')
+    .mockImplementation(
+      () => new Promise((resolve) => (finishCleanup = resolve)),
+    );
+  const switchCall = vi
+    .spyOn(identityApi, 'switchOrganization')
+    .mockImplementation(
+      () => new Promise((resolve) => (finishSwitch = resolve)),
+    );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <WorkspaceShell sidebar={<OrganizationMenu identity={identity} />}>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  await act(async () =>
+    (
+      view.container.querySelector(
+        '[aria-label="Organization: Team"]',
+      ) as HTMLButtonElement
+    ).click(),
+  );
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll('button')]
+      .find((button) => button.textContent === 'Next team')
+      ?.click(),
+  );
+  expect(switchCall).toHaveBeenCalledWith(target.id);
+  expect(view.container.textContent).not.toContain('Old private members');
+  await act(async () =>
+    finishSwitch({ status: 'switched', organization: target }),
+  );
+  await settle();
+  expect(fullReload).not.toHaveBeenCalled();
+  expect(view.container.textContent).not.toContain('Old private members');
+  await act(async () => finishCleanup());
+  await settle();
+  expect(fullReload).toHaveBeenCalledWith('/workspace');
+  expect(view.container.textContent).not.toContain('Old private members');
+  await view.unmount();
+
+  vi.spyOn(identityApi, 'switchOrganization').mockResolvedValue({
+    status: 'enrollment_required',
+    organization: identity.organization,
+    pendingOrganizationId: target.id,
+  });
+  const deniedView = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <WorkspaceShell sidebar={<OrganizationMenu identity={identity} />}>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  await act(async () =>
+    (
+      deniedView.container.querySelector(
+        '[aria-label="Organization: Team"]',
+      ) as HTMLButtonElement
+    ).click(),
+  );
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll('button')]
+      .find((button) => button.textContent === 'Next team')
+      ?.click(),
+  );
+  await settle();
+  expect(deniedView.container.textContent).toContain('Old private members');
+  expect(
+    deniedView.container.querySelector('a[href="/settings/security"]'),
+  ).not.toBeNull();
+  expect(deniedView.container.textContent).toContain(
+    'Your current organization is unchanged.',
+  );
+  await deniedView.unmount();
+  switchCall.mockRestore();
+  cleanupSpy.mockRestore();
+});
+
+test('unavailable bootstrap recovers only after an explicit fresh identity check', async () => {
+  vi.useFakeTimers();
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const verified = {
+    ...identity,
+    user: { ...identity.user, name: 'Fresh member' },
+  };
+  const later = {
+    ...verified,
+    user: { ...verified.user, name: 'Updated member' },
+  };
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValueOnce(verified)
+    .mockResolvedValue(later);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'unavailable' }}>
+        <RetryIdentity />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  expect(view.container.querySelector('button')?.textContent).toBe(
+    'Retry identity',
+  );
+  await act(async () => view.container.querySelector('button')?.click());
+  await act(async () => vi.advanceTimersByTimeAsync(10));
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(view.container.textContent).toContain('Fresh Fresh member');
+  expect(view.container.textContent).not.toContain(
+    'Service temporarily unavailable',
+  );
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
+  expect(identityCall).toHaveBeenCalledTimes(2);
+  expect(view.container.textContent).toContain('Fresh Updated member');
+  await view.unmount();
+});
+
+test('failed unavailable retry continues to hide protected content', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockRejectedValue(new Error('temporary outage'));
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'unavailable' }}>
+        <WorkspaceShell>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent === 'Retry')
+      ?.click(),
+  );
+  await settle();
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(view.container.textContent).toContain(
+    'Service temporarily unavailable',
+  );
+  expect(view.container.textContent).not.toContain('Old private members');
+  await view.unmount();
+});
+
+test('failed sign-out keeps protected content hidden until identity is freshly verified', async () => {
+  let finishSignOut!: (value: { error: Error }) => void;
+  let finishIdentity!: (value: IdentitySummary) => void;
+  signOut.mockImplementation(
+    () => new Promise((resolve) => (finishSignOut = resolve)),
+  );
+  const fresh = {
+    ...identity,
+    user: { ...identity.user, name: 'Reverified member' },
+  };
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockImplementation(
+      () => new Promise((resolve) => (finishIdentity = resolve)),
+    );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <WorkspaceShell sidebar={<UserMenu />}>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  expect(view.container.textContent).toContain('Old private members');
+  await act(async () =>
+    (document.querySelector('button') as HTMLButtonElement).click(),
+  );
+  await settle();
+  await act(async () => {
+    [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Sign out')
+      ?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true }),
+      );
+  });
+  await settle();
+  expect(signOut).toHaveBeenCalledTimes(1);
+  expect(view.container.textContent).not.toContain('Old private members');
+  await act(async () => {
+    finishSignOut({ error: new Error('signout failed') });
+    await signOut.mock.results[0]?.value;
+  });
+  expect(await signOut.mock.results[0]?.value).toMatchObject({
+    error: expect.any(Error),
+  });
+  await settle();
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(view.container.textContent).not.toContain('Old private members');
+  await act(async () => finishIdentity(fresh));
+  await settle();
+  expect(view.container.textContent).toContain('Protected Team');
+  expect(view.container.textContent).toContain('Reverified member');
+  expect(view.container.textContent).not.toContain('Old private members');
+  expect(view.container.textContent).toContain(
+    'Unable to sign out. Please try again.',
+  );
+  expect(client.getQueriesData({ queryKey: ['tenant'] })).toEqual([]);
+  await view.unmount();
+  signOut.mockReset();
+});
+
+test('failed sign-out plus failed verification stays protected and retries safely', async () => {
+  signOut.mockResolvedValue({ error: new Error('signout failed') });
+  const fresh = {
+    ...identity,
+    user: { ...identity.user, name: 'Verified after retry' },
+  };
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockRejectedValueOnce(new Error('verification unavailable'))
+    .mockResolvedValue(fresh);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <WorkspaceShell sidebar={<UserMenu />}>
+          <Protected />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () =>
+    (document.querySelector('button') as HTMLButtonElement).click(),
+  );
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Sign out')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+  );
+  await settle();
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(view.container.textContent).toContain(
+    'Service temporarily unavailable',
+  );
+  expect(view.container.querySelector('button')?.textContent).toBe('Retry');
+  expect(view.container.textContent).not.toContain('Old private members');
+  await act(async () => view.container.querySelector('button')?.click());
+  await settle();
+  expect(identityCall).toHaveBeenCalledTimes(2);
+  expect(view.container.textContent).toContain('Verified after retry');
+  expect(view.container.textContent).not.toContain('Old private members');
+  expect(client.getQueriesData({ queryKey: ['tenant'] })).toEqual([]);
+  await view.unmount();
+});
 
 test('one persistent identity observer polls every five seconds through child rerenders', async () => {
   vi.useFakeTimers();

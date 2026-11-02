@@ -96,7 +96,11 @@ function contrast(first, second) {
 }
 
 test('exports every DSv1.2 color token in both themes and resolves shadcn aliases', () => {
-  const themes = { light: parseBlock(':root'), dark: parseBlock('\\.dark') };
+  const light = parseBlock(':root');
+  const themes = {
+    light,
+    dark: { ...light, ...parseBlock('\\.dark') },
+  };
   for (const [theme, expectedTokens] of Object.entries(expected)) {
     for (const [name, value] of Object.entries(expectedTokens)) {
       assert.equal(resolve(themes[theme], name), value, `${theme} --${name}`);
@@ -128,7 +132,8 @@ test('exports every DSv1.2 color token in both themes and resolves shadcn aliase
 });
 
 test('meets DSv1.2 text, button, focus, and non-text accent contrast rules', () => {
-  const themes = { light: parseBlock(':root'), dark: parseBlock('\\.dark') };
+  const light = parseBlock(':root');
+  const themes = { light, dark: { ...light, ...parseBlock('\\.dark') } };
   for (const [theme, expectedTokens] of Object.entries(expected)) {
     const colors = Object.fromEntries(
       Object.keys(expectedTokens).map((key) => [
@@ -193,6 +198,11 @@ test('maps every rectangular Tailwind radius alias to 5px and preserves circular
 });
 
 test('uses a solid 2px focus ring with a 2px background offset on form controls', () => {
+  assert.doesNotMatch(
+    controls.button,
+    /destructive:\s*['"`][^'"`]*focus-visible:ring-destructive/,
+    'unused destructive button variant must not replace the solid focus token',
+  );
   for (const name of ['button', 'input']) {
     const code = controls[name];
     assert.match(

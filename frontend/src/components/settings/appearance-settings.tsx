@@ -46,10 +46,17 @@ export function AppearanceSettings(): React.ReactElement {
               <div
                 aria-hidden="true"
                 data-slot="appearance-preview"
+                data-theme-preview={value}
                 className="flex h-12 w-full gap-1 rounded-[var(--radius)] border border-border bg-surface p-1"
               >
-                <span className="w-1/4 rounded-[var(--radius)] bg-surface-raised" />
-                <span className="flex-1 rounded-[var(--radius)] bg-background" />
+                <span
+                  data-preview-theme={value === 'system' ? 'light' : value}
+                  className="w-1/4 rounded-[var(--radius)] border border-border bg-surface-raised"
+                />
+                <span
+                  data-preview-theme={value === 'system' ? 'dark' : value}
+                  className="flex-1 rounded-[var(--radius)] bg-background"
+                />
               </div>
             </Label>
           );

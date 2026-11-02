@@ -42,6 +42,9 @@ const workspace = vi.hoisted(() => ({
 const signOut = vi.hoisted(() => vi.fn());
 const transition = vi.hoisted(() => vi.fn());
 const fullReload = vi.hoisted(() => vi.fn());
+const beginExplicitTransition = vi.hoisted(() => vi.fn());
+const finishExplicitTransition = vi.hoisted(() => vi.fn());
+const refreshIdentity = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('../src/lib/auth-client', () => ({ authClient: { signOut } }));
 vi.mock('../src/lib/tenant-queries', () => ({ transitionTenant: transition }));
 vi.mock('../src/lib/full-reload', () => ({ fullReload }));
@@ -51,6 +54,10 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
     status: 'ready',
     transitioning: false,
     fallbackNotice: null,
+    transitionNotice: null,
+    beginExplicitTransition,
+    finishExplicitTransition,
+    refreshIdentity,
   }),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/workspace' }));
@@ -277,6 +284,8 @@ test('every active team role gets organization settings; only platform admins ge
 });
 
 test('organization menu paginates and a denied switch preserves Personal', async () => {
+  beginExplicitTransition.mockClear();
+  finishExplicitTransition.mockClear();
   const personal = identity.organization;
   const team = {
     ...personal,
@@ -320,6 +329,8 @@ test('organization menu paginates and a denied switch preserves Personal', async
     '[data-slot="popover-popup"]',
   );
   expect(organizationPopover?.className).toContain('dark:shadow-none');
+  expect(organizationPopover?.className).toContain('overflow-y-auto');
+  expect(organizationPopover?.className).toContain('--available-height');
   expect(document.body.textContent).toContain('Personal');
   expect(document.body.textContent).not.toContain('private-personal-slug');
   const next = [...document.body.querySelectorAll('button')].find(
@@ -332,6 +343,10 @@ test('organization menu paginates and a denied switch preserves Personal', async
   )!;
   await act(async () => option.click());
   await settle();
+  expect(beginExplicitTransition).toHaveBeenCalledTimes(1);
+  expect(finishExplicitTransition).toHaveBeenCalledWith(
+    expect.objectContaining({ securityLink: true }),
+  );
   expect(document.body.textContent).toContain(
     'Your current organization is unchanged.',
   );

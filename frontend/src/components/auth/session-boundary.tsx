@@ -2,14 +2,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { safeReturnPath } from '../../lib/return-path';
 import { authClient } from '../../lib/auth-client';
+import { Button } from '../ui/button';
 export function SessionBoundary({
   state,
   children,
   embedded = false,
+  onRetry,
 }: {
   state: 'authenticated' | 'expired' | 'unavailable';
   children: ReactNode;
   embedded?: boolean;
+  onRetry?: () => Promise<unknown>;
 }) {
   const [failed, setFailed] = useState(false);
   const [signInHref, setSignInHref] = useState(
@@ -65,6 +68,15 @@ export function SessionBoundary({
         aria-live="polite"
       >
         {content}
+        {state === 'unavailable' && onRetry ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void onRetry().catch(() => {})}
+          >
+            Retry
+          </Button>
+        ) : null}
       </section>
     );
   }

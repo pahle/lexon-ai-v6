@@ -23,7 +23,15 @@ type WorkspaceContextValue = {
   status: WorkspaceStatus;
   transitioning: boolean;
   fallbackNotice: string | null;
-  refreshIdentity: () => Promise<void>;
+  transitionNotice: { message: string; securityLink?: boolean } | null;
+  beginExplicitTransition: (options?: {
+    requireFreshIdentity?: boolean;
+  }) => void;
+  finishExplicitTransition: (notice?: {
+    message: string;
+    securityLink?: boolean;
+  }) => void;
+  refreshIdentity: () => Promise<IdentitySummary>;
 };
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 function accessKey(identity: IdentitySummary) {
@@ -80,12 +88,22 @@ export function WorkspaceProvider({
       ? fallbackMessage
       : null,
   );
+  const [explicitTransitionPending, setExplicitTransitionPending] =
+    useState(false);
+  const [mustVerifyIdentity, setMustVerifyIdentity] = useState(false);
+  const [refreshFailure, setRefreshFailure] = useState<unknown>(null);
+  const [transitionNotice, setTransitionNotice] = useState<{
+    message: string;
+    securityLink?: boolean;
+  } | null>(null);
 
   const identityQuery = useQuery({
     queryKey: ['identity'],
     queryFn: async () => {
       const verified = await identityApi.identity();
       setLatestVerifiedIdentity(verified);
+      setMustVerifyIdentity(false);
+      setRefreshFailure(null);
       return verified;
     },
     initialData:
@@ -94,28 +112,35 @@ export function WorkspaceProvider({
         : undefined,
     enabled:
       (bootstrap.status === 'ready' && !bootstrapSyncPending) ||
-      bootstrap.status === 'mfa-required',
+      bootstrap.status === 'mfa-required' ||
+      (!!latestVerifiedIdentity && !mustVerifyIdentity),
     refetchInterval:
-      bootstrap.status === 'ready' || bootstrap.status === 'mfa-required'
+      bootstrap.status === 'ready' ||
+      bootstrap.status === 'mfa-required' ||
+      (!!latestVerifiedIdentity && !mustVerifyIdentity)
         ? 5000
         : false,
-    staleTime: bootstrap.status === 'ready' ? 5000 : 0,
+    staleTime:
+      bootstrap.status === 'ready' || latestVerifiedIdentity ? 5000 : 0,
     retry: false,
   });
-  const { data: queryIdentity, error: identityError, refetch } = identityQuery;
-  const identity = bootstrapSyncPending
-    ? bootstrap.status === 'ready'
-      ? bootstrap.identity
-      : null
-    : bootstrap.status === 'ready'
-      ? (queryIdentity ?? latestVerifiedIdentity)
-      : latestVerifiedIdentity;
+  const { data: queryIdentity, error: identityError } = identityQuery;
+  const identity = mustVerifyIdentity
+    ? null
+    : bootstrapSyncPending
+      ? bootstrap.status === 'ready'
+        ? bootstrap.identity
+        : null
+      : bootstrap.status === 'ready'
+        ? (queryIdentity ?? latestVerifiedIdentity)
+        : latestVerifiedIdentity;
   const nextAccess = identity ? accessKey(identity) : null;
-  const transitioning =
+  const accessTransitioning =
     untrustedCacheClearPending ||
     bootstrapSyncPending ||
     (!!identity &&
       nextAccess !== (committedIdentity ? accessKey(committedIdentity) : null));
+  const transitioning = accessTransitioning || explicitTransitionPending;
 
   useEffect(() => {
     if (bootstrap.status !== 'ready' || !bootstrapSyncPending) return;
@@ -133,14 +158,6 @@ export function WorkspaceProvider({
         } else if (old.platformAdmin && !bootstrap.identity.platformAdmin) {
           await clearQueryFamilies(queryClient, [['platform']]);
         }
-        if (
-          old.user.twoFactorEnabled !==
-            bootstrap.identity.user.twoFactorEnabled ||
-          old.organization.require2fa !==
-            bootstrap.identity.organization.require2fa
-        ) {
-          await transitionTenant(queryClient, bootstrap.identity.organization);
-        }
         if (old.organization.id !== bootstrap.identity.organization.id) {
           await queryClient.invalidateQueries({ queryKey: ['organizations'] });
         }
@@ -157,7 +174,7 @@ export function WorkspaceProvider({
   }, [bootstrap, bootstrapSyncPending, queryClient]);
 
   useEffect(() => {
-    if (!identity || bootstrapSyncPending || !transitioning) return;
+    if (!identity || bootstrapSyncPending || !accessTransitioning) return;
     const previous = committedIdentity;
     let current = true;
     void (async () => {
@@ -170,12 +187,6 @@ export function WorkspaceProvider({
         ]);
       } else if (previous?.platformAdmin && !identity.platformAdmin) {
         await clearQueryFamilies(queryClient, [['platform']]);
-      }
-      if (
-        previous?.user.twoFactorEnabled !== identity.user.twoFactorEnabled ||
-        previous?.organization.require2fa !== identity.organization.require2fa
-      ) {
-        await transitionTenant(queryClient, identity.organization);
       }
       if (previous?.organization.id !== identity.organization.id) {
         await queryClient.invalidateQueries({ queryKey: ['organizations'] });
@@ -197,25 +208,26 @@ export function WorkspaceProvider({
     };
   }, [
     bootstrapSyncPending,
+    accessTransitioning,
     committedIdentity,
     identity,
     queryClient,
-    transitioning,
   ]);
 
   useEffect(() => {
     if (!identity?.fallbackReason) setFallbackNotice(null);
   }, [identity?.fallbackReason, identity?.organization.id]);
 
+  const effectiveIdentityError = identityError ?? refreshFailure;
   const status: WorkspaceStatus =
-    bootstrap.status === 'expired' || bootstrap.status === 'unavailable'
-      ? bootstrap.status
-      : identityError
-        ? identityError instanceof IdentityClientError &&
-          identityError.status === 401
+    bootstrap.status === 'expired'
+      ? 'expired'
+      : effectiveIdentityError
+        ? effectiveIdentityError instanceof IdentityClientError &&
+          effectiveIdentityError.status === 401
           ? 'expired'
-          : identityError instanceof IdentityClientError &&
-              identityError.code === 'AUTH_2FA_REQUIRED'
+          : effectiveIdentityError instanceof IdentityClientError &&
+              effectiveIdentityError.code === 'AUTH_2FA_REQUIRED'
             ? 'mfa-required'
             : 'unavailable'
         : identity
@@ -235,17 +247,57 @@ export function WorkspaceProvider({
   }, [queryClient, status]);
 
   const refreshIdentity = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
+    try {
+      const verified = await identityApi.identity();
+      setLatestVerifiedIdentity(verified);
+      setMustVerifyIdentity(false);
+      setRefreshFailure(null);
+      queryClient.setQueryData(['identity'], verified);
+      return verified;
+    } catch (error) {
+      setRefreshFailure(error);
+      throw error;
+    }
+  }, [queryClient]);
+  const beginExplicitTransition = useCallback(
+    (options?: { requireFreshIdentity?: boolean }) => {
+      setTransitionNotice(null);
+      setExplicitTransitionPending(true);
+      if (options?.requireFreshIdentity) {
+        setMustVerifyIdentity(true);
+        setLatestVerifiedIdentity(null);
+      }
+    },
+    [],
+  );
+  const finishExplicitTransition = useCallback(
+    (notice?: { message: string; securityLink?: boolean }) => {
+      setTransitionNotice(notice ?? null);
+      setExplicitTransitionPending(false);
+    },
+    [],
+  );
   const value = useMemo(
     () => ({
       identity: status === 'ready' && !transitioning ? identity : null,
       status,
       transitioning,
       fallbackNotice,
+      transitionNotice,
+      beginExplicitTransition,
+      finishExplicitTransition,
       refreshIdentity,
     }),
-    [identity, status, transitioning, fallbackNotice, refreshIdentity],
+    [
+      identity,
+      status,
+      transitioning,
+      fallbackNotice,
+      transitionNotice,
+      beginExplicitTransition,
+      finishExplicitTransition,
+      refreshIdentity,
+    ],
   );
   return (
     <WorkspaceContext.Provider value={value}>

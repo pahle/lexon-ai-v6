@@ -22,6 +22,7 @@ import {
   useCursorPage,
 } from '../organizations/page-state';
 import { useSidebarOptional } from '../ui/sidebar';
+import { useWorkspace } from './workspace-provider';
 
 function orgLabel(org: OrganizationSummary) {
   return org.kind === 'personal' ? 'Personal' : org.name;
@@ -29,6 +30,8 @@ function orgLabel(org: OrganizationSummary) {
 
 export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
   const query = useQueryClient();
+  const { beginExplicitTransition, finishExplicitTransition, refreshIdentity } =
+    useWorkspace();
   const organizationTrigger = useRef<HTMLButtonElement>(null);
   const collapsed = useSidebarOptional()?.state === 'collapsed';
   const [open, setOpen] = useState(false);
@@ -80,8 +83,10 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             className="z-50"
           >
             <Popover.Popup
+              initialFocus
               data-slot="popover-popup"
-              className="w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border dark:shadow-none"
+              data-testid="organization-popup"
+              className="w-72 max-h-[var(--available-height)] overflow-y-auto rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border dark:shadow-none"
             >
               <p className="px-2 py-1 text-sm font-medium">Organizations</p>
               {pages.query.isError ? (
@@ -111,6 +116,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                       setBusy(true);
                       setFailure('');
                       setMessage('');
+                      beginExplicitTransition();
                       try {
                         const result = await identityApi.switchOrganization(
                           organization.id,
@@ -119,12 +125,24 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                           setMessage(
                             'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
                           );
+                          finishExplicitTransition({
+                            message:
+                              'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
+                            securityLink: true,
+                          });
                           return;
                         }
                         await transitionTenant(query, result.organization);
                         fullReload('/workspace');
                       } catch (error) {
-                        setFailure(identityMessage(error));
+                        try {
+                          await refreshIdentity();
+                        } catch {
+                          // Keep the shell suppressed until the next verified refresh.
+                        }
+                        finishExplicitTransition({
+                          message: identityMessage(error),
+                        });
                       } finally {
                         setBusy(false);
                       }

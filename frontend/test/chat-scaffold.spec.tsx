@@ -21,6 +21,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => '/workspace',
 }));
 
 vi.mock('../src/components/shell/workspace-provider', () => ({

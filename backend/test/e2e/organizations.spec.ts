@@ -147,6 +147,18 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   await expect(settingsMenuItem).toBeFocused();
   const signOut = page.getByRole('menuitem', { name: 'Sign out', exact: true });
   await expect(signOut).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Profile settings',
+      exact: true,
+    }),
+  ).toBeFocused();
+  await userMenu.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(settingsMenuItem).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(signOut).toBeFocused();
   await page.keyboard.press('Enter');
@@ -328,6 +340,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
       .getByRole('status')
       .filter({ hasText: 'Your current organization is unchanged' }),
   ).toContainText('Your current organization is unchanged');
+  await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await page
     .getByRole('button', { name: 'Ordinary team', exact: true })
     .click();

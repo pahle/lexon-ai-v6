@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { join, relative, sep } from 'node:path';
 import { test } from 'node:test';
 
 const routeFiles = [
@@ -65,24 +66,31 @@ test('F2 route inventory retains descriptive titles and shell not-found routes',
 });
 
 test('F2 frontend source has no chat endpoint or theme preference API call', async () => {
-  const { execFile } = await import('node:child_process');
-  const { promisify } = await import('node:util');
-  const run = promisify(execFile);
-  let stdout = '';
-  try {
-    ({ stdout } = await run('rg', [
-      '-n',
-      '--glob',
-      '!**/test/**',
-      '/api/chat|identityApi.*theme|fetch.*theme',
-      'frontend/src',
-    ]));
-  } catch (error) {
-    if (error.code !== 1) throw error;
+  const root = 'frontend/src';
+  const files = [];
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'test') await visit(path);
+      } else if (entry.isFile()) {
+        files.push(path);
+      }
+    }
+  }
+  await visit(root);
+  const matches = [];
+  for (const path of files) {
+    const source = await readFile(path, 'utf8');
+    const match = /\/api\/chat|identityApi.*theme|fetch.*theme/.exec(source);
+    if (match) {
+      const line = source.slice(0, match.index).split('\n').length;
+      matches.push(`${relative(root, path).split(sep).join('/')}:${line}`);
+    }
   }
   assert.equal(
-    stdout,
+    matches.join('\n'),
     '',
-    `Unexpected chat or theme backend request:\n${stdout}`,
+    `Unexpected chat or theme backend request:\n${matches.join('\n')}`,
   );
 });

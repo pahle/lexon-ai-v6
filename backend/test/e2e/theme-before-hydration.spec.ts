@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
+import { authenticateApi } from './identity-support.js';
 
 test('F2 applies stored theme before hydration while external scripts are blocked', async ({
   browser,
@@ -70,4 +71,38 @@ test('F2 applies stored theme before hydration while external scripts are blocke
       await context.close();
     }
   }
+});
+
+test('appearance previews keep scoped light, dark, and system token surfaces', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  await page.goto(stack.frontendUrl + '/settings/appearance');
+  const previews = page.locator('[data-slot="appearance-preview"]');
+  await expect(previews).toHaveCount(3);
+  const light = await previews
+    .nth(0)
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  const dark = await previews
+    .nth(1)
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  const system = await previews.nth(2).evaluate((element) => ({
+    light: getComputedStyle(
+      element.querySelector('[data-preview-theme="light"]')!,
+    ).backgroundColor,
+    dark: getComputedStyle(
+      element.querySelector('[data-preview-theme="dark"]')!,
+    ).backgroundColor,
+  }));
+  expect(light).toBe('rgb(247, 247, 248)');
+  expect(dark).toBe('rgb(28, 28, 32)');
+  expect(system).toEqual({
+    light: 'rgb(255, 255, 255)',
+    dark: 'rgb(18, 18, 20)',
+  });
 });

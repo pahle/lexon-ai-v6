@@ -18,6 +18,7 @@ import {
 import { OrganizationMenu } from './organization-menu';
 import { UserMenu } from './user-menu';
 import { ThreadList } from '../assistant-ui/elements/thread-list.aui';
+import { requestRouteHeadingFocus } from './navigation-focus';
 
 export function AppSidebar() {
   const { identity } = useWorkspace();
@@ -89,6 +90,7 @@ export function AppSidebar() {
                     tooltip={label}
                     aria-current={active ? 'page' : undefined}
                     onClick={() => {
+                      if (pathname !== href) requestRouteHeadingFocus();
                       if (isMobile) setOpenMobile(false);
                     }}
                     render={<Link href={href} />}

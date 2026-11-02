@@ -23,7 +23,17 @@ export function AuthCard({
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>
-          <Heading>{title}</Heading>
+          <Heading
+            className={
+              headingLevel === 1
+                ? 'text-[length:var(--font-size-heading)] leading-[1.5] font-semibold'
+                : headingLevel === 2
+                  ? 'text-2xl leading-[1.5] font-semibold'
+                  : 'text-xl leading-[1.5] font-semibold'
+            }
+          >
+            {title}
+          </Heading>
         </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>

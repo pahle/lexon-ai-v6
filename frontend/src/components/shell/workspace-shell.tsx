@@ -27,7 +27,14 @@ export function WorkspaceShell({
   children: ReactNode;
   sidebar?: ReactNode;
 }) {
-  const { identity, status, transitioning, fallbackNotice } = useWorkspace();
+  const {
+    identity,
+    status,
+    transitioning,
+    fallbackNotice,
+    transitionNotice,
+    refreshIdentity,
+  } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
   const isMobile = useIsMobile();
@@ -39,7 +46,7 @@ export function WorkspaceShell({
       <>
         <SkipLink />
         <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
-          <SessionBoundary embedded state={status}>
+          <SessionBoundary embedded state={status} onRetry={refreshIdentity}>
             {null}
           </SessionBoundary>
         </main>
@@ -93,6 +100,16 @@ export function WorkspaceShell({
               />
             ) : null}
             {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
+            {transitionNotice ? (
+              <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
+                {transitionNotice.message}{' '}
+                {transitionNotice.securityLink ? (
+                  <a className="underline" href="/settings/security">
+                    Account security
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
             {children}
           </main>
           <div ref={setPanelHost} data-panel-host="" />

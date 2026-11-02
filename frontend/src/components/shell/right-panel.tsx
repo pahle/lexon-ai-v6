@@ -53,7 +53,7 @@ export function RightPanel({
           initialFocus={mobileInitialFocus}
           finalFocus={finalFocus}
           side="right"
-          className="!w-screen !max-w-none"
+          className="!w-screen !max-w-none bg-surface"
         >
           <SheetHeader ref={mobileInitialFocus} tabIndex={-1}>
             <SheetTitle id={titleId}>{title}</SheetTitle>
@@ -70,7 +70,7 @@ export function RightPanel({
     <aside
       aria-label={title}
       aria-labelledby={titleId}
-      className="flex min-h-0 w-[var(--right-panel-width)] shrink-0 flex-col border-l border-border bg-surface-raised"
+      className="flex min-h-0 w-[var(--right-panel-width)] shrink-0 flex-col border-l border-border bg-surface"
       style={{ width: 'var(--right-panel-width)' }}
     >
       <header className="flex min-h-14 items-center justify-between gap-2 border-b border-border px-4">

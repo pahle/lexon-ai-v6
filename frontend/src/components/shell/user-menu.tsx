@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
@@ -8,6 +9,7 @@ import { useWorkspace } from './workspace-provider';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { useSidebarOptional } from '../ui/sidebar';
+import { requestRouteHeadingFocus } from './navigation-focus';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,8 +30,14 @@ export function UserMenu() {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
-  const { identity } = useWorkspace();
+  const {
+    identity,
+    beginExplicitTransition,
+    finishExplicitTransition,
+    refreshIdentity,
+  } = useWorkspace();
   const sidebar = useSidebarOptional();
+  const pathname = usePathname() ?? '';
   const collapsed = sidebar?.state === 'collapsed';
   const name = identity?.user.name ?? 'Account';
   const email = identity?.user.email ?? '';
@@ -68,6 +76,7 @@ export function UserMenu() {
           <DropdownMenuItem
             render={<Link href="/settings/profile" />}
             onClick={() => {
+              if (pathname !== '/settings/profile') requestRouteHeadingFocus();
               if (sidebar?.isMobile) sidebar.setOpenMobile(false);
             }}
           >
@@ -78,6 +87,7 @@ export function UserMenu() {
             onClick={async () => {
               setBusy(true);
               setFailure(false);
+              beginExplicitTransition({ requireFreshIdentity: true });
               try {
                 await query.cancelQueries();
                 query.clear();
@@ -85,6 +95,14 @@ export function UserMenu() {
                 if (result.error) throw new Error('Sign out failed');
                 fullReload('/sign-in', true);
               } catch {
+                try {
+                  await refreshIdentity();
+                } catch {
+                  // Keep protected content hidden until the unavailable retry verifies identity.
+                }
+                finishExplicitTransition({
+                  message: 'Unable to sign out. Please try again.',
+                });
                 setFailure(true);
                 setBusy(false);
               }
