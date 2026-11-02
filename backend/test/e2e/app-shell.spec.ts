@@ -261,18 +261,28 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     await page.setViewportSize(viewport);
     let releaseOrganizationResponse!: () => void;
     let signalBufferedResponse!: () => void;
+    let signalOrganizationRouteFinished!: () => void;
     const responseGate = new Promise<void>((resolve) => {
       releaseOrganizationResponse = resolve;
     });
     const responseBuffered = new Promise<void>((resolve) => {
       signalBufferedResponse = resolve;
     });
+    const organizationRouteFinished = new Promise<void>((resolve) => {
+      signalOrganizationRouteFinished = resolve;
+    });
     const organizationListPattern = /\/api\/organizations\?limit=20$/;
+    let organizationRouteBuffered = false;
     const organizationListRoute = async (route: Route) => {
       const response = await route.fetch();
+      organizationRouteBuffered = true;
       signalBufferedResponse();
-      await responseGate;
-      await route.fulfill({ response });
+      try {
+        await responseGate;
+        await route.fulfill({ response });
+      } finally {
+        signalOrganizationRouteFinished();
+      }
     };
     let popup!: Locator;
     let create!: Locator;
@@ -291,6 +301,9 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       await page.keyboard.press('Enter');
       popup = page.getByTestId('organization-popup');
       await expect(popup).toBeVisible();
+      await expect(
+        page.getByRole('dialog', { name: 'Organizations', exact: true }),
+      ).toBeVisible();
       create = popup.getByRole('button', { name: 'Create a team' });
       await expect
         .poll(() =>
@@ -315,6 +328,7 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       organizationListStatus = (await organizationList).status();
     } finally {
       releaseOrganizationResponse();
+      if (organizationRouteBuffered) await organizationRouteFinished;
       await page.unroute(organizationListPattern, organizationListRoute);
     }
     expect(organizationListStatus).toBe(200);

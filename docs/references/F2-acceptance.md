@@ -414,6 +414,24 @@ focused ESLint, and backend typecheck pass at
 `/tmp/f2-finalfix-logs/readiness-audit-quality-verified.log`. The full local
 E2E suite was not rerun; remote CI is the full-suite gate for this commit.
 
+## Final review correction 6: name the organization popup dialog
+
+A focused assertion on the actual open organization popup confirmed that it
+was exposed as a dialog without an accessible name. RED evidence is
+`/tmp/f2-finalfix-logs/org-popup-name-red.log`. Base UI 1.9.0 provides
+`Popover.Title`; its installed implementation registers its ID with the root
+and makes the Popup reference it with `aria-labelledby`. The visible
+“Organizations” label now uses this primitive without changing its styling.
+The test verifies the rendered accessible role/name with Playwright's
+`getByRole('dialog', { name: 'Organizations' })`.
+
+The focused two-viewport popup case passes 1/1 at
+`/tmp/f2-finalfix-logs/org-popup-name-green-verified.log`; Prettier, focused
+ESLint, frontend typecheck, and backend typecheck pass at
+`/tmp/f2-finalfix-logs/org-popup-name-quality.log`. The browser fixture now
+waits for the held response route to fulfill before unregistering it, even if
+an assertion fails. No dependency was added; the full E2E suite is left for CI.
+
 ## Review closure and execution decisions
 
 The main session accepted the whole-branch review and scoped corrections.

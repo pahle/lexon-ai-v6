@@ -88,7 +88,9 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
               data-testid="organization-popup"
               className="w-72 max-h-[var(--available-height)] overflow-y-auto rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border dark:shadow-none"
             >
-              <p className="px-2 py-1 text-sm font-medium">Organizations</p>
+              <Popover.Title className="px-2 py-1 text-sm font-medium">
+                Organizations
+              </Popover.Title>
               {pages.query.isError ? (
                 <div className="p-2">
                   <p role="alert">Unable to load organizations.</p>
