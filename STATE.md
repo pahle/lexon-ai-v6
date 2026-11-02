@@ -4,10 +4,12 @@ Last updated: 2026-11-02 by the brief generator (session 1).
 
 ## Next action
 
-**F2 merged to `main` (PR #20) and reviewed (`reviews/F2-review.md`, no
-fixes).** Next: F3 AI Run Engine brief (LEX-ARC-001 §4.7), carrying the F3
-follow-ups below. Execution preference: subagent-driven, implementers on
-"gpt-6 luna" high.
+**F2 visual review failed (product owner, 2026-11-02):** UI far from the
+requested shadcn/assistant-ui blocks. Root causes and fix recorded in
+`reviews/F2-review.md` (addendum). Draft PR #21: LEX-DS-001 v2.0 (Lexon brand
+package, Royal Seal), LEX-TS-001 v1.10, F2.1 visual rework brief with a
+screenshot gate. Next: product owner merges, Codex runs F2.1; review must
+include rendering the pages and checking screenshots. F3 waits for F2.1.
 
 ## Slice status
 
@@ -18,6 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F0 Foundation | **Done** — merged to `main` (PR #6, plus review fixes PR #7) | Review: `reviews/F0-review.md` |
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
+| F2.1 Visual rework | Brief in PR #21 | Screenshot gate; PO approves before merge |
 | F3–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -68,11 +71,21 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 - F2 brainstorming (2026-11-01): dark mode in the MVP (LEX-DS-001 v1.1, `next-themes` in LEX-TS-001 v1.8); scaffold from shadcn blocks and assistant-ui registry/examples; sidebar shows only working destinations; Home = assistant-ui chat scaffold (disabled composer, F4 connects it); settings URLs tidied without redirects (F1 paths never used in production).
 
+- Brand (2026-11-02): product owner supplied the Lexon brand package (Royal Seal); adopted as LEX-DS-001 v2.0; auth cover image placeholder until the PO supplies one; composer shown with send disabled + "Chat is coming soon" tooltip until F4.
 - F2 execution (2026-11-02): product owner wants subagent-driven execution with implementer model fixed (gpt-6 luna, high); main session reviews.
 - F4: replace F2's inert assistant-ui runtime with the ChatTransport; sidebar conversation group gets real history.
 - F18: org list pagination filters non-active orgs after the lookahead (see reviews/F2-review.md).
 
 ## Lessons learned (apply to every brief)
+
+- **UI slices need visual acceptance, not only machine checks.** F2 passed axe,
+  lint, contrast, and 400+ tests but looked nothing like the requested blocks.
+  Every UI brief: start from the published block/example, pristine scaffold
+  commit first, allowed-adaptation list, screenshots approved by the product
+  owner, then screenshot baselines. Reviews must render the pages.
+- Do not let design-system rules override vendor component proportions
+  (44px targets, custom type scale, line-height 1.5 headings, one radius
+  broke the shadcn blocks). WCAG 2.2 AA target size is 24px (2.5.8).
 
 - State guarantees precisely (F0 said "exactly once"; correct is
   at-least-once delivery with effectively-once effects).

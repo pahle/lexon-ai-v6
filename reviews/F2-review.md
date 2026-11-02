@@ -43,3 +43,24 @@ None required.
   manual review (documented in F2-acceptance).
 - E2E-only limiter budget for signup/verification-resend is 100/IP/600s in
   `scripts/e2e.mjs`; production defaults unchanged.
+
+## Addendum (2026-11-02): visual review failed
+
+The product owner's screenshots showed the UI far from the requested shadcn
+`login-02`/`signup-02` and assistant-ui examples. My review checked behavior,
+tests, and CI but never rendered the pages; that was the gap.
+
+Root causes:
+1. The brief had only machine-checkable acceptance (axe, contrast, lint,
+   tests); no visual target or screenshot approval.
+2. LEX-DS-001 v1.x rules (44px controls, Lexon type scale, line-height 1.5
+   headings, 8px grid, one 5px radius) were applied over the blocks and
+   destroyed their proportions.
+3. Blocks were not kept: auth pages became a generic card; the thread was cut
+   down to a heading and a textarea.
+4. Real layout bug: the onboarding card collapses (`w-full max-w-md` inside a
+   shrink-wrapped flex parent).
+5. Redundant headers (page h1 + welcome heading; floating sidebar trigger).
+
+Fix: LEX-DS-001 v2.0 (brand + "blocks own proportions"), F2.1 brief with a
+pristine-scaffold method and a mandatory screenshot gate (PR #21).
