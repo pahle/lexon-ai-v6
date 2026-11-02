@@ -269,3 +269,7 @@ also received a test-first Compose assertion that failed before the overlay
 mapping and passed after it. Existing test selectors, CI branch trigger, route
 guidance and test-only harness settings do not alter production auth rules,
 public identity contracts, cursor behavior or backend authorization.
+
+Task12 commit `25fa7bc`: main-session spec-compliance and code-quality reviews
+passed. Reviewed the complete task diff and clean final logs; all eight required
+gates passed. The owned E2E stack was removed. Whole-branch review follows.
