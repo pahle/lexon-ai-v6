@@ -175,3 +175,16 @@ F1 scenarios; actual browser execution remains Task12. Final frontend102 tests/1
 files, focused29 tests, typecheck/lint90/root build/format passed. The approved
 organization route tree compiles; the unit tests invoke its explicit notFound
 branches. Native browser in-shell404 rendering is still a Task12 assertion.
+
+## Task 11 verification
+
+Commits `27cc3d8`, `639b0b5`: main-session spec/quality reviews passed after
+strengthening the tenant-remount proof and bounding/hiding the collapsed
+conversation group. Real LocalRuntime tests attempt Enter/form submit with
+zero adapter/fetch calls. The lifecycle probe fails when its tenant key is
+temporarily removed and passes when restored; this is additional sensitivity
+coverage, not a historical TDD claim. Full frontend105 tests and focused15 pass,
+with typecheck/lint/build/format checks. No dependencies/lockfile changes.
+Registry inspection identified27 generated files/9 dependencies/5 overwrites;
+only the inert Thread/Composer/List primitive closure was retained. No New,
+Send, overflow, attachment, tool, voice, model or branch/edit/reload controls.

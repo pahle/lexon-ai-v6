@@ -311,7 +311,7 @@ expect(
 
 **Interfaces:** `ChatRuntimeProvider({tenantId,children})` creates tenant-keyed useLocalRuntime with inert ChatModelAdapter; `Thread({displayName}:{displayName:string})` and `ThreadList()` consume same runtime. Run adapter fails safely if reached; tests prove it is unreachable. No data transport/network/AI call. Sidebar group is not a nav destination.
 
-- [ ] **Step1 — Write failing real-runtime tests.** Mount seeded Home/list, assert welcome uses name as text, disabled composer plus exact unavailable copy, exact empty-list copy, no send/new/overflow control. Focus surrounding composer area, dispatch Enter and attempted form submit; adapter and isolated fetch spies stay zero. Tenant key change/sign-out unmounts old runtime. Tests assert no focus stealing and no attachment/tool/model/voice/branch/edit/reload UI.
+- [x] **Step1 — Write failing real-runtime tests.** Mount seeded Home/list, assert welcome uses name as text, disabled composer plus exact unavailable copy, exact empty-list copy, no send/new/overflow control. Focus surrounding composer area, dispatch Enter and attempted form submit; adapter and isolated fetch spies stay zero. Tenant key change/sign-out unmounts old runtime. Tests assert no focus stealing and no attachment/tool/model/voice/branch/edit/reload UI.
 
 ```ts
 expect(run).not.toHaveBeenCalled();
@@ -320,10 +320,10 @@ expect(container.textContent).toContain('Chat is not available yet.');
 expect(container.textContent).toContain('No conversations yet.');
 ```
 
-- [ ] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/chat-scaffold.spec.tsx frontend/test/assistant-runtime.spec.tsx`.
-- [ ] **Step3 — Add registry files via CLI then trim.** Remove out-of-scope parts and their dependency graph before retaining generated files. Keep real Thread/Composer and ThreadList runtime composition, use pinned read-only/disabled mechanism and disabled native controls; no fake replacements. No New/Send/overflow or suggestions. Preserve exact F0 client package pins and avoid markdown/tools/voice dependencies not used. Add no Route Handler/Server Action/chat API.
-- [ ] **Step4 — GREEN:** focused tests, frontend typecheck/build, presentation/import fixtures. Add negative static fixture to presentation-policy tests for business Route Handlers, use-server files, or model-generation imports/calls under owned frontend; existing health route allowed. Browser shell identity traffic is not counted as a chat effect.
-- [ ] **Step5 — Commit:** stage Task11 files/provenance; commit `feat(ui): scaffold disabled assistant Home and empty thread list`.
+- [x] **Step2 — RED:** `pnpm exec vitest run --project frontend frontend/test/chat-scaffold.spec.tsx frontend/test/assistant-runtime.spec.tsx`.
+- [x] **Step3 — Add registry files via CLI then trim.** Remove out-of-scope parts and their dependency graph before retaining generated files. Keep real Thread/Composer and ThreadList runtime composition, use pinned read-only/disabled mechanism and disabled native controls; no fake replacements. No New/Send/overflow or suggestions. Preserve exact F0 client package pins and avoid markdown/tools/voice dependencies not used. Add no Route Handler/Server Action/chat API.
+- [x] **Step4 — GREEN:** focused tests, frontend typecheck/build, presentation/import fixtures. Add negative static fixture to presentation-policy tests for business Route Handlers, use-server files, or model-generation imports/calls under owned frontend; existing health route allowed. Browser shell identity traffic is not counted as a chat effect.
+- [x] **Step5 — Commit:** stage Task11 files/provenance; commit `feat(ui): scaffold disabled assistant Home and empty thread list`.
 
 ### Task 12: Prove both-theme accessibility and complete regression gates
 
