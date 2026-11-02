@@ -317,3 +317,31 @@ CI rerun is claimed. Deferred-transition sensitivity evidence is documented
 as such, not as historical strict TDD RED. The existing E2E-only
 signup/verification-resend IP override remains 100/IP/600s with account limit
 3 and does not affect production configuration.
+
+## Final review correction 2: identity response ordering
+
+The scoped re-review identified one additional race: an identity poll already
+in flight could complete after a newer manual verification and restore stale
+platform eligibility in rendered state and the query cache. The supplied
+actual-provider repro failed before the correction with `RefreshOld admin:true`
+after the fresh ordinary identity had rendered. A repository regression in
+`frontend/test/workspace-shell.spec.tsx` reproduced the same stale state and
+cache publication before provider edits.
+
+Identity polls, direct retries, and bootstrap synchronization now share a
+monotonic request version and latest-verified ref. Manual verification cancels
+the active `['identity']` query before the direct request; superseded query
+responses cannot update local state or overwrite the query cache. Requiring a
+fresh identity disables background polling and clears the accepted identity;
+successful retry repopulates the cache and resumes five-second polling. This
+preserves retry after `query.clear()`.
+
+The regression checks both completion orders: old poll after the fresh manual
+result, and old poll before the manual result completes. Both assert rendered
+and cached identity. The repository race tests pass 2/2, the supplied temporary
+repro passes 1/1, and the full workspace-provider file passes 26/26. Root
+typecheck, root lint (91 checks), targeted Prettier/diff checks, and the
+frontend production build pass. Logs: `/tmp/f2-finalfix-logs/identity-race-workspace.log`,
+`identity-race-typecheck-final.log`, `identity-race-lint-final.log`, and
+`identity-race-build-final.log`. The prior 427-unit and 34-E2E results belong
+to the preceding fix commit and were not rerun for this narrow correction.

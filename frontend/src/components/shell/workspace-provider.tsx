@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -80,6 +81,8 @@ export function WorkspaceProvider({
     useState<IdentitySummary | null>(
       bootstrap.status === 'ready' ? bootstrap.identity : null,
     );
+  const latestVerifiedIdentityRef = useRef(latestVerifiedIdentity);
+  const identityRequestVersion = useRef(0);
   const [untrustedCacheClearPending, setUntrustedCacheClearPending] = useState(
     bootstrap.status !== 'ready',
   );
@@ -97,29 +100,48 @@ export function WorkspaceProvider({
     securityLink?: boolean;
   } | null>(null);
 
+  const publishVerifiedIdentity = useCallback((verified: IdentitySummary) => {
+    latestVerifiedIdentityRef.current = verified;
+    setLatestVerifiedIdentity(verified);
+    setMustVerifyIdentity(false);
+    setRefreshFailure(null);
+    setBootstrapSyncPending(false);
+  }, []);
+
+  const requestIdentity = useCallback(async () => {
+    const requestVersion = ++identityRequestVersion.current;
+    try {
+      const verified = await identityApi.identity();
+      if (requestVersion !== identityRequestVersion.current) {
+        const latest = latestVerifiedIdentityRef.current;
+        if (latest) return latest;
+        throw new Error('Identity request was superseded before verification.');
+      }
+      publishVerifiedIdentity(verified);
+      return verified;
+    } catch (error) {
+      if (requestVersion !== identityRequestVersion.current) {
+        const latest = latestVerifiedIdentityRef.current;
+        if (latest) return latest;
+      }
+      throw error;
+    }
+  }, [publishVerifiedIdentity]);
+
+  const identityPollingEnabled =
+    !mustVerifyIdentity &&
+    ((bootstrap.status === 'ready' && !bootstrapSyncPending) ||
+      bootstrap.status === 'mfa-required' ||
+      !!latestVerifiedIdentity);
   const identityQuery = useQuery({
     queryKey: ['identity'],
-    queryFn: async () => {
-      const verified = await identityApi.identity();
-      setLatestVerifiedIdentity(verified);
-      setMustVerifyIdentity(false);
-      setRefreshFailure(null);
-      return verified;
-    },
+    queryFn: requestIdentity,
     initialData:
       bootstrap.status === 'ready'
         ? (latestVerifiedIdentity ?? bootstrap.identity)
         : undefined,
-    enabled:
-      (bootstrap.status === 'ready' && !bootstrapSyncPending) ||
-      bootstrap.status === 'mfa-required' ||
-      (!!latestVerifiedIdentity && !mustVerifyIdentity),
-    refetchInterval:
-      bootstrap.status === 'ready' ||
-      bootstrap.status === 'mfa-required' ||
-      (!!latestVerifiedIdentity && !mustVerifyIdentity)
-        ? 5000
-        : false,
+    enabled: identityPollingEnabled,
+    refetchInterval: identityPollingEnabled ? 5000 : false,
     staleTime:
       bootstrap.status === 'ready' || latestVerifiedIdentity ? 5000 : 0,
     retry: false,
@@ -144,6 +166,7 @@ export function WorkspaceProvider({
 
   useEffect(() => {
     if (bootstrap.status !== 'ready' || !bootstrapSyncPending) return;
+    const syncVersion = ++identityRequestVersion.current;
     let current = true;
     void (async () => {
       const old = queryClient.getQueryData<IdentitySummary>(['identity']);
@@ -162,16 +185,15 @@ export function WorkspaceProvider({
           await queryClient.invalidateQueries({ queryKey: ['organizations'] });
         }
       }
-      if (!current) return;
+      if (!current || syncVersion !== identityRequestVersion.current) return;
       queryClient.setQueryData(['identity'], bootstrap.identity);
-      setLatestVerifiedIdentity(bootstrap.identity);
+      publishVerifiedIdentity(bootstrap.identity);
       setCommittedIdentity(bootstrap.identity);
-      setBootstrapSyncPending(false);
     })();
     return () => {
       current = false;
     };
-  }, [bootstrap, bootstrapSyncPending, queryClient]);
+  }, [bootstrap, bootstrapSyncPending, publishVerifiedIdentity, queryClient]);
 
   useEffect(() => {
     if (!identity || bootstrapSyncPending || !accessTransitioning) return;
@@ -192,7 +214,6 @@ export function WorkspaceProvider({
         await queryClient.invalidateQueries({ queryKey: ['organizations'] });
       }
       if (!current) return;
-      setLatestVerifiedIdentity(identity);
       setCommittedIdentity(identity);
       if (
         identity.fallbackReason &&
@@ -247,28 +268,37 @@ export function WorkspaceProvider({
   }, [queryClient, status]);
 
   const refreshIdentity = useCallback(async () => {
+    const requestVersion = ++identityRequestVersion.current;
     try {
+      await queryClient.cancelQueries({ queryKey: ['identity'] });
       const verified = await identityApi.identity();
-      setLatestVerifiedIdentity(verified);
-      setMustVerifyIdentity(false);
-      setRefreshFailure(null);
+      if (requestVersion !== identityRequestVersion.current) {
+        const latest = latestVerifiedIdentityRef.current;
+        if (latest) return latest;
+        throw new Error('Identity request was superseded before verification.');
+      }
+      publishVerifiedIdentity(verified);
       queryClient.setQueryData(['identity'], verified);
       return verified;
     } catch (error) {
-      setRefreshFailure(error);
+      if (requestVersion === identityRequestVersion.current)
+        setRefreshFailure(error);
       throw error;
     }
-  }, [queryClient]);
+  }, [publishVerifiedIdentity, queryClient]);
   const beginExplicitTransition = useCallback(
     (options?: { requireFreshIdentity?: boolean }) => {
       setTransitionNotice(null);
       setExplicitTransitionPending(true);
       if (options?.requireFreshIdentity) {
+        identityRequestVersion.current += 1;
+        latestVerifiedIdentityRef.current = null;
         setMustVerifyIdentity(true);
         setLatestVerifiedIdentity(null);
+        void queryClient.cancelQueries({ queryKey: ['identity'] });
       }
     },
-    [],
+    [queryClient],
   );
   const finishExplicitTransition = useCallback(
     (notice?: { message: string; securityLink?: boolean }) => {

@@ -296,6 +296,172 @@ test('unavailable bootstrap recovers only after an explicit fresh identity check
   await view.unmount();
 });
 
+test('late identity polling cannot overwrite a newer fresh verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const oldAdmin: IdentitySummary = {
+    ...identity,
+    platformAdmin: true,
+    user: { ...identity.user, name: 'Old admin' },
+  };
+  const freshOrdinary: IdentitySummary = {
+    ...identity,
+    user: { ...identity.user, name: 'Fresh ordinary' },
+  };
+  let releasePoll: (value: IdentitySummary) => void = () => {};
+  const heldPoll = new Promise<IdentitySummary>((resolve) => {
+    releasePoll = resolve;
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockImplementationOnce(() => heldPoll)
+    .mockResolvedValueOnce(freshOrdinary);
+  function IdentityPublicationProbe() {
+    const workspace = useWorkspace();
+    return (
+      <>
+        <button onClick={() => void workspace.refreshIdentity()}>
+          Refresh identity
+        </button>
+        <p>
+          {workspace.identity
+            ? `${workspace.identity.user.name}:${workspace.identity.platformAdmin}`
+            : 'hidden'}
+        </p>
+      </>
+    );
+  }
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: oldAdmin }}>
+        <IdentityPublicationProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  let polling!: Promise<void>;
+  await act(async () => {
+    polling = client.invalidateQueries({ queryKey: ['identity'] });
+    await Promise.resolve();
+  });
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    view.container.querySelector('button')!.click();
+    await settle();
+  });
+  expect(view.container.textContent).toContain('Fresh ordinary:false');
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toMatchObject({
+    user: { name: 'Fresh ordinary' },
+    platformAdmin: false,
+  });
+
+  await act(async () => {
+    releasePoll(oldAdmin);
+    await polling;
+    await settle();
+  });
+  expect(view.container.textContent).toContain('Fresh ordinary:false');
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toMatchObject({
+    user: { name: 'Fresh ordinary' },
+    platformAdmin: false,
+  });
+
+  await view.unmount();
+  client.clear();
+  identityCall.mockRestore();
+});
+
+test('identity publication also ignores an older poll that finishes before a manual verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const currentAdmin: IdentitySummary = {
+    ...identity,
+    platformAdmin: true,
+    user: { ...identity.user, name: 'Current admin' },
+  };
+  const stalePoll: IdentitySummary = {
+    ...currentAdmin,
+    user: { ...currentAdmin.user, name: 'Stale poll admin' },
+  };
+  const freshOrdinary: IdentitySummary = {
+    ...identity,
+    user: { ...identity.user, name: 'Fresh ordinary' },
+  };
+  let releasePoll: (value: IdentitySummary) => void = () => {};
+  let releaseManual: (value: IdentitySummary) => void = () => {};
+  const heldPoll = new Promise<IdentitySummary>((resolve) => {
+    releasePoll = resolve;
+  });
+  const heldManual = new Promise<IdentitySummary>((resolve) => {
+    releaseManual = resolve;
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockImplementationOnce(() => heldPoll)
+    .mockImplementationOnce(() => heldManual);
+  function IdentityPublicationProbe() {
+    const workspace = useWorkspace();
+    return (
+      <>
+        <button onClick={() => void workspace.refreshIdentity()}>
+          Refresh identity
+        </button>
+        <p>
+          {workspace.identity
+            ? `${workspace.identity.user.name}:${workspace.identity.platformAdmin}`
+            : 'hidden'}
+        </p>
+      </>
+    );
+  }
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        bootstrap={{ status: 'ready', identity: currentAdmin }}
+      >
+        <IdentityPublicationProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  let polling!: Promise<void>;
+  await act(async () => {
+    polling = client.invalidateQueries({ queryKey: ['identity'] });
+    await Promise.resolve();
+  });
+  await act(async () => {
+    view.container.querySelector('button')!.click();
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledTimes(2);
+
+  await act(async () => {
+    releasePoll(stalePoll);
+    await polling;
+    await settle();
+  });
+  expect(view.container.textContent).toContain('Current admin:true');
+  expect(view.container.textContent).not.toContain('Stale poll admin');
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toMatchObject({
+    user: { name: 'Current admin' },
+    platformAdmin: true,
+  });
+
+  await act(async () => {
+    releaseManual(freshOrdinary);
+    await settle();
+  });
+  expect(view.container.textContent).toContain('Fresh ordinary:false');
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toMatchObject({
+    user: { name: 'Fresh ordinary' },
+    platformAdmin: false,
+  });
+  await view.unmount();
+  client.clear();
+  identityCall.mockRestore();
+});
+
 test('failed unavailable retry continues to hide protected content', async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
