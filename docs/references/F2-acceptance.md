@@ -345,3 +345,37 @@ frontend production build pass. Logs: `/tmp/f2-finalfix-logs/identity-race-works
 `identity-race-typecheck-final.log`, `identity-race-lint-final.log`, and
 `identity-race-build-final.log`. The prior 427-unit and 34-E2E results belong
 to the preceding fix commit and were not rerun for this narrow correction.
+
+## Review closure and execution decisions
+
+The main session accepted the whole-branch review and scoped corrections.
+Commit `de996f2` addressed all five Important and five Minor original findings.
+The scoped review then reproduced an identity-response race introduced by that
+fix. Commit `72ed364` corrected it with test-first regressions for both response
+orders. The final scoped review found the race addressed and no new breakage.
+No Critical or Important finding remains open. Remote CI on the final branch
+head is the final full-suite gate; its outcome is published on the pull request.
+
+The following records every execution ruling from the temporary SDD ledger,
+in order, including its reason and practical limit:
+
+| Decision                                                                  | Reason and limit                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Continue in the existing feature checkout.                                | The owner selected this branch/location; isolation is by feature branch rather than an additional worktree.                                                                                                                                                                        |
+| Main performs per-task spec then quality review.                          | The owner's instruction overrides separate reviewer dispatch; independent task-review seats are not claimed.                                                                                                                                                                       |
+| Keep every implementer on verified Luna/high, including fixes.            | The owner fixed the model; usage-limit interruptions were resumed without substituting a model.                                                                                                                                                                                    |
+| Bound shape lint to static JSX and cva strings plus semantic slots/files. | The owner capped analyzer scope; dynamic class expressions require manual review.                                                                                                                                                                                                  |
+| Use scoped notFound routes for bare and unknown organization URLs.        | This is the approved route-tree choice; build and browser tests cover it.                                                                                                                                                                                                          |
+| Correct the plan's Vitest project name from shared to contracts.          | This matches the installed configuration; earlier test evidence was not relabeled.                                                                                                                                                                                                 |
+| Retain the initial theme implementation with an explicit TDD exception.   | Later regression/sensitivity evidence supports behavior but cannot establish historical test-first order. The later shared-pending fix has the same documented evidence limit.                                                                                                     |
+| Add the safe expired-session sign-in link.                                | The brief requires recovery; the link does not alter sign-out policy or clear credentials directly.                                                                                                                                                                                |
+| Keep both old/new MFA security paths during task sequencing.              | This preserved restricted recovery before Task10 migration; old production routes are deleted in the final tree.                                                                                                                                                                   |
+| Keep the closed panel host neutral, outside main.                         | The controlled panel owns its aside/dialog; a closed panel reserves no width or landmark.                                                                                                                                                                                          |
+| Raise signup's E2E-only IP budget to 100/600s.                            | One simulated IP serves the expanded suite; account3/window600 and production defaults remain unchanged. Browser E2E does not prove the default-volume IP cap.                                                                                                                     |
+| Apply the same E2E-only IP budget to verification-resend.                 | Email verification uses that action; backend integration tests retain default-volume limiter proof.                                                                                                                                                                                |
+| Accept bounded live-shell structural panel geometry coverage.             | It uses the real host/CSS and measured256/320 widths but mirrors the desktop aside rather than mounting React RightPanel. No prior-constraint-disable sensitivity run is claimed; component tests cover actual panel behavior. The fixture could diverge from future panel markup. |
+| Correct the new identity race beyond the one-wave process cap.            | A confirmed load-bearing regression could not be handed off as complete; the cost was one additional narrow fix/review cycle, without reopening broad scope.                                                                                                                       |
+
+The temporary SDD workspace may be removed after final verification. The
+committed design, plan, acceptance evidence and this decision record remain
+the durable history; no ignored report is required to review the result.
