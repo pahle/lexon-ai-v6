@@ -113,8 +113,47 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.textContent).toContain('Lexon');
   expect(view.container.textContent).toContain('Ada Lovelace');
   expect(view.container.textContent).toContain('ada@example.test');
+  expect(view.container.textContent).toContain('No conversations yet.');
+  const conversationList = view.container.querySelector(
+    '[aria-label="Conversations"]',
+  );
+  expect(conversationList?.className).toContain('overflow-hidden');
+  expect(conversationList?.className).toContain('max-w-full');
+  expect(conversationList?.querySelector('p')?.className).toContain(
+    'break-words',
+  );
   expect(view.container.textContent).not.toContain('private-personal-slug');
   expect(view.container.textContent).not.toContain('Hidden personal name');
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+      }),
+    ),
+  );
+  await settle();
+  expect(
+    view.container
+      .querySelector('[data-slot="sidebar"]')
+      ?.getAttribute('data-state'),
+  ).toBe('collapsed');
+  expect(
+    view.container.querySelector('[aria-label="Conversations"]'),
+  ).toBeNull();
+  expect(view.container.textContent).not.toContain('No conversations yet.');
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+      }),
+    ),
+  );
+  await settle();
+  expect(view.container.textContent).toContain('No conversations yet.');
   await act(async () =>
     (
       view.container.querySelector(
@@ -646,7 +685,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   }));
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <WorkspaceShell sidebar={<AppSidebar />}>
           <p>Home content</p>
         </WorkspaceShell>
@@ -661,6 +700,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain('No conversations yet.');
   const userSettingsTrigger = document.body.querySelector(
     'button[aria-label="Settings: Ada Lovelace"]',
   ) as HTMLButtonElement;

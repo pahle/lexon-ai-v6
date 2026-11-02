@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+import { useEffect } from 'react';
 import {
   AssistantRuntimeProvider,
   useLocalRuntime,
@@ -45,24 +46,32 @@ it('renders a real idle runtime on React19 and TS6 without invoking a model or n
 
 it('provides a tenant-keyed idle LocalRuntime without chat transport', async () => {
   const run = vi.spyOn(inertChatModelAdapter, 'run');
+  const mounted = vi.fn();
+  const unmounted = vi.fn();
   const network = vi
     .spyOn(globalThis, 'fetch')
     .mockRejectedValue(new Error('Unexpected network'));
   const view = await render(
     <ChatRuntimeProvider tenantId="tenant-a">
-      <State />
+      <RuntimeMountProbe mounted={mounted} unmounted={unmounted} />
     </ChatRuntimeProvider>,
   );
   try {
     expect(view.container.textContent).toBe('Idle');
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
     await view.rerender(
       <ChatRuntimeProvider tenantId="tenant-b">
-        <State />
+        <RuntimeMountProbe mounted={mounted} unmounted={unmounted} />
       </ChatRuntimeProvider>,
     );
     expect(view.container.textContent).toBe('Idle');
+    expect(mounted).toHaveBeenCalledTimes(2);
+    expect(unmounted).toHaveBeenCalledTimes(1);
     expect(run).not.toHaveBeenCalled();
     expect(network).not.toHaveBeenCalled();
+    await view.rerender(<></>);
+    expect(unmounted).toHaveBeenCalledTimes(2);
   } finally {
     await view.unmount();
     run.mockRestore();
@@ -70,7 +79,17 @@ it('provides a tenant-keyed idle LocalRuntime without chat transport', async () 
   }
 });
 
-function State() {
+function RuntimeMountProbe({
+  mounted,
+  unmounted,
+}: {
+  mounted: () => void;
+  unmounted: () => void;
+}) {
   const running = useAuiState((s) => s.thread.isRunning);
+  useEffect(() => {
+    mounted();
+    return unmounted;
+  }, [mounted, unmounted]);
   return <span>{running ? 'Running' : 'Idle'}</span>;
 }

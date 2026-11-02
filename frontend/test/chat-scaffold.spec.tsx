@@ -1,19 +1,23 @@
 import { act } from 'react';
-import { expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatRuntimeProvider } from '../src/components/shell/chat-runtime-provider';
 import { Workspace } from '../src/components/organizations/workspace';
 import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.aui';
 import { inertChatModelAdapter } from '../src/components/shell/chat-runtime-provider';
 import { render } from './render.js';
 
-vi.stubGlobal(
-  'ResizeObserver',
-  class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-);
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn() }),

@@ -5,7 +5,10 @@ import { ThreadListItemPrimitive } from '@assistant-ui/react';
 
 export function ThreadList() {
   return (
-    <ThreadListPrimitive.Root aria-label="Conversations" className="min-w-0">
+    <ThreadListPrimitive.Root
+      aria-label="Conversations"
+      className="min-w-0 max-w-full overflow-hidden"
+    >
       <ThreadListPrimitive.Items>
         {({ threadListItem }) => (
           <ThreadListItemPrimitive.Root
@@ -18,7 +21,7 @@ export function ThreadList() {
           </ThreadListItemPrimitive.Root>
         )}
       </ThreadListPrimitive.Items>
-      <p className="px-2 py-1 text-sm text-muted-foreground">
+      <p className="min-w-0 max-w-full break-words px-2 py-1 text-sm text-muted-foreground">
         No conversations yet.
       </p>
     </ThreadListPrimitive.Root>

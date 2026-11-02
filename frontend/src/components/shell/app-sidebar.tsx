@@ -103,10 +103,12 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroup>
         </nav>
-        <SidebarGroup>
-          <SidebarGroupLabel>Conversations</SidebarGroupLabel>
-          <ThreadList />
-        </SidebarGroup>
+        {state === 'expanded' || isMobile ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Conversations</SidebarGroupLabel>
+            <ThreadList />
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
       <SidebarFooter className="p-2">
         <UserMenu />
