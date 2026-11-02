@@ -187,3 +187,30 @@ test('rejects variant-prefixed rounded-full class tokens', async () => {
     );
   }
 });
+
+test('rejects frontend business handlers, server actions, and model calls', async () => {
+  const fixtures = [
+    ['frontend/src/app/api/chat/route.ts', 'export async function POST() {}'],
+    [
+      'frontend/src/app/chat/actions.ts',
+      "'use server'; export async function send() {}",
+    ],
+    ['frontend/src/components/chat.tsx', "import { generateText } from 'ai';"],
+    ['frontend/src/components/chat.tsx', 'generateText({ model });'],
+  ];
+  for (const [path, code] of fixtures) {
+    const messages = await lint(
+      new URL(`../../${path}`, import.meta.url).pathname,
+      code,
+    );
+    assert.ok(
+      messages.some((message) => message.ruleId === 'lexon/server-boundary'),
+      `${path} was not rejected: ${JSON.stringify(messages)}`,
+    );
+  }
+  const health = await lint(
+    new URL('../../frontend/src/app/health/route.ts', import.meta.url).pathname,
+    'export async function GET() { return new Response("ok"); }',
+  );
+  assert.deepEqual(health, []);
+});

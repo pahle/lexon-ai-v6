@@ -9,6 +9,7 @@ import { OrganizationMenu } from '../src/components/shell/organization-menu';
 import { UserMenu } from '../src/components/shell/user-menu';
 import { WorkspaceShell } from '../src/components/shell/workspace-shell';
 import { sidebarDefaultOpen } from '../src/components/shell/sidebar-cookie';
+import { ChatRuntimeProvider } from '../src/components/shell/chat-runtime-provider';
 
 const identity: IdentitySummary = {
   version: 1,
@@ -75,7 +76,11 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <SidebarProvider>
-        <AppSidebar />
+        <ChatRuntimeProvider
+          tenantId={`${identity.user.id}:${identity.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
       </SidebarProvider>
     </QueryClientProvider>,
   );
@@ -175,7 +180,11 @@ test('every active team role gets organization settings; only platform admins ge
     const view = await render(
       <QueryClientProvider client={new QueryClient()}>
         <SidebarProvider>
-          <AppSidebar />
+          <ChatRuntimeProvider
+            tenantId={`${workspace.identity!.user.id}:${workspace.identity!.organization.id}`}
+          >
+            <AppSidebar />
+          </ChatRuntimeProvider>
         </SidebarProvider>
       </QueryClientProvider>,
     );
@@ -208,7 +217,11 @@ test('every active team role gets organization settings; only platform admins ge
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <SidebarProvider>
-        <AppSidebar />
+        <ChatRuntimeProvider
+          tenantId={`${workspace.identity!.user.id}:${workspace.identity!.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
       </SidebarProvider>
     </QueryClientProvider>,
   );

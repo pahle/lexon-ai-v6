@@ -5,6 +5,7 @@ import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
 import { SidebarTrigger, useSidebarOptional } from '../ui/sidebar';
 import { useIsMobile } from '../../hooks/use-mobile';
+import { ChatRuntimeProvider } from './chat-runtime-provider';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
 const securityPaths = new Set(['/settings/security']);
@@ -68,7 +69,7 @@ export function WorkspaceShell({
         </main>
       </>
     );
-  return (
+  const shell = (
     <PanelHostContext.Provider value={panelHost}>
       <>
         <SkipLink />
@@ -99,6 +100,16 @@ export function WorkspaceShell({
       </>
     </PanelHostContext.Provider>
   );
+  if (identity.user.onboardingCompleted) {
+    return (
+      <ChatRuntimeProvider
+        tenantId={`${identity.user.id}:${identity.organization.id}`}
+      >
+        {shell}
+      </ChatRuntimeProvider>
+    );
+  }
+  return shell;
 }
 
 export function usePanelHost(): HTMLElement | null {

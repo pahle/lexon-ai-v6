@@ -17,6 +17,7 @@ import {
 } from '../ui/sidebar';
 import { OrganizationMenu } from './organization-menu';
 import { UserMenu } from './user-menu';
+import { ThreadList } from '../assistant-ui/elements/thread-list.aui';
 
 export function AppSidebar() {
   const { identity } = useWorkspace();
@@ -102,6 +103,10 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroup>
         </nav>
+        <SidebarGroup>
+          <SidebarGroupLabel>Conversations</SidebarGroupLabel>
+          <ThreadList />
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-2">
         <UserMenu />
