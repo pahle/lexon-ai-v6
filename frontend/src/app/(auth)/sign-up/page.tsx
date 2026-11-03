@@ -14,6 +14,7 @@ export default async function SignupPage({
       invitationId={query.invitationId}
       setupToken={query.setupToken}
       returnTo={query.returnTo}
+      visualClientReady={process.env.LEXON_VISUAL_DEV === '1'}
     />
   );
 }

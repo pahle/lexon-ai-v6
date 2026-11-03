@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { SignUpInputSchema, type SignUpInput } from '@lexon/contracts';
 import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
+import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
 import { Button } from '../ui/button';
@@ -13,11 +14,14 @@ export function SignupForm({
   invitationId,
   setupToken,
   returnTo,
+  visualClientReady = false,
 }: {
   invitationId?: string | undefined;
   setupToken?: string | undefined;
   returnTo?: string | undefined;
+  visualClientReady?: boolean | undefined;
 }) {
+  useVisualAuthFormReady(visualClientReady);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState('');
   const form = useForm<SignUpInput>({

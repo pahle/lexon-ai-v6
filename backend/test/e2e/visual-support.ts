@@ -12,6 +12,14 @@ const sizes = {
   mobile: { width: 390, height: 844 },
 } as const;
 
+export async function waitForVisualAuthFormReady(page: Page) {
+  if (process.env.LEXON_VISUAL_DEV !== '1') return;
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-lexon-visual-auth-ready',
+    'true',
+  );
+}
+
 export async function captureVisualView(
   page: Page,
   view: VisualView,
@@ -23,7 +31,24 @@ export async function captureVisualView(
   await page.evaluate((value) => localStorage.setItem('theme', value), theme);
   const response = await page.reload();
   expect(response?.status()).toBe(200);
+  if (view === 'onboarding') {
+    await expect(page.getByLabel('Display name')).toHaveValue(
+      'Checkpoint Preview',
+    );
+  } else {
+    await waitForVisualAuthFormReady(page);
+  }
   await expect(page.locator('main')).toHaveCount(1);
+  expect(
+    await page.locator('main').evaluate((main) =>
+      Math.round(main.getBoundingClientRect().width),
+    ),
+  ).toBe(sizes[viewport].width);
+  expect(
+    await page.locator('main input').first().evaluate((input) =>
+      Math.round(input.getBoundingClientRect().width),
+    ),
+  ).toBe(320);
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('html')).toHaveClass(
     theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,

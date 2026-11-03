@@ -5,10 +5,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { SignInInputSchema, type SignInInput } from '@lexon/contracts';
 import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
+import { useVisualAuthFormReady } from './visual-readiness';
 import { FormInput, authFailure } from './form-input';
 import { Button } from '../ui/button';
 import { Field, FieldGroup, FieldDescription, FieldError } from '../ui/field';
-export function LoginForm({ returnTo }: { returnTo?: string | undefined }) {
+export function LoginForm({
+  returnTo,
+  visualClientReady = false,
+}: {
+  returnTo?: string | undefined;
+  visualClientReady?: boolean | undefined;
+}) {
+  useVisualAuthFormReady(visualClientReady);
   const [failure, setFailure] = useState('');
   const form = useForm<SignInInput>({
     resolver: zodResolver(SignInInputSchema),

@@ -5,7 +5,12 @@ export default async function SignInPage({
   searchParams: Promise<{ returnTo?: string | undefined }>;
 }) {
   const query = await searchParams;
-  return <LoginForm returnTo={query.returnTo} />;
+  return (
+    <LoginForm
+      returnTo={query.returnTo}
+      visualClientReady={process.env.LEXON_VISUAL_DEV === '1'}
+    />
+  );
 }
 export const metadata = {
   title: 'Sign in | Lexon',

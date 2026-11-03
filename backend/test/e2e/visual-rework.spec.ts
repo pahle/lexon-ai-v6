@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import {
@@ -47,10 +49,33 @@ test('a real API-authenticated incomplete identity renders onboarding checkpoint
     { headers, data: { name: 'Checkpoint Preview' } },
   );
   expect(profile.status()).toBe(200);
+  const storedProfile = (await (
+    await page.request.get(stack.apiUrl + '/api/identity/profile')
+  ).json()) as { name: string };
+  expect(storedProfile.name).toBe('Checkpoint Preview');
   await page.goto(stack.frontendUrl + '/onboarding');
   await expect(
     page.getByRole('heading', { name: 'Welcome to Lexon' }),
   ).toBeVisible();
+  for (const viewport of [
+    { width: 1440, height: 900, formWidth: 320 },
+    { width: 390, height: 844, formWidth: 320 },
+  ]) {
+    await page.setViewportSize(viewport);
+    expect(
+      await page.locator('main').evaluate((main) =>
+        Math.round(main.getBoundingClientRect().width),
+      ),
+    ).toBe(viewport.width);
+    expect(
+      await page.getByLabel('Display name').evaluate((input) =>
+        Math.round(input.getBoundingClientRect().width),
+      ),
+    ).toBe(viewport.formWidth);
+    await expect(page.getByLabel('Display name')).toHaveValue(
+      'Checkpoint Preview',
+    );
+  }
   for (const viewport of ['desktop', 'mobile'] as const) {
     for (const theme of ['light', 'dark'] as const)
       await captureVisualView(page, 'onboarding', theme, viewport);
@@ -88,21 +113,42 @@ test('secondary account flows render inside the shared auth frame', async ({
 }) => {
   const base = descriptor().frontendUrl;
   const routes = [
-    '/forgot-password',
-    '/reset-password',
-    '/verify-email?state=pending',
-    '/two-factor',
-    '/accept-invitation?invitationId=invalid',
-    '/admin-setup',
+    { name: 'forgot-password', path: '/forgot-password' },
+    { name: 'reset-password', path: '/reset-password' },
+    { name: 'verify-email', path: '/verify-email?state=pending' },
+    { name: 'two-factor', path: '/two-factor' },
+    {
+      name: 'accept-invitation',
+      path: '/accept-invitation?invitationId=invalid',
+    },
+    { name: 'admin-setup', path: '/admin-setup' },
   ];
+  const reviewDirectory = resolve('.cache/f21-task3-secondary');
+  await mkdir(reviewDirectory, { recursive: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
   for (const route of routes) {
-    const response = await page.goto(base + route);
-    expect(response?.status(), route).toBe(200);
-    await expect(page.locator('main'), route).toHaveCount(1);
-    await expect(page.locator('h1'), route).toHaveCount(1);
+    const response = await page.goto(base + route.path);
+    expect(response?.status(), route.name).toBe(200);
+    await page.evaluate(() => localStorage.setItem('theme', 'light'));
+    const themeResponse = await page.reload();
+    expect(themeResponse?.status(), route.name).toBe(200);
+    await expect(page.locator('main'), route.name).toHaveCount(1);
+    await expect(page.locator('h1'), route.name).toHaveCount(1);
     await expect(
       page.locator('[aria-hidden="true"].lg\\:block'),
-      route,
+      route.name,
     ).toHaveCount(1);
+    await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+    await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(Array.from(document.images, (image) => image.decode()));
+    });
+    await page.screenshot({
+      path: resolve(reviewDirectory, route.name + '.png'),
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    });
   }
 });

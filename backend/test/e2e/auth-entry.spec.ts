@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { readCapturedMail } from './identity-support.js';
+import { waitForVisualAuthFormReady } from './visual-support.js';
 
 test('F2 auth entry pages expose the shared skip target and responsive page landmarks', async ({
   page,
@@ -41,6 +42,7 @@ test('entry signup verifies email before authenticated continuation', async ({
   const stack = descriptor();
   const email = randomUUID() + '@example.test';
   await page.goto(stack.frontendUrl + '/sign-up');
+  await waitForVisualAuthFormReady(page);
   await page.getByLabel('Name', { exact: true }).fill('Browser identity');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page
@@ -58,6 +60,7 @@ test('entry signup verifies email before authenticated continuation', async ({
     page.getByRole('heading', { name: 'Email verified' }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  await waitForVisualAuthFormReady(page);
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page
     .getByLabel('Password', { exact: true })
