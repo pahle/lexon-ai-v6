@@ -4,12 +4,12 @@ Last updated: 2026-11-02 by the brief generator (session 1).
 
 ## Next action
 
-**F2 visual review failed (product owner, 2026-11-02):** UI far from the
-requested shadcn/assistant-ui blocks. Root causes and fix recorded in
-`reviews/F2-review.md` (addendum). Draft PR #21: LEX-DS-001 v2.0 (Lexon brand
-package, Royal Seal), LEX-TS-001 v1.10, F2.1 visual rework brief with a
-screenshot gate. Next: product owner merges, Codex runs F2.1; review must
-include rendering the pages and checking screenshots. F3 waits for F2.1.
+**F2.1 paused after Checkpoint B (not approved).** Product owner approved a
+prototype (Design canvas https://claude.ai/artifact/XnajyopyYmW3Fz3BZ2jAyY,
+screens in `docs/design/f2.1-prototype/`). PR #22: brand v1.1 (mark padding),
+LEX-DS-001 v2.1 (UI patterns, Settings dialog), LEX-TS-001 v1.11 (sonner),
+F2.1 Amendment 1 (plan Tasks 6–7 replaced, Checkpoint C). Next: PO merges
+#22, Codex merges main into `f2.1-visual-rework`, amends the plan, resumes.
 
 ## Slice status
 
@@ -77,6 +77,13 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F18: org list pagination filters non-active orgs after the lookahead (see reviews/F2-review.md).
 
 ## Lessons learned (apply to every brief)
+
+- **Design before implementation.** Copying shadcn blocks 1:1 gives demo
+  quality: blocks have no password toggle, error states, or product IA.
+  Build a quick prototype (Design canvas) with the PO first, commit its PNGs
+  as the visual target, and write UI patterns into LEX-DS-001 so they apply
+  to every slice. `tools`: a small renderer for .dc.html in the brief
+  generator scratchpad turns canvas sources into PNGs.
 
 - **UI slices need visual acceptance, not only machine checks.** F2 passed axe,
   lint, contrast, and 400+ tests but looked nothing like the requested blocks.
