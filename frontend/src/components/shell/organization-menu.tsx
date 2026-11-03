@@ -6,6 +6,7 @@ import type { IdentitySummary, OrganizationSummary } from '@lexon/contracts';
 import { transitionTenant } from '../../lib/tenant-queries';
 import { fullReload } from '../../lib/full-reload';
 import { Button } from '../ui/button';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
 import {
   Dialog,
   DialogClose,
@@ -28,12 +29,18 @@ function orgLabel(org: OrganizationSummary) {
   return org.kind === 'personal' ? 'Personal' : org.name;
 }
 
+function organizationRole(org: OrganizationSummary) {
+  if (org.kind !== 'team') return null;
+  return org.role.charAt(0).toUpperCase() + org.role.slice(1);
+}
+
 export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
   const query = useQueryClient();
   const { beginExplicitTransition, finishExplicitTransition, refreshIdentity } =
     useWorkspace();
   const organizationTrigger = useRef<HTMLButtonElement>(null);
-  const collapsed = useOptionalSidebar()?.state === 'collapsed';
+  const sidebar = useOptionalSidebar();
+  const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,19 +69,67 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
       }}
     >
       <Popover.Root open={open} onOpenChange={setOpen}>
-        <Popover.Trigger
-          ref={organizationTrigger}
-          aria-label={`Organization: ${orgLabel(identity.organization)}`}
-          title={collapsed ? orgLabel(identity.organization) : undefined}
-          className="flex min-h-11 min-w-11 w-full items-center justify-between rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring group-data-[collapsible=icon]:justify-center"
-        >
-          <span className="truncate">
-            {collapsed
-              ? orgLabel(identity.organization).slice(0, 1).toUpperCase()
-              : orgLabel(identity.organization)}
-          </span>
-          {!collapsed ? <span aria-hidden="true">⌄</span> : null}
-        </Popover.Trigger>
+        {sidebar ? (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Popover.Trigger
+                ref={organizationTrigger}
+                aria-label={`Organization: ${orgLabel(identity.organization)}`}
+                title={collapsed ? orgLabel(identity.organization) : undefined}
+                render={
+                  sidebar ? (
+                    <SidebarMenuButton
+                      size="lg"
+                      tooltip={orgLabel(identity.organization)}
+                      className="aria-expanded:bg-muted"
+                    />
+                  ) : undefined
+                }
+                className={
+                  !sidebar
+                    ? 'flex w-full items-center justify-between rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring'
+                    : undefined
+                }
+              >
+                {collapsed ? (
+                  <span className="truncate">
+                    {orgLabel(identity.organization).slice(0, 1).toUpperCase()}
+                  </span>
+                ) : (
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                    <span className="w-full truncate">
+                      {orgLabel(identity.organization)}
+                    </span>
+                    {organizationRole(identity.organization) ? (
+                      <span className="text-xs text-muted-foreground">
+                        {organizationRole(identity.organization)}
+                      </span>
+                    ) : null}
+                  </span>
+                )}
+                {!collapsed ? <span aria-hidden="true">⌄</span> : null}
+              </Popover.Trigger>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        ) : (
+          <Popover.Trigger
+            ref={organizationTrigger}
+            aria-label={`Organization: ${orgLabel(identity.organization)}`}
+            className="flex w-full items-center justify-between rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <span className="flex min-w-0 flex-col items-start gap-0.5">
+              <span className="truncate">
+                {orgLabel(identity.organization)}
+              </span>
+              {organizationRole(identity.organization) ? (
+                <span className="text-xs text-muted-foreground">
+                  {organizationRole(identity.organization)}
+                </span>
+              ) : null}
+            </span>
+            <span aria-hidden="true">⌄</span>
+          </Popover.Trigger>
+        )}
         <Popover.Portal>
           <Popover.Positioner
             side="bottom"

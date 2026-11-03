@@ -76,10 +76,17 @@ afterEach(async () => {
   }
   panelHost.element?.remove();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   window.innerWidth = 1024;
 });
 
 async function renderPageContent(node: ReactNode) {
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: (_type: string, listener: EventListener) =>
+      window.addEventListener('resize', listener),
+    removeEventListener: (_type: string, listener: EventListener) =>
+      window.removeEventListener('resize', listener),
+  }));
   panelHost.element = document.createElement('div');
   panelHost.element.dataset.panelHost = '';
   document.body.append(panelHost.element);

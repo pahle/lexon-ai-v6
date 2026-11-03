@@ -22,7 +22,9 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await expect(page.locator('main')).toHaveCount(1);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(
-    page.getByRole('link', { name: 'Home', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Home', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
   await expect(page.getByLabel('Chat message')).toBeDisabled();
   await expect(page.getByText('Chat is not available yet.')).toBeVisible();
@@ -36,7 +38,7 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     await sidebarContainer.evaluate(
       (element) => getComputedStyle(element).transitionDuration,
     ),
-  ).toBe('0.4s');
+  ).toBe('0.2s');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(
     await sidebarContainer.evaluate(
@@ -131,7 +133,9 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await first.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
-  await page.getByRole('button', { name: 'Close panel' }).click();
+  await dialog
+    .getByRole('button', { name: 'Close navigation', exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
@@ -140,12 +144,41 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Toggle Settings navigation' })
+    .click();
+  await page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('link', { name: 'Profile', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
+  await workspaceDialog
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('link', { name: 'Home', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/workspace$/);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await workspaceDialog
+    .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+    .click();
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/profile$/);
+  const activeAfterUserMenuNavigation = await page.evaluate(() => ({
+    active: document.activeElement?.outerHTML,
+    pathname: location.pathname,
+  }));
+  expect(
+    await page
+      .getByRole('heading', { level: 1 })
+      .evaluate((heading) => document.activeElement === heading),
+    JSON.stringify(activeAfterUserMenuNavigation),
+  ).toBe(true);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -187,6 +220,11 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   await page.goto(`${stack.frontendUrl}/organizations/${id}/settings/general`);
   const title = page.getByRole('heading', { level: 1 });
   await expect(title).toHaveText('Organization settings');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'General', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
   // This test-only structural aside mirrors RightPanel's desktop host markup;
   // the host and all layout CSS come from the live production page.
   await page.locator('[data-panel-host]').evaluate((host) => {
@@ -200,9 +238,16 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   });
   const geometry = await page.evaluate(() => {
     const sidebar = document
-      .querySelector('aside[aria-label="Workspace navigation"]')!
+      .querySelector(
+        '[role="complementary"][aria-label="Workspace navigation"]',
+      )!
       .getBoundingClientRect();
     const main = document.querySelector('main#main')!.getBoundingClientRect();
+    const content = document
+      .querySelector(
+        'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
+      )!
+      .getBoundingClientRect();
     const headingElement = document.querySelector('main#main h1')!;
     const heading = headingElement.getBoundingClientRect();
     const textRange = document.createRange();
@@ -216,6 +261,7 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     return {
       sidebarWidth: sidebar.width,
       mainRight: main.right,
+      contentRight: content.right,
       headingRight: heading.right,
       textRight,
       panelLeft: panel.left,
@@ -228,7 +274,51 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   expect(geometry.headingRight).toBeLessThanOrEqual(geometry.panelLeft);
   expect(geometry.textRight).toBeLessThanOrEqual(geometry.panelLeft);
   expect(geometry.documentWidth).toBeLessThanOrEqual(768);
-  expect(geometry.mainRight).toBeLessThanOrEqual(geometry.panelLeft);
+  expect(geometry.contentRight).toBeLessThanOrEqual(geometry.panelLeft);
+  expect(geometry.mainRight).toBeGreaterThanOrEqual(geometry.panelLeft);
+  const cardTitle = page.locator('main#main [data-slot="card-title"] h2');
+  await expect(cardTitle).toBeVisible();
+  const cardTitleFits = await cardTitle.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const bounds = element.getBoundingClientRect();
+    const titleContainer = element
+      .closest('[data-slot="card-title"]')!
+      .getBoundingClientRect();
+    const card = element.closest('[data-slot="card"]')!.getBoundingClientRect();
+    const visibleLeft = Math.max(bounds.left, titleContainer.left, card.left);
+    const visibleRight = Math.min(
+      bounds.right,
+      titleContainer.right,
+      card.right,
+    );
+    return (
+      element.scrollWidth <= element.clientWidth &&
+      [...range.getClientRects()].every(
+        (rect) => rect.left >= visibleLeft && rect.right <= visibleRight,
+      )
+    );
+  });
+  expect(
+    cardTitleFits,
+    'Organization settings title must remain readable',
+  ).toBe(true);
+  for (const label of ['Save organization settings', 'Require authenticator']) {
+    const action = page.getByRole('button', { name: label, exact: true });
+    await expect(action).toBeVisible();
+    const textFits = await action.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const bounds = element.getBoundingClientRect();
+      return (
+        element.scrollWidth <= element.clientWidth &&
+        [...range.getClientRects()].every(
+          (rect) => rect.left >= bounds.left && rect.right <= bounds.right,
+        )
+      );
+    });
+    expect(textFits, `${label} must remain readable at 768px`).toBe(true);
+  }
 });
 
 test('F2 organization popup scrolls 20 choices and keeps paging and creation reachable', async ({

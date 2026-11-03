@@ -127,75 +127,16 @@ test('role refresh removes a formerly allowed settings view and its cached data'
   await view.unmount();
 });
 
-test('organization settings navigation only shows sections permitted by live identity', async () => {
-  const identity = {
-    version: 1 as const,
-    user: {
-      version: 1 as const,
-      id: '00000000-0000-4000-8000-000000000003',
-      email: 'member@example.test',
-      name: 'Team Member',
-      emailVerified: true,
-      twoFactorEnabled: false,
-      onboardingCompleted: true,
-    },
-    organization: { ...team, role: 'member' as const },
-    platformAdmin: false,
-  };
-  const cases = [
-    {
-      identity,
-      expected: ['/organizations/' + team.id + '/settings/members'],
-    },
-    {
-      identity: {
-        ...identity,
-        organization: { ...team, role: 'admin' as const },
-      },
-      expected: [
-        '/organizations/' + team.id + '/settings/members',
-        '/organizations/' + team.id + '/settings/invitations',
-      ],
-    },
-    {
-      identity: {
-        ...identity,
-        organization: { ...team, role: 'owner' as const },
-      },
-      expected: [
-        '/organizations/' + team.id + '/settings/members',
-        '/organizations/' + team.id + '/settings/invitations',
-        '/organizations/' + team.id + '/settings/general',
-      ],
-    },
-    {
-      identity: { ...identity, organization: personal },
-      expected: [],
-    },
-    {
-      identity,
-      organizationId: '00000000-0000-4000-8000-000000000099',
-      expected: [],
-    },
-  ];
-  for (const item of cases) {
-    workspaceState.identity = item.identity;
-    const view = await render(
-      <OrganizationSettingsPageFrame
-        organizationId={item.organizationId ?? team.id}
-        current="members"
-      >
-        <p>Section content</p>
-      </OrganizationSettingsPageFrame>,
-    );
-    expect(
-      [...view.container.querySelectorAll('nav a')].map((link) =>
-        link.getAttribute('href'),
-      ),
-    ).toEqual(item.expected);
-    await view.unmount();
-  }
-  workspaceState.identity = null;
+test('organization settings frame leaves route navigation to the workspace sidebar', async () => {
+  const view = await render(
+    <OrganizationSettingsPageFrame>
+      <p>Section content</p>
+    </OrganizationSettingsPageFrame>,
+  );
+  expect(view.container.querySelector('nav')).toBeNull();
+  expect(view.container.textContent).toContain('Organization settings');
+  expect(view.container.textContent).toContain('Section content');
+  await view.unmount();
 });
 
 test('lost organization context retains F1 recovery copy and workspace link without loading old data', async () => {

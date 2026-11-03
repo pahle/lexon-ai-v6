@@ -8,7 +8,7 @@ export default async function GeneralSettingsPage({
 }) {
   const { orgId } = await params;
   return (
-    <OrganizationSettingsPageFrame organizationId={orgId} current="general">
+    <OrganizationSettingsPageFrame>
       <OrganizationPage organizationId={orgId} view="general" />
     </OrganizationSettingsPageFrame>
   );

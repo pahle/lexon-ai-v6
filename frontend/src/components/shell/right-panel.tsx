@@ -3,7 +3,13 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { usePanelHost } from './workspace-shell';
 import { useIsMobile } from '../../hooks/use-mobile';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../ui/sheet';
 import { Button } from '../ui/button';
 
 type RightPanelProps = {
@@ -53,10 +59,27 @@ export function RightPanel({
           initialFocus={mobileInitialFocus}
           finalFocus={finalFocus}
           side="right"
+          showCloseButton={false}
           className="!w-screen !max-w-none bg-surface"
         >
-          <SheetHeader ref={mobileInitialFocus} tabIndex={-1}>
+          <SheetHeader
+            ref={mobileInitialFocus}
+            tabIndex={-1}
+            className="flex-row items-center justify-between"
+          >
             <SheetTitle id={titleId}>{title}</SheetTitle>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close panel"
+                />
+              }
+            >
+              <span aria-hidden="true">×</span>
+            </SheetClose>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
         </SheetContent>
@@ -83,7 +106,7 @@ export function RightPanel({
         <Button
           type="button"
           variant="ghost"
-          className="h-11 w-11 shrink-0"
+          size="icon"
           aria-label="Close panel"
           onClick={() => onOpenChange(false)}
         >

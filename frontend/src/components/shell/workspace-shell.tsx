@@ -3,7 +3,9 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
-import { SidebarTrigger } from '../ui/sidebar';
+import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
+import { Separator } from '../ui/separator';
+import { WorkspaceBreadcrumb } from './workspace-breadcrumb';
 import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
@@ -89,40 +91,56 @@ export function WorkspaceShell({
     <PanelHostContext.Provider value={panelHost}>
       <>
         <SkipLink />
-        <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 p-6 md:flex-row">
-          {identity.user.onboardingCompleted && sidebar ? (
-            <aside aria-label="Workspace navigation" className="shrink-0">
-              {sidebar}
-            </aside>
+        {sidebar && sidebarState ? sidebar : null}
+        <SidebarInset id="main" tabIndex={-1} className="min-w-0">
+          {sidebar && sidebarState ? (
+            <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+              <div className="flex items-center gap-2 px-4">
+                <SidebarTrigger
+                  className="-ml-1"
+                  aria-label={
+                    isMobile
+                      ? 'Open navigation'
+                      : sidebarCollapsed
+                        ? 'Expand sidebar'
+                        : 'Collapse sidebar'
+                  }
+                />
+                <Separator
+                  orientation="vertical"
+                  className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+                />
+                <WorkspaceBreadcrumb />
+              </div>
+            </header>
           ) : null}
-          <main id="main" tabIndex={-1} className="min-w-0 flex-1">
-            {sidebar && identity.user.onboardingCompleted && sidebarState ? (
-              <SidebarTrigger
-                className="mb-4"
-                aria-label={
-                  isMobile
-                    ? 'Open navigation'
-                    : sidebarCollapsed
-                      ? 'Expand sidebar'
-                      : 'Collapse sidebar'
-                }
-              />
-            ) : null}
-            {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
-            {transitionNotice ? (
-              <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
-                {transitionNotice.message}{' '}
-                {transitionNotice.securityLink ? (
-                  <a className="underline" href="/settings/security">
-                    Account security
-                  </a>
-                ) : null}
-              </p>
-            ) : null}
-            {children}
-          </main>
-          <div ref={setPanelHost} data-panel-host="" />
-        </div>
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+              {sidebar && !sidebarState ? (
+                <aside aria-label="Workspace navigation" className="shrink-0">
+                  {sidebar}
+                </aside>
+              ) : null}
+              {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
+              {transitionNotice ? (
+                <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
+                  {transitionNotice.message}{' '}
+                  {transitionNotice.securityLink ? (
+                    <a className="underline" href="/settings/security">
+                      Account security
+                    </a>
+                  ) : null}
+                </p>
+              ) : null}
+              {children}
+            </div>
+            <div
+              ref={setPanelHost}
+              data-panel-host=""
+              className="flex min-h-0"
+            />
+          </div>
+        </SidebarInset>
       </>
     </PanelHostContext.Provider>
   );

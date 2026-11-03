@@ -115,7 +115,7 @@ test('shared states use flex gaps on the design spacing grid', async () => {
   await act(async () => root.unmount());
 });
 
-test('page heading uses the design-system size, weight, and line height', async () => {
+test('page heading uses the DS2 serif heading treatment without retired tokens', async () => {
   const host = document.createElement('div');
   const root = createRoot(host);
   await act(async () =>
@@ -123,10 +123,9 @@ test('page heading uses the design-system size, weight, and line height', async 
   );
 
   const heading = host.querySelector('h1');
-  expect(heading?.className).toContain(
-    'text-[length:var(--font-size-heading)]',
-  );
-  expect(heading?.className).toContain('font-semibold');
-  expect(heading?.className).toContain('leading-[1.5]');
+  expect(heading?.className).toContain('font-serif');
+  expect(heading?.className).toContain('text-2xl');
+  expect(heading?.className).toContain('font-bold');
+  expect(heading?.className).not.toContain('--font-size-heading');
   await act(async () => root.unmount());
 });

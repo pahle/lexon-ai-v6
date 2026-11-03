@@ -8,7 +8,7 @@ export default async function MembersPage({
 }) {
   const { orgId } = await params;
   return (
-    <OrganizationSettingsPageFrame organizationId={orgId} current="members">
+    <OrganizationSettingsPageFrame>
       <OrganizationPage organizationId={orgId} view="members" />
     </OrganizationSettingsPageFrame>
   );

@@ -2,6 +2,7 @@ import { test, expect, vi } from 'vitest';
 import { render } from './render';
 import { SectionNavigation } from '../src/components/settings/section-navigation';
 import { ProfileSettings } from '../src/components/settings/profile-settings';
+import { SettingsPageFrame } from '../src/components/settings/settings-page-frame';
 import { identityApi } from '../src/components/organizations/page-state';
 
 const refreshIdentity = vi.fn(async () => {});
@@ -55,6 +56,18 @@ test('section navigation uses actionable links and marks the current route', asy
   expect(view.container.querySelector('ul')?.className).toContain('flex-col');
   expect(links[1]?.className).toContain('border-l-2');
   expect(view.container.querySelector('nav')?.className).toContain('min-w-0');
+  await view.unmount();
+});
+
+test('settings page frame leaves route navigation to the workspace sidebar', async () => {
+  const view = await render(
+    <SettingsPageFrame title="Profile settings">
+      <p>Profile content</p>
+    </SettingsPageFrame>,
+  );
+  expect(view.container.querySelector('nav')).toBeNull();
+  expect(view.container.textContent).toContain('Profile settings');
+  expect(view.container.textContent).toContain('Profile content');
   await view.unmount();
 });
 

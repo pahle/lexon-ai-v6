@@ -36,14 +36,20 @@ import {
 export const ThreadList: FC = () => {
   const [search, setSearch] = useState("");
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+  const isLoading = useAuiState((s) => s.threads.isLoading);
 
   return (
     <ThreadListRoot>
-      <ThreadListNew />
       {hasThreads && (
         <ThreadListSearch value={search} onValueChange={setSearch} />
       )}
-      <ThreadListItems searchQuery={hasThreads ? search : ""} />
+      {hasThreads || isLoading ? (
+        <ThreadListItems searchQuery={hasThreads ? search : ""} />
+      ) : (
+        <p className="break-words px-2.5 py-2 text-sm text-muted-foreground">
+          No conversations yet.
+        </p>
+      )}
     </ThreadListRoot>
   );
 };

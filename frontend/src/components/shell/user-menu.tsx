@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
 import { fullReload } from '../../lib/full-reload';
@@ -13,9 +13,13 @@ import { requestRouteHeadingFocus } from './navigation-focus';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
 
 function initials(name: string) {
   return name
@@ -26,10 +30,16 @@ function initials(name: string) {
     .join('');
 }
 
-export function UserMenu() {
+export function UserMenu({
+  onMobileNavigate,
+}: {
+  onMobileNavigate?: () => void;
+} = {}) {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const mobileNavigationPending = useRef(false);
   const {
     identity,
     beginExplicitTransition,
@@ -38,45 +48,97 @@ export function UserMenu() {
   } = useWorkspace();
   const sidebar = useOptionalSidebar();
   const pathname = usePathname() ?? '';
-  const collapsed = sidebar?.state === 'collapsed';
+  const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const name = identity?.user.name ?? 'Account';
   const email = identity?.user.email ?? '';
-  return (
-    <div>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
+  const requestSettingsNavigation = () => {
+    if (sidebar?.isMobile) {
+      if (!mobileNavigationPending.current) {
+        mobileNavigationPending.current = true;
+        onMobileNavigate?.();
+      }
+    } else requestRouteHeadingFocus();
+  };
+  const menu = (
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenuTrigger
+        render={
+          sidebar ? (
+            <SidebarMenuButton
+              size="lg"
+              title={collapsed ? name : undefined}
+              className="aria-expanded:bg-muted"
+              disabled={busy}
+            />
+          ) : (
             <Button
               variant="ghost"
               title={collapsed ? name : undefined}
-              className={
-                collapsed
-                  ? 'w-11 min-h-11 min-w-11 justify-center px-0'
-                  : 'w-full min-h-11 justify-start gap-2'
-              }
+              className="w-full justify-start gap-2"
               disabled={busy}
             />
-          }
-        >
-          <Avatar>
-            <AvatarFallback data-slot="avatar-initials" aria-label={name}>
-              {initials(name)}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed ? (
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block truncate">{name}</span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {email}
-              </span>
+          )
+        }
+      >
+        <Avatar>
+          <AvatarFallback data-slot="avatar-initials" aria-label={name}>
+            {initials(name)}
+          </AvatarFallback>
+        </Avatar>
+        {!collapsed ? (
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate">{name}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {email}
             </span>
-          ) : null}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+          </span>
+        ) : null}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        side={sidebar?.isMobile ? 'bottom' : 'right'}
+        sideOffset={4}
+        className="w-fit"
+        finalFocus={() => {
+          if (mobileNavigationPending.current) {
+            mobileNavigationPending.current = false;
+            return false;
+          }
+          return true;
+        }}
+      >
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex min-w-0 items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <Avatar>
+                <AvatarFallback data-slot="avatar-initials" aria-label={name}>
+                  {initials(name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {email}
+                </span>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link href="/settings/profile" />}
+            render={
+              <Link
+                href="/settings/profile"
+                onNavigate={() => {
+                  if (pathname !== '/settings/profile')
+                    requestSettingsNavigation();
+                }}
+              />
+            }
             onClick={() => {
-              if (pathname !== '/settings/profile') requestRouteHeadingFocus();
+              if (pathname !== '/settings/profile') requestSettingsNavigation();
+              setMenuOpen(false);
               if (sidebar?.isMobile) sidebar.setOpenMobile(false);
             }}
           >
@@ -110,13 +172,25 @@ export function UserMenu() {
           >
             Sign out
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+  const content = (
+    <>
+      {sidebar ? (
+        <SidebarMenu>
+          <SidebarMenuItem>{menu}</SidebarMenuItem>
+        </SidebarMenu>
+      ) : (
+        menu
+      )}
       {failure ? (
         <p role="alert" className="px-2 text-sm">
           Unable to sign out. Please try again.
         </p>
       ) : null}
-    </div>
+    </>
   );
+  return content;
 }

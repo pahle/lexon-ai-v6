@@ -20,6 +20,9 @@ import { OrganizationMenu } from '../src/components/shell/organization-menu';
 import { fullReload } from '../src/lib/full-reload';
 import { identityApi } from '../src/components/organizations/page-state';
 import { IdentityClientError } from '../src/lib/identity-client';
+import { CompositeSidebarProvider } from '../src/components/shell/sidebar-context';
+import { AppSidebar } from '../src/components/shell/app-sidebar';
+import { PageHeader } from '../src/components/shell/page-header';
 const navigation = vi.hoisted(() => ({
   path: '/workspace',
   replace: vi.fn(),
@@ -83,6 +86,185 @@ function Harness({
     </QueryClientProvider>
   );
 }
+
+test('workspace shell composes one sidebar inset, one main, and a route breadcrumb', async () => {
+  window.innerWidth = 1280;
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Workspace content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  expect(view.container.querySelectorAll('[data-slot="sidebar"]')).toHaveLength(
+    1,
+  );
+  expect(
+    view.container.querySelectorAll(
+      '[role="complementary"][aria-label="Workspace navigation"]',
+    ),
+  ).toHaveLength(1);
+  expect(view.container.querySelectorAll('main')).toHaveLength(1);
+  expect(
+    view.container.querySelector('[data-slot="sidebar-inset"]'),
+  ).not.toBeNull();
+  expect(
+    view.container.querySelector('[aria-label="breadcrumb"]')?.textContent,
+  ).toContain('Home');
+  expect(view.container.textContent).toContain('Workspace content');
+  await view.unmount();
+});
+
+test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
+  const orgId = identity.organization.id;
+  navigation.path = `/organizations/${orgId}/settings/general`;
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider
+        bootstrap={{
+          status: 'ready',
+          identity: {
+            ...identity,
+            organization: {
+              ...identity.organization,
+              name: 'Private team name',
+            },
+          },
+        }}
+      >
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Settings content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const breadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  const items = [...breadcrumb.querySelectorAll('ol > li')];
+  expect(items.map((item) => item.tagName)).toEqual(['LI', 'LI', 'LI']);
+  expect(
+    breadcrumb.querySelector('a[href$="/settings/members"]')?.textContent,
+  ).toBe('Organization settings');
+  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
+    'General',
+  );
+  expect(breadcrumb.textContent).not.toContain('Private team name');
+  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(
+    view.container.querySelector(
+      `nav[aria-label="Primary navigation"] a[href="/organizations/${orgId}/settings/general"][aria-current="page"]`,
+    ),
+  ).not.toBeNull();
+  await view.unmount();
+});
+
+test('workspace breadcrumb labels provisioning details and invalid organization routes safely', async () => {
+  navigation.path = '/platform/provisioning/org-private-id';
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Route content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const breadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
+    'Provisioning details',
+  );
+  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(breadcrumb.textContent).not.toContain('org-private-id');
+
+  navigation.path = `/organizations/${identity.organization.id}/members`;
+  await view.rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Route content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const invalidBreadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  expect(
+    invalidBreadcrumb.querySelector('[aria-current="page"]')?.textContent,
+  ).toBe('Page not found');
+  expect(
+    invalidBreadcrumb.querySelectorAll('[aria-current="page"]'),
+  ).toHaveLength(1);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('mobile route heading receives focus when its destination mounts after the sheet closes', async () => {
+  navigation.path = '/workspace';
+  vi.stubGlobal('innerWidth', 767);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const renderShell = () => (
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen={false}>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            {navigation.path === '/workspace' ? (
+              <PageHeader title="Home" />
+            ) : (
+              <PageHeader title="Profile settings" />
+            )}
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(renderShell());
+  const opener = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Open navigation"]',
+  )!;
+  await act(async () => opener.click());
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const settings = document.body.querySelector<HTMLAnchorElement>(
+    'a[href="/settings/profile"]',
+  )!;
+  await act(async () => settings.click());
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+  );
+  expect(document.activeElement).not.toBe(opener);
+
+  navigation.path = '/settings/profile';
+  await view.rerender(renderShell());
+  const heading = view.container.querySelector('h1')!;
+  await vi.waitFor(() => expect(document.activeElement).toBe(heading));
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
 
 function Protected() {
   const workspace = useWorkspace();
@@ -1278,7 +1460,7 @@ function PanelHostProbe() {
   return <span data-host-ready={host ? 'yes' : 'no'} />;
 }
 
-test('panel host is a named aside beside a focusable main', async () => {
+test('panel host is page-owned inside a focusable inset main', async () => {
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
@@ -1292,10 +1474,10 @@ test('panel host is a named aside beside a focusable main', async () => {
   const main = view.container.querySelector('main');
   expect(host).not.toBeNull();
   expect(host?.tagName).toBe('DIV');
-  expect(main?.contains(host)).toBe(false);
+  expect(main?.contains(host)).toBe(true);
   expect(host?.closest('aside[aria-label="Context panel"]')).toBeNull();
   expect(main?.tabIndex).toBe(-1);
-  expect(main?.parentElement?.className).toContain('min-w-0');
+  expect(main?.className).toContain('min-w-0');
   expect(view.container.querySelectorAll('main')).toHaveLength(1);
   expect(host?.getAttribute('class') ?? '').not.toMatch(/w-80|w-full/);
   await view.unmount();

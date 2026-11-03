@@ -27,12 +27,14 @@ export function OrganizationSettings({
   });
   if (organization.kind === 'personal' || organization.role !== 'owner')
     return (
-      <AuthCard title="Organization settings" headingLevel={2}>
-        <p>
-          Only team owners can change organization settings. Personal cannot be
-          renamed.
-        </p>
-      </AuthCard>
+      <div className="min-w-0 [overflow-wrap:anywhere]">
+        <AuthCard title="Organization settings" headingLevel={2}>
+          <p>
+            Only team owners can change organization settings. Personal cannot
+            be renamed.
+          </p>
+        </AuthCard>
+      </div>
     );
   async function update(input: OrganizationSettingsInput) {
     setBusy(true);
@@ -47,40 +49,47 @@ export function OrganizationSettings({
     }
   }
   return (
-    <AuthCard
-      title="Organization settings"
-      headingLevel={2}
-      description="Manage your team name and authentication requirements."
-    >
-      <form noValidate onSubmit={form.handleSubmit(update)}>
-        <FieldGroup>
-          <FormInput
-            label="Organization name"
-            registration={form.register('name')}
-            error={form.formState.errors.name}
-          />
-          <FormInput
-            label="Organization slug"
-            registration={form.register('slug')}
-            error={form.formState.errors.slug}
-          />
-          <Button type="submit" disabled={busy}>
-            Save organization settings
-          </Button>
-        </FieldGroup>
-      </form>
-      <p>Authenticator required: {current.require2fa ? 'Yes' : 'No'}</p>
-      <Button
-        variant="outline"
-        disabled={busy}
-        onClick={() => void update({ require2fa: !current.require2fa })}
+    <div className="min-w-0 [overflow-wrap:anywhere]">
+      <AuthCard
+        title="Organization settings"
+        headingLevel={2}
+        description="Manage your team name and authentication requirements."
       >
-        {current.require2fa
-          ? 'Remove authenticator requirement'
-          : 'Require authenticator'}
-      </Button>
-      {failure ? <FieldError>{failure}</FieldError> : null}
-      <p role="status">{message}</p>
-    </AuthCard>
+        <form noValidate onSubmit={form.handleSubmit(update)}>
+          <FieldGroup>
+            <FormInput
+              label="Organization name"
+              registration={form.register('name')}
+              error={form.formState.errors.name}
+            />
+            <FormInput
+              label="Organization slug"
+              registration={form.register('slug')}
+              error={form.formState.errors.slug}
+            />
+            <Button
+              type="submit"
+              disabled={busy}
+              className="h-auto min-w-0 max-w-full whitespace-normal text-left leading-5"
+            >
+              Save organization settings
+            </Button>
+          </FieldGroup>
+        </form>
+        <p>Authenticator required: {current.require2fa ? 'Yes' : 'No'}</p>
+        <Button
+          variant="outline"
+          disabled={busy}
+          className="h-auto min-w-0 max-w-full whitespace-normal text-left leading-5"
+          onClick={() => void update({ require2fa: !current.require2fa })}
+        >
+          {current.require2fa
+            ? 'Remove authenticator requirement'
+            : 'Require authenticator'}
+        </Button>
+        {failure ? <FieldError>{failure}</FieldError> : null}
+        <p role="status">{message}</p>
+      </AuthCard>
+    </div>
   );
 }

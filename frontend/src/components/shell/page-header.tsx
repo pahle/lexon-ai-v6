@@ -24,7 +24,7 @@ export function PageHeader(_props: { title: string; actions?: ReactNode }) {
       <h1
         ref={heading}
         tabIndex={-1}
-        className="min-w-0 [overflow-wrap:anywhere] text-[length:var(--font-size-heading)] leading-[1.5] font-semibold"
+        className="min-w-0 text-balance font-serif text-2xl font-bold"
       >
         {title}
       </h1>
