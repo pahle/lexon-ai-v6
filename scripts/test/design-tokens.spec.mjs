@@ -188,7 +188,7 @@ test('uses the DS radius token and shadcn-derived radius formulas', () => {
   assert.match(css, /--right-panel-width:\s*320px/);
   assert.match(
     css,
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0\.01ms[\s\S]*?transition-duration:\s*0\.01ms/,
-    'reduced-motion users must receive effectively immediate animations and transitions',
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0s[\s\S]*?transition-duration:\s*0s/,
+    'reduced-motion animations and transitions must have zero duration',
   );
 });
