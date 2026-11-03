@@ -225,6 +225,12 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await open.click();
+  const reopenedSettingsDialog = page.getByRole('dialog', { name: 'Sidebar' });
+  await expect(reopenedSettingsDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(reopenedSettingsDialog).toBeHidden();
+  await expect(open).toBeFocused();
   await page.getByRole('button', { name: 'Open navigation' }).click();
   const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
   await workspaceDialog
@@ -238,16 +244,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
     .click();
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
-  const activeAfterUserMenuNavigation = await page.evaluate(() => ({
-    active: document.activeElement?.outerHTML,
-    pathname: location.pathname,
-  }));
-  expect(
-    await page
-      .getByRole('heading', { level: 1 })
-      .evaluate((heading) => document.activeElement === heading),
-    JSON.stringify(activeAfterUserMenuNavigation),
-  ).toBe(true);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

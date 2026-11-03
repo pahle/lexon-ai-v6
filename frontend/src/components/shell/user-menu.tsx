@@ -61,7 +61,13 @@ export function UserMenu({
     } else requestRouteHeadingFocus();
   };
   const menu = (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+    <DropdownMenu
+      open={menuOpen}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) mobileNavigationPending.current = false;
+        setMenuOpen(nextOpen);
+      }}
+    >
       <DropdownMenuTrigger
         render={
           sidebar ? (
@@ -105,7 +111,6 @@ export function UserMenu({
         className="w-fit"
         finalFocus={() => {
           if (mobileNavigationPending.current) {
-            mobileNavigationPending.current = false;
             return false;
           }
           return true;

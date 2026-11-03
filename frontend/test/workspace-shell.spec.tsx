@@ -229,7 +229,7 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
   vi.unstubAllGlobals();
 });
 
-test('mobile route heading receives focus when its destination mounts after the sheet closes', async () => {
+test('mobile route heading keeps focus when route change and sheet close overlap', async () => {
   navigation.path = '/workspace';
   vi.stubGlobal('innerWidth', 767);
   vi.stubGlobal('matchMedia', () => ({
@@ -257,6 +257,85 @@ test('mobile route heading receives focus when its destination mounts after the 
   )!;
   await act(async () => opener.click());
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const userMenu = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  )!;
+  await act(async () => userMenu.click());
+  const settings = document.body.querySelector<HTMLAnchorElement>(
+    '[role="menuitem"][href="/settings/profile"]',
+  )!;
+  await act(async () => {
+    settings.click();
+    navigation.path = '/settings/profile';
+    await view.rerender(renderShell());
+  });
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+  );
+  const heading = view.container.querySelector('h1')!;
+  await vi.waitFor(() => expect(document.activeElement).toBe(heading));
+  opener.focus();
+  await act(async () => opener.click());
+  const reopenedDialog = document.body.querySelector('[role="dialog"]');
+  expect(reopenedDialog).not.toBeNull();
+  const userMenuTrigger = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  )!;
+  userMenuTrigger.focus();
+  await act(async () => userMenuTrigger.click());
+  expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+  await act(async () =>
+    document.body
+      .querySelector('[role="menu"]')
+      ?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      ),
+  );
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="menu"]')).toBeNull(),
+  );
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  await vi.waitFor(() => expect(document.activeElement).toBe(userMenuTrigger));
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+  );
+  await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('mobile route heading receives focus when its destination mounts after the sheet closes', async () => {
+  navigation.path = '/workspace';
+  vi.stubGlobal('innerWidth', 767);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const renderShell = () => (
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen={false}>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            {navigation.path === '/workspace' ? (
+              <PageHeader title="Home" />
+            ) : (
+              <PageHeader title="Profile settings" />
+            )}
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(renderShell());
+  const opener = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Open navigation"]',
+  )!;
+  await act(async () => opener.click());
   const userMenu = document.body.querySelector<HTMLButtonElement>(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
   )!;

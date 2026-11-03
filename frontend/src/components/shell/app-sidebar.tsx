@@ -126,13 +126,19 @@ export function AppSidebar() {
     from: string;
     pathnameChanged: boolean;
     sheetClosed: boolean;
+    headingFocused: boolean;
   } | null>(null);
   const pathname = usePathname() ?? '';
   const finishMobileNavigation = useCallback(() => {
     const pending = mobileNavigation.current;
     if (!pending?.pathnameChanged || !pending.sheetClosed) return;
-    mobileNavigation.current = null;
-    document.querySelector<HTMLElement>('#main h1[tabindex="-1"]')?.focus();
+    if (pending.headingFocused) return;
+    const heading = document.querySelector<HTMLElement>(
+      '#main h1[tabindex="-1"]',
+    );
+    if (!heading) return;
+    heading.focus();
+    pending.headingFocused = true;
   }, []);
   useEffect(() => {
     const pending = mobileNavigation.current;
@@ -148,6 +154,7 @@ export function AppSidebar() {
         from: pathname,
         pathnameChanged: false,
         sheetClosed: false,
+        headingFocused: false,
       };
     }
   };
@@ -160,8 +167,13 @@ export function AppSidebar() {
       aria-label={isMobile ? undefined : 'Workspace navigation'}
       mobileFinalFocus={() => (mobileNavigation.current ? false : true)}
       onMobileOpenChangeComplete={(open) => {
+        if (open) {
+          // Keep suppressing opener restoration until the next sheet lifecycle starts.
+          mobileNavigation.current = null;
+          return;
+        }
         const pending = mobileNavigation.current;
-        if (open || !pending) return;
+        if (!pending) return;
         pending.sheetClosed = true;
         finishMobileNavigation();
       }}
