@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.10 |
+| **Version** | 1.11 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
-| **Date** | 2 November 2026 |
-| **Supersedes** | v1.9 (1 November 2026) |
+| **Date** | 3 November 2026 |
+| **Supersedes** | v1.10 (2 November 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -62,6 +62,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Fonts and brand assets | Inter through `next/font` (built into Next.js; files downloaded at build time and served from Lexon's own origin, no runtime request to a font host); Georgia as a system serif (not embedded); brand SVG/PNG/ICO assets from `docs/brand/lexon-2026/` served from `frontend/public/` | Interface and headline typography and the logo (Design System §3, §4). No other web font and no font CDN |
 | UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used in Lexon-owned code; one primitives library for the whole `frontend/`. A transitive dependency of a pinned library (assistant-ui depends on `radix-ui` internally) is allowed, but Lexon code never imports `radix-ui` or `@radix-ui/*` directly, and registry components that need it are not added (enforced by lint) |
 | Theme switching | `next-themes` | Light / Dark / System theme on the `class` attribute, applied before first paint; the approach of shadcn/ui's official Next.js dark-mode guide. Preference stored in the browser only (Design System §1) |
+| Toast notifications | `sonner` (through the shadcn/ui `Sonner` component) | Non-blocking confirmations (Design System §5.1) |
 | Iconography | Lucide | Application icon system |
 | AI chat interface | assistant-ui (`@assistant-ui/react` + `@assistant-ui/ai-sdk`, on the `ai@^7` + `@ai-sdk/react@^4` line; components from the `@assistant-ui` registry, style `base-nova`) | Conversation primitives, streaming, reasoning, and rendering (in `frontend/`). `@assistant-ui/react-ai-sdk` is only a re-export of `@assistant-ui/ai-sdk` and is not used |
 | Rich-text editing (non-DOCX) | Tiptap 3 + ProseMirror | **Restricted** to non-DOCX content: project instructions, the composer with mentions, notes, and AI draft previews. Legal documents are not edited in Tiptap |
@@ -155,7 +156,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 
 *Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Version baseline (v1.10).** Exact patches are pinned at scaffold time and raised by Renovate.
+**Version baseline (v1.11).** Exact patches are pinned at scaffold time and raised by Renovate.
 
 | Component | Baseline | Notes |
 |---|---|---|
@@ -166,6 +167,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style |
 | UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No direct Radix UI imports; assistant-ui's internal `radix-ui` dependency is allowed |
 | Theme switching | `next-themes` 0.4.x | React 19 support verified when pinned (F2) |
+| Toasts | `sonner` 2.0.x | Peer range includes React 19 (checked 2026-11-03) |
 | AI SDK | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/otel` | Node ≥ 22, ESM-only |
 | OpenRouter provider | `@openrouter/ai-sdk-provider` 3.x | Used by the AI Worker for generation |
 | Queue | BullMQ 6.x with `@nestjs/bullmq` | Verified in S6 |
@@ -262,3 +264,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.8 | **Added (F2, product owner):** `next-themes` for the Light / Dark / System theme that Design System v1.1 introduces |
 | 1.9 | **Clarified (F2 research):** "Radix UI is not used" applies to Lexon-owned code. `@assistant-ui/react` 0.15.x depends on `radix-ui` internally; that transitive dependency is allowed, while direct imports of `radix-ui` / `@radix-ui/*` in Lexon code are forbidden and checked by lint |
 | 1.10 | **Added (product owner, brand package):** Inter self-hosted through `next/font` and Georgia as a system serif; Lexon brand assets served from `frontend/public/` (Design System v2.0). No new npm dependency |
+| 1.11 | **Added (product owner, F2.1 prototype):** `sonner` for toast notifications through the shadcn/ui `Sonner` component (Design System v2.1 §5.1) |

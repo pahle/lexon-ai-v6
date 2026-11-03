@@ -18,6 +18,8 @@ docs/brand/
 docs/references/F2.1-visual/reference/default-theme.css
 docs/references/F2.1-visual/reference/source-manifest.json
 docs/references/F2.1-visual/index.json
+# Design-canvas prototype sources keep their exported bytes.
+docs/design/*/source/
 **/next-env.d.ts
 
 **/reports/mutation-identity/

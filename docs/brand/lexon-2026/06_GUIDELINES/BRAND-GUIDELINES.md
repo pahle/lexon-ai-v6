@@ -1,6 +1,6 @@
 # Lexon Brand Guidelines
 
-Version 1.0 (2026). Legal AI Workspace for Indonesia.
+Version 1.1 (2026). Legal AI Workspace for Indonesia.
 
 ## 1. The logo
 
@@ -38,8 +38,8 @@ The same L, centered the same way, inside three containers. Use them where a fix
 
 | Shape | Use | L inside the shape (full / small / micro) |
 |---|---|---|
-| Circle | Avatars and profile pictures | 61% / 64% / 67% of the diameter in height. The farthest point of the L stays inside 81% / 85% / 89% of the radius, never beyond 90%. |
-| Square | Print, signage, stamps, platform-masked icons | 71% / 77% / 83% of the side in height. |
+| Circle | Avatars and profile pictures | About 54% / 57% / 60% of the diameter in height. The farthest point of the L stays inside 72% / 76% / 80% of the radius, never beyond 80%. |
+| Square | Print, signage, stamps, platform-masked icons | 58% / 62% / 66% of the side in height. |
 | Rounded square | App icons, favicon | Same L as the square. Corner radius 96 on a 512 grid (19%). |
 
 - **Tones:** `seal` (cream L on Seal), `ink` (cream L on Ink), `midnight` (cream L on Midnight), `parchment` (Seal L on Parchment with a Border-color outline so the shape reads on light pages). Pick `seal` as the default.
@@ -52,7 +52,7 @@ The same L, centered the same way, inside three containers. Use them where a fix
 - **Clear space, wordmark:** at least the x-height of the lowercase letters (311 units, 19% of the logo width) on every side.
 - **Clear space, monogram:** at least the width of the pillar group (132 units, 22% of the monogram width).
 - **Minimum width:** wordmark 200 px; compact wordmark 128 px (below 128 px use a monogram, not the wordmark); monogram 64 px; small monogram 40 px; micro mark 16 px; marks (circle, square, rounded square) follow the same three tiers, from 16 px. In the Next.js component the version switches automatically by width.
-- **App icons:** the L is 71% of the icon height at full size and is centered optically: because of the long foot it sits slightly to the right of its bounding-box center, so the pillars and the foot look balanced. Platforms may mask or round the icon.
+- **App icons:** the L is 58% of the icon height at full size and is centered optically: because of the long foot it sits slightly to the right of its bounding-box center, so the pillars and the foot look balanced. Platforms may mask or round the icon.
 - **Monogram files** are square artboards with the L centered the same way.
 
 See `04_PREVIEW/logo-sizes.png` for a 1:1 test and `04_PREVIEW/preview-marks.png` for the marks.
@@ -63,7 +63,9 @@ Every preview in `04_PREVIEW/` uses the original SVG files unchanged, scaled by 
 
 | Where | Logo | Width |
 |---|---|---|
-| App header or sidebar, website navigation | Compact wordmark, ink (cream on dark) | 160 px |
+| Website navigation | Compact wordmark, ink (cream on dark) | 160 px |
+| App sidebar | Rounded-square mark, seal, micro tier, inside the organization switcher (wordmark is not used in the sidebar) | 32 px |
+| App sign-in and account pages | Compact wordmark, ink (cream on dark) | 128 px |
 | Print header, letterhead, business card | Wordmark, ink | 240 px |
 | Banner, cover, large surface | Wordmark, cream on Ink or Seal | 240 px or larger |
 | Document seal, signature block | Circle mark, seal | 96 px |
@@ -127,3 +129,10 @@ These checks are outside what the files can prove:
 07_DEVELOPER_HANDOFF Next.js component, manifest, public assets
 08_QA                Measurements, preview consistency report, checksums
 ```
+
+## 11. Change history
+
+| Version | Change |
+|---|---|
+| 1.1 | Product owner (2026-11-03): the L inside every mark (circle, square, rounded square) and every app icon and favicon is smaller so the top and bottom are no longer tight against the container: square and rounded square 58 / 62 / 66% (was 71 / 77 / 83%), circle farthest point 72 / 76 / 80% of the radius (was 81 / 85 / 89%). Same L, optical center, tiers, colors, and corner radius; all mark SVGs, PNGs, app icons, and favicons regenerated. App sidebar placement changed to the rounded-square mark in the organization switcher; sign-in pages use the compact wordmark at 128 px. Wordmarks and monograms unchanged. `04_PREVIEW/` images were not part of the delivered package and are not regenerated |
+| 1.0 | Initial package |
