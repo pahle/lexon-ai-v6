@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
 export type VisualTheme = 'light' | 'dark';
 export type VisualViewport = 'desktop' | 'mobile';
-export type CheckpointBView =
+export type ShellReviewView =
   | 'home'
   | 'sidebar-expanded'
   | 'organization-switcher-open'
@@ -46,14 +46,15 @@ export async function captureVisualView(
   }
   await expect(page.locator('main')).toHaveCount(1);
   expect(
-    await page.locator('main').evaluate((main) =>
-      Math.round(main.getBoundingClientRect().width),
-    ),
+    await page
+      .locator('main')
+      .evaluate((main) => Math.round(main.getBoundingClientRect().width)),
   ).toBe(sizes[viewport].width);
   expect(
-    await page.locator('main input').first().evaluate((input) =>
-      Math.round(input.getBoundingClientRect().width),
-    ),
+    await page
+      .locator('main input')
+      .first()
+      .evaluate((input) => Math.round(input.getBoundingClientRect().width)),
   ).toBe(320);
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('html')).toHaveClass(
@@ -108,11 +109,14 @@ export async function captureVisualView(
   });
 }
 
-export async function captureCheckpointBView(
+export async function captureShellReviewView(
   page: Page,
-  view: CheckpointBView,
+  view: ShellReviewView,
   theme: VisualTheme,
   viewport: VisualViewport,
+  outputDirectory = '.cache/f21-task6A',
+  expectedHeading = 'Welcome, Checkpoint Preview',
+  expandPlatform = false,
 ) {
   await page.setViewportSize(sizes[viewport]);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -120,7 +124,7 @@ export async function captureCheckpointBView(
   const response = await page.reload();
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole('heading', { name: 'Welcome, Checkpoint Preview' }),
+    page.getByRole('heading', { name: expectedHeading }),
   ).toBeAttached();
   await expect(page.locator('main')).toHaveCount(1);
   await expect(page.locator('html')).toHaveClass(
@@ -150,26 +154,53 @@ export async function captureCheckpointBView(
   ) {
     await page.getByRole('button', { name: 'Expand sidebar' }).click();
   }
+  if (expandPlatform) {
+    await page
+      .getByRole('button', { name: 'Toggle Platform navigation' })
+      .click();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('link', { name: 'Provisioning', exact: true }),
+    ).toBeVisible();
+  }
   if (view === 'organization-switcher-open') {
     await page
-      .getByRole('button', { name: 'Organization: Checkpoint B Team' })
+      .getByRole('button', { name: 'Organization: Task 6A Team' })
       .click();
     await expect(page.getByTestId('organization-popup')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Personal' })).toBeVisible();
+    await expect(
+      page.getByRole('menuitem', { name: 'Personal' }),
+    ).toBeVisible();
   } else if (view === 'user-menu-open') {
-    await page.locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]').click();
-    await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+    await page
+      .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+      .click();
+    await expect(
+      page.getByRole('menuitem', { name: 'Sign out' }),
+    ).toBeVisible();
   } else if (view === 'sidebar-collapsed') {
     const expand = page.getByRole('button', { name: 'Expand sidebar' });
     if (await expand.isVisible()) await expand.click();
-    await expect(page.getByRole('button', { name: 'Collapse sidebar' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Collapse sidebar' }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-    await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Expand sidebar' }),
+    ).toBeVisible();
   }
   await page.mouse.move(0, 0);
+  const index: Record<ShellReviewView, string> = {
+    home: '10',
+    'sidebar-expanded': '10',
+    'sidebar-collapsed': '12',
+    'organization-switcher-open': '13',
+    'user-menu-open': '14',
+  };
   const output = resolve(
-    'docs/references/F2.1-visual/checkpoints',
-    `b-${view}-${viewport}-${theme}.png`,
+    outputDirectory,
+    `${index[view]}-${view}-${viewport}-${theme}.png`,
   );
   await mkdir(resolve(output, '..'), { recursive: true });
   await page.screenshot({

@@ -1,10 +1,21 @@
 'use client';
 import { useRef, useState } from 'react';
-import { Popover } from '@base-ui/react/popover';
+import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import type { IdentitySummary, OrganizationSummary } from '@lexon/contracts';
+import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { transitionTenant } from '../../lib/tenant-queries';
 import { fullReload } from '../../lib/full-reload';
+import { LexonLogo } from '../lexon-logo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
 import {
@@ -14,7 +25,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '../ui/dialog';
 import { CreateTeam } from '../organizations/create-team';
 import {
@@ -30,7 +40,6 @@ function orgLabel(org: OrganizationSummary) {
 }
 
 function organizationRole(org: OrganizationSummary) {
-  if (org.kind !== 'team') return null;
   return org.role.charAt(0).toUpperCase() + org.role.slice(1);
 }
 
@@ -65,175 +74,209 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
       onOpenChange={(nextOpen) => {
         setCreateOpen(nextOpen);
         if (nextOpen) setOpen(false);
-        else restoreFocus();
+      }}
+      onOpenChangeComplete={(nextOpen) => {
+        if (!nextOpen) restoreFocus();
       }}
     >
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
         {sidebar ? (
           <SidebarMenu>
             <SidebarMenuItem>
-              <Popover.Trigger
+              <DropdownMenuTrigger
                 ref={organizationTrigger}
-                aria-label={`Organization: ${orgLabel(identity.organization)}`}
+                aria-label={`Organization: ${orgLabel(identity.organization)} ${organizationRole(identity.organization)}`}
                 title={collapsed ? orgLabel(identity.organization) : undefined}
                 render={
-                  sidebar ? (
-                    <SidebarMenuButton
-                      size="lg"
-                      tooltip={orgLabel(identity.organization)}
-                      className="aria-expanded:bg-muted"
-                    />
-                  ) : undefined
-                }
-                className={
-                  !sidebar
-                    ? 'flex w-full items-center justify-between rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring'
-                    : undefined
+                  <SidebarMenuButton
+                    size="lg"
+                    tooltip={orgLabel(identity.organization)}
+                    className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
+                  />
                 }
               >
-                {collapsed ? (
-                  <span className="truncate">
-                    {orgLabel(identity.organization).slice(0, 1).toUpperCase()}
-                  </span>
-                ) : (
-                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-                    <span className="w-full truncate">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <LexonLogo variant="mark-tile" width={32} />
+                </div>
+                {!collapsed ? (
+                  <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">
                       {orgLabel(identity.organization)}
+                    </span>{' '}
+                    <span className="truncate text-xs text-muted-foreground">
+                      {organizationRole(identity.organization)}
                     </span>
-                    {organizationRole(identity.organization) ? (
-                      <span className="text-xs text-muted-foreground">
-                        {organizationRole(identity.organization)}
-                      </span>
-                    ) : null}
                   </span>
-                )}
-                {!collapsed ? <span aria-hidden="true">⌄</span> : null}
-              </Popover.Trigger>
+                ) : null}
+                {!collapsed ? (
+                  <ChevronsUpDown
+                    aria-hidden="true"
+                    className="ml-auto size-4"
+                  />
+                ) : null}
+              </DropdownMenuTrigger>
             </SidebarMenuItem>
           </SidebarMenu>
         ) : (
-          <Popover.Trigger
+          <DropdownMenuTrigger
             ref={organizationTrigger}
-            aria-label={`Organization: ${orgLabel(identity.organization)}`}
-            className="flex w-full items-center justify-between rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+            aria-label={`Organization: ${orgLabel(identity.organization)} ${organizationRole(identity.organization)}`}
+            className="flex w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <span className="flex min-w-0 flex-col items-start gap-0.5">
-              <span className="truncate">
-                {orgLabel(identity.organization)}
-              </span>
-              {organizationRole(identity.organization) ? (
-                <span className="text-xs text-muted-foreground">
-                  {organizationRole(identity.organization)}
-                </span>
-              ) : null}
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <LexonLogo variant="mark-tile" width={32} />
             </span>
-            <span aria-hidden="true">⌄</span>
-          </Popover.Trigger>
+            <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">
+                {orgLabel(identity.organization)}
+              </span>{' '}
+              <span className="truncate text-xs text-muted-foreground">
+                {organizationRole(identity.organization)}
+              </span>
+            </span>
+            <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
+          </DropdownMenuTrigger>
         )}
-        <Popover.Portal>
-          <Popover.Positioner
-            side="bottom"
-            align="start"
-            sideOffset={4}
-            className="z-50"
-          >
-            <Popover.Popup
-              initialFocus
-              data-slot="popover-popup"
-              data-testid="organization-popup"
-              className="w-72 max-h-[var(--available-height)] overflow-y-auto rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-sm dark:border-border dark:shadow-none"
-            >
-              <Popover.Title className="px-2 py-1 text-sm font-medium">
-                Organizations
-              </Popover.Title>
-              {pages.query.isError ? (
-                <div className="p-2">
-                  <p role="alert">Unable to load organizations.</p>
-                  <Button
-                    variant="outline"
-                    disabled={pages.query.isFetching}
-                    onClick={() => void pages.query.refetch()}
-                  >
-                    Retry
-                  </Button>
-                </div>
-              ) : null}
-              {!pages.query.isError && busy ? (
-                <p role="status" className="p-2">
-                  Switching organization…
-                </p>
-              ) : !pages.query.isError ? (
-                organizations.map((organization) => (
-                  <Button
-                    key={organization.id}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    disabled={organization.id === identity.organization.id}
-                    onClick={async () => {
-                      setBusy(true);
-                      setFailure('');
-                      setMessage('');
-                      beginExplicitTransition();
-                      try {
-                        const result = await identityApi.switchOrganization(
-                          organization.id,
+        <DropdownMenuContent
+          side={sidebar?.isMobile ? 'bottom' : 'right'}
+          align="start"
+          sideOffset={4}
+          aria-label="Organizations"
+          data-testid="organization-popup"
+          className="w-fit min-w-60 max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
+        >
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="px-2 py-1">
+              Organizations
+            </DropdownMenuLabel>
+            {pages.query.isError ? (
+              <>
+                <DropdownMenuItem disabled className="px-2 py-1">
+                  Unable to load organizations.
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  closeOnClick={false}
+                  disabled={pages.query.isFetching}
+                  onClick={() => void pages.query.refetch()}
+                >
+                  Retry
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {!pages.query.isError && busy ? (
+              <DropdownMenuItem disabled>
+                Switching organization…
+              </DropdownMenuItem>
+            ) : !pages.query.isError ? (
+              organizations.map((organization) => (
+                <DropdownMenuItem
+                  closeOnClick={false}
+                  key={organization.id}
+                  disabled={organization.id === identity.organization.id}
+                  className="gap-2 p-2"
+                  onClick={async () => {
+                    setBusy(true);
+                    setFailure('');
+                    setMessage('');
+                    beginExplicitTransition();
+                    try {
+                      const result = await identityApi.switchOrganization(
+                        organization.id,
+                      );
+                      if (result.status === 'enrollment_required') {
+                        setMessage(
+                          'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
                         );
-                        if (result.status === 'enrollment_required') {
-                          setMessage(
-                            'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
-                          );
-                          finishExplicitTransition({
-                            message:
-                              'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
-                            securityLink: true,
-                          });
-                          return;
-                        }
-                        await transitionTenant(query, result.organization);
-                        fullReload('/workspace');
-                      } catch (error) {
-                        try {
-                          await refreshIdentity();
-                        } catch {
-                          // Keep the shell suppressed until the next verified refresh.
-                        }
                         finishExplicitTransition({
-                          message: identityMessage(error),
+                          message:
+                            'Set up or verify your authenticator to enter this organization. Your current organization is unchanged.',
+                          securityLink: true,
                         });
-                      } finally {
-                        setBusy(false);
+                        return;
                       }
-                    }}
+                      await transitionTenant(query, result.organization);
+                      fullReload('/workspace');
+                    } catch (error) {
+                      try {
+                        await refreshIdentity();
+                      } catch {
+                        // Keep the shell suppressed until the next verified refresh.
+                      }
+                      finishExplicitTransition({
+                        message: identityMessage(error),
+                      });
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md"
                   >
-                    {orgLabel(organization)}
-                  </Button>
-                ))
-              ) : null}
-              {!pages.query.isError ? pages.pagination : null}
-              {message ? (
-                <p role="status" className="p-2">
-                  {message}{' '}
-                  <a href="/settings/security" className="underline">
-                    Account security
-                  </a>
-                </p>
-              ) : null}
-              {failure ? (
-                <p role="alert" className="p-2">
-                  {failure}
-                </p>
-              ) : null}
-              <DialogTrigger
-                render={
-                  <Button variant="outline" className="mt-2 w-full">
-                    Create a team
-                  </Button>
-                }
-              />
-            </Popover.Popup>
-          </Popover.Positioner>
-        </Popover.Portal>
-      </Popover.Root>
+                    {organization.kind === 'personal' ? (
+                      <LexonLogo variant="monogram" width={24} />
+                    ) : (
+                      <LexonLogo variant="mark-tile" width={24} />
+                    )}
+                  </span>
+                  {orgLabel(organization)}
+                  {organization.id === identity.organization.id ? (
+                    <Check aria-hidden="true" className="ml-auto size-4" />
+                  ) : null}
+                </DropdownMenuItem>
+              ))
+            ) : null}
+            {pages.canGoToFirstPage ? (
+              <DropdownMenuItem closeOnClick={false} onClick={pages.firstPage}>
+                First page
+              </DropdownMenuItem>
+            ) : null}
+            {pages.canGoToNextPage ? (
+              <DropdownMenuItem closeOnClick={false} onClick={pages.nextPage}>
+                Next page
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          {message ? (
+            <>
+              <p role="status" className="px-2 py-1 text-sm">
+                {message}
+              </p>
+              <DropdownMenuItem render={<Link href="/settings/security" />}>
+                Account security
+              </DropdownMenuItem>
+            </>
+          ) : null}
+          {failure ? (
+            <p role="alert" className="px-2 py-1">
+              {failure}
+            </p>
+          ) : null}
+          <DropdownMenuItem
+            className="gap-2 p-2"
+            onClick={() => {
+              setCreateOpen(true);
+              setOpen(false);
+            }}
+          >
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-dashed bg-transparent">
+              <Plus aria-hidden="true" className="size-4" />
+            </span>
+            Create a team
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+        {open && pages.query.isError ? (
+          <p
+            role="alert"
+            data-testid="organization-load-alert"
+            className="sr-only"
+          >
+            Unable to load organizations.
+          </p>
+        ) : null}
+      </DropdownMenu>
       <DialogContent
         aria-describedby="create-team-description"
         className="rounded-md"
@@ -249,7 +292,6 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
           onCreated={async () => {
             await query.invalidateQueries({ queryKey: ['organizations'] });
             setCreateOpen(false);
-            restoreFocus();
           }}
         />
         <DialogClose

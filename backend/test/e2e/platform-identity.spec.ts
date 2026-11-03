@@ -5,6 +5,7 @@ import { descriptor } from './runtime-support.js';
 import { readCapturedMail, authenticateApi } from './identity-support.js';
 import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
+import { captureShellReviewView } from './visual-support.js';
 
 test('F2 platform navigation remains hidden and direct routes are denied for ordinary users', async ({
   page,
@@ -74,7 +75,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page.getByRole('link', { name: 'Sign in', exact: true }).click();
     await page.getByLabel('Email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
+    const signInResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/auth/sign-in/email' &&
+        response.request().method() === 'POST',
+    );
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    expect((await signInResponse).status()).toBe(200);
     await expect(page).toHaveURL(/admin-setup/);
     await page
       .getByLabel('Enrollment password', { exact: true })
@@ -102,7 +109,67 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       page.getByRole('heading', { name: 'Administrator setup complete' }),
     ).toBeVisible();
     expect(new URL(page.url()).search).toBe('');
-    await page.getByRole('link', { name: 'Provisioning', exact: true }).click();
+    const onboarding = await page.request.post(
+      stack.apiUrl + '/api/identity/onboarding/complete',
+      { headers: { origin: stack.frontendUrl }, data: {} },
+    );
+    expect(onboarding.status()).toBe(204);
+    await page.goto(stack.frontendUrl + '/workspace');
+    await expect(page.locator('h1')).toHaveText('Home');
+    const expandSidebar = page.getByRole('button', {
+      name: 'Expand sidebar',
+    });
+    if (await expandSidebar.isVisible()) await expandSidebar.click();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('link', { name: 'Platform', exact: true }),
+    ).toBeVisible();
+    const platformDisclosure = page.getByRole('button', {
+      name: 'Toggle Platform navigation',
+    });
+    const disclosureBounds = await platformDisclosure.boundingBox();
+    const platformLinkBounds = await page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Platform', exact: true })
+      .boundingBox();
+    expect(disclosureBounds?.width).toBeGreaterThanOrEqual(24);
+    expect(disclosureBounds?.height).toBeGreaterThanOrEqual(24);
+    expect(platformLinkBounds).not.toBeNull();
+    expect(
+      Math.abs(
+        disclosureBounds!.y +
+          disclosureBounds!.height / 2 -
+          (platformLinkBounds!.y + platformLinkBounds!.height / 2),
+      ),
+    ).toBeLessThanOrEqual(1);
+    await platformDisclosure.click();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('link', { name: 'Provisioning', exact: true }),
+    ).toBeVisible();
+    for (const theme of ['light', 'dark'] as const) {
+      await captureShellReviewView(
+        page,
+        'sidebar-expanded',
+        theme,
+        'desktop',
+        '.cache/f21-task6A/platform-admin',
+        'Home',
+        true,
+      );
+      await captureShellReviewView(
+        page,
+        'user-menu-open',
+        theme,
+        'desktop',
+        '.cache/f21-task6A/platform-admin',
+        'Home',
+      );
+    }
+    await page.goto(stack.frontendUrl + '/platform/provisioning');
+    await expect(page.locator('h1')).toHaveText('Organization provisioning');
     const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('main')).toHaveCount(1);
@@ -286,6 +353,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     ).json()) as { items: { kind: string }[] };
     expect(orgs.items.every((org) => org.kind === 'personal')).toBe(true);
     await page
+      .getByRole('navigation', { name: 'Primary navigation' })
       .getByRole('link', { name: 'Account status', exact: true })
       .click();
     await page.getByLabel('User ID', { exact: true }).fill(targetProfile.id);

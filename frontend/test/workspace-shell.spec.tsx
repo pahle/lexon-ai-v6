@@ -172,9 +172,9 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
   expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   expect(
     view.container.querySelector(
-      `nav[aria-label="Primary navigation"] a[href="/organizations/${orgId}/settings/general"][aria-current="page"]`,
+      `nav[aria-label="Primary navigation"] a[href="/organizations/${orgId}/settings/general"]`,
     ),
-  ).not.toBeNull();
+  ).toBeNull();
   await view.unmount();
 });
 
@@ -257,8 +257,12 @@ test('mobile route heading receives focus when its destination mounts after the 
   )!;
   await act(async () => opener.click());
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const userMenu = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  )!;
+  await act(async () => userMenu.click());
   const settings = document.body.querySelector<HTMLAnchorElement>(
-    'a[href="/settings/profile"]',
+    '[role="menuitem"][href="/settings/profile"]',
   )!;
   await act(async () => settings.click());
   await vi.waitFor(() =>
@@ -380,14 +384,14 @@ test('organization switch hides old protected content and enrollment denial rest
   await act(async () =>
     (
       view.container.querySelector(
-        '[aria-label="Organization: Team"]',
+        '[aria-label^="Organization: Team"]',
       ) as HTMLButtonElement
     ).click(),
   );
   await settle();
   await act(async () =>
-    [...document.body.querySelectorAll('button')]
-      .find((button) => button.textContent === 'Next team')
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Next team')
       ?.click(),
   );
   expect(switchCall).toHaveBeenCalledWith(target.id);
@@ -422,14 +426,14 @@ test('organization switch hides old protected content and enrollment denial rest
   await act(async () =>
     (
       deniedView.container.querySelector(
-        '[aria-label="Organization: Team"]',
+        '[aria-label^="Organization: Team"]',
       ) as HTMLButtonElement
     ).click(),
   );
   await settle();
   await act(async () =>
-    [...document.body.querySelectorAll('button')]
-      .find((button) => button.textContent === 'Next team')
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Next team')
       ?.click(),
   );
   await settle();

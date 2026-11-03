@@ -62,20 +62,26 @@ export function useCursorPage<T>(
     enabled,
     retry: false,
   });
+  const firstPage = () => setCursor(undefined);
+  const nextPage = () => {
+    const nextCursor = query.data?.pageInfo.nextCursor;
+    if (nextCursor) setCursor(nextCursor);
+  };
   return {
     query,
+    canGoToFirstPage: cursor !== undefined,
+    canGoToNextPage: Boolean(query.data?.pageInfo.nextCursor),
+    firstPage,
+    nextPage,
     pagination: (
       <div className="flex gap-2">
-        {cursor ? (
-          <Button variant="outline" onClick={() => setCursor(undefined)}>
+        {cursor !== undefined ? (
+          <Button variant="outline" onClick={firstPage}>
             First page
           </Button>
         ) : null}
         {query.data?.pageInfo.nextCursor ? (
-          <Button
-            variant="outline"
-            onClick={() => setCursor(query.data!.pageInfo.nextCursor!)}
-          >
+          <Button variant="outline" onClick={nextPage}>
             Next page
           </Button>
         ) : null}

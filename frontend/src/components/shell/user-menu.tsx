@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { useOptionalSidebar } from './sidebar-context';
 import { requestRouteHeadingFocus } from './navigation-focus';
+import { ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,12 +87,15 @@ export function UserMenu({
           </AvatarFallback>
         </Avatar>
         {!collapsed ? (
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate">{name}</span>
-            <span className="block truncate text-xs text-muted-foreground">
+          <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium">{name}</span>
+            <span className="truncate text-xs text-muted-foreground">
               {email}
             </span>
           </span>
+        ) : null}
+        {!collapsed ? (
+          <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -142,6 +146,7 @@ export function UserMenu({
               if (sidebar?.isMobile) sidebar.setOpenMobile(false);
             }}
           >
+            <Settings aria-hidden="true" />
             Settings
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -170,6 +175,7 @@ export function UserMenu({
               }
             }}
           >
+            <LogOut aria-hidden="true" />
             Sign out
           </DropdownMenuItem>
         </DropdownMenuGroup>

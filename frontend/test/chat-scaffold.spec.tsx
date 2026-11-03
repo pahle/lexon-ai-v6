@@ -67,6 +67,9 @@ it('renders a full inert Home with a keyboard-reachable composer', async () => {
     expect(view.container.textContent).toContain('Chat is coming soon');
     expect(view.container.textContent).toContain('No conversations yet.');
     expect(
+      view.container.querySelector('textarea')?.getAttribute('placeholder'),
+    ).toBe('Ask Lexon about a contract, a regulation, or a case...');
+    expect(
       (view.container.querySelector('textarea') as HTMLTextAreaElement | null)
         ?.disabled,
     ).toBe(false);

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import {
-  captureCheckpointBView,
+  captureShellReviewView,
   captureVisualView,
   type VisualTheme,
   type VisualViewport,
@@ -190,8 +190,10 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await expect(
     page
       .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Profile', exact: true }),
-  ).toHaveAttribute('aria-current', 'page');
+      .getByRole('link', {
+        name: 'Settings',
+      }),
+  ).toHaveCount(0);
   await capture('sidebar-desktop-expanded-light');
 
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
@@ -201,7 +203,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await capture('sidebar-desktop-collapsed-light');
   await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await expect(
-    page.getByRole('button', { name: 'Create a team' }),
+    page.getByRole('menuitem', { name: 'Create a team' }),
   ).toBeVisible();
   await capture('sidebar-desktop-organization-menu-light');
   await page.keyboard.press('Escape');
@@ -283,7 +285,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await capture('sidebar-desktop-panel-host-light');
 });
 
-test('real API-authenticated Home renders Checkpoint B captures', async ({
+test('real API-authenticated Home captures Task 6A shell states', async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -303,8 +305,8 @@ test('real API-authenticated Home renders Checkpoint B captures', async ({
     {
       headers,
       data: {
-        name: 'Checkpoint B Team',
-        slug: 'checkpoint-b-team',
+        name: 'Task 6A Team',
+        slug: 'task-6a-' + randomUUID().slice(0, 8),
       },
     },
   );
@@ -329,11 +331,11 @@ test('real API-authenticated Home renders Checkpoint B captures', async ({
   ] as const) {
     for (const viewport of ['desktop', 'mobile'] as const) {
       for (const theme of ['light', 'dark'] as const) {
-        await captureCheckpointBView(page, view, theme, viewport);
+        await captureShellReviewView(page, view, theme, viewport);
       }
     }
   }
   for (const theme of ['light', 'dark'] as const) {
-    await captureCheckpointBView(page, 'sidebar-collapsed', theme, 'desktop');
+    await captureShellReviewView(page, 'sidebar-collapsed', theme, 'desktop');
   }
 });

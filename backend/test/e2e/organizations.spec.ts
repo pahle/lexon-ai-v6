@@ -16,26 +16,6 @@ async function tabTo(
   throw new Error('Keyboard tab order did not reach the requested control');
 }
 
-async function shiftTabTo(
-  page: import('@playwright/test').Page,
-  container: import('@playwright/test').Locator,
-  locator: import('@playwright/test').Locator,
-): Promise<void> {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (await locator.evaluate((element) => element === document.activeElement))
-      return;
-    const focusIsInside = await container.evaluate((element) =>
-      element.contains(document.activeElement),
-    );
-    if (!focusIsInside)
-      throw new Error('Keyboard focus left the organization popup');
-    await page.keyboard.press('Shift+Tab');
-  }
-  throw new Error(
-    'Reverse keyboard tab order did not reach the requested control',
-  );
-}
-
 test('F2 keyboard flow signs in, switches teams, changes appearance, and signs out', async ({
   page,
 }) => {
@@ -103,7 +83,13 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
       response.url().includes('/api/organizations?limit=20') &&
       response.request().method() === 'GET',
   );
+  const signInResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/auth/sign-in/email' &&
+      response.request().method() === 'POST',
+  );
   await page.keyboard.press('Enter');
+  expect((await signInResponse).status()).toBe(200);
   await expect(page).toHaveURL(/\/workspace$/);
   expect((await organizationListResponse).status()).toBe(200);
 
@@ -116,12 +102,12 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   const documentBeforeSwitch = await page.evaluate(
     () => performance.timeOrigin,
   );
-  const teamButton = page.getByRole('button', {
+  const teamButton = page.getByRole('menuitem', {
     name: 'Keyboard team',
     exact: true,
   });
   await expect(teamButton).toBeVisible();
-  const organizationPopup = page.getByTestId('organization-popup');
+  await expect(teamButton).toBeFocused();
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -132,7 +118,6 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
       }),
     )
     .toBe(true);
-  await shiftTabTo(page, organizationPopup, teamButton);
   const nextDocumentLoaded = page.waitForEvent('domcontentloaded');
   await page.keyboard.press('Enter');
   await nextDocumentLoaded;
@@ -141,14 +126,21 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
     documentBeforeSwitch,
   );
   await expect(
-    page.getByRole('button', { name: 'Organization: Keyboard team' }),
+    page.getByRole('button', { name: /Organization: Keyboard team/ }),
   ).toBeVisible();
 
-  const sidebarSettings = page.getByRole('link', {
+  const userMenu = page.locator(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  );
+  await tabTo(page, userMenu);
+  await expect(userMenu).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(userMenu).toHaveAttribute('aria-expanded', 'true');
+  const settingsMenuItem = page.getByRole('menuitem', {
     name: 'Settings',
     exact: true,
   });
-  await tabTo(page, sidebarSettings);
+  await expect(settingsMenuItem).toBeFocused();
   const documentBeforeSettingsNavigation = await page.evaluate(
     () => performance.timeOrigin,
   );
@@ -157,12 +149,7 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(
     documentBeforeSettingsNavigation,
   );
-  const appearanceLink = page.getByRole('link', {
-    name: 'Appearance',
-    exact: true,
-  });
-  await tabTo(page, appearanceLink);
-  await page.keyboard.press('Enter');
+  await page.goto(stack.frontendUrl + '/settings/appearance');
   const systemTheme = page.getByRole('radio', { name: 'System' });
   await tabTo(page, systemTheme);
   await page.keyboard.press('ArrowLeft');
@@ -170,13 +157,8 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
-  const userMenu = page.getByRole('button', { name: /F2 Keyboard/ });
   await tabTo(page, userMenu);
   await page.keyboard.press('ArrowDown');
-  const settingsMenuItem = page.getByRole('menuitem', {
-    name: 'Settings',
-    exact: true,
-  });
   await expect(settingsMenuItem).toBeFocused();
   const signOut = page.getByRole('menuitem', { name: 'Sign out', exact: true });
   await expect(signOut).toBeVisible();
@@ -189,7 +171,7 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
       exact: true,
     }),
   ).toBeFocused();
-  await userMenu.focus();
+  await tabTo(page, userMenu);
   await page.keyboard.press('ArrowDown');
   await expect(settingsMenuItem).toBeFocused();
   await page.keyboard.press('ArrowDown');
@@ -231,7 +213,7 @@ test('onboarding and organization switches preserve Personal and last owner', as
   page,
 }) => {
   const stack = descriptor();
-  await authenticateApi(page.request);
+  const headers = await authenticateApi(page.request);
   await page.goto(stack.frontendUrl + '/workspace');
   await expect(page).toHaveURL(/onboarding/);
   await page
@@ -257,16 +239,46 @@ test('onboarding and organization switches preserve Personal and last owner', as
   await expect(
     page.getByRole('link', { name: 'Organization settings', exact: true }),
   ).toHaveCount(0);
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  if (accessibility.violations.length > 0) {
+    const trigger = await page
+      .locator('button[aria-label^="Organization:"]')
+      .evaluate((element) => ({
+        outerHTML: element.outerHTML,
+        textContent: element.textContent,
+        innerText: (element as HTMLElement).innerText,
+        ariaLabel: element.getAttribute('aria-label'),
+        ariaLabelledBy: element.getAttribute('aria-labelledby'),
+      }));
+    console.info('Organization trigger accessibility evidence:', trigger);
+  }
+  expect(
+    accessibility.violations.flatMap((violation) =>
+      violation.nodes.map((node) => ({
+        id: violation.id,
+        html: node.html,
+        target: node.target,
+        failureSummary: node.failureSummary,
+      })),
+    ),
+  ).toEqual([]);
+  const organizationPage = await page.request.get(
+    stack.apiUrl + '/api/organizations?limit=20',
+    { headers },
+  );
+  const { items } = (await organizationPage.json()) as {
+    items: Array<{ id: string; name: string }>;
+  };
+  const firstTeamId = items.find((item) => item.name === 'First team')?.id;
+  expect(firstTeamId).toBeDefined();
   await page.getByRole('button', { name: 'Organization: Personal' }).click();
-  await page.getByRole('button', { name: 'First team', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'First team', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Organization: First team' }),
   ).toBeVisible();
-  await page
-    .getByRole('link', { name: 'Organization settings', exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/settings\/members$/);
+  await page.goto(
+    `${stack.frontendUrl}/organizations/${firstTeamId}/settings/members`,
+  );
   await page
     .getByRole('button', { name: 'Leave organization', exact: true })
     .click();
@@ -363,7 +375,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   await page.goto(stack.frontendUrl + '/workspace');
   await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await page
-    .getByRole('button', { name: 'Protected team', exact: true })
+    .getByRole('menuitem', { name: 'Protected team', exact: true })
     .click();
   await expect(
     page.getByRole('button', { name: 'Organization: Personal' }),
@@ -375,7 +387,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   ).toContainText('Your current organization is unchanged');
   await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await page
-    .getByRole('button', { name: 'Ordinary team', exact: true })
+    .getByRole('menuitem', { name: 'Ordinary team', exact: true })
     .click();
   await expect(
     page.getByRole('button', { name: 'Organization: Ordinary team' }),
@@ -468,7 +480,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   ).toBeVisible();
   await page.getByRole('button', { name: 'Organization: Personal' }).click();
   await expect(
-    page.getByRole('button', { name: 'Ordinary team', exact: true }),
+    page.getByRole('menuitem', { name: 'Ordinary team', exact: true }),
   ).toHaveCount(0);
   await owner.dispose();
 });

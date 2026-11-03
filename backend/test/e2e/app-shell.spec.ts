@@ -214,13 +214,12 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
-  await page
-    .getByRole('button', { name: 'Toggle Settings navigation' })
-    .click();
-  await page
-    .getByRole('navigation', { name: 'Primary navigation' })
-    .getByRole('link', { name: 'Profile', exact: true })
-    .click();
+  const mobileUser = dialog.locator(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  );
+  await mobileUser.focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
@@ -264,6 +263,83 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   ).toBeVisible();
 });
 
+test('Task 6A Home shell keeps switcher and user menu complete and keyboard reachable', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Task Preview',
+    email: `task-6a-${randomUUID()}@example.test`,
+  });
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    { headers, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(stack.frontendUrl + '/workspace');
+  await expect(
+    page.locator('textarea[aria-label="Message input"]'),
+  ).toHaveAttribute(
+    'placeholder',
+    'Ask Lexon about a contract, a regulation, or a case...',
+  );
+  const nav = page.getByRole('navigation', { name: 'Primary navigation' });
+  await expect(
+    nav.getByRole('link', { name: 'Home', exact: true }),
+  ).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await expect(
+    nav.getByRole('link', { name: 'Organization settings' }),
+  ).toHaveCount(0);
+
+  const organization = page.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  await organization.focus();
+  await page.keyboard.press('Enter');
+  const createTeam = page.getByRole('menuitem', { name: 'Create a team' });
+  await expect(createTeam).toBeFocused();
+  await expect(organization).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Enter');
+  const createTeamDialog = page.getByRole('dialog', { name: 'Create a team' });
+  await expect(createTeamDialog).toBeVisible();
+  await expect(createTeamDialog.getByLabel('Team name')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(createTeamDialog).toBeHidden();
+  await expect(organization).toBeFocused();
+
+  const user = page.locator(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  );
+  await expect(user).toContainText('Task Preview');
+  await expect(user).toContainText(/task-6a-.*@example\.test/);
+  await expect(user.locator('[data-slot="avatar-initials"]')).toHaveText('TP');
+  await expect(user.locator('svg.lucide-chevrons-up-down')).toHaveCount(1);
+  await user.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  const collapsedOrganization = page.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  const tile = collapsedOrganization.locator('img[alt="Lexon"]');
+  await expect(tile).toHaveAttribute('src', /LEXON-mark-tile-seal-micro\.svg$/);
+  const tileBounds = await tile.boundingBox();
+  expect(tileBounds?.width).toBe(32);
+  expect(tileBounds?.height).toBe(32);
+  await collapsedOrganization.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('menuitem', { name: 'Create a team' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+});
+
 test('F2 shell and optional panel compose without overlap at 768px', async ({
   page,
 }) => {
@@ -299,7 +375,7 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     page
       .getByRole('navigation', { name: 'Primary navigation' })
       .getByRole('link', { name: 'General', exact: true }),
-  ).toHaveAttribute('aria-current', 'page');
+  ).toHaveCount(0);
   // This test-only structural aside mirrors RightPanel's desktop host markup;
   // the host and all layout CSS come from the live production page.
   await page.locator('[data-panel-host]').evaluate((host) => {
@@ -467,9 +543,9 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       popup = page.getByTestId('organization-popup');
       await expect(popup).toBeVisible();
       await expect(
-        page.getByRole('dialog', { name: 'Organizations', exact: true }),
+        page.getByRole('menu', { name: 'Organizations', exact: true }),
       ).toBeVisible();
-      create = popup.getByRole('button', { name: 'Create a team' });
+      create = popup.getByRole('menuitem', { name: 'Create a team' });
       await expect
         .poll(() =>
           page.evaluate(() => {
@@ -481,7 +557,7 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
         )
         .toBe(true);
       await expect(
-        popup.getByRole('button', { name: /^F2 popup team/ }),
+        popup.getByRole('menuitem', { name: /^F2 popup team/ }),
       ).toHaveCount(0);
       await expect(create).toBeFocused();
       const organizationList = page.waitForResponse(
@@ -498,30 +574,25 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     }
     expect(organizationListStatus).toBe(200);
     await expect(
-      popup.getByRole('button', { name: /^F2 popup team/ }),
+      popup.getByRole('menuitem', { name: /^F2 popup team/ }),
     ).toHaveCount(19);
-    const firstChoice = popup
-      .getByRole('button', { name: /^F2 popup team/ })
-      .first();
+    const next = popup.getByRole('menuitem', { name: 'Next page' });
     for (let attempt = 0; attempt < 25; attempt += 1) {
       const focusState = await page.evaluate(() => {
         const popupElement = document.querySelector(
           '[data-testid="organization-popup"]',
         );
-        const choices = Array.from(
-          popupElement?.querySelectorAll('button') ?? [],
-        ).filter((button) => button.textContent?.startsWith('F2 popup team'));
         return {
           insidePopup: !!popupElement?.contains(document.activeElement),
-          firstChoice: choices[0] === document.activeElement,
         };
       });
-      if (focusState.firstChoice) break;
+      if (await next.evaluate((element) => element === document.activeElement))
+        break;
       if (!focusState.insidePopup)
         throw new Error('Keyboard focus left the organization popup');
-      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('ArrowDown');
     }
-    await expect(firstChoice).toBeFocused();
+    await expect(next).toBeFocused();
     const dimensions = await popup.evaluate((element) => ({
       height: element.clientHeight,
       scrollHeight: element.scrollHeight,
@@ -534,28 +605,8 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     expect(dimensions.top).toBeGreaterThanOrEqual(0);
     expect(dimensions.bottom).toBeLessThanOrEqual(viewport.height);
     const lastChoice = popup
-      .getByRole('button', { name: /^F2 popup team/ })
+      .getByRole('menuitem', { name: /^F2 popup team/ })
       .last();
-    const next = popup.getByRole('button', { name: 'Next page' });
-    for (let index = 0; index < 24; index++) {
-      const isFocused = await next.evaluate(
-        (element) => element === document.activeElement,
-      );
-      if (isFocused) break;
-      await page.keyboard.press('Tab');
-      const focusState = await page.evaluate(() => ({
-        active: document.activeElement?.textContent?.trim(),
-        insidePopup: !!document.activeElement?.closest(
-          '[data-testid="organization-popup"]',
-        ),
-      }));
-      if (!focusState.insidePopup) {
-        throw new Error(
-          `Tab left organization popup before Next page (active: ${focusState.active})`,
-        );
-      }
-    }
-    await expect(next).toBeFocused();
     await expect(lastChoice).toBeVisible();
     const lastChoiceRect = await lastChoice.boundingBox();
     const nextRect = await next.boundingBox();
@@ -570,10 +621,22 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     expect(nextRect!.y + nextRect!.height).toBeLessThanOrEqual(viewport.height);
     await page.keyboard.press('Enter');
     await expect(
-      popup.getByRole('button', { name: /^F2 popup team/ }),
+      popup.getByRole('menuitem', { name: /^F2 popup team/ }),
     ).toHaveCount(1);
-    await popup.getByRole('button', { name: 'First page' }).focus();
-    await page.keyboard.press('Tab');
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      if (
+        await create.evaluate((element) => element === document.activeElement)
+      )
+        break;
+      const inPopup = await page.evaluate(() =>
+        document
+          .querySelector('[data-testid="organization-popup"]')
+          ?.contains(document.activeElement),
+      );
+      if (!inPopup)
+        throw new Error('Keyboard focus left the organization popup');
+      await page.keyboard.press('ArrowDown');
+    }
     await expect(create).toBeFocused();
     const createRect = await create.boundingBox();
     expect(createRect).not.toBeNull();

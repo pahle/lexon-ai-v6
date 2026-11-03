@@ -21,6 +21,10 @@ test('copies supplied brand assets byte-for-byte and resolves manifest icons', (
     ),
   ];
   assert.ok(expectedAssets.length > 0, 'brand handoff assets are listed');
+  const expectedNames = expectedAssets
+    .map(([, , sourcePath]) => sourcePath.split('/').at(-1))
+    .sort();
+  assert.deepEqual(readdirSync(publicRoot).sort(), expectedNames);
   for (const [, expected, sourcePath] of expectedAssets) {
     const source = resolve(brandRoot, sourcePath);
     const destination = resolve(
@@ -29,15 +33,37 @@ test('copies supplied brand assets byte-for-byte and resolves manifest icons', (
     );
     assert.equal(hash(source), expected, `${sourcePath} source checksum`);
     assert.equal(hash(destination), expected, `${sourcePath} copied checksum`);
+    assert.deepEqual(
+      readFileSync(destination),
+      readFileSync(source),
+      `${sourcePath} copied bytes`,
+    );
   }
-  assert.equal(readdirSync(publicRoot).length, expectedAssets.length);
 
   const manifestPath = resolve(root, 'frontend/src/app/manifest.webmanifest');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  assert.deepEqual(
+    readFileSync(manifestPath),
+    readFileSync(
+      resolve(brandRoot, '07_DEVELOPER_HANDOFF/manifest.webmanifest'),
+    ),
+    'App Router manifest bytes',
+  );
   for (const icon of manifest.icons) {
     assert.ok(existsSync(resolve(publicRoot, icon.src.slice(1))), icon.src);
   }
   for (const file of ['icon.svg', 'favicon.ico', 'apple-icon.png']) {
     assert.ok(existsSync(resolve(root, 'frontend/src/app', file)), file);
+  }
+  for (const [target, source] of [
+    ['icon.svg', 'public/favicon.svg'],
+    ['favicon.ico', 'public/favicon.ico'],
+    ['apple-icon.png', 'public/apple-touch-icon.png'],
+  ]) {
+    assert.deepEqual(
+      readFileSync(resolve(root, 'frontend/src/app', target)),
+      readFileSync(resolve(brandRoot, `07_DEVELOPER_HANDOFF/${source}`)),
+      `${target} metadata bytes`,
+    );
   }
 });

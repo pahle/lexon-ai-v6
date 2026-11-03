@@ -3,15 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef } from 'react';
-import {
-  Building2,
-  ChevronRight,
-  Home,
-  Settings,
-  Shield,
-  X,
-} from 'lucide-react';
-import { LexonLogo } from '../lexon-logo';
+import { ChevronRight, Home, Shield, X } from 'lucide-react';
 import { useWorkspace } from './workspace-provider';
 import {
   Sidebar,
@@ -50,7 +42,7 @@ function NavigationGroup({
   onNavigate,
 }: {
   title: string;
-  icon: typeof Settings;
+  icon: typeof Shield;
   active: boolean;
   destinations: Destination[];
   onNavigate: () => void;
@@ -83,7 +75,12 @@ function NavigationGroup({
         <span>{title}</span>
       </SidebarMenuButton>
       <CollapsibleTrigger
-        render={<SidebarMenuAction aria-label={`Toggle ${title} navigation`} />}
+        render={
+          <SidebarMenuAction
+            aria-label={`Toggle ${title} navigation`}
+            className="size-6 peer-data-[size=default]/menu-button:top-1"
+          />
+        }
       >
         <ChevronRight
           aria-hidden="true"
@@ -130,7 +127,6 @@ export function AppSidebar() {
     pathnameChanged: boolean;
     sheetClosed: boolean;
   } | null>(null);
-  const collapsed = state === 'collapsed' && !isMobile;
   const pathname = usePathname() ?? '';
   const finishMobileNavigation = useCallback(() => {
     const pending = mobileNavigation.current;
@@ -157,33 +153,6 @@ export function AppSidebar() {
   };
   if (!identity) return null;
 
-  const teamSettings =
-    identity.organization.kind === 'team'
-      ? [
-          {
-            title: 'Members',
-            href: `/organizations/${identity.organization.id}/settings/members`,
-          },
-          ...(identity.organization.role === 'owner' ||
-          identity.organization.role === 'admin'
-            ? [
-                {
-                  title: 'Invitations',
-                  href: `/organizations/${identity.organization.id}/settings/invitations`,
-                },
-              ]
-            : []),
-          ...(identity.organization.role === 'owner'
-            ? [
-                {
-                  title: 'General',
-                  href: `/organizations/${identity.organization.id}/settings/general`,
-                },
-              ]
-            : []),
-        ]
-      : [];
-
   return (
     <Sidebar
       collapsible="icon"
@@ -198,20 +167,6 @@ export function AppSidebar() {
       }}
     >
       <SidebarHeader>
-        <div className="flex items-center px-2">
-          {collapsed ? (
-            <LexonLogo variant="mark-tile" width={16} />
-          ) : (
-            <>
-              <span className="dark:hidden">
-                <LexonLogo width={160} />
-              </span>
-              <span className="hidden dark:block">
-                <LexonLogo width={160} inverse />
-              </span>
-            </>
-          )}
-        </div>
         <OrganizationMenu identity={identity} />
         {isMobile ? (
           <div className="flex justify-end px-2">
@@ -253,28 +208,6 @@ export function AppSidebar() {
                   <span>Home</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <NavigationGroup
-                title="Settings"
-                icon={Settings}
-                active={pathname.startsWith('/settings/')}
-                onNavigate={requestNavigationFocus}
-                destinations={[
-                  { title: 'Profile', href: '/settings/profile' },
-                  { title: 'Security', href: '/settings/security' },
-                  { title: 'Appearance', href: '/settings/appearance' },
-                ]}
-              />
-              {teamSettings.length ? (
-                <NavigationGroup
-                  title="Organization settings"
-                  icon={Building2}
-                  active={pathname.startsWith(
-                    `/organizations/${identity.organization.id}/settings/`,
-                  )}
-                  onNavigate={requestNavigationFocus}
-                  destinations={teamSettings}
-                />
-              ) : null}
               {identity.platformAdmin ? (
                 <NavigationGroup
                   title="Platform"

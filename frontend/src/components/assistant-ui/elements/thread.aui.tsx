@@ -172,7 +172,7 @@ const Composer: FC = () => (
       className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]"
     >
       <ComposerPrimitive.Input
-        placeholder="Send a message..."
+        placeholder="Ask Lexon about a contract, a regulation, or a case..."
         className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
         rows={1}
         submitMode="none"
