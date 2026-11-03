@@ -14,6 +14,8 @@ docs/specs/
 docs/briefs/
 # Product owner brand package; checksums in 08_QA must keep matching.
 docs/brand/
+# Design-canvas prototype sources keep their exported bytes.
+docs/design/*/source/
 **/next-env.d.ts
 
 **/reports/mutation-identity/

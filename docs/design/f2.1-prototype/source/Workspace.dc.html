@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lexon workspace</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.lx{--bg:#F6EFE2;--card:#EEE4D2;--pop:#F6EFE2;--muted:#E5D9C3;--border:#D8C9AD;--fg:#1F1717;--mfg:#5E5248;--primary:#7A1F2E;--primary-hover:#6A1A28;--pfg:#F6EFE2;--ring:#7A1F2E;--sidebar:#EEE4D2;--accent:#E5D9C3;--danger:#B42318;--success:#4E5A39;--shadow:0 10px 30px rgba(31,23,23,.14),0 1px 3px rgba(31,23,23,.08);font-family:Inter,system-ui,sans-serif;color:var(--fg);background:var(--bg);font-size:14px}
+.lx.dark{--bg:#2A1519;--card:#3A1E24;--pop:#3A1E24;--muted:#4A2830;--border:#5A3A40;--fg:#F6EFE2;--mfg:#C9B9A6;--primary:#F6EFE2;--primary-hover:#E5D9C3;--pfg:#2A1519;--ring:#F6EFE2;--sidebar:#3A1E24;--accent:#4A2830;--danger:#F97066;--success:#A9B58F;--shadow:0 0 0 1px var(--border)}
+.lx button{font:inherit;color:inherit}
+.lx input,.lx textarea,.lx select{font:inherit;color:var(--fg)}
+.lx .navbtn{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;overflow:hidden}
+.lx .navbtn:hover{background:var(--accent)}
+.lx .navbtn:focus-visible{box-shadow:0 0 0 2px var(--ring)}
+.lx .navbtn.on{background:var(--accent);font-weight:500}
+.lx .big{height:48px;padding:0 8px}
+.lx .collapsed .navbtn{padding:0;justify-content:center;width:32px}
+.lx .collapsed .big{height:32px}
+.lx .iconbtn{all:unset;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;cursor:pointer;color:var(--fg)}
+.lx .iconbtn:hover{background:var(--accent)}
+.lx .iconbtn:focus-visible{box-shadow:0 0 0 2px var(--ring)}
+.lx .menu{position:absolute;z-index:20;background:var(--pop);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:4px;min-width:240px}
+.lx .mitem{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border-radius:4px;cursor:pointer;font-size:14px}
+.lx .mitem:hover,.lx .mitem:focus-visible{background:var(--accent)}
+.lx .mlabel{padding:6px 8px;font-size:12px;color:var(--mfg)}
+.lx .sep{height:1px;background:var(--border);margin:4px -4px}
+.lx .kbd{margin-left:auto;font-size:12px;color:var(--mfg);letter-spacing:.04em}
+.lx .tile{width:32px;height:32px;border-radius:8px;flex:none;display:block}
+.lx .avatar{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--muted);font-size:12px;font-weight:500}
+.lx .tipwrap{position:relative;display:inline-flex}
+.lx .tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--fg);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:6px;opacity:0;pointer-events:none}
+.lx .tipwrap:hover .tip,.lx .tipwrap:focus-within .tip{opacity:1}
+.lx .ghost[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+.lx .btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.lx .btn:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 35%,transparent)}
+.lx .primary{background:var(--primary);color:var(--pfg)}.lx .primary:hover{background:var(--primary-hover)}
+.lx .outline{border:1px solid var(--border);background:var(--bg)}.lx .outline:hover{background:var(--accent)}
+.lx .destructive{color:var(--danger);border:1px solid var(--border)}
+.lx .inp{height:32px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:transparent;padding:0 10px;font-size:14px;outline:none}
+.lx .inp:focus{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 22%,transparent)}
+.lx .row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 0;border-bottom:1px solid var(--border)}
+.lx .rowtitle{font-weight:500}
+.lx .rowdesc{font-size:13px;color:var(--mfg);margin-top:2px}
+.lx .badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border)}
+.lx .ok{color:var(--success);border-color:color-mix(in srgb,var(--success) 45%,transparent)}
+.lx table{border-collapse:collapse;width:100%;font-size:13px}
+.lx th{text-align:left;font-weight:500;color:var(--mfg);padding:8px 0;border-bottom:1px solid var(--border)}
+.lx td{padding:10px 0;border-bottom:1px solid var(--border)}
+.lx .themecard{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;cursor:pointer;width:180px}
+.lx .themecard .prev{height:96px;border-radius:8px;border:1px solid var(--border);overflow:hidden;display:flex}
+.lx .themecard.on .prev{border-color:var(--ring);box-shadow:0 0 0 2px var(--ring)}
+.lx .themecard:focus-visible .prev{box-shadow:0 0 0 2px var(--ring)}
+.lx .switch{all:unset;width:36px;height:20px;border-radius:999px;background:var(--muted);position:relative;cursor:pointer;flex:none}
+.lx .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.lx .switch[aria-checked=true]{background:var(--primary)}
+.lx .switch[aria-checked=true]::after{left:18px}
+.lx .switch:focus-visible{box-shadow:0 0 0 2px var(--ring)}
+@media (prefers-reduced-motion:reduce){.lx .switch::after{transition:none}}
+.lx .logo-dark{display:none}.lx.dark .logo-dark{display:block}.lx.dark .logo-light{display:none}
+</style>
+</helmet>
+<div class="lx {{themeClass}}" style="width: 1440px; height: 900px; display: flex; position: relative; overflow: hidden;">
+
+<aside aria-label="Sidebar" class="{{asideClass}}" style="width: {{sidebarWidth}}; flex: none; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 8px; box-sizing: border-box; gap: 8px; position: relative;">
+<div style="position: relative;">
+<button class="navbtn big" aria-haspopup="menu" aria-expanded="{{orgOpen}}" onClick="{{toggleOrg}}" title="{{orgName}}">
+<img class="tile" src="/_blob/35866d95b3b7acd0c814fa1f4876290a" alt="" width="32" height="32">
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}">
+<span style="display: flex; flex-direction: column; min-width: 0; flex-grow: 1; line-height: 1.25;">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis;">{{orgName}}</span>
+<span style="font-size: 12px; color: var(--mfg);">{{orgRole}}</span>
+</span>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; color: var(--mfg);"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+</sc-if>
+</button>
+<sc-if value="{{orgOpen}}" hint-placeholder-val="{{ false }}">
+<div class="menu" role="menu" style="top: 0; left: calc(100% + 8px);">
+<div class="mlabel">Organizations</div>
+<sc-for list="{{orgs}}" as="o" hint-placeholder-count="3">
+<button class="mitem" role="menuitem" onClick="{{o.pick}}">
+<img class="tile" src="{{o.tile}}" alt="" width="24" height="24" style="width: 24px; height: 24px; border-radius: 6px;">
+<span style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{o.name}}</span>
+<sc-if value="{{o.current}}" hint-placeholder-val="{{ false }}">
+<svg aria-label="Current" role="img" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+</sc-if>
+</button>
+</sc-for>
+<div class="sep"></div>
+<button class="mitem" role="menuitem">
+<span style="width: 24px; height: 24px; border: 1px dashed var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center;"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+<span style="color: var(--mfg);">Create a team</span>
+</button>
+</div>
+</sc-if>
+</div>
+
+<nav aria-label="Workspace" style="display: flex; flex-direction: column; gap: 2px;">
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}">
+<div class="mlabel" style="padding: 8px 8px 4px;">Workspace</div>
+</sc-if>
+<button class="navbtn on" aria-current="page" title="Home">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}"><span>Home</span></sc-if>
+</button>
+<sc-if value="{{showPlatform}}" hint-placeholder-val="{{ false }}">
+<button class="navbtn" title="Platform">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}"><span>Platform</span></sc-if>
+</button>
+</sc-if>
+</nav>
+
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div class="mlabel" style="padding: 8px 8px 4px;">Conversations</div>
+<p style="margin: 0; padding: 4px 8px; font-size: 13px; color: var(--mfg);">No conversations yet.</p>
+</div>
+</sc-if>
+
+<div style="margin-top: auto; position: relative;">
+<button class="navbtn big" aria-haspopup="menu" aria-expanded="{{userOpen}}" onClick="{{toggleUser}}" title="Account">
+<span class="avatar">{{initials}}</span>
+<sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}">
+<span style="display: flex; flex-direction: column; min-width: 0; flex-grow: 1; line-height: 1.25;">
+<span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis;">{{name}}</span>
+<span style="font-size: 12px; color: var(--mfg); overflow: hidden; text-overflow: ellipsis;">{{email}}</span>
+</span>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; color: var(--mfg);"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+</sc-if>
+</button>
+<sc-if value="{{userOpen}}" hint-placeholder-val="{{ false }}">
+<div class="menu" role="menu" style="bottom: 0; left: calc(100% + 8px);">
+<div style="display: flex; gap: 8px; align-items: center; padding: 6px 8px;">
+<span class="avatar">{{initials}}</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25;"><span style="font-weight: 500;">{{name}}</span><span style="font-size: 12px; color: var(--mfg);">{{email}}</span></span>
+</div>
+<div class="sep"></div>
+<button class="mitem" role="menuitem" onClick="{{openSettings}}">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+<span>Settings</span><span class="kbd">Ctrl ,</span>
+</button>
+<div class="sep"></div>
+<button class="mitem" role="menuitem">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg>
+<span>Sign out</span>
+</button>
+</div>
+</sc-if>
+</div>
+</aside>
+
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+<header style="height: 56px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px;">
+<button class="iconbtn" aria-label="Toggle sidebar" onClick="{{toggleSidebar}}">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path></svg>
+</button>
+<div aria-hidden="true" style="width: 1px; height: 16px; background: var(--border);"></div>
+<nav aria-label="Breadcrumb" style="font-size: 14px;">Home</nav>
+</header>
+<main style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; gap: 24px;">
+<h1 style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Home</h1>
+<div style="width: 100%; max-width: 672px; display: flex; flex-direction: column; gap: 4px;">
+<p style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 600;">Welcome, {{firstName}}</p>
+<p style="margin: 0; color: var(--mfg); font-size: 15px;">Your legal workspace, ready when you are.</p>
+</div>
+<div style="width: 100%; max-width: 672px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;">
+<label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Message</label>
+<textarea id="composer" rows="2" placeholder="Ask Lexon about a contract, a regulation, or a case…" style="border: 0; outline: none; resize: none; background: transparent; font-size: 15px; padding: 4px;"></textarea>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span class="tipwrap"><button class="iconbtn ghost" aria-disabled="true" aria-label="Add attachment" style="border: 1px solid var(--border); border-radius: 999px;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button><span class="tip" role="tooltip">Chat is coming soon</span></span>
+<span class="tipwrap"><button class="iconbtn ghost" aria-disabled="true" aria-label="Send message" style="background: var(--primary); color: var(--pfg); border-radius: 999px;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg></button><span class="tip" role="tooltip">Chat is coming soon</span></span>
+</div>
+</div>
+</main>
+</div>
+
+<sc-if value="{{settingsOpen}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{closeSettings}}" style="position: absolute; inset: 0; background: rgba(20,10,12,.45); z-index: 30;"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="settings-title" style="position: absolute; z-index: 31; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 1000px; height: 680px; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;">
+<div style="height: 56px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 24px; border-bottom: 1px solid var(--border);">
+<h2 id="settings-title" style="margin: 0; font-size: 16px; font-weight: 600;">Settings</h2>
+<button class="iconbtn" aria-label="Close settings" onClick="{{closeSettings}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+</div>
+<div style="flex-grow: 1; min-height: 0; display: flex;">
+<nav aria-label="Settings sections" style="width: 240px; flex: none; padding: 12px; box-sizing: border-box; border-right: 1px solid var(--border); background: var(--sidebar); display: flex; flex-direction: column; gap: 2px;">
+<sc-for list="{{sections}}" as="s" hint-placeholder-count="6">
+<sc-if value="{{s.heading}}" hint-placeholder-val="{{ false }}"><div class="mlabel" style="padding: 10px 8px 4px;">{{s.heading}}</div></sc-if>
+<button class="navbtn {{s.on}}" aria-current="{{s.current}}" onClick="{{s.pick}}">{{s.label}}</button>
+</sc-for>
+</nav>
+<div style="flex-grow: 1; min-width: 0; overflow-y: auto; padding: 24px 32px; box-sizing: border-box;">
+
+<sc-if value="{{isProfile}}" hint-placeholder-val="{{ true }}">
+<h3 style="margin: 0 0 8px; font-size: 16px; font-weight: 600;">Profile</h3>
+<div class="row"><div><div class="rowtitle">Display name</div><div class="rowdesc">How people in your organizations see you.</div></div><input class="inp" style="width: 280px;" value="{{name}}" onInput="{{onName}}" aria-label="Display name"></div>
+<div class="row"><div><div class="rowtitle">Email</div><div class="rowdesc">Used to sign in. Change it in Security.</div></div><span style="color: var(--mfg);">{{email}}</span></div>
+<div class="row" style="border-bottom: 0;"><div><div class="rowtitle">Active organization</div><div class="rowdesc">Switch from the sidebar.</div></div><span>{{orgName}}</span></div>
+<div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;"><button class="btn primary" onClick="{{saveProfile}}">Save</button></div>
+</sc-if>
+
+<sc-if value="{{isAppearance}}" hint-placeholder-val="{{ false }}">
+<h3 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">Appearance</h3>
+<p style="margin: 0 0 20px; color: var(--mfg); font-size: 13px;">Choose how Lexon looks on this device.</p>
+<div role="radiogroup" aria-label="Theme" style="display: flex; gap: 16px;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="3">
+<button class="themecard {{t.on}}" role="radio" aria-checked="{{t.checked}}" onClick="{{t.pick}}">
+<span class="prev"><span style="flex: 1; background: {{t.left}};"></span><span style="flex: 2; background: {{t.right}}; display: flex; flex-direction: column; gap: 6px; padding: 12px;"><span style="height: 8px; width: 60%; border-radius: 4px; background: {{t.line}};"></span><span style="height: 8px; width: 80%; border-radius: 4px; background: {{t.line}};"></span></span></span>
+<span style="font-size: 14px; font-weight: 500;">{{t.label}}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isSecurity}}" hint-placeholder-val="{{ false }}">
+<h3 style="margin: 0 0 8px; font-size: 16px; font-weight: 600;">Security</h3>
+<div class="row"><div><div class="rowtitle">Password</div><div class="rowdesc">You will confirm your current password first.</div></div><button class="btn outline">Change password</button></div>
+<div class="row"><div><div class="rowtitle">Email address</div><div class="rowdesc">{{email}}</div></div><button class="btn outline">Change email</button></div>
+<div class="row"><div><div class="rowtitle" style="display: flex; gap: 8px; align-items: center;">Two-factor authentication <span class="badge ok">On</span></div><div class="rowdesc">Authenticator app. 8 recovery codes left.</div></div><div style="display: flex; gap: 8px;"><button class="btn outline">Recovery codes</button><button class="btn outline">Manage</button></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 24px 0 4px;"><div class="rowtitle">Where you are signed in</div><button class="btn outline">Sign out other sessions</button></div>
+<table>
+<thead><tr><th>Device</th><th>Signed in</th><th>Last active</th><th></th></tr></thead>
+<tbody>
+<tr><td>Chrome on macOS <span class="badge" style="margin-left: 6px;">Current</span></td><td>Nov 3, 2026, 09:12</td><td>Just now</td><td></td></tr>
+<tr><td>Safari on iPhone</td><td>Oct 30, 2026, 18:40</td><td>Nov 2, 2026, 21:05</td><td style="text-align: right;"><button class="btn destructive">Revoke</button></td></tr>
+</tbody>
+</table>
+</sc-if>
+
+<sc-if value="{{isMembers}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><h3 style="margin: 0; font-size: 16px; font-weight: 600;">Members</h3><button class="btn primary" onClick="{{goInvitations}}">Invite people</button></div>
+<table>
+<thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+<tbody>
+<tr><td>{{name}} (you)</td><td>{{email}}</td><td>Owner</td><td></td></tr>
+<tr><td>Dewi Lestari</td><td>dewi@hukum-nusantara.co.id</td><td><select class="inp" aria-label="Role for Dewi Lestari"><option>Admin</option><option>Member</option></select></td><td style="text-align: right;"><button class="btn destructive">Remove</button></td></tr>
+<tr><td>Bima Prakoso</td><td>bima@hukum-nusantara.co.id</td><td><select class="inp" aria-label="Role for Bima Prakoso"><option>Member</option><option>Admin</option></select></td><td style="text-align: right;"><button class="btn destructive">Remove</button></td></tr>
+</tbody>
+</table>
+</sc-if>
+
+<sc-if value="{{isInvitations}}" hint-placeholder-val="{{ false }}">
+<h3 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">Invitations</h3>
+<p style="margin: 0 0 16px; color: var(--mfg); font-size: 13px;">Invite people by email. Invitations expire after 7 days.</p>
+<div style="display: flex; gap: 8px; margin-bottom: 20px;"><input class="inp" style="flex-grow: 1;" placeholder="name@firm.co.id" aria-label="Email to invite"><select class="inp" aria-label="Role"><option>Member</option><option>Admin</option></select><button class="btn primary">Send invitation</button></div>
+<table>
+<thead><tr><th>Email</th><th>Role</th><th>Expires</th><th></th></tr></thead>
+<tbody>
+<tr><td>sari@hukum-nusantara.co.id</td><td>Member</td><td>Nov 9, 2026</td><td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;"><button class="btn outline">Resend</button><button class="btn destructive">Cancel</button></td></tr>
+</tbody>
+</table>
+</sc-if>
+
+<sc-if value="{{isGeneral}}" hint-placeholder-val="{{ false }}">
+<h3 style="margin: 0 0 8px; font-size: 16px; font-weight: 600;">General</h3>
+<div class="row"><div><div class="rowtitle">Organization name</div></div><input class="inp" style="width: 280px;" value="{{orgName}}" aria-label="Organization name"></div>
+<div class="row"><div><div class="rowtitle">Slug</div><div class="rowdesc">Lowercase letters, numbers and hyphens.</div></div><input class="inp" style="width: 280px;" value="hukum-nusantara" aria-label="Slug"></div>
+<div class="row" style="border-bottom: 0;"><div><div class="rowtitle">Require two-factor authentication</div><div class="rowdesc">Members without 2FA must set it up before entering.</div></div><button class="switch" role="switch" aria-checked="{{require2fa}}" aria-label="Require two-factor authentication" onClick="{{toggle2fa}}"></button></div>
+<div style="display: flex; justify-content: flex-end; margin-top: 16px;"><button class="btn primary" onClick="{{saveProfile}}">Save changes</button></div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: absolute; z-index: 40; right: 24px; bottom: 24px; display: flex; gap: 10px; align-items: center; padding: 12px 16px; background: var(--pop); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); font-size: 14px;">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success);"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+<span>Changes saved.</span>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;},&quot;platformAdmin&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true},&quot;settingsOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { collapsed: false, orgOpen: false, userOpen: false, settings: null, section: 'profile', theme: null, org: 'team', name: 'Ayu Wardani', toast: false, require2fa: true };
+  }
+  componentWillUnmount() { clearTimeout(this.timer); }
+  renderVals() {
+    const s = this.state;
+    const theme = s.theme ?? this.props.theme ?? 'light';
+    const settingsOpen = s.settings ?? (this.props.settingsOpen ?? false);
+    const isTeam = s.org === 'team';
+    const orgDefs = [
+      { id: 'personal', name: 'Personal', role: 'Personal workspace', tile: '/_blob/6c66f5b33cfde3748f43584d98c9cd3e' },
+      { id: 'team', name: 'Hukum Nusantara', role: 'Owner', tile: '/_blob/35866d95b3b7acd0c814fa1f4876290a' },
+      { id: 'team2', name: 'Pro Bono Clinic', role: 'Member', tile: '/_blob/35866d95b3b7acd0c814fa1f4876290a' },
+    ];
+    const current = orgDefs.find((o) => o.id === s.org) ?? orgDefs[1];
+    const secDefs = [
+      { id: 'profile', label: 'Profile', heading: 'Account' },
+      { id: 'appearance', label: 'Appearance' },
+      { id: 'security', label: 'Security' },
+    ].concat(isTeam ? [
+      { id: 'members', label: 'Members', heading: current.name },
+      { id: 'invitations', label: 'Invitations' },
+      { id: 'general', label: 'General' },
+    ] : []);
+    const section = secDefs.some((x) => x.id === s.section) ? s.section : 'profile';
+    const themeDefs = [
+      { id: 'light', label: 'Light', left: '#EEE4D2', right: '#F6EFE2', line: '#D8C9AD' },
+      { id: 'dark', label: 'Dark', left: '#3A1E24', right: '#2A1519', line: '#5A3A40' },
+      { id: 'system', label: 'System', left: 'linear-gradient(90deg,#EEE4D2 50%,#3A1E24 50%)', right: 'linear-gradient(90deg,#F6EFE2 50%,#2A1519 50%)', line: '#B9A88E' },
+    ];
+    const chosen = s.theme ?? 'system';
+    const initials = s.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    return {
+      themeClass: theme === 'dark' ? 'dark' : '',
+      expanded: !s.collapsed,
+      sidebarWidth: s.collapsed ? '49px' : '256px',
+      asideClass: s.collapsed ? 'collapsed' : '',
+      orgOpen: s.orgOpen,
+      userOpen: s.userOpen,
+      orgName: current.name,
+      orgRole: current.role,
+      name: s.name,
+      firstName: s.name.split(' ')[0] || s.name,
+      email: 'ayu@hukum-nusantara.co.id',
+      initials,
+      showPlatform: !!this.props.platformAdmin,
+      orgs: orgDefs.map((o) => ({ ...o, current: o.id === s.org, pick: () => this.setState({ org: o.id, orgOpen: false }) })),
+      sections: secDefs.map((x) => ({ ...x, heading: x.heading ?? '', on: x.id === section ? 'on' : '', current: x.id === section ? 'page' : 'false', pick: () => this.setState({ section: x.id }) })),
+      themes: themeDefs.map((t) => ({ ...t, on: t.id === chosen ? 'on' : '', checked: t.id === chosen ? 'true' : 'false', pick: () => this.setState({ theme: t.id === 'system' ? null : t.id }) })),
+      isProfile: section === 'profile',
+      isAppearance: section === 'appearance',
+      isSecurity: section === 'security',
+      isMembers: section === 'members',
+      isInvitations: section === 'invitations',
+      isGeneral: section === 'general',
+      settingsOpen,
+      toast: s.toast,
+      require2fa: s.require2fa ? 'true' : 'false',
+      toggleSidebar: () => this.setState({ collapsed: !s.collapsed, orgOpen: false, userOpen: false }),
+      toggleOrg: () => this.setState({ orgOpen: !s.orgOpen, userOpen: false }),
+      toggleUser: () => this.setState({ userOpen: !s.userOpen, orgOpen: false }),
+      openSettings: () => this.setState({ settings: true, userOpen: false, section: 'profile' }),
+      closeSettings: () => this.setState({ settings: false }),
+      goInvitations: () => this.setState({ section: 'invitations' }),
+      onName: (e) => this.setState({ name: e.target.value }),
+      toggle2fa: () => this.setState({ require2fa: !s.require2fa }),
+      saveProfile: () => { clearTimeout(this.timer); this.setState({ toast: true }); this.timer = setTimeout(() => this.setState({ toast: false }), 2500); },
+    };
+  }
+}
+</script>
+</body>
+</html>

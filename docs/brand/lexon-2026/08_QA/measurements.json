@@ -63,25 +63,25 @@
     "files": 36,
     "L_height_pct_of_container": {
       "circle": [
-        61,
-        64,
-        67
+        54,
+        57,
+        60
       ],
       "square": [
-        71,
-        77,
-        83
+        58,
+        62,
+        66
       ],
       "tile": [
-        71,
-        77,
-        83
+        58,
+        62,
+        66
       ]
     },
     "circle_max_radius_pct": [
-      81,
-      85,
-      89
+      72,
+      76,
+      80
     ],
     "tile_corner_radius_pct": 19
   },
