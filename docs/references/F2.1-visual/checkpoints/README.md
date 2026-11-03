@@ -22,7 +22,9 @@ Home API mismatch. The actual unverified sign-in continuation is separately
 covered by the identity-browser Compose flow. See
 [acceptance notes](../../F2.1-acceptance.md).
 
-No Task 4 implementation has started. Formal screenshot approval remains Task 9.
+Checkpoint A corrections were accepted by the owner before Task 4. The build
+limitation above records the historical Task 3 state; Task 5 restored the
+production build. Formal screenshot approval remains Task 9.
 
 ## Checkpoint B — Home and workspace shell
 
@@ -42,5 +44,12 @@ in place. All entries are also listed in `../index.json`.
 | User menu open | [PNG](./b-user-menu-open-desktop-light.png) | [PNG](./b-user-menu-open-desktop-dark.png) | [PNG](./b-user-menu-open-mobile-light.png) | [PNG](./b-user-menu-open-mobile-dark.png) |
 | Sidebar collapsed | [PNG](./b-sidebar-collapsed-desktop-light.png) | [PNG](./b-sidebar-collapsed-desktop-dark.png) | — | — |
 
-The images are provided for main's required side-by-side comparison. They do
-not record formal screenshot approval; that remains Task 9.
+Main independently rendered and inspected all 18 PNGs and compared the Home,
+shell, and conversation group side by side with the matching pristine references.
+Task 5 spec and code quality reviews passed; focused tests, production build,
+typecheck, lint, and the production capture passed. See the acceptance notes
+for comparison evidence and deviations.
+
+**Waiting for owner feedback before Task 6**, per the approved early checkpoint.
+This informal preview does not record formal screenshot approval; that remains
+Task 9.
