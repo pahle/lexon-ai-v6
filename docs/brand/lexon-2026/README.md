@@ -12,3 +12,5 @@ Start here:
 - Logo versions by size: wordmark 200 px and up, compact wordmark 128 to 199 px, monogram 64 px and up, small monogram 40 to 63 px, micro mark 16 to 39 px.
 
 Open items before public launch (trademark search, typeface licensing, print proof, user recognition test) are listed in section 9 of the guidelines.
+
+Version 1.1 (2026-11-03): marks, app icons, and favicons regenerated with more space around the L; see section 11 of `06_GUIDELINES/BRAND-GUIDELINES.md`. The Markdown guidelines are authoritative; `LEXON-BRAND-GUIDELINES.pdf` still shows version 1.0 figures for the marks.

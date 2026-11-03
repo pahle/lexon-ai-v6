@@ -1,0 +1,125 @@
+[
+  {
+    "name": "01-sign-in-light",
+    "file": "Main.dc.html",
+    "props": { "theme": "light" }
+  },
+  {
+    "name": "02-sign-in-dark",
+    "file": "Main.dc.html",
+    "props": { "theme": "dark" }
+  },
+  {
+    "name": "03-sign-in-field-errors",
+    "file": "Main.dc.html",
+    "state": { "submitted": true, "email": "ayu@" }
+  },
+  {
+    "name": "04-sign-in-password-shown-loading",
+    "file": "Main.dc.html",
+    "state": {
+      "email": "ayu@hukum-nusantara.co.id",
+      "password": "correct-horse",
+      "showPassword": true,
+      "submitted": true,
+      "loading": true
+    }
+  },
+  {
+    "name": "05-sign-in-form-error",
+    "file": "Main.dc.html",
+    "state": {
+      "email": "ayu@hukum-nusantara.co.id",
+      "password": "wrong-password",
+      "submitted": true,
+      "formError": true
+    }
+  },
+  {
+    "name": "10-home-light",
+    "file": "Workspace.dc.html",
+    "props": { "theme": "light", "settingsOpen": false, "platformAdmin": false }
+  },
+  {
+    "name": "11-home-dark",
+    "file": "Workspace.dc.html",
+    "props": { "theme": "dark", "settingsOpen": false, "platformAdmin": false }
+  },
+  {
+    "name": "12-home-sidebar-collapsed",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": false, "platformAdmin": false },
+    "state": { "collapsed": true }
+  },
+  {
+    "name": "13-organization-switcher-open",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": false, "platformAdmin": false },
+    "state": { "orgOpen": true }
+  },
+  {
+    "name": "14-user-menu-open",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": false, "platformAdmin": true },
+    "state": { "userOpen": true }
+  },
+  {
+    "name": "20-settings-profile",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "profile" }
+  },
+  {
+    "name": "21-settings-profile-dark",
+    "file": "Workspace.dc.html",
+    "props": { "theme": "dark", "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "profile" }
+  },
+  {
+    "name": "22-settings-appearance",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "appearance" }
+  },
+  {
+    "name": "23-settings-security",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "security" }
+  },
+  {
+    "name": "24-settings-members",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "members" }
+  },
+  {
+    "name": "25-settings-invitations",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "invitations" }
+  },
+  {
+    "name": "26-settings-general",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "general" }
+  },
+  {
+    "name": "27-settings-saved-toast",
+    "file": "Workspace.dc.html",
+    "props": { "settingsOpen": true, "platformAdmin": false },
+    "state": { "section": "profile", "toast": true }
+  },
+  {
+    "name": "30-ui-patterns-light",
+    "file": "Patterns.dc.html",
+    "props": { "theme": "light" }
+  },
+  {
+    "name": "31-ui-patterns-dark",
+    "file": "Patterns.dc.html",
+    "props": { "theme": "dark" }
+  },
+  { "name": "40-marks-current-vs-v1-1", "file": "Marks.dc.html" }
+]

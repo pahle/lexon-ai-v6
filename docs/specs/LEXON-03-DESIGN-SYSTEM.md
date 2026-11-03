@@ -1,5 +1,5 @@
 ---
-version: "2.0"
+version: "2.1"
 name: Lexon
 description: "Lexon brand (Royal Seal palette) on shadcn/ui base-nova and assistant-ui components: parchment and ink, wax-seal burgundy accent, Inter for the interface, Georgia for headlines, light and dark themes."
 brand-source: "docs/brand/lexon-2026/ (product owner's brand package v1.0, 2026)"
@@ -64,8 +64,8 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 2.0 |
-| **Date** | 2 November 2026 |
+| **Version** | 2.1 |
+| **Date** | 3 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026/`](../brand/lexon-2026/README.md) (logo, guidelines, tokens, icons) |
 
@@ -165,10 +165,14 @@ Follow the brand guidelines (`docs/brand/lexon-2026/06_GUIDELINES/BRAND-GUIDELIN
 - **Sizes:** full wordmark ≥ 200px, compact wordmark 128–199px, monogram
   ≥ 64px (small 40–63px, micro 16–39px). Below 128px use a monogram or mark,
   not a wordmark.
-- **Placement:** sidebar header and auth pages use the compact wordmark at
-  160px; the collapsed (icon) sidebar uses the rounded-square (tile) mark,
-  seal tone, micro tier; favicon, Apple touch icon, and manifest icons come
-  from `03_APP_ICONS/` and `07_DEVELOPER_HANDOFF/` (seal tone).
+- **Placement:**
+  - **Sidebar:** the rounded-square (tile) mark, seal tone, micro tier, at
+    32px, in the logo square of the organization switcher (the `sidebar-07`
+    team-switcher slot). No wordmark in the sidebar. The collapsed (icon)
+    sidebar shows only that mark.
+  - **Sign-in and account pages:** the compact wordmark at 128px.
+  - **Favicon, Apple touch icon, manifest icons:** from `03_APP_ICONS/` and
+    `07_DEVELOPER_HANDOFF/` (brand v1.1, seal tone).
 - Keep clear space; never stretch, recolor outside the palette, add shadows,
   or place the logo on low-contrast surfaces. On Seal or Midnight use cream.
 
@@ -188,6 +192,57 @@ Follow the brand guidelines (`docs/brand/lexon-2026/06_GUIDELINES/BRAND-GUIDELIN
 - **Chat:** assistant-ui defaults. Assistant answers render as full-width
   reading blocks; citations (F8) render as compact inline markers.
 - New layouts with no published block use the Tailwind spacing scale.
+- **Visual target:** a slice that changes UI starts from a prototype the
+  product owner approves (for F2.1: `docs/design/f2.1-prototype/`). Layout,
+  hierarchy, content, and states follow the prototype; component internals
+  and sizes follow shadcn/assistant-ui.
+
+### 5.1 UI patterns (required in every slice)
+
+Built from shadcn `base-nova` components; examples in
+`docs/design/f2.1-prototype/screens/30-ui-patterns-*.png`.
+
+- **Fields:** `Field` + `FieldLabel` + control + `FieldDescription` /
+  `FieldError`. Validation runs on submit, then live for fields already
+  touched. An invalid field sets `aria-invalid`, `data-invalid` on the Field
+  (red label and border), and its error text is linked with
+  `aria-describedby`. Errors say what to do ("Enter a valid email address.").
+- **Passwords:** every password input (sign in, sign up, reset, change,
+  confirm identity, admin setup) is an `InputGroup` with an end
+  `InputGroupButton` that toggles visibility: eye / eye-off icon,
+  `aria-label` "Show password" / "Hide password", `aria-pressed`. Keep the
+  correct `autocomplete` value.
+- **Pending actions:** the busy button shows `Spinner` and a present-tense
+  label ("Signing in…", "Saving…"), keeps its width, and blocks repeat
+  submits; other inputs stay readable.
+- **Server errors:** a form-level `Alert` (destructive) above the fields,
+  generic copy where security requires it (sign in, reset). Unexpected
+  failures never show raw messages.
+- **Confirmations:** non-blocking results (saved, invited, revoked) use a
+  `Sonner` toast; errors that block a form stay inline.
+- **Empty and loading:** `Empty` (icon, title, one sentence, optional action)
+  for empty lists; `Skeleton` rows for loading lists and tables; a spinner
+  only inside the control that is busy.
+- **Destructive actions:** confirm in an `AlertDialog` that names the object
+  ("Remove Dewi Lestari from Hukum Nusantara?").
+
+### 5.2 Settings
+
+- **One Settings dialog** for personal and organization settings, built from
+  the shadcn `sidebar-13` block (a sidebar inside a `Dialog`). It opens from
+  the user menu (and Ctrl/Cmd + ,) on any workspace page, closes with the X,
+  Escape, or the backdrop, and returns focus to its opener.
+- **Sections:** an **Account** group (Profile, Appearance, Security) for
+  everyone, then a group named after the active organization when it is a
+  team: Members (every role), Invitations (admin and owner), General
+  (owner). Later personal settings (memory, connectors, my activity,
+  privacy) are added as sections here.
+- **State in the URL:** the open dialog and its section are reflected in a
+  `settings=<section>` search parameter so a link or a reload reopens it;
+  closing removes it. Sections always refer to the **active** organization;
+  a section the user's role does not allow shows the no-access state and
+  requests nothing.
+- **Platform administration** stays a sidebar destination with its own pages.
 - Single breakpoint at 768px (shadcn's mobile breakpoint).
 - All motion respects `prefers-reduced-motion`.
 
@@ -204,6 +259,7 @@ Follow the brand guidelines (`docs/brand/lexon-2026/06_GUIDELINES/BRAND-GUIDELIN
 
 | Version | Change |
 |---|---|
+| 2.1 | **Added (product owner, prototype approval):** UI patterns (§5.1: fields and errors, password visibility toggle, pending buttons, form alerts, toasts, empty and loading states, destructive confirmation); one Settings dialog (§5.2, shadcn `sidebar-13`) for personal and organization settings; visual-target rule. **Changed:** logo placement (§4): tile mark in the organization switcher instead of a sidebar wordmark; sign-in pages use the compact wordmark at 128px; brand package v1.1 (more space around the L in marks and icons) |
 | 2.0 | **Replaced (product owner, brand package v1.0):** the measured gray palette by the Lexon "Royal Seal" brand (Parchment, Vellum, Mist, Ink, Muted, Seal, Seal Deep, Sage, Midnight, Slate) with a full light/dark mapping onto shadcn variables and measured contrast; status colors re-measured on the new surfaces. **Added:** brand package in `docs/brand/lexon-2026/`; logo usage in the interface (§4); Inter (self-hosted) for the interface and Georgia for headlines (§3). **Changed:** radius token 5px → 10px (shadcn default, matches the brand scale) |
 | 1.3 | **Changed (product owner, after F2 visual review):** component structure, sizes, spacing, and type scale come from shadcn/ui `base-nova` blocks/components and assistant-ui examples as published; this document keeps color tokens, fonts, the radius token, themes, and accessibility. Removed: the 8px-grid and 400ms motion rules, 40px/44px control sizes (target size is WCAG 2.2 AA 2.5.8), Lexon type scale for UI, the single-shadow rule, and the rectangular-only radius rule |
 | 1.2 | Clarified (F2 design review): the 5px radius applies to rectangular elements; radio indicators, switch thumbs, initials avatars, and status dots stay circular (§4) |

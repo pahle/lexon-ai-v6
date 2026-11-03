@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lexon sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+.lx{--bg:#F6EFE2;--card:#EEE4D2;--muted:#E5D9C3;--border:#D8C9AD;--fg:#1F1717;--mfg:#5E5248;--primary:#7A1F2E;--primary-hover:#6A1A28;--pfg:#F6EFE2;--ring:#7A1F2E;--danger:#B42318;--danger-bg:rgba(180,35,24,.08);font-family:Inter,system-ui,sans-serif;color:var(--fg);background:var(--bg)}
+.lx.dark{--bg:#2A1519;--card:#3A1E24;--muted:#4A2830;--border:#5A3A40;--fg:#F6EFE2;--mfg:#C9B9A6;--primary:#F6EFE2;--primary-hover:#E5D9C3;--pfg:#2A1519;--ring:#F6EFE2;--danger:#F97066;--danger-bg:rgba(249,112,102,.12)}
+.lx a{color:var(--fg);text-underline-offset:4px}
+.lx a:hover{color:var(--primary)}
+.lx input{font:inherit;color:var(--fg)}
+.lx input::placeholder{color:var(--mfg)}
+.lx .inp{height:36px;width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:transparent;padding:0 12px;font-size:14px;outline:none}
+.lx .inp:focus,.lx .grp:focus-within{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 22%,transparent)}
+.lx .inp.bad,.lx .grp.bad{border-color:var(--danger)}
+.lx .inp.bad:focus,.lx .grp.bad:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent)}
+.lx .grp{display:flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:8px}
+.lx .grp input{flex:1;min-width:0;border:0;background:transparent;height:100%;padding:0 12px;font-size:14px;outline:none}
+.lx .ibtn{all:unset;display:flex;align-items:center;justify-content:center;width:32px;height:32px;margin-right:2px;border-radius:6px;color:var(--mfg);cursor:pointer}
+.lx .ibtn:hover{background:var(--muted);color:var(--fg)}
+.lx .ibtn:focus-visible{box-shadow:0 0 0 2px var(--ring)}
+.lx .btn{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;height:36px;width:100%;border-radius:8px;background:var(--primary);color:var(--pfg);font-size:14px;font-weight:500;cursor:pointer}
+.lx .btn:hover{background:var(--primary-hover)}
+.lx .btn:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 35%,transparent)}
+.lx .btn[aria-disabled=true]{opacity:.7;cursor:progress}
+.lx .spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:lxspin .7s linear infinite}
+@keyframes lxspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.lx .spin{animation-duration:2s}}
+.lx .logo-dark{display:none}.lx.dark .logo-dark{display:block}.lx.dark .logo-light{display:none}
+</style>
+</helmet>
+<div class="lx {{themeClass}}" style="width: 1440px; height: 900px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));">
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 40px;">
+<div style="display: flex; justify-content: flex-start;">
+<img class="logo-light" src="/_blob/2ae483d54f74d1ba727de1302eb88986" alt="Lexon" width="128" height="37">
+<img class="logo-dark" src="/_blob/cf27d35fa96b084e2db0450125508cf9" alt="Lexon" width="128" height="37">
+</div>
+<div style="flex-grow: 1; display: flex; align-items: center; justify-content: center;">
+<form onSubmit="{{submit}}" novalidate="" style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;">
+<h1 style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 600; letter-spacing: -0.01em;">Sign in to Lexon</h1>
+<p style="margin: 0; font-size: 14px; color: var(--mfg);">Enter your email and password to continue.</p>
+</div>
+<sc-if value="{{formError}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--danger); border-radius: 8px; background: var(--danger-bg); color: var(--danger); font-size: 13px; line-height: 1.45;">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+<span>Email or password is incorrect. Check them and try again.</span>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<label for="email" style="font-size: 14px; font-weight: 500; color: {{emailLabelColor}};">Email</label>
+<input id="email" class="inp {{emailBad}}" type="email" autocomplete="email" placeholder="you@firm.co.id" value="{{email}}" onInput="{{onEmail}}" aria-invalid="{{emailInvalid}}" aria-describedby="email-error">
+<sc-if value="{{emailError}}" hint-placeholder-val="{{ false }}">
+<p id="email-error" style="margin: 0; font-size: 13px; color: var(--danger);">{{emailError}}</p>
+</sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<label for="password" style="font-size: 14px; font-weight: 500; color: {{passwordLabelColor}};">Password</label>
+<a href="#" style="font-size: 14px;">Forgot your password?</a>
+</div>
+<div class="grp {{passwordBad}}">
+<input id="password" type="{{passwordType}}" autocomplete="current-password" value="{{password}}" onInput="{{onPassword}}" aria-invalid="{{passwordInvalid}}" aria-describedby="password-error">
+<button type="button" class="ibtn" aria-label="{{toggleLabel}}" aria-pressed="{{showPassword}}" onClick="{{togglePassword}}">
+<sc-if value="{{showPassword}}" hint-placeholder-val="{{ false }}">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7"></path><path d="M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
+</sc-if>
+<sc-if value="{{hidePassword}}" hint-placeholder-val="{{ true }}">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</sc-if>
+</button>
+</div>
+<sc-if value="{{passwordError}}" hint-placeholder-val="{{ false }}">
+<p id="password-error" style="margin: 0; font-size: 13px; color: var(--danger);">{{passwordError}}</p>
+</sc-if>
+</div>
+<button type="submit" class="btn" aria-disabled="{{loading}}">
+<sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
+<span class="spin" aria-hidden="true"></span>
+</sc-if>
+<span>{{buttonLabel}}</span>
+</button>
+</div>
+<p style="margin: 0; text-align: center; font-size: 14px; color: var(--mfg);">New to Lexon? <a href="#">Create an account</a></p>
+<p style="margin: 0; text-align: center; font-size: 12px; color: var(--mfg);">Try it: submit empty, then a wrong password, to see the states.</p>
+</form>
+</div>
+</div>
+<div aria-hidden="true" style="background: var(--muted);"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { email: '', password: '', showPassword: false, submitted: false, loading: false, formError: false };
+  }
+  componentWillUnmount() { clearTimeout(this.timer); }
+  renderVals() {
+    const s = this.state;
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email);
+    const emailError = s.submitted && !emailOk ? (s.email ? 'Enter a valid email address.' : 'Enter your email address.') : '';
+    const passwordError = s.submitted && !s.password ? 'Enter your password.' : '';
+    return {
+      themeClass: (this.props.theme ?? 'light') === 'dark' ? 'dark' : '',
+      email: s.email,
+      password: s.password,
+      emailError,
+      passwordError,
+      emailBad: emailError ? 'bad' : '',
+      passwordBad: passwordError ? 'bad' : '',
+      emailInvalid: emailError ? 'true' : 'false',
+      passwordInvalid: passwordError ? 'true' : 'false',
+      emailLabelColor: emailError ? 'var(--danger)' : 'var(--fg)',
+      passwordLabelColor: passwordError ? 'var(--danger)' : 'var(--fg)',
+      showPassword: s.showPassword,
+      hidePassword: !s.showPassword,
+      passwordType: s.showPassword ? 'text' : 'password',
+      toggleLabel: s.showPassword ? 'Hide password' : 'Show password',
+      loading: s.loading,
+      buttonLabel: s.loading ? 'Signing in…' : 'Sign in',
+      formError: s.formError,
+      onEmail: (e) => this.setState({ email: e.target.value, formError: false }),
+      onPassword: (e) => this.setState({ password: e.target.value, formError: false }),
+      togglePassword: () => this.setState({ showPassword: !s.showPassword }),
+      submit: (e) => {
+        e.preventDefault();
+        if (s.loading) return;
+        if (!emailOk || !s.password) { this.setState({ submitted: true }); return; }
+        this.setState({ submitted: true, loading: true, formError: false });
+        this.timer = setTimeout(() => this.setState({ loading: false, formError: true }), 1400);
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>
