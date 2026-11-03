@@ -28,6 +28,7 @@ import {
 } from './auth-endpoints.js';
 import {
   sanitizeAuthResponse,
+  sanitizeVerifiedSigninFailure,
   normalizeAuthDestination,
 } from './auth-output.js';
 import { credentialChannel } from './credential-channel.js';
@@ -373,8 +374,11 @@ export function createAuthHttp(
           if (
             failedAttempt.rule.path === '/sign-in/email' &&
             failure.status < 500
-          )
+          ) {
+            const verification = await sanitizeVerifiedSigninFailure(failure);
+            if (verification) return verification;
             return errorResponse('AUTH_REQUIRED', 401);
+          }
         }
         return sanitizeAuthResponse(
           failure,

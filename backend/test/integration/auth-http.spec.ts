@@ -5,8 +5,93 @@ import { Redis } from 'ioredis';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
+import { AccountService } from '../../src/modules/identity-access/account.service.js';
+import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import { createAuthLimiter } from '../../src/infrastructure/queue/index.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
+
+test('only a credential-checked unverified sign-in returns the safe verification outcome', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const audit = createAuditInspector(services);
+  const limiter = await createAuthLimiter({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:verify-signin:rl:auth:`,
+  });
+  const account = new AccountService(proof.integration, {
+    openSignup: true,
+    audit: { secret: 'a'.repeat(48), keyId: 'test-key' },
+  });
+  const context = createAuthRequestContext();
+  const http = createAuthHttp(proof.integration, {
+    origin: proof.origin,
+    correlationSecret: 'a'.repeat(48),
+    limiter,
+    context: context.read,
+    authorize: async () => {},
+    failed: async (_rule, body) =>
+      account.recordFailedSignIn(String(body.email ?? '')),
+  });
+  const email = `${randomUUID()}@example.test`;
+  const password = 'Verification-password-42!';
+  try {
+    await proof.integration.transaction((tx) =>
+      tx.call('signUpEmail', {
+        body: { name: 'Pending verification', email, password },
+      }),
+    );
+    const origin = await proof.startNest({
+      handler: http,
+      middleware: context.middleware,
+      moduleFactory: IdentityAccessModule.forIntegration,
+    });
+    const before = await audit.count('identity.sign_in_failed.v1');
+    const send = (submittedEmail: string, submittedPassword: string) =>
+      fetch(`${origin}/api/auth/sign-in/email`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: proof.origin,
+        },
+        body: JSON.stringify({
+          email: submittedEmail,
+          password: submittedPassword,
+        }),
+      });
+    const absent = await send(`${randomUUID()}@example.test`, password);
+    const wrong = await send(email, 'Wrong-password-42!');
+    const verifiedRequired = await send(email, password);
+    expect(absent.status).toBe(401);
+    expect(await absent.json()).toEqual(await wrong.clone().json());
+    expect(wrong.status).toBe(401);
+    expect(verifiedRequired.status).toBe(403);
+    expect(await verifiedRequired.json()).toEqual({
+      error: {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Verify your email address before signing in.',
+      },
+    });
+    expect(verifiedRequired.headers.getSetCookie()).toEqual([]);
+    expect(await proof.inspect.countSessions(email)).toBe(0);
+    expect(await audit.count('identity.sign_in_failed.v1')).toBe(before + 3);
+    const events = JSON.parse(await audit.serializedEvents()) as Array<{
+      type: string;
+      outcome: string;
+      metadata: Record<string, unknown>;
+    }>;
+    const failures = events.filter(
+      (event) => event.type === 'identity.sign_in_failed.v1',
+    );
+    expect(
+      failures.slice(-3).every((event) => event.outcome === 'failure'),
+    ).toBe(true);
+    expect(JSON.stringify(failures.slice(-3))).not.toContain(email);
+    expect(JSON.stringify(failures.slice(-3))).not.toContain(password);
+  } finally {
+    await Promise.all([limiter.close(), audit.close(), proof.close()]);
+  }
+});
 import {
   createAuthHttp,
   createAuthRequestContext,

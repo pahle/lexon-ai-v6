@@ -6,9 +6,22 @@ import { SignInInputSchema, type SignInInput } from '@lexon/contracts';
 import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
 import { useVisualAuthFormReady } from './visual-readiness';
+import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
 import { Button } from '../ui/button';
 import { Field, FieldGroup, FieldDescription, FieldError } from '../ui/field';
+
+function requiresEmailVerification(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || Array.isArray(error)) return false;
+  const nested = (error as { error?: unknown }).error;
+  return (
+    !!nested &&
+    typeof nested === 'object' &&
+    !Array.isArray(nested) &&
+    (nested as { code?: unknown }).code === 'EMAIL_NOT_VERIFIED'
+  );
+}
+
 export function LoginForm({
   returnTo,
   visualClientReady = false,
@@ -18,6 +31,9 @@ export function LoginForm({
 }) {
   useVisualAuthFormReady(visualClientReady);
   const [failure, setFailure] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(
+    null,
+  );
   const form = useForm<SignInInput>({
     resolver: zodResolver(SignInInputSchema),
     defaultValues: { email: '', password: '' },
@@ -32,6 +48,14 @@ export function LoginForm({
     '/sign-up?returnTo=' +
     encodeURIComponent(next) +
     (invitationId ? '&invitationId=' + encodeURIComponent(invitationId) : '');
+  if (verificationEmail)
+    return (
+      <VerificationState
+        state="pending"
+        email={verificationEmail}
+        returnTo={next}
+      />
+    );
   return (
     <form
       className="flex flex-col gap-6"
@@ -41,6 +65,10 @@ export function LoginForm({
         try {
           const result = await authClient.signIn.email(input);
           if (result.error) {
+            if (requiresEmailVerification(result.error)) {
+              setVerificationEmail(input.email);
+              return;
+            }
             setFailure(authFailure(result.error));
             return;
           }
@@ -93,11 +121,6 @@ export function LoginForm({
         <Field>
           <FieldDescription className="text-center">
             New to Lexon? <a href={signup}>Create account</a>
-          </FieldDescription>
-          <FieldDescription className="text-center">
-            <a href={'/verify-email?returnTo=' + encodeURIComponent(next)}>
-              Resend verification email
-            </a>
           </FieldDescription>
         </Field>
       </FieldGroup>

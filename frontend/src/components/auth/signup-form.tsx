@@ -79,7 +79,7 @@ export function SignupForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="font-serif text-2xl font-bold">Create your account</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Create an account to use Lexon.
+            Your legal workspace starts here.
           </p>
         </div>
         <FormInput

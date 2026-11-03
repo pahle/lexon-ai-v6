@@ -22,7 +22,12 @@ test('account layout uses the published frame and one labeled heading', async ()
     view.container
       .querySelector('img[src*="wordmark-compact-ink"]')
       ?.getAttribute('width'),
-  ).toBe('160');
+  ).toBe('128');
+  expect(
+    view.container
+      .querySelector('img[src*="wordmark-compact-cream"]')
+      ?.getAttribute('width'),
+  ).toBe('128');
   expect(view.container.querySelector('img[src*="placeholder"]')).toBeNull();
   await view.unmount();
 });
@@ -64,6 +69,10 @@ test('real sign-in and sign-up use the centered published form heading hierarchy
           ?.parentElement?.getAttribute('data-slot'),
       ).toBe('field-description');
     } else {
+      expect(heading?.textContent).toBe('Create your account');
+      expect(heading?.parentElement?.querySelector('p')?.textContent).toBe(
+        'Your legal workspace starts here.',
+      );
       expect(
         view.container
           .querySelector('a[href^="/sign-in"]')

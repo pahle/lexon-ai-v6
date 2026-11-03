@@ -3,8 +3,13 @@ import { act } from 'react';
 import { render, settle } from './render';
 const signIn = vi.hoisted(() => vi.fn());
 const signUp = vi.hoisted(() => vi.fn());
+const sendVerificationEmail = vi.hoisted(() => vi.fn());
 vi.mock('../src/lib/auth-client', () => ({
-  authClient: { signIn: { email: signIn }, $fetch: signUp },
+  authClient: {
+    signIn: { email: signIn },
+    sendVerificationEmail,
+    $fetch: signUp,
+  },
 }));
 import { LoginForm } from '../src/components/auth/login-form';
 import { SignupForm } from '../src/components/auth/signup-form';
@@ -43,6 +48,105 @@ test('signin preserves invitation proof when moving to signup', async () => {
   expect(new URL(link.href).searchParams.get('invitationId')).toBe(
     invitationId,
   );
+  await view.unmount();
+});
+test('verification resend appears only after credential-checked unverified sign-in', async () => {
+  const email = 'person@example.test';
+  const returnTo = '/workspace?tab=recent';
+  const view = await render(<LoginForm returnTo={returnTo} />);
+  expect(view.container.textContent).not.toContain('Resend verification email');
+  const inputs = view.container.querySelectorAll<HTMLInputElement>('input');
+  const setInput = async (input: HTMLInputElement, value: string) => {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  };
+  await setInput(inputs[0]!, email);
+  await setInput(inputs[1]!, 'Valid-password-42!');
+  signIn.mockResolvedValueOnce({
+    error: {
+      status: 403,
+      error: {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Verify your email address before signing in.',
+      },
+    },
+  });
+  await act(async () => {
+    view.container
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+  await settle();
+  expect(view.container.textContent).toContain('Check your email');
+  expect(view.container.textContent).toContain('Resend verification email');
+  expect(
+    view.container.querySelector<HTMLInputElement>('input[type="email"]')
+      ?.value,
+  ).toBe(email);
+  expect(
+    [...view.container.querySelectorAll<HTMLAnchorElement>('a')].some((a) =>
+      a.href.includes(email),
+    ),
+  ).toBe(false);
+  expect(
+    view.container.querySelector<HTMLAnchorElement>('a[href*="returnTo"]')
+      ?.href,
+  ).toContain(encodeURIComponent(returnTo));
+  sendVerificationEmail.mockResolvedValueOnce({ data: { status: true } });
+  await act(async () => {
+    view.container
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click();
+  });
+  await settle();
+  expect(sendVerificationEmail).toHaveBeenCalledWith(
+    expect.objectContaining({
+      email,
+      callbackURL: expect.stringContaining(
+        '/verify-email?state=confirmed&returnTo=',
+      ),
+    }),
+  );
+  expect(sendVerificationEmail.mock.calls[0]![0].callbackURL).not.toContain(
+    email,
+  );
+  await view.unmount();
+});
+test('unrelated forbidden sign-in errors stay generic and do not show verification resend', async () => {
+  const view = await render(<LoginForm />);
+  const inputs = view.container.querySelectorAll<HTMLInputElement>('input');
+  for (const [input, value] of [
+    [inputs[0]!, 'person@example.test'],
+    [inputs[1]!, 'Valid-password-42!'],
+  ] as const) {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  signIn.mockResolvedValueOnce({
+    error: { status: 403, error: { code: 'AUTH_REQUIRED' } },
+  });
+  await act(async () => {
+    view.container
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+  await settle();
+  expect(view.container.textContent).toContain(
+    'Unable to complete the request. Check your details or try again.',
+  );
+  expect(view.container.textContent).not.toContain('Resend verification email');
   await view.unmount();
 });
 import { authFailure } from '../src/components/auth/form-input';
