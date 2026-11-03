@@ -188,6 +188,150 @@
       "state": "Inert empty thread-list state after client hydration",
       "source": "@assistant-ui/thread-list",
       "applicability": "Empty assistant thread-list comparison with the inert local runtime."
+    },
+    "checkpoint-b-home-desktop-light": {
+      "path": "checkpoints/b-home-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Home with the checkpoint identity, closed mobile navigation sheet, welcome, and inert composer.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Empty workspace comparison with reference/thread and reference/thread-list."
+    },
+    "checkpoint-b-home-desktop-dark": {
+      "path": "checkpoints/b-home-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Home with the checkpoint identity, closed mobile navigation sheet, welcome, and inert composer.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Empty workspace comparison with reference/thread and reference/thread-list."
+    },
+    "checkpoint-b-home-mobile-light": {
+      "path": "checkpoints/b-home-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Home with the checkpoint identity, closed mobile navigation sheet, welcome, and inert composer.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Empty workspace comparison with reference/thread and reference/thread-list."
+    },
+    "checkpoint-b-home-mobile-dark": {
+      "path": "checkpoints/b-home-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Home with the checkpoint identity, closed mobile navigation sheet, welcome, and inert composer.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Empty workspace comparison with reference/thread and reference/thread-list."
+    },
+    "checkpoint-b-sidebar-expanded-desktop-light": {
+      "path": "checkpoints/b-sidebar-expanded-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Home with expanded workspace navigation; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Workspace shell comparison with reference/sidebar-07 and empty thread comparison with reference/thread."
+    },
+    "checkpoint-b-sidebar-expanded-desktop-dark": {
+      "path": "checkpoints/b-sidebar-expanded-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Home with expanded workspace navigation; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Workspace shell comparison with reference/sidebar-07 and empty thread comparison with reference/thread."
+    },
+    "checkpoint-b-sidebar-expanded-mobile-light": {
+      "path": "checkpoints/b-sidebar-expanded-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Home with expanded workspace navigation; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Workspace shell comparison with reference/sidebar-07 and empty thread comparison with reference/thread."
+    },
+    "checkpoint-b-sidebar-expanded-mobile-dark": {
+      "path": "checkpoints/b-sidebar-expanded-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Home with expanded workspace navigation; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Workspace shell comparison with reference/sidebar-07 and empty thread comparison with reference/thread."
+    },
+    "checkpoint-b-organization-switcher-open-desktop-light": {
+      "path": "checkpoints/b-organization-switcher-open-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Home with the Checkpoint B Team organization switcher open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Organization menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-organization-switcher-open-desktop-dark": {
+      "path": "checkpoints/b-organization-switcher-open-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Home with the Checkpoint B Team organization switcher open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Organization menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-organization-switcher-open-mobile-light": {
+      "path": "checkpoints/b-organization-switcher-open-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Home with the Checkpoint B Team organization switcher open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Organization menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-organization-switcher-open-mobile-dark": {
+      "path": "checkpoints/b-organization-switcher-open-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Home with the Checkpoint B Team organization switcher open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Organization menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-user-menu-open-desktop-light": {
+      "path": "checkpoints/b-user-menu-open-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Home with the Checkpoint Preview account menu open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Account menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-user-menu-open-desktop-dark": {
+      "path": "checkpoints/b-user-menu-open-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Home with the Checkpoint Preview account menu open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Account menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-user-menu-open-mobile-light": {
+      "path": "checkpoints/b-user-menu-open-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Home with the Checkpoint Preview account menu open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Account menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-user-menu-open-mobile-dark": {
+      "path": "checkpoints/b-user-menu-open-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Home with the Checkpoint Preview account menu open; mobile navigation sheet open.",
+      "source": "Lexon workspace shell, Home, and assistant-ui Thread",
+      "applicability": "Account menu and workspace shell comparison with reference/sidebar-07."
+    },
+    "checkpoint-b-sidebar-collapsed-desktop-light": {
+      "path": "checkpoints/b-sidebar-collapsed-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Home with collapsed workspace navigation and the Checkpoint Preview identity.",
+      "source": "Lexon workspace shell and assistant-ui Thread",
+      "applicability": "Collapsed sidebar comparison with reference/sidebar-07-desktop-light and empty thread comparison with reference/thread-desktop-light."
+    },
+    "checkpoint-b-sidebar-collapsed-desktop-dark": {
+      "path": "checkpoints/b-sidebar-collapsed-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Home with collapsed workspace navigation and the Checkpoint Preview identity.",
+      "source": "Lexon workspace shell and assistant-ui Thread",
+      "applicability": "Collapsed sidebar comparison with reference/sidebar-07-desktop-light and empty thread comparison with reference/thread-desktop-light."
     }
   }
 }

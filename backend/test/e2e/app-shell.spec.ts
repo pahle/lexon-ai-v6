@@ -7,6 +7,32 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   page,
 }) => {
   const stack = descriptor();
+  const assetPaths = [
+    '/LEXON-wordmark-compact-ink.svg',
+    '/LEXON-wordmark-compact-cream.svg',
+  ];
+  for (const path of assetPaths) {
+    const response = await page.request.get(stack.frontendUrl + path);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/svg+xml');
+  }
+  const manifestResponse = await page.request.get(
+    stack.frontendUrl + '/manifest.webmanifest',
+  );
+  expect(manifestResponse.status()).toBe(200);
+  const manifest = (await manifestResponse.json()) as {
+    icons: Array<{ src: string }>;
+  };
+  const manifestIconPaths = manifest.icons.map((icon) => icon.src);
+  expect(manifestIconPaths).toEqual([
+    '/android-chrome-192x192.png',
+    '/android-chrome-512x512.png',
+  ]);
+  for (const path of manifestIconPaths) {
+    const response = await page.request.get(stack.frontendUrl + path);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
+  }
   const headers = await authenticateApi(page.request);
   await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
     headers,
@@ -19,6 +45,20 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     }
   });
   await page.goto(stack.frontendUrl + '/workspace');
+  const decodedAssetWidths = await page.evaluate(
+    async (paths) => {
+      const results: number[] = [];
+      for (const path of paths) {
+        const image = new Image();
+        image.src = path;
+        await image.decode();
+        results.push(image.naturalWidth);
+      }
+      return results;
+    },
+    [...assetPaths, ...manifestIconPaths],
+  );
+  expect(decodedAssetWidths.every((width) => width > 0)).toBe(true);
   await expect(page.locator('main')).toHaveCount(1);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(
@@ -26,9 +66,39 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
       .getByRole('navigation', { name: 'Primary navigation' })
       .getByRole('link', { name: 'Home', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByLabel('Chat message')).toBeDisabled();
-  await expect(page.getByText('Chat is not available yet.')).toBeVisible();
+  const message = page.getByRole('textbox', { name: 'Message input' });
+  await expect(message).toBeEnabled();
+  await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toHaveAttribute('aria-disabled', 'true');
+  await expect(
+    page.getByRole('button', { name: 'Add Attachment' }),
+  ).toHaveAttribute('aria-disabled', 'true');
+  const tooltip = page.locator('[data-slot="tooltip-content"][data-open]');
+  await expect(tooltip).toHaveCount(0);
   await expect(page.getByText('No conversations yet.')).toBeVisible();
+
+  await message.fill('Draft legal question');
+  await message.press('Enter');
+  await expect(message).toHaveValue('Draft legal question\n');
+  const send = page.getByRole('button', { name: 'Send message' });
+  await send.focus();
+  await expect(send).toBeFocused();
+  await expect(tooltip).toContainText('Chat is coming soon');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Enter');
+  await send.click({ force: true });
+  const attachment = page.getByRole('button', { name: 'Add Attachment' });
+  await attachment.focus();
+  await expect(attachment).toBeFocused();
+  await expect(tooltip).toContainText('Chat is coming soon');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Enter');
+  await attachment.click({ force: true });
+  await expect(page.locator('[data-role="user"]')).toHaveCount(0);
+  await expect(page.getByText('New Thread')).toHaveCount(0);
+  expect(chatRequests).toEqual([]);
 
   const sidebarContainer = page.locator(
     '[data-slot="sidebar-container"]:visible',

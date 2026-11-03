@@ -119,8 +119,11 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         await expect(page).toHaveURL(stack.frontendUrl + path);
         if (path === '/workspace') {
           await expect(
-            page.getByText('Chat is not available yet.'),
+            page.getByRole('heading', { name: /^Welcome, / }),
           ).toBeVisible();
+          await expect(
+            page.getByRole('button', { name: 'Send message' }),
+          ).toHaveAttribute('aria-disabled', 'true');
           await expect(page.getByText('No conversations yet.')).toBeVisible();
         } else if (path === '/settings/profile') {
           await expect(

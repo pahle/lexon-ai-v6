@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import {
+  captureCheckpointBView,
   captureVisualView,
   type VisualTheme,
   type VisualViewport,
@@ -280,4 +281,59 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
     host.append(panel);
   });
   await capture('sidebar-desktop-panel-host-light');
+});
+
+test('real API-authenticated Home renders Checkpoint B captures', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Checkpoint Preview',
+    email: 'checkpoint-b@example.test',
+  });
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    { headers, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+
+  const teamResponse = await page.request.post(
+    stack.apiUrl + '/api/organizations',
+    {
+      headers,
+      data: {
+        name: 'Checkpoint B Team',
+        slug: 'checkpoint-b-team',
+      },
+    },
+  );
+  expect(teamResponse.status()).toBe(201);
+  const { id } = (await teamResponse.json()) as { id: string };
+  const selected = await page.request.post(
+    stack.apiUrl + '/api/organizations/active',
+    { headers, data: { organizationId: id } },
+  );
+  expect(selected.status()).toBe(200);
+
+  const response = await page.goto(stack.frontendUrl + '/workspace');
+  expect(response?.status()).toBe(200);
+  await expect(
+    page.getByRole('heading', { name: 'Welcome, Checkpoint Preview' }),
+  ).toBeAttached();
+  for (const view of [
+    'home',
+    'sidebar-expanded',
+    'organization-switcher-open',
+    'user-menu-open',
+  ] as const) {
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureCheckpointBView(page, view, theme, viewport);
+      }
+    }
+  }
+  for (const theme of ['light', 'dark'] as const) {
+    await captureCheckpointBView(page, 'sidebar-collapsed', theme, 'desktop');
+  }
 });

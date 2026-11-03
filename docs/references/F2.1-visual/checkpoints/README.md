@@ -23,3 +23,24 @@ covered by the identity-browser Compose flow. See
 [acceptance notes](../../F2.1-acceptance.md).
 
 No Task 4 implementation has started. Formal screenshot approval remains Task 9.
+
+## Checkpoint B — Home and workspace shell
+
+Informal owner preview after Task 5. These real API-authenticated production
+Compose captures use the fixed synthetic identity `Checkpoint Preview`
+(`checkpoint-b@example.test`) and team `Checkpoint B Team`. PNG, device scale
+factor 1; desktop 1440×900 and mobile 390×844. Mobile Home is captured with the
+navigation sheet closed; the other mobile views show it open. Desktop
+collapsed-sidebar views are included separately. Stable paths are overwritten
+in place. All entries are also listed in `../index.json`.
+
+| View | Desktop light | Desktop dark | Mobile light | Mobile dark |
+| --- | --- | --- | --- | --- |
+| Home | [PNG](./b-home-desktop-light.png) | [PNG](./b-home-desktop-dark.png) | [PNG](./b-home-mobile-light.png) | [PNG](./b-home-mobile-dark.png) |
+| Sidebar expanded | [PNG](./b-sidebar-expanded-desktop-light.png) | [PNG](./b-sidebar-expanded-desktop-dark.png) | [PNG](./b-sidebar-expanded-mobile-light.png) | [PNG](./b-sidebar-expanded-mobile-dark.png) |
+| Organization switcher open | [PNG](./b-organization-switcher-open-desktop-light.png) | [PNG](./b-organization-switcher-open-desktop-dark.png) | [PNG](./b-organization-switcher-open-mobile-light.png) | [PNG](./b-organization-switcher-open-mobile-dark.png) |
+| User menu open | [PNG](./b-user-menu-open-desktop-light.png) | [PNG](./b-user-menu-open-desktop-dark.png) | [PNG](./b-user-menu-open-mobile-light.png) | [PNG](./b-user-menu-open-mobile-dark.png) |
+| Sidebar collapsed | [PNG](./b-sidebar-collapsed-desktop-light.png) | [PNG](./b-sidebar-collapsed-desktop-dark.png) | — | — |
+
+The images are provided for main's required side-by-side comparison. They do
+not record formal screenshot approval; that remains Task 9.
