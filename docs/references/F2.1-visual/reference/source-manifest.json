@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "cli": {
+    "package": "shadcn",
+    "version": "4.23.0",
+    "initArgs": [
+      "init",
+      "--defaults",
+      "--base",
+      "base",
+      "--no-reinstall",
+      "--yes",
+      "--force"
+    ],
+    "addArgs": [
+      "add",
+      "--overwrite",
+      "--yes",
+      "@shadcn/login-02",
+      "@shadcn/signup-02",
+      "@shadcn/sidebar-07",
+      "@assistant-ui/thread",
+      "@assistant-ui/thread-list"
+    ],
+    "addContext": "Fixture default-theme CSS was saved byte-for-byte, then the fixture globals path temporarily contained only @import \"tailwindcss\" during CLI add so generated file context matched the pre-task frontend CSS; the saved default CSS was restored before rendering."
+  },
+  "project": {
+    "style": "base-nova",
+    "primitiveBase": "Base UI",
+    "node": "24.22.1",
+    "pnpm": "10.33.1",
+    "packages": {
+      "next": "16.4.3",
+      "react": "19.3.1",
+      "react-dom": "19.3.1",
+      "@assistant-ui/react": "0.15.32",
+      "@base-ui/react": "1.9.0",
+      "tailwindcss": "4.3.3",
+      "lucide-react": "1.66.0",
+      "cn": "0.5.2",
+      "@assistant-ui/react-markdown": "0.14.24",
+      "remark-gfm": "4.0.1",
+      "tw-shimmer": "0.4.14",
+      "zustand": "5.0.16"
+    }
+  },
+  "registry": {
+    "viewArgs": [
+      "view",
+      "@shadcn/login-02",
+      "@shadcn/signup-02",
+      "@shadcn/sidebar-07",
+      "@assistant-ui/thread",
+      "@assistant-ui/thread-list"
+    ],
+    "frontendFixtureViewSha256": "16af43a215a2429bb52a8824c23fd77859672feb1e52b44fe9c921d195eee1bc",
+    "isolatedFixtureViewSha256": "16af43a215a2429bb52a8824c23fd77859672feb1e52b44fe9c921d195eee1bc",
+    "snapshotsMatched": true,
+    "sources": [
+      {
+        "name": "@shadcn/login-02",
+        "url": "https://ui.shadcn.com/blocks/login"
+      },
+      {
+        "name": "@shadcn/signup-02",
+        "url": "https://ui.shadcn.com/blocks/signup"
+      },
+      {
+        "name": "@shadcn/sidebar-07",
+        "url": "https://ui.shadcn.com/blocks/sidebar"
+      },
+      {
+        "name": "@assistant-ui/thread",
+        "url": "https://www.assistant-ui.com/elements/thread"
+      },
+      {
+        "name": "@assistant-ui/thread-list",
+        "url": "https://www.assistant-ui.com/docs/primitives/thread-list"
+      }
+    ]
+  },
+  "defaultCss": {
+    "path": "docs/references/F2.1-visual/reference/default-theme.css",
+    "sha256": "5d1960a157a8ffcaae854e4bb91dbc38188015f5f347bb5d44e392313c9e1d15",
+    "generatedBy": "shadcn init --defaults --base base --no-reinstall --yes",
+    "importGraph": ["tailwindcss", "tw-animate-css", "shadcn/tailwind.css"]
+  },
+  "fixture": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "reactDom": "19.3.1",
+    "tailwind": "4.3.3",
+    "font": "Geist via next/font/google, variable --font-sans; Geist Mono via next/font/google, variable --font-mono",
+    "productGlobalsImported": false,
+    "assistantRuntime": "LocalRuntime with existing inert adapter behavior; no model transport or chat route",
+    "importGraph": [
+      "capture-fixture/app/layout.tsx -> capture-fixture/app/globals.css",
+      "capture-fixture/app/layout.tsx -> capture-fixture/components/ui/tooltip.tsx",
+      "capture-fixture/app/reference/thread/page.tsx -> capture-fixture/components/assistant-ui/elements/thread.aui.tsx",
+      "capture-fixture/app/reference/thread-list/page.tsx -> capture-fixture/components/assistant-ui/elements/thread-list.aui.tsx",
+      "capture-fixture/app/globals.css -> tailwindcss, tw-animate-css, shadcn/tailwind.css",
+      "No production frontend layout.tsx or globals.css import"
+    ]
+  },
+  "generatedFiles": [
+    {
+      "path": "frontend/src/app/dashboard/page.tsx",
+      "sha256": "1b7b398ce50289f73f296a9af9ab8ae232f6b3df46a81a4da0e2f3fd03f7e0ef",
+      "temporary": true
+    },
+    {
+      "path": "frontend/src/app/login/page.tsx",
+      "sha256": "26af047fd01809d9fd1521ea8b80398de0b66e93f7a1601f02e608054ab8d583",
+      "temporary": true
+    },
+    {
+      "path": "frontend/src/app/signup/page.tsx",
+      "sha256": "28918e2f65b5d3498e4419fd3e6cbe930d7d38737a3d133d10a1c8b12bb32bf2",
+      "temporary": true
+    },
+    {
+      "path": "frontend/src/components/app-sidebar.tsx",
+      "sha256": "d581e89152360f0102968782ac52141ba947daf028144a5264b9adb83d0703e1"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/attachment-state.ts",
+      "sha256": "8718cfac67e6afff2cc21981ebd934ea40c02abcf96c6d74be441a11dc37709d"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/attachment.aui.tsx",
+      "sha256": "42865c61b99ff9f4fa13294c3baa090f6afd54dc7c0bbbb4283b993119271446"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/collapsible-root.tsx",
+      "sha256": "6d3e6d9a776ac9db13448606627c2ef51e5605cacb2f805379ada9b58abe4565"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/file.tsx",
+      "sha256": "af6c5c38b0409f168e1bcebacffa9efaf7ff17ecc3cc0b5fab8d4770df0454a0"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/follow-up-suggestions.aui.tsx",
+      "sha256": "f0db1e9cfc5f648adeb57c8ac61fbeca4ebbb4d55267a9c107709af01b73abb4"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/image.tsx",
+      "sha256": "916b2ca0f1097a2eb22e6e5c3ffd39a918dec71abff424b6b8795939733d53fb"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/markdown-text.tsx",
+      "sha256": "7d20bd8fe709a1a6aeee24ba82531309e374740ba6181e092592275ffd6ff8ac"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/media-player.tsx",
+      "sha256": "64a43a3554e9a3de056bcc756dd022a342a45450fa1b41a87836896d0c86dd55"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/reasoning.aui.tsx",
+      "sha256": "3ae8bcf0d84fcb9ac37a40c2046abbf46d7b8f3967b482eec84f0a743aefce65"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/reasoning.tsx",
+      "sha256": "02c42a1cad5fd56f4479fe65c779e9f9934c03a6e935ac92ebf98cbb46ef3cc7"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/surfaces.tsx",
+      "sha256": "5d81fbb669e67ae20026cd30ed57efc51a5e3ee0f4f5d265e1723de75359b8fa"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/thread-list.aui.tsx",
+      "sha256": "243116f0e27dcc8b2e17bc1ab85b073fa2e7c0b89e58db7d806817b01f8880ba"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/thread.aui.tsx",
+      "sha256": "9a835abb069100d35f70c4c3437aa28efdd9c4143d0225287f4d3ee797406b6d"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/tool-fallback.aui.tsx",
+      "sha256": "31720ad79fe332a5999cc1873108da740e63c05f4b8f322bde75f8d495cbf853"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/tool-group.aui.tsx",
+      "sha256": "757caf28ee232d4f500c8af7d6837fe7d6d2b144774a6a0bcdaff8c0c517bd9e"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/elements/tooltip-icon-button.tsx",
+      "sha256": "98580531a6f5a213cccd6964c0c75fd097d97b77bcca05f904df562512273363"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/utils/href.ts",
+      "sha256": "edcbea291ec6c5d506be4ddd76c6e0b6cabba4a14193f389a44fb6bfa8d81c40"
+    },
+    {
+      "path": "frontend/src/components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      "sha256": "8db117d730e640655e5099e086af4e00d545c283839d9ef5885ca93419d51893"
+    },
+    {
+      "path": "frontend/src/components/login-form.tsx",
+      "sha256": "3b367875bfbf2095d104353112622b03795dce2e5105cf66013b9fe7afc54a78"
+    },
+    {
+      "path": "frontend/src/components/nav-main.tsx",
+      "sha256": "799158d1f635f6db6a78dabe6d2c69b74f8a122943d542630feb4d73c78199e5"
+    },
+    {
+      "path": "frontend/src/components/nav-projects.tsx",
+      "sha256": "51543913ae8869ac0f051722d63031ec12c6ed22332eba7cc2ec495a414aa0c2"
+    },
+    {
+      "path": "frontend/src/components/nav-user.tsx",
+      "sha256": "1d979a45ba3b758e3cfd87f16ed3f8ebeae8021fa06e05eed1f6e0e85ddb2a86"
+    },
+    {
+      "path": "frontend/src/components/signup-form.tsx",
+      "sha256": "c79b99ee2073f59747b21a0e2cac1c55a0c41385e412eaca11ec0a76a7629bc6"
+    },
+    {
+      "path": "frontend/src/components/team-switcher.tsx",
+      "sha256": "3ffd99bed60b8f5f47bbcd580f6045a0a4e98b254c0015bd3602c63e6504d317"
+    },
+    {
+      "path": "frontend/src/components/ui/avatar.tsx",
+      "sha256": "bff76087ea9af25c6aa5a5306088dc66e62204a126752c38561736acff00717f"
+    },
+    {
+      "path": "frontend/src/components/ui/breadcrumb.tsx",
+      "sha256": "cbd2b85e7a0097438855ff1bba8ac0cc3d1229e4c94bda3d52176fd22ea2ac62"
+    },
+    {
+      "path": "frontend/src/components/ui/button.tsx",
+      "sha256": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+    },
+    {
+      "path": "frontend/src/components/ui/collapsible.tsx",
+      "sha256": "ead4349ff7b01d696ef89294a81d18ee1d3f732321398896462c834ab9b9e065"
+    },
+    {
+      "path": "frontend/src/components/ui/dialog.tsx",
+      "sha256": "715536e56196579e1203204d6a6fa7ceb31b3c37d60431da7bcd3bf0243175b1"
+    },
+    {
+      "path": "frontend/src/components/ui/dropdown-menu.tsx",
+      "sha256": "ffd69006ed9c79e16ffefffbf8a9ebbf1c34ca38f40cb9939c946a71943127d7"
+    },
+    {
+      "path": "frontend/src/components/ui/field.tsx",
+      "sha256": "8e54d2838051eeb741f6925863b690c98928b25bbb26f3cd26a5b75121d06acb"
+    },
+    {
+      "path": "frontend/src/components/ui/input.tsx",
+      "sha256": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b"
+    },
+    {
+      "path": "frontend/src/components/ui/label.tsx",
+      "sha256": "b3b7b21d2877838fc73713df48a47248392de04a3b3fafa8961369f33ab14530"
+    },
+    {
+      "path": "frontend/src/components/ui/separator.tsx",
+      "sha256": "9a80ff8c110e0c55489509f4f82ebcc929c0174b59544047147b7134f86a54e7"
+    },
+    {
+      "path": "frontend/src/components/ui/sheet.tsx",
+      "sha256": "f5754bb9574b943fd219aa02d29ce701632a9f14d713f2ea5d68f097032e8d21"
+    },
+    {
+      "path": "frontend/src/components/ui/sidebar.tsx",
+      "sha256": "29f85b8b5997eeab0ee5efe54f853a7acfdd22a7f64f0e86cb384b2668786e71"
+    },
+    {
+      "path": "frontend/src/components/ui/skeleton.tsx",
+      "sha256": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc"
+    },
+    {
+      "path": "frontend/src/components/ui/textarea.tsx",
+      "sha256": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
+    },
+    {
+      "path": "frontend/src/components/ui/tooltip.tsx",
+      "sha256": "f83d5f511812573f4ac98b866d397a46fda0f27eeb0af0ea89af01969eefbc5a"
+    },
+    {
+      "path": "frontend/src/hooks/use-attachment-src.ts",
+      "sha256": "dfb621f1a18f4013994aa29815beddb436020105164526ab7c86b0b0a32040a1"
+    },
+    {
+      "path": "frontend/src/hooks/use-copy-to-clipboard.ts",
+      "sha256": "1f3b8a1bab79cef961f62eb25d6b58a0d16c957d63ba1faf086ad09c99712c0a"
+    },
+    {
+      "path": "frontend/src/hooks/use-mobile.ts",
+      "sha256": "ad0936f84f1df79d3697bfbff9c18f8ad58431c1cbaf2359c6a853b0fcc9f28b"
+    }
+  ],
+  "renderMetrics": {
+    "fontFamily": "Geist, \"Geist Fallback\"",
+    "fontVariable": "\"Geist\", \"Geist Fallback\"",
+    "loadedFonts": ["Geist"],
+    "fontReady": true,
+    "radius": 0.625,
+    "inputHeight": 32,
+    "buttonHeight": 32,
+    "formFontSize": "16px",
+    "cssLinks": [
+      "http://127.0.0.1:55108/_next/static/chunks/%5Broot-of-the-server%5D__1gg9-4ovklih9._.css"
+    ]
+  },
+  "fixtureAssets": [
+    {
+      "path": "docs/references/F2.1-visual/reference/shadcn-placeholder.svg",
+      "sourceUrl": "https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/public/placeholder.svg",
+      "sha256": "64badf7aabda0b9630b87020ffb6095cb858ccbcf66b355c2aa08b1063954d3b",
+      "reason": "The published auth block references /placeholder.svg but does not include the asset."
+    }
+  ],
+  "fixtureComparison": {
+    "generatedFiles": 46,
+    "byteIdenticalFrontendFiles": 46,
+    "differencesAfterCssContextAlignment": []
+  },
+  "requestAudit": {
+    "browserRequestsOutsideLoopback": 0,
+    "apiOrModelRequests": 0,
+    "localGeistFontAssetServed": true
+  },
+  "referencePngs": [
+    {
+      "path": "docs/references/F2.1-visual/reference/login-02-desktop-light.png",
+      "sha256": "4940ffe9d60635b68e5af962b84227a7e396f54b72dd897dca55c5d958cdc44e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/login-02-mobile-light.png",
+      "sha256": "c6c75348dd67e815ec484c5038810c21119baeaf2b2cbac6589c8aa7f1d6f08b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/signup-02-desktop-light.png",
+      "sha256": "a2ac2ba5fcd4251766d4ede4e939e727297d090aa17da8a603f0db3ff9d780b7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/signup-02-mobile-light.png",
+      "sha256": "85e53f173ffc8e0d7263f233128d310dd4f9645b1353453a797d611f4129d7ef",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/sidebar-07-desktop-light.png",
+      "sha256": "7388471c9085cbff76ac4c1328540d0ac40d79c3d6d40f93c771385bdc014bac",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/sidebar-07-mobile-light.png",
+      "sha256": "e3e96aeedd8018dfd3cafbfea6c381fd9c83703986a9a6aeceaffb2a90280f6a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/thread-desktop-light.png",
+      "sha256": "db1962bf7f0452439499c77c1f92e04ff66405c2b7907d2cabc6e6c01f520ae2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/thread-mobile-light.png",
+      "sha256": "b33d676f371eb938dff576ebe2e5b01f62c116e3dd957e3d3aa3d33d0055b1e3",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/thread-list-desktop-light.png",
+      "sha256": "2d31938b1a7a78ce351589b5d8c0f2e55cfd8a7d1321b02682560a677d06b1a8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    {
+      "path": "docs/references/F2.1-visual/reference/thread-list-mobile-light.png",
+      "sha256": "84af3cb8dc94679cf530203b1bf57e4c2da9bd7b3ab2726af3e3ae68bb90c3aa",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    }
+  ]
+}

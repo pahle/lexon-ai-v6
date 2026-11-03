@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "deviceScaleFactor": 1,
+  "format": "png",
+  "views": {
+    "login-02-desktop-light": {
+      "path": "reference/login-02-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank published sign-in form",
+      "source": "@shadcn/login-02",
+      "applicability": "Sign-in comparison for published auth geometry; brand differences are expected later."
+    },
+    "login-02-mobile-light": {
+      "path": "reference/login-02-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank published sign-in form",
+      "source": "@shadcn/login-02",
+      "applicability": "Sign-in comparison for published auth geometry; brand differences are expected later."
+    },
+    "signup-02-desktop-light": {
+      "path": "reference/signup-02-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank published sign-up form",
+      "source": "@shadcn/signup-02",
+      "applicability": "Sign-up comparison for published auth geometry; brand differences are expected later."
+    },
+    "signup-02-mobile-light": {
+      "path": "reference/signup-02-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank published sign-up form",
+      "source": "@shadcn/signup-02",
+      "applicability": "Sign-up comparison for published auth geometry; brand differences are expected later."
+    },
+    "sidebar-07-desktop-light": {
+      "path": "reference/sidebar-07-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Published sidebar-07 sample dashboard",
+      "source": "@shadcn/sidebar-07",
+      "applicability": "Workspace-shell comparison for the published sidebar and page-header geometry."
+    },
+    "sidebar-07-mobile-light": {
+      "path": "reference/sidebar-07-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Published sidebar-07 sample dashboard",
+      "source": "@shadcn/sidebar-07",
+      "applicability": "Workspace-shell comparison for the published sidebar and page-header geometry."
+    },
+    "thread-desktop-light": {
+      "path": "reference/thread-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Inert empty chat state after client hydration",
+      "source": "@assistant-ui/thread",
+      "applicability": "Empty assistant-thread comparison with the inert local runtime and published composer."
+    },
+    "thread-mobile-light": {
+      "path": "reference/thread-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Inert empty chat state after client hydration",
+      "source": "@assistant-ui/thread",
+      "applicability": "Empty assistant-thread comparison with the inert local runtime and published composer."
+    },
+    "thread-list-desktop-light": {
+      "path": "reference/thread-list-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Inert empty thread-list state after client hydration",
+      "source": "@assistant-ui/thread-list",
+      "applicability": "Empty assistant thread-list comparison with the inert local runtime."
+    },
+    "thread-list-mobile-light": {
+      "path": "reference/thread-list-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Inert empty thread-list state after client hydration",
+      "source": "@assistant-ui/thread-list",
+      "applicability": "Empty assistant thread-list comparison with the inert local runtime."
+    }
+  }
+}

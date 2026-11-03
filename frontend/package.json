@@ -19,6 +19,7 @@
     "@ai-sdk/react": "4.0.163",
     "@assistant-ui/ai-sdk": "0.0.16",
     "@assistant-ui/react": "0.15.32",
+    "@assistant-ui/react-markdown": "0.14.24",
     "@base-ui/react": "1.9.0",
     "@hookform/resolvers": "6.0.2",
     "@lexon/contracts": "workspace:*",
@@ -27,6 +28,7 @@
     "better-auth": "1.7.14",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "cn": "0.5.2",
     "input-otp": "1.5.0",
     "lucide-react": "1.66.0",
     "next": "16.4.3",
@@ -34,8 +36,11 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-hook-form": "7.91.0",
+    "remark-gfm": "4.0.1",
     "tailwind-merge": "3.7.0",
-    "zod": "4.6.7"
+    "tw-shimmer": "0.4.14",
+    "zod": "4.6.7",
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
