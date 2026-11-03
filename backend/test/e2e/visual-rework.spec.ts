@@ -221,6 +221,19 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.goto(stack.frontendUrl + '/settings/profile');
+  const mobileBreadcrumb = page.getByRole('navigation', {
+    name: 'breadcrumb',
+  });
+  await expect(
+    mobileBreadcrumb.getByRole('link', { name: 'Settings', exact: true }),
+  ).toBeHidden();
+  await expect(
+    mobileBreadcrumb.getByRole('link', { name: 'Profile', exact: true }),
+  ).toBeVisible();
+  await expect(
+    mobileBreadcrumb.locator('[data-slot="breadcrumb-separator"]'),
+  ).toBeHidden();
+  await capture('sidebar-mobile-closed-light');
   await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
   await capture('sidebar-mobile-expanded-light');

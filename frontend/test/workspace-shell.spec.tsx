@@ -125,6 +125,10 @@ test('workspace shell composes one sidebar inset, one main, and a route breadcru
 });
 
 test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
   const orgId = identity.organization.id;
   navigation.path = `/organizations/${orgId}/settings/general`;
   const view = await render(
@@ -154,6 +158,10 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
   )!;
   const items = [...breadcrumb.querySelectorAll('ol > li')];
   expect(items.map((item) => item.tagName)).toEqual(['LI', 'LI', 'LI']);
+  expect(items[0]?.className).toContain('hidden md:block');
+  expect(
+    breadcrumb.querySelector('[data-slot="breadcrumb-separator"]')?.className,
+  ).toContain('hidden md:block');
   expect(
     breadcrumb.querySelector('a[href$="/settings/members"]')?.textContent,
   ).toBe('Organization settings');

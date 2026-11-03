@@ -222,6 +222,11 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   await expect(title).toHaveText('Organization settings');
   await expect(
     page
+      .getByRole('navigation', { name: 'breadcrumb' })
+      .getByRole('link', { name: 'Organization settings', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
       .getByRole('navigation', { name: 'Primary navigation' })
       .getByRole('link', { name: 'General', exact: true }),
   ).toHaveAttribute('aria-current', 'page');

@@ -90,8 +90,12 @@ export function WorkspaceBreadcrumb() {
       <BreadcrumbList>
         {crumbs.map((crumb, index) => (
           <Fragment key={`${crumb.title}-${index}`}>
-            {index > 0 ? <BreadcrumbSeparator /> : null}
-            <BreadcrumbItem>
+            {index > 0 ? (
+              <BreadcrumbSeparator className="hidden md:block" />
+            ) : null}
+            <BreadcrumbItem
+              className={index < crumbs.length - 1 ? 'hidden md:block' : ''}
+            >
               {crumb.href ? (
                 <BreadcrumbLink href={crumb.href}>{crumb.title}</BreadcrumbLink>
               ) : (
