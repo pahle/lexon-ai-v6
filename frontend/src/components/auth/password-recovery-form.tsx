@@ -35,6 +35,7 @@ function RequestReset() {
   });
   return (
     <AuthCard
+      presentation="page"
       title="Reset your password"
       description="Request a password reset link."
     >
@@ -88,6 +89,7 @@ function ResetPassword({ token }: { token?: string | undefined }) {
   }, []);
   return (
     <AuthCard
+      presentation="page"
       title="Choose a new password"
       description={
         !token

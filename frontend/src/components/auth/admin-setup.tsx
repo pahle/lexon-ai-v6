@@ -55,6 +55,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
   if (phase === 'done')
     return (
       <AuthCard
+        presentation="page"
         title="Administrator setup complete"
         description="Your verified account is now a platform administrator."
       >
@@ -65,6 +66,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
   if (phase === 'unavailable')
     return (
       <AuthCard
+        presentation="page"
         title="Setup link unavailable"
         description="Request a new setup link from an operator, or try again later."
       >
@@ -73,7 +75,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
     );
   if (phase === 'loading')
     return (
-      <AuthCard title="Administrator setup">
+      <AuthCard presentation="page" title="Administrator setup">
         <p role="status">Checking setup link…</p>
       </AuthCard>
     );
@@ -82,6 +84,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       return <SignupForm setupToken={token} returnTo={continuation} />;
     return (
       <AuthCard
+        presentation="page"
         title="Administrator setup"
         description="Sign in with the account named in the setup email, or create that account. Verify your email and enroll an authenticator before activation."
       >
@@ -98,7 +101,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
     (security?.twoFactorEnabled && !security.mfaVerified)
   )
     return (
-      <AuthCard title="Verify administrator setup">
+      <AuthCard presentation="page" title="Verify administrator setup">
         <a href={'/two-factor?returnTo=' + encodeURIComponent(continuation)}>
           Verify your sign-in
         </a>
@@ -107,13 +110,14 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
     );
   if (!security?.twoFactorEnabled)
     return (
-      <div className="flex w-full max-w-md flex-col gap-6">
-        <TwoFactorEnrollment onComplete={refresh} />
+      <div className="flex w-full flex-col gap-6">
+        <TwoFactorEnrollment onComplete={refresh} presentation="page" />
         <a href="/workspace">Return to workspace</a>
       </div>
     );
   return (
     <AuthCard
+      presentation="page"
       title="Activate administrator access"
       description="Activate only for the verified account named in the setup email. The account must have no team memberships."
     >

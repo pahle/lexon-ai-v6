@@ -30,6 +30,7 @@ export function VerificationState({
   });
   return (
     <AuthCard
+      presentation="page"
       title={
         state === 'confirmed'
           ? 'Email verified'

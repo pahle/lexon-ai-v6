@@ -37,6 +37,16 @@ export default defineConfig({
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },
     {
+      name: 'visual-review',
+      testMatch: 'backend/test/e2e/visual-rework.spec.ts',
+      use: {
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+        reducedMotion: 'reduce',
+      },
+    },
+    {
       name: 'topology',
       testMatch: [
         'backend/test/e2e/topology.spec.ts',

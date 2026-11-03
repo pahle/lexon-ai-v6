@@ -21,12 +21,13 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
     '/accept-invitation?invitationId=' + encodeURIComponent(invitationId);
   if (declined)
     return (
-      <AuthCard title="Invitation declined">
+      <AuthCard presentation="page" title="Invitation declined">
         <a href="/workspace">Return to workspace</a>
       </AuthCard>
     );
   return (
     <AuthCard
+      presentation="page"
       title="Accept invitation"
       description="Sign in with the invited account to accept this invitation."
     >

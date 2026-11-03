@@ -18,6 +18,15 @@ COPY shared shared
 COPY frontend frontend
 RUN pnpm --filter @lexon/contracts build && pnpm --filter @lexon/frontend build
 
+FROM dependencies AS visual-dev
+ENV NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
+COPY tsconfig.base.json ./
+COPY shared shared
+COPY frontend frontend
+RUN pnpm --filter @lexon/contracts build
+WORKDIR /app/frontend
+CMD ["pnpm", "exec", "next", "dev", "--hostname", "0.0.0.0"]
+
 FROM ${NODE_IMAGE} AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000

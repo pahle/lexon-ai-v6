@@ -8,7 +8,7 @@ import { fullReload } from '../../lib/full-reload';
 import { useWorkspace } from './workspace-provider';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
-import { useSidebarOptional } from '../ui/sidebar';
+import { useOptionalSidebar } from './sidebar-context';
 import { requestRouteHeadingFocus } from './navigation-focus';
 import {
   DropdownMenu,
@@ -36,7 +36,7 @@ export function UserMenu() {
     finishExplicitTransition,
     refreshIdentity,
   } = useWorkspace();
-  const sidebar = useSidebarOptional();
+  const sidebar = useOptionalSidebar();
   const pathname = usePathname() ?? '';
   const collapsed = sidebar?.state === 'collapsed';
   const name = identity?.user.name ?? 'Account';

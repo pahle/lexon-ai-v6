@@ -45,6 +45,102 @@
       "source": "@shadcn/signup-02",
       "applicability": "Sign-up comparison for published auth geometry; brand differences are expected later."
     },
+    "checkpoint-a-sign-in-desktop-light": {
+      "path": "checkpoints/a-sign-in-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank Lexon sign-in form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/login-02",
+      "applicability": "Checkpoint A sign-in comparison against the published login frame."
+    },
+    "checkpoint-a-sign-in-desktop-dark": {
+      "path": "checkpoints/a-sign-in-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Blank Lexon sign-in form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/login-02",
+      "applicability": "Checkpoint A sign-in comparison against the published login frame."
+    },
+    "checkpoint-a-sign-in-mobile-light": {
+      "path": "checkpoints/a-sign-in-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank Lexon sign-in form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/login-02",
+      "applicability": "Checkpoint A sign-in comparison against the published login frame."
+    },
+    "checkpoint-a-sign-in-mobile-dark": {
+      "path": "checkpoints/a-sign-in-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Blank Lexon sign-in form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/login-02",
+      "applicability": "Checkpoint A sign-in comparison against the published login frame."
+    },
+    "checkpoint-a-sign-up-desktop-light": {
+      "path": "checkpoints/a-sign-up-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank Lexon sign-up form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/signup-02",
+      "applicability": "Checkpoint A sign-up comparison against the published sign-up frame."
+    },
+    "checkpoint-a-sign-up-desktop-dark": {
+      "path": "checkpoints/a-sign-up-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Blank Lexon sign-up form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/signup-02",
+      "applicability": "Checkpoint A sign-up comparison against the published sign-up frame."
+    },
+    "checkpoint-a-sign-up-mobile-light": {
+      "path": "checkpoints/a-sign-up-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank Lexon sign-up form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/signup-02",
+      "applicability": "Checkpoint A sign-up comparison against the published sign-up frame."
+    },
+    "checkpoint-a-sign-up-mobile-dark": {
+      "path": "checkpoints/a-sign-up-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Blank Lexon sign-up form in the shared auth frame",
+      "source": "Lexon AuthFrame adapting @shadcn/signup-02",
+      "applicability": "Checkpoint A sign-up comparison against the published sign-up frame."
+    },
+    "checkpoint-a-onboarding-desktop-light": {
+      "path": "checkpoints/a-onboarding-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Onboarding welcome step for an authenticated incomplete account",
+      "source": "Lexon AuthFrame and onboarding flow",
+      "applicability": "Checkpoint A onboarding comparison inside the shared auth frame."
+    },
+    "checkpoint-a-onboarding-desktop-dark": {
+      "path": "checkpoints/a-onboarding-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Onboarding welcome step for an authenticated incomplete account",
+      "source": "Lexon AuthFrame and onboarding flow",
+      "applicability": "Checkpoint A onboarding comparison inside the shared auth frame."
+    },
+    "checkpoint-a-onboarding-mobile-light": {
+      "path": "checkpoints/a-onboarding-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Onboarding welcome step for an authenticated incomplete account",
+      "source": "Lexon AuthFrame and onboarding flow",
+      "applicability": "Checkpoint A onboarding comparison inside the shared auth frame."
+    },
+    "checkpoint-a-onboarding-mobile-dark": {
+      "path": "checkpoints/a-onboarding-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Onboarding welcome step for an authenticated incomplete account",
+      "source": "Lexon AuthFrame and onboarding flow",
+      "applicability": "Checkpoint A onboarding comparison inside the shared auth frame."
+    },
     "sidebar-07-desktop-light": {
       "path": "reference/sidebar-07-desktop-light.png",
       "theme": "light",

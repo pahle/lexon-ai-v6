@@ -1,0 +1,8 @@
+services:
+  frontend:
+    build:
+      target: visual-dev
+    environment:
+      NODE_ENV: development
+      LEXON_VISUAL_DEV: '1'
+    mem_limit: 1024m

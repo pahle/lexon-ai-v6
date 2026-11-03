@@ -3,9 +3,10 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
-import { SidebarTrigger, useSidebarOptional } from '../ui/sidebar';
-import { useIsMobile } from '../../hooks/use-mobile';
+import { SidebarTrigger } from '../ui/sidebar';
+import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
+import { AuthFrame } from '../auth/auth-frame';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
 const securityPaths = new Set(['/settings/security']);
@@ -37,8 +38,9 @@ export function WorkspaceShell({
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
-  const isMobile = useIsMobile();
-  const sidebarCollapsed = useSidebarOptional()?.state === 'collapsed';
+  const sidebarState = useOptionalSidebar();
+  const isMobile = sidebarState?.isMobile ?? false;
+  const sidebarCollapsed = sidebarState?.state === 'collapsed';
   const securityRoute = securityPaths.has(pathname ?? '');
 
   if (status === 'expired' || status === 'unavailable')
@@ -76,6 +78,13 @@ export function WorkspaceShell({
         </main>
       </>
     );
+  if (!identity.user.onboardingCompleted)
+    return (
+      <>
+        <SkipLink />
+        <AuthFrame>{children}</AuthFrame>
+      </>
+    );
   const shell = (
     <PanelHostContext.Provider value={panelHost}>
       <>
@@ -87,7 +96,7 @@ export function WorkspaceShell({
             </aside>
           ) : null}
           <main id="main" tabIndex={-1} className="min-w-0 flex-1">
-            {sidebar && identity.user.onboardingCompleted ? (
+            {sidebar && identity.user.onboardingCompleted && sidebarState ? (
               <SidebarTrigger
                 className="mb-4"
                 aria-label={

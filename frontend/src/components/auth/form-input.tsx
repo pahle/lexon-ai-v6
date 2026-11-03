@@ -1,5 +1,6 @@
 'use client';
 import { useId } from 'react';
+import type { ReactNode } from 'react';
 import type {
   UseFormRegisterReturn,
   FieldError as FormError,
@@ -8,12 +9,14 @@ import { Field, FieldLabel, FieldError } from '../ui/field';
 import { Input } from '../ui/input';
 export function FormInput({
   label,
+  labelAside,
   registration,
   error,
   type = 'text',
   autoComplete,
 }: {
   label: string;
+  labelAside?: ReactNode;
   registration: UseFormRegisterReturn;
   error?: FormError | undefined;
   type?: string | undefined;
@@ -22,7 +25,14 @@ export function FormInput({
   const id = useId();
   return (
     <Field data-invalid={!!error}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {labelAside ? (
+        <div className="flex items-center">
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          {labelAside}
+        </div>
+      ) : (
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      )}
       <Input
         id={id}
         type={type}

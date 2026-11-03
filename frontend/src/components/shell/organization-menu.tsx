@@ -21,7 +21,7 @@ import {
   identityMessage,
   useCursorPage,
 } from '../organizations/page-state';
-import { useSidebarOptional } from '../ui/sidebar';
+import { useOptionalSidebar } from './sidebar-context';
 import { useWorkspace } from './workspace-provider';
 
 function orgLabel(org: OrganizationSummary) {
@@ -33,7 +33,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
   const { beginExplicitTransition, finishExplicitTransition, refreshIdentity } =
     useWorkspace();
   const organizationTrigger = useRef<HTMLButtonElement>(null);
-  const collapsed = useSidebarOptional()?.state === 'collapsed';
+  const collapsed = useOptionalSidebar()?.state === 'collapsed';
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);

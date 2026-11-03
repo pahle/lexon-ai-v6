@@ -36,6 +36,7 @@ export function Onboarding({
   if (step === 0)
     return (
       <AuthCard
+        presentation="page"
         title="Welcome to Lexon"
         description="Choose the name people see."
       >
@@ -69,6 +70,7 @@ export function Onboarding({
   if (step === 1)
     return (
       <AuthCard
+        presentation="page"
         title="Pending invitations"
         description="Accept an invitation explicitly, or continue with your Personal organization."
       >
@@ -78,6 +80,7 @@ export function Onboarding({
     );
   return (
     <AuthCard
+      presentation="page"
       title="Create a team, or start on your own"
       description="Creating a team is optional. Personal is ready to use."
     >
