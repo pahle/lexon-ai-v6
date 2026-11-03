@@ -6,52 +6,50 @@ const css = readFileSync(
   new URL('../../frontend/src/app/globals.css', import.meta.url),
   'utf8',
 );
-const controls = Object.fromEntries(
-  ['button', 'input', 'input-otp', 'field'].map((name) => [
-    name,
-    readFileSync(
-      new URL(`../../frontend/src/components/ui/${name}.tsx`, import.meta.url),
-      'utf8',
-    ),
-  ]),
-);
 
 const expected = {
   light: {
-    background: '#ffffff',
-    surface: '#f7f7f8',
-    'surface-raised': '#ffffff',
-    border: '#e5e5e9',
-    text: '#0d0d0d',
-    'text-muted': '#6e6e80',
-    primary: '#0d0d0d',
-    'on-primary': '#ffffff',
-    accent: '#8e8ea0',
-    'accent-strong': '#5d5d6e',
-    'on-accent': '#ffffff',
-    'focus-ring': '#5d5d6e',
+    background: '#f6efe2',
+    card: '#eee4d2',
+    popover: '#f6efe2',
+    muted: '#e5d9c3',
+    border: '#d8c9ad',
+    foreground: '#1f1717',
+    'muted-foreground': '#5e5248',
+    primary: '#7a1f2e',
+    'primary-hover': '#6a1a28',
+    'primary-foreground': '#f6efe2',
+    secondary: '#e5d9c3',
+    'secondary-foreground': '#1f1717',
+    accent: '#e5d9c3',
+    'accent-foreground': '#1f1717',
+    ring: '#7a1f2e',
+    sidebar: '#eee4d2',
+    'brand-sage': '#5f6b48',
     danger: '#b42318',
-    warning: '#8a5a00',
-    success: '#1f7a3d',
-    'on-danger': '#ffffff',
+    warning: '#7a4f00',
+    success: '#4e5a39',
   },
   dark: {
-    background: '#121214',
-    surface: '#1c1c20',
-    'surface-raised': '#26262b',
-    border: '#34343c',
-    text: '#ececf1',
-    'text-muted': '#a0a0b0',
-    primary: '#ececf1',
-    'on-primary': '#0d0d0d',
-    accent: '#7a7a8c',
-    'accent-strong': '#c2c2d0',
-    'on-accent': '#0d0d0d',
-    'focus-ring': '#c2c2d0',
+    background: '#2a1519',
+    card: '#3a1e24',
+    popover: '#3a1e24',
+    muted: '#4a2830',
+    border: '#5a3a40',
+    foreground: '#f6efe2',
+    'muted-foreground': '#c9b9a6',
+    primary: '#f6efe2',
+    'primary-foreground': '#2a1519',
+    secondary: '#4a2830',
+    'secondary-foreground': '#f6efe2',
+    accent: '#4a2830',
+    'accent-foreground': '#f6efe2',
+    ring: '#f6efe2',
+    sidebar: '#3a1e24',
+    'brand-sage': '#a9b58f',
     danger: '#f97066',
     warning: '#e0a83a',
-    success: '#4cc276',
-    'on-danger': '#0d0d0d',
+    success: '#a9b58f',
   },
 };
 
@@ -95,12 +93,10 @@ function contrast(first, second) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-test('exports every DSv1.2 color token in both themes and resolves shadcn aliases', () => {
-  const light = parseBlock(':root');
-  const themes = {
-    light,
-    dark: { ...light, ...parseBlock('\\.dark') },
-  };
+const light = parseBlock(':root');
+const themes = { light, dark: { ...light, ...parseBlock('\\.dark') } };
+
+test('exports the DS v2 light and dark tokens and shadcn aliases', () => {
   for (const [theme, expectedTokens] of Object.entries(expected)) {
     for (const [name, value] of Object.entries(expectedTokens)) {
       assert.equal(resolve(themes[theme], name), value, `${theme} --${name}`);
@@ -109,15 +105,14 @@ test('exports every DSv1.2 color token in both themes and resolves shadcn aliase
       'foreground',
       'muted-foreground',
       'primary-foreground',
+      'secondary-foreground',
+      'accent-foreground',
       'ring',
       'destructive',
-      'card',
-      'card-foreground',
-      'popover',
-      'popover-foreground',
-      'muted',
+      'destructive-foreground',
       'input',
-      'sidebar',
+      'card-foreground',
+      'popover-foreground',
       'sidebar-foreground',
       'sidebar-primary',
       'sidebar-primary-foreground',
@@ -131,20 +126,15 @@ test('exports every DSv1.2 color token in both themes and resolves shadcn aliase
   }
 });
 
-test('meets DSv1.2 text, button, focus, and non-text accent contrast rules', () => {
-  const light = parseBlock(':root');
-  const themes = { light, dark: { ...light, ...parseBlock('\\.dark') } };
-  for (const [theme, expectedTokens] of Object.entries(expected)) {
+test('meets DS v2 contrast requirements on specified text and status surfaces', () => {
+  for (const [theme, tokens] of Object.entries(themes)) {
     const colors = Object.fromEntries(
-      Object.keys(expectedTokens).map((key) => [
-        key,
-        resolve(themes[theme], key),
-      ]),
+      Object.keys(expected[theme]).map((key) => [key, resolve(tokens, key)]),
     );
-    for (const surface of ['background', 'surface', 'surface-raised']) {
+    for (const surface of ['background', 'card', 'muted']) {
       for (const text of [
-        'text',
-        'text-muted',
+        'foreground',
+        'muted-foreground',
         'danger',
         'warning',
         'success',
@@ -156,115 +146,49 @@ test('meets DSv1.2 text, button, focus, and non-text accent contrast rules', () 
       }
     }
     assert.ok(
-      contrast(colors['on-primary'], colors.primary) >= 4.5,
-      `${theme} primary button text must be >= 4.5:1`,
+      contrast(colors['primary-foreground'], colors.primary) >= 4.5,
+      `${theme} primary-foreground on primary must be >= 4.5:1`,
     );
     assert.ok(
-      contrast(colors['on-accent'], colors['accent-strong']) >= 4.5,
-      `${theme} secondary button text on accent-strong must be >= 4.5:1`,
+      contrast(colors.ring, colors.background) >= 3,
+      `${theme} ring on background must be >= 3:1`,
     );
-    assert.ok(
-      contrast(colors['on-danger'], colors.danger) >= 4.5,
-      `${theme} destructive button text must be >= 4.5:1`,
-    );
-    for (const surface of ['background', 'surface', 'surface-raised']) {
+    for (const surface of ['background', 'card']) {
       assert.ok(
-        contrast(colors['focus-ring'], colors[surface]) >= 3,
-        `${theme} focus ring on ${surface} must be >= 3:1`,
+        contrast(colors['brand-sage'], colors[surface]) >= 4.5,
+        `${theme} brand-sage text on ${surface} must be >= 4.5:1`,
       );
     }
-    assert.ok(
-      contrast(colors.accent, colors.background) >= 3,
-      `${theme} accent non-text adjacency must be >= 3:1`,
-    );
   }
+  assert.ok(
+    contrast(resolve(light, 'brand-sage'), resolve(light, 'muted')) < 4.5,
+    'light brand-sage must remain restricted from muted text',
+  );
 });
 
-test('maps every rectangular Tailwind radius alias to 5px and preserves circular full', () => {
+test('uses the DS radius token and shadcn-derived radius formulas', () => {
+  assert.equal(resolve(light, 'radius'), '0.625rem');
   const theme = css.match(/@theme inline\s*\{([^}]*)\}/);
   assert.ok(theme, 'missing Tailwind inline theme block');
-  for (const alias of ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl']) {
+  for (const [alias, formula] of Object.entries({
+    sm: 'calc(var(--radius) * 0.6)',
+    md: 'calc(var(--radius) * 0.8)',
+    lg: 'var(--radius)',
+    xl: 'calc(var(--radius) * 1.4)',
+    '2xl': 'calc(var(--radius) * 1.8)',
+    '3xl': 'calc(var(--radius) * 2.2)',
+    '4xl': 'calc(var(--radius) * 2.6)',
+  })) {
     assert.match(
       theme[1],
-      new RegExp(`--radius-${alias}:\\s*var\\(--radius\\)`),
-      `--radius-${alias} must use the 5px rectangular radius`,
+      new RegExp(`--radius-${alias}:\\s*${formula.replace(/[()*]/g, '\\$&')}`),
+      `--radius-${alias} must use the published shadcn derivation`,
     );
   }
-  assert.doesNotMatch(
-    theme[1],
-    /--radius-full:/,
-    'rounded-full remains Tailwind’s circular exception',
-  );
-});
-
-test('uses a solid 2px focus ring with a 2px background offset on form controls', () => {
-  assert.doesNotMatch(
-    controls.button,
-    /destructive:\s*['"`][^'"`]*focus-visible:ring-destructive/,
-    'unused destructive button variant must not replace the solid focus token',
-  );
-  for (const name of ['button', 'input']) {
-    const code = controls[name];
-    assert.match(
-      code,
-      /focus-visible:ring-2\s+focus-visible:ring-ring\s+focus-visible:ring-offset-2\s+focus-visible:ring-offset-background/,
-      `${name} focus style must use the solid token ring and offset`,
-    );
-    assert.doesNotMatch(
-      code,
-      /focus-visible:ring-(?:3|ring\/50)/,
-      `${name} focus style must not use translucent three-pixel rings`,
-    );
-  }
-  assert.match(
-    controls['input-otp'],
-    /data-\[active=true\]:ring-2\s+data-\[active=true\]:ring-ring\s+data-\[active=true\]:ring-offset-2\s+data-\[active=true\]:ring-offset-background/,
-  );
-});
-
-test('keeps button, input, and field spacing on the 4px/8px grid', () => {
-  assert.match(controls.button, /gap-2 px-2/);
-  assert.doesNotMatch(controls.button, /gap-1\.5|px-2\.5|pr-1\.5|pl-1\.5/);
-  assert.match(controls.input, /px-2(?:\s|')/);
-  assert.doesNotMatch(controls.input, /px-2\.5/);
-  assert.doesNotMatch(
-    controls.field,
-    /gap-0\.5|gap-1\.5|gap-3\b|gap-5\b|p-2\.5|mb-1\.5|-mt-1\.5/,
-  );
-});
-
-test('keeps shell dimensions, rectangular radius, system font, and reduced motion tokens', () => {
-  const tokens = parseBlock(':root');
-  assert.equal(resolve(tokens, 'right-panel-width'), '320px');
-  assert.equal(resolve(tokens, 'sidebar-width'), '256px');
-  assert.equal(resolve(tokens, 'radius'), '5px');
-  assert.equal(resolve(tokens, 'motion-duration'), '400ms');
-  assert.equal(resolve(tokens, 'motion-easing'), 'ease');
-  assert.equal(resolve(tokens, 'font-system'), 'system-ui, sans-serif');
-  assert.equal(
-    resolve(tokens, 'font-mono'),
-    'ui-monospace, sfmono-regular, menlo, monospace',
-  );
-  assert.equal(resolve(tokens, 'font-size-display'), '48px');
-  assert.equal(resolve(tokens, 'font-size-heading'), '32px');
-  assert.equal(resolve(tokens, 'font-size-body'), '16px');
-  assert.equal(resolve(tokens, 'font-weight-display'), '700');
-  assert.equal(resolve(tokens, 'font-weight-heading'), '600');
-  assert.equal(resolve(tokens, 'font-weight-body'), '400');
-  assert.equal(resolve(tokens, 'line-height-body'), '1.5');
-  assert.equal(resolve(tokens, 'spacing-base'), '8px');
-  assert.equal(
-    resolve(tokens, 'spacing-scale'),
-    '4px 8px 16px 24px 32px 40px 48px 64px',
-  );
-  assert.equal(resolve(tokens, 'breakpoint-app'), '768px');
+  assert.match(css, /--right-panel-width:\s*320px/);
   assert.match(
     css,
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?--motion-duration:\s*0ms/,
-  );
-  assert.match(css, /font-family:\s*var\(--font-system\)/);
-  assert.doesNotMatch(
-    css,
-    /@import\s+(?:url\()?['"]https?:\/\/[^'"]+\.(?:woff2?|ttf|otf)/i,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0\.01ms[\s\S]*?transition-duration:\s*0\.01ms/,
+    'reduced-motion users must receive effectively immediate animations and transitions',
   );
 });
