@@ -13,12 +13,14 @@ export function AuthCard({
   children,
   headingLevel = 1,
   presentation = 'card',
+  showBrandFooter = true,
 }: {
   title: string;
   description?: string | undefined;
   children?: ReactNode;
   headingLevel?: 1 | 2 | 3;
   presentation?: 'card' | 'page';
+  showBrandFooter?: boolean;
 }) {
   const Heading = `h${headingLevel}` as const;
   const inAuthFrame = presentation === 'page';
@@ -70,9 +72,11 @@ export function AuthCard({
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent>{children}</CardContent>
-      <CardFooter>
-        <p className="text-sm text-muted-foreground">Lexon</p>
-      </CardFooter>
+      {showBrandFooter ? (
+        <CardFooter>
+          <p className="text-sm text-muted-foreground">Lexon</p>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

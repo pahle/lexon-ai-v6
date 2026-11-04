@@ -22,8 +22,6 @@ test('return paths reject external and encoded authority escapes', () => {
 test.each([
   ['/workspace', '/workspace?from=home'],
   ['/workspace/files', '/workspace/files?from=home'],
-  ['/settings', '/settings?from=home'],
-  ['/settings/security', '/settings/security?from=home'],
   ['/organizations', '/organizations?from=home'],
   ['/organizations/acme', '/organizations/acme?from=home'],
   ['/platform', '/platform?from=home'],
@@ -47,7 +45,6 @@ test.each([
 
 test.each([
   '/workspace',
-  '/settings/security',
   '/organizations/acme',
   '/platform/users',
   '/onboarding/profile',
@@ -81,17 +78,15 @@ test('proxy checks cookie presence only and excludes public liveness', () => {
   expect(
     proxy(new NextRequest('http://localhost/health'))?.headers.get('location'),
   ).toBeNull();
-  const sidebarPreferenceOnly = proxy(
-    new NextRequest('http://localhost/settings', {
-      headers: { cookie: 'sidebar_state=expanded' },
-    }),
-  );
-  expect(sidebarPreferenceOnly?.headers.get('location')).toContain('/sign-in');
+  expect(
+    proxy(new NextRequest('http://localhost/settings'))?.headers.get(
+      'location',
+    ),
+  ).toBeNull();
 });
 
 test.each([
   '/workspaceish',
-  '/settingsx',
   '/organizations-archive',
   '/platform-admin',
   '/onboarding-next',
@@ -104,7 +99,6 @@ test.each([
 test('matcher covers each shell root and its descendants', () => {
   expect(config.matcher).toEqual([
     '/workspace/:path*',
-    '/settings/:path*',
     '/organizations/:path*',
     '/platform/:path*',
     '/onboarding/:path*',

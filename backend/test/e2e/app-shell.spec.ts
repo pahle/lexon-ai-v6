@@ -210,6 +210,25 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(open).toBeFocused();
   await open.click();
   await expect(dialog).toBeVisible();
+  await expect
+    .poll(() =>
+      dialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
@@ -220,16 +239,28 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await mobileUser.focus();
   await page.keyboard.press('Enter');
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
-  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
-  await open.click();
-  const reopenedSettingsDialog = page.getByRole('dialog', { name: 'Sidebar' });
-  await expect(reopenedSettingsDialog).toBeVisible();
+  const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settingsDialog).toBeVisible();
+  await expect
+    .poll(() =>
+      settingsDialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await settingsDialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
   await page.keyboard.press('Escape');
-  await expect(reopenedSettingsDialog).toBeHidden();
+  await expect(settingsDialog).toBeHidden();
   await expect(open).toBeFocused();
   await page.getByRole('button', { name: 'Open navigation' }).click();
   const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
@@ -243,8 +274,11 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
     .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
     .click();
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/profile$/);
-  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
+  await expect(settingsDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settingsDialog).toBeHidden();
+  await expect(open).toBeFocused();
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(
@@ -362,8 +396,8 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     data: { organizationId: id },
   });
   await page.setViewportSize({ width: 768, height: 720 });
-  await page.goto(`${stack.frontendUrl}/organizations/${id}/settings/general`);
-  const title = page.getByRole('heading', { level: 1 });
+  await page.goto(`${stack.frontendUrl}/workspace?settings=general`);
+  const title = page.getByRole('heading', { name: 'Settings', exact: true });
   await expect(title).toHaveText('Organization settings');
   await expect(
     page

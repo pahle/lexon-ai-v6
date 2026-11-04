@@ -4,7 +4,6 @@ import { render } from './render';
 import type { OrganizationSummary } from '@lexon/contracts';
 import { OrganizationSettings } from '../src/components/organizations/organization-settings';
 import { OrganizationPage } from '../src/components/organizations/organization-page';
-import { OrganizationSettingsPageFrame } from '../src/components/settings/organization-settings-page-frame';
 const workspaceState = vi.hoisted(() => ({ identity: null as unknown }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({ identity: workspaceState.identity }),
@@ -124,18 +123,6 @@ test('role refresh removes a formerly allowed settings view and its cached data'
   );
   expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
   expect(queryClient.getQueryData(protectedKey)).toBeUndefined();
-  await view.unmount();
-});
-
-test('organization settings frame leaves route navigation to the workspace sidebar', async () => {
-  const view = await render(
-    <OrganizationSettingsPageFrame>
-      <p>Section content</p>
-    </OrganizationSettingsPageFrame>,
-  );
-  expect(view.container.querySelector('nav')).toBeNull();
-  expect(view.container.textContent).toContain('Organization settings');
-  expect(view.container.textContent).toContain('Section content');
   await view.unmount();
 });
 

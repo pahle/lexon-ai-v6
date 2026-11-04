@@ -130,7 +130,7 @@ export function ProvisioningDetail({
           </Button>
         )}
         {failure ? <FieldError>{failure}</FieldError> : null}
-        <a href="/settings/security">Account security</a>
+        <a href="/workspace?settings=security">Account security</a>
       </AuthCard>
     </div>
   );

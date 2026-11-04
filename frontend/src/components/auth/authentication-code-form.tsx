@@ -46,6 +46,7 @@ export function AuthenticationCodeForm({
             form.reset();
           } catch {
             setFailure('Unable to verify this code. Please try again.');
+            form.setFocus('code');
           }
         }),
       )}

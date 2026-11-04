@@ -145,11 +145,11 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
     () => performance.timeOrigin,
   );
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(
     documentBeforeSettingsNavigation,
   );
-  await page.goto(stack.frontendUrl + '/settings/appearance');
+  await page.goto(stack.frontendUrl + '/workspace?settings=appearance');
   const systemTheme = page.getByRole('radio', { name: 'System' });
   await tabTo(page, systemTheme);
   await page.keyboard.press('ArrowLeft');
@@ -163,7 +163,7 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   const signOut = page.getByRole('menuitem', { name: 'Sign out', exact: true });
   await expect(signOut).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(
     page.getByRole('heading', {
       level: 1,
@@ -201,11 +201,12 @@ test('F2 cross-organization settings URL shows no access without requesting prot
       protectedRequests.push(request.url());
   });
   await page.goto(
-    `${stack.frontendUrl}/organizations/${otherId}/settings/invitations`,
+    `${stack.frontendUrl}/workspace?settings=invitations&orgId=${otherId}`,
   );
-  await expect(page.locator('section[role="alert"]')).toContainText(
-    'You no longer have access to this organization',
-  );
+  await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible();
+  await expect(
+    page.getByText('You do not have access to this section.', { exact: true }),
+  ).toBeVisible();
   expect(protectedRequests).toEqual([]);
 });
 
@@ -276,9 +277,7 @@ test('onboarding and organization switches preserve Personal and last owner', as
   await expect(
     page.getByRole('button', { name: 'Organization: First team' }),
   ).toBeVisible();
-  await page.goto(
-    `${stack.frontendUrl}/organizations/${firstTeamId}/settings/members`,
-  );
+  await page.goto(`${stack.frontendUrl}/workspace?settings=members`);
   await page
     .getByRole('button', { name: 'Leave organization', exact: true })
     .click();
@@ -392,7 +391,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   await expect(
     page.getByRole('button', { name: 'Organization: Ordinary team' }),
   ).toBeVisible();
-  const invitationsPath = `${stack.frontendUrl}/organizations/${teams[1]!.id}/settings/invitations`;
+  const invitationsPath = `${stack.frontendUrl}/workspace?settings=invitations`;
   const invitedDataResponse = page.waitForResponse(
     (response) =>
       response

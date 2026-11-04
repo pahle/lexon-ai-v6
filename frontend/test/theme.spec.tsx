@@ -74,9 +74,8 @@ test('appearance selection stores and applies light and dark themes locally', as
   const card = view.container.querySelector(
     '[data-slot="appearance-preview"]',
   )?.parentElement;
-  expect(group?.className).toContain('gap-2');
-  expect(card?.className).toContain('gap-2');
-  expect(card?.className).toContain('p-4');
+  expect(group?.className).toContain('gap-4');
+  expect(card?.className).toContain('max-w-[11.25rem]');
   const previews = [
     ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
   ];
@@ -88,6 +87,15 @@ test('appearance selection stores and applies light and dark themes locally', as
       previews.map((preview) => preview.getAttribute('data-theme-preview')),
     ).size,
   ).toBe(3);
+  for (const preview of previews) {
+    expect(preview.className).toContain('h-24');
+    const radio = preview.parentElement?.querySelector('[role="radio"]');
+    expect(radio).not.toBeNull();
+    expect(
+      preview.compareDocumentPosition(radio!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  }
 
   await act(async () => {
     (
@@ -143,7 +151,7 @@ test('system selection follows operating system changes and uses rectangular pre
   );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
-  expect(preview?.className).toContain('rounded-[var(--radius)]');
+  expect(preview?.className).toContain('h-24');
 });
 
 test('does not render a theme selection before the client mount', () => {

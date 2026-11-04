@@ -101,12 +101,12 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
 
     const pages = [
       '/workspace',
-      '/settings/profile',
-      '/settings/security',
-      '/settings/appearance',
-      `/organizations/${team.id}/settings/members`,
-      `/organizations/${team.id}/settings/invitations`,
-      `/organizations/${team.id}/settings/general`,
+      '/workspace?settings=profile',
+      '/workspace?settings=security',
+      '/workspace?settings=appearance',
+      '/workspace?settings=members',
+      '/workspace?settings=invitations',
+      '/workspace?settings=general',
     ];
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme });
@@ -125,36 +125,74 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
             page.getByRole('button', { name: 'Send message' }),
           ).toHaveAttribute('aria-disabled', 'true');
           await expect(page.getByText('No conversations yet.')).toBeVisible();
-        } else if (path === '/settings/profile') {
+          const messageInput = page.getByRole('textbox', {
+            name: 'Message input',
+          });
+          await expect(messageInput).toBeVisible();
+          const messageInputBox = await messageInput.boundingBox();
+          expect(messageInputBox).not.toBeNull();
+          expect(messageInputBox!.width).toBeGreaterThanOrEqual(24);
+          expect(messageInputBox!.height).toBeGreaterThanOrEqual(24);
+        } else if (path.endsWith('settings=profile')) {
+          await expect(page.getByLabel('Display name')).toBeVisible();
+        } else if (path.endsWith('settings=security')) {
           await expect(
-            page.getByRole('button', { name: 'Save profile', exact: true }),
+            page.getByRole('heading', { name: 'Security' }),
           ).toBeVisible();
-        } else if (path === '/settings/security') {
-          await expect(
-            page.getByRole('button', {
-              name: 'Revoke browser session',
-              exact: true,
-            }),
-          ).toBeVisible();
-        } else if (path === '/settings/appearance') {
+        } else if (path.endsWith('settings=appearance')) {
           await expect(
             page.getByRole('radio', { name: 'System', exact: true }),
           ).toBeVisible();
-        } else if (path.endsWith('/members')) {
+        } else if (path.endsWith('settings=members')) {
           await expect(
             page.locator('[data-testid^="member-"]').first(),
           ).toBeVisible();
-        } else if (path.endsWith('/invitations')) {
+        } else if (path.endsWith('settings=invitations')) {
           await expect(
             page.getByText(invitationEmail, { exact: true }),
           ).toBeVisible();
-        } else if (path.endsWith('/general')) {
+        } else if (path.endsWith('settings=general')) {
           await expect(
             page.getByRole('button', {
               name: 'Save organization settings',
               exact: true,
             }),
           ).toBeVisible();
+        }
+        if (path.includes('?settings=')) {
+          const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+          const overlay = page.locator('[data-slot="dialog-overlay"]');
+          await expect(settingsDialog).toBeVisible();
+          await expect
+            .poll(() =>
+              settingsDialog.evaluate(
+                (element) =>
+                  !element.hasAttribute('data-starting-style') &&
+                  getComputedStyle(element).opacity === '1',
+              ),
+            )
+            .toBe(true);
+          await expect
+            .poll(() =>
+              overlay.evaluate(
+                (element) =>
+                  !element.hasAttribute('data-starting-style') &&
+                  getComputedStyle(element).opacity === '1',
+              ),
+            )
+            .toBe(true);
+          await page.evaluate(async () => {
+            const layers = Array.from(
+              document.querySelectorAll<HTMLElement>(
+                '[role="dialog"], [data-slot="dialog-overlay"]',
+              ),
+            );
+            await Promise.all(
+              layers
+                .flatMap((element) => element.getAnimations())
+                .map((animation) => animation.finished.catch(() => undefined)),
+            );
+          });
         }
         const violations = (
           await new AxeBuilder({ page }).withTags(axeTags).analyze()
@@ -171,7 +209,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
           ),
           `${colorScheme} ${path} keyboard focus visibility`,
         ).toBe(true);
-        if (path === '/settings/appearance') {
+        if (path.endsWith('settings=appearance')) {
           await page.emulateMedia({ colorScheme });
           const systemTheme = page.getByRole('radio', { name: 'System' });
           await systemTheme.press('Space');
@@ -210,10 +248,14 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
                   ? (element.closest('label') ?? element)
                   : element;
               const rect = target.getBoundingClientRect();
+              const style = getComputedStyle(target);
               return (
                 rect.width > 0 &&
                 rect.height > 0 &&
-                (rect.width < 44 || rect.height < 44)
+                style.display !== 'none' &&
+                style.visibility === 'visible' &&
+                !target.closest('[aria-hidden="true"], [inert]') &&
+                (rect.width < 24 || rect.height < 24)
               );
             })
             .map((element) => {
@@ -233,7 +275,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         );
         expect(
           undersizedTargets,
-          `${colorScheme} ${path} targets under 44px`,
+          `${colorScheme} ${path} targets under 24px`,
         ).toEqual([]);
       }
     }

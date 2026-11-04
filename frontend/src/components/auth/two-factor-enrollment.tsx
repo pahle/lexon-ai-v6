@@ -20,10 +20,12 @@ export function TwoFactorEnrollment({
   onComplete,
   presentation = 'card',
   headingLevel = 1,
+  showBrandFooter = true,
 }: {
   onComplete: () => Promise<void>;
   presentation?: 'card' | 'page';
   headingLevel?: 1 | 2 | 3;
+  showBrandFooter?: boolean;
 }) {
   const [setup, setSetup] = useState<{
     totpURI: string;
@@ -43,6 +45,7 @@ export function TwoFactorEnrollment({
       <RecoveryCodes
         codes={codes}
         headingLevel={headingLevel}
+        showBrandFooter={showBrandFooter}
         onDismiss={() => {
           setCodes(null);
           void onComplete();
@@ -54,6 +57,7 @@ export function TwoFactorEnrollment({
     return (
       <AuthCard
         presentation={presentation}
+        showBrandFooter={showBrandFooter}
         title="Connect your authenticator"
         headingLevel={headingLevel}
         description="Add this account manually in your authenticator app, then enter its six-digit code."
@@ -86,6 +90,7 @@ export function TwoFactorEnrollment({
   return (
     <AuthCard
       presentation={presentation}
+      showBrandFooter={showBrandFooter}
       title="Two-factor authentication"
       headingLevel={headingLevel}
       description="Protect your account with an authenticator app."

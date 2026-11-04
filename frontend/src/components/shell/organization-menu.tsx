@@ -244,7 +244,9 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
               <p role="status" className="px-2 py-1 text-sm">
                 {message}
               </p>
-              <DropdownMenuItem render={<Link href="/settings/security" />}>
+              <DropdownMenuItem
+                render={<Link href="/workspace?settings=security" />}
+              >
                 Account security
               </DropdownMenuItem>
             </>

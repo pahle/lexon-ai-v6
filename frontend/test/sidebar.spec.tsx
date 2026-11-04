@@ -68,7 +68,11 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
     refreshIdentity,
   }),
 }));
-vi.mock('next/navigation', () => ({ usePathname: () => '/workspace' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/workspace',
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: vi.fn() }),
+}));
 
 test('sidebar shows only eligible Lexon navigation and safe user identity', async () => {
   workspace.identity = identity;
@@ -100,6 +104,12 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     </QueryClientProvider>,
   );
   await settle();
+  const organizationTrigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Personal"]',
+  )!;
+  await act(async () => organizationTrigger.focus());
+  await settle();
+  expect(organizationTrigger.hasAttribute('data-popup-open')).toBe(false);
   const links = [
     ...view.container.querySelectorAll(
       'nav[aria-label="Primary navigation"] a',
@@ -196,6 +206,12 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
       .querySelector('[data-slot="sidebar"]')
       ?.getAttribute('data-state'),
   ).toBe('collapsed');
+  await act(async () => {
+    organizationTrigger.blur();
+    organizationTrigger.focus();
+  });
+  await settle();
+  expect(organizationTrigger.hasAttribute('data-popup-open')).toBe(true);
   expect(
     view.container.querySelector('[role="group"][aria-label="Conversations"]'),
   ).toBeNull();
@@ -237,7 +253,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ...document.body.querySelectorAll('[role="menuitem"]'),
   ].find((item) => item.textContent?.trim() === 'Settings') as HTMLElement;
   expect(settingsItem).toBeDefined();
-  expect(settingsItem.getAttribute('href')).toBe('/settings/profile');
+  expect(settingsItem.getAttribute('href')).toContain('settings=profile');
   expect(settingsItem.querySelector('svg.lucide-settings')).not.toBeNull();
   const signOutItem = [
     ...document.body.querySelectorAll('[role="menuitem"]'),
@@ -458,7 +474,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
     'Your current organization is unchanged.',
   );
   expect(
-    document.body.querySelector('a[href="/settings/security"]'),
+    document.body.querySelector('a[href="/workspace?settings=security"]'),
   ).not.toBeNull();
   expect(
     document.body.querySelector('button[aria-label^="Organization: Personal"]'),
@@ -888,8 +904,12 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const reopenedOrganizationTrigger = document.body.querySelector(
+    'button[aria-label^="Organization: Mobile team"]',
+  ) as HTMLButtonElement;
+  reopenedOrganizationTrigger.focus();
   await act(async () =>
-    document.dispatchEvent(
+    reopenedOrganizationTrigger.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     ),
   );
@@ -962,7 +982,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(document.cookie).toContain('sidebar_state=false');
   expect(
     sidebar.querySelector(
-      'a[data-slot="sidebar-menu-button"][href="/settings/profile"]',
+      'a[data-slot="sidebar-menu-button"][href*="settings=profile"]',
     ),
   ).toBeNull();
   expect(

@@ -28,20 +28,47 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import { LoadingState } from '../states/page-states';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import { useWorkspace } from '../shell/workspace-provider';
 const api = createIdentityClient({ baseUrl: '/api' });
 export function AccountSecurity() {
   const query = useQueryClient();
+  const [activeAction, setActiveAction] = useState<
+    | 'reauth'
+    | 'two-factor'
+    | 'recovery-codes'
+    | 'manage-two-factor'
+    | 'password'
+    | 'email'
+    | null
+  >(null);
+  const [confirmSignOutOthers, setConfirmSignOutOthers] = useState(false);
+  const [signOutOthersBusy, setSignOutOthersBusy] = useState(false);
+  const [signOutOthersFailure, setSignOutOthersFailure] = useState(false);
+  const { identity } = useWorkspace();
   const security = useQuery({
     queryKey: ['account', 'security'],
     queryFn: () => api.security(),
     retry: false,
   });
+  const sessionsEnabled =
+    !!security.data?.mfaVerified || security.data?.twoFactorEnabled === false;
   const sessions = useQuery({
     queryKey: ['account', 'sessions'],
     queryFn: () => api.listSessions(),
     retry: false,
-    enabled:
-      !!security.data?.mfaVerified || security.data?.twoFactorEnabled === false,
+    enabled: sessionsEnabled,
   });
   const error = security.error ?? sessions.error;
   if (error)
@@ -62,31 +89,198 @@ export function AccountSecurity() {
   };
   if (!security.data)
     return <LoadingState message="Loading account security…" />;
+  if (activeAction) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Button
+          variant="ghost"
+          className="w-fit"
+          onClick={() => setActiveAction(null)}
+        >
+          Back to security
+        </Button>
+        {!['two-factor', 'recovery-codes', 'manage-two-factor'].includes(
+          activeAction,
+        ) ? (
+          <Reauthentication onComplete={refresh} />
+        ) : null}
+        {activeAction === 'two-factor' ? (
+          security.data.twoFactorEnabled ? (
+            <FactorActions mode="manage" onComplete={refresh} />
+          ) : (
+            <TwoFactorEnrollment
+              onComplete={refresh}
+              headingLevel={2}
+              showBrandFooter={false}
+            />
+          )
+        ) : null}
+        {activeAction === 'recovery-codes' ? (
+          <FactorActions mode="recovery" onComplete={refresh} />
+        ) : null}
+        {activeAction === 'manage-two-factor' ? (
+          <FactorActions mode="manage" onComplete={refresh} />
+        ) : null}
+        {activeAction === 'password' ? (
+          <PasswordChange onComplete={refresh} />
+        ) : null}
+        {activeAction === 'email' ? <EmailChange /> : null}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-6">
-      <a href="/workspace">Return to workspace</a>
-      {security.data.twoFactorEnabled && !security.data.mfaVerified ? (
-        <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
-          Verify your sign-in
-        </a>
-      ) : null}
-      <Reauthentication onComplete={refresh} />
-      {security.data.twoFactorEnabled ? (
-        <FactorActions onComplete={refresh} />
-      ) : (
-        <TwoFactorEnrollment onComplete={refresh} headingLevel={2} />
-      )}
-      <PasswordChange onComplete={refresh} />
-      <EmailChange />
-      {sessions.data ? (
+      <section
+        aria-labelledby="security-heading"
+        className="flex flex-col gap-4"
+      >
+        <div>
+          <h2 id="security-heading" className="text-lg font-medium">
+            Security
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Manage sign-in methods and active sessions.
+          </p>
+        </div>
+        <SecurityRow
+          title="Password"
+          description="Change the password you use to sign in."
+          action="Change password"
+          onAction={() => setActiveAction('password')}
+        />
+        <SecurityRow
+          title="Email"
+          description={identity?.user.email ?? 'Email address'}
+          action="Change email"
+          onAction={() => setActiveAction('email')}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium">Two-factor authentication</h3>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge
+                variant={
+                  security.data.twoFactorEnabled ? 'secondary' : 'outline'
+                }
+              >
+                {security.data.twoFactorEnabled ? 'On' : 'Off'}
+              </Badge>
+              {security.data.twoFactorEnabled ? (
+                <span>
+                  {security.data.recoveryCodesRemaining} recovery codes left
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {security.data.twoFactorEnabled ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveAction('recovery-codes')}
+                >
+                  Recovery codes
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveAction('manage-two-factor')}
+                >
+                  Manage
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setActiveAction('two-factor')}
+              >
+                Set up authenticator
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
+      {sessionsEnabled ? (
         <SessionList
-          sessions={sessions.data}
+          sessions={sessions.data ?? []}
+          loading={sessions.isLoading}
+          failure={signOutOthersFailure}
+          onSignOutOthers={() => setConfirmSignOutOthers(true)}
           onRevoke={async (id) => {
             await api.revokeSession(id);
             await refresh();
+            toast.success('Session revoked.');
           }}
         />
       ) : null}
+      <AlertDialog
+        open={confirmSignOutOthers}
+        onOpenChange={(open) => setConfirmSignOutOthers(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out other sessions?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Other browsers and add-in sessions will lose access to your
+              account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={signOutOthersBusy}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={signOutOthersBusy}
+              onClick={async (event) => {
+                event.preventDefault();
+                setSignOutOthersBusy(true);
+                setSignOutOthersFailure(false);
+                try {
+                  const result = await authClient.revokeOtherSessions();
+                  if (result.error) throw new Error();
+                  setConfirmSignOutOthers(false);
+                  toast.success('Other sessions signed out.');
+                  await refresh();
+                } catch {
+                  setSignOutOthersFailure(true);
+                } finally {
+                  setSignOutOthersBusy(false);
+                }
+              }}
+            >
+              Sign out other sessions
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {security.data.twoFactorEnabled && !security.data.mfaVerified ? (
+        <a href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity">
+          Verify your sign-in
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function SecurityRow({
+  title,
+  description,
+  action,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+      <div className="min-w-0">
+        <h3 className="text-sm font-medium">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Button variant="outline" onClick={onAction}>
+        {action}
+      </Button>
     </div>
   );
 }
@@ -103,6 +297,7 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
     <AuthCard
       title="Confirm your identity"
       headingLevel={2}
+      showBrandFooter={false}
       description="Confirm your password and, when enabled, one authentication code before security changes."
     >
       <form
@@ -168,9 +363,16 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
     </AuthCard>
   );
 }
-function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
+function FactorActions({
+  mode,
+  onComplete,
+}: {
+  mode: 'recovery' | 'manage';
+  onComplete: () => Promise<void>;
+}) {
   const [codes, setCodes] = useState<string[] | null>(null);
   const [failure, setFailure] = useState('');
+  const [confirmDisable, setConfirmDisable] = useState(false);
   const [operation, setOperation] = useState<'generate' | 'disable' | null>(
     null,
   );
@@ -188,12 +390,23 @@ function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
     [form],
   );
   if (codes)
-    return <RecoveryCodes codes={codes} onDismiss={() => setCodes(null)} />;
+    return (
+      <RecoveryCodes
+        codes={codes}
+        onDismiss={() => setCodes(null)}
+        showBrandFooter={false}
+      />
+    );
   return (
     <AuthCard
-      title="Manage authenticator"
+      title={mode === 'recovery' ? 'Recovery codes' : 'Manage authenticator'}
       headingLevel={2}
-      description="Confirm your identity above before changing security settings."
+      showBrandFooter={false}
+      description={
+        mode === 'recovery'
+          ? 'Generate a new set of recovery codes for your account.'
+          : 'Confirm your password to turn off two-factor authentication.'
+      }
     >
       <form
         noValidate
@@ -235,44 +448,75 @@ function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
             registration={form.register('password')}
             error={form.formState.errors.password}
           />
-          <PendingButton
-            type="submit"
-            pending={operation === 'generate' && submission.pending}
-            disabled={submission.pending}
-            pendingLabel="Generating recovery codes…"
-          >
-            Generate new recovery codes
-          </PendingButton>
-          <PendingButton
-            type="button"
-            variant="outline"
-            pending={operation === 'disable' && submission.pending}
-            disabled={submission.pending}
-            pendingLabel="Disabling two-factor authentication…"
-            onClick={form.handleSubmit((input) =>
-              submission.run(async () => {
-                setOperation('disable');
-                try {
-                  const result = await authClient.twoFactor.disable({
-                    password: input.password,
-                  });
-                  if (result.error) throw new Error();
-                  form.reset();
-                  await onComplete();
-                } catch {
-                  setFailure(
-                    'Unable to disable authentication. Confirm your identity and try again.',
-                  );
-                } finally {
-                  setOperation(null);
-                }
-              }),
-            )}
-          >
-            Disable two-factor authentication
-          </PendingButton>
+          {mode === 'recovery' ? (
+            <PendingButton
+              type="submit"
+              pending={operation === 'generate' && submission.pending}
+              disabled={submission.pending}
+              pendingLabel="Generating recovery codes…"
+            >
+              Generate new recovery codes
+            </PendingButton>
+          ) : (
+            <PendingButton
+              type="button"
+              variant="outline"
+              pending={operation === 'disable' && submission.pending}
+              disabled={submission.pending}
+              pendingLabel="Disabling two-factor authentication…"
+              onClick={form.handleSubmit(async () => setConfirmDisable(true))}
+            >
+              Disable two-factor authentication
+            </PendingButton>
+          )}
         </FieldGroup>
       </form>
+      <AlertDialog open={confirmDisable} onOpenChange={setConfirmDisable}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Disable two-factor authentication?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Your account will no longer require an authenticator code at sign
+              in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submission.pending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submission.pending}
+              onClick={(event) => {
+                event.preventDefault();
+                void form.handleSubmit((input) =>
+                  submission.run(async () => {
+                    setOperation('disable');
+                    try {
+                      const result = await authClient.twoFactor.disable({
+                        password: input.password,
+                      });
+                      if (result.error) throw new Error();
+                      form.reset();
+                      setConfirmDisable(false);
+                      await onComplete();
+                    } catch {
+                      setFailure(
+                        'Unable to disable authentication. Confirm your identity and try again.',
+                      );
+                    } finally {
+                      setOperation(null);
+                    }
+                  }),
+                )();
+              }}
+            >
+              Disable two-factor authentication
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthCard>
   );
 }
@@ -289,6 +533,7 @@ function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
     <AuthCard
       title="Change password"
       headingLevel={2}
+      showBrandFooter={false}
       description="Confirm your identity first. Other sessions will be revoked."
     >
       <form
@@ -358,6 +603,7 @@ function EmailChange() {
     <AuthCard
       title="Change email"
       headingLevel={2}
+      showBrandFooter={false}
       description="Confirm your identity first. Verify your new address to complete the change."
     >
       <form

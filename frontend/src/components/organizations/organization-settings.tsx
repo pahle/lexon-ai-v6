@@ -14,8 +14,10 @@ import { Button } from '../ui/button';
 import { identityApi, identityMessage } from './page-state';
 export function OrganizationSettings({
   organization,
+  embeddedInSettings = false,
 }: {
   organization: OrganizationSummary;
+  embeddedInSettings?: boolean;
 }) {
   const [current, setCurrent] = useState(organization);
   const [message, setMessage] = useState('');
@@ -54,6 +56,7 @@ export function OrganizationSettings({
         title="Organization settings"
         headingLevel={2}
         description="Manage your team name and authentication requirements."
+        showBrandFooter={!embeddedInSettings}
       >
         <form noValidate onSubmit={form.handleSubmit(update)}>
           <FieldGroup>
@@ -70,7 +73,7 @@ export function OrganizationSettings({
             <Button
               type="submit"
               disabled={busy}
-              className="h-auto min-w-0 max-w-full whitespace-normal text-left leading-5"
+              className="h-auto min-h-8 min-w-0 max-w-full whitespace-normal text-left leading-5"
             >
               Save organization settings
             </Button>
@@ -80,7 +83,7 @@ export function OrganizationSettings({
         <Button
           variant="outline"
           disabled={busy}
-          className="h-auto min-w-0 max-w-full whitespace-normal text-left leading-5"
+          className="h-auto min-h-8 min-w-0 max-w-full whitespace-normal text-left leading-5"
           onClick={() => void update({ require2fa: !current.require2fa })}
         >
           {current.require2fa

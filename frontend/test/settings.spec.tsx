@@ -1,11 +1,20 @@
 import { test, expect, vi } from 'vitest';
 import { render } from './render';
-import { SectionNavigation } from '../src/components/settings/section-navigation';
+import { SettingsNavigation } from '../src/components/settings/settings-navigation';
 import { ProfileSettings } from '../src/components/settings/profile-settings';
-import { SettingsPageFrame } from '../src/components/settings/settings-page-frame';
 import { identityApi } from '../src/components/organizations/page-state';
 
 const refreshIdentity = vi.fn(async () => {});
+const successToast = vi.hoisted(() => vi.fn());
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  pathname: '/workspace',
+}));
+vi.mock('sonner', () => ({ toast: { success: successToast } }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+  useRouter: () => ({ replace: navigation.replace }),
+}));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({
     identity: {
@@ -22,7 +31,7 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
       organization: {
         version: 1,
         id: '00000000-0000-4000-8000-000000000002',
-        name: 'Personal',
+        name: 'Personal internal name',
         slug: 'personal',
         kind: 'personal',
         state: 'active',
@@ -36,39 +45,25 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
   }),
 }));
 
-test('section navigation uses actionable links and marks the current route', async () => {
-  const view = await render(
-    <SectionNavigation
-      items={[
-        { href: '/settings/profile', label: 'Profile', current: false },
-        { href: '/settings/security', label: 'Security', current: true },
-      ]}
-    />,
-  );
+test('settings navigation uses actionable section links and marks the current section', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(<SettingsNavigation section="security" />);
   const links = [...view.container.querySelectorAll('a')];
-  expect(links.map((link) => link.getAttribute('href'))).toEqual([
-    '/settings/profile',
-    '/settings/security',
+  expect(links.map((link) => link.textContent)).toEqual([
+    'Profile',
+    'Appearance',
+    'Security',
   ]);
-  expect(links[1]?.getAttribute('aria-current')).toBe('page');
+  expect(links[2]?.getAttribute('aria-current')).toBe('page');
   expect(view.container.querySelector('select')).toBeNull();
-  expect(links.every((link) => /min-h-11/.test(link.className))).toBe(true);
-  expect(view.container.querySelector('ul')?.className).toContain('flex-col');
-  expect(links[1]?.className).toContain('border-l-2');
+  expect(links.every((link) => link.hasAttribute('data-slot'))).toBe(true);
   expect(view.container.querySelector('nav')?.className).toContain('min-w-0');
   await view.unmount();
-});
-
-test('settings page frame leaves route navigation to the workspace sidebar', async () => {
-  const view = await render(
-    <SettingsPageFrame title="Profile settings">
-      <p>Profile content</p>
-    </SettingsPageFrame>,
-  );
-  expect(view.container.querySelector('nav')).toBeNull();
-  expect(view.container.textContent).toContain('Profile settings');
-  expect(view.container.textContent).toContain('Profile content');
-  await view.unmount();
+  vi.unstubAllGlobals();
 });
 
 test('profile settings updates a validated display name and keeps email read-only', async () => {
@@ -82,15 +77,17 @@ test('profile settings updates a validated display name and keeps email read-onl
     onboardingCompleted: true,
   });
   const view = await render(<ProfileSettings />);
-  const email = view.container.querySelector(
-    'input[aria-label="Email address"]',
-  ) as HTMLInputElement;
-  expect(email.readOnly).toBe(true);
-  expect(email.dataset.slot).toBe('input');
-  expect(email.value).toBe('person@example.test');
-  expect(view.container.querySelector('a[href="/settings/security"]')).not.toBe(
-    null,
-  );
+  expect(
+    view.container.querySelector('input[aria-label="Email address"]'),
+  ).toBeNull();
+  expect(view.container.textContent).toContain('person@example.test');
+  expect(view.container.textContent).toContain('Active organization');
+  expect(view.container.textContent).toContain('Personal');
+  expect(view.container.textContent).not.toContain('Personal internal name');
+  expect(
+    view.container.querySelector('a[href*="settings=security"]'),
+  ).toBeNull();
+  expect(view.container.querySelector('p[role="status"]')).toBeNull();
   const name = view.container.querySelector(
     'input[autocomplete="name"]',
   ) as HTMLInputElement;
@@ -111,7 +108,87 @@ test('profile settings updates a validated display name and keeps email read-onl
   });
   expect(update).toHaveBeenCalledWith({ name: 'New Name' });
   expect(refreshIdentity).toHaveBeenCalled();
+  expect(successToast).toHaveBeenCalledWith('Changes saved.');
+  expect(view.container.textContent).not.toContain(
+    'Manage your account details.',
+  );
+  expect(
+    view.container
+      .querySelector('button[type="submit"] > span > span:last-child')
+      ?.textContent?.trim(),
+  ).toBe('Save');
+  expect(view.container.querySelector('p[role="status"]')).toBeNull();
   await view.unmount();
   update.mockRestore();
   refreshIdentity.mockClear();
+  successToast.mockClear();
+});
+
+test('profile save failures render a safe alert before profile rows', async () => {
+  const update = vi
+    .spyOn(identityApi, 'updateProfile')
+    .mockRejectedValue(new Error('private server detail'));
+  const view = await render(<ProfileSettings />);
+  const name = view.container.querySelector(
+    'input[autocomplete="name"]',
+  ) as HTMLInputElement;
+  await import('react').then(async ({ act }) => {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(name, 'New Name');
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      name.dispatchEvent(new Event('change', { bubbles: true }));
+      view.container
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        );
+    });
+  });
+  const alert = view.container.querySelector('[role="alert"]')!;
+  expect(alert).not.toBeNull();
+  expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+    'Unable to save your profile',
+  );
+  expect(alert.textContent).not.toContain('private server detail');
+  expect(
+    alert.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await view.unmount();
+  update.mockRestore();
+});
+
+test('invalid profile name uses the shared Field error and destructive label state', async () => {
+  const view = await render(<ProfileSettings />);
+  const name = view.container.querySelector(
+    'input[autocomplete="name"]',
+  ) as HTMLInputElement;
+  await import('react').then(async ({ act }) => {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )!.set!.call(name, '');
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      name.dispatchEvent(new Event('change', { bubbles: true }));
+      view.container
+        .querySelector('form')!
+        .dispatchEvent(
+          new Event('submit', { bubbles: true, cancelable: true }),
+        );
+    });
+  });
+  const field = name.closest('[data-slot="field"]')!;
+  expect(name.getAttribute('aria-invalid')).toBe('true');
+  expect(field.getAttribute('data-invalid')).toBe('true');
+  expect(field.className).toContain('data-[invalid=true]:text-destructive');
+  expect(name.getAttribute('aria-describedby')).toBe(
+    'profile-display-name-error',
+  );
+  expect(
+    field.querySelector('[data-slot="field-error"]')?.textContent,
+  ).toBeTruthy();
+  await view.unmount();
 });

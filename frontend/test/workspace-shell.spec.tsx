@@ -25,20 +25,26 @@ import { AppSidebar } from '../src/components/shell/app-sidebar';
 import { PageHeader } from '../src/components/shell/page-header';
 const navigation = vi.hoisted(() => ({
   path: '/workspace',
+  search: '',
   replace: vi.fn(),
   router: { replace: vi.fn() },
 }));
 const signOut = vi.hoisted(() => vi.fn());
 vi.mock('../src/lib/auth-client', () => ({ authClient: { signOut } }));
 vi.mock('../src/lib/full-reload', () => ({ fullReload: vi.fn() }));
+vi.mock('../src/components/auth/account-security', () => ({
+  AccountSecurity: () => <p>Account security fixture</p>,
+}));
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.path,
+  useSearchParams: () => new URLSearchParams(navigation.search),
   useRouter: () => navigation.router,
 }));
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   navigation.path = '/workspace';
+  navigation.search = '';
   navigation.router.replace.mockClear();
   signOut.mockReset();
   signOut.mockResolvedValue({ error: null });
@@ -124,13 +130,55 @@ test('workspace shell composes one sidebar inset, one main, and a route breadcru
   await view.unmount();
 });
 
+test('incomplete onboarding keeps Account Security available without team settings', async () => {
+  navigation.search = '?settings=security';
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const incomplete = {
+    ...identity,
+    user: { ...identity.user, onboardingCompleted: false },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const renderShell = () => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: incomplete }}>
+        <WorkspaceShell>
+          <p>Onboarding flow</p>
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(renderShell());
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain('Account security fixture');
+  expect(document.body.textContent).toContain('Onboarding flow');
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual(['Security']);
+  expect(document.body.textContent).not.toContain('Members');
+  navigation.search = '?settings=members';
+  await view.rerender(renderShell());
+  expect(document.body.textContent).toContain(
+    'You do not have access to this section.',
+  );
+  expect(document.body.textContent).not.toContain('Account security fixture');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
 test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }));
-  const orgId = identity.organization.id;
-  navigation.path = `/organizations/${orgId}/settings/general`;
+  navigation.path = '/workspace';
+  navigation.search = '?settings=general';
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider
@@ -157,22 +205,15 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
     'nav[aria-label="breadcrumb"]',
   )!;
   const items = [...breadcrumb.querySelectorAll('ol > li')];
-  expect(items.map((item) => item.tagName)).toEqual(['LI', 'LI', 'LI']);
-  expect(items[0]?.className).toContain('hidden md:block');
-  expect(
-    breadcrumb.querySelector('[data-slot="breadcrumb-separator"]')?.className,
-  ).toContain('hidden md:block');
-  expect(
-    breadcrumb.querySelector('a[href$="/settings/members"]')?.textContent,
-  ).toBe('Organization settings');
+  expect(items).toHaveLength(1);
   expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'General',
+    'Home',
   );
   expect(breadcrumb.textContent).not.toContain('Private team name');
   expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   expect(
     view.container.querySelector(
-      `nav[aria-label="Primary navigation"] a[href="/organizations/${orgId}/settings/general"]`,
+      `nav[aria-label="Primary navigation"] a[href*="settings=general"]`,
     ),
   ).toBeNull();
   await view.unmount();
@@ -229,7 +270,7 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
   vi.unstubAllGlobals();
 });
 
-test('mobile route heading keeps focus when route change and sheet close overlap', async () => {
+test('mobile user menu opens settings and closing restores focus to the navigation opener', async () => {
   navigation.path = '/workspace';
   vi.stubGlobal('innerWidth', 767);
   vi.stubGlobal('matchMedia', () => ({
@@ -241,11 +282,7 @@ test('mobile route heading keeps focus when route change and sheet close overlap
       <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
         <CompositeSidebarProvider defaultOpen={false}>
           <WorkspaceShell sidebar={<AppSidebar />}>
-            {navigation.path === '/workspace' ? (
-              <PageHeader title="Home" />
-            ) : (
-              <PageHeader title="Profile settings" />
-            )}
+            <PageHeader title="Home" />
           </WorkspaceShell>
         </CompositeSidebarProvider>
       </WorkspaceProvider>
@@ -262,97 +299,37 @@ test('mobile route heading keeps focus when route change and sheet close overlap
   )!;
   await act(async () => userMenu.click());
   const settings = document.body.querySelector<HTMLAnchorElement>(
-    '[role="menuitem"][href="/settings/profile"]',
+    '[role="menuitem"][href*="settings=profile"]',
   )!;
-  await act(async () => {
-    settings.click();
-    navigation.path = '/settings/profile';
-    await view.rerender(renderShell());
-  });
+  await act(async () => settings.click());
+  navigation.search = '?settings=profile';
+  await view.rerender(renderShell());
   await vi.waitFor(() =>
-    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull(),
   );
-  const heading = view.container.querySelector('h1')!;
-  await vi.waitFor(() => expect(document.activeElement).toBe(heading));
-  opener.focus();
-  await act(async () => opener.click());
-  const reopenedDialog = document.body.querySelector('[role="dialog"]');
-  expect(reopenedDialog).not.toBeNull();
-  const userMenuTrigger = document.body.querySelector<HTMLButtonElement>(
-    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
-  )!;
-  userMenuTrigger.focus();
-  await act(async () => userMenuTrigger.click());
-  expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
-  await act(async () =>
-    document.body
-      .querySelector('[role="menu"]')
-      ?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-      ),
-  );
-  await vi.waitFor(() =>
-    expect(document.body.querySelector('[role="menu"]')).toBeNull(),
-  );
-  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-  await vi.waitFor(() => expect(document.activeElement).toBe(userMenuTrigger));
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual([
+    'Profile',
+    'Appearance',
+    'Security',
+    'Members',
+    'Invitations',
+    'General',
+  ]);
   await act(async () =>
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     ),
   );
+  navigation.search = '';
+  await view.rerender(renderShell());
   await vi.waitFor(() =>
     expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
   );
   await vi.waitFor(() => expect(document.activeElement).toBe(opener));
-  await view.unmount();
-  vi.unstubAllGlobals();
-});
-
-test('mobile route heading receives focus when its destination mounts after the sheet closes', async () => {
-  navigation.path = '/workspace';
-  vi.stubGlobal('innerWidth', 767);
-  vi.stubGlobal('matchMedia', () => ({
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  }));
-  const renderShell = () => (
-    <QueryClientProvider client={new QueryClient()}>
-      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
-        <CompositeSidebarProvider defaultOpen={false}>
-          <WorkspaceShell sidebar={<AppSidebar />}>
-            {navigation.path === '/workspace' ? (
-              <PageHeader title="Home" />
-            ) : (
-              <PageHeader title="Profile settings" />
-            )}
-          </WorkspaceShell>
-        </CompositeSidebarProvider>
-      </WorkspaceProvider>
-    </QueryClientProvider>
-  );
-  const view = await render(renderShell());
-  const opener = view.container.querySelector<HTMLButtonElement>(
-    'button[aria-label="Open navigation"]',
-  )!;
-  await act(async () => opener.click());
-  const userMenu = document.body.querySelector<HTMLButtonElement>(
-    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
-  )!;
-  await act(async () => userMenu.click());
-  const settings = document.body.querySelector<HTMLAnchorElement>(
-    '[role="menuitem"][href="/settings/profile"]',
-  )!;
-  await act(async () => settings.click());
-  await vi.waitFor(() =>
-    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
-  );
-  expect(document.activeElement).not.toBe(opener);
-
-  navigation.path = '/settings/profile';
-  await view.rerender(renderShell());
-  const heading = view.container.querySelector('h1')!;
-  await vi.waitFor(() => expect(document.activeElement).toBe(heading));
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -518,7 +495,9 @@ test('organization switch hides old protected content and enrollment denial rest
   await settle();
   expect(deniedView.container.textContent).toContain('Old private members');
   expect(
-    deniedView.container.querySelector('a[href="/settings/security"]'),
+    deniedView.container.querySelector(
+      'a[href="/workspace?settings=security"]',
+    ),
   ).not.toBeNull();
   expect(deniedView.container.textContent).toContain(
     'Your current organization is unchanged.',
@@ -1037,6 +1016,11 @@ test('onboarding identity does not render the optional sidebar', async () => {
 });
 
 test('MFA-required bootstrap keeps a security route and hides other protected content', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
   const identityCall = vi
     .spyOn(identityApi, 'identity')
     .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
@@ -1055,14 +1039,17 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
     'Protected organization data',
   );
   expect(
-    restricted.container.querySelector('a[href="/settings/security"]'),
+    restricted.container.querySelector(
+      'a[href="/workspace?settings=security"]',
+    ),
   ).not.toBeNull();
   await restricted.unmount();
   identityCall.mockRestore();
   const securityIdentityCall = vi
     .spyOn(identityApi, 'identity')
     .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
-  navigation.path = '/settings/security';
+  navigation.path = '/workspace';
+  navigation.search = '?settings=security';
   const recovery = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider bootstrap={{ status: 'mfa-required' }}>
@@ -1072,18 +1059,33 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  expect(recovery.container.textContent).toContain('Recovery controls');
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual(['Security']);
+  expect(recovery.container.textContent).not.toContain(
+    'Protected organization data',
+  );
   await recovery.unmount();
   securityIdentityCall.mockRestore();
+  vi.unstubAllGlobals();
   navigation.path = '/workspace';
 });
 
 test('security recovery works at both preserved paths and keeps direct sign-in verification available', async () => {
-  for (const path of ['/settings/security']) {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  for (const path of ['/workspace']) {
     const identityCall = vi
       .spyOn(identityApi, 'identity')
       .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
     navigation.path = path;
+    navigation.search = '?settings=security';
     const view = await render(
       <QueryClientProvider client={new QueryClient()}>
         <WorkspaceProvider bootstrap={{ status: 'mfa-required' }}>
@@ -1093,15 +1095,19 @@ test('security recovery works at both preserved paths and keeps direct sign-in v
         </WorkspaceProvider>
       </QueryClientProvider>,
     );
-    expect(view.container.textContent).toContain('Recovery controls');
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(view.container.textContent).not.toContain(
+      'Protected organization data',
+    );
     expect(
       view.container.querySelector(
-        'a[href="/two-factor?returnTo=%2Fsettings%2Fsecurity"]',
+        'a[href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity"]',
       ),
     ).not.toBeNull();
     await view.unmount();
     identityCall.mockRestore();
   }
+  vi.unstubAllGlobals();
   navigation.path = '/workspace';
 });
 
@@ -1162,7 +1168,7 @@ test('only AUTH_2FA_REQUIRED is classified as MFA recovery', async () => {
     await vi.advanceTimersByTimeAsync(1);
   });
   expect(
-    view.container.querySelector('a[href="/settings/security"]'),
+    view.container.querySelector('a[href="/workspace?settings=security"]'),
   ).toBeNull();
   expect(view.container.textContent).toContain(
     'Service temporarily unavailable',

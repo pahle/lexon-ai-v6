@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
+import { totpForUri } from '../setup/totp.js';
 import {
   captureShellReviewView,
   captureVisualView,
@@ -182,7 +183,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   };
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(stack.frontendUrl + '/settings/profile');
+  await page.goto(stack.frontendUrl + '/workspace');
   await expect(page.locator('main')).toHaveCount(1);
   await expect(
     page.getByRole('complementary', { name: 'Workspace navigation' }),
@@ -223,7 +224,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
-  await page.goto(stack.frontendUrl + '/settings/profile');
+  await page.goto(stack.frontendUrl + '/workspace');
   const mobileBreadcrumb = page.getByRole('navigation', {
     name: 'breadcrumb',
   });
@@ -265,13 +266,16 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   expect(selected.status()).toBe(200);
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.setViewportSize({ width: 768, height: 720 });
-  await page.goto(`${stack.frontendUrl}/organizations/${id}/settings/general`);
+  await page.goto(`${stack.frontendUrl}/workspace?settings=general`);
   const expandSidebar = page.getByRole('button', { name: 'Expand sidebar' });
   if (await expandSidebar.isVisible()) await expandSidebar.click();
   await expect(
     page.getByRole('button', { name: 'Collapse sidebar' }),
   ).toBeVisible();
-  await expect(page.locator('h1')).toHaveText('Organization settings');
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Organization settings' }),
+  ).toBeVisible();
   await page.locator('[data-panel-host]').evaluate((host) => {
     const panel = document.createElement('aside');
     panel.setAttribute('aria-label', 'Details');
@@ -284,6 +288,205 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   });
   await capture('sidebar-desktop-panel-host-light');
 });
+
+test('Task 7A Settings captures all Account sections, saved feedback, and narrow layouts', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const password = 'Task-7A-Synthetic-42!';
+  const headers = await authenticateApi(page.request, {
+    name: 'Task 7A Preview',
+    password,
+  });
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    { headers, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+  const directory = resolve('.cache/f21-task7A');
+  await mkdir(directory, { recursive: true });
+  const capture = async (name: string) => {
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(Array.from(document.images, (image) => image.decode()));
+    });
+    await page.screenshot({
+      path: resolve(directory, name + '.png'),
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    });
+  };
+  const sections = ['profile', 'appearance', 'security'] as const;
+  for (const theme of ['light', 'dark'] as const) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(stack.frontendUrl + '/workspace');
+    await page.evaluate((value) => localStorage.setItem('theme', value), theme);
+    for (const section of sections) {
+      await page.goto(stack.frontendUrl + '/workspace?settings=' + section);
+      await expect(
+        page.getByRole('dialog', { name: 'Settings' }),
+      ).toBeVisible();
+      await expectAccountSectionReady(page, section);
+      await expect(page.locator('main')).toHaveCount(1);
+      const navBox = await page
+        .getByRole('navigation', { name: 'Settings sections' })
+        .boundingBox();
+      const asideBox = await page
+        .getByRole('dialog', { name: 'Settings' })
+        .locator('aside')
+        .boundingBox();
+      expect(navBox).not.toBeNull();
+      expect(asideBox).not.toBeNull();
+      expect(navBox!.height).toBeGreaterThanOrEqual(asideBox!.height - 1);
+      expect(
+        await page
+          .getByRole('navigation', { name: 'Settings sections' })
+          .locator('[data-slot="sidebar"]')
+          .evaluate((element) => getComputedStyle(element).backgroundColor),
+      ).not.toBe('rgba(0, 0, 0, 0)');
+      await capture('01-settings-' + section + '-' + theme + '-desktop');
+      if (section === 'profile') {
+        await page.getByLabel('Display name').fill('Task 7A saved profile');
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await expect(
+          page
+            .getByRole('region', { name: 'Notifications alt+T' })
+            .getByText('Changes saved.', { exact: true }),
+        ).toBeVisible();
+        await expect(page.getByLabel('Display name')).toHaveValue(
+          'Task 7A saved profile',
+        );
+        await capture('02-settings-saved-toast-' + theme + '-desktop');
+      }
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(stack.frontendUrl + '/workspace');
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  for (const section of sections) {
+    await page.goto(stack.frontendUrl + '/workspace?settings=' + section);
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await expectAccountSectionReady(page, section);
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Settings sections' })
+        .getByRole('link', {
+          name: {
+            profile: 'Profile',
+            appearance: 'Appearance',
+            security: 'Security',
+          }[section],
+        }),
+    ).toBeVisible();
+    await capture('03-settings-' + section + '-light-390');
+  }
+  await page.setViewportSize({ width: 768, height: 900 });
+  for (const section of sections) {
+    await page.goto(stack.frontendUrl + '/workspace?settings=' + section);
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await expectAccountSectionReady(page, section);
+    const navBox = await page
+      .getByRole('navigation', { name: 'Settings sections' })
+      .boundingBox();
+    const asideBox = await page
+      .getByRole('dialog', { name: 'Settings' })
+      .locator('aside')
+      .boundingBox();
+    expect(navBox).not.toBeNull();
+    expect(asideBox).not.toBeNull();
+    expect(navBox!.height).toBeGreaterThanOrEqual(asideBox!.height - 1);
+    expect(
+      await page
+        .getByRole('navigation', { name: 'Settings sections' })
+        .locator('[data-slot="sidebar"]')
+        .evaluate((element) => getComputedStyle(element).backgroundColor),
+    ).not.toBe('rgba(0, 0, 0, 0)');
+    await capture('04-settings-' + section + '-light-768');
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(stack.frontendUrl + '/workspace');
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  const setup = page.getByRole('button', {
+    name: 'Set up authenticator',
+    exact: true,
+  });
+  try {
+    await expect(setup).toBeVisible();
+  } catch {
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    const buttons = await dialog.getByRole('button').allTextContents();
+    const headings = await dialog.locator('h1,h2,h3').allTextContents();
+    const status = await dialog
+      .locator('[role="status"], [role="alert"]')
+      .allTextContents();
+    throw new Error(JSON.stringify({ buttons, headings, status }));
+  }
+  await setup.click();
+  await page.getByLabel('Enrollment password', { exact: true }).fill(password);
+  await page
+    .getByRole('button', { name: 'Set up authenticator', exact: true })
+    .click();
+  const uri = await page.getByTestId('authenticator-uri').textContent();
+  expect(uri).toBeTruthy();
+  await page
+    .getByLabel('Authenticator code', { exact: true })
+    .fill(totpForUri(uri!));
+  await page
+    .getByRole('button', { name: 'Verify authenticator', exact: true })
+    .click();
+  await expect(page.getByTestId('recovery-codes')).toBeVisible();
+  await page
+    .getByRole('button', { name: 'I saved my recovery codes', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Back to security', exact: true })
+    .click();
+  for (const theme of ['light', 'dark'] as const) {
+    if (theme === 'dark') {
+      await page.evaluate(() => localStorage.setItem('theme', 'dark'));
+      await page.reload();
+      await page.goto(stack.frontendUrl + '/workspace?settings=security');
+    }
+    await expect(page.getByText('On', { exact: true })).toBeVisible();
+    await expect(page.getByText(/recovery codes left/)).toBeVisible();
+    await expect(page.getByText('Browser', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('recovery-codes')).toHaveCount(0);
+    await capture('05-settings-security-2fa-enabled-' + theme + '-desktop');
+  }
+});
+
+async function expectAccountSectionReady(
+  page: import('@playwright/test').Page,
+  section: 'profile' | 'appearance' | 'security',
+) {
+  if (section === 'profile') {
+    await expect(page.getByLabel('Display name')).toBeVisible();
+    await expect(page.getByText('Email', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'profile settings' })
+        .getByText('Personal', { exact: true }),
+    ).toBeVisible();
+  } else if (section === 'appearance') {
+    await expect(page.getByRole('radio', { name: 'Light' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Dark' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'System' })).toBeVisible();
+  } else {
+    await expect(
+      page.getByRole('heading', { name: 'Where you are signed in' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Set up authenticator' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('status', { name: 'Loading sessions' }),
+    ).toHaveCount(0);
+  }
+}
 
 test('real API-authenticated Home captures Task 6A shell states', async ({
   page,

@@ -11,25 +11,25 @@ test('F2 applies stored theme before hydration while external scripts are blocke
       theme: 'light',
       colorScheme: 'dark',
       expected: 'light',
-      color: 'rgb(255, 255, 255)',
+      color: 'rgb(246, 239, 226)',
     },
     {
       theme: 'dark',
       colorScheme: 'light',
       expected: 'dark',
-      color: 'rgb(18, 18, 20)',
+      color: 'rgb(42, 21, 25)',
     },
     {
       theme: 'system',
       colorScheme: 'light',
       expected: 'light',
-      color: 'rgb(255, 255, 255)',
+      color: 'rgb(246, 239, 226)',
     },
     {
       theme: 'system',
       colorScheme: 'dark',
       expected: 'dark',
-      color: 'rgb(18, 18, 20)',
+      color: 'rgb(42, 21, 25)',
     },
   ] as const;
 
@@ -82,7 +82,7 @@ test('appearance previews keep scoped light, dark, and system token surfaces', a
     headers,
     data: {},
   });
-  await page.goto(stack.frontendUrl + '/settings/appearance');
+  await page.goto(stack.frontendUrl + '/workspace?settings=appearance');
   const previews = page.locator('[data-slot="appearance-preview"]');
   await expect(previews).toHaveCount(3);
   const light = await previews
@@ -99,10 +99,10 @@ test('appearance previews keep scoped light, dark, and system token surfaces', a
       element.querySelector('[data-preview-theme="dark"]')!,
     ).backgroundColor,
   }));
-  expect(light).toBe('rgb(247, 247, 248)');
-  expect(dark).toBe('rgb(28, 28, 32)');
+  expect(light).toBe('rgb(229, 217, 195)');
+  expect(dark).toBe('rgb(74, 40, 48)');
   expect(system).toEqual({
-    light: 'rgb(255, 255, 255)',
-    dark: 'rgb(18, 18, 20)',
+    light: 'rgb(238, 228, 210)',
+    dark: 'rgb(42, 21, 25)',
   });
 });

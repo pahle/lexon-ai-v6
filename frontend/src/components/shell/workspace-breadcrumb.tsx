@@ -14,44 +14,8 @@ import { useWorkspace } from './workspace-provider';
 
 type Crumb = { title: string; href?: string };
 
-function routeCrumbs(pathname: string, organizationId?: string): Crumb[] {
+function routeCrumbs(pathname: string): Crumb[] {
   if (pathname === '/workspace') return [{ title: 'Home' }];
-  if (pathname === '/settings/profile')
-    return [
-      { title: 'Settings', href: '/settings/profile' },
-      { title: 'Profile' },
-    ];
-  if (pathname === '/settings/security')
-    return [
-      { title: 'Settings', href: '/settings/profile' },
-      { title: 'Security' },
-    ];
-  if (pathname === '/settings/appearance')
-    return [
-      { title: 'Settings', href: '/settings/profile' },
-      { title: 'Appearance' },
-    ];
-  const organizationSettings = pathname.match(
-    /^\/organizations\/([^/]+)\/settings\/(members|invitations|general)$/,
-  );
-  if (organizationSettings) {
-    const routeOrganizationId = organizationSettings[1];
-    const section = organizationSettings[2];
-    const labels: Record<string, string> = {
-      members: 'Members',
-      invitations: 'Invitations',
-      general: 'General',
-    };
-    const label = labels[section ?? ''];
-    if (label)
-      return [
-        {
-          title: 'Organization settings',
-          href: `/organizations/${organizationId ?? routeOrganizationId}/settings/members`,
-        },
-        { title: label },
-      ];
-  }
   if (pathname === '/platform/provisioning')
     return [
       { title: 'Platform', href: '/platform/provisioning' },
@@ -74,7 +38,7 @@ function routeCrumbs(pathname: string, organizationId?: string): Crumb[] {
 export function WorkspaceBreadcrumb() {
   const pathname = usePathname() ?? '';
   const { identity } = useWorkspace();
-  const crumbs = routeCrumbs(pathname, identity?.organization.id);
+  const crumbs = routeCrumbs(pathname);
 
   // Org pages are gated by the same ready identity as the shell. Keep labels
   // generic so the breadcrumb never reveals a hidden personal organization.

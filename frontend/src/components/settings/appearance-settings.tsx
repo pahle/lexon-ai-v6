@@ -21,15 +21,18 @@ export function AppearanceSettings(): React.ReactElement {
   if (!mounted) return <div aria-hidden="true" className="min-h-32" />;
 
   return (
-    <fieldset className="flex flex-col gap-4">
-      <legend id={headingId} className="text-base font-medium">
+    <fieldset className="flex flex-col gap-2">
+      <legend id={headingId} className="text-lg font-medium">
         Appearance
       </legend>
+      <p className="text-sm text-muted-foreground">
+        Choose how Lexon looks on this device.
+      </p>
       <RadioGroup
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="grid grid-cols-1 gap-2 min-[768px]:grid-cols-3"
+        className="mt-3 grid grid-cols-1 gap-4 min-[768px]:grid-cols-3"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -37,26 +40,26 @@ export function AppearanceSettings(): React.ReactElement {
             <Label
               key={value}
               htmlFor={id}
-              className="flex min-h-28 cursor-pointer flex-col items-stretch gap-2 rounded-[var(--radius)] border border-border bg-surface-raised p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+              className="flex w-full max-w-[11.25rem] cursor-pointer flex-col gap-2 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)] p-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
             >
-              <div className="flex min-h-8 items-center gap-2">
-                <RadioGroupItem id={id} value={value} aria-label={label} />
-                <span>{label}</span>
-              </div>
               <div
                 aria-hidden="true"
                 data-slot="appearance-preview"
                 data-theme-preview={value}
-                className="flex h-12 w-full gap-1 rounded-[var(--radius)] border border-border bg-surface p-1"
+                className="flex h-24 w-full gap-1 rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1"
               >
                 <span
                   data-preview-theme={value === 'system' ? 'light' : value}
-                  className="w-1/4 rounded-[var(--radius)] border border-border bg-surface-raised"
+                  className="w-1/4 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)]"
                 />
                 <span
                   data-preview-theme={value === 'system' ? 'dark' : value}
-                  className="flex-1 rounded-[var(--radius)] bg-background"
+                  className="flex-1 rounded-[var(--radius)] bg-[var(--background)]"
                 />
+              </div>
+              <div className="flex min-h-8 items-center gap-2 px-1">
+                <RadioGroupItem id={id} value={value} aria-label={label} />
+                <span>{label}</span>
               </div>
             </Label>
           );

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
+import { rememberSettingsOpener, settingsHref } from '../settings/settings-url';
 
 function initials(name: string) {
   return name
@@ -37,10 +38,12 @@ export function UserMenu({
   onMobileNavigate?: () => void;
 } = {}) {
   const query = useQueryClient();
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const mobileNavigationPending = useRef(false);
+  const settingsMenuTrigger = useRef<HTMLButtonElement>(null);
   const {
     identity,
     beginExplicitTransition,
@@ -48,7 +51,7 @@ export function UserMenu({
     refreshIdentity,
   } = useWorkspace();
   const sidebar = useOptionalSidebar();
-  const pathname = usePathname() ?? '';
+  const pathname = usePathname() ?? '/workspace';
   const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const name = identity?.user.name ?? 'Account';
   const email = identity?.user.email ?? '';
@@ -69,6 +72,7 @@ export function UserMenu({
       }}
     >
       <DropdownMenuTrigger
+        ref={settingsMenuTrigger}
         render={
           sidebar ? (
             <SidebarMenuButton
@@ -138,18 +142,25 @@ export function UserMenu({
           <DropdownMenuItem
             render={
               <Link
-                href="/settings/profile"
-                onNavigate={() => {
-                  if (pathname !== '/settings/profile')
-                    requestSettingsNavigation();
+                href={settingsHref(
+                  typeof window === 'undefined'
+                    ? pathname
+                    : window.location.href,
+                  'profile',
+                )}
+                onClick={(event) => {
+                  event.preventDefault();
+                  rememberSettingsOpener(settingsMenuTrigger.current);
+                  requestSettingsNavigation();
+                  router.replace(
+                    settingsHref(window.location.href, 'profile'),
+                    { scroll: false },
+                  );
+                  setMenuOpen(false);
+                  if (sidebar?.isMobile) sidebar.setOpenMobile(false);
                 }}
               />
             }
-            onClick={() => {
-              if (pathname !== '/settings/profile') requestSettingsNavigation();
-              setMenuOpen(false);
-              if (sidebar?.isMobile) sidebar.setOpenMobile(false);
-            }}
           >
             <Settings aria-hidden="true" />
             Settings

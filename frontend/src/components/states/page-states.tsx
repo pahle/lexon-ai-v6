@@ -21,14 +21,17 @@ export function EmptyState({
   title,
   description,
   action,
+  headingLevel = 2,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  headingLevel?: 2 | 3;
 }) {
+  const Heading = `h${headingLevel}` as const;
   return (
     <section className="flex flex-col gap-2 p-6">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      <Heading className="text-xl font-semibold">{title}</Heading>
       <p className="text-sm text-muted-foreground">{description}</p>
       {action ? <div className="pt-2">{action}</div> : null}
     </section>

@@ -3,7 +3,6 @@ import { safeReturnPath } from './lib/return-path';
 
 const protectedPrefixes = [
   '/workspace',
-  '/settings',
   '/organizations',
   '/platform',
   '/onboarding',
@@ -33,7 +32,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/workspace/:path*',
-    '/settings/:path*',
     '/organizations/:path*',
     '/platform/:path*',
     '/onboarding/:path*',

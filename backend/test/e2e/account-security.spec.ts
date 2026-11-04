@@ -5,6 +5,71 @@ import { descriptor } from './runtime-support.js';
 import { readCapturedMail } from './identity-support.js';
 import { totpForUri } from '../setup/totp.js';
 
+test('settings deep links, shortcut, draft reset, and nested destructive focus stay in the workspace', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const email = `security-${randomUUID()}@example.test`;
+  const password = 'Security-review-42!';
+  const headers = await (
+    await import('./identity-support.js')
+  ).authenticateApi(page.request, { email, password });
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  expect(
+    (
+      await page.request.post(stack.apiUrl + '/api/auth/sign-in/email', {
+        headers: { origin: stack.frontendUrl },
+        data: { email, password },
+      })
+    ).status(),
+  ).toBe(200);
+
+  await page.goto(stack.frontendUrl + '/workspace?filter=recent#cases');
+  await page.keyboard.press('Control+,');
+  await expect(page).toHaveURL(
+    /\/workspace\?filter=recent&settings=profile#cases$/,
+  );
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  await expect(dialog).toBeVisible();
+  const name = page.getByLabel('Display name');
+  await expect(name).toBeVisible();
+  const savedName = await name.inputValue();
+  await name.fill('Unsaved review draft');
+  await page.getByRole('button', { name: 'Close settings' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+
+  await page.goto(
+    stack.frontendUrl + '/workspace?filter=recent&settings=profile#cases',
+  );
+  await expect(dialog).toBeVisible();
+  await expect(page.getByLabel('Display name')).toHaveValue(savedName);
+  await dialog
+    .getByRole('navigation', { name: 'Settings sections' })
+    .getByRole('link', { name: 'Security', exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    /\/workspace\?filter=recent&settings=security#cases$/,
+  );
+  const revoke = page.getByRole('button', {
+    name: 'Revoke browser session',
+    exact: true,
+  });
+  await expect(revoke).toBeVisible();
+  await revoke.click();
+  const confirmation = page.getByRole('alertdialog', {
+    name: 'Revoke this session?',
+  });
+  await expect(confirmation).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toBeHidden();
+  await expect(dialog).toBeVisible();
+  await expect(revoke).toBeFocused();
+});
+
 test('F2 appearance preference persists in this browser without changing security page behavior', async ({
   page,
 }) => {
@@ -16,16 +81,16 @@ test('F2 appearance preference persists in this browser without changing securit
     headers,
     data: {},
   });
-  await page.goto(stack.frontendUrl + '/settings/appearance');
+  await page.goto(stack.frontendUrl + '/workspace?settings=appearance');
   await page.getByRole('radio', { name: 'Dark' }).check();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
   await expect(page.locator('body')).toHaveCSS(
     'background-color',
-    'rgb(18, 18, 20)',
+    'rgb(42, 21, 25)',
   );
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
-  await page.goto(stack.frontendUrl + '/settings/security');
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
   await expect(page.locator('main')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark');
@@ -61,7 +126,29 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
       })
     ).status(),
   ).toBe(200);
-  await page.goto(stack.frontendUrl + '/settings/security');
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Set up authenticator', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator('textarea[aria-label="Message input"]'),
+  ).toHaveCount(0);
+  expect(
+    (
+      await page.request.post(
+        stack.apiUrl + '/api/identity/onboarding/complete',
+        {
+          headers,
+          data: {},
+        },
+      )
+    ).status(),
+  ).toBe(204);
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  await page
+    .getByRole('button', { name: 'Set up authenticator', exact: true })
+    .click();
   await page.getByLabel('Enrollment password', { exact: true }).fill(password);
   await page
     .getByRole('button', { name: 'Set up authenticator', exact: true })
@@ -81,7 +168,7 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   await page
     .getByRole('button', { name: 'Verify authenticator', exact: true })
     .click();
-  await expect(page.locator('[data-slot="field-error"]')).toHaveText(
+  await expect(page.getByRole('alert')).toContainText(
     'Unable to verify this code. Please try again.',
   );
   await expect(
@@ -104,6 +191,9 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
     .getByRole('button', { name: 'I saved my recovery codes', exact: true })
     .click();
   await expect(page.getByTestId('recovery-codes')).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Back to security', exact: true })
+    .click();
   await expect(page.getByText('Browser', { exact: true })).toBeVisible();
   expect(
     await page.evaluate(
@@ -148,9 +238,9 @@ test('expired security session preserves its safe return intent', async ({
       url: stack.frontendUrl,
     },
   ]);
-  await page.goto(stack.frontendUrl + '/settings/security');
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
   await expect(page).toHaveURL(/\/sign-in/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe(
-    '/settings/security',
+    '/workspace?settings=security',
   );
 });

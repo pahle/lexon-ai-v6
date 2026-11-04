@@ -79,7 +79,7 @@ export function AccountStatusForm() {
             </Button>
           </FieldGroup>
         </form>
-        <a href="/settings/security">Account security</a>
+        <a href="/workspace?settings=security">Account security</a>
       </AuthCard>
     </div>
   );

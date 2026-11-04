@@ -1,6 +1,5 @@
 'use client';
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
 import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
@@ -9,9 +8,9 @@ import { WorkspaceBreadcrumb } from './workspace-breadcrumb';
 import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
+import { SettingsDialog } from '../settings/settings-dialog';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
-const securityPaths = new Set(['/settings/security']);
 function SkipLink() {
   return (
     <a
@@ -39,11 +38,9 @@ export function WorkspaceShell({
     refreshIdentity,
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
-  const pathname = usePathname();
   const sidebarState = useOptionalSidebar();
   const isMobile = sidebarState?.isMobile ?? false;
   const sidebarCollapsed = sidebarState?.state === 'collapsed';
-  const securityRoute = securityPaths.has(pathname ?? '');
 
   if (status === 'expired' || status === 'unavailable')
     return (
@@ -62,12 +59,12 @@ export function WorkspaceShell({
         <SkipLink />
         <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
           <nav className="flex flex-wrap gap-4" aria-label="Account recovery">
-            <a href="/settings/security">Account security</a>
-            <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+            <a href="/workspace?settings=security">Account security</a>
+            <a href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity">
               Verify your sign-in
             </a>
           </nav>
-          {securityRoute && !transitioning ? children : null}
+          {!transitioning ? <SettingsDialog /> : null}
         </main>
       </>
     );
@@ -85,6 +82,7 @@ export function WorkspaceShell({
       <>
         <SkipLink />
         <AuthFrame>{children}</AuthFrame>
+        <SettingsDialog />
       </>
     );
   const shell = (
@@ -126,7 +124,10 @@ export function WorkspaceShell({
                 <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
                   {transitionNotice.message}{' '}
                   {transitionNotice.securityLink ? (
-                    <a className="underline" href="/settings/security">
+                    <a
+                      className="underline"
+                      href="/workspace?settings=security"
+                    >
                       Account security
                     </a>
                   ) : null}
@@ -141,6 +142,7 @@ export function WorkspaceShell({
             />
           </div>
         </SidebarInset>
+        <SettingsDialog />
       </>
     </PanelHostContext.Provider>
   );
