@@ -57,8 +57,26 @@ export function assertIndexedArtifact(
   const view = index.views?.[id];
   if (!view) throw new Error(`Visual index has no entry for view "${id}".`);
   assertReviewPath(id, view.path, directory, 'review');
-  const relativePath = view.path.replace(/^review\//, `${baselineDirectory}/`);
+  const relativePath =
+    mode === 'capture'
+      ? view.path
+      : view.path.replace(/^review\//, `${baselineDirectory}/`);
   const artifactPath = resolve(directory, relativePath);
+  const artifactRoot = resolve(
+    directory,
+    mode === 'capture' ? 'review' : baselineDirectory,
+  );
+  const safeRelativePath = relative(artifactRoot, artifactPath);
+  if (
+    safeRelativePath === '' ||
+    safeRelativePath.startsWith(`..${sep}`) ||
+    safeRelativePath === '..' ||
+    isAbsolute(safeRelativePath)
+  ) {
+    throw new Error(
+      `Visual artifact for view "${id}" resolves outside ${mode === 'capture' ? 'review' : baselineDirectory}/.`,
+    );
+  }
   if (!existsSync(artifactPath)) {
     throw new Error(
       `Visual artifact for view "${id}" is missing: ${artifactPath}`,

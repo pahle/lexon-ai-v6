@@ -4,6 +4,7 @@ import {
   existsSync,
   readFileSync,
   mkdtempSync,
+  mkdirSync,
   writeFileSync,
   rmSync,
 } from 'node:fs';
@@ -224,6 +225,18 @@ test('approval explicitly keeps review captures pending and approved mode cannot
           { mode: 'compare' },
         ),
       /named.*baseline.*named\.png/,
+    );
+    const capturePath = resolve(tempRoot, 'review/named.png');
+    mkdirSync(resolve(tempRoot, 'review'), { recursive: true });
+    writeFileSync(capturePath, 'capture');
+    assert.equal(
+      assertIndexedArtifact(
+        { views: { named: { path: 'review/named.png' } } },
+        'named',
+        tempRoot,
+        { mode: 'capture' },
+      ),
+      capturePath,
     );
     assert.equal(
       assertReviewArtifact(
