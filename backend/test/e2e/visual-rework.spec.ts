@@ -1204,8 +1204,27 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         page.getByRole('switch', { name: 'Require two-factor authentication' }),
       ).toBeChecked();
     }
-    for (const theme of ['light', 'dark'] as const)
+    for (const theme of ['light', 'dark'] as const) {
+      if (section === 'security') {
+        const sessionsTable = page.getByRole('table', {
+          name: 'Signed-in sessions',
+        });
+        await expect(sessionsTable).toBeVisible();
+        await expect(sessionsTable.getByRole('row')).toHaveCount(3);
+        await expect(
+          sessionsTable.getByRole('button', {
+            name: /Revoke browser session/,
+          }),
+        ).toHaveCount(1);
+        await expect(
+          page.getByRole('button', {
+            name: 'Sign out other sessions',
+            exact: true,
+          }),
+        ).toBeVisible();
+      }
       await captureCheckpointCView(page, section, theme);
+    }
     if (
       section === 'members' ||
       section === 'invitations' ||
