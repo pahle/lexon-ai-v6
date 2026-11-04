@@ -220,7 +220,19 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                     className="flex size-6 shrink-0 items-center justify-center rounded-md"
                   >
                     {organization.kind === 'personal' ? (
-                      <LexonLogo variant="monogram" width={24} />
+                      <>
+                        <LexonLogo
+                          variant="monogram"
+                          width={24}
+                          className="dark:hidden"
+                        />
+                        <LexonLogo
+                          variant="monogram"
+                          inverse
+                          width={24}
+                          className="hidden dark:block"
+                        />
+                      </>
                     ) : (
                       <LexonLogo variant="mark-tile" width={24} />
                     )}

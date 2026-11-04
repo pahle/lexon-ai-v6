@@ -203,7 +203,6 @@ export function AccountSecurity() {
         <SessionList
           sessions={sessions.data ?? []}
           loading={sessions.isLoading}
-          failure={signOutOthersFailure}
           onSignOutOthers={() => setConfirmSignOutOthers(true)}
           onRevoke={async (id) => {
             await api.revokeSession(id);
@@ -214,7 +213,10 @@ export function AccountSecurity() {
       ) : null}
       <AlertDialog
         open={confirmSignOutOthers}
-        onOpenChange={(open) => setConfirmSignOutOthers(open)}
+        onOpenChange={(open) => {
+          setConfirmSignOutOthers(open);
+          if (!open) setSignOutOthersFailure(false);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -224,6 +226,12 @@ export function AccountSecurity() {
               account.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {signOutOthersFailure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to sign out other sessions</AlertTitle>
+              <AlertDescription>Please try again.</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={signOutOthersBusy}>
               Cancel
@@ -419,8 +427,13 @@ function FactorActions({
       <form
         noValidate
         method="post"
-        onSubmit={form.handleSubmit((input) =>
-          submission.run(async () => {
+        onSubmit={form.handleSubmit((input) => {
+          if (mode === 'manage') {
+            setFailure('');
+            setConfirmDisable(true);
+            return;
+          }
+          return submission.run(async () => {
             setOperation('generate');
             setFailure('');
             try {
@@ -437,11 +450,11 @@ function FactorActions({
             } finally {
               setOperation(null);
             }
-          }),
-        )}
+          });
+        })}
       >
         <FieldGroup>
-          {failure ? (
+          {failure && mode === 'recovery' ? (
             <Alert role="alert" variant="destructive">
               <AlertTitle>
                 Unable to update two-factor authentication
@@ -467,19 +480,24 @@ function FactorActions({
             </PendingButton>
           ) : (
             <PendingButton
-              type="button"
+              type="submit"
               variant="outline"
               pending={operation === 'disable' && submission.pending}
               disabled={submission.pending}
               pendingLabel="Disabling two-factor authentication…"
-              onClick={form.handleSubmit(async () => setConfirmDisable(true))}
             >
               Disable two-factor authentication
             </PendingButton>
           )}
         </FieldGroup>
       </form>
-      <AlertDialog open={confirmDisable} onOpenChange={setConfirmDisable}>
+      <AlertDialog
+        open={confirmDisable}
+        onOpenChange={(open) => {
+          setConfirmDisable(open);
+          if (!open) setFailure('');
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -490,6 +508,12 @@ function FactorActions({
               in.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failure && mode === 'manage' ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to disable authentication</AlertTitle>
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submission.pending}>
               Cancel

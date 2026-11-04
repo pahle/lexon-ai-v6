@@ -236,6 +236,44 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   expect(
     (await page.request.get(stack.frontendUrl + '/api/identity')).status(),
   ).toBe(200);
+
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+  await page.getByRole('button', { name: 'Manage', exact: true }).click();
+  const manageForm = page.getByLabel('Security password', { exact: true });
+  await manageForm.fill(password);
+  const accountOperationRequests: string[] = [];
+  const captureAccountOperation = (
+    request: import('@playwright/test').Request,
+  ) => {
+    if (request.url().includes('/api/auth/two-factor/'))
+      accountOperationRequests.push(new URL(request.url()).pathname);
+  };
+  page.on('request', captureAccountOperation);
+  await manageForm.press('Enter');
+  const disableDialog = page.getByRole('alertdialog', {
+    name: 'Disable two-factor authentication?',
+  });
+  await expect(disableDialog).toBeVisible();
+  expect(accountOperationRequests).toEqual([]);
+  await disableDialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(disableDialog).toBeHidden();
+  expect(accountOperationRequests).toEqual([]);
+  await page
+    .getByRole('button', { name: 'Disable two-factor authentication' })
+    .click();
+  await expect(disableDialog).toBeVisible();
+  const disableResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/auth/two-factor/disable' &&
+      response.request().method() === 'POST',
+  );
+  await disableDialog
+    .getByRole('button', { name: 'Disable two-factor authentication' })
+    .click();
+  expect((await disableResponse).status()).toBe(200);
+  expect(accountOperationRequests).toEqual(['/api/auth/two-factor/disable']);
+  page.off('request', captureAccountOperation);
 });
 test('expired security session preserves its safe return intent', async ({
   page,

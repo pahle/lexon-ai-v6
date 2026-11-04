@@ -173,7 +173,7 @@ export function Members({
           <Button onClick={goToInvitations}>Invite people</Button>
         ) : null}
       </header>
-      {failure ? (
+      {failure && !removing && !confirmLeave ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
@@ -301,7 +301,10 @@ export function Members({
                             variant="destructive"
                             size="sm"
                             disabled={submission.pending}
-                            onClick={() => setRemoving(member)}
+                            onClick={() => {
+                              setFailure('');
+                              setRemoving(member);
+                            }}
                           >
                             Remove
                           </Button>
@@ -320,7 +323,10 @@ export function Members({
         <Button
           variant="outline"
           disabled={submission.pending}
-          onClick={() => setConfirmLeave(true)}
+          onClick={() => {
+            setFailure('');
+            setConfirmLeave(true);
+          }}
         >
           Leave organization
         </Button>
@@ -328,7 +334,10 @@ export function Members({
       <AlertDialog
         open={removing !== null}
         onOpenChange={(open) => {
-          if (!open && !submission.pending) setRemoving(null);
+          if (!open && !submission.pending) {
+            setRemoving(null);
+            setFailure('');
+          }
         }}
       >
         <AlertDialogContent>
@@ -340,6 +349,11 @@ export function Members({
               This person will lose access to this organization.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submission.pending}>
               Cancel
@@ -368,7 +382,10 @@ export function Members({
       <AlertDialog
         open={confirmLeave}
         onOpenChange={(open) => {
-          if (!open && !submission.pending) setConfirmLeave(false);
+          if (!open && !submission.pending) {
+            setConfirmLeave(false);
+            setFailure('');
+          }
         }}
       >
         <AlertDialogContent>
@@ -378,6 +395,11 @@ export function Members({
               You will lose access to this organization.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submission.pending}>
               Cancel

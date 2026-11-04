@@ -633,6 +633,39 @@ test('organization list failure hides fallback choices and retries safely', asyn
   vi.unstubAllGlobals();
 });
 
+test('Personal organization monogram switches to cream artwork in dark mode', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      items: [identity.organization],
+      pageInfo: { nextCursor: null },
+    }),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationMenu identity={identity} />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const trigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Personal"]',
+  )!;
+  await act(async () => trigger.click());
+  await settle();
+  const personal = [
+    ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((item) => item.textContent?.includes('Personal'))!;
+  const logos = [...personal.querySelectorAll<HTMLImageElement>('img')];
+  expect(logos.map((logo) => logo.getAttribute('src'))).toEqual([
+    '/LEXON-monogram-micro-ink.svg',
+    '/LEXON-monogram-micro-cream.svg',
+  ]);
+  expect(logos[0]?.className).toContain('dark:hidden');
+  expect(logos[1]?.className).toContain('dark:block');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
 test('canceling Create team returns focus to the stable organization trigger', async () => {
   vi.stubGlobal('fetch', async () =>
     Response.json({

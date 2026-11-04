@@ -9,7 +9,6 @@ import { useWorkspace } from './workspace-provider';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { useOptionalSidebar } from './sidebar-context';
-import { requestRouteHeadingFocus } from './navigation-focus';
 import { ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import {
   DropdownMenu,
@@ -43,7 +42,7 @@ export function UserMenu({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const mobileNavigationPending = useRef(false);
+  const settingsNavigationPending = useRef(false);
   const settingsMenuTrigger = useRef<HTMLButtonElement>(null);
   const {
     identity,
@@ -57,18 +56,18 @@ export function UserMenu({
   const name = identity?.user.name ?? 'Account';
   const email = identity?.user.email ?? '';
   const requestSettingsNavigation = () => {
+    settingsNavigationPending.current = true;
     if (sidebar?.isMobile) {
-      if (!mobileNavigationPending.current) {
-        mobileNavigationPending.current = true;
+      if (onMobileNavigate) {
         onMobileNavigate?.();
       }
-    } else requestRouteHeadingFocus();
+    }
   };
   const menu = (
     <DropdownMenu
       open={menuOpen}
       onOpenChange={(nextOpen) => {
-        if (nextOpen) mobileNavigationPending.current = false;
+        if (nextOpen) settingsNavigationPending.current = false;
         setMenuOpen(nextOpen);
       }}
     >
@@ -115,7 +114,7 @@ export function UserMenu({
         sideOffset={4}
         className="w-fit"
         finalFocus={() => {
-          if (mobileNavigationPending.current) {
+          if (settingsNavigationPending.current) {
             return false;
           }
           return true;

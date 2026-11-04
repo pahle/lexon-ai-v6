@@ -23,13 +23,11 @@ import {
 export function SessionList({
   sessions,
   loading = false,
-  failure = false,
   onRevoke,
   onSignOutOthers,
 }: {
   sessions: readonly OwnSessionSummary[];
   loading?: boolean;
-  failure?: boolean;
   onRevoke: (id: Uuid) => Promise<void>;
   onSignOutOthers?: () => void;
 }) {
@@ -57,18 +55,6 @@ export function SessionList({
           </Button>
         ) : null}
       </div>
-      {failure ? (
-        <Alert role="alert" variant="destructive">
-          <AlertTitle>Unable to sign out other sessions</AlertTitle>
-          <AlertDescription>Please try again.</AlertDescription>
-        </Alert>
-      ) : null}
-      {revokeFailure ? (
-        <Alert role="alert" variant="destructive">
-          <AlertTitle>Unable to revoke the session</AlertTitle>
-          <AlertDescription>Please try again.</AlertDescription>
-        </Alert>
-      ) : null}
       {loading ? (
         <div
           role="status"
@@ -163,6 +149,12 @@ export function SessionList({
               This session will lose access to your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {revokeFailure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to revoke the session</AlertTitle>
+              <AlertDescription>Please try again.</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy !== null}>
               Cancel

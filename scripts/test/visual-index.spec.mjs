@@ -173,6 +173,25 @@ test('canonical index contains the stable 82-image review contract and immutable
     index.normalizations.invitationExpiresAt.fixedIso,
     '2026-11-18T11:02:00.000Z',
   );
+  assert.deepEqual(index.normalizations.invitationExpiresAt.orderedEmails, [
+    'sam.taylor@example.test',
+    'alex.rivera@example.test',
+    'jordan.lee@example.test',
+  ]);
+  assert.equal(
+    index.normalizations.invitationExpiresAt.orderingScope,
+    'Only an unpaginated response containing exactly these three distinct emails; preserve the existing rows and every row field.',
+  );
+  assert.deepEqual(index.normalizations.memberOrder.orderedEmails, [
+    'maya.chen@example.test',
+    'jordan.lee@example.test',
+    'alex.rivera@example.test',
+  ]);
+  assert.equal(index.normalizations.memberOrder.method, 'GET');
+  assert.equal(
+    index.normalizations.memberOrder.endpoint,
+    '/api/organizations/:activeTeamId/members',
+  );
 });
 
 test('approval explicitly keeps review captures pending and approved mode cannot silently capture', () => {

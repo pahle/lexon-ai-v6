@@ -244,6 +244,31 @@ test('cancelling provisioning has a named confirmation and Keep makes no delete 
   expect(
     fetcher.mock.calls.filter(([, init]) => init?.method === 'DELETE'),
   ).toHaveLength(0);
+  fetcher.mockImplementationOnce(async (_input, init?: RequestInit) =>
+    init?.method === 'DELETE'
+      ? Response.json(
+          { error: { code: 'ORG_FORBIDDEN', message: 'Private failure' } },
+          { status: 403 },
+        )
+      : Response.json({}),
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Cancel provisioning'))!
+      .click(),
+  );
+  const cancelDialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    [...cancelDialog.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Cancel provisioning'))!
+      .click(),
+  );
+  await settle();
+  expect(cancelDialog.querySelector('[role="alert"]')?.textContent).toContain(
+    'Unable to complete this action.',
+  );
+  expect(cancelDialog.textContent).not.toContain('Private failure');
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
 });

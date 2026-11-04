@@ -94,7 +94,7 @@ export function ProvisioningDetail({
   const organization = result.data;
   return (
     <div className="flex flex-col gap-6">
-      {failure ? (
+      {failure && !confirmCancel ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
@@ -149,7 +149,10 @@ export function ProvisioningDetail({
             <Button
               variant="outline"
               disabled={submission.pending}
-              onClick={() => setConfirmCancel(true)}
+              onClick={() => {
+                setFailure('');
+                setConfirmCancel(true);
+              }}
             >
               Cancel provisioning
             </Button>
@@ -200,7 +203,10 @@ export function ProvisioningDetail({
       <AlertDialog
         open={confirmCancel}
         onOpenChange={(open) => {
-          if (!open && !submission.pending) setConfirmCancel(false);
+          if (!open && !submission.pending) {
+            setConfirmCancel(false);
+            setFailure('');
+          }
         }}
       >
         <AlertDialogContent>
@@ -213,6 +219,11 @@ export function ProvisioningDetail({
               owner invitation.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submission.pending}>
               Keep provisioning

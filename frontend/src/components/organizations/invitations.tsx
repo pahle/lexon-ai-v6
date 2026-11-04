@@ -161,7 +161,7 @@ export function Invitations({
           expiration date.
         </p>
       </header>
-      {failure ? (
+      {failure && !cancelling ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
@@ -320,7 +320,10 @@ export function Invitations({
                           <Button
                             variant="destructive"
                             disabled={submission.pending}
-                            onClick={() => setCancelling(invitation)}
+                            onClick={() => {
+                              setFailure('');
+                              setCancelling(invitation);
+                            }}
                           >
                             Cancel
                           </Button>
@@ -342,7 +345,10 @@ export function Invitations({
       <AlertDialog
         open={cancelling !== null}
         onOpenChange={(open) => {
-          if (!open && !submission.pending) setCancelling(null);
+          if (!open && !submission.pending) {
+            setCancelling(null);
+            setFailure('');
+          }
         }}
       >
         <AlertDialogContent>
@@ -354,6 +360,11 @@ export function Invitations({
               This invitation to {organization.name} will no longer be usable.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submission.pending}>
               Keep invitation

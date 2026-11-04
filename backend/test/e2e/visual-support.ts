@@ -7,6 +7,7 @@ import {
   assertReviewArtifact,
   resolveVisualMode,
 } from '../../../scripts/visual-mode.mjs';
+import { orderExactCaptureRows } from '../../../scripts/test/visual-capture-normalizations.mjs';
 
 export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
 export type VisualTheme = 'light' | 'dark';
@@ -34,6 +35,24 @@ export type ShellReviewView =
   | 'organization-switcher-open'
   | 'user-menu-open'
   | 'sidebar-collapsed';
+
+async function ensureMobileSidebarOpen(page: Page) {
+  const sidebarDialog = page.getByRole('dialog', { name: 'Sidebar' });
+  const openNavigation = page.getByRole('button', {
+    name: 'Open navigation',
+  });
+  await expect
+    .poll(
+      async () =>
+        (await sidebarDialog.isVisible()) || (await openNavigation.isVisible()),
+    )
+    .toBe(true);
+  if (!(await sidebarDialog.isVisible())) {
+    await expect(openNavigation).toBeVisible();
+    await openNavigation.click();
+  }
+  await expect(sidebarDialog).toBeVisible();
+}
 
 export function parseCheckpointCViewFilter(
   value: string,
@@ -521,8 +540,13 @@ export async function installTask9InvitationExpiryNormalization(
 ) {
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as { normalizations: { invitationExpiresAt: { fixedIso: string } } };
+  ) as {
+    normalizations: {
+      invitationExpiresAt: { fixedIso: string; orderedEmails: string[] };
+    };
+  };
   const expiresAt = index.normalizations.invitationExpiresAt.fixedIso;
+  const orderedEmails = index.normalizations.invitationExpiresAt.orderedEmails;
   const pending = new Set<Promise<void>>();
   const invitationUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/invitations`;
@@ -538,11 +562,19 @@ export async function installTask9InvitationExpiryNormalization(
         items: Array<Record<string, unknown>>;
         [key: string]: unknown;
       };
+      const orderedBody = orderExactCaptureRows(
+        body as { items: Array<{ email: string }>; [key: string]: unknown },
+        orderedEmails,
+        'Invitation',
+      );
       await route.fulfill({
         response,
         json: {
-          ...body,
-          items: body.items.map((invitation) => ({ ...invitation, expiresAt })),
+          ...orderedBody,
+          items: orderedBody.items.map((invitation) => ({
+            ...invitation,
+            expiresAt,
+          })),
         },
       });
     })();
@@ -557,6 +589,52 @@ export async function installTask9InvitationExpiryNormalization(
   return {
     async remove() {
       await page.unroute(invitationUrl, invitationHandler);
+      await Promise.all([...pending]);
+    },
+  };
+}
+
+export async function installTask9MemberOrderNormalization(
+  page: Page,
+  activeTeamId: string,
+) {
+  const index = JSON.parse(
+    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
+  ) as {
+    normalizations: { memberOrder: { orderedEmails: string[] } };
+  };
+  const orderedEmails = index.normalizations.memberOrder.orderedEmails;
+  const pending = new Set<Promise<void>>();
+  const memberUrl = (url: URL) =>
+    url.pathname === `/api/organizations/${activeTeamId}/members`;
+  const memberHandler = (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const handler = (async () => {
+      const response = await route.fetch();
+      if (!response.ok()) {
+        await route.fulfill({ response });
+        return;
+      }
+      const body = (await response.json()) as {
+        items: Array<{ email: string }>;
+        [key: string]: unknown;
+      };
+      await route.fulfill({
+        response,
+        json: orderExactCaptureRows(body, orderedEmails, 'Member'),
+      });
+    })();
+    pending.add(handler);
+    void handler.then(
+      () => pending.delete(handler),
+      () => pending.delete(handler),
+    );
+    return handler;
+  };
+  await page.route(memberUrl, memberHandler);
+  return {
+    async remove() {
+      await page.unroute(memberUrl, memberHandler);
       await Promise.all([...pending]);
     },
   };
@@ -603,11 +681,7 @@ export async function captureTask9ReviewView(
     theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
   );
   if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
-    const openNavigation = page.getByRole('button', {
-      name: 'Open navigation',
-    });
-    if (await openNavigation.isVisible()) await openNavigation.click();
-    await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
+    await ensureMobileSidebarOpen(page);
   }
   if (view === 'sidebar-header-expanded' && viewport === 'desktop') {
     const expand = page.getByRole('button', { name: 'Expand sidebar' });
@@ -625,11 +699,7 @@ export async function captureTask9ReviewView(
   }
   if (view === 'organization-switcher-open' || view === 'user-menu-open') {
     if (viewport === 'mobile') {
-      const openNavigation = page.getByRole('button', {
-        name: 'Open navigation',
-      });
-      if (await openNavigation.isVisible()) await openNavigation.click();
-      await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
+      await ensureMobileSidebarOpen(page);
     }
     const popup = page.getByTestId(
       view === 'organization-switcher-open'
@@ -705,6 +775,16 @@ export async function captureTask9ReviewView(
       ),
   ).toBe(true);
   await page.mouse.move(0, 0);
+  if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+    const organizationTrigger = page.locator(
+      '[data-slot="sidebar-header"] button[aria-haspopup="menu"]',
+    );
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement)
+        document.activeElement.blur();
+    });
+    await expect(organizationTrigger).not.toBeFocused();
+  }
   if (mode === 'compare' || mode === 'update') {
     assertIndexedArtifact(index, id, resolve('docs/references/F2.1-visual'), {
       mode,

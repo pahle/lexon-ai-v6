@@ -282,8 +282,12 @@ test('session revoke shows pending, blocks repeats, and keeps confirmation open 
 
   await act(async () => rejectRevoke(new Error('synthetic revoke failure')));
   await settle();
-  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
-  expect(view.container.textContent).toContain('Unable to revoke the session');
+  const revokeDialog = document.body.querySelector('[role="alertdialog"]');
+  expect(revokeDialog).not.toBeNull();
+  expect(revokeDialog?.querySelector('[role="alert"]')?.textContent).toContain(
+    'Unable to revoke the session',
+  );
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
   expect(action.disabled).toBe(false);
   expect(action.textContent).toContain('Revoke session');
   await view.unmount();
@@ -442,10 +446,13 @@ test('security page embeds session errors without a nested main', async () => {
   await act(async () => signOutAction.click());
   await settle();
   expect(revokeOtherSessions).toHaveBeenCalledTimes(1);
-  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
-  expect(normal.container.textContent).toContain(
-    'Unable to sign out other sessions',
+  const signOutErrorDialog = document.body.querySelector(
+    '[role="alertdialog"]',
   );
+  expect(signOutErrorDialog).not.toBeNull();
+  expect(
+    signOutErrorDialog?.querySelector('[role="alert"]')?.textContent,
+  ).toContain('Unable to sign out other sessions');
   expect(signOutAction.disabled).toBe(false);
 
   let resolveSignOut!: (result: { error: null }) => void;
@@ -585,10 +592,14 @@ test('security page embeds session errors without a nested main', async () => {
   await act(async () => disableAction.click());
   await settle();
   expect(disableTwoFactor).toHaveBeenCalledTimes(1);
-  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
-  expect(factor.container.textContent).toContain(
-    'Unable to disable authentication.',
+  const disableErrorDialog = document.body.querySelector(
+    '[role="alertdialog"]',
   );
+  expect(disableErrorDialog).not.toBeNull();
+  expect(
+    disableErrorDialog?.querySelector('[role="alert"]')?.textContent,
+  ).toContain('Unable to disable authentication.');
+  expect(factor.container.querySelector('[role="alert"]')).toBeNull();
   expect(disableAction.disabled).toBe(false);
 
   let resolveDisable!: (result: { error: null }) => void;

@@ -11,6 +11,7 @@ import {
   captureTask9ReviewView,
   installTask9SessionExpiryNormalization,
   installTask9InvitationExpiryNormalization,
+  installTask9MemberOrderNormalization,
   captureShellReviewView,
   captureTask7BViewportReview,
   captureVisualView,
@@ -1379,6 +1380,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       section === 'invitations'
         ? await installTask9InvitationExpiryNormalization(page, team.id)
         : undefined;
+    const memberCapture =
+      section === 'members'
+        ? await installTask9MemberOrderNormalization(page, team.id)
+        : undefined;
     let releaseSessions!: () => void;
     let sessionRequestStarted!: () => void;
     let sessionCapture:
@@ -1586,6 +1591,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       }
     }
     await invitationCapture?.remove();
+    await memberCapture?.remove();
   }
 
   const captureResponsiveState = async (name: string) => {

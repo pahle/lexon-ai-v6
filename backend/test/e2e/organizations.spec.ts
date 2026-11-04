@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { mkdir } from 'node:fs/promises';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
 
 async function tabTo(
   page: import('@playwright/test').Page,
@@ -212,6 +214,33 @@ test('F2 cross-organization settings URL shows no access without requesting prot
   expect(protectedRequests).toEqual([]);
 });
 
+test('retired organization URLs keep the scoped not-found state and fetch no organization data', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request);
+  await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
+    headers,
+    data: {},
+  });
+  const organizationId = randomUUID();
+  const organizationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      new URL(request.url()).pathname.startsWith(
+        `/api/organizations/${organizationId}`,
+      )
+    )
+      organizationRequests.push(request.url());
+  });
+  const response = await page.goto(
+    `${stack.frontendUrl}/organizations/${organizationId}/settings/members`,
+  );
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: 'Not found' })).toBeVisible();
+  expect(organizationRequests).toEqual([]);
+});
+
 test('onboarding and organization switches preserve Personal and last owner', async ({
   page,
 }) => {
@@ -300,12 +329,15 @@ test('onboarding and organization switches preserve Personal and last owner', as
     .getByRole('button', { name: 'Leave organization', exact: true })
     .click();
   expect((await leaveResponse).status()).toBe(409);
-  await expect(
-    page.getByText(
-      'Promote another owner before leaving or removing the last owner.',
-      { exact: true },
-    ),
-  ).toBeVisible();
+  await expect(leaveDialog.getByRole('alert')).toContainText(
+    'Promote another owner before leaving or removing the last owner.',
+  );
+  const diagnosticDirectory = resolve('.cache/f21-task9-main');
+  await mkdir(diagnosticDirectory, { recursive: true });
+  await page.screenshot({
+    path: resolve(diagnosticDirectory, 'rejected-last-owner-leave.png'),
+    fullPage: false,
+  });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 test('F2 organization entry clears stale cookies without a redirect loop', async ({

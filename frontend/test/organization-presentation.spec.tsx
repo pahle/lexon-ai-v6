@@ -242,6 +242,83 @@ test('member removal and invitation cancellation are named confirmations', async
   await view.unmount();
 });
 
+test('failed member and invitation actions expose safe errors in their open confirmations', async () => {
+  api.removeMember.mockRejectedValueOnce(new Error('private remove detail'));
+  api.leaveOrganization.mockRejectedValueOnce(
+    new Error('private leave detail'),
+  );
+  api.cancelInvitation.mockRejectedValueOnce(
+    new Error('private invitation detail'),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const expectActiveDialogAlert = () => {
+    const dialog = document.body.querySelector('[role="alertdialog"]');
+    expect(dialog?.querySelector('[role="alert"]')?.textContent).toContain(
+      'Unable to complete this action.',
+    );
+    expect(dialog?.textContent).not.toContain('private');
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  };
+
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Remove')!
+      .click(),
+  );
+  let dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(api.removeMember).toHaveBeenCalledTimes(1);
+  expectActiveDialogAlert();
+
+  await act(async () =>
+    [...dialog.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Cancel')!
+      .click(),
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Leave organization')!
+      .click(),
+  );
+  dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(api.leaveOrganization).toHaveBeenCalledTimes(1);
+  expectActiveDialogAlert();
+
+  await act(async () =>
+    [...dialog.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Cancel')!
+      .click(),
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Cancel')!
+      .click(),
+  );
+  dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(api.cancelInvitation).toHaveBeenCalledTimes(1);
+  expectActiveDialogAlert();
+  await view.unmount();
+});
+
 test('resending one invitation labels only that row pending and resets after failure and success', async () => {
   presentationFixture.invitationItems = [
     {
