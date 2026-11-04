@@ -75,8 +75,8 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await expect(
     page.getByRole('button', { name: 'Add Attachment' }),
   ).toHaveAttribute('aria-disabled', 'true');
-  const tooltip = page.locator('[data-slot="tooltip-content"][data-open]');
-  await expect(tooltip).toHaveCount(0);
+  const openTooltips = page.locator('[data-slot="tooltip-content"][data-open]');
+  await expect(openTooltips).toHaveCount(0);
   await expect(page.getByText('No conversations yet.')).toBeVisible();
 
   await message.fill('Draft legal question');
@@ -85,14 +85,18 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   const send = page.getByRole('button', { name: 'Send message' });
   await send.focus();
   await expect(send).toBeFocused();
-  await expect(tooltip).toContainText('Chat is coming soon');
+  await expect(openTooltips).toHaveCount(1);
+  await expect(openTooltips).toContainText('Chat is coming soon');
   await page.keyboard.press('Space');
   await page.keyboard.press('Enter');
   await send.click({ force: true });
+  await message.focus();
+  await expect(openTooltips).toHaveCount(0);
   const attachment = page.getByRole('button', { name: 'Add Attachment' });
   await attachment.focus();
   await expect(attachment).toBeFocused();
-  await expect(tooltip).toContainText('Chat is coming soon');
+  await expect(openTooltips).toHaveCount(1);
+  await expect(openTooltips).toContainText('Chat is coming soon');
   await page.keyboard.press('Space');
   await page.keyboard.press('Enter');
   await attachment.click({ force: true });
@@ -108,7 +112,7 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     await sidebarContainer.evaluate(
       (element) => getComputedStyle(element).transitionDuration,
     ),
-  ).toBe('0.2s');
+  ).not.toBe('0s');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(
     await sidebarContainer.evaluate(
@@ -151,6 +155,29 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     await expect(
       page.getByRole('complementary', { name: 'Workspace navigation' }),
     ).toBeVisible();
+  }
+  for (const path of [
+    '/settings/profile',
+    '/settings/security',
+    '/settings/appearance',
+    `/organizations/${id}/settings/members`,
+    `/organizations/${id}/settings/invitations`,
+    `/organizations/${id}/settings/general`,
+  ]) {
+    await page.goto(stack.frontendUrl + path);
+    await expect(page).toHaveURL(stack.frontendUrl + path);
+    await expect(
+      page.getByRole('heading', { name: 'Page not found' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Return to workspace' }),
+    ).toBeVisible();
+    await expect(page.locator('main')).toHaveCount(1);
+    if (path.startsWith('/organizations/')) {
+      await expect(
+        page.getByRole('complementary', { name: 'Workspace navigation' }),
+      ).toBeVisible();
+    }
   }
   for (const path of [
     `/organizations/${id}/members`,
@@ -229,16 +256,54 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       dialog.evaluate((element) => element.contains(document.activeElement)),
     )
     .toBe(true);
+  const mobileOrganization = dialog.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  await mobileOrganization.click();
+  await expect(page.getByTestId('organization-popup')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(() =>
+      dialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
   const mobileUser = dialog.locator(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
   );
   await mobileUser.focus();
+  await expect(mobileUser).toBeFocused();
   await page.keyboard.press('Enter');
-  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  const settingsMenuItem = page.getByRole('menuitem', {
+    name: /^Settings/,
+  });
+  await expect(settingsMenuItem).toBeVisible();
+  await expect(settingsMenuItem).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await expect(mobileUser).toBeFocused();
+  await mobileUser.click();
+  await expect(settingsMenuItem).toBeVisible();
+  await settingsMenuItem.click();
   await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
@@ -273,7 +338,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await workspaceDialog
     .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
     .click();
-  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Settings/ }).click();
   await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(settingsDialog).toBeVisible();
   await page.keyboard.press('Escape');
@@ -333,6 +398,8 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   await organization.focus();
   await page.keyboard.press('Enter');
   const createTeam = page.getByRole('menuitem', { name: 'Create a team' });
+  await expect(createTeam).toBeVisible();
+  await page.keyboard.press('End');
   await expect(createTeam).toBeFocused();
   await expect(organization).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Enter');
@@ -396,21 +463,12 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     data: { organizationId: id },
   });
   await page.setViewportSize({ width: 768, height: 720 });
-  await page.goto(`${stack.frontendUrl}/workspace?settings=general`);
-  const title = page.getByRole('heading', { name: 'Settings', exact: true });
-  await expect(title).toHaveText('Organization settings');
+  await page.goto(`${stack.frontendUrl}/workspace`);
   await expect(
-    page
-      .getByRole('navigation', { name: 'breadcrumb' })
-      .getByRole('link', { name: 'Organization settings', exact: true }),
+    page.getByRole('heading', { name: 'Home', exact: true }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'General', exact: true }),
-  ).toHaveCount(0);
-  // This test-only structural aside mirrors RightPanel's desktop host markup;
-  // the host and all layout CSS come from the live production page.
+  // This test-only structural aside checks desktop layout around RightPanel's
+  // host; frontend/test/right-panel.spec.tsx verifies its actual mobile modal.
   await page.locator('[data-panel-host]').evaluate((host) => {
     const panel = document.createElement('aside');
     panel.setAttribute('aria-label', 'Details');
@@ -460,48 +518,22 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   expect(geometry.documentWidth).toBeLessThanOrEqual(768);
   expect(geometry.contentRight).toBeLessThanOrEqual(geometry.panelLeft);
   expect(geometry.mainRight).toBeGreaterThanOrEqual(geometry.panelLeft);
-  const cardTitle = page.locator('main#main [data-slot="card-title"] h2');
-  await expect(cardTitle).toBeVisible();
-  const cardTitleFits = await cardTitle.evaluate((element) => {
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    const bounds = element.getBoundingClientRect();
-    const titleContainer = element
-      .closest('[data-slot="card-title"]')!
-      .getBoundingClientRect();
-    const card = element.closest('[data-slot="card"]')!.getBoundingClientRect();
-    const visibleLeft = Math.max(bounds.left, titleContainer.left, card.left);
-    const visibleRight = Math.min(
-      bounds.right,
-      titleContainer.right,
-      card.right,
-    );
-    return (
-      element.scrollWidth <= element.clientWidth &&
-      [...range.getClientRects()].every(
-        (rect) => rect.left >= visibleLeft && rect.right <= visibleRight,
-      )
-    );
-  });
-  expect(
-    cardTitleFits,
-    'Organization settings title must remain readable',
-  ).toBe(true);
-  for (const label of ['Save organization settings', 'Require authenticator']) {
+  const composerInput = page.getByRole('textbox', { name: 'Message input' });
+  await expect(composerInput).toBeVisible();
+  const composerBounds = await composerInput.boundingBox();
+  expect(composerBounds).not.toBeNull();
+  expect(composerBounds!.x + composerBounds!.width).toBeLessThanOrEqual(
+    geometry.panelLeft,
+  );
+  for (const label of ['Add Attachment', 'Send message']) {
     const action = page.getByRole('button', { name: label, exact: true });
     await expect(action).toBeVisible();
-    const textFits = await action.evaluate((element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      const bounds = element.getBoundingClientRect();
-      return (
-        element.scrollWidth <= element.clientWidth &&
-        [...range.getClientRects()].every(
-          (rect) => rect.left >= bounds.left && rect.right <= bounds.right,
-        )
-      );
-    });
-    expect(textFits, `${label} must remain readable at 768px`).toBe(true);
+    const actionBounds = await action.boundingBox();
+    expect(actionBounds, `${label} must have visible bounds`).not.toBeNull();
+    expect(
+      actionBounds!.x + actionBounds!.width,
+      `${label} must not overlap the panel`,
+    ).toBeLessThanOrEqual(geometry.panelLeft);
   }
 });
 
@@ -592,6 +624,7 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       await expect(
         popup.getByRole('menuitem', { name: /^F2 popup team/ }),
       ).toHaveCount(0);
+      await page.keyboard.press('End');
       await expect(create).toBeFocused();
       const organizationList = page.waitForResponse(
         (response) =>

@@ -107,6 +107,7 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
     exact: true,
   });
   await expect(teamButton).toBeVisible();
+  await page.keyboard.press('ArrowDown');
   await expect(teamButton).toBeFocused();
   await expect
     .poll(() =>
@@ -137,8 +138,7 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   await page.keyboard.press('Enter');
   await expect(userMenu).toHaveAttribute('aria-expanded', 'true');
   const settingsMenuItem = page.getByRole('menuitem', {
-    name: 'Settings',
-    exact: true,
+    name: /^Settings/,
   });
   await expect(settingsMenuItem).toBeFocused();
   const documentBeforeSettingsNavigation = await page.evaluate(
@@ -156,6 +156,9 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   await page.keyboard.press('Space');
   await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+  await page.keyboard.press('Escape');
+  await expect(settingsDialog).toBeHidden();
 
   await tabTo(page, userMenu);
   await page.keyboard.press('ArrowDown');
@@ -165,12 +168,11 @@ test('F2 keyboard flow signs in, switches teams, changes appearance, and signs o
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(
-    page.getByRole('heading', {
-      level: 1,
-      name: 'Profile settings',
-      exact: true,
-    }),
+    settingsDialog.getByRole('heading', { name: 'Settings', exact: true }),
   ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(settingsDialog).toBeHidden();
+  await expect(userMenu).toBeFocused();
   await tabTo(page, userMenu);
   await page.keyboard.press('ArrowDown');
   await expect(settingsMenuItem).toBeFocused();

@@ -1,29 +1,14 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { test } from 'node:test';
 
 const routeFiles = [
   ['frontend/src/app/(workspace)/workspace/page.tsx', 'Workspace'],
-  ['frontend/src/app/(workspace)/settings/profile/page.tsx', 'Profile'],
-  ['frontend/src/app/(workspace)/settings/security/page.tsx', 'Security'],
-  ['frontend/src/app/(workspace)/settings/appearance/page.tsx', 'Appearance'],
   ['frontend/src/app/(workspace)/organizations/page.tsx', 'Organizations'],
   [
     'frontend/src/app/(workspace)/organizations/[orgId]/page.tsx',
     'Organization',
-  ],
-  [
-    'frontend/src/app/(workspace)/organizations/[orgId]/settings/members/page.tsx',
-    'Members',
-  ],
-  [
-    'frontend/src/app/(workspace)/organizations/[orgId]/settings/invitations/page.tsx',
-    'Invitations',
-  ],
-  [
-    'frontend/src/app/(workspace)/organizations/[orgId]/settings/general/page.tsx',
-    'General',
   ],
   [
     'frontend/src/app/(workspace)/platform/provisioning/page.tsx',
@@ -63,6 +48,20 @@ test('F2 route inventory retains descriptive titles and shell not-found routes',
   assert.match(error, /Something went wrong/);
   assert.match(error, /ErrorState/);
   assert.match(error, /href="\/workspace"/);
+});
+
+test('F2 legacy settings page entrypoints remain removed', async () => {
+  const removedRoutes = [
+    'frontend/src/app/(workspace)/settings/profile/page.tsx',
+    'frontend/src/app/(workspace)/settings/security/page.tsx',
+    'frontend/src/app/(workspace)/settings/appearance/page.tsx',
+    'frontend/src/app/(workspace)/organizations/[orgId]/settings/members/page.tsx',
+    'frontend/src/app/(workspace)/organizations/[orgId]/settings/invitations/page.tsx',
+    'frontend/src/app/(workspace)/organizations/[orgId]/settings/general/page.tsx',
+  ];
+  for (const route of removedRoutes) {
+    await assert.rejects(access(route), { code: 'ENOENT' }, route);
+  }
 });
 
 test('F2 frontend source has no chat endpoint or theme preference API call', async () => {

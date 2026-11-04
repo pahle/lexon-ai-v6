@@ -374,7 +374,6 @@ async function captureReferences() {
     for (const { view, source, path: route } of captures) {
       for (const viewport of viewports) {
         const filename = `${view}-${viewport.name}-light.png`;
-        const targetPath = path.join(referenceRoot, filename);
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
           deviceScaleFactor: 1,
@@ -618,9 +617,9 @@ async function captureReferences() {
     }
     const views = Object.fromEntries(
       indexEntries.map(
-        ({ name, sha256: _hash, width: _width, height: _height, ...entry }) => [
+        ({ name, path, theme, viewport, state, source, applicability }) => [
           name,
-          entry,
+          { path, theme, viewport, state, source, applicability },
         ],
       ),
     );
@@ -645,7 +644,9 @@ async function captureReferences() {
     if (browser) await browser.close();
     try {
       process.kill(-child.pid, 'SIGTERM');
-    } catch {}
+    } catch {
+      // The process group has already exited.
+    }
     await new Promise((resolve) => {
       if (child.exitCode !== null) return resolve();
       const timeout = setTimeout(resolve, 3000);
@@ -657,7 +658,9 @@ async function captureReferences() {
     if (child.exitCode === null) {
       try {
         process.kill(-child.pid, 'SIGKILL');
-      } catch {}
+      } catch {
+        // The process group has already exited.
+      }
     }
     await rm(fixtureRoot, { recursive: true, force: true });
   }

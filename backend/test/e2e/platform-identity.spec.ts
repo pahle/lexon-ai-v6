@@ -29,8 +29,11 @@ test('F2 platform navigation remains hidden and direct routes are denied for ord
     data: {},
   });
   await page.goto(stack.frontendUrl + '/workspace');
+  const primaryNavigation = page.getByRole('navigation', {
+    name: 'Primary navigation',
+  });
   await expect(
-    page.getByRole('link', { name: 'Platform', exact: true }),
+    primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
   ).toHaveCount(0);
   const platformRequests: string[] = [];
   page.on('request', (request) => {
@@ -42,7 +45,7 @@ test('F2 platform navigation remains hidden and direct routes are denied for ord
     'You do not have access to this page.',
   );
   await expect(
-    page.getByRole('link', { name: 'Platform', exact: true }),
+    primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
   ).toHaveCount(0);
   expect(platformRequests).toEqual([]);
 });

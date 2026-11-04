@@ -112,6 +112,35 @@ test('auth frame cover follows the published 1024px desktop boundary without ove
   ).toBeLessThanOrEqual(1024);
 });
 
+test('font and image assets load from the application origin with Inter available', async ({
+  page,
+}) => {
+  const frontendUrl = descriptor().frontendUrl;
+  const origin = new URL(frontendUrl).origin;
+  const externalAssets: string[] = [];
+  page.on('request', (request) => {
+    if (
+      (request.resourceType() === 'font' ||
+        request.resourceType() === 'image') &&
+      new URL(request.url()).origin !== origin
+    ) {
+      externalAssets.push(request.url());
+    }
+  });
+
+  await page.goto(frontendUrl + '/sign-in');
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
+  expect(
+    await page.evaluate(() =>
+      Array.from(document.fonts).some(
+        (font) => font.family.includes('Inter') && font.status === 'loaded',
+      ),
+    ),
+  ).toBe(true);
+  expect(externalAssets).toEqual([]);
+});
+
 test('secondary account flows render inside the shared auth frame', async ({
   page,
 }) => {
@@ -230,12 +259,10 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   const mobileBreadcrumb = page.getByRole('navigation', {
     name: 'breadcrumb',
   });
+  await expect(mobileBreadcrumb).toContainText('Home');
   await expect(
     mobileBreadcrumb.getByRole('link', { name: 'Settings', exact: true }),
-  ).toBeHidden();
-  await expect(
-    mobileBreadcrumb.getByRole('link', { name: 'Profile', exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     mobileBreadcrumb.locator('[data-slot="breadcrumb-separator"]'),
   ).toBeHidden();
@@ -269,14 +296,12 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.setViewportSize({ width: 768, height: 720 });
   await page.goto(`${stack.frontendUrl}/workspace?settings=general`);
-  const expandSidebar = page.getByRole('button', { name: 'Expand sidebar' });
-  if (await expandSidebar.isVisible()) await expandSidebar.click();
-  await expect(
-    page.getByRole('button', { name: 'Collapse sidebar' }),
-  ).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'Organization settings' }),
+    page.getByRole('navigation', { name: 'Settings sections' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
   await page.locator('[data-panel-host]').evaluate((host) => {
     const panel = document.createElement('aside');

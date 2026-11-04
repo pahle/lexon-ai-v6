@@ -143,6 +143,9 @@ test('mobile panel is one named modal dialog and returns focus when closed', asy
     '!w-screen',
   );
   expect(document.querySelector('[role="dialog"]')?.className).toContain(
+    '!max-w-none',
+  );
+  expect(document.querySelector('[role="dialog"]')?.className).toContain(
     'bg-surface',
   );
   const focusGuards = [
