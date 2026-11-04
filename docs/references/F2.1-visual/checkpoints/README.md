@@ -1,6 +1,6 @@
 # Checkpoint C — owner-feedback corrections
 
-The six owner corrections are implemented and independently verified. Ready for your review; execution is stopped before Task 8.
+The product owner accepted this Checkpoint C preview at `0476a87` after the six corrections. This is checkpoint feedback, not Task 9 formal approval. Tasks 8 and 9 are authorized; execution must stop again at the Task 9 owner gate.
 
 The updated review below shows only the 24 affected production Compose PNGs: twelve states in light and dark, 1440×900, device scale factor 1. Click a thumbnail for the full image. Stable filenames are overwritten in place. Home, collapsed-sidebar and operator-menu captures (six PNGs) remain unchanged, and the canonical index still contains all thirty C images. Source prototype images remain unchanged.
 
