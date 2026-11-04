@@ -5,7 +5,19 @@ import { descriptor } from './runtime-support.js';
 import { readCapturedMail, authenticateApi } from './identity-support.js';
 import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
-import { captureShellReviewView } from './visual-support.js';
+import {
+  captureCheckpointCView,
+  captureShellReviewView,
+} from './visual-support.js';
+import { captureTask7BViewportReview } from './visual-support.js';
+
+let restoreSignupModeAfterTest = false;
+
+test.afterEach(async () => {
+  if (!restoreSignupModeAfterTest) return;
+  restoreSignupModeAfterTest = false;
+  await signupMode(true);
+});
 
 test('F2 platform navigation remains hidden and direct routes are denied for ordinary users', async ({
   page,
@@ -40,8 +52,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
   playwright,
 }) => {
   test.setTimeout(120000);
+  const operatorTestStarted = Date.now();
+  const markOperatorStage = (stage: string) =>
+    console.info(
+      `[operator-flow timing] ${stage}: ${Date.now() - operatorTestStarted}ms`,
+    );
   const stack = descriptor();
-  const email = randomUUID() + '@example.test';
+  const email = 'platform.operator@example.test';
   const password = 'Platform-browser-42!';
   const target = await playwright.request.newContext();
   await authenticateApi(target);
@@ -49,8 +66,10 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await target.get(stack.apiUrl + '/api/identity/profile')
   ).json()) as { id: string; email: string };
   await signupMode(false);
+  restoreSignupModeAfterTest = true;
   try {
     const setup = await operatorSetup(email);
+    markOperatorStage('setup provisioned');
     expect(setup.status).toBe('created');
     expect(!!setup.mail).toBe(true);
     await page.goto(setup.mail!.actionUrl);
@@ -105,6 +124,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         exact: true,
       })
       .click();
+    markOperatorStage('administrator activated');
     await expect(
       page.getByRole('heading', { name: 'Administrator setup complete' }),
     ).toBeVisible();
@@ -114,6 +134,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       { headers: { origin: stack.frontendUrl }, data: {} },
     );
     expect(onboarding.status()).toBe(204);
+    markOperatorStage('onboarding completed');
     await page.goto(stack.frontendUrl + '/workspace');
     await expect(page.locator('h1')).toHaveText('Home');
     const expandSidebar = page.getByRole('button', {
@@ -168,8 +189,120 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         'Home',
       );
     }
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate(
+        (value) => localStorage.setItem('theme', value),
+        theme,
+      );
+      await page.goto(stack.frontendUrl + '/workspace');
+      const expand = page.getByRole('button', { name: 'Expand sidebar' });
+      if (await expand.isVisible()) await expand.click();
+      const platformToggle = page.getByRole('button', {
+        name: 'Toggle Platform navigation',
+      });
+      if ((await platformToggle.getAttribute('aria-expanded')) !== 'true')
+        await platformToggle.click();
+      await expect(
+        page.getByRole('link', { name: 'Provisioning', exact: true }),
+      ).toBeVisible();
+      await page
+        .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+        .click();
+      await expect(
+        page.getByRole('menuitem', { name: 'Sign out' }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('menuitem', { name: /Settings/ }),
+      ).toContainText('⌘,');
+      await captureCheckpointCView(page, 'user-menu-open', theme);
+    }
+    markOperatorStage('C operator menu screenshots captured');
     await page.goto(stack.frontendUrl + '/platform/provisioning');
     await expect(page.locator('h1')).toHaveText('Organization provisioning');
+    markOperatorStage('provisioning list opened');
+    const platformListUrl = (url: URL) =>
+      url.pathname === '/api/platform/provisioning' &&
+      url.searchParams.has('limit');
+    const capturePlatformResponsiveState = async (name: string) => {
+      for (const width of [390, 768] as const) {
+        for (const theme of ['light', 'dark'] as const) {
+          await captureTask7BViewportReview(page, name, width, theme);
+        }
+      }
+    };
+    let releaseProvisioningList!: () => void;
+    let provisioningListStarted!: () => void;
+    let provisioningListFinished!: () => void;
+    const provisioningListGate = new Promise<void>((resolve) => {
+      releaseProvisioningList = resolve;
+    });
+    const provisioningStarted = new Promise<void>((resolve) => {
+      provisioningListStarted = resolve;
+    });
+    const provisioningFinished = new Promise<void>((resolve) => {
+      provisioningListFinished = resolve;
+    });
+    await page.route(platformListUrl, async (route) => {
+      provisioningListStarted();
+      try {
+        await provisioningListGate;
+        const response = await route.fetch();
+        await route.fulfill({ response });
+      } finally {
+        provisioningListFinished();
+      }
+    });
+    try {
+      await page.reload();
+      await provisioningStarted;
+      await expect(
+        page.getByRole('status', { name: 'Checking platform access' }),
+      ).toBeVisible();
+      await capturePlatformResponsiveState('platform-provisioning-loading');
+    } finally {
+      releaseProvisioningList();
+      await provisioningFinished;
+      await page.unroute(platformListUrl);
+    }
+    await expect(
+      page.getByText('No provisioning organizations', { exact: true }),
+    ).toBeVisible();
+
+    await page.route(platformListUrl, (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: '{"message":"private platform detail"}',
+      }),
+    );
+    try {
+      await page.reload();
+      await expect(
+        page.getByText('Service temporarily unavailable. Please try again.', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.locator('body')).not.toContainText(
+        'private platform detail',
+      );
+      await capturePlatformResponsiveState('platform-provisioning-error');
+    } finally {
+      await page.unroute(platformListUrl);
+    }
+    await page.reload();
+    await expect(
+      page.getByText('No provisioning organizations', { exact: true }),
+    ).toBeVisible();
+    for (const width of [390, 768, 1440] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask7BViewportReview(
+          page,
+          'platform-provisioning-empty',
+          width,
+          theme,
+        );
+      }
+    }
     const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('main')).toHaveCount(1);
@@ -178,6 +311,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     expect(
       (await new AxeBuilder({ page }).withTags(axeTags).analyze()).violations,
     ).toEqual([]);
+    markOperatorStage('light provisioning axe passed');
     await expect(page.locator('h1')).toHaveCount(1);
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
@@ -188,6 +322,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     expect(
       (await new AxeBuilder({ page }).withTags(axeTags).analyze()).violations,
     ).toEqual([]);
+    markOperatorStage('dark provisioning axe passed');
     const ownerEmail = targetProfile.email;
     await page
       .getByLabel('Organization name', { exact: true })
@@ -204,10 +339,32 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await expect(
       page.getByRole('link', { name: 'Provisioned team', exact: true }),
     ).toBeVisible();
+    markOperatorStage('provisioned team appeared in list');
+    for (const width of [390, 768, 1440] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask7BViewportReview(
+          page,
+          'platform-provisioning-populated',
+          width,
+          theme,
+        );
+      }
+    }
     await page
       .getByRole('link', { name: 'Provisioned team', exact: true })
       .click();
     await expect(page.getByText('provisioning', { exact: true })).toBeVisible();
+    markOperatorStage('provisioned detail opened');
+    for (const width of [390, 768, 1440] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask7BViewportReview(
+          page,
+          'platform-provisioning-detail',
+          width,
+          theme,
+        );
+      }
+    }
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     const originalMail = await readCapturedMail(
       stack.project,
@@ -245,6 +402,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       .getByRole('button', { name: 'Resend owner invitation', exact: true })
       .click();
     expect((await resent).status()).toBe(200);
+    markOperatorStage('replacement owner invite resent');
     const recipientContext = await page.context().browser()!.newContext();
     try {
       const recipient = await recipientContext.newPage();
@@ -303,6 +461,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           identity.organization.state === 'active' &&
           identity.organization.role === 'owner',
       ).toBe(true);
+      markOperatorStage('replacement owner accepted invitation');
     } finally {
       await recipientContext.close();
     }
@@ -333,9 +492,22 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('button', { name: 'Cancel provisioning', exact: true })
       .click();
+    const cancelDialog = page.getByRole('alertdialog', {
+      name: 'Cancel provisioning for Cancelled team?',
+    });
+    await expect(cancelDialog).toBeVisible();
+    const cancelRequest = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'DELETE' &&
+        new URL(response.url()).pathname.includes(
+          '/api/platform/provisioning/',
+        ),
+    );
     await page
-      .getByRole('button', { name: 'Confirm cancellation', exact: true })
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Cancel provisioning', exact: true })
       .click();
+    expect((await cancelRequest).status()).toBe(204);
     await expect(page).toHaveURL(/\/platform\/provisioning$/);
     await expect(
       page.getByRole('link', { name: 'Cancelled team', exact: true }),
@@ -356,22 +528,56 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       .getByRole('navigation', { name: 'Primary navigation' })
       .getByRole('link', { name: 'Account status', exact: true })
       .click();
+    await expect(page.getByLabel('User ID', { exact: true })).toBeVisible();
+    for (const width of [390, 768, 1440] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask7BViewportReview(
+          page,
+          'platform-account-status',
+          width,
+          theme,
+        );
+      }
+    }
     await page.getByLabel('User ID', { exact: true }).fill(targetProfile.id);
+    const disableRequest = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        new URL(response.url()).pathname.endsWith(
+          `/platform/users/${targetProfile.id}/disabled`,
+        ),
+    );
     await page
       .getByRole('button', { name: 'Disable account', exact: true })
       .click();
-    await expect(page.getByRole('status')).toContainText(
-      'Account status updated',
-    );
+    const disableDialog = page.getByRole('alertdialog', {
+      name: `Disable account ${targetProfile.id}?`,
+    });
+    await expect(disableDialog).toBeVisible();
+    await disableDialog
+      .getByRole('button', { name: 'Disable account', exact: true })
+      .click();
+    expect((await disableRequest).status()).toBe(204);
+    await expect(
+      page.getByText('Account disabled.', { exact: true }),
+    ).toBeVisible();
     expect((await target.get(stack.apiUrl + '/api/identity')).status()).toBe(
       401,
+    );
+    const enableRequest = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        new URL(response.url()).pathname.endsWith(
+          `/platform/users/${targetProfile.id}/disabled`,
+        ),
     );
     await page
       .getByRole('button', { name: 'Enable account', exact: true })
       .click();
-    await expect(page.getByRole('status')).toContainText(
-      'Account status updated',
-    );
+    expect((await enableRequest).status()).toBe(204);
+    await expect(
+      page.getByText('Account enabled.', { exact: true }),
+    ).toBeVisible();
     expect((await target.get(stack.apiUrl + '/api/identity')).status()).toBe(
       401,
     );
@@ -429,6 +635,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
   } finally {
     await signupMode(true);
+    restoreSignupModeAfterTest = false;
     await target.dispose();
   }
 });

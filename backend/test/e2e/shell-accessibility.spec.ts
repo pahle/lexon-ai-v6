@@ -154,7 +154,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         } else if (path.endsWith('settings=general')) {
           await expect(
             page.getByRole('button', {
-              name: 'Save organization settings',
+              name: 'Save changes',
               exact: true,
             }),
           ).toBeVisible();

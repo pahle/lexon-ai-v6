@@ -251,10 +251,11 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   await settle();
   const settingsItem = [
     ...document.body.querySelectorAll('[role="menuitem"]'),
-  ].find((item) => item.textContent?.trim() === 'Settings') as HTMLElement;
+  ].find((item) => item.textContent?.includes('Settings')) as HTMLElement;
   expect(settingsItem).toBeDefined();
   expect(settingsItem.getAttribute('href')).toContain('settings=profile');
   expect(settingsItem.querySelector('svg.lucide-settings')).not.toBeNull();
+  expect(settingsItem.textContent).toContain('⌘,');
   const signOutItem = [
     ...document.body.querySelectorAll('[role="menuitem"]'),
   ].find((item) => item.textContent?.trim() === 'Sign out') as HTMLElement;

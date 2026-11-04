@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../shell/workspace-provider';
 import {
   Dialog,
@@ -30,6 +31,7 @@ import { OrganizationSettings } from '../organizations/organization-settings';
 export function SettingsDialog(): React.ReactElement | null {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { identity, status } = useWorkspace();
   const section = readSettingsSection(
     new URLSearchParams(searchParams.toString()),
@@ -39,6 +41,7 @@ export function SettingsDialog(): React.ReactElement | null {
   if (section !== null) hasOpened.current = true;
   const sectionRef = useRef(section);
   sectionRef.current = section;
+  const previousOrganizationId = useRef(identity?.organization.id);
   opener.current = getSettingsOpener();
 
   const replaceSection = (next: Parameters<typeof settingsHref>[1]) => {
@@ -62,7 +65,6 @@ export function SettingsDialog(): React.ReactElement | null {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  if (section === null && !hasOpened.current) return null;
   const canShowSecurity = status === 'ready' || status === 'mfa-required';
   const canShowSection =
     status === 'ready' && !!identity && identity.user.onboardingCompleted;
@@ -82,6 +84,29 @@ export function SettingsDialog(): React.ReactElement | null {
                   section === 'invitations') ||
                 (identity.organization.role === 'owner' &&
                   section === 'general'))));
+
+  useLayoutEffect(() => {
+    const previousId = previousOrganizationId.current;
+    const currentId = identity?.organization.id;
+    previousOrganizationId.current = currentId;
+    if (!previousId || previousId === currentId) return;
+    const queryKey = ['tenant', previousId];
+    void queryClient.cancelQueries({ queryKey });
+    queryClient.removeQueries({ queryKey });
+  }, [identity?.organization.id, queryClient]);
+
+  useLayoutEffect(() => {
+    const isOrganizationSection =
+      section === 'members' ||
+      section === 'invitations' ||
+      section === 'general';
+    if (!isOrganizationSection || allowed || !identity?.organization) return;
+    const queryKey = ['tenant', identity.organization.id];
+    void queryClient.cancelQueries({ queryKey });
+    queryClient.removeQueries({ queryKey });
+  }, [allowed, identity?.organization, queryClient, section]);
+
+  if (section === null && !hasOpened.current) return null;
 
   return (
     <Dialog
@@ -147,11 +172,18 @@ export function SettingsDialog(): React.ReactElement | null {
             ) : section === 'security' ? (
               <AccountSecurity />
             ) : section === 'members' && identity ? (
-              <Members organization={identity.organization} />
+              <Members
+                key={identity.organization.id}
+                organization={identity.organization}
+              />
             ) : section === 'invitations' && identity ? (
-              <Invitations organization={identity.organization} />
+              <Invitations
+                key={identity.organization.id}
+                organization={identity.organization}
+              />
             ) : section === 'general' && identity ? (
               <OrganizationSettings
+                key={identity.organization.id}
                 organization={identity.organization}
                 embeddedInSettings
               />

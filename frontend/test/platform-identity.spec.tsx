@@ -1,8 +1,11 @@
 import { test, expect, vi } from 'vitest';
+import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, settle } from './render';
 import { AdminSetup } from '../src/components/auth/admin-setup';
 import { ProvisioningList } from '../src/components/platform/provisioning';
+import { ProvisioningDetail } from '../src/components/platform/provisioning-detail';
+import { AccountStatusForm } from '../src/components/platform/account-status-form';
 import { PlatformPage } from '../src/components/platform/platform-page';
 const workspaceState = vi.hoisted(() => ({ identity: null as unknown }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
@@ -76,7 +79,174 @@ test('non-platform administrators do not mount provisioning data loaders', async
   vi.unstubAllGlobals();
   workspaceState.identity = null;
 });
-import { act } from 'react';
+
+test('platform provisioning uses a published Card, Empty state, and semantic table', async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ items: [], pageInfo: { nextCursor: null } }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.querySelector('[data-slot="card"]')).not.toBeNull();
+  expect(view.container.querySelector('[data-slot="empty"]')).not.toBeNull();
+  expect(view.container.textContent).toContain('No provisioning organizations');
+  await view.unmount();
+
+  fetcher.mockResolvedValueOnce(
+    Response.json({
+      items: [
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000042',
+          name: 'Task 7B Team',
+          slug: 'task-7b-team',
+          kind: 'team',
+          state: 'provisioning',
+          createdAt: '2026-11-01T00:00:00.000Z',
+          invitation: {
+            id: '00000000-0000-4000-8000-000000000043',
+            status: 'pending',
+            expiresAt: '2026-11-08T00:00:00.000Z',
+          },
+        },
+      ],
+      pageInfo: { nextCursor: null },
+    }),
+  );
+  const populated = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(populated.container.querySelector('table')).not.toBeNull();
+  expect(populated.container.textContent).toContain('Task 7B Team');
+  await populated.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('disabling a platform account requires a named confirmation and cancel makes no request', async () => {
+  const userId = '00000000-0000-4000-8000-000000000052';
+  const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+    String(input).includes('/api/platform/provisioning?limit=1')
+      ? Response.json({ items: [], pageInfo: { nextCursor: null } })
+      : new Response(null, { status: 204 }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <AccountStatusForm />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const input = view.container.querySelector<HTMLInputElement>(
+    'input[name="userId"]',
+  )!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, userId);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect(input.value).toBe(userId);
+  await act(async () =>
+    view.container
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click(),
+  );
+  await settle();
+  expect(document.body.textContent).toContain(`Disable account ${userId}?`);
+  expect(
+    fetcher.mock.calls.filter(([url]) =>
+      String(url).includes('/api/platform/users/'),
+    ),
+  ).toHaveLength(0);
+  const cancel = [...document.body.querySelectorAll('button')].find((button) =>
+    button.textContent?.includes('Keep account enabled'),
+  )!;
+  await act(async () => cancel.click());
+  expect(
+    fetcher.mock.calls.filter(([url]) =>
+      String(url).includes('/api/platform/users/'),
+    ),
+  ).toHaveLength(0);
+  await act(async () =>
+    view.container
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click(),
+  );
+  const confirm = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    [...confirm.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Disable account'))!
+      .click(),
+  );
+  await settle();
+  expect(
+    fetcher.mock.calls.filter(([url]) =>
+      String(url).includes('/api/platform/users/'),
+    ),
+  ).toHaveLength(1);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('cancelling provisioning has a named confirmation and Keep makes no delete request', async () => {
+  const organizationId = '00000000-0000-4000-8000-000000000062';
+  const fetcher = vi.fn(
+    async (_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'DELETE'
+        ? new Response(null, { status: 204 })
+        : Response.json({
+            version: 1,
+            id: organizationId,
+            name: 'Hukum Nusantara',
+            slug: 'hukum-nusantara',
+            kind: 'team',
+            state: 'provisioning',
+            createdAt: '2026-11-01T00:00:00.000Z',
+            invitation: {
+              id: '00000000-0000-4000-8000-000000000063',
+              status: 'pending',
+              expiresAt: '2026-11-08T00:00:00.000Z',
+            },
+          }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningDetail organizationId={organizationId} />
+    </QueryClientProvider>,
+  );
+  await settle();
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Cancel provisioning'))!
+      .click(),
+  );
+  expect(document.body.textContent).toContain(
+    'Cancel provisioning for Hukum Nusantara?',
+  );
+  expect(
+    fetcher.mock.calls.filter(([, init]) => init?.method === 'DELETE'),
+  ).toHaveLength(0);
+  await act(async () =>
+    [...document.body.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Keep provisioning'))!
+      .click(),
+  );
+  expect(
+    fetcher.mock.calls.filter(([, init]) => init?.method === 'DELETE'),
+  ).toHaveLength(0);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
 test('completed setup discards its proof without redeeming it again', async () => {
   const user = {
     version: 1,

@@ -230,7 +230,11 @@ test('onboarding and organization switches preserve Personal and last owner', as
     .getByLabel('Team slug', { exact: true })
     .fill('first-' + randomUUID().slice(0, 8));
   await page.getByRole('button', { name: 'Create team', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Team created');
+  await expect(
+    page.getByText('Team created. Your current organization is unchanged.', {
+      exact: true,
+    }),
+  ).toBeVisible();
   await page
     .getByRole('button', { name: 'Finish onboarding', exact: true })
     .click();
@@ -281,9 +285,25 @@ test('onboarding and organization switches preserve Personal and last owner', as
   await page
     .getByRole('button', { name: 'Leave organization', exact: true })
     .click();
-  await expect(page.locator('[data-slot="field-error"]')).toContainText(
-    'Promote another owner',
+  const leaveDialog = page.getByRole('alertdialog', {
+    name: 'Leave First team?',
+  });
+  await expect(leaveDialog).toBeVisible();
+  const leaveResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.endsWith('/leave') &&
+      response.request().method() === 'POST',
   );
+  await leaveDialog
+    .getByRole('button', { name: 'Leave organization', exact: true })
+    .click();
+  expect((await leaveResponse).status()).toBe(409);
+  await expect(
+    page.getByText(
+      'Promote another owner before leaving or removing the last owner.',
+      { exact: true },
+    ),
+  ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 test('F2 organization entry clears stale cookies without a redirect loop', async ({
@@ -405,10 +425,11 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   ).toBeVisible();
   expect((await invitedDataResponse).status()).toBe(200);
   const acceptedInvitation = page
-    .locator('main li')
+    .getByRole('row')
     .filter({ hasText: recipient.email });
   await expect(acceptedInvitation).toBeVisible();
-  await expect(acceptedInvitation).toContainText('admin — accepted');
+  await expect(acceptedInvitation).toContainText('Admin');
+  await expect(acceptedInvitation).toContainText('accepted');
   const members = (await (
     await owner.get(
       stack.apiUrl + '/api/organizations/' + teams[1]!.id + '/members',
@@ -423,6 +444,11 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     )
       protectedRoleRequests.push(request.url());
   });
+  const identityRefreshAfterDemotion = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/identity' &&
+      response.request().method() === 'GET',
+  );
   expect(
     (
       await owner.patch(
@@ -431,9 +457,10 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
       )
     ).status(),
   ).toBe(200);
-  await expect(page.locator('section[role="alert"]')).toContainText(
-    'You do not have access to this organization setting.',
-  );
+  expect((await identityRefreshAfterDemotion).status()).toBe(200);
+  await expect(
+    page.getByText('You do not have access to this section.', { exact: true }),
+  ).toBeVisible();
   expect(protectedRoleRequests).toEqual([]);
   await page.goto(stack.frontendUrl + '/workspace');
   await expect(

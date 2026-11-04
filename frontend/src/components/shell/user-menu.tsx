@@ -17,6 +17,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuShortcut,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
@@ -164,6 +165,7 @@ export function UserMenu({
           >
             <Settings aria-hidden="true" />
             Settings
+            <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={busy}

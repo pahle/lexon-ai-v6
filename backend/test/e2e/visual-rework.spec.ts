@@ -6,7 +6,9 @@ import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { totpForUri } from '../setup/totp.js';
 import {
+  captureCheckpointCView,
   captureShellReviewView,
+  captureTask7BViewportReview,
   captureVisualView,
   type VisualTheme,
   type VisualViewport,
@@ -468,6 +470,56 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
   }
 });
 
+test('Task 7B member role Select is a nested Settings layer and Escape restores its trigger', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const password = 'Task-7B-Select-42!';
+  const headers = await authenticateApi(page.request, {
+    name: 'Task 7B Owner',
+    password,
+  });
+  expect(
+    (
+      await page.request.post(
+        stack.apiUrl + '/api/identity/onboarding/complete',
+        { headers, data: {} },
+      )
+    ).status(),
+  ).toBe(204);
+  const created = await page.request.post(stack.apiUrl + '/api/organizations', {
+    headers,
+    data: { name: 'Task 7B Team', slug: 'task-7b-' + randomUUID().slice(0, 8) },
+  });
+  expect(created.status()).toBe(201);
+  const organization = (await created.json()) as { id: string };
+  expect(
+    (
+      await page.request.post(stack.apiUrl + '/api/organizations/active', {
+        headers,
+        data: { organizationId: organization.id },
+      })
+    ).status(),
+  ).toBe(200);
+
+  await page.goto(stack.frontendUrl + '/workspace?settings=members');
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings).toBeVisible();
+  const role = settings.getByRole('combobox', {
+    name: 'Role for Task 7B Owner',
+  });
+  await role.click();
+  await expect(
+    page.getByRole('option', { name: 'Admin', exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('option', { name: 'Admin', exact: true }),
+  ).toHaveCount(0);
+  await expect(settings).toBeVisible();
+  await expect(role).toBeFocused();
+});
+
 async function expectAccountSectionReady(
   page: import('@playwright/test').Page,
   section: 'profile' | 'appearance' | 'security',
@@ -789,4 +841,556 @@ test('Task 6B auth state captures cover sign-in and secondary flows', async ({
       await capture('07-onboarding-profile', theme, viewport);
     }
   }
+});
+
+test('Task 7B Checkpoint C captures the indexed organization and settings states', async ({
+  page,
+  playwright,
+}) => {
+  test.setTimeout(120000);
+  const stack = descriptor();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(stack.frontendUrl + '/sign-in');
+  await expect(
+    page.getByRole('heading', { name: 'Sign in to Lexon' }),
+  ).toBeVisible();
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'sign-in', theme);
+
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'sign-in-field-errors', theme);
+
+  await page
+    .getByLabel('Email', { exact: true })
+    .fill('maya.chen@example.test');
+  await page
+    .getByLabel('Password', { exact: true })
+    .fill('Synthetic-review-password-42!');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  let releaseRequest!: () => void;
+  let startedRequest!: () => void;
+  const requestStarted = new Promise<void>((resolveStarted) => {
+    startedRequest = resolveStarted;
+  });
+  const requestGate = new Promise<void>((resolveGate) => {
+    releaseRequest = resolveGate;
+  });
+  await page.route('**/api/auth/sign-in/email', async (route) => {
+    startedRequest();
+    await requestGate;
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: { code: 'AUTH_REQUIRED', message: 'Synthetic private detail' },
+      }),
+    });
+  });
+  try {
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await requestStarted;
+    await expect(
+      page.getByRole('button', { name: 'Signing in…' }),
+    ).toBeDisabled();
+    for (const theme of ['light', 'dark'] as const)
+      await captureCheckpointCView(
+        page,
+        'sign-in-password-shown-loading',
+        theme,
+      );
+    releaseRequest();
+    await expect(page.locator('[data-slot="alert"]')).toContainText(
+      'Email or password is incorrect. Check them and try again.',
+    );
+    await expect(page.locator('body')).not.toContainText(
+      'Synthetic private detail',
+    );
+    await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute(
+      'type',
+      'text',
+    );
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute(
+      'type',
+      'password',
+    );
+    for (const theme of ['light', 'dark'] as const)
+      await captureCheckpointCView(page, 'sign-in-form-error', theme);
+  } finally {
+    releaseRequest();
+    await page.unroute('**/api/auth/sign-in/email');
+  }
+
+  const headers = await authenticateApi(page.request, {
+    name: 'Maya Chen',
+    email: 'maya.chen@example.test',
+    password: 'Maya-review-password-42!',
+  });
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    {
+      headers,
+      data: {},
+    },
+  );
+  expect(onboarding.status()).toBe(204);
+  const teamResponse = await page.request.post(
+    stack.apiUrl + '/api/organizations',
+    {
+      headers,
+      data: {
+        name: 'Harbor Legal',
+        slug: 'harbor-' + randomUUID().slice(0, 8),
+      },
+    },
+  );
+  expect(teamResponse.status()).toBe(201);
+  const team = (await teamResponse.json()) as { id: string };
+  expect(
+    (
+      await page.request.post(stack.apiUrl + '/api/organizations/active', {
+        headers,
+        data: { organizationId: team.id },
+      })
+    ).status(),
+  ).toBe(200);
+  for (const invitee of [
+    { name: 'Alex Rivera', email: 'alex.rivera@example.test', role: 'member' },
+    { name: 'Jordan Lee', email: 'jordan.lee@example.test', role: 'admin' },
+  ] as const) {
+    const invitation = await page.request.post(
+      stack.apiUrl + `/api/organizations/${team.id}/invitations`,
+      {
+        headers,
+        data: { email: invitee.email, role: invitee.role },
+      },
+    );
+    expect(invitation.status()).toBe(201);
+    const { id } = (await invitation.json()) as { id: string };
+    const recipient = await playwright.request.newContext();
+    try {
+      const recipientHeaders = await authenticateApi(recipient, {
+        name: invitee.name,
+        email: invitee.email,
+      });
+      expect(
+        (
+          await recipient.post(stack.apiUrl + `/api/invitations/${id}/accept`, {
+            headers: recipientHeaders,
+            data: {},
+          })
+        ).status(),
+      ).toBe(200);
+    } finally {
+      await recipient.dispose();
+    }
+  }
+  const pending = await page.request.post(
+    stack.apiUrl + `/api/organizations/${team.id}/invitations`,
+    {
+      headers,
+      data: { email: 'sam.taylor@example.test', role: 'member' },
+    },
+  );
+  expect(pending.status()).toBe(201);
+
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  await page
+    .getByRole('button', { name: 'Set up authenticator', exact: true })
+    .click();
+  await page
+    .getByLabel('Enrollment password', { exact: true })
+    .fill('Maya-review-password-42!');
+  await page
+    .getByRole('button', { name: 'Set up authenticator', exact: true })
+    .click();
+  const authenticatorUri = await page
+    .getByTestId('authenticator-uri')
+    .textContent();
+  expect(authenticatorUri).toBeTruthy();
+  await page
+    .getByLabel('Authenticator code', { exact: true })
+    .fill(totpForUri(authenticatorUri!));
+  await page
+    .getByRole('button', { name: 'Verify authenticator', exact: true })
+    .click();
+  await expect(page.getByTestId('recovery-codes')).toBeVisible();
+  await page
+    .getByRole('button', { name: 'I saved my recovery codes', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Back to security', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Two-factor authentication' }),
+  ).toBeVisible();
+  const secondOwnerContext = await page.context().browser()!.newContext();
+  try {
+    const secondOwnerPage = await secondOwnerContext.newPage();
+    await secondOwnerPage.goto(stack.frontendUrl + '/sign-in');
+    await secondOwnerPage
+      .getByLabel('Email', { exact: true })
+      .fill('maya.chen@example.test');
+    await secondOwnerPage
+      .getByLabel('Password', { exact: true })
+      .fill('Maya-review-password-42!');
+    await secondOwnerPage
+      .getByRole('button', { name: 'Sign in', exact: true })
+      .click();
+    await expect(secondOwnerPage).toHaveURL(/two-factor/);
+    await secondOwnerPage
+      .getByLabel('Authenticator code', { exact: true })
+      .fill(totpForUri(authenticatorUri!));
+    await secondOwnerPage
+      .getByRole('button', { name: 'Verify authenticator', exact: true })
+      .click();
+    await expect(secondOwnerPage).toHaveURL(/workspace/);
+    await expect(
+      secondOwnerPage.getByRole('heading', { name: 'Home' }),
+    ).toBeVisible();
+    expect(
+      await secondOwnerPage.evaluate(
+        async () => (await fetch('/api/identity')).status,
+      ),
+    ).toBe(200);
+  } finally {
+    await secondOwnerContext.close();
+  }
+  await page.goto(stack.frontendUrl + '/workspace?settings=security');
+  await expect(
+    page.getByRole('heading', { name: 'Two-factor authentication' }),
+  ).toBeVisible();
+  const sessionsTable = page.getByRole('table', { name: 'Signed-in sessions' });
+  await expect(sessionsTable).toBeVisible();
+  await expect(sessionsTable.getByRole('row')).toHaveCount(3);
+  await expect(
+    sessionsTable.getByRole('button', { name: /Revoke browser session/ }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Sign out other sessions', exact: true }),
+  ).toBeVisible();
+  const authenticatedIdentity = await page.evaluate(async () => {
+    const response = await fetch('/api/identity');
+    return { status: response.status, body: await response.json() };
+  });
+  expect(authenticatedIdentity.status).toBe(200);
+  const activeTeam = await page.evaluate(async (organizationId) => {
+    const response = await fetch('/api/organizations/active', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organizationId }),
+    });
+    return response.status;
+  }, team.id);
+  expect(activeTeam).toBe(200);
+  const requireTwoFactor = await page.evaluate(async (organizationId) => {
+    const response = await fetch(
+      `/api/organizations/${organizationId}/settings`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ require2fa: true }),
+      },
+    );
+    return response.status;
+  }, team.id);
+  expect(requireTwoFactor).toBe(200);
+
+  await page.goto(stack.frontendUrl + '/workspace');
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'home', theme);
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Expand sidebar' }),
+  ).toBeVisible();
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'sidebar-collapsed', theme);
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Collapse sidebar' }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: /Organization: Harbor Legal/ })
+    .click();
+  await expect(page.getByTestId('organization-popup')).toBeVisible();
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'organization-switcher-open', theme);
+  await page.keyboard.press('Escape');
+  await page
+    .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+    .click();
+  await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+  // The indexed User menu state includes Platform navigation and is captured
+  // only by the real operator/MFA flow in platform-identity.spec.ts.
+  await page.keyboard.press('Escape');
+
+  const sections = [
+    'profile',
+    'appearance',
+    'security',
+    'members',
+    'invitations',
+    'general',
+  ] as const;
+  for (const section of sections) {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=${section}`);
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    if (section === 'profile')
+      await expect(
+        page.getByLabel('Display name', { exact: true }),
+      ).toHaveValue('Maya Chen');
+    if (section === 'appearance')
+      await expect(
+        page.getByRole('radio', { name: 'Light', exact: true }),
+      ).toBeVisible();
+    if (section === 'security')
+      await expect(
+        page.getByRole('heading', { name: 'Two-factor authentication' }),
+      ).toBeVisible();
+    if (section === 'members') {
+      await expect(page.getByRole('table')).toBeVisible();
+      await expect(
+        page.getByText('Maya Chen (you)', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('Alex Rivera', { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText('Jordan Lee', { exact: true })).toBeVisible();
+    }
+    if (section === 'invitations') {
+      await expect(page.getByRole('table')).toBeVisible();
+      await expect(
+        page.getByText('sam.taylor@example.test', { exact: true }),
+      ).toBeVisible();
+    }
+    if (section === 'general') {
+      await expect(
+        page.getByLabel('Organization name', { exact: true }),
+      ).toHaveValue('Harbor Legal');
+      await expect(
+        page.getByRole('switch', { name: 'Require two-factor authentication' }),
+      ).toBeChecked();
+    }
+    for (const theme of ['light', 'dark'] as const)
+      await captureCheckpointCView(page, section, theme);
+    if (
+      section === 'members' ||
+      section === 'invitations' ||
+      section === 'general'
+    ) {
+      for (const width of [390, 768] as const) {
+        for (const theme of ['light', 'dark'] as const) {
+          await captureTask7BViewportReview(
+            page,
+            `${section}-populated`,
+            width,
+            theme,
+          );
+        }
+      }
+    }
+  }
+
+  const captureResponsiveState = async (name: string) => {
+    for (const width of [390, 768] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask7BViewportReview(page, name, width, theme);
+      }
+    }
+  };
+  const memberListUrl = (url: URL) =>
+    url.pathname === `/api/organizations/${team.id}/members`;
+  let releaseMembers!: () => void;
+  let memberRequestStarted!: () => void;
+  let memberResponseFinished!: () => void;
+  const membersGate = new Promise<void>((resolveGate) => {
+    releaseMembers = resolveGate;
+  });
+  const membersStarted = new Promise<void>((resolveStarted) => {
+    memberRequestStarted = resolveStarted;
+  });
+  const membersResponseFinished = new Promise<void>((resolveFinished) => {
+    memberResponseFinished = resolveFinished;
+  });
+  await page.route(memberListUrl, async (route) => {
+    memberRequestStarted();
+    try {
+      await membersGate;
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } finally {
+      memberResponseFinished();
+    }
+  });
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=members`);
+    await membersStarted;
+    await expect(
+      page.getByRole('status', { name: 'Loading members' }),
+    ).toBeVisible();
+    await captureResponsiveState('members-loading');
+  } finally {
+    releaseMembers();
+    await membersResponseFinished;
+    await page.unroute(memberListUrl);
+  }
+  await expect(page.getByRole('table')).toBeVisible();
+
+  await page.route(memberListUrl, async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as {
+      items: unknown[];
+      [key: string]: unknown;
+    };
+    await route.fulfill({ response, json: { ...data, items: [] } });
+  });
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=members`);
+    await expect(
+      page.getByText('No members yet', { exact: true }),
+    ).toBeVisible();
+    await captureResponsiveState('members-empty');
+  } finally {
+    await page.unroute(memberListUrl);
+  }
+
+  await page.route(memberListUrl, (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"message":"private test detail"}',
+    }),
+  );
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=members`);
+    await expect(page.getByRole('status')).toContainText(
+      'Service temporarily unavailable. Please try again.',
+    );
+    await expect(page.locator('body')).not.toContainText('private test detail');
+    await captureResponsiveState('members-error');
+  } finally {
+    await page.unroute(memberListUrl);
+  }
+
+  const invitationListUrl = (url: URL) =>
+    url.pathname === `/api/organizations/${team.id}/invitations`;
+  let releaseInvitations!: () => void;
+  let invitationRequestStarted!: () => void;
+  let invitationResponseFinished!: () => void;
+  const invitationsGate = new Promise<void>((resolveGate) => {
+    releaseInvitations = resolveGate;
+  });
+  const invitationsStarted = new Promise<void>((resolveStarted) => {
+    invitationRequestStarted = resolveStarted;
+  });
+  const invitationsResponseFinished = new Promise<void>((resolveFinished) => {
+    invitationResponseFinished = resolveFinished;
+  });
+  await page.route(invitationListUrl, async (route) => {
+    invitationRequestStarted();
+    try {
+      await invitationsGate;
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } finally {
+      invitationResponseFinished();
+    }
+  });
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=invitations`);
+    await invitationsStarted;
+    await expect(
+      page.getByRole('status', { name: 'Loading invitations' }),
+    ).toBeVisible();
+    await captureResponsiveState('invitations-loading');
+  } finally {
+    releaseInvitations();
+    await invitationsResponseFinished;
+    await page.unroute(invitationListUrl);
+  }
+  await expect(page.getByRole('table')).toBeVisible();
+
+  await page.route(invitationListUrl, (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"message":"private test detail"}',
+    }),
+  );
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=invitations`);
+    await expect(page.getByRole('status')).toContainText(
+      'Service temporarily unavailable. Please try again.',
+    );
+    await expect(page.locator('body')).not.toContainText('private test detail');
+    await captureResponsiveState('invitations-error');
+  } finally {
+    await page.unroute(invitationListUrl);
+  }
+
+  await page.route(invitationListUrl, async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as {
+      items: unknown[];
+      [key: string]: unknown;
+    };
+    await route.fulfill({ response, json: { ...data, items: [] } });
+  });
+  try {
+    await page.goto(`${stack.frontendUrl}/workspace?settings=invitations`);
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await expect(
+      page.getByText('No pending invitations', { exact: true }),
+    ).toBeVisible();
+    await captureResponsiveState('invitations-empty');
+  } finally {
+    await page.unroute(invitationListUrl);
+  }
+
+  await page.goto(`${stack.frontendUrl}/workspace?settings=general`);
+  const settingsUpdateUrl = (url: URL) =>
+    url.pathname === `/api/organizations/${team.id}/settings`;
+  await page.route(settingsUpdateUrl, (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"message":"private test detail"}',
+    }),
+  );
+  try {
+    await page
+      .getByRole('switch', { name: 'Require two-factor authentication' })
+      .click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('private test detail');
+    await captureResponsiveState('general-error');
+  } finally {
+    await page.unroute(settingsUpdateUrl);
+  }
+
+  await page.goto(stack.frontendUrl + '/workspace?settings=profile');
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+  await page
+    .getByLabel('Display name', { exact: true })
+    .fill('Maya Chen Updated');
+  const profileSave = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/identity/profile' &&
+      response.request().method() === 'PATCH',
+  );
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  expect((await profileSave).status()).toBe(200);
+  await expect(page.getByText('Changes saved.', { exact: true })).toBeVisible();
+  for (const theme of ['light', 'dark'] as const)
+    await captureCheckpointCView(page, 'settings-saved-toast', theme);
 });

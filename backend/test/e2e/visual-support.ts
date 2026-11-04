@@ -6,6 +6,23 @@ import { resolve } from 'node:path';
 export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
 export type VisualTheme = 'light' | 'dark';
 export type VisualViewport = 'desktop' | 'mobile';
+export type ReviewWidth = 390 | 768 | 1440;
+export type CheckpointCView =
+  | 'sign-in'
+  | 'sign-in-field-errors'
+  | 'sign-in-password-shown-loading'
+  | 'sign-in-form-error'
+  | 'home'
+  | 'sidebar-collapsed'
+  | 'organization-switcher-open'
+  | 'user-menu-open'
+  | 'profile'
+  | 'appearance'
+  | 'security'
+  | 'members'
+  | 'invitations'
+  | 'general'
+  | 'settings-saved-toast';
 export type ShellReviewView =
   | 'home'
   | 'sidebar-expanded'
@@ -17,6 +34,173 @@ const sizes = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
 } as const;
+
+export async function captureTask7BViewportReview(
+  page: Page,
+  view: string,
+  width: ReviewWidth,
+  theme: VisualTheme,
+) {
+  const height = width === 390 ? 844 : width === 768 ? 720 : 900;
+  await page.setViewportSize({ width, height });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate((value) => {
+    localStorage.setItem('theme', value);
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'theme',
+        newValue: value,
+        storageArea: localStorage,
+      }),
+    );
+  }, theme);
+  await expect(page.locator('main')).toHaveCount(1);
+  await expect(page.locator('html')).toHaveClass(
+    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+  );
+  if (view === 'appearance') {
+    await expect(
+      page.getByRole('radio', {
+        name: theme === 'dark' ? 'Dark' : 'Light',
+        exact: true,
+      }),
+    ).toBeChecked();
+  }
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        return Array.from(document.fonts).some(
+          (font) => font.status === 'loaded' && /inter/i.test(font.family),
+        );
+      }),
+    )
+    .toBe(true);
+  await page.evaluate(async () => {
+    await Promise.all(Array.from(document.images, (image) => image.decode()));
+  });
+  const documentWidth = await page
+    .locator('html')
+    .evaluate((node) => node.scrollWidth);
+  const overflowNodes =
+    documentWidth > width
+      ? await page.evaluate(() =>
+          Array.from(document.body.querySelectorAll('*'))
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return {
+                tag: element.tagName.toLowerCase(),
+                slot: element.getAttribute('data-slot'),
+                className:
+                  typeof element.className === 'string'
+                    ? element.className
+                    : '',
+                left: Math.round(rect.left),
+                right: Math.round(rect.right),
+                width: Math.round(rect.width),
+                scrollWidth: element.scrollWidth,
+                clientWidth: element.clientWidth,
+                overflowX: style.overflowX,
+              };
+            })
+            .filter(
+              (element) =>
+                element.right > window.innerWidth + 1 &&
+                element.overflowX === 'visible',
+            )
+            .sort((left, right) => right.right - left.right)
+            .slice(0, 8),
+        )
+      : [];
+  expect(documentWidth, JSON.stringify(overflowNodes)).toBeLessThanOrEqual(
+    width,
+  );
+  const output = resolve('.cache/f21-task7B', `${view}-${width}-${theme}.png`);
+  await mkdir(resolve(output, '..'), { recursive: true });
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: output,
+    fullPage: false,
+    caret: 'hide',
+    animations: 'disabled',
+    scale: 'css',
+  });
+}
+
+export async function captureCheckpointCView(
+  page: Page,
+  view: CheckpointCView,
+  theme: VisualTheme,
+) {
+  await page.setViewportSize(sizes.desktop);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate((value) => {
+    localStorage.setItem('theme', value);
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'theme',
+        newValue: value,
+        storageArea: localStorage,
+      }),
+    );
+  }, theme);
+  await expect(page.locator('main')).toHaveCount(1);
+  await expect(page.locator('html')).toHaveClass(
+    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+  );
+  if (view === 'appearance') {
+    await expect(
+      page.getByRole('radio', {
+        name: theme === 'dark' ? 'Dark' : 'Light',
+        exact: true,
+      }),
+    ).toBeChecked();
+  }
+  expect(
+    await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      deviceScaleFactor: window.devicePixelRatio,
+    })),
+  ).toEqual({ width: 1440, height: 900, deviceScaleFactor: 1 });
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        return Array.from(document.fonts).some(
+          (font) => font.status === 'loaded' && /inter/i.test(font.family),
+        );
+      }),
+    )
+    .toBe(true);
+  await page.evaluate(async () => {
+    await Promise.all(Array.from(document.images, (image) => image.decode()));
+  });
+  await page.mouse.move(0, 0);
+  const overlayText = await page
+    .locator('nextjs-portal')
+    .evaluateAll((elements) =>
+      elements
+        .map((element) => element.shadowRoot?.textContent ?? '')
+        .join('\n'),
+    );
+  expect(overlayText).not.toMatch(
+    /Build Error|Runtime Error|Unhandled Runtime Error/,
+  );
+  const output = resolve(
+    'docs/references/F2.1-visual/checkpoints',
+    `c-${view}-${theme}.png`,
+  );
+  await mkdir(resolve(output, '..'), { recursive: true });
+  await page.screenshot({
+    path: output,
+    fullPage: false,
+    caret: 'hide',
+    animations: 'disabled',
+    scale: 'css',
+  });
+}
 
 export async function waitForVisualAuthFormReady(page: Page) {
   if (process.env.LEXON_VISUAL_DEV !== '1') return;
@@ -91,7 +275,11 @@ export async function captureVisualView(
   ).toBeGreaterThan(0);
   const overlayText = await page
     .locator('nextjs-portal')
-    .evaluate((element) => element.shadowRoot?.textContent ?? '');
+    .evaluateAll((elements) =>
+      elements
+        .map((element) => element.shadowRoot?.textContent ?? '')
+        .join('\n'),
+    );
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );

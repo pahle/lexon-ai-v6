@@ -333,5 +333,48 @@
       "source": "Lexon workspace shell and assistant-ui Thread",
       "applicability": "Collapsed sidebar comparison with reference/sidebar-07-desktop-light and empty thread comparison with reference/thread-desktop-light."
     }
+  },
+  "checkpointC": {
+    "directory": "checkpoints",
+    "format": "png",
+    "deviceScaleFactor": 1,
+    "viewport": { "width": 1440, "height": 900 },
+    "views": [
+      { "id": "sign-in", "prototypes": ["01-sign-in-light.png", "02-sign-in-dark.png"] },
+      { "id": "sign-in-field-errors", "prototypes": ["03-sign-in-field-errors.png"] },
+      { "id": "sign-in-password-shown-loading", "prototypes": ["04-sign-in-password-shown-loading.png"] },
+      { "id": "sign-in-form-error", "prototypes": ["05-sign-in-form-error.png"] },
+      { "id": "home", "prototypes": ["10-home-light.png", "11-home-dark.png"] },
+      { "id": "sidebar-collapsed", "prototypes": ["12-home-sidebar-collapsed.png"] },
+      { "id": "organization-switcher-open", "prototypes": ["13-organization-switcher-open.png"] },
+      { "id": "user-menu-open", "prototypes": ["14-user-menu-open.png"], "fixture": "active-platform-operator-after-totp-with-platform-navigation-visible" },
+      { "id": "profile", "prototypes": ["20-settings-profile.png", "21-settings-profile-dark.png"] },
+      { "id": "appearance", "prototypes": ["22-settings-appearance.png"] },
+      { "id": "security", "prototypes": ["23-settings-security.png"] },
+      { "id": "members", "prototypes": ["24-settings-members.png"] },
+      { "id": "invitations", "prototypes": ["25-settings-invitations.png"] },
+      { "id": "general", "prototypes": ["26-settings-general.png"] },
+      { "id": "settings-saved-toast", "prototypes": ["27-settings-saved-toast.png"] }
+    ],
+    "prototypeSha256": {
+      "01-sign-in-light.png": "2596c03d96af5cb15bf11c27e038345f2d031692110fa5a3e0634493160072dd",
+      "02-sign-in-dark.png": "67e6753963c71de1d603ad13e48f9f0b40c5317995ee80aee22f1c0de8f79e60",
+      "03-sign-in-field-errors.png": "cbcb4c9d50bee03acf8bcb88836129c6ed2e990b43fefec3a535ebf091a72852",
+      "04-sign-in-password-shown-loading.png": "82ebcb5a51431d1b56fed37f101513224a742f1d30d0c046cec5d1b88442d384",
+      "05-sign-in-form-error.png": "c25d7e35a7ce940c3b7a006c40397886534ae1215bc8cc2bbd06762662bb0c5d",
+      "10-home-light.png": "f07dfde369d97a4c82c10ac4f96d080dd1c7fee5d012905b6f311e79fdc68e2a",
+      "11-home-dark.png": "6149c5edaf9a4311f67057730c3ef693abc10038c6946674683bfef069742b0f",
+      "12-home-sidebar-collapsed.png": "e7a1f2376ccd6148cdb549e046cea37adc81428ea5aae2c3fd01f216d30940e0",
+      "13-organization-switcher-open.png": "aaba5c1b82d4a5c3f86890122ccf6c95df8008e4b8d1cda42e7adca5e38be825",
+      "14-user-menu-open.png": "c36041d969df5e723ccafd87fdbbacc385e9857eddd1dd68af27292479a3106a",
+      "20-settings-profile.png": "bb231c5df8063be822219fad3fdaddd613317338341b2555929c7ea4ebeeba0b",
+      "21-settings-profile-dark.png": "b91429fbaedc2a1df264817da5f21fa1052a4f27c0e7f1d471d5b589554b2d98",
+      "22-settings-appearance.png": "11c90f5b17ad11b6450b52d1ea0351c861ec5d91ce197a8e06e0a4b1194211f6",
+      "23-settings-security.png": "f80cb1f10c0a6e2ec13717cedb03a43eaf6002fdf8a2c381c12fe03a3e3a2ffe",
+      "24-settings-members.png": "14b3f924783808a4f803512410b76f431ff45fcf30823a6565c051d211025352",
+      "25-settings-invitations.png": "4604f992228a4653dc4ca324fbec73cb579114166bed09606c6b2f5e54aa24b3",
+      "26-settings-general.png": "7dbac50b1513b71d98c7125479003e232df6bc9cf056b5be253407a32558bba9",
+      "27-settings-saved-toast.png": "81d4a09d93ca9af0ba18c9aeb5ec7af64cbc236b62bcce72c8d9959e32af72dc"
+    }
   }
 }

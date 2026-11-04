@@ -1,5 +1,8 @@
 import { afterEach, test, expect, vi } from 'vitest';
 import { act } from 'react';
+import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { settle } from './render';
 import {
   getSettingsFinalFocusTarget,
   readSettingsSection,
@@ -9,11 +12,44 @@ import { SettingsDialog } from '../src/components/settings/settings-dialog';
 import { SettingsNavigation } from '../src/components/settings/settings-navigation';
 import { render } from './render';
 
+async function renderWithQuery(node: ReactNode, client = new QueryClient()) {
+  return render(
+    <QueryClientProvider client={client}>{node}</QueryClientProvider>,
+  );
+}
+
 const locationState = vi.hoisted(() => ({
   pathname: '/workspace',
   search: '',
 }));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
+const TEAM_A = '00000000-0000-4000-8000-000000000041';
+const TEAM_B = '00000000-0000-4000-8000-000000000042';
+const workspaceState = vi.hoisted(() => ({
+  identity: {
+    version: 1,
+    user: {
+      id: 'user-1',
+      name: 'Taylor',
+      email: 'taylor@example.test',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: {
+      version: 1,
+      id: 'personal-1',
+      kind: 'personal',
+      name: 'Personal',
+      slug: 'personal',
+      state: 'active',
+      require2fa: false,
+      role: 'owner',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+    platformAdmin: false,
+  } as unknown,
+}));
 vi.mock('next/navigation', () => ({
   usePathname: () => locationState.pathname,
   useSearchParams: () => new URLSearchParams(locationState.search),
@@ -22,22 +58,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({
     status: 'ready',
-    identity: {
-      version: 1,
-      user: {
-        id: 'user-1',
-        name: 'Taylor',
-        email: 'taylor@example.test',
-        onboardingCompleted: true,
-      },
-      organization: {
-        id: 'personal-1',
-        kind: 'personal',
-        name: 'Personal',
-        role: 'owner',
-      },
-      platformAdmin: false,
-    },
+    identity: workspaceState.identity,
   }),
 }));
 vi.mock('../src/components/settings/profile-settings', async () => {
@@ -68,6 +89,29 @@ vi.mock('../src/components/settings/profile-settings', async () => {
 afterEach(() => {
   locationState.pathname = '/workspace';
   locationState.search = '';
+  workspaceState.identity = {
+    version: 1,
+    user: {
+      id: 'user-1',
+      name: 'Taylor',
+      email: 'taylor@example.test',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: {
+      version: 1,
+      id: 'personal-1',
+      kind: 'personal',
+      name: 'Personal',
+      slug: 'personal',
+      state: 'active',
+      require2fa: false,
+      role: 'owner',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+    platformAdmin: false,
+  };
 });
 
 test.each([
@@ -157,7 +201,7 @@ test('renders the URL-selected account section in one settings dialog', async ()
     removeEventListener: () => undefined,
   }));
   locationState.search = '?filter=recent&settings=profile';
-  const view = await render(
+  const view = await renderWithQuery(
     <>
       <main aria-label="Workspace">Workspace page</main>
       <SettingsDialog />
@@ -178,7 +222,7 @@ test('invalid settings URLs open a no-access state without account sections', as
     removeEventListener: () => undefined,
   }));
   locationState.search = '?settings=unknown';
-  const view = await render(<SettingsDialog />);
+  const view = await renderWithQuery(<SettingsDialog />);
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.textContent).toContain(
     'You do not have access to this section.',
@@ -195,7 +239,7 @@ test('an inner Base UI dropdown Escape closes only that layer and restores its t
     removeEventListener: () => undefined,
   }));
   locationState.search = '?settings=profile';
-  const view = await render(<SettingsDialog />);
+  const view = await renderWithQuery(<SettingsDialog />);
   const trigger = [...document.body.querySelectorAll('button')].find(
     (button) => button.textContent === 'Profile actions',
   )!;
@@ -209,6 +253,383 @@ test('an inner Base UI dropdown Escape closes only that layer and restores its t
   expect(document.body.querySelector('[role="menu"]')).toBeNull();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.activeElement).toBe(trigger);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test.each(['invitations', 'general'] as const)(
+  'a member deep-linking to %s gets no access and makes no organization request',
+  async (section) => {
+    const teamId = '00000000-0000-4000-8000-000000000022';
+    workspaceState.identity = {
+      version: 1,
+      user: {
+        id: 'user-1',
+        name: 'Taylor',
+        email: 'taylor@example.test',
+        emailVerified: true,
+        twoFactorEnabled: false,
+        onboardingCompleted: true,
+      },
+      organization: {
+        version: 1,
+        id: teamId,
+        kind: 'team',
+        name: 'Hukum Nusantara',
+        slug: 'hukum-nusantara',
+        state: 'active',
+        require2fa: false,
+        role: 'member',
+        createdAt: '2026-11-01T00:00:00.000Z',
+      },
+      platformAdmin: false,
+    };
+    locationState.search = '?settings=' + section;
+    const fetcher = vi.fn(async () =>
+      Response.json({ items: [], pageInfo: { nextCursor: null } }),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const view = await renderWithQuery(<SettingsDialog />);
+    expect(document.body.textContent).toContain(
+      'You do not have access to this section.',
+    );
+    expect(document.body.textContent).not.toContain('Invitation email');
+    expect(fetcher).not.toHaveBeenCalled();
+    await view.unmount();
+    vi.unstubAllGlobals();
+  },
+);
+
+test.each([
+  ['admin', 'general'],
+  ['member', 'invitations'],
+  ['member', 'general'],
+] as const)(
+  '%s deep-linking to %s gets no access and makes no organization request',
+  async (role, section) => {
+    workspaceState.identity = organizationIdentity('team-a', 'Team A', role);
+    locationState.search = '?settings=' + section;
+    const fetcher = vi.fn(async () =>
+      Response.json({ items: [], pageInfo: { nextCursor: null } }),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const view = await renderWithQuery(<SettingsDialog />);
+    expect(document.body.textContent).toContain(
+      'You do not have access to this section.',
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+    await view.unmount();
+    vi.unstubAllGlobals();
+  },
+);
+
+test('organization navigation updates owner, admin, and member links and content gates', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  locationState.search = '?settings=general';
+  workspaceState.identity = organizationIdentity(TEAM_A, 'Team A', 'owner');
+  const queryClient = new QueryClient();
+  const view = await renderWithQuery(<SettingsDialog />, queryClient);
+  expect(document.body.textContent).toContain('Organization name');
+  expect(
+    [
+      ...document.body.querySelectorAll(
+        'nav[aria-label="Settings sections"] a',
+      ),
+    ].map((link) => link.textContent),
+  ).toEqual(expect.arrayContaining(['Members', 'Invitations', 'General']));
+
+  workspaceState.identity = organizationIdentity(TEAM_A, 'Team A', 'admin');
+  locationState.search = '?settings=invitations';
+  await view.rerender(
+    <QueryClientProvider client={queryClient}>
+      <SettingsDialog />
+    </QueryClientProvider>,
+  );
+  expect(document.body.textContent).toContain('Invitation email');
+  const adminLinks = [
+    ...document.body.querySelectorAll('nav[aria-label="Settings sections"] a'),
+  ].map((link) => link.textContent);
+  expect(adminLinks).toContain('Invitations');
+  expect(adminLinks).not.toContain('General');
+
+  workspaceState.identity = organizationIdentity(TEAM_A, 'Team A', 'member');
+  await view.rerender(
+    <QueryClientProvider client={queryClient}>
+      <SettingsDialog />
+    </QueryClientProvider>,
+  );
+  expect(document.body.textContent).toContain(
+    'You do not have access to this section.',
+  );
+  const memberLinks = [
+    ...document.body.querySelectorAll('nav[aria-label="Settings sections"] a'),
+  ].map((link) => link.textContent);
+  expect(memberLinks).toContain('Members');
+  expect(memberLinks).not.toContain('Invitations');
+  expect(memberLinks).not.toContain('General');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('switching active organizations while Members is open drops the old query and ignores its late result', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  workspaceState.identity = organizationIdentity(TEAM_A, 'Team A', 'owner');
+  locationState.search = '?settings=members';
+  let releaseA!: (response: Response) => void;
+  const delayedA = new Promise<Response>((resolve) => {
+    releaseA = resolve;
+  });
+  const bResponse = Response.json({
+    items: [
+      {
+        version: 1,
+        id: '00000000-0000-4000-8000-000000000052',
+        organizationId: TEAM_B,
+        userId: '00000000-0000-4000-8000-000000000053',
+        name: 'Bea B',
+        email: 'bea@example.test',
+        role: 'member',
+        createdAt: '2026-11-01T00:00:00.000Z',
+      },
+    ],
+    pageInfo: { nextCursor: null },
+  });
+  const fetcher = vi.fn((input: RequestInfo | URL) =>
+    String(input).includes(TEAM_A)
+      ? delayedA
+      : Promise.resolve(bResponse.clone()),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const queryClient = new QueryClient();
+  const view = await renderWithQuery(<SettingsDialog />, queryClient);
+  expect(document.body.textContent).toContain('Members');
+  await settle();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(
+    queryClient
+      .getQueryCache()
+      .getAll()
+      .some((query) => query.queryKey.includes(TEAM_A)),
+  ).toBe(true);
+
+  workspaceState.identity = organizationIdentity(TEAM_B, 'Team B', 'owner');
+  await view.rerender(
+    <QueryClientProvider client={queryClient}>
+      <SettingsDialog />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(document.body.textContent).toContain('Bea B');
+  expect(
+    queryClient
+      .getQueryCache()
+      .getAll()
+      .some((query) => query.queryKey.includes(TEAM_A)),
+  ).toBe(false);
+  await act(async () =>
+    releaseA(
+      Response.json({
+        items: [
+          {
+            version: 1,
+            id: '00000000-0000-4000-8000-000000000051',
+            organizationId: TEAM_A,
+            userId: '00000000-0000-4000-8000-000000000054',
+            name: 'Stale A',
+            email: 'stale@example.test',
+            role: 'member',
+            createdAt: '2026-11-01T00:00:00.000Z',
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      }),
+    ),
+  );
+  await settle();
+  expect(document.body.textContent).not.toContain('Stale A');
+  expect(
+    queryClient
+      .getQueryCache()
+      .getAll()
+      .some((query) => query.queryKey.includes(TEAM_A)),
+  ).toBe(false);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('switching active organizations resets the General form draft', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  locationState.search = '?settings=general';
+  workspaceState.identity = organizationIdentity(TEAM_A, 'Team A', 'owner');
+  const queryClient = new QueryClient();
+  const view = await renderWithQuery(<SettingsDialog />, queryClient);
+  const input = document.querySelector<HTMLInputElement>('#organization-name')!;
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!;
+    setter.call(input, 'Unsaved Team A draft');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect(input.value).toBe('Unsaved Team A draft');
+  workspaceState.identity = organizationIdentity(TEAM_B, 'Team B', 'owner');
+  await view.rerender(
+    <QueryClientProvider client={queryClient}>
+      <SettingsDialog />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(
+    document.querySelector<HTMLInputElement>('#organization-name')?.value,
+  ).toBe('Team B');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+function organizationIdentity(
+  id: string,
+  name: string,
+  role: 'owner' | 'admin' | 'member',
+) {
+  return {
+    version: 1,
+    user: {
+      id: 'user-1',
+      name: 'Taylor',
+      email: 'taylor@example.test',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: {
+      version: 1,
+      id,
+      kind: 'team',
+      name,
+      slug: name.toLowerCase().replaceAll(' ', '-'),
+      state: 'active',
+      require2fa: false,
+      role,
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+    platformAdmin: false,
+  } as const;
+}
+
+test('demotion cancels and removes a delayed invitation response while Settings stays open', async () => {
+  const teamId = '00000000-0000-4000-8000-000000000022';
+  const identity = (role: 'owner' | 'member') => ({
+    version: 1,
+    user: {
+      id: 'user-1',
+      name: 'Taylor',
+      email: 'taylor@example.test',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      onboardingCompleted: true,
+    },
+    organization: {
+      version: 1,
+      id: teamId,
+      kind: 'team',
+      name: 'Hukum Nusantara',
+      slug: 'hukum-nusantara',
+      state: 'active',
+      require2fa: false,
+      role,
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+    platformAdmin: false,
+  });
+  workspaceState.identity = identity('owner');
+  locationState.search = '?settings=invitations';
+  let release!: (response: Response) => void;
+  const delayed = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const fetcher = vi.fn(() => delayed);
+  vi.stubGlobal('fetch', fetcher);
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const queryClient = new QueryClient();
+  const view = await renderWithQuery(<SettingsDialog />, queryClient);
+  await settle();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(
+    queryClient
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.queryKey),
+  ).toContainEqual(['tenant', teamId, 'invitations', 'start']);
+
+  workspaceState.identity = identity('member');
+  await view.rerender(
+    <QueryClientProvider client={queryClient}>
+      <SettingsDialog />
+    </QueryClientProvider>,
+  );
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain(
+    'You do not have access to this section.',
+  );
+  expect(document.body.textContent).not.toContain('stale@example.test');
+  expect(
+    queryClient.getQueryCache().find({ queryKey: ['tenant', teamId] }),
+  ).toBeUndefined();
+
+  await act(async () =>
+    release(
+      Response.json({
+        items: [
+          {
+            version: 1,
+            id: '00000000-0000-4000-8000-000000000032',
+            organizationId: teamId,
+            organizationName: 'Hukum Nusantara',
+            email: 'stale@example.test',
+            role: 'member',
+            purpose: 'team',
+            status: 'pending',
+            createdAt: '2026-11-01T00:00:00.000Z',
+            expiresAt: '2026-11-08T00:00:00.000Z',
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      }),
+    ),
+  );
+  await settle();
+  expect(document.body.textContent).not.toContain('stale@example.test');
+  expect(
+    queryClient.getQueryCache().find({ queryKey: ['tenant', teamId] }),
+  ).toBeUndefined();
   await view.unmount();
   vi.unstubAllGlobals();
 });
