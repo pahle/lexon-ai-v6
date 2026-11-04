@@ -93,6 +93,22 @@ function Harness({
   );
 }
 
+function FallbackNoticeProbe() {
+  const { fallbackNotice, refreshIdentity, beginExplicitTransition } =
+    useWorkspace();
+  return (
+    <>
+      <p data-testid="fallback-notice">{fallbackNotice}</p>
+      <button onClick={() => void refreshIdentity().catch(() => undefined)}>
+        Refresh identity
+      </button>
+      <button onClick={() => beginExplicitTransition()}>
+        Begin tenant transition
+      </button>
+    </>
+  );
+}
+
 test('workspace shell composes one sidebar inset, one main, and a route breadcrumb', async () => {
   window.innerWidth = 1280;
   vi.stubGlobal('matchMedia', () => ({
@@ -1247,6 +1263,377 @@ test('the same fallback event stays dismissed while a fallback from another sour
     view.container.textContent?.match(/no longer have access/gi),
   ).toHaveLength(1);
   await view.unmount();
+});
+
+test('a known fallback header refreshes identity and announces only a verified same-user Personal transition', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValueOnce(personal)
+    .mockRejectedValueOnce(new Error('temporary verification failure'))
+    .mockResolvedValue(personal);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(personal);
+  expect(client.getQueryData<IdentitySummary>(['identity'])).not.toHaveProperty(
+    'fallbackReason',
+  );
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain(
+    'You no longer have access to the previous organization. Personal is selected.',
+  );
+
+  await act(async () => {
+    view.container.querySelectorAll('button')[0]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toContain(
+    'You no longer have access to the previous organization. Personal is selected.',
+  );
+
+  await act(async () => {
+    view.container.querySelectorAll('button')[0]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toBe('');
+  expect(identityCall).toHaveBeenCalledTimes(3);
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('stale fallback hints do not announce same-organization, other-team, or other-account identity', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherTeam: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      name: 'Other team',
+      slug: 'other-team',
+    },
+  };
+  const otherAccount: IdentitySummary = {
+    ...personal,
+    user: {
+      ...personal.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  for (const verified of [identity, otherTeam, otherAccount]) {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const identityCall = vi
+      .spyOn(identityApi, 'identity')
+      .mockResolvedValue(verified);
+    const view = await render(
+      <QueryClientProvider client={client}>
+        <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+          <FallbackNoticeProbe />
+        </WorkspaceProvider>
+      </QueryClientProvider>,
+    );
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('lexon:identity-fallback-hint', {
+          detail: { reason: 'membership_removed' },
+        }),
+      );
+      await settle();
+    });
+    expect(identityCall).toHaveBeenCalledOnce();
+    expect(
+      view.container.querySelector('[data-testid="fallback-notice"]')
+        ?.textContent,
+    ).toBe('');
+    await view.unmount();
+    identityCall.mockRestore();
+  }
+});
+
+test('header fallback notice is cleared when an explicit tenant transition starts', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(personal);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain('You no longer have access');
+  await act(async () => {
+    view.container.querySelectorAll('button')[1]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('header fallback notice does not survive a verified bootstrap account change', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherAccount = {
+    ...personal,
+    user: {
+      ...personal.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(personal);
+  const makeTree = (bootstrapIdentity: IdentitySummary) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        bootstrap={{ status: 'ready', identity: bootstrapIdentity }}
+      >
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(makeTree(identity));
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain('You no longer have access');
+  await view.rerender(makeTree(otherAccount));
+  await settle();
+  expect(notice.textContent).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('unmount discards a pending header-triggered identity verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  let resolveIdentity: (verified: IdentitySummary) => void = () => {};
+  const identityCall = vi.spyOn(identityApi, 'identity').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveIdentity = resolve;
+      }),
+  );
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledOnce();
+  await view.unmount();
+  resolveIdentity(personal);
+  await settle();
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(identity);
+  identityCall.mockRestore();
+});
+
+test('a bootstrap account change invalidates a pending header verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherAccount: IdentitySummary = {
+    ...identity,
+    user: {
+      ...identity.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  let resolveIdentity: (verified: IdentitySummary) => void = () => {};
+  const identityCall = vi.spyOn(identityApi, 'identity').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveIdentity = resolve;
+      }),
+  );
+  const makeTree = (bootstrapIdentity: IdentitySummary) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        bootstrap={{ status: 'ready', identity: bootstrapIdentity }}
+      >
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(makeTree(identity));
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledOnce();
+
+  await view.rerender(makeTree(otherAccount));
+  await settle();
+  resolveIdentity(personal);
+  await settle();
+
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(identity);
+  expect(
+    view.container.querySelector('[data-testid="fallback-notice"]')
+      ?.textContent,
+  ).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('fallback hints are ignored during an explicit tenant transition and when identity does not verify fallback to Personal', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(identity);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    view.container.querySelectorAll('button')[1]!.click();
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).not.toHaveBeenCalled();
+  expect(
+    view.container.querySelector('[data-testid="fallback-notice"]')
+      ?.textContent,
+  ).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
 });
 
 test('same-organization role demotion hides and clears private tenant data before revealing the new role', async () => {

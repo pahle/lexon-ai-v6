@@ -496,51 +496,138 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     page.getByText('You do not have access to this section.', { exact: true }),
   ).toBeVisible();
   expect(protectedRoleRequests).toEqual([]);
-  await page.goto(stack.frontendUrl + '/workspace');
-  await expect(
-    page.getByRole('button', { name: 'Organization: Ordinary team' }),
-  ).toBeVisible();
-  let identityRefreshes = 0;
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/api/identity')
-      identityRefreshes += 1;
+  let releaseOrganizations!: () => void;
+  let releaseIdentity!: () => void;
+  let organizationsStarted!: () => void;
+  let identityStarted!: () => void;
+  let organizationsFinished!: () => void;
+  let identityFinished!: () => void;
+  const organizationsGate = new Promise<void>((resolve) => {
+    releaseOrganizations = resolve;
   });
-  expect(
-    (
-      await owner.delete(
-        stack.apiUrl +
-          '/api/organizations/' +
-          teams[1]!.id +
-          '/members/' +
-          member.id,
-        { headers },
+  const identityGate = new Promise<void>((resolve) => {
+    releaseIdentity = resolve;
+  });
+  const organizationsRequestStarted = new Promise<void>((resolve) => {
+    organizationsStarted = resolve;
+  });
+  const identityRequestStarted = new Promise<void>((resolve) => {
+    identityStarted = resolve;
+  });
+  const organizationsResponseFinished = new Promise<void>((resolve) => {
+    organizationsFinished = resolve;
+  });
+  const identityResponseFinished = new Promise<void>((resolve) => {
+    identityFinished = resolve;
+  });
+  const organizationsFallbackHeaders: Array<string | undefined> = [];
+  const identityFallbackBodies: Array<string | undefined> = [];
+  await page.route(
+    (url) => url.pathname === '/api/organizations',
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      organizationsStarted();
+      await organizationsGate;
+      try {
+        const response = await route.fetch();
+        organizationsFallbackHeaders.push(
+          response.headers()['x-lexon-fallback-reason'],
+        );
+        await route.fulfill({ response });
+      } finally {
+        organizationsFinished();
+      }
+    },
+  );
+  let holdNextIdentity = true;
+  await page.route(
+    (url) => url.pathname === '/api/identity',
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      if (holdNextIdentity) {
+        holdNextIdentity = false;
+        identityStarted();
+        await identityGate;
+      }
+      try {
+        const response = await route.fetch();
+        if (response.ok()) {
+          const body = (await response.json()) as {
+            fallbackReason?: string;
+          };
+          identityFallbackBodies.push(body.fallbackReason);
+          await route.fulfill({ response, json: body });
+        } else {
+          await route.fulfill({ response });
+        }
+      } finally {
+        identityFinished();
+      }
+    },
+  );
+  try {
+    await page.goto(stack.frontendUrl + '/workspace');
+    await organizationsRequestStarted;
+    await expect(
+      page.getByRole('button', { name: 'Organization: Ordinary team' }),
+    ).toBeVisible();
+    let identityRefreshes = 0;
+    page.on('response', (response) => {
+      if (
+        new URL(response.url()).pathname === '/api/identity' &&
+        response.request().method() === 'GET' &&
+        response.status() === 200
       )
-    ).status(),
-  ).toBe(204);
-  await expect(
-    page.getByRole('button', { name: 'Organization: Personal' }),
-  ).toBeVisible();
-  const fallback = page
-    .getByRole('status')
-    .filter({ hasText: 'You no longer have access' });
-  await expect(fallback).toContainText('You no longer have access');
-  await expect(fallback).toHaveCount(1);
-  const refreshesAfterFallback = identityRefreshes;
-  await expect
-    .poll(() => identityRefreshes, { timeout: 15000 })
-    .toBeGreaterThan(refreshesAfterFallback);
-  await expect(fallback).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Organization: Personal' }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(fallback).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Organization: Personal' }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Organization: Personal' }).click();
-  await expect(
-    page.getByRole('menuitem', { name: 'Ordinary team', exact: true }),
-  ).toHaveCount(0);
-  await owner.dispose();
+        identityRefreshes += 1;
+    });
+    expect(
+      (
+        await owner.delete(
+          stack.apiUrl +
+            '/api/organizations/' +
+            teams[1]!.id +
+            '/members/' +
+            member.id,
+          { headers },
+        )
+      ).status(),
+    ).toBe(204);
+    releaseOrganizations();
+    await organizationsResponseFinished;
+    await identityRequestStarted;
+    releaseIdentity();
+    await identityResponseFinished;
+    expect(organizationsFallbackHeaders).toContain('membership_removed');
+    expect(identityFallbackBodies).toContain(undefined);
+    await expect(
+      page.getByRole('button', { name: 'Organization: Personal' }),
+    ).toBeVisible();
+    const fallback = page
+      .getByRole('status')
+      .filter({ hasText: 'You no longer have access' });
+    await expect(fallback).toContainText('You no longer have access');
+    await expect(fallback).toHaveCount(1);
+    const refreshesAfterFallback = identityRefreshes;
+    await expect
+      .poll(() => identityRefreshes, { timeout: 15000 })
+      .toBeGreaterThan(refreshesAfterFallback);
+    await expect(fallback).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Organization: Personal' }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(fallback).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Organization: Personal' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Organization: Personal' }).click();
+    await expect(
+      page.getByRole('menuitem', { name: 'Ordinary team', exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    releaseOrganizations();
+    releaseIdentity();
+    await page.unrouteAll({ behavior: 'wait' });
+    await owner.dispose();
+  }
 });
