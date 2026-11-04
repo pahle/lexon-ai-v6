@@ -26,7 +26,7 @@ Checkpoint A corrections were accepted by the owner before Task 4. The build
 limitation above records the historical Task 3 state; Task 5 restored the
 production build. Formal screenshot approval remains Task 9.
 
-## Checkpoint B — Home and workspace shell
+## Checkpoint B — Home and workspace shell (not approved)
 
 Informal owner preview after Task 5. These real API-authenticated production
 Compose captures use the fixed synthetic identity `Checkpoint Preview`
@@ -36,13 +36,13 @@ navigation sheet closed; the other mobile views show it open. Desktop
 collapsed-sidebar views are included separately. Stable paths are overwritten
 in place. All entries are also listed in `../index.json`.
 
-| View | Desktop light | Desktop dark | Mobile light | Mobile dark |
-| --- | --- | --- | --- | --- |
-| Home | [PNG](./b-home-desktop-light.png) | [PNG](./b-home-desktop-dark.png) | [PNG](./b-home-mobile-light.png) | [PNG](./b-home-mobile-dark.png) |
-| Sidebar expanded | [PNG](./b-sidebar-expanded-desktop-light.png) | [PNG](./b-sidebar-expanded-desktop-dark.png) | [PNG](./b-sidebar-expanded-mobile-light.png) | [PNG](./b-sidebar-expanded-mobile-dark.png) |
+| View                       | Desktop light                                           | Desktop dark                                           | Mobile light                                           | Mobile dark                                           |
+| -------------------------- | ------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------- |
+| Home                       | [PNG](./b-home-desktop-light.png)                       | [PNG](./b-home-desktop-dark.png)                       | [PNG](./b-home-mobile-light.png)                       | [PNG](./b-home-mobile-dark.png)                       |
+| Sidebar expanded           | [PNG](./b-sidebar-expanded-desktop-light.png)           | [PNG](./b-sidebar-expanded-desktop-dark.png)           | [PNG](./b-sidebar-expanded-mobile-light.png)           | [PNG](./b-sidebar-expanded-mobile-dark.png)           |
 | Organization switcher open | [PNG](./b-organization-switcher-open-desktop-light.png) | [PNG](./b-organization-switcher-open-desktop-dark.png) | [PNG](./b-organization-switcher-open-mobile-light.png) | [PNG](./b-organization-switcher-open-mobile-dark.png) |
-| User menu open | [PNG](./b-user-menu-open-desktop-light.png) | [PNG](./b-user-menu-open-desktop-dark.png) | [PNG](./b-user-menu-open-mobile-light.png) | [PNG](./b-user-menu-open-mobile-dark.png) |
-| Sidebar collapsed | [PNG](./b-sidebar-collapsed-desktop-light.png) | [PNG](./b-sidebar-collapsed-desktop-dark.png) | — | — |
+| User menu open             | [PNG](./b-user-menu-open-desktop-light.png)             | [PNG](./b-user-menu-open-desktop-dark.png)             | [PNG](./b-user-menu-open-mobile-light.png)             | [PNG](./b-user-menu-open-mobile-dark.png)             |
+| Sidebar collapsed          | [PNG](./b-sidebar-collapsed-desktop-light.png)          | [PNG](./b-sidebar-collapsed-desktop-dark.png)          | —                                                      | —                                                     |
 
 Main independently rendered and inspected all 18 PNGs and compared the Home,
 shell, and conversation group side by side with the matching pristine references.
@@ -50,6 +50,8 @@ Task 5 spec and code quality reviews passed; focused tests, production build,
 typecheck, lint, and the production capture passed. See the acceptance notes
 for comparison evidence and deviations.
 
-**Waiting for owner feedback before Task 6**, per the approved early checkpoint.
-This informal preview does not record formal screenshot approval; that remains
-Task 9.
+The owner did **not approve Checkpoint B**. Its captures remain historical
+evidence. Brief Amendment 1 and the approved prototype replace this visual
+target. The amended plan is approved and execution resumes at 6A; the next
+mandatory feedback stop is Checkpoint C after 7B, before Task 8. Formal
+screenshot approval remains Task 9.
