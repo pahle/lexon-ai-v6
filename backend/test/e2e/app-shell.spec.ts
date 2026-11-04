@@ -245,6 +245,8 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
