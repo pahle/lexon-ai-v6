@@ -615,6 +615,12 @@ export async function captureTask9ReviewView(
       deviceScaleFactor: devicePixelRatio,
     })),
   ).toEqual({ ...size, deviceScaleFactor: 1 });
+  expect(
+    await page.evaluate(() => ({
+      locale: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })),
+  ).toEqual({ locale: 'en-US', timezone: 'Asia/Jakarta' });
   await expect
     .poll(() =>
       page.evaluate(async () => {

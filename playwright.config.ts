@@ -16,7 +16,14 @@ export default defineConfig({
     },
     {
       name: 'identity-browser',
-      use: { trace: 'off', video: 'off', screenshot: 'off' },
+      use: {
+        trace: 'off',
+        video: 'off',
+        screenshot: 'off',
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+      },
       testMatch: [
         'backend/test/e2e/*entry.spec.ts',
         'backend/test/e2e/account-security.spec.ts',
