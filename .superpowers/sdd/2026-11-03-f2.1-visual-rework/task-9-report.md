@@ -50,4 +50,10 @@ After the final fixture/index changes, these checks passed:
 - Focused Compose E2E: `LEXON_VISUAL_MODE=capture pnpm test:e2e --project visual-review -g 'Task 7B Checkpoint C captures'` — 1/1 passed.
 - Focused operator Compose E2E: `LEXON_VISUAL_MODE=capture pnpm test:e2e --project identity-browser -g 'F2 platform page passes both-theme axe checks in the real operator flow'` — 1/1 passed after the loaded-empty-state guard and locale pin.
 
-The worktree had exactly 82 files under `docs/references/F2.1-visual/review/` before the final full local capture pass. Local macOS PNGs are bootstrap review artifacts, not a claim of Linux capture or final same-environment stability. The final implementation source commit and local capture manifest/hash counts will be recorded after the capture pass; Ubuntu CI evidence remains pending.
+The exact-source final local capture pass was:
+
+- `LEXON_VISUAL_MODE=capture pnpm test:e2e --project visual-review` — 12/12 passed.
+- `LEXON_VISUAL_MODE=capture pnpm test:e2e --project identity-browser -g 'F2 platform page passes both-theme axe checks in the real operator flow'` — 1/1 passed.
+- `node scripts/test/visual-capture-manifest.mjs` — recorded 82/82 PNG hashes, PNG dimensions, and source/environment in `docs/references/F2.1-visual/capture-manifest.json`.
+
+The manifest's producer source SHA is `bd3f16f54aa15fc941bef2381d11f6c1b6c11a6b`. Its actual environment is `Darwin 27.0.0 (darwin/arm64)`, Chromium 156.0.8078.4, Playwright 1.64.1, Node v24.22.1, `en-US`, `Asia/Jakarta`; approval remains `awaiting-owner`. Local macOS PNGs are bootstrap review artifacts, not Linux captures or final same-environment stability evidence. Ubuntu CI capture and two-iteration comparison remain pending.
