@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { EmptyState } from '../states/page-states';
+import { PendingButton } from '../forms/pending-button';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import {
   AlertDialog,
@@ -163,6 +164,14 @@ export function SessionList({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              render={
+                <PendingButton
+                  pending={busy !== null}
+                  pendingLabel="Revoking session…"
+                >
+                  Revoke session
+                </PendingButton>
+              }
               disabled={busy !== null}
               onClick={async (event) => {
                 event.preventDefault();

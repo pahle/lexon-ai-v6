@@ -229,6 +229,14 @@ export function AccountSecurity() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              render={
+                <PendingButton
+                  pending={signOutOthersBusy}
+                  pendingLabel="Signing out other sessions…"
+                >
+                  Sign out other sessions
+                </PendingButton>
+              }
               disabled={signOutOthersBusy}
               onClick={async (event) => {
                 event.preventDefault();
@@ -237,9 +245,9 @@ export function AccountSecurity() {
                 try {
                   const result = await authClient.revokeOtherSessions();
                   if (result.error) throw new Error();
+                  await refresh();
                   setConfirmSignOutOthers(false);
                   toast.success('Other sessions signed out.');
-                  await refresh();
                 } catch {
                   setSignOutOthersFailure(true);
                 } finally {
@@ -487,6 +495,14 @@ function FactorActions({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              render={
+                <PendingButton
+                  pending={operation === 'disable' && submission.pending}
+                  pendingLabel="Disabling two-factor authentication…"
+                >
+                  Disable two-factor authentication
+                </PendingButton>
+              }
               disabled={submission.pending}
               onClick={(event) => {
                 event.preventDefault();
@@ -498,13 +514,15 @@ function FactorActions({
                         password: input.password,
                       });
                       if (result.error) throw new Error();
+                      await onComplete();
                       form.reset();
                       setConfirmDisable(false);
-                      await onComplete();
+                      toast.success('Two-factor authentication disabled.');
                     } catch {
                       setFailure(
                         'Unable to disable authentication. Confirm your identity and try again.',
                       );
+                      setConfirmDisable(true);
                     } finally {
                       setOperation(null);
                     }

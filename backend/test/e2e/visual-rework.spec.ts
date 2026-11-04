@@ -329,6 +329,9 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
         page.getByRole('dialog', { name: 'Settings' }),
       ).toBeVisible();
       await expectAccountSectionReady(page, section);
+      if (section === 'appearance') {
+        await expectAppearanceGeometry(page, 1440);
+      }
       await expect(page.locator('main')).toHaveCount(1);
       const navBox = await page
         .getByRole('navigation', { name: 'Settings sections' })
@@ -369,6 +372,9 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     await page.goto(stack.frontendUrl + '/workspace?settings=' + section);
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
     await expectAccountSectionReady(page, section);
+    if (section === 'appearance') {
+      await expectAppearanceGeometry(page, 390);
+    }
     await expect(
       page
         .getByRole('navigation', { name: 'Settings sections' })
@@ -387,6 +393,9 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     await page.goto(stack.frontendUrl + '/workspace?settings=' + section);
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
     await expectAccountSectionReady(page, section);
+    if (section === 'appearance') {
+      await expectAppearanceGeometry(page, 768);
+    }
     const navBox = await page
       .getByRole('navigation', { name: 'Settings sections' })
       .boundingBox();
@@ -485,6 +494,49 @@ async function expectAccountSectionReady(
     await expect(
       page.getByRole('status', { name: 'Loading sessions' }),
     ).toHaveCount(0);
+  }
+}
+
+async function expectAppearanceGeometry(
+  page: import('@playwright/test').Page,
+  viewportWidth: number,
+) {
+  const metrics = await page.getByRole('radiogroup').evaluate((group) => {
+    const rects = Array.from(
+      group.querySelectorAll<HTMLElement>('[data-slot="appearance-option"]'),
+    ).map((option) => option.getBoundingClientRect());
+    const bounds = group.getBoundingClientRect();
+    const styles = getComputedStyle(group);
+    return {
+      count: rects.length,
+      widths: rects.map((rect) => rect.width),
+      tops: rects.map((rect) => rect.top),
+      gaps: rects
+        .slice(1)
+        .map((rect, index) => rect.left - rects[index]!.right),
+      width: bounds.width,
+      scrollWidth: group.scrollWidth,
+      clientWidth: group.clientWidth,
+      columnGap: Number.parseFloat(styles.columnGap),
+    };
+  });
+
+  expect(metrics.count).toBe(3);
+  expect(metrics.width).toBeLessThanOrEqual(572);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+  if (viewportWidth >= 768) {
+    expect(metrics.columnGap).toBe(16);
+    expect(metrics.tops[0]).toBeCloseTo(metrics.tops[1]!, 0);
+    expect(metrics.tops[1]).toBeCloseTo(metrics.tops[2]!, 0);
+    expect(metrics.gaps[0]).toBeCloseTo(16, 0);
+    expect(metrics.gaps[1]).toBeCloseTo(16, 0);
+    expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(181);
+    expect(Math.min(...metrics.widths)).toBeGreaterThanOrEqual(
+      viewportWidth === 1440 ? 170 : 100,
+    );
+  } else {
+    expect(metrics.tops[0]).toBeLessThan(metrics.tops[1]!);
+    expect(metrics.tops[1]).toBeLessThan(metrics.tops[2]!);
   }
 }
 

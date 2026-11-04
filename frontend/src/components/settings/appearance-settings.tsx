@@ -32,7 +32,7 @@ export function AppearanceSettings(): React.ReactElement {
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="mt-3 grid grid-cols-1 gap-4 min-[768px]:grid-cols-3"
+        className="mt-3 w-full max-w-[35.75rem] grid-cols-1 gap-4 min-[768px]:grid-cols-3"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -40,24 +40,34 @@ export function AppearanceSettings(): React.ReactElement {
             <Label
               key={value}
               htmlFor={id}
-              className="flex w-full max-w-[11.25rem] cursor-pointer flex-col gap-2 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)] p-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+              data-slot="appearance-option"
+              className="flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-[var(--radius)] outline-none focus-within:ring-2 focus-within:ring-ring"
             >
               <div
                 aria-hidden="true"
                 data-slot="appearance-preview"
                 data-theme-preview={value}
-                className="flex h-24 w-full gap-1 rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1"
+                data-selected={theme === value}
+                className="flex h-24 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1 data-[selected=true]:border-primary"
               >
                 <span
+                  aria-hidden="true"
                   data-preview-theme={value === 'system' ? 'light' : value}
-                  className="w-1/4 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)]"
-                />
+                  className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)] p-1"
+                >
+                  <span className="h-1.5 w-full rounded bg-muted" />
+                  <span className="h-1.5 w-2/3 rounded bg-muted" />
+                </span>
                 <span
                   data-preview-theme={value === 'system' ? 'dark' : value}
-                  className="flex-1 rounded-[var(--radius)] bg-[var(--background)]"
-                />
+                  className="flex min-w-0 flex-1 flex-col gap-2 rounded-[var(--radius)] bg-[var(--background)] p-2"
+                >
+                  <span className="h-2 w-1/2 rounded bg-muted" />
+                  <span className="h-1.5 w-full rounded bg-muted/70" />
+                  <span className="h-1.5 w-4/5 rounded bg-muted/70" />
+                </span>
               </div>
-              <div className="flex min-h-8 items-center gap-2 px-1">
+              <div className="flex min-h-8 items-center gap-2">
                 <RadioGroupItem id={id} value={value} aria-label={label} />
                 <span>{label}</span>
               </div>

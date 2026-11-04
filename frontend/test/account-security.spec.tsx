@@ -9,9 +9,15 @@ import { PageHeader } from '../src/components/shell/page-header';
 import { TwoFactorEnrollment } from '../src/components/auth/two-factor-enrollment';
 
 const revokeOtherSessions = vi.hoisted(() =>
-  vi.fn(async () => ({ error: null })),
+  vi.fn(async (): Promise<{ error: null | { message: string } }> => ({
+    error: null,
+  })),
 );
-const disableTwoFactor = vi.hoisted(() => vi.fn(async () => ({ error: null })));
+const disableTwoFactor = vi.hoisted(() =>
+  vi.fn(async (): Promise<{ error: null | { message: string } }> => ({
+    error: null,
+  })),
+);
 const toastSuccess = vi.hoisted(() => vi.fn());
 const generateBackupCodes = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -196,6 +202,51 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   await view.unmount();
 });
 
+test('session revoke shows pending, blocks repeats, and keeps confirmation open on failure', async () => {
+  let rejectRevoke!: (reason: Error) => void;
+  const onRevoke = vi.fn(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectRevoke = reject;
+      }),
+  );
+  const view = await render(
+    <SessionList
+      sessions={[
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000005',
+          channel: 'bearer',
+          createdAt: '2026-11-01T00:00:00Z',
+          expiresAt: '2026-11-01T00:15:00Z',
+          current: false,
+        },
+      ]}
+      onRevoke={onRevoke}
+    />,
+  );
+
+  await act(async () => view.container.querySelector('button')!.click());
+  const action = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="alert-dialog-action"]',
+  )!;
+  await act(async () => action.click());
+  await vi.waitFor(() => expect(onRevoke).toHaveBeenCalledTimes(1));
+  expect(action.disabled).toBe(true);
+  expect(action.textContent).toContain('Revoking session…');
+  expect(action.querySelector('[data-slot="spinner"]')).not.toBeNull();
+  await act(async () => action.click());
+  expect(onRevoke).toHaveBeenCalledTimes(1);
+
+  await act(async () => rejectRevoke(new Error('synthetic revoke failure')));
+  await settle();
+  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+  expect(view.container.textContent).toContain('Unable to revoke the session');
+  expect(action.disabled).toBe(false);
+  expect(action.textContent).toContain('Revoke session');
+  await view.unmount();
+});
+
 test('session list uses a loading skeleton and an empty state', async () => {
   const loading = await render(
     <SessionList sessions={[]} loading onRevoke={async () => {}} />,
@@ -337,13 +388,52 @@ test('security page embeds session errors without a nested main', async () => {
       ?.click(),
   );
   expect(revokeOtherSessions).not.toHaveBeenCalled();
+  revokeOtherSessions.mockClear();
+  revokeOtherSessions.mockImplementationOnce(async () => ({
+    error: { message: 'synthetic sign-out failure' },
+  }));
+  toastSuccess.mockClear();
   await act(async () => revokeOthers?.click());
-  await act(async () =>
-    document.body
-      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')
-      ?.click(),
-  );
+  let signOutAction = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="alert-dialog-action"]',
+  )!;
+  await act(async () => signOutAction.click());
+  await settle();
   expect(revokeOtherSessions).toHaveBeenCalledTimes(1);
+  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+  expect(normal.container.textContent).toContain(
+    'Unable to sign out other sessions',
+  );
+  expect(signOutAction.disabled).toBe(false);
+
+  let resolveSignOut!: (result: { error: null }) => void;
+  let signalSignOutStarted!: () => void;
+  const signOutStarted = new Promise<void>((resolve) => {
+    signalSignOutStarted = resolve;
+  });
+  revokeOtherSessions.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveSignOut = resolve;
+        signalSignOutStarted();
+      }),
+  );
+  await act(async () => signOutAction.click());
+  await signOutStarted;
+  signOutAction = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="alert-dialog-action"]',
+  )!;
+  expect(signOutAction.disabled).toBe(true);
+  expect(signOutAction.textContent).toContain('Signing out other sessions…');
+  expect(signOutAction.querySelector('[data-slot="spinner"]')).not.toBeNull();
+  await act(async () => signOutAction.click());
+  expect(revokeOtherSessions).toHaveBeenCalledTimes(2);
+  expect(toastSuccess).not.toHaveBeenCalled();
+  await act(async () => resolveSignOut({ error: null }));
+  await settle();
+  expect(toastSuccess).toHaveBeenCalledOnce();
+  expect(toastSuccess).toHaveBeenCalledWith('Other sessions signed out.');
+  expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
   expect(
     normal.container.querySelector('input[autocomplete="current-password"]'),
   ).toBeNull();
@@ -442,6 +532,53 @@ test('security page embeds session errors without a nested main', async () => {
       ?.click(),
   );
   expect(disableTwoFactor).not.toHaveBeenCalled();
+
+  disableTwoFactor.mockImplementationOnce(async () => ({
+    error: { message: 'synthetic disable failure' },
+  }));
+  await act(async () => disable?.click());
+  const disableAction = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="alert-dialog-action"]',
+  )!;
+  await act(async () => disableAction.click());
+  await settle();
+  expect(disableTwoFactor).toHaveBeenCalledTimes(1);
+  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+  expect(factor.container.textContent).toContain(
+    'Unable to disable authentication.',
+  );
+  expect(disableAction.disabled).toBe(false);
+
+  let resolveDisable!: (result: { error: null }) => void;
+  let signalDisableStarted!: () => void;
+  const disableStarted = new Promise<void>((resolve) => {
+    signalDisableStarted = resolve;
+  });
+  disableTwoFactor.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveDisable = resolve;
+        signalDisableStarted();
+      }),
+  );
+  toastSuccess.mockClear();
+  await act(async () => disableAction.click());
+  await disableStarted;
+  await vi.waitFor(() => expect(disableTwoFactor).toHaveBeenCalledTimes(2));
+  expect(disableAction.disabled).toBe(true);
+  expect(disableAction.textContent).toContain(
+    'Disabling two-factor authentication…',
+  );
+  expect(disableAction.querySelector('[data-slot="spinner"]')).not.toBeNull();
+  await act(async () => disableAction.click());
+  expect(disableTwoFactor).toHaveBeenCalledTimes(2);
+  expect(toastSuccess).not.toHaveBeenCalled();
+  await act(async () => resolveDisable({ error: null }));
+  await settle();
+  expect(toastSuccess).toHaveBeenCalledOnce();
+  expect(toastSuccess).toHaveBeenCalledWith(
+    'Two-factor authentication disabled.',
+  );
   await factor.unmount();
   disableTwoFactor.mockClear();
   generateBackupCodes.mockClear();
