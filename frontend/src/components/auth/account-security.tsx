@@ -22,8 +22,11 @@ import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { SessionList } from './session-list';
 import { RecoveryCodes } from './recovery-codes';
 import { FormInput } from './form-input';
-import { FieldGroup, FieldError } from '../ui/field';
-import { Button } from '../ui/button';
+import { FieldGroup } from '../ui/field';
+import { PendingButton } from '../forms/pending-button';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { toast } from 'sonner';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 import { LoadingState } from '../states/page-states';
 const api = createIdentityClient({ baseUrl: '/api' });
 export function AccountSecurity() {
@@ -88,10 +91,13 @@ export function AccountSecurity() {
   );
 }
 function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
-  const [message, setMessage] = useState('');
+  const [failure, setFailure] = useState('');
+  const submission = useSubmissionLock();
   const form = useForm<ReauthenticateInput>({
     resolver: zodResolver(ReauthenticateInputSchema),
     defaultValues: { password: '', totp: '', recoveryCode: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   return (
     <AuthCard
@@ -101,25 +107,34 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
     >
       <form
         noValidate
-        onSubmit={form.handleSubmit(async (input) => {
-          setMessage('');
-          try {
-            await api.reauthenticate({
-              ...input,
-              ...(!input.totp ? { totp: undefined } : {}),
-              ...(!input.recoveryCode ? { recoveryCode: undefined } : {}),
-            });
-            form.reset();
-            setMessage('Identity confirmed.');
-            await onComplete();
-          } catch {
-            setMessage(
-              'Unable to confirm your identity. Check your details and try again.',
-            );
-          }
-        })}
+        method="post"
+        onSubmit={form.handleSubmit((input) =>
+          submission.run(async () => {
+            setFailure('');
+            try {
+              await api.reauthenticate({
+                ...input,
+                ...(!input.totp ? { totp: undefined } : {}),
+                ...(!input.recoveryCode ? { recoveryCode: undefined } : {}),
+              });
+              form.reset();
+              toast.success('Identity confirmed.');
+              await onComplete();
+            } catch {
+              setFailure(
+                'Unable to confirm your identity. Check your details and try again.',
+              );
+            }
+          }),
+        )}
       >
         <FieldGroup>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to confirm your identity</AlertTitle>
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <FormInput
             label="Current password"
             type="password"
@@ -141,10 +156,13 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
             })}
             error={form.formState.errors.recoveryCode}
           />
-          <p role="status">{message}</p>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={submission.pending}
+            pendingLabel="Confirming identity…"
+          >
             Confirm identity
-          </Button>
+          </PendingButton>
         </FieldGroup>
       </form>
     </AuthCard>
@@ -153,9 +171,15 @@ function Reauthentication({ onComplete }: { onComplete: () => Promise<void> }) {
 function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
   const [codes, setCodes] = useState<string[] | null>(null);
   const [failure, setFailure] = useState('');
+  const [operation, setOperation] = useState<'generate' | 'disable' | null>(
+    null,
+  );
+  const submission = useSubmissionLock();
   const form = useForm<ReauthenticateInput>({
     resolver: zodResolver(ReauthenticateInputSchema),
     defaultValues: { password: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   useEffect(
     () => () => {
@@ -173,23 +197,37 @@ function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
     >
       <form
         noValidate
-        onSubmit={form.handleSubmit(async (input) => {
-          setFailure('');
-          try {
-            const result = await authClient.twoFactor.generateBackupCodes({
-              password: input.password,
-            });
-            if (result.error) throw new Error();
-            setCodes(result.data.backupCodes);
-            form.reset();
-          } catch {
-            setFailure(
-              'Unable to generate recovery codes. Confirm your identity and try again.',
-            );
-          }
-        })}
+        method="post"
+        onSubmit={form.handleSubmit((input) =>
+          submission.run(async () => {
+            setOperation('generate');
+            setFailure('');
+            try {
+              const result = await authClient.twoFactor.generateBackupCodes({
+                password: input.password,
+              });
+              if (result.error) throw new Error();
+              setCodes(result.data.backupCodes);
+              form.reset();
+            } catch {
+              setFailure(
+                'Unable to generate recovery codes. Confirm your identity and try again.',
+              );
+            } finally {
+              setOperation(null);
+            }
+          }),
+        )}
       >
         <FieldGroup>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>
+                Unable to update two-factor authentication
+              </AlertTitle>
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <FormInput
             label="Security password"
             type="password"
@@ -197,41 +235,55 @@ function FactorActions({ onComplete }: { onComplete: () => Promise<void> }) {
             registration={form.register('password')}
             error={form.formState.errors.password}
           />
-          {failure ? <FieldError>{failure}</FieldError> : null}
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={operation === 'generate' && submission.pending}
+            disabled={submission.pending}
+            pendingLabel="Generating recovery codes…"
+          >
             Generate new recovery codes
-          </Button>
-          <Button
+          </PendingButton>
+          <PendingButton
             type="button"
             variant="outline"
-            disabled={form.formState.isSubmitting}
-            onClick={form.handleSubmit(async (input) => {
-              try {
-                const result = await authClient.twoFactor.disable({
-                  password: input.password,
-                });
-                if (result.error) throw new Error();
-                form.reset();
-                await onComplete();
-              } catch {
-                setFailure(
-                  'Unable to disable authentication. Confirm your identity and try again.',
-                );
-              }
-            })}
+            pending={operation === 'disable' && submission.pending}
+            disabled={submission.pending}
+            pendingLabel="Disabling two-factor authentication…"
+            onClick={form.handleSubmit((input) =>
+              submission.run(async () => {
+                setOperation('disable');
+                try {
+                  const result = await authClient.twoFactor.disable({
+                    password: input.password,
+                  });
+                  if (result.error) throw new Error();
+                  form.reset();
+                  await onComplete();
+                } catch {
+                  setFailure(
+                    'Unable to disable authentication. Confirm your identity and try again.',
+                  );
+                } finally {
+                  setOperation(null);
+                }
+              }),
+            )}
           >
             Disable two-factor authentication
-          </Button>
+          </PendingButton>
         </FieldGroup>
       </form>
     </AuthCard>
   );
 }
 function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
-  const [message, setMessage] = useState('');
+  const [failure, setFailure] = useState('');
+  const submission = useSubmissionLock();
   const form = useForm<PasswordChangeInput>({
     resolver: zodResolver(PasswordChangeInputSchema),
     defaultValues: { currentPassword: '', newPassword: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   return (
     <AuthCard
@@ -241,21 +293,31 @@ function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
     >
       <form
         noValidate
-        onSubmit={form.handleSubmit(async (input) => {
-          try {
-            const result = await authClient.changePassword(input);
-            if (result.error) throw new Error();
-            form.reset();
-            setMessage('Password changed.');
-            await onComplete();
-          } catch {
-            setMessage(
-              'Unable to change your password. Confirm your identity and try again.',
-            );
-          }
-        })}
+        method="post"
+        onSubmit={form.handleSubmit((input) =>
+          submission.run(async () => {
+            setFailure('');
+            try {
+              const result = await authClient.changePassword(input);
+              if (result.error) throw new Error();
+              form.reset();
+              toast.success('Password changed.');
+              await onComplete();
+            } catch {
+              setFailure(
+                'Unable to change your password. Confirm your identity and try again.',
+              );
+            }
+          }),
+        )}
       >
         <FieldGroup>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to change your password</AlertTitle>
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <FormInput
             label="Password to change"
             type="password"
@@ -270,10 +332,13 @@ function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
             registration={form.register('newPassword')}
             error={form.formState.errors.newPassword}
           />
-          <p role="status">{message}</p>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={submission.pending}
+            pendingLabel="Changing password…"
+          >
             Change password
-          </Button>
+          </PendingButton>
         </FieldGroup>
       </form>
     </AuthCard>
@@ -281,9 +346,13 @@ function PasswordChange({ onComplete }: { onComplete: () => Promise<void> }) {
 }
 function EmailChange() {
   const [message, setMessage] = useState('');
+  const [failure, setFailure] = useState('');
+  const submission = useSubmissionLock();
   const form = useForm<EmailChangeInput>({
     resolver: zodResolver(EmailChangeInputSchema),
     defaultValues: { newEmail: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   return (
     <AuthCard
@@ -293,24 +362,35 @@ function EmailChange() {
     >
       <form
         noValidate
-        onSubmit={form.handleSubmit(async (input) => {
-          try {
-            const result = await authClient.changeEmail({
-              ...input,
-              callbackURL:
-                window.location.origin + '/verify-email?state=confirmed',
-            });
-            if (result.error) throw new Error();
-            form.reset();
-            setMessage('If eligible, you will receive a verification link.');
-          } catch {
-            setMessage(
-              'Unable to request this change. Confirm your identity and try again.',
-            );
-          }
-        })}
+        method="post"
+        onSubmit={form.handleSubmit((input) =>
+          submission.run(async () => {
+            setFailure('');
+            setMessage('');
+            try {
+              const result = await authClient.changeEmail({
+                ...input,
+                callbackURL:
+                  window.location.origin + '/verify-email?state=confirmed',
+              });
+              if (result.error) throw new Error();
+              form.reset();
+              setMessage('If eligible, you will receive a verification link.');
+            } catch {
+              setFailure(
+                'Unable to request this change. Confirm your identity and try again.',
+              );
+            }
+          }),
+        )}
       >
         <FieldGroup>
+          {failure ? (
+            <Alert role="alert" variant="destructive">
+              <AlertTitle>Unable to request this email change</AlertTitle>
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
           <FormInput
             label="New email"
             type="email"
@@ -319,9 +399,13 @@ function EmailChange() {
             error={form.formState.errors.newEmail}
           />
           <p role="status">{message}</p>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={submission.pending}
+            pendingLabel="Changing email…"
+          >
             Change email
-          </Button>
+          </PendingButton>
         </FieldGroup>
       </form>
     </AuthCard>

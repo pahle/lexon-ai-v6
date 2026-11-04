@@ -302,7 +302,7 @@ test('F2 organization entry clears stale cookies without a redirect loop', async
   await page.goto(stack.frontendUrl + '/workspace');
   await expect(page).toHaveURL(/\/sign-in/);
   await expect(
-    page.getByRole('heading', { name: 'Sign in', exact: true }),
+    page.getByRole('heading', { name: 'Sign in to Lexon', exact: true }),
   ).toBeVisible();
 });
 test('F2 organization 2FA standby and active-page member removal preserve safe Personal selection', async ({

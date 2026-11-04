@@ -1,12 +1,18 @@
 'use client';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import type {
   UseFormRegisterReturn,
   FieldError as FormError,
 } from 'react-hook-form';
 import { Field, FieldLabel, FieldError } from '../ui/field';
 import { Input } from '../ui/input';
+import {
+  InputGroup,
+  InputGroupButton,
+  InputGroupInput,
+} from '../ui/input-group';
 export function FormInput({
   label,
   labelAside,
@@ -23,6 +29,16 @@ export function FormInput({
   autoComplete?: string | undefined;
 }) {
   const id = useId();
+  const [visible, setVisible] = useState(false);
+  const invalid = !!error;
+  const inputProps = {
+    id,
+    type: type === 'password' && visible ? 'text' : type,
+    autoComplete,
+    'aria-invalid': invalid,
+    'aria-describedby': error ? id + '-error' : undefined,
+    ...registration,
+  };
   return (
     <Field data-invalid={!!error}>
       {labelAside ? (
@@ -33,14 +49,21 @@ export function FormInput({
       ) : (
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
       )}
-      <Input
-        id={id}
-        type={type}
-        autoComplete={autoComplete}
-        aria-invalid={!!error}
-        aria-describedby={error ? id + '-error' : undefined}
-        {...registration}
-      />
+      {type === 'password' ? (
+        <InputGroup>
+          <InputGroupInput {...inputProps} />
+          <InputGroupButton
+            aria-label={visible ? 'Hide password' : 'Show password'}
+            aria-pressed={visible}
+            onClick={() => setVisible((value) => !value)}
+            size="icon-xs"
+          >
+            {visible ? <EyeOff /> : <Eye />}
+          </InputGroupButton>
+        </InputGroup>
+      ) : (
+        <Input {...inputProps} />
+      )}
       {error ? (
         <FieldError id={id + '-error'}>{error.message}</FieldError>
       ) : null}

@@ -12,7 +12,8 @@ import { AuthCard } from './auth-card';
 import { SignupForm } from './signup-form';
 import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { Button } from '../ui/button';
-import { FieldError } from '../ui/field';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
 const api = createIdentityClient({ baseUrl: '/api' });
 export function AdminSetup({ setupToken }: { setupToken: string }) {
   const query = useQueryClient();
@@ -121,9 +122,15 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       title="Activate administrator access"
       description="Activate only for the verified account named in the setup email. The account must have no team memberships."
     >
-      {failure ? <FieldError>{failure}</FieldError> : null}
-      <Button
-        disabled={busy}
+      {failure ? (
+        <Alert role="alert" variant="destructive">
+          <AlertTitle>Unable to complete administrator setup</AlertTitle>
+          <AlertDescription>{failure}</AlertDescription>
+        </Alert>
+      ) : null}
+      <PendingButton
+        pending={busy}
+        pendingLabel="Activating administrator access…"
         onClick={async () => {
           setBusy(true);
           setFailure('');
@@ -143,7 +150,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         }}
       >
         Activate platform administrator
-      </Button>
+      </PendingButton>
       <a href="/workspace">Return to workspace</a>
     </AuthCard>
   );

@@ -10,8 +10,11 @@ import {
 } from '@lexon/contracts';
 import { AuthCard } from '../auth/auth-card';
 import { FormInput } from '../auth/form-input';
-import { FieldGroup, FieldError } from '../ui/field';
+import { FieldGroup } from '../ui/field';
 import { Button } from '../ui/button';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 import { CreateTeam } from './create-team';
 import {
   identityApi,
@@ -32,7 +35,10 @@ export function Onboarding({
   const form = useForm<ProfileInput>({
     resolver: zodResolver(ProfileInputSchema),
     defaultValues: { name: profile.name },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
+  const submission = useSubmissionLock();
   if (step === 0)
     return (
       <AuthCard
@@ -42,27 +48,39 @@ export function Onboarding({
       >
         <form
           noValidate
-          onSubmit={form.handleSubmit(async (input) => {
-            try {
-              await identityApi.updateProfile(input);
-              setStep(1);
-              setFailure('');
-            } catch (error) {
-              setFailure(identityMessage(error));
-            }
-          })}
+          method="post"
+          onSubmit={form.handleSubmit((input) =>
+            submission.run(async () => {
+              try {
+                await identityApi.updateProfile(input);
+                setStep(1);
+                setFailure('');
+              } catch (error) {
+                setFailure(identityMessage(error));
+              }
+            }),
+          )}
         >
           <FieldGroup>
+            {failure ? (
+              <Alert role="alert" variant="destructive">
+                <AlertTitle>Unable to save your profile</AlertTitle>
+                <AlertDescription>{failure}</AlertDescription>
+              </Alert>
+            ) : null}
             <FormInput
               label="Display name"
               autoComplete="name"
               registration={form.register('name')}
               error={form.formState.errors.name}
             />
-            {failure ? <FieldError>{failure}</FieldError> : null}
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            <PendingButton
+              type="submit"
+              pending={submission.pending}
+              pendingLabel="Saving profile…"
+            >
               Continue
-            </Button>
+            </PendingButton>
           </FieldGroup>
         </form>
       </AuthCard>
@@ -85,9 +103,15 @@ export function Onboarding({
       description="Creating a team is optional. Personal is ready to use."
     >
       <CreateTeam />
-      {failure ? <FieldError>{failure}</FieldError> : null}
-      <Button
-        disabled={busy}
+      {failure ? (
+        <Alert role="alert" variant="destructive">
+          <AlertTitle>Unable to finish onboarding</AlertTitle>
+          <AlertDescription>{failure}</AlertDescription>
+        </Alert>
+      ) : null}
+      <PendingButton
+        pending={busy}
+        pendingLabel="Finishing onboarding…"
         onClick={async () => {
           setBusy(true);
           try {
@@ -100,7 +124,7 @@ export function Onboarding({
         }}
       >
         Finish onboarding
-      </Button>
+      </PendingButton>
     </AuthCard>
   );
 }

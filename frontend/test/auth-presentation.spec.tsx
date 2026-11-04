@@ -52,7 +52,9 @@ test('real sign-in and sign-up use the centered published form heading hierarchy
     const submit = view.container.querySelector('button[type="submit"]');
     expect(submit?.parentElement?.getAttribute('data-slot')).toBe('field');
     expect(view.container.querySelector('img[src*="placeholder"]')).toBeNull();
-    expect(view.container.querySelector('button[type="button"]')).toBeNull();
+    expect(
+      view.container.querySelector('button[aria-label="Show password"]'),
+    ).not.toBeNull();
     if (Form === LoginForm) {
       const forgotPassword = view.container.querySelector(
         'a[href="/forgot-password"]',

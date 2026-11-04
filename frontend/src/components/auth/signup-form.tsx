@@ -8,8 +8,10 @@ import { safeReturnPath } from '../../lib/return-path';
 import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
-import { Button } from '../ui/button';
-import { Field, FieldGroup, FieldDescription, FieldError } from '../ui/field';
+import { Field, FieldGroup, FieldDescription } from '../ui/field';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 export function SignupForm({
   invitationId,
   setupToken,
@@ -24,6 +26,7 @@ export function SignupForm({
   useVisualAuthFormReady(visualClientReady);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState('');
+  const submission = useSubmissionLock();
   const form = useForm<SignUpInput>({
     resolver: zodResolver(SignUpInputSchema),
     defaultValues: {
@@ -33,6 +36,8 @@ export function SignupForm({
       ...(invitationId ? { invitationId } : {}),
       ...(setupToken ? { setupToken } : {}),
     },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   const next = safeReturnPath(
     returnTo ??
@@ -52,28 +57,31 @@ export function SignupForm({
     <form
       className="flex flex-col gap-6"
       noValidate
-      onSubmit={form.handleSubmit(async (input) => {
-        setFailure('');
-        try {
-          const result = await authClient.$fetch('/sign-up/email', {
-            method: 'POST',
-            body: {
-              ...input,
-              callbackURL:
-                window.location.origin +
-                '/verify-email?state=confirmed&returnTo=' +
-                encodeURIComponent(next),
-            },
-          });
-          if (result.error) {
-            setFailure(authFailure(result.error));
-            return;
+      method="post"
+      onSubmit={form.handleSubmit((input) =>
+        submission.run(async () => {
+          setFailure('');
+          try {
+            const result = await authClient.$fetch('/sign-up/email', {
+              method: 'POST',
+              body: {
+                ...input,
+                callbackURL:
+                  window.location.origin +
+                  '/verify-email?state=confirmed&returnTo=' +
+                  encodeURIComponent(next),
+              },
+            });
+            if (result.error) {
+              setFailure(authFailure(result.error));
+              return;
+            }
+            setPending(true);
+          } catch {
+            setFailure(authFailure({ status: 503 }));
           }
-          setPending(true);
-        } catch {
-          setFailure(authFailure({ status: 503 }));
-        }
-      })}
+        }),
+      )}
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
@@ -82,6 +90,12 @@ export function SignupForm({
             Your legal workspace starts here.
           </p>
         </div>
+        {failure ? (
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Unable to create your account</AlertTitle>
+            <AlertDescription>{failure}</AlertDescription>
+          </Alert>
+        ) : null}
         <FormInput
           label="Name"
           autoComplete="name"
@@ -105,11 +119,14 @@ export function SignupForm({
         <p className="text-sm text-muted-foreground">
           Use at least 12 characters.
         </p>
-        {failure ? <FieldError>{failure}</FieldError> : null}
         <Field>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={submission.pending}
+            pendingLabel="Creating account…"
+          >
             Create account
-          </Button>
+          </PendingButton>
         </Field>
         <Field>
           <FieldDescription className="text-center">

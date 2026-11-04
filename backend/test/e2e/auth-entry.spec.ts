@@ -18,6 +18,141 @@ test('F2 auth entry pages expose the shared skip target and responsive page land
   }
 });
 
+test('scripts-blocked auth forms submit credentials by POST without sensitive query keys', async ({
+  browser,
+}) => {
+  const base = descriptor().frontendUrl;
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.route('**/*.js*', (route) => route.abort());
+  try {
+    const cases = [
+      {
+        path: '/sign-in',
+        fill: async () => {
+          await page
+            .getByLabel('Email', { exact: true })
+            .fill('synthetic@example.test');
+          await page
+            .getByLabel('Password', { exact: true })
+            .fill('Synthetic-password-42!');
+        },
+      },
+      {
+        path: '/sign-up',
+        fill: async () => {
+          await page
+            .getByLabel('Name', { exact: true })
+            .fill('Synthetic identity');
+          await page
+            .getByLabel('Email', { exact: true })
+            .fill('synthetic@example.test');
+          await page
+            .getByLabel('Password', { exact: true })
+            .fill('Synthetic-password-42!');
+        },
+      },
+      {
+        path: '/two-factor',
+        fill: async () => {
+          await page
+            .getByLabel('Authenticator code', { exact: true })
+            .fill('123456');
+        },
+      },
+    ];
+    const recorded: Array<{ method: string; sensitiveKeyBooleans: boolean[] }> =
+      [];
+    for (const form of cases) {
+      await page.goto(base + form.path);
+      await form.fill();
+      const navigation = page.waitForRequest((request) =>
+        request.isNavigationRequest(),
+      );
+      await page
+        .getByRole('button', {
+          name: /Sign in|Create account|Verify authenticator/,
+        })
+        .click();
+      const request = await navigation;
+      const query = new URL(request.url()).searchParams;
+      const sensitiveKeyBooleans = ['email', 'password', 'code'].map((key) =>
+        query.has(key),
+      );
+      recorded.push({ method: request.method(), sensitiveKeyBooleans });
+    }
+    expect(recorded).toHaveLength(3);
+    expect(recorded.every((entry) => entry.method === 'POST')).toBe(true);
+    expect(
+      recorded.every((entry) =>
+        entry.sensitiveKeyBooleans.every((hasKey) => !hasKey),
+      ),
+    ).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
+
+test('pending reset button reserves the longer pending label intrinsic width', async ({
+  page,
+}) => {
+  await page.goto(descriptor().frontendUrl + '/forgot-password');
+  await page
+    .getByLabel('Email', { exact: true })
+    .fill('synthetic@example.test');
+  const button = page.getByRole('button', {
+    name: 'Send reset link',
+    exact: true,
+  });
+  const label = button.locator('span.inline-grid:not([aria-hidden="true"])');
+  const idleWidth = await label.evaluate(
+    (node) => node.getBoundingClientRect().width,
+  );
+  let release!: () => void;
+  let started!: () => void;
+  let handled!: () => void;
+  const requestStarted = new Promise<void>((resolveStarted) => {
+    started = resolveStarted;
+  });
+  const routeHandled = new Promise<void>((resolveHandled) => {
+    handled = resolveHandled;
+  });
+  const gate = new Promise<void>((resolveGate) => {
+    release = resolveGate;
+  });
+  await page.route('**/api/auth/request-password-reset', async (route) => {
+    started();
+    await gate;
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: { code: 'AUTH_UNAVAILABLE', message: 'Private server detail' },
+      }),
+    });
+    handled();
+  });
+  try {
+    await button.click();
+    await requestStarted;
+    await expect(
+      page.getByRole('button', { name: 'Sending reset link…' }),
+    ).toBeDisabled();
+    const pendingWidth = await label.evaluate(
+      (node) => node.getBoundingClientRect().width,
+    );
+    expect(pendingWidth).toBe(idleWidth);
+  } finally {
+    release();
+    await routeHandled;
+    await page.unroute('**/api/auth/request-password-reset');
+  }
+  await expect(page.locator('[data-slot="alert"]')).toContainText(
+    'Service temporarily unavailable. Please try again.',
+  );
+  await expect(page.locator('body')).not.toContainText('Private server detail');
+});
+
 test('entry pages are accessible and validate without social entry points', async ({
   page,
 }) => {
@@ -32,7 +167,12 @@ test('entry pages are accessible and validate without social entry points', asyn
     await expect(
       page.getByRole('button', { name: /Google|GitHub|Microsoft|Apple/ }),
     ).toHaveCount(0);
-    await expect(page.locator('img')).toHaveCount(0);
+    await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
+    await expect(page.locator('img[alt="Lexon"]:visible')).toHaveAttribute(
+      'width',
+      '128',
+    );
+    await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(0);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
 });
@@ -145,8 +285,8 @@ test('entry failures never disclose account existence and dependency errors stay
     .fill('absent-' + randomUUID() + '@example.test');
   await page.getByLabel('Password', { exact: true }).fill('Wrong-password-42!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.locator('[data-slot="field-error"]')).toHaveText(
-    'Unable to complete the request. Check your details or try again.',
+  await expect(page.locator('[data-slot="alert"]')).toContainText(
+    'Email or password is incorrect. Check them and try again.',
   );
   await page.route('**/api/auth/sign-in/email', (route) =>
     route.fulfill({
@@ -158,7 +298,7 @@ test('entry failures never disclose account existence and dependency errors stay
     }),
   );
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.locator('[data-slot="field-error"]')).toHaveText(
+  await expect(page.locator('[data-slot="alert"]')).toContainText(
     'Service temporarily unavailable. Please try again.',
   );
   await expect(page.locator('body')).not.toContainText(

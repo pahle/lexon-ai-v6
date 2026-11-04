@@ -8,8 +8,10 @@ import { safeReturnPath } from '../../lib/return-path';
 import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
-import { Button } from '../ui/button';
-import { Field, FieldGroup, FieldDescription, FieldError } from '../ui/field';
+import { Field, FieldGroup, FieldDescription } from '../ui/field';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 
 function requiresEmailVerification(error: unknown): boolean {
   if (!error || typeof error !== 'object' || Array.isArray(error)) return false;
@@ -20,6 +22,12 @@ function requiresEmailVerification(error: unknown): boolean {
     !Array.isArray(nested) &&
     (nested as { code?: unknown }).code === 'EMAIL_NOT_VERIFIED'
   );
+}
+
+function signInFailure(error: { status?: number } | null | undefined) {
+  if (error?.status === 503 || error?.status === 0 || error?.status === 429)
+    return authFailure(error);
+  return 'Email or password is incorrect. Check them and try again.';
 }
 
 export function LoginForm({
@@ -34,9 +42,12 @@ export function LoginForm({
   const [verificationEmail, setVerificationEmail] = useState<string | null>(
     null,
   );
+  const submission = useSubmissionLock();
   const form = useForm<SignInInput>({
     resolver: zodResolver(SignInInputSchema),
     defaultValues: { email: '', password: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   const next = safeReturnPath(returnTo);
   const continuation = new URL(next, 'https://lexon.invalid');
@@ -60,36 +71,45 @@ export function LoginForm({
     <form
       className="flex flex-col gap-6"
       noValidate
-      onSubmit={form.handleSubmit(async (input) => {
-        setFailure('');
-        try {
-          const result = await authClient.signIn.email(input);
-          if (result.error) {
-            if (requiresEmailVerification(result.error)) {
-              setVerificationEmail(input.email);
+      method="post"
+      onSubmit={form.handleSubmit((input) =>
+        submission.run(async () => {
+          setFailure('');
+          try {
+            const result = await authClient.signIn.email(input);
+            if (result.error) {
+              if (requiresEmailVerification(result.error)) {
+                setVerificationEmail(input.email);
+                return;
+              }
+              setFailure(signInFailure(result.error));
               return;
             }
-            setFailure(authFailure(result.error));
-            return;
+            const data = result.data as { twoFactorRedirect?: boolean } | null;
+            window.location.assign(
+              data?.twoFactorRedirect
+                ? '/two-factor?returnTo=' + encodeURIComponent(next)
+                : next,
+            );
+          } catch {
+            setFailure(authFailure({ status: 503 }));
           }
-          const data = result.data as { twoFactorRedirect?: boolean } | null;
-          window.location.assign(
-            data?.twoFactorRedirect
-              ? '/two-factor?returnTo=' + encodeURIComponent(next)
-              : next,
-          );
-        } catch {
-          setFailure(authFailure({ status: 503 }));
-        }
-      })}
+        }),
+      )}
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-serif text-2xl font-bold">Sign in</h1>
+          <h1 className="font-serif text-2xl font-bold">Sign in to Lexon</h1>
           <p className="text-sm text-balance text-muted-foreground">
             Enter your email and password to continue.
           </p>
         </div>
+        {failure ? (
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Unable to sign in</AlertTitle>
+            <AlertDescription>{failure}</AlertDescription>
+          </Alert>
+        ) : null}
         <FormInput
           label="Email"
           type="email"
@@ -112,11 +132,14 @@ export function LoginForm({
           registration={form.register('password')}
           error={form.formState.errors.password}
         />
-        {failure ? <FieldError>{failure}</FieldError> : null}
         <Field>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <PendingButton
+            type="submit"
+            pending={submission.pending}
+            pendingLabel="Signing in…"
+          >
             Sign in
-          </Button>
+          </PendingButton>
         </Field>
         <Field>
           <FieldDescription className="text-center">

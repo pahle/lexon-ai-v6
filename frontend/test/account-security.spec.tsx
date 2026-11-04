@@ -71,6 +71,23 @@ test('recovery codes use h1 in standalone enrollment and h2 within account secur
     )!.set!.call(password, 'Strong-password-4!');
     password.dispatchEvent(new Event('input', { bubbles: true }));
     password.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect(password.getAttribute('name')).toBe('password');
+  expect(password.autocomplete).toBe('current-password');
+  await act(async () =>
+    standalone.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Show password"]')!
+      .click(),
+  );
+  expect(password.type).toBe('text');
+  expect(password.value).toBe('Strong-password-4!');
+  await act(async () =>
+    standalone.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Hide password"]')!
+      .click(),
+  );
+  expect(password.type).toBe('password');
+  await act(async () => {
     standalone.container
       .querySelector('form')!
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

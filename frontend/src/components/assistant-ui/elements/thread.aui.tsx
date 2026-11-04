@@ -186,7 +186,7 @@ const Composer: FC = () => (
           type="button"
           variant="ghost"
           size="icon"
-          className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full motion-reduce:transition-none"
+          className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 aria-disabled:opacity-50 size-7 rounded-full motion-reduce:transition-none"
           aria-label="Add Attachment"
           aria-disabled="true"
           disabled
@@ -204,7 +204,7 @@ const Composer: FC = () => (
           type="button"
           variant="default"
           size="icon"
-          className="aui-composer-send size-7 rounded-full"
+          className="aui-composer-send aria-disabled:opacity-50 size-7 rounded-full"
           aria-label="Send message"
           aria-disabled="true"
           disabled

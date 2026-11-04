@@ -339,3 +339,199 @@ test('real API-authenticated Home captures Task 6A shell states', async ({
     await captureShellReviewView(page, 'sidebar-collapsed', theme, 'desktop');
   }
 });
+
+test('inert Home composer controls render the published disabled opacity while remaining focusable', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request);
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    { headers, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+  await page.goto(stack.frontendUrl + '/workspace');
+  for (const selector of [
+    '.aui-composer-add-attachment',
+    '.aui-composer-send',
+  ]) {
+    const control = page.locator(selector);
+    await expect(control).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      await control.evaluate((node) => getComputedStyle(node).opacity),
+    ).toBe('0.5');
+    expect(
+      await control.evaluate((node) => (node as HTMLElement).tabIndex),
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      await control.evaluate((node) => getComputedStyle(node).display),
+    ).not.toBe('none');
+  }
+});
+
+test('Task 6B auth state captures cover sign-in and secondary flows', async ({
+  page,
+}) => {
+  const reviewDirectory = resolve('.cache/f21-task6B');
+  await mkdir(reviewDirectory, { recursive: true });
+  const base = descriptor().frontendUrl;
+  const viewports = {
+    desktop: { width: 1440, height: 900 },
+    mobile: { width: 390, height: 844 },
+  } as const;
+  const capture = async (
+    state: string,
+    theme: 'light' | 'dark',
+    viewport: keyof typeof viewports,
+  ) => {
+    await page.setViewportSize(viewports[viewport]);
+    await page.evaluate((value) => {
+      document.documentElement.classList.toggle('dark', value === 'dark');
+    }, theme);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(Array.from(document.images, (image) => image.decode()));
+    });
+    const suffix = viewport === 'mobile' ? '-mobile' : '';
+    await page.screenshot({
+      path: resolve(reviewDirectory, `${state}-${theme}${suffix}.png`),
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    });
+  };
+
+  await page.setViewportSize(viewports.desktop);
+  await page.goto(base + '/sign-in');
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Sign in to Lexon' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await page.getByRole('button', { name: 'Hide password' }).click();
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      await capture('01-sign-in-default', theme, viewport);
+    }
+  }
+
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      await capture('03-sign-in-field-errors', theme, viewport);
+    }
+  }
+
+  await page
+    .getByLabel('Email', { exact: true })
+    .fill('synthetic-review@example.test');
+  await page
+    .getByLabel('Password', { exact: true })
+    .fill('Synthetic-review-password-42!');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  let releaseSignIn!: () => void;
+  let markSignInStarted!: () => void;
+  const signInStarted = new Promise<void>((resolveStarted) => {
+    markSignInStarted = resolveStarted;
+  });
+  const signInGate = new Promise<void>((resolveGate) => {
+    releaseSignIn = resolveGate;
+  });
+  await page.route('**/api/auth/sign-in/email', async (route) => {
+    markSignInStarted();
+    await signInGate;
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: {
+          code: 'AUTH_REQUIRED',
+          message: 'Synthetic private server detail',
+        },
+      }),
+    });
+  });
+  try {
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await signInStarted;
+    await expect(
+      page.getByRole('button', { name: 'Signing in…' }),
+    ).toBeDisabled();
+    for (const theme of ['light', 'dark'] as const) {
+      for (const viewport of ['desktop', 'mobile'] as const) {
+        await capture('04-sign-in-password-shown-pending', theme, viewport);
+      }
+    }
+    releaseSignIn();
+    await expect(page.locator('[data-slot="alert"]')).toContainText(
+      'Email or password is incorrect. Check them and try again.',
+    );
+    await expect(page.locator('body')).not.toContainText(
+      'Synthetic private server detail',
+    );
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    for (const theme of ['light', 'dark'] as const) {
+      for (const viewport of ['desktop', 'mobile'] as const) {
+        await capture('05-sign-in-form-error', theme, viewport);
+      }
+    }
+  } finally {
+    releaseSignIn();
+    await page.unroute('**/api/auth/sign-in/email');
+  }
+
+  await page.goto(base + '/sign-up');
+  await expect(
+    page.getByRole('heading', { name: 'Create your account' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await page.getByRole('button', { name: 'Hide password' }).click();
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      await capture('06-sign-up-default', theme, viewport);
+    }
+  }
+
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Task 6B onboarding preview',
+  });
+  const profile = await page.request.patch(
+    stack.apiUrl + '/api/identity/profile',
+    {
+      headers,
+      data: { name: 'Task 6B onboarding preview' },
+    },
+  );
+  expect(profile.status()).toBe(200);
+  await page.goto(base + '/onboarding');
+  await expect(
+    page.getByRole('heading', { name: 'Welcome to Lexon' }),
+  ).toBeVisible();
+  const displayName = page.getByLabel('Display name', { exact: true });
+  await displayName.fill('');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(displayName).toHaveAttribute('aria-invalid', 'true');
+  await displayName.fill('Task 6B onboarding preview');
+  await expect(displayName).not.toHaveAttribute('aria-invalid', 'true');
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      await capture('07-onboarding-profile', theme, viewport);
+    }
+  }
+});

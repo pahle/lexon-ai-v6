@@ -9,12 +9,15 @@ import {
 import { transitionTenant } from '../../lib/tenant-queries';
 import { authClient } from '../../lib/auth-client';
 import { AuthCard } from './auth-card';
-import { Button } from '../ui/button';
-import { FieldError } from '../ui/field';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
 export function AcceptInvitation({ invitationId }: { invitationId: string }) {
   const [declined, setDeclined] = useState(false);
   const [failure, setFailure] = useState('');
   const [busy, setBusy] = useState(false);
+  const [operation, setOperation] = useState<
+    'accept' | 'decline' | 'signout' | null
+  >(null);
   const query = useQueryClient();
   const valid = UuidSchema.safeParse(invitationId).success;
   const next =
@@ -33,10 +36,13 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
     >
       {valid ? (
         <>
-          <Button
-            disabled={busy}
+          <PendingButton
+            pending={busy && operation === 'accept'}
+            disabled={busy && operation !== 'accept'}
+            pendingLabel="Accepting invitation…"
             onClick={async () => {
               setBusy(true);
+              setOperation('accept');
               setFailure('');
               try {
                 const result = await createIdentityClient({
@@ -55,16 +61,20 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
                 );
               } finally {
                 setBusy(false);
+                setOperation(null);
               }
             }}
           >
             Accept invitation
-          </Button>
-          <Button
+          </PendingButton>
+          <PendingButton
             variant="outline"
-            disabled={busy}
+            pending={busy && operation === 'decline'}
+            disabled={busy && operation !== 'decline'}
+            pendingLabel="Declining invitation…"
             onClick={async () => {
               setBusy(true);
+              setOperation('decline');
               setFailure('');
               try {
                 await createIdentityClient({
@@ -76,11 +86,12 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
                 setFailure('This invitation is unavailable for this account.');
               } finally {
                 setBusy(false);
+                setOperation(null);
               }
             }}
           >
             Decline invitation
-          </Button>
+          </PendingButton>
           <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>Sign in</a>
           <a
             href={
@@ -98,12 +109,18 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
       )}
       {failure ? (
         <>
-          <FieldError>{failure}</FieldError>
-          <Button
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Unable to update this invitation</AlertTitle>
+            <AlertDescription>{failure}</AlertDescription>
+          </Alert>
+          <PendingButton
             variant="outline"
-            disabled={busy}
+            pending={busy && operation === 'signout'}
+            disabled={busy && operation !== 'signout'}
+            pendingLabel="Switching accounts…"
             onClick={async () => {
               setBusy(true);
+              setOperation('signout');
               try {
                 const result = await authClient.signOut();
                 if (result.error) throw new Error();
@@ -117,11 +134,12 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
                   'Service temporarily unavailable. Please try again.',
                 );
                 setBusy(false);
+                setOperation(null);
               }
             }}
           >
             Use another account
-          </Button>
+          </PendingButton>
         </>
       ) : null}
     </AuthCard>

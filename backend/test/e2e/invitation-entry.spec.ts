@@ -89,7 +89,7 @@ test('invitation belonging to another account reveals no organization or recipie
   await page
     .getByRole('button', { name: 'Accept invitation', exact: true })
     .click();
-  await expect(page.locator('[data-slot="field-error"]')).toContainText(
+  await expect(page.locator('[data-slot="alert"]')).toContainText(
     'This invitation is unavailable for this account.',
   );
   const text = await page.locator('body').innerText();
