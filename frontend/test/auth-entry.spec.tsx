@@ -112,6 +112,12 @@ test('password visibility preserves registered value and autocomplete without su
     'button[aria-label="Show password"]',
   );
   expect(show).not.toBeNull();
+  const addon = show?.closest(
+    '[data-slot="input-group-addon"][data-align="inline-end"]',
+  );
+  expect(addon).not.toBeNull();
+  expect(addon?.contains(show)).toBe(true);
+  expect(show?.type).toBe('button');
   expect(show?.getAttribute('aria-pressed')).toBe('false');
   await act(async () => show?.click());
   expect(password.type).toBe('text');
@@ -319,7 +325,12 @@ test('unrelated forbidden sign-in errors stay generic and do not show verificati
   expect(view.container.textContent).toContain(
     'Email or password is incorrect. Check them and try again.',
   );
-  expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
+  const alert = view.container.querySelector('[role="alert"]')!;
+  expect(alert.querySelector('svg')).not.toBeNull();
+  expect(alert.querySelector('[data-slot="alert-title"]')).toBeNull();
+  expect(
+    alert.querySelector('[data-slot="alert-description"]')?.textContent,
+  ).toBe('Email or password is incorrect. Check them and try again.');
   expect(view.container.textContent).not.toContain('private-server-sentinel');
   const fieldGroup = view.container.querySelector('[data-slot="field-group"]')!;
   const orderedChildren = [...fieldGroup.children];

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { CircleAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SignInInputSchema, type SignInInput } from '@lexon/contracts';
@@ -9,7 +10,7 @@ import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
 import { Field, FieldGroup, FieldDescription } from '../ui/field';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Alert, AlertDescription } from '../ui/alert';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 
@@ -106,7 +107,7 @@ export function LoginForm({
         </div>
         {failure ? (
           <Alert role="alert" variant="destructive">
-            <AlertTitle>Unable to sign in</AlertTitle>
+            <CircleAlert />
             <AlertDescription>{failure}</AlertDescription>
           </Alert>
         ) : null}

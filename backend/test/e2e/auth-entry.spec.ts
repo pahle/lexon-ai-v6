@@ -97,44 +97,61 @@ test('pending reset button reserves the longer pending label intrinsic width', a
   page,
 }) => {
   await page.goto(descriptor().frontendUrl + '/forgot-password');
-  await page
-    .getByLabel('Email', { exact: true })
-    .fill('synthetic@example.test');
-  const button = page.getByRole('button', {
-    name: 'Send reset link',
-    exact: true,
-  });
+  const email = page.getByLabel('Email', { exact: true });
+  const button = page.locator('form button[type="submit"]');
+  await button.click();
+  await expect(email).toHaveAttribute('aria-invalid', 'true');
+  await email.fill('synthetic@example.test');
+  await expect(email).not.toHaveAttribute('aria-invalid', 'true');
   const label = button.locator('span.inline-grid:not([aria-hidden="true"])');
   const idleWidth = await label.evaluate(
     (node) => node.getBoundingClientRect().width,
   );
   let release!: () => void;
-  let started!: () => void;
-  let handled!: () => void;
-  const requestStarted = new Promise<void>((resolveStarted) => {
-    started = resolveStarted;
-  });
-  const routeHandled = new Promise<void>((resolveHandled) => {
-    handled = resolveHandled;
+  let routeEntered = false;
+  let routeHandled!: () => void;
+  const routeSettled = new Promise<void>((resolveHandled) => {
+    routeHandled = resolveHandled;
   });
   const gate = new Promise<void>((resolveGate) => {
     release = resolveGate;
   });
   await page.route('**/api/auth/request-password-reset', async (route) => {
-    started();
-    await gate;
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        error: { code: 'AUTH_UNAVAILABLE', message: 'Private server detail' },
-      }),
-    });
-    handled();
+    routeEntered = true;
+    try {
+      await gate;
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { code: 'AUTH_UNAVAILABLE', message: 'Private server detail' },
+        }),
+      });
+    } finally {
+      routeHandled();
+    }
   });
+  let observedRequest!: import('@playwright/test').Request;
   try {
+    const requestStarted = page.waitForRequest((request) => {
+      const path = new URL(request.url()).pathname;
+      return (
+        request.isNavigationRequest() ||
+        path === '/api/auth/request-password-reset'
+      );
+    });
     await button.click();
-    await requestStarted;
+    observedRequest = await requestStarted;
+    const observedUrl = new URL(observedRequest.url());
+    expect(observedRequest.isNavigationRequest()).toBe(false);
+    expect(observedRequest.method()).toBe('POST');
+    expect(observedUrl.pathname).toBe('/api/auth/request-password-reset');
+    expect(
+      ['email', 'password', 'code'].some((key) =>
+        observedUrl.searchParams.has(key),
+      ),
+    ).toBe(false);
+    await expect.poll(() => routeEntered).toBe(true);
     await expect(
       page.getByRole('button', { name: 'Sending reset link…' }),
     ).toBeDisabled();
@@ -144,9 +161,12 @@ test('pending reset button reserves the longer pending label intrinsic width', a
     expect(pendingWidth).toBe(idleWidth);
   } finally {
     release();
-    await routeHandled;
-    await page.unroute('**/api/auth/request-password-reset');
+    if (routeEntered) await routeSettled;
+    if (!page.isClosed()) {
+      await page.unroute('**/api/auth/request-password-reset');
+    }
   }
+  expect((await observedRequest.response())?.status()).toBe(503);
   await expect(page.locator('[data-slot="alert"]')).toContainText(
     'Service temporarily unavailable. Please try again.',
   );

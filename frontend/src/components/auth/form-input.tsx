@@ -10,6 +10,7 @@ import { Field, FieldLabel, FieldError } from '../ui/field';
 import { Input } from '../ui/input';
 import {
   InputGroup,
+  InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from '../ui/input-group';
@@ -52,14 +53,16 @@ export function FormInput({
       {type === 'password' ? (
         <InputGroup>
           <InputGroupInput {...inputProps} />
-          <InputGroupButton
-            aria-label={visible ? 'Hide password' : 'Show password'}
-            aria-pressed={visible}
-            onClick={() => setVisible((value) => !value)}
-            size="icon-xs"
-          >
-            {visible ? <EyeOff /> : <Eye />}
-          </InputGroupButton>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              aria-label={visible ? 'Hide password' : 'Show password'}
+              aria-pressed={visible}
+              onClick={() => setVisible((value) => !value)}
+              size="icon-xs"
+            >
+              {visible ? <EyeOff /> : <Eye />}
+            </InputGroupButton>
+          </InputGroupAddon>
         </InputGroup>
       ) : (
         <Input {...inputProps} />
