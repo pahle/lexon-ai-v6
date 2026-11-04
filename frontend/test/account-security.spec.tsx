@@ -184,6 +184,15 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   expect(view.container.textContent?.includes('token-secret-sentinel')).toBe(
     false,
   );
+  expect(view.container.querySelector('tbody tr')?.textContent).toContain(
+    'Current',
+  );
+  expect(view.container.querySelector('tbody tr')?.textContent).toContain(
+    'Browser',
+  );
+  const revokeRowAction =
+    view.container.querySelector<HTMLButtonElement>('tbody tr button');
+  expect(revokeRowAction?.className).toContain('text-destructive');
   await act(async () => view.container.querySelector('button')!.click());
   expect(revoked).toBe('');
   const cancel = document.body.querySelector<HTMLButtonElement>(
@@ -199,6 +208,39 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   expect(confirm).not.toBeNull();
   await act(async () => confirm?.click());
   expect(revoked).toBe(id);
+  await view.unmount();
+});
+
+test('sessions render current first with shared local date and time formatting', async () => {
+  const localTime = new Date(2026, 10, 4, 18, 2).toISOString();
+  const view = await render(
+    <SessionList
+      sessions={[
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000031',
+          channel: 'bearer',
+          createdAt: localTime,
+          expiresAt: localTime,
+          current: false,
+        },
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000032',
+          channel: 'cookie',
+          createdAt: localTime,
+          expiresAt: localTime,
+          current: true,
+        },
+      ]}
+      onRevoke={async () => {}}
+    />,
+  );
+  const rows = [...view.container.querySelectorAll('tbody tr')];
+  expect(rows[0]?.textContent).toContain('Browser');
+  expect(rows[0]?.textContent).toContain('Current');
+  expect(rows[0]?.textContent).toContain('Nov 4, 2026, 18:02');
+  expect(rows[0]?.textContent).not.toMatch(/:\d{2}:\d{2}/);
   await view.unmount();
 });
 

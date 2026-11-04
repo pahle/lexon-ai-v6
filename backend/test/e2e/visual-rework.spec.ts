@@ -472,6 +472,7 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
 
 test('Task 7B member role Select is a nested Settings layer and Escape restores its trigger', async ({
   page,
+  playwright,
 }) => {
   const stack = descriptor();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -503,6 +504,34 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
     ).status(),
   ).toBe(200);
 
+  const memberEmail = `alex.${randomUUID()}@example.test`;
+  const invitationResponse = await page.request.post(
+    stack.apiUrl + `/api/organizations/${organization.id}/invitations`,
+    {
+      headers,
+      data: { email: memberEmail, role: 'member' },
+    },
+  );
+  expect(invitationResponse.status()).toBe(201);
+  const invitation = (await invitationResponse.json()) as { id: string };
+  const memberRequest = await playwright.request.newContext();
+  try {
+    const memberHeaders = await authenticateApi(memberRequest, {
+      name: 'Alex Rivera',
+      email: memberEmail,
+    });
+    expect(
+      (
+        await memberRequest.post(
+          stack.apiUrl + `/api/invitations/${invitation.id}/accept`,
+          { headers: memberHeaders, data: {} },
+        )
+      ).status(),
+    ).toBe(200);
+  } finally {
+    await memberRequest.dispose();
+  }
+
   await page.goto(stack.frontendUrl + '/workspace?settings=members');
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await expect(settings).toBeVisible();
@@ -518,11 +547,9 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
     element.scrollLeft = element.scrollWidth;
   });
   const role = settings.getByRole('combobox', {
-    name: 'Role for Task 7B Owner',
+    name: 'Role for Alex Rivera',
   });
-  const ownerRow = settings
-    .getByRole('row')
-    .filter({ hasText: 'Task 7B Owner' });
+  const ownerRow = settings.getByRole('row').filter({ hasText: 'Alex Rivera' });
   await expect(role).toBeInViewport();
   await expect(
     ownerRow.getByRole('button', { name: 'Remove', exact: true }),
@@ -541,6 +568,23 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   ).toHaveCount(0);
   await expect(settings).toBeVisible();
   await expect(role).toBeFocused();
+  const remove = ownerRow.getByRole('button', {
+    name: 'Remove',
+    exact: true,
+  });
+  await expect(remove).toHaveClass(/text-destructive/);
+  await remove.click();
+  const confirmation = page.getByRole('alertdialog', {
+    name: 'Remove Alex Rivera from Task 7B Team?',
+  });
+  await expect(confirmation).toBeVisible();
+  await expect(
+    confirmation.getByRole('button', { name: 'Remove member', exact: true }),
+  ).toHaveClass(/text-destructive/);
+  await confirmation
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  await expect(confirmation).toBeHidden();
 });
 
 async function expectAccountSectionReady(
@@ -877,6 +921,24 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(
     page.getByRole('heading', { name: 'Sign in to Lexon' }),
   ).toBeVisible();
+  const signInButton = page.locator('form button[type="submit"]');
+  const idleButtonWidth = await signInButton.evaluate(
+    (button) => button.getBoundingClientRect().width,
+  );
+  const labelCenterOffset = () =>
+    signInButton.evaluate((button) => {
+      const label = button.querySelector<HTMLElement>(
+        ':scope > span > span:last-child',
+      );
+      if (!label) throw new Error('Sign-in button label was not rendered.');
+      const buttonRect = button.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+      return Math.abs(
+        (buttonRect.left + buttonRect.right) / 2 -
+          (labelRect.left + labelRect.right) / 2,
+      );
+    });
+  expect(await labelCenterOffset()).toBeLessThanOrEqual(1);
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'sign-in', theme);
 
@@ -924,6 +986,12 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     await expect(
       page.getByRole('button', { name: 'Signing in…' }),
     ).toBeDisabled();
+    expect(
+      await signInButton.evaluate(
+        (button) => button.getBoundingClientRect().width,
+      ),
+    ).toBe(idleButtonWidth);
+    expect(await labelCenterOffset()).toBeLessThanOrEqual(1);
     for (const theme of ['light', 'dark'] as const)
       await captureCheckpointCView(
         page,
@@ -1146,6 +1214,25 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     .getByRole('button', { name: /Organization: Harbor Legal/ })
     .click();
   await expect(page.getByTestId('organization-popup')).toBeVisible();
+  const selectedOrganization = page.getByRole('menuitem', {
+    name: /Harbor Legal/,
+  });
+  await expect(selectedOrganization).toHaveAttribute('aria-current', 'true');
+  await expect(selectedOrganization).not.toHaveAttribute('data-disabled');
+  await expect(selectedOrganization).toHaveCSS('opacity', '1');
+  let selectedOrganizationSwitches = 0;
+  const countSelectedSwitch = (request: import('@playwright/test').Request) => {
+    if (
+      request.method() === 'POST' &&
+      request.url().endsWith('/api/organizations/active')
+    )
+      selectedOrganizationSwitches++;
+  };
+  page.on('request', countSelectedSwitch);
+  await selectedOrganization.click();
+  await expect(page.getByTestId('organization-popup')).toBeVisible();
+  expect(selectedOrganizationSwitches).toBe(0);
+  page.off('request', countSelectedSwitch);
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'organization-switcher-open', theme);
   await page.keyboard.press('Escape');
@@ -1181,10 +1268,14 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         page.getByRole('heading', { name: 'Two-factor authentication' }),
       ).toBeVisible();
     if (section === 'members') {
-      await expect(page.getByRole('table')).toBeVisible();
+      const membersTable = page.getByRole('table');
+      await expect(membersTable).toBeVisible();
+      const currentMember = membersTable.getByRole('row').nth(1);
+      await expect(currentMember).toContainText('Maya Chen (you)');
+      await expect(currentMember.getByRole('combobox')).toHaveCount(0);
       await expect(
-        page.getByText('Maya Chen (you)', { exact: true }),
-      ).toBeVisible();
+        currentMember.getByRole('button', { name: 'Remove', exact: true }),
+      ).toHaveCount(0);
       await expect(
         page.getByText('Alex Rivera', { exact: true }),
       ).toBeVisible();
@@ -1195,6 +1286,9 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       await expect(
         page.getByText('sam.taylor@example.test', { exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Cancel', exact: true }),
+      ).toHaveClass(/text-destructive/);
     }
     if (section === 'general') {
       await expect(
@@ -1259,10 +1353,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
             if (section === 'members') {
               const ownerRow = settings
                 .getByRole('row')
-                .filter({ hasText: 'Maya Chen' });
+                .filter({ hasText: 'Alex Rivera' });
               await expect(
                 ownerRow.getByRole('combobox', {
-                  name: 'Role for Maya Chen',
+                  name: 'Role for Alex Rivera',
                 }),
               ).toBeInViewport();
               await expect(

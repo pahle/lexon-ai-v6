@@ -8,6 +8,7 @@ import { Skeleton } from '../ui/skeleton';
 import { EmptyState } from '../states/page-states';
 import { PendingButton } from '../forms/pending-button';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { dateTimeFormatter } from '../../lib/date-time';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,9 @@ export function SessionList({
   const [confirmingId, setConfirmingId] = useState<Uuid | null>(null);
   const confirming = sessions.find((session) => session.id === confirmingId);
   const hasOtherSessions = sessions.some((session) => !session.current);
+  const orderedSessions = [...sessions].sort(
+    (first, second) => Number(second.current) - Number(first.current),
+  );
 
   return (
     <section
@@ -104,7 +108,7 @@ export function SessionList({
               </tr>
             </thead>
             <tbody>
-              {sessions.map((session) => (
+              {orderedSessions.map((session) => (
                 <tr key={session.id} className="border-t border-border">
                   <th scope="row" className="px-3 py-3 font-medium">
                     <span>
@@ -117,15 +121,15 @@ export function SessionList({
                     ) : null}
                   </th>
                   <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                    {new Date(session.createdAt).toLocaleString('en')}
+                    {dateTimeFormatter.format(new Date(session.createdAt))}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                    {new Date(session.expiresAt).toLocaleString('en')}
+                    {dateTimeFormatter.format(new Date(session.expiresAt))}
                   </td>
                   <td className="px-3 py-3 text-right">
                     {!session.current ? (
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         disabled={busy !== null}
                         onClick={() => setConfirmingId(session.id)}
                       >

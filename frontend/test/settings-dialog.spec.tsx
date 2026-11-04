@@ -211,6 +211,9 @@ test('renders the URL-selected account section in one settings dialog', async ()
   expect(document.body.textContent).toContain('Settings');
   expect(document.body.textContent).toContain('Display name');
   expect(document.body.querySelectorAll('main')).toHaveLength(1);
+  expect(document.body.querySelector('[data-slot="dialog-title"]')).toBe(
+    document.activeElement,
+  );
   await view.unmount();
   vi.unstubAllGlobals();
 });

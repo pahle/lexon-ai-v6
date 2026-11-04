@@ -151,7 +151,12 @@ export function Members({
     return succeeded;
   }
 
-  const rows = members.data?.items ?? [];
+  const currentUserId = identity?.user.id;
+  const rows = [...(members.data?.items ?? [])].sort(
+    (first, second) =>
+      Number(second.userId === currentUserId) -
+      Number(first.userId === currentUserId),
+  );
   const goToInvitations = () => {
     router.replace(settingsHref(window.location.href, 'invitations'), {
       scroll: false,
@@ -222,12 +227,16 @@ export function Members({
             </TableHeader>
             <TableBody>
               {rows.map((member) => {
+                const currentUser = member.userId === currentUserId;
                 const manageable =
+                  !currentUser &&
                   canManageRoles &&
                   (organization.role === 'owner' || member.role !== 'owner');
                 const removable =
-                  organization.role === 'owner' ||
-                  (organization.role === 'admin' && member.role === 'member');
+                  !currentUser &&
+                  (organization.role === 'owner' ||
+                    (organization.role === 'admin' &&
+                      member.role === 'member'));
                 return (
                   <TableRow
                     key={member.id}
@@ -289,7 +298,7 @@ export function Members({
                       <TableCell className="text-right">
                         {removable ? (
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             size="sm"
                             disabled={submission.pending}
                             onClick={() => setRemoving(member)}

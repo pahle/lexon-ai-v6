@@ -25,13 +25,17 @@ const api = vi.hoisted(() => ({
 }));
 const presentationFixture = vi.hoisted(() => ({
   invitationItems: null as unknown[] | null,
+  memberItems: null as unknown[] | null,
+  currentUserId: '00000000-0000-4000-8000-000000000099',
 }));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
-  useWorkspace: () => ({ identity: null }),
+  useWorkspace: () => ({
+    identity: { user: { id: presentationFixture.currentUserId } },
+  }),
 }));
 vi.mock('../src/components/organizations/page-state', () => ({
   identityApi: api,
@@ -57,7 +61,7 @@ vi.mock('../src/components/organizations/page-state', () => ({
                   expiresAt: '2026-11-08T00:00:00.000Z',
                 },
               ])
-            : [
+            : (presentationFixture.memberItems ?? [
                 {
                   version: 1,
                   id: '00000000-0000-4000-8000-000000000011',
@@ -68,7 +72,7 @@ vi.mock('../src/components/organizations/page-state', () => ({
                   role: 'admin',
                   createdAt: '2026-11-01T00:00:00.000Z',
                 },
-              ],
+              ]),
         pageInfo: { nextCursor: null },
       },
       error: null,
@@ -201,6 +205,7 @@ test('member removal and invitation cancellation are named confirmations', async
   const remove = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Remove',
   )!;
+  expect(remove.className).toContain('text-destructive');
   await act(async () => remove.click());
   expect(document.body.textContent).toContain(
     'Remove Dewi Lestari from Hukum Nusantara?',
@@ -216,6 +221,7 @@ test('member removal and invitation cancellation are named confirmations', async
   const cancelInvitation = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Cancel',
   )!;
+  expect(cancelInvitation.className).toContain('text-destructive');
   await act(async () => cancelInvitation.click());
   expect(document.body.textContent).toContain(
     'Cancel the invitation to dewi@example.test?',
@@ -248,7 +254,7 @@ test('resending one invitation labels only that row pending and resets after fai
       purpose: 'team',
       status: 'pending',
       createdAt: '2026-11-01T00:00:00.000Z',
-      expiresAt: '2026-11-15T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
     },
     {
       version: 1,
@@ -260,7 +266,7 @@ test('resending one invitation labels only that row pending and resets after fai
       purpose: 'team',
       status: 'pending',
       createdAt: '2026-11-02T00:00:00.000Z',
-      expiresAt: '2026-11-22T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 22, 18, 2).toISOString(),
     },
   ];
   api.resendInvitation.mockReset();
@@ -344,7 +350,7 @@ test('invitation expiry copy points to each returned Expires date without a fixe
       purpose: 'team',
       status: 'pending',
       createdAt: '2026-11-01T00:00:00.000Z',
-      expiresAt: '2026-11-15T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
     },
     {
       version: 1,
@@ -356,7 +362,7 @@ test('invitation expiry copy points to each returned Expires date without a fixe
       purpose: 'team',
       status: 'pending',
       createdAt: '2026-11-02T00:00:00.000Z',
-      expiresAt: '2026-11-22T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 22, 18, 2).toISOString(),
     },
   ];
   const view = await render(
@@ -367,6 +373,55 @@ test('invitation expiry copy points to each returned Expires date without a fixe
   expect(view.container.textContent).not.toContain('7 days');
   expect(view.container.textContent).toContain('Nov 15, 2026');
   expect(view.container.textContent).toContain('Nov 22, 2026');
+  expect(view.container.textContent).toContain('Nov 15, 2026, 18:02');
   presentationFixture.invitationItems = null;
+  await view.unmount();
+});
+
+test('current member is first, has plain role text, and cannot be removed', async () => {
+  presentationFixture.currentUserId = 'current-user';
+  presentationFixture.memberItems = [
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000011',
+      userId: 'other-user',
+      organizationId: team.id,
+      name: 'Avery Other',
+      email: 'avery@example.test',
+      role: 'member',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000010',
+      userId: 'current-user',
+      organizationId: team.id,
+      name: 'Maya Chen',
+      email: 'maya@example.test',
+      role: 'owner',
+      createdAt: '2026-10-01T00:00:00.000Z',
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+    </QueryClientProvider>,
+  );
+  const rows = [...view.container.querySelectorAll('tbody tr')];
+  expect(rows[0]?.textContent).toContain('Maya Chen (you)');
+  expect(rows[0]?.querySelector('[role="combobox"]')).toBeNull();
+  expect(rows[0]?.textContent).toContain('Owner');
+  expect(rows[0]?.textContent).not.toContain('Remove');
+  expect(rows[1]?.textContent).toContain('Avery Other');
+  expect(
+    rows[1]?.querySelector('[aria-label="Role for Avery Other"]'),
+  ).not.toBeNull();
+  expect(
+    [...(rows[1]?.querySelectorAll('button') ?? [])].some(
+      (button) => button.textContent?.trim() === 'Remove',
+    ),
+  ).toBe(true);
+  presentationFixture.memberItems = null;
+  presentationFixture.currentUserId = '00000000-0000-4000-8000-000000000099';
   await view.unmount();
 });

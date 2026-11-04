@@ -404,6 +404,8 @@ test('every active team role gets organization settings; only platform admins ge
 test('organization menu paginates and a denied switch preserves Personal', async () => {
   beginExplicitTransition.mockClear();
   finishExplicitTransition.mockClear();
+  transition.mockClear();
+  fullReload.mockClear();
   const personal = identity.organization;
   const team = {
     ...personal,
@@ -413,9 +415,11 @@ test('organization menu paginates and a denied switch preserves Personal', async
     slug: 'protected-team',
     require2fa: true,
   };
+  let activeSwitchRequests = 0;
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
     const url = new URL(String(input), window.location.origin);
     if (url.pathname === '/api/organizations/active') {
+      activeSwitchRequests++;
       return Response.json({
         status: 'enrollment_required',
         organization: personal,
@@ -457,6 +461,18 @@ test('organization menu paginates and a denied switch preserves Personal', async
       '[data-testid="organization-popup"] svg.lucide-check',
     ),
   ).toHaveLength(1);
+  const currentOrganization = document.body.querySelector<HTMLElement>(
+    '[role="menuitem"][aria-current="true"]',
+  );
+  expect(currentOrganization?.textContent).toContain('Personal');
+  expect(currentOrganization?.hasAttribute('data-disabled')).toBe(false);
+  await act(async () => currentOrganization?.click());
+  await settle();
+  expect(activeSwitchRequests).toBe(0);
+  expect(beginExplicitTransition).not.toHaveBeenCalled();
+  expect(
+    document.body.querySelector('[data-testid="organization-popup"]'),
+  ).not.toBeNull();
   const next = [
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
   ].find((item) => item.textContent === 'Next page')!;

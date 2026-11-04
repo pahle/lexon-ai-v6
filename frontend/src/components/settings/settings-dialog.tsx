@@ -37,6 +37,7 @@ export function SettingsDialog(): React.ReactElement | null {
     new URLSearchParams(searchParams.toString()),
   );
   const opener = useRef<HTMLElement | null>(null);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
   const hasOpened = useRef(section !== null);
   if (section !== null) hasOpened.current = true;
   const sectionRef = useRef(section);
@@ -117,6 +118,7 @@ export function SettingsDialog(): React.ReactElement | null {
     >
       <DialogContent
         showCloseButton={false}
+        initialFocus={titleRef}
         finalFocus={() =>
           getSettingsFinalFocusTarget(
             opener.current,
@@ -128,7 +130,9 @@ export function SettingsDialog(): React.ReactElement | null {
         className="flex h-[min(42.5rem,calc(100dvh-2rem))] w-full max-w-[1000px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1000px]"
       >
         <DialogHeader className="shrink-0 flex-row items-center justify-between border-b px-5 py-3">
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle ref={titleRef} tabIndex={-1} className="outline-none">
+            Settings
+          </DialogTitle>
           <DialogDescription className="sr-only">
             Manage your account and workspace preferences.
           </DialogDescription>

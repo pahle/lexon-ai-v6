@@ -172,9 +172,14 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                 <DropdownMenuItem
                   closeOnClick={false}
                   key={organization.id}
-                  disabled={organization.id === identity.organization.id}
+                  aria-current={
+                    organization.id === identity.organization.id
+                      ? 'true'
+                      : undefined
+                  }
                   className="gap-2 p-2"
                   onClick={async () => {
+                    if (organization.id === identity.organization.id) return;
                     setBusy(true);
                     setFailure('');
                     setMessage('');

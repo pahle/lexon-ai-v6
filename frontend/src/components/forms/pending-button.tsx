@@ -21,16 +21,16 @@ export function PendingButton({
     <Button {...buttonProps} disabled={pending || buttonProps.disabled}>
       <span className="inline-grid [&>*]:col-start-1 [&>*]:row-start-1">
         <span className="invisible inline-grid" aria-hidden="true">
-          <span className="col-start-1 row-start-1 inline-flex items-center gap-2">
+          <span className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2">
             {children}
           </span>
-          <span className="col-start-1 row-start-1 inline-flex items-center gap-2">
+          <span className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2">
             <Spinner aria-hidden="true" />
             {pendingLabel}
           </span>
         </span>
         <span
-          className="inline-flex items-center gap-2"
+          className="inline-flex items-center justify-center gap-2"
           aria-live={pending ? 'polite' : undefined}
         >
           {pending ? (

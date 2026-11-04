@@ -18,6 +18,7 @@ import {
   useCursorPage,
 } from './page-state';
 import { FormInput } from '../auth/form-input';
+import { dateTimeFormatter } from '../../lib/date-time';
 import { Button } from '../ui/button';
 import { FieldGroup } from '../ui/field';
 import {
@@ -280,10 +281,7 @@ export function Invitations({
                           : 'Member'}
                     </TableCell>
                     <TableCell>
-                      {new Date(invitation.expiresAt).toLocaleDateString(
-                        'en-US',
-                        { month: 'short', day: 'numeric', year: 'numeric' },
-                      )}
+                      {dateTimeFormatter.format(new Date(invitation.expiresAt))}
                     </TableCell>
                     <TableCell className="text-right">
                       {actionable ? (
@@ -320,7 +318,7 @@ export function Invitations({
                             Resend
                           </PendingButton>
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             disabled={submission.pending}
                             onClick={() => setCancelling(invitation)}
                           >

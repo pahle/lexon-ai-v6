@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
@@ -29,6 +29,54 @@ export type ShellReviewView =
   | 'organization-switcher-open'
   | 'user-menu-open'
   | 'sidebar-collapsed';
+
+export function parseCheckpointCViewFilter(
+  value: string,
+  indexedViews: readonly string[],
+): ReadonlySet<string> | null {
+  const names = value
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (names.length === 0)
+    throw new Error(
+      'LEXON_CHECKPOINT_C_VIEWS must contain at least one indexed view.',
+    );
+  const indexed = new Set(indexedViews);
+  const unknown = names.filter((name) => !indexed.has(name));
+  if (unknown.length > 0)
+    throw new Error(
+      `Unknown Checkpoint C capture view(s): ${unknown.join(', ')}`,
+    );
+  return new Set(names);
+}
+
+let checkpointCFilterValue: string | undefined;
+let checkpointCFilter: Promise<ReadonlySet<string> | null> | undefined;
+
+async function shouldCaptureCheckpointCView(view: CheckpointCView) {
+  const value = process.env.LEXON_CHECKPOINT_C_VIEWS;
+  if (value === undefined) return true;
+  if (value !== checkpointCFilterValue) {
+    checkpointCFilterValue = value;
+    checkpointCFilter = readFile(
+      resolve('docs/references/F2.1-visual/index.json'),
+      'utf8',
+    ).then((contents) => {
+      const index = JSON.parse(contents) as {
+        checkpointC: { views: { id: string }[] };
+      };
+      return parseCheckpointCViewFilter(
+        value,
+        index.checkpointC.views.map(({ id }) => id),
+      );
+    });
+  }
+  if (!checkpointCFilter)
+    throw new Error('Checkpoint C capture filter was not initialized.');
+  const selected = await checkpointCFilter;
+  return selected === null || selected.has(view);
+}
 
 const sizes = {
   desktop: { width: 1440, height: 900 },
@@ -134,6 +182,7 @@ export async function captureCheckpointCView(
   view: CheckpointCView,
   theme: VisualTheme,
 ) {
+  if (!(await shouldCaptureCheckpointCView(view))) return;
   await page.setViewportSize(sizes.desktop);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate((value) => {

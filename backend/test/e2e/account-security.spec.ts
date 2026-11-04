@@ -34,6 +34,16 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
   );
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole('heading', { name: 'Settings', exact: true }),
+  ).toBeFocused();
+  await expect(
+    dialog.getByRole('heading', { name: 'Settings', exact: true }),
+  ).toHaveCSS('outline-style', 'none');
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Close settings', exact: true }),
+  ).toBeFocused();
   const name = page.getByLabel('Display name');
   await expect(name).toBeVisible();
   const savedName = await name.inputValue();
@@ -59,6 +69,7 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
     exact: true,
   });
   await expect(revoke).toBeVisible();
+  await expect(revoke).toHaveClass(/text-destructive/);
   await revoke.click();
   const confirmation = page.getByRole('alertdialog', {
     name: 'Revoke this session?',
