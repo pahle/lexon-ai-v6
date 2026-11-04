@@ -578,13 +578,17 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
     name: 'Remove Alex Rivera from Task 7B Team?',
   });
   await expect(confirmation).toBeVisible();
-  await expect(
-    confirmation.getByRole('button', { name: 'Remove member', exact: true }),
-  ).toHaveClass(/text-destructive/);
+  const confirmRemove = confirmation.getByRole('button', {
+    name: 'Remove member',
+    exact: true,
+  });
+  await expect(confirmRemove).toBeVisible();
+  await expect(confirmRemove).toBeEnabled();
   await confirmation
     .getByRole('button', { name: 'Cancel', exact: true })
     .click();
   await expect(confirmation).toBeHidden();
+  await expect(remove).toBeFocused();
 });
 
 async function expectAccountSectionReady(
