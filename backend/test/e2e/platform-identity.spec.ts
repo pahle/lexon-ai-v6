@@ -8,6 +8,7 @@ import { totpForUri } from '../setup/totp.js';
 import {
   captureCheckpointCView,
   captureShellReviewView,
+  captureTask9ReviewView,
 } from './visual-support.js';
 import { captureTask7BViewportReview } from './visual-support.js';
 
@@ -192,6 +193,37 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         'Home',
       );
     }
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask9ReviewView(
+          page,
+          'user-menu-open',
+          theme,
+          viewport,
+          'Home',
+        );
+      }
+    }
+    markOperatorStage('Task 9 user-menu captures complete');
+    await page.goto(stack.frontendUrl + '/platform/provisioning');
+    await expect(
+      page.getByRole('heading', { name: 'Provisioning' }),
+    ).toBeVisible();
+    for (const viewport of ['desktop', 'mobile'] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        await captureTask9ReviewView(
+          page,
+          'provisioning',
+          theme,
+          viewport,
+          'Provisioning',
+        );
+      }
+    }
+    markOperatorStage('Task 9 provisioning captures complete');
+    await page.goto(stack.frontendUrl + '/workspace');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate(
         (value) => localStorage.setItem('theme', value),
@@ -254,25 +286,38 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     };
     let releaseProvisioningList!: () => void;
     let provisioningListStarted!: () => void;
-    let provisioningListFinished!: () => void;
     const provisioningListGate = new Promise<void>((resolve) => {
       releaseProvisioningList = resolve;
     });
     const provisioningStarted = new Promise<void>((resolve) => {
       provisioningListStarted = resolve;
     });
-    const provisioningFinished = new Promise<void>((resolve) => {
-      provisioningListFinished = resolve;
+    const pendingProvisioningRoutes = new Set<Promise<void>>();
+    let provisioningRequestsStarted = 0;
+    let provisioningRequestsFinished = 0;
+    let provisioningRequestsOverlapped!: () => void;
+    const atLeastTwoProvisioningRequests = new Promise<void>((resolve) => {
+      provisioningRequestsOverlapped = resolve;
     });
-    await page.route(platformListUrl, async (route) => {
+    let duplicateProvisioningRequest: Promise<number> | undefined;
+    await page.route(platformListUrl, (route) => {
+      provisioningRequestsStarted++;
+      if (provisioningRequestsStarted === 2) provisioningRequestsOverlapped();
       provisioningListStarted();
-      try {
-        await provisioningListGate;
-        const response = await route.fetch();
-        await route.fulfill({ response });
-      } finally {
-        provisioningListFinished();
-      }
+      const handler = (async () => {
+        try {
+          await provisioningListGate;
+          await route.continue();
+        } finally {
+          provisioningRequestsFinished++;
+        }
+      })();
+      pendingProvisioningRoutes.add(handler);
+      void handler.then(
+        () => pendingProvisioningRoutes.delete(handler),
+        () => pendingProvisioningRoutes.delete(handler),
+      );
+      return handler;
     });
     try {
       await page.reload();
@@ -281,11 +326,19 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         page.getByRole('status', { name: 'Checking platform access' }),
       ).toBeVisible();
       await capturePlatformResponsiveState('platform-provisioning-loading');
+      duplicateProvisioningRequest = page.evaluate(async () => {
+        const response = await fetch('/api/platform/provisioning?limit=2');
+        return response.status;
+      });
+      await atLeastTwoProvisioningRequests;
     } finally {
       releaseProvisioningList();
-      await provisioningFinished;
-      await page.unroute(platformListUrl);
+      await page.unrouteAll({ behavior: 'wait' });
+      await Promise.all([...pendingProvisioningRoutes]);
+      expect(provisioningRequestsStarted).toBeGreaterThanOrEqual(2);
+      expect(provisioningRequestsFinished).toBe(provisioningRequestsStarted);
     }
+    expect(await duplicateProvisioningRequest).toBe(200);
     await expect(
       page.getByText('No provisioning organizations', { exact: true }),
     ).toBeVisible();

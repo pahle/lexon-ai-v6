@@ -1,7 +1,12 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import {
+  assertIndexedArtifact,
+  assertReviewArtifact,
+  resolveVisualMode,
+} from '../../../scripts/visual-mode.mjs';
 
 export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
 export type VisualTheme = 'light' | 'dark';
@@ -238,18 +243,20 @@ export async function captureCheckpointCView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  const output = resolve(
-    'docs/references/F2.1-visual/checkpoints',
-    `c-${view}-${theme}.png`,
-  );
-  await mkdir(resolve(output, '..'), { recursive: true });
-  await page.screenshot({
-    path: output,
-    fullPage: false,
-    caret: 'hide',
-    animations: 'disabled',
-    scale: 'css',
-  });
+  if (process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+    const output = resolve(
+      'docs/references/F2.1-visual/checkpoints',
+      `c-${view}-${theme}.png`,
+    );
+    await mkdir(resolve(output, '..'), { recursive: true });
+    await page.screenshot({
+      path: output,
+      fullPage: false,
+      caret: 'hide',
+      animations: 'disabled',
+      scale: 'css',
+    });
+  }
 }
 
 export async function waitForVisualAuthFormReady(page: Page) {
@@ -333,18 +340,20 @@ export async function captureVisualView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  const output = resolve(
-    'docs/references/F2.1-visual/checkpoints',
-    `a-${view}-${viewport}-${theme}.png`,
-  );
-  await mkdir(resolve(output, '..'), { recursive: true });
-  await page.screenshot({
-    path: output,
-    fullPage: false,
-    caret: 'hide',
-    animations: 'disabled',
-    scale: 'css',
-  });
+  if (process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+    const output = resolve(
+      'docs/references/F2.1-visual/checkpoints',
+      `a-${view}-${viewport}-${theme}.png`,
+    );
+    await mkdir(resolve(output, '..'), { recursive: true });
+    await page.screenshot({
+      path: output,
+      fullPage: false,
+      caret: 'hide',
+      animations: 'disabled',
+      scale: 'css',
+    });
+  }
 }
 
 export async function captureShellReviewView(
@@ -448,4 +457,215 @@ export async function captureShellReviewView(
     animations: 'disabled',
     scale: 'css',
   });
+}
+
+export async function installTask9SessionExpiryNormalization(
+  page: Page,
+  options: { hold?: Promise<void>; onRequest?: () => void } = {},
+) {
+  const pending = new Set<Promise<void>>();
+  const sessionUrl = (url: URL) =>
+    url.pathname === '/api/identity/sessions' && url.search === '';
+  const sessionHandler = (route: import('@playwright/test').Route) => {
+    const handler = (async () => {
+      options.onRequest?.();
+      await options.hold;
+      const response = await route.fetch();
+      if (!response.ok()) {
+        await route.fulfill({ response });
+        return;
+      }
+      const rows = (await response.json()) as Array<Record<string, unknown>>;
+      await route.fulfill({
+        response,
+        json: rows.map((row) => ({
+          ...row,
+          expiresAt: '2030-01-01T00:00:00.000Z',
+        })),
+      });
+    })();
+    pending.add(handler);
+    void handler.then(
+      () => pending.delete(handler),
+      () => pending.delete(handler),
+    );
+    return handler;
+  };
+  await page.route(sessionUrl, sessionHandler);
+  return {
+    async drain() {
+      await Promise.all([...pending]);
+    },
+    async remove() {
+      await page.unroute(sessionUrl, sessionHandler);
+      await Promise.all([...pending]);
+    },
+  };
+}
+
+export async function captureTask9ReviewView(
+  page: Page,
+  view: string,
+  theme: VisualTheme,
+  viewport: VisualViewport,
+  expectedIdentity: string,
+  options: { loadedContent?: Locator; loadedContentTimeoutMs?: number } = {},
+) {
+  const mode = resolveVisualMode();
+  const index = JSON.parse(
+    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
+  ) as {
+    views: Record<
+      string,
+      { path: string; viewport: VisualViewport; theme: VisualTheme }
+    >;
+  };
+  const id =
+    view === 'sidebar-header-collapsed-desktop'
+      ? `${view}-${theme}`
+      : `${view}-${viewport}-${theme}`;
+  const entry = index.views[id];
+  if (!entry) throw new Error(`Visual index has no entry for view "${id}".`);
+  const size = sizes[viewport];
+  await page.setViewportSize(size);
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
+  await page.evaluate((value) => {
+    localStorage.setItem('theme', value);
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'theme',
+        newValue: value,
+        storageArea: localStorage,
+      }),
+    );
+  }, theme);
+  await expect(page.locator('main')).toHaveCount(1);
+  await expect(page.locator('html')).toHaveClass(
+    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+  );
+  if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+    const openNavigation = page.getByRole('button', {
+      name: 'Open navigation',
+    });
+    if (await openNavigation.isVisible()) await openNavigation.click();
+    await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
+  }
+  if (view === 'sidebar-header-expanded' && viewport === 'desktop') {
+    const expand = page.getByRole('button', { name: 'Expand sidebar' });
+    if (await expand.isVisible()) await expand.click();
+    await expect(
+      page.getByRole('button', { name: 'Collapse sidebar' }),
+    ).toBeVisible();
+  }
+  if (view === 'sidebar-header-collapsed-desktop') {
+    const collapse = page.getByRole('button', { name: 'Collapse sidebar' });
+    if (await collapse.isVisible()) await collapse.click();
+    await expect(
+      page.getByRole('button', { name: 'Expand sidebar' }),
+    ).toBeVisible();
+  }
+  if (view === 'organization-switcher-open' || view === 'user-menu-open') {
+    if (viewport === 'mobile') {
+      const openNavigation = page.getByRole('button', {
+        name: 'Open navigation',
+      });
+      if (await openNavigation.isVisible()) await openNavigation.click();
+      await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
+    }
+    const popup = page.getByTestId(
+      view === 'organization-switcher-open'
+        ? 'organization-popup'
+        : 'user-menu-popup',
+    );
+    if (!(await popup.isVisible().catch(() => false))) {
+      if (view === 'organization-switcher-open') {
+        await page
+          .locator('[data-slot="sidebar-header"] button[aria-haspopup="menu"]')
+          .click();
+      } else {
+        await page
+          .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+          .click();
+      }
+    }
+    if (view === 'organization-switcher-open')
+      await expect(page.getByTestId('organization-popup')).toBeVisible();
+    else
+      await expect(
+        page.getByRole('menuitem', { name: 'Sign out' }),
+      ).toBeVisible();
+  }
+  await expect(
+    page
+      .getByText(expectedIdentity, { exact: true })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  if (options.loadedContent) {
+    await expect(options.loadedContent).toBeVisible(
+      options.loadedContentTimeoutMs === undefined
+        ? undefined
+        : { timeout: options.loadedContentTimeoutMs },
+    );
+  }
+  expect(
+    await page.evaluate(() => ({
+      width: innerWidth,
+      height: innerHeight,
+      deviceScaleFactor: devicePixelRatio,
+    })),
+  ).toEqual({ ...size, deviceScaleFactor: 1 });
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        return Array.from(document.fonts).some(
+          (font) => font.status === 'loaded' && /inter/i.test(font.family),
+        );
+      }),
+    )
+    .toBe(true);
+  await page.evaluate(async () =>
+    Promise.all(Array.from(document.images, (image) => image.decode())),
+  );
+  expect(
+    await page
+      .locator('img:visible')
+      .evaluateAll((images) =>
+        images.every(
+          (image) =>
+            (image as HTMLImageElement).naturalWidth > 0 &&
+            (image as HTMLImageElement).naturalHeight > 0,
+        ),
+      ),
+  ).toBe(true);
+  await page.mouse.move(0, 0);
+  if (mode === 'compare' || mode === 'update') {
+    assertIndexedArtifact(index, id, resolve('docs/references/F2.1-visual'), {
+      mode,
+    });
+    throw new Error(
+      `Approved comparison for "${id}" is reserved for Task 10 baseline integration.`,
+    );
+  }
+  const output = assertReviewArtifact(
+    index,
+    id,
+    resolve('docs/references/F2.1-visual'),
+  );
+  await mkdir(resolve(output, '..'), { recursive: true });
+  await page.screenshot({
+    path: output,
+    fullPage: false,
+    caret: 'hide',
+    animations: 'disabled',
+    scale: 'css',
+  });
+  if (view === 'organization-switcher-open' || view === 'user-menu-open') {
+    await page.keyboard.press('Escape');
+    if (viewport === 'mobile') await page.keyboard.press('Escape');
+  } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+    await page.keyboard.press('Escape');
+  }
+  return output;
 }

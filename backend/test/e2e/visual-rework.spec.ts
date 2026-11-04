@@ -1,18 +1,42 @@
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { totpForUri } from '../setup/totp.js';
 import {
   captureCheckpointCView,
+  captureTask9ReviewView,
+  installTask9SessionExpiryNormalization,
   captureShellReviewView,
   captureTask7BViewportReview,
   captureVisualView,
   type VisualTheme,
   type VisualViewport,
 } from './visual-support.js';
+
+async function captureTask9Variants(
+  page: import('@playwright/test').Page,
+  view: string,
+  expectedText: string,
+  loadedContent?: import('@playwright/test').Locator,
+) {
+  for (const viewport of ['desktop', 'mobile'] as const) {
+    for (const theme of ['light', 'dark'] as const) {
+      await captureTask9ReviewView(
+        page,
+        view,
+        theme,
+        viewport,
+        expectedText,
+        loadedContent ? { loadedContent } : {},
+      );
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
 
 test('sign-in and sign-up have the published frame and indexed checkpoint captures', async ({
   page,
@@ -34,12 +58,27 @@ test('sign-in and sign-up have the published frame and indexed checkpoint captur
   for (const viewport of viewportPairs) {
     for (const theme of themes) {
       await captureVisualView(page, 'sign-in', theme, viewport);
+      await captureTask9ReviewView(
+        page,
+        'sign-in',
+        theme,
+        viewport,
+        'Sign in to Lexon',
+      );
     }
   }
   await page.goto(base + '/sign-up');
   for (const viewport of viewportPairs) {
-    for (const theme of themes)
+    for (const theme of themes) {
       await captureVisualView(page, 'sign-up', theme, viewport);
+      await captureTask9ReviewView(
+        page,
+        'sign-up',
+        theme,
+        viewport,
+        'Create your account',
+      );
+    }
   }
 });
 
@@ -81,8 +120,16 @@ test('a real API-authenticated incomplete identity renders onboarding checkpoint
     );
   }
   for (const viewport of ['desktop', 'mobile'] as const) {
-    for (const theme of ['light', 'dark'] as const)
+    for (const theme of ['light', 'dark'] as const) {
       await captureVisualView(page, 'onboarding', theme, viewport);
+      await captureTask9ReviewView(
+        page,
+        'onboarding',
+        theme,
+        viewport,
+        'Welcome to Lexon',
+      );
+    }
   }
 });
 
@@ -173,6 +220,10 @@ test('secondary account flows render inside the shared auth frame', async ({
     ).toHaveCount(1);
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
     await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
+    if (route.name === 'forgot-password' || route.name === 'two-factor') {
+      const expected = await page.locator('h1').innerText();
+      await captureTask9Variants(page, route.name, expected);
+    }
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all(Array.from(document.images, (image) => image.decode()));
@@ -970,6 +1021,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   expect(await labelCenterOffset()).toBeLessThanOrEqual(1);
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'sign-in', theme);
+  await captureTask9Variants(page, 'sign-in', 'Sign in to Lexon');
 
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByLabel('Email', { exact: true })).toHaveAttribute(
@@ -982,6 +1034,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   );
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'sign-in-field-errors', theme);
+  await captureTask9Variants(page, 'sign-in-field-errors', 'Sign in to Lexon');
 
   await page
     .getByLabel('Email', { exact: true })
@@ -1027,6 +1080,11 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         'sign-in-password-shown-loading',
         theme,
       );
+    await captureTask9Variants(
+      page,
+      'sign-in-password-shown-loading',
+      'Sign in to Lexon',
+    );
     releaseRequest();
     await expect(page.locator('[data-slot="alert"]')).toContainText(
       'Email or password is incorrect. Check them and try again.',
@@ -1045,6 +1103,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     );
     for (const theme of ['light', 'dark'] as const)
       await captureCheckpointCView(page, 'sign-in-form-error', theme);
+    await captureTask9Variants(page, 'sign-in-form-error', 'Sign in to Lexon');
   } finally {
     releaseRequest();
     await page.unroute('**/api/auth/sign-in/email');
@@ -1069,7 +1128,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       headers,
       data: {
         name: 'Harbor Legal',
-        slug: 'harbor-' + randomUUID().slice(0, 8),
+        slug: 'harbor-legal-review',
       },
     },
   );
@@ -1229,6 +1288,34 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'home', theme);
+  await captureTask9Variants(page, 'home', 'Home');
+  for (const viewport of ['desktop', 'mobile'] as const) {
+    if (viewport === 'mobile') {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole('button', { name: 'Open navigation' }).click();
+      await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();
+    } else await page.setViewportSize({ width: 1440, height: 900 });
+    for (const theme of ['light', 'dark'] as const)
+      await captureTask9ReviewView(
+        page,
+        'sidebar-header-expanded',
+        theme,
+        viewport,
+        'Home',
+      );
+    if (viewport === 'mobile') await page.keyboard.press('Escape');
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  for (const theme of ['light', 'dark'] as const)
+    await captureTask9ReviewView(
+      page,
+      'sidebar-header-collapsed-desktop',
+      theme,
+      'desktop',
+      'Home',
+    );
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await expect(
     page.getByRole('button', { name: 'Expand sidebar' }),
@@ -1264,6 +1351,11 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   page.off('request', countSelectedSwitch);
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'organization-switcher-open', theme);
+  await captureTask9Variants(
+    page,
+    'organization-switcher-open',
+    'Harbor Legal',
+  );
   await page.keyboard.press('Escape');
   await page
     .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
@@ -1282,7 +1374,68 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     'general',
   ] as const;
   for (const section of sections) {
-    await page.goto(`${stack.frontendUrl}/workspace?settings=${section}`);
+    let releaseSessions!: () => void;
+    let sessionRequestStarted!: () => void;
+    let sessionCapture:
+      | Awaited<ReturnType<typeof installTask9SessionExpiryNormalization>>
+      | undefined;
+    if (section === 'security') {
+      const heldSessionResponse = new Promise<void>((resolve) => {
+        releaseSessions = resolve;
+      });
+      const sessionRequest = new Promise<void>((resolve) => {
+        sessionRequestStarted = resolve;
+      });
+      sessionCapture = await installTask9SessionExpiryNormalization(page, {
+        hold: heldSessionResponse,
+        onRequest: sessionRequestStarted,
+      });
+      const securityCapturePath = resolve(
+        'docs/references/F2.1-visual/review/security-desktop-light.png',
+      );
+      await unlink(securityCapturePath).catch(() => undefined);
+      try {
+        await page.goto(`${stack.frontendUrl}/workspace?settings=${section}`);
+        await sessionRequest;
+        await expect(
+          page.getByRole('status', { name: 'Loading sessions' }),
+        ).toBeVisible();
+        const sessionsTable = page.getByRole('table', {
+          name: 'Signed-in sessions',
+        });
+        const incompleteCapture = captureTask9ReviewView(
+          page,
+          'security',
+          'light',
+          'desktop',
+          'Settings',
+          {
+            loadedContent: sessionsTable,
+            loadedContentTimeoutMs: 250,
+          },
+        );
+        await expect(incompleteCapture).rejects.toThrow();
+        expect(existsSync(securityCapturePath)).toBe(false);
+        releaseSessions();
+        await captureTask9ReviewView(
+          page,
+          'security',
+          'light',
+          'desktop',
+          'Settings',
+          {
+            loadedContent: sessionsTable,
+          },
+        );
+        await sessionCapture.drain();
+      } finally {
+        releaseSessions();
+        await sessionCapture.drain().catch(() => undefined);
+        await sessionCapture.remove();
+      }
+    } else {
+      await page.goto(`${stack.frontendUrl}/workspace?settings=${section}`);
+    }
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
     if (section === 'profile')
       await expect(
@@ -1347,6 +1500,14 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         ).toBeVisible();
       }
       await captureCheckpointCView(page, section, theme);
+      await captureTask9Variants(
+        page,
+        section,
+        'Settings',
+        section === 'security'
+          ? page.getByRole('table', { name: 'Signed-in sessions' })
+          : undefined,
+      );
     }
     if (
       section === 'members' ||
@@ -1652,4 +1813,5 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(page.getByText('Changes saved.', { exact: true })).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'settings-saved-toast', theme);
+  await captureTask9Variants(page, 'settings-saved-toast', 'Changes saved.');
 });

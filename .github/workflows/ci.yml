@@ -66,6 +66,21 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Full Compose browser API and topology layer
         run: pnpm test:e2e
+      - name: Write indexed visual review manifest
+        if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
+        run: node scripts/test/visual-capture-manifest.mjs
+      - name: Upload indexed Linux visual review set
+        if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f2.1-visual-review-${{ github.sha }}
+          path: |
+            docs/references/F2.1-visual/index.json
+            docs/references/F2.1-visual/approval.json
+            docs/references/F2.1-visual/capture-manifest.json
+            docs/references/F2.1-visual/review/*.png
+          retention-days: 7
+          if-no-files-found: error
       - name: Sanitized test artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

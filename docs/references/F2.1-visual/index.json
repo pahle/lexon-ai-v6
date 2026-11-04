@@ -332,29 +332,767 @@
       "state": "Home with collapsed workspace navigation and the Checkpoint Preview identity.",
       "source": "Lexon workspace shell and assistant-ui Thread",
       "applicability": "Collapsed sidebar comparison with reference/sidebar-07-desktop-light and empty thread comparison with reference/thread-desktop-light."
+    },
+    "sign-in-desktop-light": {
+      "path": "review/sign-in-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank sign-in form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-desktop-dark": {
+      "path": "review/sign-in-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Blank sign-in form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-mobile-light": {
+      "path": "review/sign-in-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank sign-in form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-mobile-dark": {
+      "path": "review/sign-in-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Blank sign-in form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-up-desktop-light": {
+      "path": "review/sign-up-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Blank sign-up form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "sign-up-desktop-dark": {
+      "path": "review/sign-up-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Blank sign-up form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "sign-up-mobile-light": {
+      "path": "review/sign-up-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Blank sign-up form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "sign-up-mobile-dark": {
+      "path": "review/sign-up-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Blank sign-up form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "forgot-password-desktop-light": {
+      "path": "review/forgot-password-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Forgot password form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "forgot-password-desktop-dark": {
+      "path": "review/forgot-password-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Forgot password form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "forgot-password-mobile-light": {
+      "path": "review/forgot-password-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Forgot password form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "forgot-password-mobile-dark": {
+      "path": "review/forgot-password-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Forgot password form.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "two-factor-desktop-light": {
+      "path": "review/two-factor-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Two-factor challenge form without OTP secrets.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the challenge UI only; setup and recovery material are excluded."
+    },
+    "two-factor-desktop-dark": {
+      "path": "review/two-factor-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Two-factor challenge form without OTP secrets.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the challenge UI only; setup and recovery material are excluded."
+    },
+    "two-factor-mobile-light": {
+      "path": "review/two-factor-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Two-factor challenge form without OTP secrets.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the challenge UI only; setup and recovery material are excluded."
+    },
+    "two-factor-mobile-dark": {
+      "path": "review/two-factor-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Two-factor challenge form without OTP secrets.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the challenge UI only; setup and recovery material are excluded."
+    },
+    "onboarding-desktop-light": {
+      "path": "review/onboarding-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Authenticated incomplete account onboarding.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "onboarding-desktop-dark": {
+      "path": "review/onboarding-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Authenticated incomplete account onboarding.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "onboarding-mobile-light": {
+      "path": "review/onboarding-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Authenticated incomplete account onboarding.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "onboarding-mobile-dark": {
+      "path": "review/onboarding-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Authenticated incomplete account onboarding.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "home-desktop-light": {
+      "path": "review/home-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Workspace home with real synthetic identity and active organization.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "home-desktop-dark": {
+      "path": "review/home-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Workspace home with real synthetic identity and active organization.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "home-mobile-light": {
+      "path": "review/home-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Workspace home with real synthetic identity and active organization.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "home-mobile-dark": {
+      "path": "review/home-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Workspace home with real synthetic identity and active organization.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "profile-desktop-light": {
+      "path": "review/profile-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Profile.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "profile-desktop-dark": {
+      "path": "review/profile-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Profile.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "profile-mobile-light": {
+      "path": "review/profile-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Profile.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "profile-mobile-dark": {
+      "path": "review/profile-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Profile.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "security-desktop-light": {
+      "path": "review/security-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Security with signed-in sessions.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "security-desktop-dark": {
+      "path": "review/security-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Security with signed-in sessions.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "security-mobile-light": {
+      "path": "review/security-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Security with signed-in sessions.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "security-mobile-dark": {
+      "path": "review/security-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Security with signed-in sessions.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "appearance-desktop-light": {
+      "path": "review/appearance-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Appearance.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "appearance-desktop-dark": {
+      "path": "review/appearance-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Appearance.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "appearance-mobile-light": {
+      "path": "review/appearance-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Appearance.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "appearance-mobile-dark": {
+      "path": "review/appearance-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Appearance.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "members-desktop-light": {
+      "path": "review/members-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Members with real active-team rows.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "members-desktop-dark": {
+      "path": "review/members-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Members with real active-team rows.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "members-mobile-light": {
+      "path": "review/members-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Members with real active-team rows.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "members-mobile-dark": {
+      "path": "review/members-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Members with real active-team rows.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "invitations-desktop-light": {
+      "path": "review/invitations-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Invitations with a pending synthetic invitation.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "invitations-desktop-dark": {
+      "path": "review/invitations-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to Invitations with a pending synthetic invitation.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "invitations-mobile-light": {
+      "path": "review/invitations-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Invitations with a pending synthetic invitation.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "invitations-mobile-dark": {
+      "path": "review/invitations-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to Invitations with a pending synthetic invitation.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "general-desktop-light": {
+      "path": "review/general-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings dialog open to General.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "general-desktop-dark": {
+      "path": "review/general-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings dialog open to General.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "general-mobile-light": {
+      "path": "review/general-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings dialog open to General.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "general-mobile-dark": {
+      "path": "review/general-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings dialog open to General.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "provisioning-desktop-light": {
+      "path": "review/provisioning-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "source": "Lexon platform workspace and provisioning",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "provisioning-desktop-dark": {
+      "path": "review/provisioning-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "source": "Lexon platform workspace and provisioning",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "provisioning-mobile-light": {
+      "path": "review/provisioning-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "source": "Lexon platform workspace and provisioning",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "provisioning-mobile-dark": {
+      "path": "review/provisioning-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "source": "Lexon platform workspace and provisioning",
+      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+    },
+    "organization-switcher-open-desktop-light": {
+      "path": "review/organization-switcher-open-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Workspace with organization switcher open.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the open switcher with the corrected organization tile and real synthetic organizations."
+    },
+    "organization-switcher-open-desktop-dark": {
+      "path": "review/organization-switcher-open-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Workspace with organization switcher open.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the open switcher with the corrected organization tile and real synthetic organizations."
+    },
+    "organization-switcher-open-mobile-light": {
+      "path": "review/organization-switcher-open-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Workspace with organization switcher open.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the open switcher with the corrected organization tile and real synthetic organizations."
+    },
+    "organization-switcher-open-mobile-dark": {
+      "path": "review/organization-switcher-open-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Workspace with organization switcher open.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the open switcher with the corrected organization tile and real synthetic organizations."
+    },
+    "user-menu-open-desktop-light": {
+      "path": "review/user-menu-open-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Workspace with user menu open for an authenticated operator after MFA.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review operator navigation and avatar after the existing full MFA flow."
+    },
+    "user-menu-open-desktop-dark": {
+      "path": "review/user-menu-open-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Workspace with user menu open for an authenticated operator after MFA.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review operator navigation and avatar after the existing full MFA flow."
+    },
+    "user-menu-open-mobile-light": {
+      "path": "review/user-menu-open-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Workspace with user menu open for an authenticated operator after MFA.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review operator navigation and avatar after the existing full MFA flow."
+    },
+    "user-menu-open-mobile-dark": {
+      "path": "review/user-menu-open-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Workspace with user menu open for an authenticated operator after MFA.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review operator navigation and avatar after the existing full MFA flow."
+    },
+    "sign-in-field-errors-desktop-light": {
+      "path": "review/sign-in-field-errors-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Sign-in form showing field validation errors using synthetic invalid input.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-field-errors-desktop-dark": {
+      "path": "review/sign-in-field-errors-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Sign-in form showing field validation errors using synthetic invalid input.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-field-errors-mobile-light": {
+      "path": "review/sign-in-field-errors-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Sign-in form showing field validation errors using synthetic invalid input.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-field-errors-mobile-dark": {
+      "path": "review/sign-in-field-errors-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Sign-in form showing field validation errors using synthetic invalid input.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-password-shown-loading-desktop-light": {
+      "path": "review/sign-in-password-shown-loading-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Sign-in password visible with synthetic invalid password and pending loading state.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-password-shown-loading-desktop-dark": {
+      "path": "review/sign-in-password-shown-loading-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Sign-in password visible with synthetic invalid password and pending loading state.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-password-shown-loading-mobile-light": {
+      "path": "review/sign-in-password-shown-loading-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Sign-in password visible with synthetic invalid password and pending loading state.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-password-shown-loading-mobile-dark": {
+      "path": "review/sign-in-password-shown-loading-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Sign-in password visible with synthetic invalid password and pending loading state.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-form-error-desktop-light": {
+      "path": "review/sign-in-form-error-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Sign-in form with generic server error.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-form-error-desktop-dark": {
+      "path": "review/sign-in-form-error-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Sign-in form with generic server error.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-form-error-mobile-light": {
+      "path": "review/sign-in-form-error-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Sign-in form with generic server error.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "sign-in-form-error-mobile-dark": {
+      "path": "review/sign-in-form-error-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Sign-in form with generic server error.",
+      "source": "Lexon AuthFrame adapting published shadcn auth forms",
+      "applicability": "Review the indexed auth interaction state with synthetic invalid data only."
+    },
+    "settings-saved-toast-desktop-light": {
+      "path": "review/settings-saved-toast-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Settings Profile after successful real Save with confirmation toast.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the confirmation following the existing Profile Save mutation."
+    },
+    "settings-saved-toast-desktop-dark": {
+      "path": "review/settings-saved-toast-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Settings Profile after successful real Save with confirmation toast.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the confirmation following the existing Profile Save mutation."
+    },
+    "settings-saved-toast-mobile-light": {
+      "path": "review/settings-saved-toast-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Settings Profile after successful real Save with confirmation toast.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the confirmation following the existing Profile Save mutation."
+    },
+    "settings-saved-toast-mobile-dark": {
+      "path": "review/settings-saved-toast-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Settings Profile after successful real Save with confirmation toast.",
+      "source": "Lexon workspace shell, Settings dialog, and existing product page",
+      "applicability": "Review the confirmation following the existing Profile Save mutation."
+    },
+    "sidebar-header-expanded-desktop-light": {
+      "path": "review/sidebar-header-expanded-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Expanded workspace sidebar header.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the corrected organization tile, header chevrons, and user avatar in the expanded navigation state."
+    },
+    "sidebar-header-expanded-desktop-dark": {
+      "path": "review/sidebar-header-expanded-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Expanded workspace sidebar header.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the corrected organization tile, header chevrons, and user avatar in the expanded navigation state."
+    },
+    "sidebar-header-expanded-mobile-light": {
+      "path": "review/sidebar-header-expanded-mobile-light.png",
+      "theme": "light",
+      "viewport": "mobile",
+      "state": "Expanded workspace header inside the open navigation sheet.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the corrected organization tile, header chevrons, and user avatar in the expanded navigation state."
+    },
+    "sidebar-header-expanded-mobile-dark": {
+      "path": "review/sidebar-header-expanded-mobile-dark.png",
+      "theme": "dark",
+      "viewport": "mobile",
+      "state": "Expanded workspace header inside the open navigation sheet.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the corrected organization tile, header chevrons, and user avatar in the expanded navigation state."
+    },
+    "sidebar-header-collapsed-desktop-light": {
+      "path": "review/sidebar-header-collapsed-desktop-light.png",
+      "theme": "light",
+      "viewport": "desktop",
+      "state": "Collapsed workspace sidebar header.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the collapsed seal tile and avatar; no collapsed mobile sidebar is applicable."
+    },
+    "sidebar-header-collapsed-desktop-dark": {
+      "path": "review/sidebar-header-collapsed-desktop-dark.png",
+      "theme": "dark",
+      "viewport": "desktop",
+      "state": "Collapsed workspace sidebar header.",
+      "source": "Lexon workspace sidebar header",
+      "applicability": "Review the collapsed seal tile and avatar; no collapsed mobile sidebar is applicable."
     }
   },
   "checkpointC": {
     "directory": "checkpoints",
     "format": "png",
     "deviceScaleFactor": 1,
-    "viewport": { "width": 1440, "height": 900 },
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
     "views": [
-      { "id": "sign-in", "prototypes": ["01-sign-in-light.png", "02-sign-in-dark.png"] },
-      { "id": "sign-in-field-errors", "prototypes": ["03-sign-in-field-errors.png"] },
-      { "id": "sign-in-password-shown-loading", "prototypes": ["04-sign-in-password-shown-loading.png"] },
-      { "id": "sign-in-form-error", "prototypes": ["05-sign-in-form-error.png"] },
-      { "id": "home", "prototypes": ["10-home-light.png", "11-home-dark.png"] },
-      { "id": "sidebar-collapsed", "prototypes": ["12-home-sidebar-collapsed.png"] },
-      { "id": "organization-switcher-open", "prototypes": ["13-organization-switcher-open.png"] },
-      { "id": "user-menu-open", "prototypes": ["14-user-menu-open.png"], "fixture": "active-platform-operator-after-totp-with-platform-navigation-visible-and-children-collapsed" },
-      { "id": "profile", "prototypes": ["20-settings-profile.png", "21-settings-profile-dark.png"] },
-      { "id": "appearance", "prototypes": ["22-settings-appearance.png"] },
-      { "id": "security", "prototypes": ["23-settings-security.png"] },
-      { "id": "members", "prototypes": ["24-settings-members.png"] },
-      { "id": "invitations", "prototypes": ["25-settings-invitations.png"] },
-      { "id": "general", "prototypes": ["26-settings-general.png"] },
-      { "id": "settings-saved-toast", "prototypes": ["27-settings-saved-toast.png"] }
+      {
+        "id": "sign-in",
+        "prototypes": [
+          "01-sign-in-light.png",
+          "02-sign-in-dark.png"
+        ]
+      },
+      {
+        "id": "sign-in-field-errors",
+        "prototypes": [
+          "03-sign-in-field-errors.png"
+        ]
+      },
+      {
+        "id": "sign-in-password-shown-loading",
+        "prototypes": [
+          "04-sign-in-password-shown-loading.png"
+        ]
+      },
+      {
+        "id": "sign-in-form-error",
+        "prototypes": [
+          "05-sign-in-form-error.png"
+        ]
+      },
+      {
+        "id": "home",
+        "prototypes": [
+          "10-home-light.png",
+          "11-home-dark.png"
+        ]
+      },
+      {
+        "id": "sidebar-collapsed",
+        "prototypes": [
+          "12-home-sidebar-collapsed.png"
+        ]
+      },
+      {
+        "id": "organization-switcher-open",
+        "prototypes": [
+          "13-organization-switcher-open.png"
+        ]
+      },
+      {
+        "id": "user-menu-open",
+        "prototypes": [
+          "14-user-menu-open.png"
+        ],
+        "fixture": "active-platform-operator-after-totp-with-platform-navigation-visible-and-children-collapsed"
+      },
+      {
+        "id": "profile",
+        "prototypes": [
+          "20-settings-profile.png",
+          "21-settings-profile-dark.png"
+        ]
+      },
+      {
+        "id": "appearance",
+        "prototypes": [
+          "22-settings-appearance.png"
+        ]
+      },
+      {
+        "id": "security",
+        "prototypes": [
+          "23-settings-security.png"
+        ]
+      },
+      {
+        "id": "members",
+        "prototypes": [
+          "24-settings-members.png"
+        ]
+      },
+      {
+        "id": "invitations",
+        "prototypes": [
+          "25-settings-invitations.png"
+        ]
+      },
+      {
+        "id": "general",
+        "prototypes": [
+          "26-settings-general.png"
+        ]
+      },
+      {
+        "id": "settings-saved-toast",
+        "prototypes": [
+          "27-settings-saved-toast.png"
+        ]
+      }
     ],
     "prototypeSha256": {
       "01-sign-in-light.png": "2596c03d96af5cb15bf11c27e038345f2d031692110fa5a3e0634493160072dd",
@@ -375,6 +1113,14 @@
       "25-settings-invitations.png": "4604f992228a4653dc4ca324fbec73cb579114166bed09606c6b2f5e54aa24b3",
       "26-settings-general.png": "7dbac50b1513b71d98c7125479003e232df6bc9cf056b5be253407a32558bba9",
       "27-settings-saved-toast.png": "81d4a09d93ca9af0ba18c9aeb5ec7af64cbc236b62bcce72c8d9959e32af72dc"
+    }
+  },
+  "normalizations": {
+    "sessionExpiresAt": {
+      "endpoint": "/api/identity/sessions",
+      "field": "expiresAt",
+      "fixedIso": "2030-01-01T00:00:00.000Z",
+      "reason": "The display-only session expiry timestamp is volatile across fresh stacks; response identity, current flag, channel, role, auth state, and backend time remain unchanged."
     }
   }
 }

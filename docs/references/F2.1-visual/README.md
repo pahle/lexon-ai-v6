@@ -1,55 +1,31 @@
-# F2.1 pristine visual references
+# F2.1 visual review artifacts
 
-These images record the untouched published `base-nova` login, signup,
-sidebar, assistant thread, and assistant thread-list surfaces before Lexon
-presentation changes. Each view has a light-theme desktop capture at
-1440×900 and a mobile capture at 390×844, both at device scale factor 1.
+`index.json` is the canonical artifact map. It contains 10 immutable published reference PNGs, historical checkpoint evidence, and the current Task 9 review set: 19 views × desktop/mobile × light/dark, plus four expanded and two collapsed desktop sidebar header captures (82 review PNGs). Review paths are stable and overwritten in place. Capture options are Chromium, English locale, `Asia/Jakarta`, reduced motion, device scale factor 1, PNG, viewport only, hidden caret, and disabled screenshot animations. The view-specific viewport dimensions and source/applicability are in the index.
 
-The image inventory and exact view metadata are in [`index.json`](./index.json).
-Resolved package versions, registry snapshot comparison, generated-source
-hashes, default CSS provenance, fixture import graph, font and geometry checks,
-asset provenance, and PNG hashes are in
-[`reference/source-manifest.json`](./reference/source-manifest.json).
+`approval.json` explicitly records `awaiting-owner`. This set is for review and is not an approved baseline. The only initially permitted display normalization is session `expiresAt` from `GET /api/identity/sessions` to `2030-01-01T00:00:00.000Z`; IDs, `current`, channel, role, auth flags, and backend time are untouched. Behavior tests do not use the capture route.
 
-## Isolation and provenance
+## Capture and comparison modes
 
-The capture runner assembles an isolated Next.js fixture under
-`.cache/f2.1-reference/` from the generated frontend sources and
-[`reference/default-theme.css`](./reference/default-theme.css). Its layout
-imports only that CSS file and mounts the generated tooltip provider. Thread
-views use the existing inert local runtime shape and have no model transport,
-chat route, or API credentials. The browser rejects non-loopback and `/api/`
-requests. The generated Geist and Geist Mono fonts are served locally through
-`next/font`; no browser font-host request is made.
+The tracked approval status chooses `capture` when `awaiting-owner` and `compare` when `approved`, unless `LEXON_VISUAL_MODE` is explicitly set. `capture` writes only indexed `review/` images. `compare` requires recorded owner approval and fails on missing named baselines; it never captures as a fallback. `update` requires both an approved record and the explicit Playwright `--update-snapshots` flag. Capture runs do not use Playwright snapshot updating.
 
-The published auth blocks reference `/placeholder.svg` but do not ship that
-asset. The fixture uses the exact official shadcn UI placeholder asset at
-[`reference/shadcn-placeholder.svg`](./reference/shadcn-placeholder.svg),
-recorded with its source URL and SHA-256 in the source manifest.
+Run the review set with:
 
-The fixture stylesheet imports `tailwindcss`, `tw-animate-css`, and
-`shadcn/tailwind.css`. It does not import the product layout or production
-`globals.css`. The rendered login confirms that the generated `--font-sans`
-resolves to loaded Geist, `--radius` resolves to 0.625rem, and generated input
-and default button heights are both 32px.
+```sh
+LEXON_VISUAL_MODE=capture pnpm test:e2e -- --project visual-review
+```
 
-The fixture and frontend registry `view` snapshots matched before installation
-(SHA-256 `16af43a215a2429bb52a8824c23fd77859672feb1e52b44fe9c921d195eee1bc`).
-The 46 generated source files also matched byte-for-byte after aligning the
-fixture's CLI generation context with the pre-task frontend CSS. The untouched
-default CSS was saved and restored before capture.
+After owner approval, comparisons use:
 
-## Capture
+```sh
+LEXON_VISUAL_MODE=compare pnpm test:e2e -- --project visual-review
+```
 
-Run `node scripts/visual/pristine-reference.mjs` from the repository root at
-the pristine baseline commit. The runner verifies source hashes and isolation,
-starts and stops its own loopback Next.js process, waits for the thread-list
-hydration state to settle, captures all ten PNGs, and verifies their dimensions.
-It refuses to run if any reference PNG already exists; it never overwrites a
-reference image. The temporary sample routes in the pristine commit are removed
-by the following adaptation task, so use the committed PNGs and manifest for
-later work rather than regenerating them from an adapted tree.
+The task report records the actual capture host OS, Chromium version, source SHA, image hashes, and repeated-capture stability evidence. Do not infer Linux rendering from a Linux container when the browser itself runs on macOS.
 
-The images are immutable comparison inputs. Later adapted captures are separate
-artifacts indexed by the same view identifiers; these reference paths stay
-fixed.
+The explicit baseline maintenance command is available only after the owner has approved the exact image hashes and the approval record names that decision:
+
+```sh
+LEXON_VISUAL_MODE=update pnpm test:e2e -- --project visual-review --update-snapshots
+```
+
+Task 9 leaves approval awaiting-owner and creates no `baseline/` images.
