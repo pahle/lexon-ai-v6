@@ -721,33 +721,33 @@
       "path": "review/provisioning-desktop-light.png",
       "theme": "light",
       "viewport": "desktop",
-      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "state": "Platform Provisioning after MFA with the real empty organization list loaded.",
       "source": "Lexon platform workspace and provisioning",
-      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+      "applicability": "Review the loaded empty-state copy and shell for the authenticated synthetic platform operator."
     },
     "provisioning-desktop-dark": {
       "path": "review/provisioning-desktop-dark.png",
       "theme": "dark",
       "viewport": "desktop",
-      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "state": "Platform Provisioning after MFA with the real empty organization list loaded.",
       "source": "Lexon platform workspace and provisioning",
-      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+      "applicability": "Review the loaded empty-state copy and shell for the authenticated synthetic platform operator."
     },
     "provisioning-mobile-light": {
       "path": "review/provisioning-mobile-light.png",
       "theme": "light",
       "viewport": "mobile",
-      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "state": "Platform Provisioning after MFA with the real empty organization list loaded.",
       "source": "Lexon platform workspace and provisioning",
-      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+      "applicability": "Review the loaded empty-state copy and shell for the authenticated synthetic platform operator."
     },
     "provisioning-mobile-dark": {
       "path": "review/provisioning-mobile-dark.png",
       "theme": "dark",
       "viewport": "mobile",
-      "state": "Platform Provisioning for an authenticated operator after MFA.",
+      "state": "Platform Provisioning after MFA with the real empty organization list loaded.",
       "source": "Lexon platform workspace and provisioning",
-      "applicability": "Review the matching responsive product state with loaded real controls and synthetic fixture data."
+      "applicability": "Review the loaded empty-state copy and shell for the authenticated synthetic platform operator."
     },
     "organization-switcher-open-desktop-light": {
       "path": "review/organization-switcher-open-desktop-light.png",
@@ -1116,11 +1116,36 @@
     }
   },
   "normalizations": {
-    "sessionExpiresAt": {
+    "sessions": {
+      "method": "GET",
       "endpoint": "/api/identity/sessions",
-      "field": "expiresAt",
-      "fixedIso": "2030-01-01T00:00:00.000Z",
-      "reason": "The display-only session expiry timestamp is volatile across fresh stacks; response identity, current flag, channel, role, auth state, and backend time remain unchanged."
+      "fields": {
+        "createdAt": {
+          "fixedIso": "2026-11-04T11:02:00.000Z",
+          "scope": "Every existing session row in the response."
+        },
+        "expiresAt": {
+          "fixedIso": "2026-11-11T11:02:00.000Z",
+          "scope": "Every existing session row in the response."
+        }
+      },
+      "reason": "Two same-source capture iterations differed in the rendered signed-in time and session expiry. Fix only these display timestamps for screenshots; keep IDs, current, channel, role, auth flags, response ordering, and backend time unchanged.",
+      "observedReviewPaths": [
+        "review/security-desktop-light.png",
+        "review/security-desktop-dark.png"
+      ]
+    },
+    "invitationExpiresAt": {
+      "method": "GET",
+      "endpoint": "/api/organizations/:activeTeamId/invitations",
+      "field": "items[].expiresAt",
+      "fixedIso": "2026-11-18T11:02:00.000Z",
+      "scope": "Only invitations returned for the active synthetic team by the screenshot capture fixture.",
+      "reason": "Two same-source capture iterations differed in the rendered invitation expiry time. Preserve every other invitation field, item, cursor, ordering, and stored timestamp.",
+      "observedReviewPaths": [
+        "review/invitations-desktop-light.png",
+        "review/invitations-desktop-dark.png"
+      ]
     }
   }
 }

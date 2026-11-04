@@ -209,6 +209,11 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await expect(
       page.getByRole('heading', { name: 'Provisioning' }),
     ).toBeVisible();
+    const emptyProvisioningList = page.getByText(
+      'No provisioning organizations',
+      { exact: true },
+    );
+    await expect(emptyProvisioningList).toBeVisible();
     for (const viewport of ['desktop', 'mobile'] as const) {
       for (const theme of ['light', 'dark'] as const) {
         await captureTask9ReviewView(
@@ -217,6 +222,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           theme,
           viewport,
           'Provisioning',
+          { loadedContent: emptyProvisioningList },
         );
       }
     }

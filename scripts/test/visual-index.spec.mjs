@@ -147,13 +147,31 @@ test('canonical index contains the stable 82-image review contract and immutable
     ),
     false,
   );
+  assert.equal(index.normalizations.sessions.method, 'GET');
   assert.equal(
-    index.normalizations.sessionExpiresAt.endpoint,
+    index.normalizations.sessions.endpoint,
     '/api/identity/sessions',
   );
   assert.equal(
-    index.normalizations.sessionExpiresAt.fixedIso,
-    '2030-01-01T00:00:00.000Z',
+    index.normalizations.sessions.fields.createdAt.fixedIso,
+    '2026-11-04T11:02:00.000Z',
+  );
+  assert.equal(
+    index.normalizations.sessions.fields.expiresAt.fixedIso,
+    '2026-11-11T11:02:00.000Z',
+  );
+  assert.equal(index.normalizations.invitationExpiresAt.method, 'GET');
+  assert.equal(
+    index.normalizations.invitationExpiresAt.endpoint,
+    '/api/organizations/:activeTeamId/invitations',
+  );
+  assert.equal(
+    index.normalizations.invitationExpiresAt.field,
+    'items[].expiresAt',
+  );
+  assert.equal(
+    index.normalizations.invitationExpiresAt.fixedIso,
+    '2026-11-18T11:02:00.000Z',
   );
 });
 

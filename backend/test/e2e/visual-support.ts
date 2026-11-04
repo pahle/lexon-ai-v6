@@ -463,10 +463,25 @@ export async function installTask9SessionExpiryNormalization(
   page: Page,
   options: { hold?: Promise<void>; onRequest?: () => void } = {},
 ) {
+  const index = JSON.parse(
+    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
+  ) as {
+    normalizations: {
+      sessions: {
+        fields: {
+          createdAt: { fixedIso: string };
+          expiresAt: { fixedIso: string };
+        };
+      };
+    };
+  };
+  const createdAt = index.normalizations.sessions.fields.createdAt.fixedIso;
+  const expiresAt = index.normalizations.sessions.fields.expiresAt.fixedIso;
   const pending = new Set<Promise<void>>();
   const sessionUrl = (url: URL) =>
     url.pathname === '/api/identity/sessions' && url.search === '';
   const sessionHandler = (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'GET') return route.continue();
     const handler = (async () => {
       options.onRequest?.();
       await options.hold;
@@ -478,10 +493,7 @@ export async function installTask9SessionExpiryNormalization(
       const rows = (await response.json()) as Array<Record<string, unknown>>;
       await route.fulfill({
         response,
-        json: rows.map((row) => ({
-          ...row,
-          expiresAt: '2030-01-01T00:00:00.000Z',
-        })),
+        json: rows.map((row) => ({ ...row, createdAt, expiresAt })),
       });
     })();
     pending.add(handler);
@@ -498,6 +510,53 @@ export async function installTask9SessionExpiryNormalization(
     },
     async remove() {
       await page.unroute(sessionUrl, sessionHandler);
+      await Promise.all([...pending]);
+    },
+  };
+}
+
+export async function installTask9InvitationExpiryNormalization(
+  page: Page,
+  activeTeamId: string,
+) {
+  const index = JSON.parse(
+    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
+  ) as { normalizations: { invitationExpiresAt: { fixedIso: string } } };
+  const expiresAt = index.normalizations.invitationExpiresAt.fixedIso;
+  const pending = new Set<Promise<void>>();
+  const invitationUrl = (url: URL) =>
+    url.pathname === `/api/organizations/${activeTeamId}/invitations`;
+  const invitationHandler = (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const handler = (async () => {
+      const response = await route.fetch();
+      if (!response.ok()) {
+        await route.fulfill({ response });
+        return;
+      }
+      const body = (await response.json()) as {
+        items: Array<Record<string, unknown>>;
+        [key: string]: unknown;
+      };
+      await route.fulfill({
+        response,
+        json: {
+          ...body,
+          items: body.items.map((invitation) => ({ ...invitation, expiresAt })),
+        },
+      });
+    })();
+    pending.add(handler);
+    void handler.then(
+      () => pending.delete(handler),
+      () => pending.delete(handler),
+    );
+    return handler;
+  };
+  await page.route(invitationUrl, invitationHandler);
+  return {
+    async remove() {
+      await page.unroute(invitationUrl, invitationHandler);
       await Promise.all([...pending]);
     },
   };

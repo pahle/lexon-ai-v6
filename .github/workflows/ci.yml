@@ -66,6 +66,17 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Full Compose browser API and topology layer
         run: pnpm test:e2e
+      - name: Save first Linux review capture hashes
+        if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
+        run: node scripts/test/visual-capture-manifest.mjs --output .cache/f2.1-visual/capture-run-1.json
+      - name: Repeat indexed review captures on the same Linux runner
+        if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
+        run: |
+          LEXON_VISUAL_MODE=capture pnpm test:e2e --project visual-review
+          LEXON_VISUAL_MODE=capture pnpm test:e2e --project identity-browser -g 'F2 platform page passes both-theme axe checks in the real operator flow'
+      - name: Compare both Linux review capture iterations
+        if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
+        run: node scripts/test/visual-capture-manifest.mjs --compare .cache/f2.1-visual/capture-run-1.json
       - name: Write indexed visual review manifest
         if: success() && github.ref == 'refs/heads/f2.1-visual-rework'
         run: node scripts/test/visual-capture-manifest.mjs

@@ -2,7 +2,7 @@
 
 `index.json` is the canonical artifact map. It contains 10 immutable published reference PNGs, historical checkpoint evidence, and the current Task 9 review set: 19 views × desktop/mobile × light/dark, plus four expanded and two collapsed desktop sidebar header captures (82 review PNGs). Review paths are stable and overwritten in place. Capture options are Chromium, English locale, `Asia/Jakarta`, reduced motion, device scale factor 1, PNG, viewport only, hidden caret, and disabled screenshot animations. The view-specific viewport dimensions and source/applicability are in the index.
 
-`approval.json` explicitly records `awaiting-owner`. This set is for review and is not an approved baseline. The only initially permitted display normalization is session `expiresAt` from `GET /api/identity/sessions` to `2030-01-01T00:00:00.000Z`; IDs, `current`, channel, role, auth flags, and backend time are untouched. Behavior tests do not use the capture route.
+`approval.json` explicitly records `awaiting-owner`. This set is for review and is not an approved baseline. Capture-only GET response normalization is indexed in `index.json`: session rows set `createdAt` to `2026-11-04T11:02:00.000Z` and `expiresAt` to `2026-11-11T11:02:00.000Z`; active-team invitation rows set only `items[].expiresAt` to `2026-11-18T11:02:00.000Z`. These fields changed between repeated same-source captures. All IDs, `current`, channel, role, status, cursors, other response fields, and backend time remain unchanged. Behavior tests do not install these routes.
 
 ## Capture and comparison modes
 
