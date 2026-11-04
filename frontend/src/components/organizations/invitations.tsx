@@ -68,6 +68,11 @@ export function Invitations({
   const submission = useSubmissionLock();
   const [failure, setFailure] = useState('');
   const [cancelling, setCancelling] = useState<InvitationSummary | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    | { type: 'send' }
+    | { type: 'resend' | 'cancel'; invitationId: string }
+    | null
+  >(null);
   const form = useForm<InvitationInput>({
     resolver: zodResolver(InvitationInputSchema),
     defaultValues: { email: '', role: 'member' },
@@ -105,26 +110,37 @@ export function Invitations({
   }
   async function sendInvitation(input: InvitationInput) {
     await submission.run(async () => {
-      if (
-        await mutate(
-          () => identityApi.createInvitation(organization.id, input),
-          'Invitation sent.',
-        )
-      ) {
-        form.reset();
+      setPendingAction({ type: 'send' });
+      try {
+        if (
+          await mutate(
+            () => identityApi.createInvitation(organization.id, input),
+            'Invitation sent.',
+          )
+        ) {
+          form.reset();
+        }
+      } finally {
+        setPendingAction(null);
       }
     });
   }
   async function cancelInvitation() {
     if (!cancelling) return;
+    const invitationId = cancelling.id;
     await submission.run(async () => {
-      if (
-        await mutate(
-          () => identityApi.cancelInvitation(cancelling.id),
-          'Invitation cancelled.',
-        )
-      ) {
-        setCancelling(null);
+      setPendingAction({ type: 'cancel', invitationId });
+      try {
+        if (
+          await mutate(
+            () => identityApi.cancelInvitation(invitationId),
+            'Invitation cancelled.',
+          )
+        ) {
+          setCancelling(null);
+        }
+      } finally {
+        setPendingAction(null);
       }
     });
   }
@@ -140,7 +156,8 @@ export function Invitations({
           Invitations
         </h2>
         <p className="text-sm text-muted-foreground">
-          Invite people by email. Invitations expire after 7 days.
+          Invite people by email. The Expires column shows each invitation’s
+          expiration date.
         </p>
       </header>
       {failure ? (
@@ -154,6 +171,7 @@ export function Invitations({
             label="Invitation email"
             type="email"
             autoComplete="email"
+            disabled={submission.pending}
             registration={form.register('email')}
             error={form.formState.errors.email}
           />
@@ -187,7 +205,8 @@ export function Invitations({
           <div className="flex justify-end pt-7">
             <PendingButton
               type="submit"
-              pending={submission.pending}
+              pending={submission.pending && pendingAction?.type === 'send'}
+              disabled={submission.pending}
               pendingLabel="Sending…"
             >
               Send invitation
@@ -271,15 +290,30 @@ export function Invitations({
                         <div className="flex justify-end gap-2">
                           <PendingButton
                             variant="outline"
-                            pending={submission.pending}
+                            pending={
+                              submission.pending &&
+                              pendingAction?.type === 'resend' &&
+                              pendingAction.invitationId === invitation.id
+                            }
+                            disabled={submission.pending}
                             pendingLabel="Resending…"
                             onClick={() =>
                               void submission.run(async () => {
-                                await mutate(
-                                  () =>
-                                    identityApi.resendInvitation(invitation.id),
-                                  'Invitation resent.',
-                                );
+                                setPendingAction({
+                                  type: 'resend',
+                                  invitationId: invitation.id,
+                                });
+                                try {
+                                  await mutate(
+                                    () =>
+                                      identityApi.resendInvitation(
+                                        invitation.id,
+                                      ),
+                                    'Invitation resent.',
+                                  );
+                                } finally {
+                                  setPendingAction(null);
+                                }
                               })
                             }
                           >
@@ -330,7 +364,10 @@ export function Invitations({
               disabled={submission.pending}
               render={
                 <PendingButton
-                  pending={submission.pending}
+                  pending={
+                    submission.pending && pendingAction?.type === 'cancel'
+                  }
+                  disabled={submission.pending}
                   pendingLabel="Cancelling…"
                   variant="destructive"
                 >

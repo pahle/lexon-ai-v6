@@ -474,6 +474,7 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   page,
 }) => {
   const stack = descriptor();
+  await page.setViewportSize({ width: 390, height: 844 });
   const password = 'Task-7B-Select-42!';
   const headers = await authenticateApi(page.request, {
     name: 'Task 7B Owner',
@@ -505,10 +506,32 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   await page.goto(stack.frontendUrl + '/workspace?settings=members');
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await expect(settings).toBeVisible();
+  const membersTable = settings.getByRole('table');
+  await membersTable.scrollIntoViewIfNeeded();
+  const tableViewport = membersTable.locator('xpath=..');
+  const tableMetrics = await tableViewport.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(tableMetrics.scrollWidth).toBeGreaterThan(tableMetrics.clientWidth);
+  await tableViewport.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
   const role = settings.getByRole('combobox', {
     name: 'Role for Task 7B Owner',
   });
-  await role.click();
+  const ownerRow = settings
+    .getByRole('row')
+    .filter({ hasText: 'Task 7B Owner' });
+  await expect(role).toBeInViewport();
+  await expect(
+    ownerRow.getByRole('button', { name: 'Remove', exact: true }),
+  ).toBeInViewport();
+  expect(
+    await page.locator('html').evaluate((element) => element.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await role.focus();
+  await role.press('Enter');
   await expect(
     page.getByRole('option', { name: 'Admin', exact: true }),
   ).toBeVisible();
@@ -1196,15 +1219,109 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
             width,
             theme,
           );
+          if (width === 390 && section !== 'general') {
+            await page.setViewportSize({ width: 390, height: 844 });
+            const settings = page.getByRole('region', {
+              name: `${section} settings`,
+            });
+            const table = settings.getByRole('table');
+            await table.scrollIntoViewIfNeeded();
+            const horizontalScroll = table.locator('xpath=..');
+            const tableWidth = await horizontalScroll.evaluate((element) => ({
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+            }));
+            expect(tableWidth.scrollWidth).toBeGreaterThan(
+              tableWidth.clientWidth,
+            );
+            await horizontalScroll.evaluate((element) => {
+              element.scrollLeft = element.scrollWidth;
+            });
+            if (section === 'members') {
+              const ownerRow = settings
+                .getByRole('row')
+                .filter({ hasText: 'Maya Chen' });
+              await expect(
+                ownerRow.getByRole('combobox', {
+                  name: 'Role for Maya Chen',
+                }),
+              ).toBeInViewport();
+              await expect(
+                ownerRow.getByRole('button', { name: 'Remove', exact: true }),
+              ).toBeInViewport();
+            } else {
+              const pendingRow = settings
+                .getByRole('row')
+                .filter({ hasText: 'sam.taylor@example.test' });
+              await expect(
+                pendingRow.getByRole('button', { name: 'Resend', exact: true }),
+              ).toBeInViewport();
+              await expect(
+                pendingRow.getByRole('button', { name: 'Cancel', exact: true }),
+              ).toBeInViewport();
+            }
+            const documentWidth = await page
+              .locator('html')
+              .evaluate((element) => element.scrollWidth);
+            expect(documentWidth).toBeLessThanOrEqual(390);
+            await captureTask7BViewportReview(
+              page,
+              `${section}-actions-right`,
+              390,
+              theme,
+            );
+            await horizontalScroll.evaluate((element) => {
+              element.scrollLeft = 0;
+            });
+          }
         }
       }
     }
   }
 
   const captureResponsiveState = async (name: string) => {
+    const target =
+      name === 'general-error'
+        ? null
+        : name.endsWith('-loading')
+          ? page.getByRole('status', {
+              name: name.startsWith('invitations-')
+                ? 'Loading invitations'
+                : 'Loading members',
+            })
+          : name.endsWith('-empty')
+            ? page.getByText(
+                name.startsWith('invitations-')
+                  ? 'No pending invitations'
+                  : 'No members yet',
+                { exact: true },
+              )
+            : name.endsWith('-error')
+              ? page.getByRole('status').filter({
+                  hasText: 'Service temporarily unavailable. Please try again.',
+                })
+              : null;
     for (const width of [390, 768] as const) {
       for (const theme of ['light', 'dark'] as const) {
+        await page.setViewportSize({
+          width,
+          height: width === 390 ? 844 : 720,
+        });
+        if (target) {
+          await target.evaluate((element) => {
+            const settingsPane = element.closest<HTMLElement>(
+              'section[aria-label$=" settings"]',
+            );
+            if (!settingsPane)
+              throw new Error(
+                'Expected the state inside the Settings content pane.',
+              );
+            settingsPane.scrollTop = settingsPane.scrollHeight;
+          });
+          await expect(target).toBeInViewport();
+        }
         await captureTask7BViewportReview(page, name, width, theme);
+        if (target) await expect(target).toBeInViewport();
       }
     }
   };

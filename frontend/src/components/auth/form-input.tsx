@@ -21,6 +21,7 @@ export function FormInput({
   error,
   type = 'text',
   autoComplete,
+  disabled = false,
 }: {
   label: string;
   labelAside?: ReactNode;
@@ -28,6 +29,7 @@ export function FormInput({
   error?: FormError | undefined;
   type?: string | undefined;
   autoComplete?: string | undefined;
+  disabled?: boolean | undefined;
 }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
@@ -36,6 +38,7 @@ export function FormInput({
     id,
     type: type === 'password' && visible ? 'text' : type,
     autoComplete,
+    disabled,
     'aria-invalid': invalid,
     'aria-describedby': error ? id + '-error' : undefined,
     ...registration,
@@ -57,6 +60,7 @@ export function FormInput({
             <InputGroupButton
               aria-label={visible ? 'Hide password' : 'Show password'}
               aria-pressed={visible}
+              disabled={disabled}
               onClick={() => setVisible((value) => !value)}
               size="icon-xs"
             >

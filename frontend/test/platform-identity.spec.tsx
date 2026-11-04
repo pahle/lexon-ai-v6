@@ -247,6 +247,103 @@ test('cancelling provisioning has a named confirmation and Keep makes no delete 
   await view.unmount();
   vi.unstubAllGlobals();
 });
+
+test('resending owner invitation labels only Resend pending and resets after failure and success', async () => {
+  const organizationId = '00000000-0000-4000-8000-000000000062';
+  const summary = {
+    version: 1,
+    id: organizationId,
+    name: 'Hukum Nusantara',
+    slug: 'hukum-nusantara',
+    kind: 'team',
+    state: 'provisioning',
+    createdAt: '2026-11-01T00:00:00.000Z',
+    invitation: {
+      id: '00000000-0000-4000-8000-000000000063',
+      status: 'pending',
+      expiresAt: '2026-11-15T00:00:00.000Z',
+    },
+  };
+  let rejectResend!: (error: Error) => void;
+  let resolveResend!: (response: Response) => void;
+  let pendingResend = new Promise<Response>((_resolve, reject) => {
+    rejectResend = reject;
+  });
+  const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(input), 'http://lexon.test').pathname;
+    if (path.endsWith('/resend')) return pendingResend;
+    if (init?.method === 'DELETE' || init?.method === 'PATCH')
+      return Promise.resolve(new Response(null, { status: 204 }));
+    return Promise.resolve(Response.json(summary));
+  });
+  vi.stubGlobal('fetch', fetcher);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningDetail organizationId={organizationId} />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const resend = [
+    ...view.container.querySelectorAll<HTMLButtonElement>('button'),
+  ].find((button) => button.textContent?.includes('Resend owner invitation'))!;
+  const cancel = [
+    ...view.container.querySelectorAll<HTMLButtonElement>('button'),
+  ].find((button) => button.textContent?.includes('Cancel provisioning'))!;
+  const replace = [
+    ...view.container.querySelectorAll<HTMLButtonElement>('button'),
+  ].find((button) => button.textContent?.includes('Replace owner email'))!;
+  const replacementEmail = view.container.querySelector<HTMLInputElement>(
+    'input[name="email"]',
+  )!;
+
+  await act(async () => resend.click());
+  expect(resend.querySelector('[aria-live="polite"]')?.textContent).toContain(
+    'Resending…',
+  );
+  expect(cancel.textContent?.trim()).toBe('Cancel provisioning');
+  expect(cancel.disabled).toBe(true);
+  expect(replace.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(replace.disabled).toBe(true);
+  expect(replacementEmail.disabled).toBe(true);
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(
+    false,
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(
+    false,
+  );
+
+  await act(async () => rejectResend(new Error('network failure')));
+  await settle();
+  expect(view.container.textContent).toContain(
+    'Service temporarily unavailable. Please try again.',
+  );
+  expect(resend.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(resend.disabled).toBe(false);
+  expect(cancel.disabled).toBe(false);
+  expect(replace.disabled).toBe(false);
+  expect(replacementEmail.disabled).toBe(false);
+
+  pendingResend = new Promise<Response>((resolve) => {
+    resolveResend = resolve;
+  });
+  await act(async () => resend.click());
+  expect(resend.querySelector('[aria-live="polite"]')?.textContent).toContain(
+    'Resending…',
+  );
+  await act(async () => resolveResend(Response.json(summary)));
+  await settle();
+  expect(resend.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(resend.disabled).toBe(false);
+  expect(cancel.disabled).toBe(false);
+  expect(replace.disabled).toBe(false);
+  expect(replacementEmail.disabled).toBe(false);
+  expect(
+    fetcher.mock.calls.filter(([input]) => String(input).endsWith('/resend')),
+  ).toHaveLength(2);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
 test('completed setup discards its proof without redeeming it again', async () => {
   const user = {
     version: 1,

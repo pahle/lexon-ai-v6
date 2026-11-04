@@ -43,6 +43,7 @@ export async function captureTask7BViewportReview(
 ) {
   const height = width === 390 ? 844 : width === 768 ? 720 : 900;
   await page.setViewportSize({ width, height });
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate((value) => {
     localStorage.setItem('theme', value);

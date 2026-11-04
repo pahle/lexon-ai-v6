@@ -39,7 +39,7 @@ test('Checkpoint C index maps 15 states to both theme captures and every amended
   assert.equal(checkpointC.views.length, 15);
   assert.equal(
     checkpointC.views.find(({ id }) => id === 'user-menu-open')?.fixture,
-    'active-platform-operator-after-totp-with-platform-navigation-visible',
+    'active-platform-operator-after-totp-with-platform-navigation-visible-and-children-collapsed',
   );
 
   const captureNames = checkpointC.views.flatMap(({ id }) =>

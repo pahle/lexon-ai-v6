@@ -200,11 +200,21 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       const platformToggle = page.getByRole('button', {
         name: 'Toggle Platform navigation',
       });
-      if ((await platformToggle.getAttribute('aria-expanded')) !== 'true')
+      if ((await platformToggle.getAttribute('aria-expanded')) === 'true')
         await platformToggle.click();
+      const primaryNavigation = page.getByRole('navigation', {
+        name: 'Primary navigation',
+      });
       await expect(
-        page.getByRole('link', { name: 'Provisioning', exact: true }),
+        primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
       ).toBeVisible();
+      await expect(platformToggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(
+        primaryNavigation.getByRole('link', {
+          name: 'Provisioning',
+          exact: true,
+        }),
+      ).toHaveCount(0);
       await page
         .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
         .click();
@@ -214,6 +224,15 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await expect(
         page.getByRole('menuitem', { name: /Settings/ }),
       ).toContainText('⌘,');
+      await expect(
+        primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
+      ).toBeVisible();
+      await expect(
+        primaryNavigation.getByRole('link', {
+          name: 'Provisioning',
+          exact: true,
+        }),
+      ).toHaveCount(0);
       await captureCheckpointCView(page, 'user-menu-open', theme);
     }
     markOperatorStage('C operator menu screenshots captured');

@@ -16,6 +16,7 @@ import {
 } from '../organizations/page-state';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup } from '../ui/field';
+import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
 import {
   Card,
@@ -52,6 +53,9 @@ export function ProvisioningDetail({
   const [failure, setFailure] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
   const submission = useSubmissionLock();
+  const [pendingOperation, setPendingOperation] = useState<
+    'resend' | 'cancel' | 'replace' | null
+  >(null);
   const form = useForm<PasswordResetRequestInput>({
     resolver: zodResolver(PasswordResetRequestInputSchema),
     defaultValues: { email: '' },
@@ -123,39 +127,46 @@ export function ProvisioningDetail({
           <div className="flex flex-wrap gap-2">
             <PendingButton
               variant="outline"
-              pending={submission.pending}
+              pending={submission.pending && pendingOperation === 'resend'}
+              disabled={submission.pending}
               pendingLabel="Resending…"
               onClick={() =>
                 void submission.run(async () => {
-                  await mutate(
-                    () => identityApi.resendOwnerInvitation(organizationId),
-                    'Owner invitation resent.',
-                  );
+                  setPendingOperation('resend');
+                  try {
+                    await mutate(
+                      () => identityApi.resendOwnerInvitation(organizationId),
+                      'Owner invitation resent.',
+                    );
+                  } finally {
+                    setPendingOperation(null);
+                  }
                 })
               }
             >
               Resend owner invitation
             </PendingButton>
-            <PendingButton
+            <Button
               variant="outline"
-              pending={submission.pending}
-              pendingLabel="Cancelling…"
+              disabled={submission.pending}
               onClick={() => setConfirmCancel(true)}
             >
               Cancel provisioning
-            </PendingButton>
+            </Button>
           </div>
           <form
             noValidate
             onSubmit={form.handleSubmit((input) =>
               submission.run(async () => {
-                if (
+                setPendingOperation('replace');
+                try {
                   await mutate(async () => {
                     await identityApi.replaceOwnerEmail(organizationId, input);
                     form.reset();
-                  }, 'Owner invitation updated.')
-                )
-                  return;
+                  }, 'Owner invitation updated.');
+                } finally {
+                  setPendingOperation(null);
+                }
               }),
             )}
           >
@@ -164,12 +175,14 @@ export function ProvisioningDetail({
                 label="Replacement owner email"
                 type="email"
                 autoComplete="email"
+                disabled={submission.pending}
                 registration={form.register('email')}
                 error={form.formState.errors.email}
               />
               <PendingButton
                 type="submit"
-                pending={submission.pending}
+                pending={submission.pending && pendingOperation === 'replace'}
+                disabled={submission.pending}
                 pendingLabel="Replacing…"
               >
                 Replace owner email
@@ -208,7 +221,8 @@ export function ProvisioningDetail({
               disabled={submission.pending}
               render={
                 <PendingButton
-                  pending={submission.pending}
+                  pending={submission.pending && pendingOperation === 'cancel'}
+                  disabled={submission.pending}
                   pendingLabel="Cancelling…"
                   variant="destructive"
                 >
@@ -218,14 +232,19 @@ export function ProvisioningDetail({
               onClick={(event) => {
                 event.preventDefault();
                 void submission.run(async () => {
-                  if (
-                    await mutate(
-                      () => identityApi.cancelProvisioning(organizationId),
-                      'Provisioning cancelled.',
-                    )
-                  ) {
-                    setConfirmCancel(false);
-                    window.location.assign('/platform/provisioning');
+                  setPendingOperation('cancel');
+                  try {
+                    if (
+                      await mutate(
+                        () => identityApi.cancelProvisioning(organizationId),
+                        'Provisioning cancelled.',
+                      )
+                    ) {
+                      setConfirmCancel(false);
+                      window.location.assign('/platform/provisioning');
+                    }
+                  } finally {
+                    setPendingOperation(null);
                   }
                 });
               }}

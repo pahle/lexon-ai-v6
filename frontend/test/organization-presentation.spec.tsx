@@ -23,6 +23,9 @@ const api = vi.hoisted(() => ({
     createdAt: '2026-11-01T00:00:00.000Z',
   })),
 }));
+const presentationFixture = vi.hoisted(() => ({
+  invitationItems: null as unknown[] | null,
+}));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -40,7 +43,7 @@ vi.mock('../src/components/organizations/page-state', () => ({
       data: {
         items:
           key[2] === 'invitations'
-            ? [
+            ? (presentationFixture.invitationItems ?? [
                 {
                   version: 1,
                   id: '00000000-0000-4000-8000-000000000021',
@@ -53,7 +56,7 @@ vi.mock('../src/components/organizations/page-state', () => ({
                   createdAt: '2026-11-01T00:00:00.000Z',
                   expiresAt: '2026-11-08T00:00:00.000Z',
                 },
-              ]
+              ])
             : [
                 {
                   version: 1,
@@ -230,5 +233,140 @@ test('member removal and invitation cancellation are named confirmations', async
   await act(async () => [...dialog.querySelectorAll('button')].at(-1)!.click());
   expect(api.cancelInvitation).toHaveBeenCalledTimes(1);
   expect(toast.success).toHaveBeenCalledWith('Invitation cancelled.');
+  await view.unmount();
+});
+
+test('resending one invitation labels only that row pending and resets after failure and success', async () => {
+  presentationFixture.invitationItems = [
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000021',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'dewi@example.test',
+      role: 'member',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-01T00:00:00.000Z',
+      expiresAt: '2026-11-15T00:00:00.000Z',
+    },
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000022',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'ayu@example.test',
+      role: 'admin',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-02T00:00:00.000Z',
+      expiresAt: '2026-11-22T00:00:00.000Z',
+    },
+  ];
+  api.resendInvitation.mockReset();
+  let rejectResend!: (error: Error) => void;
+  api.resendInvitation.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectResend = reject;
+      }),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const rows = [...view.container.querySelectorAll('tbody tr')];
+  const firstResend = rows[0]!.querySelector<HTMLButtonElement>('button')!;
+  const secondResend = rows[1]!.querySelector<HTMLButtonElement>('button')!;
+  const send = [
+    ...view.container.querySelectorAll<HTMLButtonElement>('button'),
+  ].find((button) => button.textContent?.includes('Send invitation'))!;
+  const inviteEmail = view.container.querySelector<HTMLInputElement>(
+    'input[name="email"]',
+  )!;
+  const cancelButtons = rows.map((row) =>
+    [...row.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Cancel',
+    )!,
+  );
+
+  await act(async () => firstResend.click());
+  expect(
+    firstResend.querySelector('[aria-live="polite"]')?.textContent,
+  ).toContain('Resending…');
+  expect(secondResend.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(send.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(send.disabled).toBe(true);
+  expect(inviteEmail.disabled).toBe(true);
+  expect(secondResend.disabled).toBe(true);
+  expect(cancelButtons.every((button) => button.disabled)).toBe(true);
+  expect(api.resendInvitation).toHaveBeenCalledTimes(1);
+  expect(api.resendInvitation).toHaveBeenCalledWith(
+    '00000000-0000-4000-8000-000000000021',
+  );
+
+  await act(async () => rejectResend(new Error('network failure')));
+  expect(firstResend.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(firstResend.disabled).toBe(false);
+  expect(send.disabled).toBe(false);
+  expect(inviteEmail.disabled).toBe(false);
+
+  let resolveResend!: (value: undefined) => void;
+  api.resendInvitation.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveResend = resolve;
+      }),
+  );
+  await act(async () => firstResend.click());
+  expect(
+    firstResend.querySelector('[aria-live="polite"]')?.textContent,
+  ).toContain('Resending…');
+  await act(async () => resolveResend(undefined));
+  expect(firstResend.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(firstResend.disabled).toBe(false);
+  expect(send.disabled).toBe(false);
+  expect(inviteEmail.disabled).toBe(false);
+  presentationFixture.invitationItems = null;
+  await view.unmount();
+});
+
+test('invitation expiry copy points to each returned Expires date without a fixed duration', async () => {
+  presentationFixture.invitationItems = [
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000021',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'dewi@example.test',
+      role: 'member',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-01T00:00:00.000Z',
+      expiresAt: '2026-11-15T00:00:00.000Z',
+    },
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000022',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'ayu@example.test',
+      role: 'admin',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-02T00:00:00.000Z',
+      expiresAt: '2026-11-22T00:00:00.000Z',
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  expect(view.container.textContent).not.toContain('7 days');
+  expect(view.container.textContent).toContain('Nov 15, 2026');
+  expect(view.container.textContent).toContain('Nov 22, 2026');
+  presentationFixture.invitationItems = null;
   await view.unmount();
 });

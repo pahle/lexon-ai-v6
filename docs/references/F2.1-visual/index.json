@@ -347,7 +347,7 @@
       { "id": "home", "prototypes": ["10-home-light.png", "11-home-dark.png"] },
       { "id": "sidebar-collapsed", "prototypes": ["12-home-sidebar-collapsed.png"] },
       { "id": "organization-switcher-open", "prototypes": ["13-organization-switcher-open.png"] },
-      { "id": "user-menu-open", "prototypes": ["14-user-menu-open.png"], "fixture": "active-platform-operator-after-totp-with-platform-navigation-visible" },
+      { "id": "user-menu-open", "prototypes": ["14-user-menu-open.png"], "fixture": "active-platform-operator-after-totp-with-platform-navigation-visible-and-children-collapsed" },
       { "id": "profile", "prototypes": ["20-settings-profile.png", "21-settings-profile-dark.png"] },
       { "id": "appearance", "prototypes": ["22-settings-appearance.png"] },
       { "id": "security", "prototypes": ["23-settings-security.png"] },
