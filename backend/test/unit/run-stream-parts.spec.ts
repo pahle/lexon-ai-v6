@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RunStreamEventSchema } from '@lexon/contracts';
-import { encodeStreamParts } from '../../src/infrastructure/queue/index.js';
+import {
+  encodeStreamParts,
+  encodeStreamPartsBounded,
+} from '../../src/infrastructure/queue/run-stream-parts.js';
 
 const base = {
   version: 1 as const,
@@ -121,5 +124,58 @@ describe('encodeStreamParts', () => {
         input: { required: undefined },
       }),
     ).toThrow('Tool input is not JSON serializable');
+  });
+
+  it('stops text fragmentation at the configured part budget', () => {
+    expect(() =>
+      encodeStreamPartsBounded(
+        {
+          ...base,
+          type: 'text-delta',
+          id: 'bounded',
+          delta: 'x'.repeat(100_000),
+        },
+        4096,
+        2,
+      ),
+    ).toThrow('Stream event exceeds part limit');
+  });
+
+  it('stops traversing structured input when its bounded JSON budget is full', () => {
+    let reads = 0;
+    const largeSparseArray = new Proxy(new Array(100_000), {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) {
+          reads++;
+          return 'x'.repeat(4096);
+        }
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+      getOwnPropertyDescriptor(target, property) {
+        if (typeof property === 'string' && /^\d+$/.test(property))
+          return {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value: 'x'.repeat(4096),
+          };
+        return Reflect.getOwnPropertyDescriptor(target, property);
+      },
+    });
+    expect(() =>
+      encodeStreamPartsBounded(
+        {
+          ...base,
+          type: 'tool-input-available',
+          toolCallId: 'bounded-call',
+          toolName: 'updateDocument',
+          operationId: '40000000-0000-4000-8000-000000000002',
+          input: { items: largeSparseArray },
+        } as never,
+        4096,
+        2,
+      ),
+    ).toThrow('Stream event exceeds part limit');
+    expect(reads).toBeLessThan(100_000);
   });
 });

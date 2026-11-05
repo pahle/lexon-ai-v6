@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { RunStreamEventSchema, type RunStreamEvent } from '@lexon/contracts';
 import type { StepClaim } from '../db/index.js';
-import { encodeStreamParts } from './run-stream-parts.js';
+import {
+  encodeStreamParts,
+  encodeStreamPartsBounded,
+} from './run-stream-parts.js';
 import {
   FINISH_RUN_STREAM,
   PREPARE_RUN_STREAM,
@@ -117,21 +120,28 @@ export class RunStreams {
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
-      event.type === 'finish' ||
-      !RunStreamEventSchema.safeParse(event).success
+      event.type === 'finish'
     )
       return 'stale';
-    let parts: RunStreamEvent[];
-    try {
-      parts = encodeStreamParts(event, this.#capacity.limits.maxEventBytes);
-    } catch {
-      return 'stale';
-    }
-    if (parts.length > MAX_PARTS_PER_PUBLICATION) return 'unavailable';
     return (
       this.#enqueue(
         claim,
         async (generation) => {
+          let parts: RunStreamEvent[];
+          try {
+            parts = encodeStreamPartsBounded(
+              event,
+              this.#capacity.limits.maxEventBytes,
+              MAX_PARTS_PER_PUBLICATION,
+            );
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message === 'Stream event exceeds part limit'
+            )
+              return 'unavailable';
+            return 'stale';
+          }
           for (const part of parts) {
             if (!this.#isCurrent(claim, generation)) return 'stale';
             const result = await this.#publishPart(claim, part, () =>

@@ -480,6 +480,56 @@ test('terminal replay after retained-key expiry preserves one generation', async
         ),
       ).toBe(2);
     }
+    for (let index = 0; index < 10; index++) {
+      const [expiredMember] = await redis.zrange(
+        `${prefix}:terminal`,
+        '0',
+        '0',
+      );
+      if (!expiredMember) throw new Error('Terminal candidate unavailable');
+      const expiredRunId = expiredMember.split('|', 1)[0]!;
+      await redis.del(
+        `${prefix}:${expiredRunId}:events`,
+        `${prefix}:${expiredRunId}:guard`,
+      );
+      const nextClaim: StepClaim = {
+        ...claim,
+        runId: randomUUID(),
+        stepId: randomUUID(),
+      };
+      claims.set(nextClaim.runId, nextClaim);
+      active.add(nextClaim.runId);
+      expect(
+        await streams.publish(nextClaim, {
+          version: 1,
+          runId: nextClaim.runId,
+          type: 'status',
+          status: 'running',
+        }),
+      ).toBe('written');
+      active.delete(nextClaim.runId);
+      terminal.add(nextClaim.runId);
+      await streams.finish(nextClaim, {
+        version: 1,
+        runId: nextClaim.runId,
+        type: 'finish',
+      });
+      const currentMembers = await redis.zrange(
+        `${prefix}:terminal`,
+        '0',
+        '-1',
+      );
+      const currentRunIds = currentMembers.map(
+        (member) => member.split('|', 1)[0]!,
+      );
+      expect(new Set(await redis.hkeys(`${prefix}:contexts`))).toEqual(
+        new Set(currentRunIds),
+      );
+      expect(await redis.hlen(`${prefix}:contexts`)).toBeLessThanOrEqual(6);
+      expect(
+        await redis.hlen(`${prefix}:terminal-members`),
+      ).toBeLessThanOrEqual(6);
+    }
   } finally {
     redis.disconnect();
     await streams.close();
@@ -554,6 +604,23 @@ test('recovery bounds queued publication and resets before fresh deltas', async 
         delta: `old queued ${index}`,
       }),
     );
+    let oversizedInputVisited = false;
+    const saturatedEvent = {
+      version: 1 as const,
+      runId: claim.runId,
+      type: 'tool-input-available' as const,
+      toolCallId: 'saturated',
+      toolName: 'updateDocument',
+      operationId: randomUUID(),
+      get input() {
+        oversizedInputVisited = true;
+        return { text: 'x'.repeat(1_000_000) };
+      },
+    };
+    await expect(streams.publish(claim, saturatedEvent as never)).resolves.toBe(
+      'unavailable',
+    );
+    expect(oversizedInputVisited).toBe(false);
     const recovery = streams.recover(claim, {
       version: 1,
       runId: claim.runId,

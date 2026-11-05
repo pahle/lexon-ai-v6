@@ -7,19 +7,46 @@ export function encodeStreamParts(
   event: RunStreamEvent,
   maxBytes = DEFAULT_MAX_BYTES,
 ): RunStreamEvent[] {
+  return encodeStreamPartsWithBudget(event, maxBytes, Number.MAX_SAFE_INTEGER);
+}
+
+/** Encode at most maxParts and stop traversing input as soon as that budget is exceeded. */
+export function encodeStreamPartsBounded(
+  event: RunStreamEvent,
+  maxBytes: number,
+  maxParts: number,
+): RunStreamEvent[] {
+  if (!Number.isSafeInteger(maxParts) || maxParts < 1)
+    throw new Error('Invalid stream part count limit');
+  return encodeStreamPartsWithBudget(event, maxBytes, maxParts);
+}
+
+function encodeStreamPartsWithBudget(
+  event: RunStreamEvent,
+  maxBytes: number,
+  maxParts: number,
+): RunStreamEvent[] {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
     throw new Error('Invalid stream part limit');
+  if (event.type === 'tool-input-available')
+    return encodeToolInput(event, maxBytes, maxParts);
   if (!RunStreamEventSchema.safeParse(event).success)
     throw new Error('Invalid run stream event');
 
   if (event.type === 'text-delta')
-    return splitText(event, 'delta', event.delta, maxBytes);
+    return splitText(event, 'delta', event.delta, maxBytes, maxParts);
   if (event.type === 'tool-input-delta')
-    return splitText(event, 'inputTextDelta', event.inputTextDelta, maxBytes);
+    return splitText(
+      event,
+      'inputTextDelta',
+      event.inputTextDelta,
+      maxBytes,
+      maxParts,
+    );
   if (event.type === 'tool-output-available') {
     if (!event.operationId)
       throw new Error('Tool result requires durable operation metadata');
-    return encodeStreamParts(
+    return encodeStreamPartsWithBudget(
       {
         version: event.version,
         runId: event.runId,
@@ -28,58 +55,93 @@ export function encodeStreamParts(
         status: 'completed',
       },
       maxBytes,
+      maxParts,
     );
   }
-  if (event.type === 'tool-input-available') {
-    if (!isJsonValue(event.input))
-      throw new Error('Tool input is not JSON serializable');
-    const serialized = JSON.stringify(event.input);
-    if (serialized === undefined)
-      throw new Error('Tool input is not JSON serializable');
-    try {
-      assertSerializedSize(event, maxBytes);
-      return [event];
-    } catch {
-      if (!event.operationId)
-        throw new Error(
-          'Oversized tool input requires durable operation metadata',
-        );
-      const start: RunStreamEvent = {
-        version: event.version,
-        runId: event.runId,
-        type: 'tool-input-start',
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        inputEncoding: 'json',
-      };
-      const deltas = splitText(
-        {
-          version: event.version,
-          runId: event.runId,
-          type: 'tool-input-delta',
-          toolCallId: event.toolCallId,
-          inputTextDelta: serialized,
-        },
-        'inputTextDelta',
-        serialized,
-        maxBytes,
-      );
-      const available: RunStreamEvent = {
-        version: event.version,
-        runId: event.runId,
-        type: 'tool-input-available',
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        operationId: event.operationId,
-      };
-      assertSerializedSize(start, maxBytes);
-      assertSerializedSize(available, maxBytes);
-      return [start, ...deltas, available];
-    }
+  assertSerializedSize(event, maxBytes);
+  return [event];
+}
+
+function encodeToolInput(
+  event: Extract<RunStreamEvent, { type: 'tool-input-available' }>,
+  maxBytes: number,
+  maxParts: number,
+): RunStreamEvent[] {
+  const allowedKeys = new Set([
+    'version',
+    'runId',
+    'type',
+    'toolCallId',
+    'toolName',
+    'operationId',
+    'input',
+  ]);
+  let keyCount = 0;
+  for (const key in event) {
+    if (!Object.hasOwn(event, key)) continue;
+    keyCount++;
+    if (keyCount > allowedKeys.size || !allowedKeys.has(key))
+      throw new Error('Invalid run stream event');
   }
-  {
+  const metadata: RunStreamEvent = {
+    version: event.version,
+    runId: event.runId,
+    type: 'tool-input-available',
+    toolCallId: event.toolCallId,
+    toolName: event.toolName,
+    ...(event.operationId === undefined
+      ? {}
+      : { operationId: event.operationId }),
+    input: {},
+  };
+  if (!RunStreamEventSchema.safeParse(metadata).success)
+    throw new Error('Invalid run stream event');
+  const maxJsonBytes = Number.isSafeInteger(maxParts * maxBytes)
+    ? maxParts * maxBytes
+    : Number.POSITIVE_INFINITY;
+  const serialized = serializeJsonValueBounded(event.input, maxJsonBytes);
+  try {
     assertSerializedSize(event, maxBytes);
     return [event];
+  } catch {
+    if (!event.operationId)
+      throw new Error(
+        'Oversized tool input requires durable operation metadata',
+      );
+    const start: RunStreamEvent = {
+      version: event.version,
+      runId: event.runId,
+      type: 'tool-input-start',
+      toolCallId: event.toolCallId,
+      toolName: event.toolName,
+      inputEncoding: 'json',
+    };
+    const available: RunStreamEvent = {
+      version: event.version,
+      runId: event.runId,
+      type: 'tool-input-available',
+      toolCallId: event.toolCallId,
+      toolName: event.toolName,
+      operationId: event.operationId,
+    };
+    assertSerializedSize(start, maxBytes);
+    assertSerializedSize(available, maxBytes);
+    const deltaLimit = maxParts - 2;
+    if (deltaLimit < 1) throw new Error('Stream event exceeds part limit');
+    const deltas = splitText(
+      {
+        version: event.version,
+        runId: event.runId,
+        type: 'tool-input-delta',
+        toolCallId: event.toolCallId,
+        inputTextDelta: '',
+      },
+      'inputTextDelta',
+      serialized,
+      maxBytes,
+      deltaLimit,
+    );
+    return [start, ...deltas, available];
   }
 }
 
@@ -88,6 +150,7 @@ function splitText(
   field: 'delta' | 'inputTextDelta',
   value: string,
   maxBytes: number,
+  maxParts: number,
 ): RunStreamEvent[] {
   const empty = { ...event, [field]: '' };
   const fixedBytes = Buffer.byteLength(JSON.stringify(empty), 'utf8');
@@ -103,7 +166,11 @@ function splitText(
     if (currentBytes + codePointBytes > maxBytes) {
       if (current.length === 0)
         throw new Error('Stream event envelope exceeds limit');
-      result.push({ ...event, [field]: current } as RunStreamEvent);
+      pushPart(
+        result,
+        { ...event, [field]: current } as RunStreamEvent,
+        maxParts,
+      );
       current = '';
       currentBytes = fixedBytes;
     }
@@ -111,44 +178,124 @@ function splitText(
     currentBytes += codePointBytes;
   }
   if (current.length > 0 || result.length === 0)
-    result.push({ ...event, [field]: current } as RunStreamEvent);
+    pushPart(
+      result,
+      { ...event, [field]: current } as RunStreamEvent,
+      maxParts,
+    );
   for (const part of result) assertSerializedSize(part, maxBytes);
   return result;
+}
+
+function pushPart(
+  parts: RunStreamEvent[],
+  part: RunStreamEvent,
+  maxParts: number,
+): void {
+  if (parts.length >= maxParts)
+    throw new Error('Stream event exceeds part limit');
+  parts.push(part);
+}
+
+function serializeJsonValueBounded(value: unknown, maxBytes: number): string {
+  const chunks: string[] = [];
+  const ancestors = new WeakSet<object>();
+  let current = '';
+  let bytes = 0;
+  const append = (piece: string): void => {
+    bytes += Buffer.byteLength(piece, 'utf8');
+    if (bytes > maxBytes) throw new Error('Stream event exceeds part limit');
+    current += piece;
+    if (Buffer.byteLength(current, 'utf8') >= 4096) {
+      chunks.push(current);
+      current = '';
+    }
+  };
+  const appendString = (text: string): void => {
+    append('"');
+    for (const codePoint of text) {
+      const code = codePoint.codePointAt(0)!;
+      if (codePoint.length === 1 && code >= 0xd800 && code <= 0xdfff) {
+        append(`\\u${code.toString(16).padStart(4, '0')}`);
+      } else if (codePoint === '"') append('\\"');
+      else if (codePoint === '\\') append('\\\\');
+      else if (codePoint === '\b') append('\\b');
+      else if (codePoint === '\t') append('\\t');
+      else if (codePoint === '\n') append('\\n');
+      else if (codePoint === '\f') append('\\f');
+      else if (codePoint === '\r') append('\\r');
+      else if (code <= 0x1f) append(`\\u${code.toString(16).padStart(4, '0')}`);
+      else append(codePoint);
+    }
+    append('"');
+  };
+  const visit = (item: unknown): void => {
+    if (item === null) {
+      append('null');
+      return;
+    }
+    if (typeof item === 'string') {
+      appendString(item);
+      return;
+    }
+    if (typeof item === 'boolean') {
+      append(item ? 'true' : 'false');
+      return;
+    }
+    if (typeof item === 'number' && Number.isFinite(item)) {
+      append(JSON.stringify(item));
+      return;
+    }
+    if (!item || typeof item !== 'object')
+      throw new Error('Tool input is not JSON serializable');
+    if (ancestors.has(item))
+      throw new Error('Tool input is not JSON serializable');
+    ancestors.add(item);
+    try {
+      if (Array.isArray(item)) {
+        append('[');
+        for (let index = 0; index < item.length; index++) {
+          if (index > 0) append(',');
+          if (!Object.hasOwn(item, index))
+            throw new Error('Tool input is not JSON serializable');
+          visit(item[index]);
+        }
+        append(']');
+      } else {
+        const prototype = Object.getPrototypeOf(item);
+        if (prototype !== Object.prototype && prototype !== null)
+          throw new Error('Tool input is not JSON serializable');
+        append('{');
+        let first = true;
+        for (const key in item) {
+          if (!Object.hasOwn(item, key)) continue;
+          if (!first) append(',');
+          first = false;
+          appendString(key);
+          append(':');
+          visit((item as Record<string, unknown>)[key]);
+        }
+        append('}');
+      }
+    } finally {
+      ancestors.delete(item);
+    }
+  };
+  try {
+    visit(value);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === 'Stream event exceeds part limit'
+    )
+      throw error;
+    throw new Error('Tool input is not JSON serializable', { cause: error });
+  }
+  if (current.length > 0 || chunks.length === 0) chunks.push(current);
+  return chunks.join('');
 }
 
 function assertSerializedSize(event: RunStreamEvent, maxBytes: number): void {
   if (Buffer.byteLength(JSON.stringify(event), 'utf8') > maxBytes)
     throw new Error('Stream event exceeds limit');
-}
-
-function isJsonValue(
-  value: unknown,
-  ancestors = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean')
-    return true;
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (!value || typeof value !== 'object') return false;
-  if (ancestors.has(value)) return false;
-  ancestors.add(value);
-  try {
-    if (Array.isArray(value)) {
-      for (let index = 0; index < value.length; index++) {
-        if (
-          !Object.hasOwn(value, index) ||
-          !isJsonValue(value[index], ancestors)
-        )
-          return false;
-      }
-      return true;
-    }
-    if (
-      Object.getPrototypeOf(value) !== Object.prototype &&
-      Object.getPrototypeOf(value) !== null
-    )
-      return false;
-    return Object.values(value).every((entry) => isJsonValue(entry, ancestors));
-  } finally {
-    ancestors.delete(value);
-  }
 }

@@ -20,12 +20,9 @@ function varyingText(seed: number, length: number): string {
   return value;
 }
 
-test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot', async ({
-  services,
-}) => {
-  const runId = randomUUID();
-  const claim: StepClaim = {
-    runId,
+function makeClaim(): StepClaim {
+  return {
+    runId: randomUUID(),
     orgId: randomUUID(),
     userId: randomUUID(),
     stepId: randomUUID(),
@@ -34,43 +31,86 @@ test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot',
     fence: 1,
     leaseUntil: new Date(Date.now() + 30_000),
   };
+}
+
+async function measureKeys(redis: Redis, keys: readonly string[]) {
+  const sizes = await Promise.all(
+    keys.map(async (key) =>
+      Number((await redis.call('MEMORY', 'USAGE', key, 'SAMPLES', '0')) ?? 0),
+    ),
+  );
+  return {
+    sizes,
+    totalBytes: sizes.reduce((sum, size) => sum + size, 0),
+  };
+}
+
+test('active and retained terminal stream slots fit 6 MiB with full registries', async ({
+  services,
+}) => {
+  const activeClaims = new Map<string, StepClaim>();
+  const terminalClaims = new Map<string, StepClaim>();
+  const primary = makeClaim();
+  activeClaims.set(primary.runId, primary);
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
     authority: {
-      authorizeActive: async () => ({
-        runVersion: 1,
-        nextSequence: 1,
-        status: 'running',
-        stepId: claim.stepId,
-        sequence: 1,
-        expectedVersion: 1,
-        fence: 1,
-        leaseUntil: new Date(Date.now() + 30_000),
-      }),
-      authorizeTerminal: async () => ({
-        status: 'completed',
-        runVersion: 2,
-        nextSequence: 2,
-        latestCommittedStepId: claim.stepId,
-        latestCommittedSequence: 1,
-        latestCommittedExpectedVersion: 1,
-        latestCommittedFence: 1,
-      }),
+      authorizeActive: async (claim) =>
+        activeClaims.has(claim.runId)
+          ? {
+              runVersion: claim.expectedVersion,
+              nextSequence: claim.sequence,
+              status: 'running',
+              stepId: claim.stepId,
+              sequence: claim.sequence,
+              expectedVersion: claim.expectedVersion,
+              fence: claim.fence,
+              leaseUntil: new Date(Date.now() + 30_000),
+            }
+          : undefined,
+      authorizeTerminal: async (claim) =>
+        terminalClaims.has(claim.runId)
+          ? {
+              status: 'completed',
+              runVersion: claim.expectedVersion + 1,
+              nextSequence: claim.sequence + 1,
+              latestCommittedStepId: claim.stepId,
+              latestCommittedSequence: claim.sequence,
+              latestCommittedExpectedVersion: claim.expectedVersion,
+              latestCommittedFence: claim.fence,
+            }
+          : undefined,
       reconcile: async (entries) =>
-        entries.map((entry) => ({
-          runId: entry.runId,
-          state: 'active' as const,
-        })),
+        entries.map(({ runId }) => {
+          const active = activeClaims.get(runId);
+          if (active) return { runId, state: 'active' as const };
+          const terminal = terminalClaims.get(runId);
+          if (terminal)
+            return { runId, state: 'terminal' as const, claim: terminal };
+          return { runId, state: 'missing' as const };
+        }),
     },
   });
   const redis = new Redis(services.valkey.streamsUrl);
   const prefix = `${services.queuePrefix}:{run-streams}`;
-  const streamKey = `${prefix}:${runId}:events`;
+  const streamKey = `${prefix}:${primary.runId}:events`;
+  const globalKeys = [
+    `${prefix}:active`,
+    `${prefix}:terminal`,
+    `${prefix}:terminal-members`,
+    `${prefix}:epoch`,
+    `${prefix}:contexts`,
+  ];
+  const memoryKeys = [
+    streamKey,
+    `${prefix}:${primary.runId}:guard`,
+    ...globalKeys,
+  ];
   try {
     const empty = {
       version: 1 as const,
-      runId,
+      runId: primary.runId,
       type: 'text-delta' as const,
       id: 'part',
       delta: '',
@@ -78,37 +118,75 @@ test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot',
     const length =
       RUN_STREAM_LIMITS.maxEventBytes -
       Buffer.byteLength(JSON.stringify(empty), 'utf8');
-    for (let index = 0; index < RUN_STREAM_LIMITS.maxEntries; index++) {
-      const event = { ...empty, delta: varyingText(index + 1, length) };
+    for (let index = 0; index < RUN_STREAM_LIMITS.maxEntries + 1; index++) {
+      const event = {
+        ...empty,
+        delta: varyingText(index + 1, length),
+      };
       expect(Buffer.byteLength(JSON.stringify(event), 'utf8')).toBe(
         RUN_STREAM_LIMITS.maxEventBytes,
       );
-      expect(await streams.publish(claim, event)).toBe('written');
+      expect(await streams.publish(primary, event)).toBe('written');
     }
-    const overflowEvent = { ...empty, delta: varyingText(1025, length) };
-    expect(await streams.publish(claim, overflowEvent)).toBe('written');
-    await streams.finish(claim, { version: 1, runId, type: 'finish' });
-    expect(await redis.xlen(streamKey)).toBe(1024);
-    const keys = [
-      streamKey,
-      `${prefix}:${runId}:guard`,
-      `${prefix}:active`,
-      `${prefix}:terminal`,
-      `${prefix}:terminal-members`,
-      `${prefix}:epoch`,
-      `${prefix}:contexts`,
-    ];
-    const sizes = await Promise.all(
-      keys.map(async (key) =>
-        Number((await redis.call('MEMORY', 'USAGE', key, 'SAMPLES', '0')) ?? 0),
-      ),
-    );
-    const totalRunSlotMemoryBytes = sizes.reduce((sum, size) => sum + size, 0);
+    expect(await redis.xlen(streamKey)).toBe(RUN_STREAM_LIMITS.maxEntries);
+
+    const shortEvent = (claim: StepClaim) => ({
+      version: 1 as const,
+      runId: claim.runId,
+      type: 'status' as const,
+      status: 'running' as const,
+    });
+    for (let index = 0; index < 6; index++) {
+      const claim = makeClaim();
+      activeClaims.set(claim.runId, claim);
+      expect(await streams.publish(claim, shortEvent(claim))).toBe('written');
+      activeClaims.delete(claim.runId);
+      terminalClaims.set(claim.runId, claim);
+      await streams.finish(claim, {
+        version: 1,
+        runId: claim.runId,
+        type: 'finish',
+      });
+    }
+    for (let index = 0; index < 23; index++) {
+      const claim = makeClaim();
+      activeClaims.set(claim.runId, claim);
+      expect(await streams.publish(claim, shortEvent(claim))).toBe('written');
+    }
+    expect(await redis.zcard(`${prefix}:active`)).toBe(24);
+    expect(await redis.zcard(`${prefix}:terminal`)).toBe(6);
+    expect(await redis.hlen(`${prefix}:contexts`)).toBe(30);
+    expect(await redis.hlen(`${prefix}:terminal-members`)).toBe(6);
+
+    const activeMeasurement = await measureKeys(redis, memoryKeys);
     process.stdout.write(
-      `F3 stream slot memory: ${totalRunSlotMemoryBytes} bytes (${sizes.join(',')} per key)\n`,
+      `F3 active stream slot: ${activeMeasurement.totalBytes} bytes (${activeMeasurement.sizes.join(',')} per key)\n`,
     );
-    expect(await redis.zcard(`${prefix}:terminal`)).toBe(1);
-    expect(totalRunSlotMemoryBytes).toBeLessThanOrEqual(
+    expect(activeMeasurement.totalBytes).toBeLessThanOrEqual(
+      RUN_STREAM_LIMITS.slotBytes,
+    );
+
+    activeClaims.delete(primary.runId);
+    terminalClaims.set(primary.runId, primary);
+    await streams.finish(primary, {
+      version: 1,
+      runId: primary.runId,
+      type: 'finish',
+    });
+    const extraActive = makeClaim();
+    activeClaims.set(extraActive.runId, extraActive);
+    expect(await streams.publish(extraActive, shortEvent(extraActive))).toBe(
+      'written',
+    );
+    expect(await redis.xlen(streamKey)).toBe(RUN_STREAM_LIMITS.maxEntries);
+    expect(await redis.zcard(`${prefix}:active`)).toBe(24);
+    expect(await redis.zcard(`${prefix}:terminal`)).toBe(6);
+    expect(await redis.hlen(`${prefix}:contexts`)).toBe(30);
+    const terminalMeasurement = await measureKeys(redis, memoryKeys);
+    process.stdout.write(
+      `F3 terminal stream slot: ${terminalMeasurement.totalBytes} bytes (${terminalMeasurement.sizes.join(',')} per key)\n`,
+    );
+    expect(terminalMeasurement.totalBytes).toBeLessThanOrEqual(
       RUN_STREAM_LIMITS.slotBytes,
     );
   } finally {

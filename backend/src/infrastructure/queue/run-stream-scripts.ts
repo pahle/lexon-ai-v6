@@ -99,7 +99,10 @@ if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCOR
     redis.call('INCR', KEYS[7])
   elseif not currentCandidateGuard and not redis.call('ZSCORE', KEYS[1], candidateRunId) then
     redis.call('ZREM', KEYS[2], candidateId)
-    if redis.call('HGET', KEYS[9], candidateRunId) == candidateId then redis.call('HDEL', KEYS[9], candidateRunId) end
+    if redis.call('HGET', KEYS[9], candidateRunId) == candidateId then
+      redis.call('HDEL', KEYS[9], candidateRunId)
+      redis.call('HDEL', KEYS[8], candidateRunId)
+    end
     redis.call('INCR', KEYS[7])
   elseif redis.call('HGET', KEYS[9], candidateRunId) == candidateId then
     redis.call('ZREM', KEYS[2], candidateId)
