@@ -541,3 +541,14 @@ org slot exactly once; org B remains able to start when org A has6. This is
 admission fairness, not F17 customer quotas. OpenTelemetry packages are first
 installs: exact versions recorded in acceptance notes, and no exporter is
 constructed unless a collector URL is configured (dev/CI default none).
+
+## Task1 owner review corrections, implemented first in Task2
+
+Run start/advance/resume jobs carry ctx={orgId:uuid,userId:uuid}, K3 only, like
+F0 envelopes. A worker opens withTenant from validated ctx, THEN loads the run;
+it must not discover tenant ownership using a SECURITY DEFINER run→org lookup.
+A mismatched org context reads/writes nothing (Task7 flow7). RunId and every
+operationId are UUID-validated, including approval-required and operation-status.
+Lexon-generated message IDs are UUIDs. SDK-provided text/tool/approval part IDs
+remain bounded opaque strings (256code units proposed), not forced to UUID or
+trimmed. Behavioral RED precedes these corrections before repository adoption.
