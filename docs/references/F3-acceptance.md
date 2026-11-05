@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-05
-Current scope: Tasks1–3 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, atomic global24/org6 admission, and durable attempt accounting. Tasks4–17 remain pending; no run execution or model call is delivered yet.
+Current scope: Tasks1–4 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, atomic global24/org6 admission, durable attempt accounting, and worker-safe authorization/context primitives. Tasks5–17 remain pending; no run execution or model call is delivered yet.
 
 ## Task 3 owner capacity privilege correction (2026-11-05)
 
@@ -206,8 +206,7 @@ warning messages remain a baseline follow-up for final review.
 
 ## Task 4 implementation evidence (2026-11-05)
 
-Task 4 implementation is complete and awaiting main-session review; it is not
-marked accepted here. Migration `0017` stores nullable initiating session and
+Task 4 is accepted after main-session review and the scoped lock-order fix. Migration `0017` stores nullable initiating session and
 MFA verification provenance without coupling run retention to auth session
 lifetime. Worker authorization combines that immutable provenance with current
 locked user, organization, and membership facts. The facts function accepts
@@ -246,3 +245,10 @@ policy. Resource grants remain empty pending their owning product slices.
   the added fixture rejects infrastructure importing run capability policy.
   `pnpm build`, `pnpm typecheck`, `pnpm lint` (86/86 boundary tests),
   `pnpm format:check`, and `git diff --check` passed.
+
+### Task 4 acceptance after review (2026-11-05)
+
+- Implementation `7addde85bcdd6ec24b3958ec5a2ac0c57b1a510c`; review fix `c4804015a8e0373b8924cf704c70ab7dcefb0418`. Spec compliance and code quality approved after fixing the selection deadlock and adding direct worker-safe module/boundary proofs. Migration numbers remain unchanged; accepted 0015/0016 were not edited.
+- Main-session final verification used the seven-file focused command above: **27 tests / 7 files passed**, exit 0, 18.09s. The full 577/120 result predates the scoped fix; covering tests and workspace gates passed after it. Runtime-event logs appeared in the focused integration output; the three known jsdom warnings remain a full-suite qualification.
+- Minor follow-up for Task 17/final review: the module trace detects ordinary `better-auth` imports but its scoped `@better-auth` regex arm has an extra slash. Correct the detector and add a direct scoped-package assertion. No forbidden runtime dependency was observed; this is a regression-detector limitation.
+- Task 7 still must persist session/MFA provenance from the live verified actor and reconstruct worker context from persisted initiator IDs. Approval snapshot matching, once-only decisions, access-loss finalization, and transaction boundaries around model calls remain later lifecycle gates. Task 9 owns context-collector runtime validation, including the earlier registration callback validation follow-up. Resource-specific capability policies belong to their owning slices; roles add no grants in F3.
