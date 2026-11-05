@@ -1,9 +1,4 @@
-import type {
-  JsonValue,
-  ModelEvent,
-  ModelInput,
-  ModelToolResultPart,
-} from './model-contracts.js';
+import type { JsonValue, ModelEvent, ModelInput } from './model-contracts.js';
 import { normalizeProviderCost } from './provider-errors.js';
 import type { ModelMessage as AiModelMessage } from 'ai';
 
@@ -15,9 +10,15 @@ export interface ProviderUsageResult {
 }
 
 export function toModelMessages(input: ModelInput) {
-  const calledTools = new Map<string, string>();
-  return input.messages.map((message): AiModelMessage => {
+  if (!Array.isArray(input.messages)) throw new Error('Invalid model message');
+  const outstandingTools = new Map<string, string>();
+  const seenToolIds = new Set<string>();
+  const converted = input.messages.map((message): AiModelMessage => {
+    if (!isRecord(message)) throw new Error('Invalid model message');
     if (message.role === 'system' || message.role === 'user') {
+      assertExactKeys(message, ['content', 'role'], 'Invalid model message');
+      if (typeof message.content !== 'string' && !isJsonValue(message.content))
+        throw new Error('Invalid model message');
       return {
         role: message.role,
         content:
@@ -27,38 +28,72 @@ export function toModelMessages(input: ModelInput) {
       };
     }
     if (message.role === 'assistant') {
+      assertExactKeys(message, ['content', 'role'], 'Invalid model message');
       if (typeof message.content === 'string')
         return { role: 'assistant', content: message.content };
-      const content = message.content.map((part) => {
-        if (part.type === 'text') return part;
+      if (!Array.isArray(message.content))
+        throw new Error('Invalid model message');
+      const content = message.content.map((part: unknown) => {
+        if (!isRecord(part)) throw new Error('Invalid model tool message');
+        if (part.type === 'text') {
+          assertExactKeys(part, ['text', 'type'], 'Invalid model tool message');
+          if (typeof part.text !== 'string')
+            throw new Error('Invalid model tool message');
+          return { type: 'text' as const, text: part.text };
+        }
+        if (part.type !== 'tool-call')
+          throw new Error('Invalid model tool message');
+        assertExactKeys(
+          part,
+          ['input', 'toolCallId', 'toolName', 'type'],
+          'Invalid model tool message',
+        );
         assertOpaque(part.toolCallId, 256);
         assertOpaque(part.toolName, 128);
         assertJsonValue(part.input);
-        if (calledTools.has(part.toolCallId))
+        if (seenToolIds.has(part.toolCallId))
           throw new Error('Invalid model tool message');
-        calledTools.set(part.toolCallId, part.toolName);
-        return part;
+        seenToolIds.add(part.toolCallId);
+        outstandingTools.set(part.toolCallId, part.toolName);
+        return {
+          type: 'tool-call' as const,
+          toolCallId: part.toolCallId,
+          toolName: part.toolName,
+          input: part.input,
+        };
       });
       return { role: 'assistant', content };
     }
+    if (message.role !== 'tool') throw new Error('Invalid model message');
+    assertExactKeys(message, ['content', 'role'], 'Invalid model tool message');
     if (!Array.isArray(message.content))
       throw new Error('Invalid model tool message');
-    const toolParts = message.content as readonly ModelToolResultPart[];
+    const toolParts = message.content as readonly unknown[];
     const content = toolParts.map((part) => {
+      if (!isRecord(part) || part.type !== 'tool-result')
+        throw new Error('Invalid model tool message');
+      assertExactKeys(
+        part,
+        ['result', 'toolCallId', 'toolName', 'type'],
+        'Invalid model tool message',
+      );
       assertOpaque(part.toolCallId, 256);
       assertOpaque(part.toolName, 128);
       assertJsonValue(part.result);
-      if (calledTools.get(part.toolCallId) !== part.toolName)
+      if (outstandingTools.get(part.toolCallId) !== part.toolName)
         throw new Error('Invalid model tool message');
+      outstandingTools.delete(part.toolCallId);
       return {
-        type: 'tool-result' as const,
+        type: 'tool-result',
         toolCallId: part.toolCallId,
         toolName: part.toolName,
-        output: { type: 'json' as const, value: part.result },
+        output: { type: 'json', value: part.result },
       };
     });
-    return { role: 'tool', content };
+    return { role: 'tool', content } as AiModelMessage;
   });
+  if (outstandingTools.size > 0) throw new Error('Invalid model tool message');
+  return converted;
 }
 
 export function mapProviderPart(part: unknown): ModelEvent[] {
@@ -174,7 +209,24 @@ function assertJsonValue(value: unknown): asserts value is JsonValue {
   if (!isJsonValue(value)) throw new Error('Invalid model tool message');
 }
 
-function assertOpaque(value: string, maxLength: number): void {
-  if (!value || value.length > maxLength)
+function assertOpaque(
+  value: unknown,
+  maxLength: number,
+): asserts value is string {
+  if (typeof value !== 'string' || !value || value.length > maxLength)
     throw new Error('Invalid model tool message');
+}
+
+function assertExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  message: string,
+): void {
+  const keys = Object.keys(value).sort();
+  const expectedKeys = [...expected].sort();
+  if (
+    keys.length !== expectedKeys.length ||
+    keys.some((key, index) => key !== expectedKeys[index])
+  )
+    throw new Error(message);
 }

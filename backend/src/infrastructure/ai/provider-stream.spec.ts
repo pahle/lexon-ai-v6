@@ -2,17 +2,67 @@ import { expect, it } from 'vitest';
 import { mapProviderError, normalizeProviderCost } from './provider-errors.js';
 import { mapProviderPart, readProviderUsage } from './provider-stream.js';
 
-it('maps a definitive retryable provider status without exposing its body', () => {
-  const mapped = mapProviderError({
-    name: 'APICallError',
-    statusCode: 503,
-    message: 'K1-private provider response body',
+it.each([
+  { statusCode: 408, outcome: 'failed', retryable: true },
+  { statusCode: 429, outcome: 'failed', retryable: true },
+  { statusCode: 500, outcome: 'failed', retryable: true },
+  { statusCode: 502, outcome: 'failed', retryable: true },
+  { statusCode: 503, outcome: 'failed', retryable: true },
+  { statusCode: 504, outcome: 'failed', retryable: true },
+  { statusCode: 400, outcome: 'failed', retryable: false },
+  { statusCode: 401, outcome: 'failed', retryable: false },
+  { statusCode: 403, outcome: 'failed', retryable: false },
+  { statusCode: 422, outcome: 'failed', retryable: false },
+  { statusCode: 501, outcome: 'failed', retryable: false },
+])(
+  'maps HTTP $statusCode to safe retryability without exposing body',
+  ({ statusCode, outcome, retryable }) => {
+    const mapped = mapProviderError({
+      name: 'APICallError',
+      statusCode,
+      message: 'K1-private provider response body',
+    });
+    expect(mapped).toMatchObject({
+      safeCode:
+        statusCode === 401 || statusCode === 403
+          ? 'AI_PROVIDER_AUTH'
+          : 'AI_PROVIDER_UNAVAILABLE',
+      attemptOutcome: outcome,
+      retryable,
+    });
+    expect(JSON.stringify(mapped)).not.toMatch(/K1|private|body/i);
+  },
+);
+
+it('marks only recognized network and SDK transport failures retryable', () => {
+  const networkCause = Object.assign(new Error('socket reset'), {
+    code: 'ECONNRESET',
   });
-  expect(mapped).toEqual({
+  const fetchError = new TypeError('fetch failed', { cause: networkCause });
+  expect(mapProviderError(fetchError)).toMatchObject({
     safeCode: 'AI_PROVIDER_UNAVAILABLE',
-    attemptOutcome: 'failed',
+    attemptOutcome: 'unknown',
+    retryable: true,
   });
-  expect(JSON.stringify(mapped)).not.toMatch(/K1|private|body/i);
+  expect(
+    mapProviderError({
+      name: 'AI_APICallError',
+      statusCode: undefined,
+      isRetryable: true,
+    }),
+  ).toMatchObject({ attemptOutcome: 'unknown', retryable: true });
+  expect(
+    mapProviderError(new Error('unclassified private error')),
+  ).toMatchObject({
+    attemptOutcome: 'unknown',
+    retryable: false,
+  });
+  expect(
+    mapProviderError(new TypeError('invalid adapter state')),
+  ).toMatchObject({
+    attemptOutcome: 'unknown',
+    retryable: false,
+  });
 });
 
 it('classifies interrupted or unknown errors as unknown and hides raw details', () => {

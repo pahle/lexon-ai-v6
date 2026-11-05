@@ -150,7 +150,11 @@ it('provides deterministic neutral events through the scripted test gateway', as
     { type: 'text', text: 'scripted output' },
     {
       type: 'outcome',
-      outcome: { finishReason: 'stop', attemptOutcome: 'succeeded' },
+      outcome: {
+        finishReason: 'stop',
+        attemptOutcome: 'succeeded',
+        retryable: false,
+      },
     },
   ];
   const gateway = createScriptedModelGateway([{ events: scriptEvents }]);
@@ -173,7 +177,7 @@ it('makes one physical request even when the provider responds with retryable 50
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(events.at(-1)).toMatchObject({
       type: 'outcome',
-      outcome: { attemptOutcome: 'failed' },
+      outcome: { attemptOutcome: 'failed', retryable: true },
     });
     expect(JSON.stringify(events)).not.toMatch(/K1-secret|test-only-K1/);
     expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(
@@ -182,6 +186,30 @@ it('makes one physical request even when the provider responds with retryable 50
   } finally {
     consoleError.mockRestore();
   }
+});
+
+it('marks a permanent validation response failed and not retryable', async () => {
+  const fetchSpy = vi.fn<typeof fetch>(
+    async () => new Response('private validation details', { status: 422 }),
+  );
+  const gateway = createRealModelGateway({
+    allowlist,
+    key: 'test-only-key',
+    attestation: '2026-11-05',
+    fetch: fetchSpy,
+  });
+
+  const events = await collect(gateway.generate(input()));
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(events.at(-1)).toMatchObject({
+    type: 'outcome',
+    outcome: {
+      attemptOutcome: 'failed',
+      retryable: false,
+      safeCode: 'AI_PROVIDER_UNAVAILABLE',
+    },
+  });
+  expect(JSON.stringify(events)).not.toContain('private validation details');
 });
 
 it('maps assistant tool calls and matching JSON results to SDK messages without executing the tool', async () => {
@@ -248,6 +276,115 @@ it('maps assistant tool calls and matching JSON results to SDK messages without 
     { role: 'assistant', content: 'Continue analysis.' },
   ]);
 });
+
+it.each([
+  {
+    label: 'rewritten tool-result discriminator',
+    results: [
+      {
+        type: 'invalid-result',
+        toolCallId: 'sdk-call-17',
+        toolName: 'lookup',
+        result: { caseId: 'synthetic-case' },
+      },
+    ],
+  },
+  {
+    label: 'duplicate tool result',
+    results: [
+      {
+        type: 'tool-result',
+        toolCallId: 'sdk-call-17',
+        toolName: 'lookup',
+        result: { caseId: 'synthetic-case' },
+      },
+      {
+        type: 'tool-result',
+        toolCallId: 'sdk-call-17',
+        toolName: 'lookup',
+        result: { caseId: 'synthetic-case' },
+      },
+    ],
+  },
+])(
+  'rejects malformed history with $label before provider fetch',
+  async ({ results }) => {
+    const fetchSpy = vi.fn<typeof fetch>(async () => streamResponse());
+    const gateway = createRealModelGateway({
+      allowlist,
+      key: 'test-only-key',
+      attestation: '2026-11-05',
+      fetch: fetchSpy,
+    });
+    const messages = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: 'sdk-call-17',
+            toolName: 'lookup',
+            input: { clause: 17 },
+          },
+        ],
+      },
+      { role: 'tool', content: results },
+    ] as unknown as ModelInput['messages'];
+
+    await expect(
+      collect(gateway.generate({ ...input(), messages })),
+    ).rejects.toThrow(/invalid model tool message/i);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  { providerFinish: 'length', neutralFinish: 'length', attempt: 'succeeded' },
+  {
+    providerFinish: 'content_filter',
+    neutralFinish: 'content_filter',
+    attempt: 'failed',
+  },
+])(
+  'classifies authoritative $providerFinish completion and retains reported usage',
+  async ({ providerFinish, neutralFinish, attempt }) => {
+    const fetchSpy = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          [
+            'data: {"id":"gen-terminal","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"partial"},"finish_reason":null}]}\n\n',
+            `data: {"id":"gen-terminal","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"${providerFinish}"}],"usage":{"prompt_tokens":4,"completion_tokens":2,"total_tokens":6,"cost":0.0004}}\n\n`,
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        ),
+    );
+    const gateway = createRealModelGateway({
+      allowlist,
+      key: 'test-only-key',
+      attestation: '2026-11-05',
+      fetch: fetchSpy,
+    });
+
+    const events = await collect(gateway.generate(input()));
+    expect(events).toContainEqual({
+      type: 'usage',
+      usage: { inputTokens: 4, outputTokens: 2 },
+      costUsd: '0.0004',
+    });
+    expect(events.at(-1)).toMatchObject({
+      type: 'outcome',
+      outcome: {
+        finishReason: neutralFinish,
+        attemptOutcome: attempt,
+        usage: { inputTokens: 4, outputTokens: 2 },
+        costUsd: '0.0004',
+        retryable: false,
+      },
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  },
+);
 
 it('yields response metadata before later content and aborts the transport on caller cancellation', async () => {
   const requestSignals: AbortSignal[] = [];
@@ -316,7 +453,11 @@ it('yields response metadata before later content and aborts the transport on ca
   const terminal = await iterator.next();
   expect(terminal.value).toMatchObject({
     type: 'outcome',
-    outcome: { attemptOutcome: 'unknown', finishReason: 'error' },
+    outcome: {
+      attemptOutcome: 'unknown',
+      finishReason: 'error',
+      retryable: false,
+    },
   });
   expect(requestSignals[0]?.aborted).toBe(true);
   expect(finishSent).toBe(false);
@@ -400,6 +541,10 @@ it('keeps an interrupted provider attempt unknown despite a synthetic error fini
   const events = await collect(gateway.generate(input()));
   expect(events.at(-1)).toMatchObject({
     type: 'outcome',
-    outcome: { finishReason: 'error', attemptOutcome: 'unknown' },
+    outcome: {
+      finishReason: 'error',
+      attemptOutcome: 'unknown',
+      retryable: false,
+    },
   });
 });

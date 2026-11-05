@@ -55,6 +55,7 @@ async function* generate(
       candidate.id === input.model && candidate.provider === input.provider,
   );
   if (!route) throw new Error('Requested model is not allowlisted');
+  const messages = toModelMessages(input);
 
   const provider = createOpenRouterProvider({
     apiKey: options.key,
@@ -102,8 +103,8 @@ async function* generate(
   let providerName: string | undefined;
   let finished = false;
   let attemptOutcome: ModelAttemptOutcome = 'unknown';
+  let retryable = false;
   let definitiveFailure = false;
-  let uncertainFailure = false;
   let finishReason: ModelOutcome['finishReason'] = 'error';
   let safeCode: ModelOutcome['safeCode'];
   let streamIterator: AsyncIterator<unknown> | undefined;
@@ -121,7 +122,7 @@ async function* generate(
     ) as ToolSet;
     const result = streamText({
       model,
-      messages: toModelMessages(input),
+      messages,
       tools,
       stopWhen: stepCountIs(1),
       maxOutputTokens: input.maxOutputTokens,
@@ -181,23 +182,28 @@ async function* generate(
       if (isRecord(part) && part.type === 'error') {
         const mapped = mapProviderError(part.error);
         attemptOutcome = mapped.attemptOutcome;
+        retryable = mapped.retryable;
         safeCode = mapped.safeCode;
         definitiveFailure ||= mapped.attemptOutcome === 'failed';
-        uncertainFailure ||= mapped.attemptOutcome === 'unknown';
       }
       if (isRecord(part) && part.type === 'abort') {
         attemptOutcome = 'unknown';
-        uncertainFailure = true;
+        retryable = false;
         safeCode = 'AI_PROVIDER_UNAVAILABLE';
       }
       if (isRecord(part) && part.type === 'finish') {
         finished = true;
         finishReason = normalizeFinishReason(part.finishReason);
-        attemptOutcome = definitiveFailure
-          ? 'failed'
-          : uncertainFailure || finishReason === 'error'
-            ? 'unknown'
-            : 'succeeded';
+        attemptOutcome =
+          finishReason === 'content_filter' ||
+          (definitiveFailure && finishReason !== 'error')
+            ? 'failed'
+            : finishReason === 'error'
+              ? definitiveFailure
+                ? 'failed'
+                : 'unknown'
+              : 'succeeded';
+        if (finishReason !== 'error') retryable = false;
         if (finishReason === 'error' && !safeCode) safeCode = 'AI_INTERNAL';
         const usageResult = readProviderUsage(await result.providerMetadata);
         providerName = usageResult.provider ?? providerName;
@@ -207,6 +213,7 @@ async function* generate(
         if (usageResult.invalidCost) {
           finishReason = 'error';
           attemptOutcome = 'unknown';
+          retryable = false;
           safeCode = 'AI_INTERNAL';
         }
         break;
@@ -224,6 +231,7 @@ async function* generate(
     attemptOutcome = requestAbort.signal.aborted
       ? 'unknown'
       : mapped.attemptOutcome;
+    retryable = requestAbort.signal.aborted ? false : mapped.retryable;
     safeCode = requestAbort.signal.aborted
       ? 'AI_PROVIDER_UNAVAILABLE'
       : mapped.safeCode;
@@ -240,6 +248,7 @@ async function* generate(
     outcome: {
       finishReason,
       attemptOutcome,
+      retryable,
       ...(lastGenerationId ? { generationId: lastGenerationId } : {}),
       ...(providerName ? { provider: providerName } : {}),
       ...(latestUsage ? { usage: latestUsage.usage } : {}),
@@ -291,6 +300,9 @@ class MetadataQueue {
 function normalizeFinishReason(value: unknown): ModelOutcome['finishReason'] {
   if (value === 'stop') return 'stop';
   if (value === 'tool-calls' || value === 'tool_calls') return 'tool_calls';
+  if (value === 'length') return 'length';
+  if (value === 'content-filter' || value === 'content_filter')
+    return 'content_filter';
   return 'error';
 }
 

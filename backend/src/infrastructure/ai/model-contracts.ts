@@ -73,8 +73,11 @@ export type ModelEvent =
   | { readonly type: 'outcome'; readonly outcome: ModelOutcome };
 
 export interface ModelOutcome {
-  readonly finishReason: 'stop' | 'tool_calls' | 'error';
+  readonly finishReason:
+    'stop' | 'tool_calls' | 'length' | 'content_filter' | 'error';
   readonly attemptOutcome: ModelAttemptOutcome;
+  /** Explicit retry permission for later lifecycle policy; never inferred from safeCode. */
+  readonly retryable: boolean;
   readonly generationId?: string;
   readonly provider?: string;
   readonly usage?: Partial<ReportedUsage>;

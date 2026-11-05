@@ -221,6 +221,16 @@ Do not retry validation, forbidden model/provider, denied capability, exhausted
 budget, stale decision or permanent authentication failures. Map all raw SDK/
 provider exceptions to finite safe codes before persistence, logging or events.
 
+Task 5's neutral terminal outcome carries an explicit required `retryable`
+boolean for Task 9. It is true only for the bounded transient HTTP status set
+408/429/500/502/503/504 or a recognized SDK/network transport failure; permanent
+validation/authentication responses, caller abort, completed outcomes, and
+unclassified exceptions are false. Task 9 must require `retryable === true`
+before applying the approved backoff. Authoritative `length` finishes count as
+completed attempts; `content_filter` is a nonretryable failed attempt. Both keep
+reported usage/cost. An interrupted stream or synthetic SDK error finish without
+authoritative provider completion remains unknown.
+
 ## Tool contract and durable execution
 
 Each tool declares ID/version, Zod arguments, read/write classification,
