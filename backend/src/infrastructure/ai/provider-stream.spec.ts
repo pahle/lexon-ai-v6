@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { APICallError } from 'ai';
 import { mapProviderError, normalizeProviderCost } from './provider-errors.js';
 import { mapProviderPart, readProviderUsage } from './provider-stream.js';
 
@@ -50,7 +51,7 @@ it('marks only recognized network and SDK transport failures retryable', () => {
       statusCode: undefined,
       isRetryable: true,
     }),
-  ).toMatchObject({ attemptOutcome: 'unknown', retryable: true });
+  ).toMatchObject({ attemptOutcome: 'unknown', retryable: false });
   expect(
     mapProviderError(new Error('unclassified private error')),
   ).toMatchObject({
@@ -63,6 +64,43 @@ it('marks only recognized network and SDK transport failures retryable', () => {
     attemptOutcome: 'unknown',
     retryable: false,
   });
+});
+
+it('trusts only branded SDK errors and recognized raw transport causes', () => {
+  expect(
+    mapProviderError(
+      new APICallError({
+        message: 'private SDK message',
+        url: 'https://invalid.example',
+        requestBodyValues: {},
+        isRetryable: true,
+      }),
+    ),
+  ).toMatchObject({
+    safeCode: 'AI_PROVIDER_UNAVAILABLE',
+    attemptOutcome: 'unknown',
+    retryable: true,
+  });
+  expect(
+    mapProviderError({ name: 'AI_APICallError', isRetryable: true }),
+  ).toMatchObject({ attemptOutcome: 'unknown', retryable: false });
+
+  for (const code of ['CERT_HAS_EXPIRED', 'SOMETHING_ELSE']) {
+    expect(
+      mapProviderError(
+        new TypeError('fetch failed', {
+          cause: Object.assign(new Error('private cause'), { code }),
+        }),
+      ),
+    ).toMatchObject({ attemptOutcome: 'unknown', retryable: false });
+  }
+  expect(
+    mapProviderError(
+      new TypeError('fetch failed', {
+        cause: Object.assign(new Error('socket reset'), { code: 'ECONNRESET' }),
+      }),
+    ),
+  ).toMatchObject({ attemptOutcome: 'unknown', retryable: true });
 });
 
 it('classifies interrupted or unknown errors as unknown and hides raw details', () => {

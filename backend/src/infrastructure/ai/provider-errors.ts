@@ -1,4 +1,5 @@
 import type { RunErrorCode } from '@lexon/contracts';
+import { APICallError, StreamProviderError } from 'ai';
 import type { ModelAttemptOutcome } from './model-contracts.js';
 
 const retryableNetworkCodes = new Set([
@@ -13,6 +14,16 @@ const retryableNetworkCodes = new Set([
   'UND_ERR_HEADERS_TIMEOUT',
   'UND_ERR_BODY_TIMEOUT',
   'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+const permanentTransportCodes = new Set([
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'ERR_CERT_AUTHORITY_INVALID',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
 ]);
 
 export interface SafeProviderError {
@@ -32,12 +43,18 @@ export function mapProviderError(error: unknown): SafeProviderError {
 
   const statusCode = error.statusCode;
   if (typeof statusCode !== 'number' || !Number.isInteger(statusCode)) {
-    const recognizedSdkError =
-      error.name === 'AI_APICallError' ||
-      error.name === 'AI_StreamProviderError';
+    const apiCallError = APICallError.isInstance(error) ? error : undefined;
+    const streamProviderError = StreamProviderError.isInstance(error)
+      ? error
+      : undefined;
+    const sdkError = apiCallError ?? streamProviderError;
+    const transport = inspectTransportCause(sdkError?.cause ?? error);
+    const sdkFlagMayApply =
+      sdkError !== undefined &&
+      (sdkError.cause === undefined || sdkError.cause === null);
     const retryable =
-      (recognizedSdkError && error.isRetryable === true) ||
-      isRetryableNetworkTransport(error);
+      transport === 'retryable' ||
+      (transport === 'unknown' && sdkFlagMayApply && sdkError.isRetryable);
     return {
       safeCode: 'AI_PROVIDER_UNAVAILABLE',
       attemptOutcome: 'unknown',
@@ -72,27 +89,22 @@ export function mapProviderError(error: unknown): SafeProviderError {
   };
 }
 
-function isRetryableNetworkTransport(error: unknown): boolean {
+function inspectTransportCause(
+  error: unknown,
+): 'retryable' | 'permanent' | 'unknown' {
   const visited = new Set<object>();
   let current: unknown = error;
-  while (isRecord(current) && !visited.has(current)) {
+  let hasRetryableCode = false;
+  while (current instanceof Error && !visited.has(current)) {
     visited.add(current);
-    if (
-      typeof current.code === 'string' &&
-      retryableNetworkCodes.has(current.code)
-    )
-      return true;
-    if (
-      current instanceof TypeError &&
-      ['fetch failed', 'failed to fetch'].includes(
-        current.message.toLowerCase(),
-      ) &&
-      current.cause != null
-    )
-      return true;
+    const code = (current as Error & { readonly code?: unknown }).code;
+    if (typeof code === 'string' && permanentTransportCodes.has(code))
+      return 'permanent';
+    if (typeof code === 'string' && retryableNetworkCodes.has(code))
+      hasRetryableCode = true;
     current = current.cause;
   }
-  return false;
+  return hasRetryableCode ? 'retryable' : 'unknown';
 }
 
 export function normalizeProviderCost(value: number): string {

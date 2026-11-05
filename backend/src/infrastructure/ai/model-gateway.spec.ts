@@ -212,6 +212,36 @@ it('marks a permanent validation response failed and not retryable', async () =>
   expect(JSON.stringify(events)).not.toContain('private validation details');
 });
 
+it('does not retry an SDK-wrapped certificate failure from injected fetch', async () => {
+  const fetchSpy = vi.fn<typeof fetch>(async () => {
+    throw new TypeError('fetch failed', {
+      cause: Object.assign(new Error('certificate expired K1-secret'), {
+        code: 'CERT_HAS_EXPIRED',
+      }),
+    });
+  });
+  const gateway = createRealModelGateway({
+    allowlist,
+    key: 'test-only-key',
+    attestation: '2026-11-05',
+    fetch: fetchSpy,
+  });
+
+  const events = await collect(gateway.generate(input()));
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(events.at(-1)).toMatchObject({
+    type: 'outcome',
+    outcome: {
+      attemptOutcome: 'unknown',
+      retryable: false,
+      safeCode: 'AI_PROVIDER_UNAVAILABLE',
+    },
+  });
+  expect(JSON.stringify(events)).not.toMatch(
+    /CERT_HAS_EXPIRED|certificate expired|K1-secret/,
+  );
+});
+
 it('maps assistant tool calls and matching JSON results to SDK messages without executing the tool', async () => {
   const requests: Request[] = [];
   const fetchSpy = vi.fn<typeof fetch>(async (input, init) => {
