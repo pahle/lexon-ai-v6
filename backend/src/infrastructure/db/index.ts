@@ -19,6 +19,7 @@ export {
   type TenantJobHandler,
 } from './job-envelope.js';
 export type { ClaimedOutbox } from './outbox.repository.js';
+export type { StepClaim } from './ai-records.js';
 export type {
   AdminSetupOperator,
   AdminSetupOperatorFacts,
