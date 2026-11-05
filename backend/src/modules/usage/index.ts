@@ -1,5 +1,6 @@
 export {
   AttemptService,
+  UsageClaimLostError,
   UsagePolicyError,
   type AttemptLimits,
   type AttemptOutcome,

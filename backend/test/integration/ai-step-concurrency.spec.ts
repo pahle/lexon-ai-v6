@@ -13,7 +13,10 @@ import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
 
-function coordinator(ai: Awaited<ReturnType<typeof createAiFixture>>) {
+function coordinator(
+  ai: Awaited<ReturnType<typeof createAiFixture>>,
+  usage = new AttemptService(),
+) {
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
   const outbox = new OutboxRepository();
@@ -21,7 +24,7 @@ function coordinator(ai: Awaited<ReturnType<typeof createAiFixture>>) {
     ai.database as TenantDatabase,
     runs,
     steps,
-    new AttemptService(),
+    usage,
     outbox,
     new JobExecutor(ai.database),
   );
@@ -166,6 +169,199 @@ test('stale commit rolls back receipt; terminal commit creates no continuation',
       finalOutput: 'done',
       modelIterations: 1,
     });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('stale settlement returns stale without changing the replacement owner or usage', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    const staleClaim = await ai.seedClaimableStep(0, run.id, {
+      activeAttempt: true,
+    });
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const service = coordinator(ai);
+    const attemptsRepository = new AiAttemptRepository();
+    const beforeTakeover = await ai.withTenant(0, (tx) =>
+      attemptsRepository.list(tx, run.id),
+    );
+    const expiredAttempt = beforeTakeover.find(
+      (attempt) => attempt.stepId === staleClaim.stepId && attempt.active,
+    );
+    expect(expiredAttempt).toBeDefined();
+    if (!expiredAttempt) return;
+    const replacement = await service.claim(queuedJob);
+    expect(replacement.kind).toBe('claimed');
+    if (replacement.kind !== 'claimed') return;
+    expect(replacement.claim.fence).toBeGreaterThan(staleClaim.fence);
+    const attemptsBefore = await ai.withTenant(0, (tx) =>
+      attemptsRepository.list(tx, run.id),
+    );
+    expect(attemptsBefore).toContainEqual(
+      expect.objectContaining({
+        attemptId: expiredAttempt.attemptId,
+        active: false,
+        outcome: 'unknown',
+      }),
+    );
+
+    await expect(
+      service.commit(queuedJob, staleClaim, {
+        state: 'committed',
+        text: 'late output',
+        data: {},
+        advancement: 'generation',
+        attemptSettlement: {
+          attemptId: expiredAttempt.attemptId,
+          outcome: 'succeeded',
+          usage: { inputTokens: 3, outputTokens: 2 },
+        },
+      }),
+    ).resolves.toBe('stale');
+
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'queued',
+      runVersion: 1,
+      nextSequence: 1,
+      modelIterations: 0,
+      partialOutput: '',
+      finalOutput: null,
+    });
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => attemptsRepository.list(tx, run.id)),
+    ).toEqual(attemptsBefore);
+    expect(await service.renew(replacement.claim)).toBe(true);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('invalid Usage settlement is not translated into stale ownership', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const service = coordinator(ai);
+    const claimed = await service.claim(queuedJob);
+    expect(claimed.kind).toBe('claimed');
+    if (claimed.kind !== 'claimed') return;
+
+    await expect(
+      service.commit(queuedJob, claimed.claim, {
+        state: 'committed',
+        text: 'not committed',
+        data: {},
+        advancement: 'generation',
+        attemptSettlement: {
+          attemptId: '70000000-0000-4000-8000-000000000001',
+          outcome: 'succeeded',
+          usage: { inputTokens: 3, outputTokens: 2 },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'AI_INTERNAL',
+      message: 'AI settlement unavailable',
+    });
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('lease expiry between claim checks rolls settlement back as stale', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const usage = new (class extends AttemptService {
+      override async settle(
+        tx: Parameters<AttemptService['settle']>[0],
+        claim: Parameters<AttemptService['settle']>[1],
+        input: Parameters<AttemptService['settle']>[2],
+      ) {
+        await ai.expireClaimLeaseInSession(tx, claim);
+        return super.settle(tx, claim, input);
+      }
+    })();
+    const service = coordinator(ai, usage);
+    const claimed = await service.claim(queuedJob);
+    expect(claimed.kind).toBe('claimed');
+    if (claimed.kind !== 'claimed') return;
+    const modelInput = {
+      model: 'synthetic/test',
+      provider: 'synthetic',
+      messages: [{ role: 'user' as const, content: 'small reserved input' }],
+      maxOutputTokens: 16,
+      signal: new AbortController().signal,
+    };
+    const attempt = await ai.withTenant(0, (tx) =>
+      usage.reserve(tx, claimed.claim, {
+        attemptId: '70000000-0000-4000-8000-000000000002',
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 2000,
+          maxOutputTokens: 16,
+        },
+      }),
+    );
+
+    await expect(
+      service.commit(queuedJob, claimed.claim, {
+        state: 'committed',
+        text: 'late output',
+        data: {},
+        advancement: 'generation',
+        attemptSettlement: {
+          attemptId: attempt.attemptId,
+          outcome: 'succeeded',
+          usage: { inputTokens: 3, outputTokens: 2 },
+        },
+      }),
+    ).resolves.toBe('stale');
+
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'queued',
+      runVersion: 1,
+      nextSequence: 1,
+      modelIterations: 0,
+      partialOutput: '',
+      finalOutput: null,
+    });
+    const attempts = await ai.withTenant(0, (tx) =>
+      new AiAttemptRepository().list(tx, run.id),
+    );
+    expect(attempts).toMatchObject([
+      {
+        attemptId: attempt.attemptId,
+        active: true,
+        outcome: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+      },
+    ]);
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(await service.renew(claimed.claim)).toBe(true);
   } finally {
     await ai.close();
   }

@@ -42,6 +42,13 @@ export class UsagePolicyError extends Error {
   }
 }
 
+export class UsageClaimLostError extends UsagePolicyError {
+  constructor() {
+    super('AI_INTERNAL', 'AI step claim lost');
+    this.name = 'UsageClaimLostError';
+  }
+}
+
 @Injectable()
 export class AttemptService {
   private readonly repositories = {
@@ -154,7 +161,7 @@ export class AttemptService {
     },
   ): Promise<{ budgetExceeded: boolean }> {
     if (!(await this.repositories.steps.lockClaim(tx, claim)))
-      throw new UsagePolicyError('AI_INTERNAL', 'AI step claim lost');
+      throw new UsageClaimLostError();
     const run = await this.repositories.runs.find(tx, claim.runId);
     if (!run) throw new UsagePolicyError('AI_INTERNAL', 'AI run unavailable');
     const tokenBudget = run.inputBudgetTokens + run.outputBudgetTokens;

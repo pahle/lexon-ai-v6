@@ -8,7 +8,7 @@ import {
 import type { StepClaim, StepCommit } from '../../infrastructure/db/index.js';
 import type { ReportedUsage } from '../../infrastructure/db/index.js';
 import type { JobExecutor } from '../platform/index.js';
-import { AttemptService } from '../usage/index.js';
+import { AttemptService, UsageClaimLostError } from '../usage/index.js';
 import { stepJobId } from './step-job-id.js';
 import { randomUUID } from 'node:crypto';
 
@@ -117,13 +117,22 @@ export class StepCoordinator {
             tx,
             job,
             async (session) => {
+              if (!(await this.steps.lockClaim(session, claim)))
+                throw new StaleCommit();
               let budgetExceeded = false;
               if (commit.attemptSettlement) {
-                const settlement = await this.usage.settle(
-                  session,
-                  claim,
-                  commit.attemptSettlement,
-                );
+                let settlement: Awaited<ReturnType<AttemptService['settle']>>;
+                try {
+                  settlement = await this.usage.settle(
+                    session,
+                    claim,
+                    commit.attemptSettlement,
+                  );
+                } catch (error) {
+                  if (error instanceof UsageClaimLostError)
+                    throw new StaleCommit();
+                  throw error;
+                }
                 budgetExceeded = settlement.budgetExceeded;
               }
               if (

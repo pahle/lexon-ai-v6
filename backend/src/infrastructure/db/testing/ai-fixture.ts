@@ -237,6 +237,13 @@ export async function createAiFixture(services: Services) {
       if (!tenant) throw new Error('Invalid AI fixture tenant');
       return database.withTenant(tenant, work);
     },
+    async expireClaimLeaseInSession(tx: TenantSession, claim: StepClaim) {
+      const { client, ctx } = requireSession(tx);
+      await client.query(
+        "UPDATE app.ai_steps SET lease_until=clock_timestamp()-interval '1 second' WHERE org_id=$1 AND id=$2 AND fence=$3",
+        [ctx.orgId, claim.stepId, claim.fence],
+      );
+    },
     insertCrossTenantStep(index: number, runId: string) {
       return insertPendingStep(index, runId);
     },
