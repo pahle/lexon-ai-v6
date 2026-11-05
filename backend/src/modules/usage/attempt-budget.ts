@@ -15,6 +15,12 @@ function sumTokens(inputTokens: number, outputTokens: number): number {
   return total;
 }
 
+function reportedTokens(attempt: AttemptRecord): number {
+  const input = attempt.reportedInputTokens ?? attempt.reservedInputTokens;
+  const output = attempt.reportedOutputTokens ?? attempt.reservedOutputTokens;
+  return sumTokens(input, output);
+}
+
 export function reservationTokens(
   inputTokens: number,
   outputTokens: number,
@@ -38,20 +44,13 @@ function recordedTokens(attempt: AttemptRecord): number {
       attempt.reservedInputTokens,
       attempt.reservedOutputTokens,
     );
-  const input = attempt.reportedInputTokens ?? attempt.reservedInputTokens;
-  const output = attempt.reportedOutputTokens ?? attempt.reservedOutputTokens;
-  return sumTokens(input, output);
+  return reportedTokens(attempt);
 }
 
 export function isOverReservation(attempt: AttemptRecord): boolean {
-  if (
-    attempt.active ||
-    attempt.outcome === null ||
-    attempt.outcome === 'unknown'
-  )
-    return false;
+  if (attempt.active || attempt.outcome === null) return false;
   return (
-    recordedTokens(attempt) >
+    reportedTokens(attempt) >
     sumTokens(attempt.reservedInputTokens, attempt.reservedOutputTokens)
   );
 }

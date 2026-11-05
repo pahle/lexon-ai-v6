@@ -21,6 +21,13 @@ Current scope: Tasks1–2 accepted — portable contracts, registry/state, tenan
 - Accounting focused GREEN: `pnpm exec vitest run --project backend-unit --project backend-integration token-estimator.spec attempt-budget.spec ai-attempts.spec` passed **24/24 tests, 3 files**. The integration cases use real Testcontainers PostgreSQL and cover restart reconstruction, unknown/failed/partial usage, aggregate overrun persistence and admission block, concurrent overspend, attempt limit 2, cost null/zero/scale rejection, metadata state, duplicate settlement, rollback and expired sessions.
 - Final gates: `pnpm build`, `pnpm typecheck`, `pnpm lint` (**85/85 boundary checks**), `pnpm format:check`, and `git diff --check` all passed. One final `pnpm test` passed **561 tests / 116 files**, exit 0, in 58.75s. The three baseline jsdom `Not implemented: navigation to another Document` warnings appeared; no additional warnings or failing tests were observed.
 
+### Task 3 review round 1 corrections (2026-11-05)
+
+- RED: `pnpm exec vitest run --project backend-unit --project backend-integration token-estimator.spec attempt-budget.spec ai-attempts.spec` failed **3 tests / 26, passed 23**, exit 1. The estimator undercounted parsed own `__proto__` tool-result/schema data (**1,426 estimated vs 21,498 expected**); unit and real integration regressions showed unknown reported overruns returned `budgetExceeded=false`.
+- Correction: canonical JSON objects now have a null prototype so own `__proto__` keys remain enumerable data. Unknown attempts still consume both full reservation components for remaining-budget accounting, while available reported usage is independently compared against the total reservation; a reported overrun sets the durable stop regardless of outcome.
+- GREEN: the same command passed **26/26 tests, 3 files**, exit 0. The Testcontainers regression settles an unknown attempt above reservation, verifies positive remaining reserve survives construction of a new service, and verifies the next reservation fails with `AI_BUDGET_EXCEEDED`.
+- Changed-code gates after the corrections: `pnpm build`, `pnpm typecheck`, `pnpm lint` (**85/85 boundary checks**), `pnpm format:check`, and `git diff --check` all passed, exit 0. The full suite was not rerun for these two scoped fixes; the prior 561/561 baseline remains recorded above.
+
 ## Research checked
 
 - [AI SDK 7 UI stream protocol](https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol), read 2026-11-05; installed `ai@7.0.159` verified from backend package metadata and the approved design notes. Selected the versioned text/tool/step parts and retained Lexon's status, reset, approval-required, finish, and safe error envelope events. Provider SDK types remain outside `shared/`.

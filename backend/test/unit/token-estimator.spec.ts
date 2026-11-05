@@ -88,3 +88,25 @@ test('rejects non-finite visible numbers and unsafe token arithmetic', () => {
 
   expect(() => estimateInputTokens(invalid)).toThrow();
 });
+
+test('preserves own __proto__ JSON keys in tool results and tool schemas', () => {
+  const large = 'x'.repeat(10_000);
+  const toolResult = JSON.parse(
+    `{"__proto__":{"payload":"${large}"}}`,
+  ) as ModelInput['messages'][number]['content'];
+  const schemas = JSON.parse(
+    `{"lookup":{"properties":{"__proto__":{"type":"string","description":"${large}"}}}}`,
+  ) as ModelInput['schemas'];
+  const messages: ModelInput['messages'] = [
+    {
+      role: 'tool',
+      content: toolResult,
+    },
+  ];
+  const serialization = JSON.stringify({ messages, schemas });
+
+  expect(estimateInputTokens(input(messages, schemas))).toEqual({
+    version: 1,
+    inputTokens: Buffer.byteLength(serialization, 'utf8') + 64 + 256 + 1024,
+  });
+});

@@ -160,6 +160,37 @@ test('unknown retains reserve even if metadata carries usage', async ({
   }
 });
 
+test('unknown overrun blocks new reserves while retaining the full reserve after restart', async ({
+  services,
+}) => {
+  const harness = await createAttemptHarness(services);
+  try {
+    const reserved = await reserve(harness);
+    const settlement = await settle(harness, reserved.attemptId, 'unknown', {
+      inputTokens:
+        reserved.reservedInputTokens + reserved.reservedOutputTokens + 1,
+      outputTokens: 0,
+    });
+    expect(settlement.budgetExceeded).toBe(true);
+
+    const restartedService = harness.newService();
+    const remaining = await harness.withTenant((tx) =>
+      restartedService.remaining(tx, harness.runId),
+    );
+    expect(remaining).toBe(
+      harness.tokenBudget -
+        reserved.reservedInputTokens -
+        reserved.reservedOutputTokens,
+    );
+    expect(remaining).toBeGreaterThan(0);
+    await expect(reserve(harness, restartedService)).rejects.toMatchObject({
+      code: 'AI_BUDGET_EXCEEDED',
+    });
+  } finally {
+    await harness.close();
+  }
+});
+
 test('over-reserve fails and blocks next reservation', async ({ services }) => {
   const harness = await createAttemptHarness(services);
   try {

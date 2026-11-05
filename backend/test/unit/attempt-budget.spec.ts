@@ -82,7 +82,7 @@ test('reported usage replaces both reserve components and detects an overrun', (
   ).toBe(true);
 });
 
-test('unknown ignores reported usage for reservation release and overrun', () => {
+test('unknown retains its reserve while reported usage can still exceed it', () => {
   const unknown = attempt({
     active: false,
     outcome: 'unknown',
@@ -90,5 +90,5 @@ test('unknown ignores reported usage for reservation release and overrun', () =>
     reportedOutputTokens: 1000,
   });
   expect(remainingBudgetTokens(1000, [unknown])).toBe(860);
-  expect(isOverReservation(unknown)).toBe(false);
+  expect(isOverReservation(unknown)).toBe(true);
 });

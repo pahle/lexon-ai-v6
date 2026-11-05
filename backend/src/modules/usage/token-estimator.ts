@@ -21,7 +21,7 @@ function canonicalize(value: unknown, path: Set<object>): unknown {
     const prototype = Object.getPrototypeOf(value);
     if (prototype !== Object.prototype && prototype !== null)
       throw new Error('Invalid model input');
-    const output: Record<string, unknown> = {};
+    const output: Record<string, unknown> = Object.create(null);
     for (const key of Object.keys(value).sort()) {
       const item = (value as Record<string, unknown>)[key];
       if (item === undefined) throw new Error('Invalid model input');
