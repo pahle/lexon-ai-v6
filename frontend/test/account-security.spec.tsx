@@ -319,9 +319,9 @@ test('session revoke clears its previous error after cancel and reopen', async (
   )!;
   await act(async () => action.click());
   await settle();
-  expect(
-    document.body.querySelector('[role="alert"]')?.textContent,
-  ).toContain('Unable to revoke the session');
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+    'Unable to revoke the session',
+  );
 
   await act(async () =>
     document.body
