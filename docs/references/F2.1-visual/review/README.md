@@ -1,8 +1,8 @@
 # F2.1 formal visual review set
 
-Formally approved by the product owner on 2026-11-05. Main visually compared all 82 final Linux PNGs with the prototype/published references and documented adaptations. Approval covers producer `a5c94b221a04f667740a4495011d2da8a12c7051`, the recorded image hashes, deviations and capture-only normalizations. The requested four provisioning replacements will be shown before Task 10 golden generation.
+Formally approved by the product owner on 2026-11-05. Main visually compared all 82 final Linux PNGs with the prototype/published references and documented adaptations. Approval covers producer `a5c94b221a04f667740a4495011d2da8a12c7051`, the recorded image hashes, deviations and capture-only normalizations. The four owner-requested single-sentence provisioning replacements were shown on 2026-11-05 before Task 10 golden generation; the other 78 hashes are unchanged.
 
-Producer source: `a5c94b221a04f667740a4495011d2da8a12c7051`. Captured `2026-11-04T18:32:35.705Z` on Ubuntu 24.04 CI, `Linux 7.0.0-1017-azure (linux/x64)`, Chromium 156.0.8078.4, Playwright 1.64.1, Node v24.22.1, `en-US`, `Asia/Jakarta`. [Capture-source CI](https://github.com/pahle/lexon-ai-v6/actions/runs/41886389449) passed both layers; its two fresh-fixture captures on the same Linux runner matched **82/82 PNGs byte for byte**. Individual hashes are in the manifest. These files replace the earlier macOS bootstrap set.
+Effective producer source: `995cd7dc1d293abd9437de4b35c1fcfc15f8c7e6`. Captured `2026-11-05T00:47:49.860Z` on Ubuntu 24.04 CI, `Linux 7.0.0-1017-azure (linux/x64)`, Chromium 156.0.8078.4, Playwright 1.64.1, Node v24.22.1, `en-US`, `Asia/Jakarta`. The [recapture Compose job](https://github.com/pahle/lexon-ai-v6/actions/runs/41942385927) passed; its unit job failed formatting, separately corrected in `665e574` pending final CI. Its two fresh-fixture captures on the same Linux runner matched **82/82 PNGs byte for byte**. Individual hashes are in the manifest. These files replace the earlier macOS bootstrap set.
 
 The completed set contains 82 PNGs: nineteen views in both themes at desktop 1440×900 and mobile 390×844, plus six sidebar-header views. Device scale factor is 1. Click a thumbnail for the full image. Stable paths are overwritten in place.
 
@@ -48,4 +48,4 @@ Light-only prototype layouts are paired with the [dark pattern sheet](../../../d
 
 Checkpoint C at 0476a87 was accepted as checkpoint feedback. It does not approve this formal set. No baseline has been promoted; the full set and current deviations require the product owner’s explicit Task 9 approval before Task 10.
 
-The current deviation table also discloses one nonblocking stale-error reset issue when reopening a failed session-revoke confirmation. No Critical or Important review finding remains. The welcome subtitle is final; the listed adaptations and capture-only fixtures are approved. Checkpoint feedback remains distinct from the formal Task 9 approval.
+The previously disclosed session-revoke stale-error issue was fixed with regression coverage in `8dc803a` before goldens; its normal Security image is unchanged. No Critical or Important review finding remains. The welcome subtitle is final; the listed adaptations and capture-only fixtures are approved. Checkpoint feedback remains distinct from the formal Task 9 approval.

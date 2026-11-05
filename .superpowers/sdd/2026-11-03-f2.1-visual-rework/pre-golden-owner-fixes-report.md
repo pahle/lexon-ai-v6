@@ -23,3 +23,8 @@ The new session regression failed because the revoke error remained after cancel
 
 - Implementation and tests: `8dc803a8c07c6e9ac06a440e3c85627d7338669e` (`fix(ui): clear revoke errors and simplify empty state`).
 - No outstanding concerns. The timeout was limited to the initial RED run and did not reproduce in the full green suite.
+
+## Formatting follow-up
+
+- `pnpm exec prettier --write frontend/test/account-security.spec.tsx` — formatted the session regression test.
+- `pnpm format:check` — passed: all matched files use Prettier code style.

@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "sourceSha": "a5c94b221a04f667740a4495011d2da8a12c7051",
-  "capturedAt": "2026-11-04T18:32:35.705Z",
+  "sourceSha": "995cd7dc1d293abd9437de4b35c1fcfc15f8c7e6",
+  "capturedAt": "2026-11-05T00:47:49.860Z",
   "environment": {
     "os": "Linux 7.0.0-1017-azure (linux/x64)",
     "browser": "Chromium 156.0.8078.4",
@@ -351,28 +351,28 @@
     },
     "provisioning-desktop-light": {
       "path": "review/provisioning-desktop-light.png",
-      "sha256": "9036504e8b0ce6ca875e6522768703b36f565a01afa7820b3cf348e9403d3007",
+      "sha256": "2f920d77a6f46f3d7529dcb0f5f4de5b737bcc6f73228d04bd31a1cbc1753647",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "provisioning-desktop-dark": {
       "path": "review/provisioning-desktop-dark.png",
-      "sha256": "fe80a1252f7e580fda2305c1c7e03dcfb29b8b2ca3e10131066fa7e2379e9e84",
+      "sha256": "b4babc0bc8de749a1b181f1c46386d9d3575e20361f556a72eba69689aca8656",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "provisioning-mobile-light": {
       "path": "review/provisioning-mobile-light.png",
-      "sha256": "d47e6f9d6b8b000ddb36789474c2f7007b59d45899b31d2d86393b1159e79f05",
+      "sha256": "60c8d003f00b632ad1aaa13cfc5ca1734bfe8b70b6f7ad879caa6ce3bba5019c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "provisioning-mobile-dark": {
       "path": "review/provisioning-mobile-dark.png",
-      "sha256": "8f6441cdaad53eb3560af3e956d990865b21e49de62672d1e830de33d5d98d75",
+      "sha256": "cf83055fe1a311e1a94c7dc807203663dfce21dcd45b2c1d992c78b2632aace4",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
