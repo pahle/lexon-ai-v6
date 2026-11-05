@@ -16,6 +16,7 @@ import {
   assertApprovedVisualSet,
   assertReviewArtifact,
   buildVisualBaselineManifest,
+  isSnapshotUpdateEnabled,
   resolveVisualMode,
 } from '../visual-mode.mjs';
 
@@ -529,6 +530,14 @@ test('CI comparison is the normal approved path and updates require explicit dis
     /steps\.visual-approval\.outputs\.status == 'awaiting-owner'/,
   );
   assert.match(workflow, /docs\/references\/F2\.1-visual\/baseline\/\*\.png/);
+});
+
+test('Playwright update snapshots config is the authoritative worker signal', () => {
+  assert.equal(isSnapshotUpdateEnabled('changed'), true);
+  assert.equal(isSnapshotUpdateEnabled('all'), true);
+  assert.equal(isSnapshotUpdateEnabled('missing'), true);
+  assert.equal(isSnapshotUpdateEnabled('default'), false);
+  assert.equal(isSnapshotUpdateEnabled('none'), false);
 });
 
 function sha256(bytes) {

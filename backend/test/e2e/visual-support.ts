@@ -1,10 +1,11 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   assertApprovedVisualSet,
   assertReviewArtifact,
+  isSnapshotUpdateEnabled,
   resolveVisualMode,
   type VisualIndex,
 } from '../../../scripts/visual-mode.mjs';
@@ -108,6 +109,14 @@ const sizes = {
   mobile: { width: 390, height: 844 },
 } as const;
 const validatedApprovedSets = new Set<string>();
+
+function resolveCurrentVisualMode() {
+  return resolveVisualMode({
+    updateSnapshots: isSnapshotUpdateEnabled(
+      test.info().config.updateSnapshots,
+    ),
+  });
+}
 
 export async function captureTask7BViewportReview(
   page: Page,
@@ -294,7 +303,7 @@ export async function captureVisualView(
   theme: VisualTheme,
   viewport: VisualViewport,
 ) {
-  const mode = resolveVisualMode();
+  const mode = resolveCurrentVisualMode();
   await page.setViewportSize(sizes[viewport]);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate((value) => localStorage.setItem('theme', value), theme);
@@ -651,7 +660,7 @@ export async function captureTask9ReviewView(
   expectedIdentity: string,
   options: { loadedContent?: Locator; loadedContentTimeoutMs?: number } = {},
 ) {
-  const mode = resolveVisualMode();
+  const mode = resolveCurrentVisualMode();
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
   ) as VisualIndex;

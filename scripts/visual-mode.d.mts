@@ -61,6 +61,9 @@ export type VisualBaselineManifest = {
   viewCount: number;
   images: Record<string, ApprovedVisualImage>;
 };
+export function isSnapshotUpdateEnabled(
+  updateSnapshots: 'all' | 'changed' | 'missing' | 'none' | 'default',
+): boolean;
 export function resolveVisualMode(options?: {
   explicitMode?: string;
   approvalPath?: string;

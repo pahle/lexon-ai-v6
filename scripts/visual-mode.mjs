@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
+export function isSnapshotUpdateEnabled(updateSnapshots) {
+  return ['all', 'changed', 'missing'].includes(updateSnapshots);
+}
+
 export function resolveVisualMode({
   explicitMode = process.env.LEXON_VISUAL_MODE,
   approvalPath = resolve('docs/references/F2.1-visual/approval.json'),
