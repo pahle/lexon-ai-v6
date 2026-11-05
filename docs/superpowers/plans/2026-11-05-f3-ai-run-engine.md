@@ -156,6 +156,8 @@ expect(losingStartOutboxRows).toHaveLength(0);
 
 - [ ] **Step 0: Apply Task2 owner least-privilege correction first.** Write behavioral RED asserting lexon_app UPDATE is denied on ops.ai_engine_capacity; DELETE also denied. Add a NEW migration0016 revoking UPDATE/DELETE, never modify0015. Keep only SELECT/INSERT needed for insert-or-compare. PostgreSQL SELECT FOR UPDATE also requires UPDATE privilege: remove that clause from the runtime configure comparison, retaining its existing advisory transaction lock. Test a separate connection/process-equivalent capacity repository with the same fingerprint succeeds; a second with a different fingerprint fails specifically with safe configuration mismatch (not privilege failure). Run `pnpm exec vitest run --project backend-integration ai-capacity.spec`, record RED/GREEN, and note owner correction plus fixed slot_bytes6291456/per-org maximum6 in acceptance before continuing accounting. Raising either fixed CHECK/config ceiling requires a reviewed migration/operator step. No runtime UPDATE grant workaround.
 
+**Domain ownership clarification:** Usage persists actual settlement and returns budgetExceeded; it does not implement Chat lifecycle transitions. A recorded over-reservation attempt must make every later reserve fail even after restart and even if the aggregate remaining amount is positive. Task9 atomically persists the final failed run/error/partial output using that flag. Do not throw after persisting usage in settle, which would cause the caller transaction to roll it back.
+
 **Accounting storage convention:** one run token budget is the sum of persisted inputBudgetTokens and outputBudgetTokens, not two independently refillable pools. Reserve must validate the trusted server limits.tokenBudget matches that stored total and modelInput.maxOutputTokens matches the enforced profile limit; remaining reads the stored total after restart. Task7 profile-to-record mapping must preserve this total. Partial reported usage retains the missing component's reservation; unknown always retains both original components. No unknown→zero coercion.
 
 - [ ] **Step 1: Write the failing tests.** Named tests `unknown keeps whole reserve after restart`, `failed with no usage keeps reserve`, `reported usage replaces reserve`, `partial usage keeps missing component reserve`, `unknown retains reserve even if metadata carries usage`, `over-reserve fails and blocks next reservation`, `two concurrent reservations cannot overspend`, `attempt 3 rejected at default 2`. Formula assertion: empty model-visible UTF-8 serialization bytes + 64 per message + 256 per tool + 1024 framing; include emoji/Indonesian, schemas, context and tool results, and overflow/NaN rejection. SQL tests create a NEW AttemptService after first commit, proving no in-memory budget source. Cost null stays null; zero known cost stays zero.
@@ -165,7 +167,10 @@ Representative assertions in those named tests (locals come from their specified
 ```ts
 expect(reloadedRemainingTokens).toBe(runBudget - unknownReservation);
 expect(knownAttempt.reportedInputTokens).toBe(17);
-expect(overrunRun.errorCode).toBe('AI_BUDGET_EXCEEDED');
+expect(settlement.budgetExceeded).toBe(true);
+await expect(nextReservation).rejects.toMatchObject({
+  code: 'AI_BUDGET_EXCEEDED',
+});
 ```
 
 - [ ] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-unit --project backend-integration token-estimator.spec attempt-budget.spec ai-attempts.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
