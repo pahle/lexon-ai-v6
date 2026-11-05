@@ -27,6 +27,17 @@ export const RunErrorCodeSchema = z.enum([
 ]);
 export type RunErrorCode = z.infer<typeof RunErrorCodeSchema>;
 
+export const OperationStatusSchema = z.enum([
+  'pending',
+  'awaiting_approval',
+  'approved',
+  'rejected',
+  'completed',
+  'failed',
+  'outcome_unknown',
+]);
+export type OperationStatus = z.infer<typeof OperationStatusSchema>;
+
 const identifier = z.string().trim().min(1);
 const sequence = z.number().int().positive();
 const version = z.number().int().positive();
@@ -54,21 +65,62 @@ export type RunJob = z.infer<typeof RunJobSchema>;
 
 const eventBase = { version: z.literal(1), runId: identifier };
 export const RunStreamEventSchema = z.discriminatedUnion('type', [
-  z.strictObject({ ...eventBase, type: z.literal('start'), messageId: identifier }),
-  z.strictObject({ ...eventBase, type: z.literal('status'), status: RunStatusSchema }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('start'),
+    messageId: identifier,
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('status'),
+    status: RunStatusSchema,
+  }),
   z.strictObject({ ...eventBase, type: z.literal('reset'), sequence }),
-  z.strictObject({ ...eventBase, type: z.literal('approval-required'), operationId: identifier }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('approval-required'),
+    operationId: identifier,
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('operation-status'),
+    operationId: z.uuid(),
+    status: OperationStatusSchema,
+  }),
   z.strictObject({ ...eventBase, type: z.literal('finish') }),
-  z.strictObject({ ...eventBase, type: z.literal('error'), code: RunErrorCodeSchema }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('error'),
+    code: RunErrorCodeSchema,
+  }),
   z.strictObject({ ...eventBase, type: z.literal('start-step') }),
   z.strictObject({ ...eventBase, type: z.literal('finish-step') }),
   z.strictObject({ ...eventBase, type: z.literal('reset-step') }),
-  z.strictObject({ ...eventBase, type: z.literal('text-start'), id: identifier }),
-  z.strictObject({ ...eventBase, type: z.literal('text-delta'), id: identifier, delta: z.string() }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('text-start'),
+    id: identifier,
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('text-delta'),
+    id: identifier,
+    delta: z.string(),
+  }),
   z.strictObject({ ...eventBase, type: z.literal('text-end'), id: identifier }),
-  z.strictObject({ ...eventBase, type: z.literal('tool-input-start'), toolCallId: identifier, toolName: identifier,
-    inputEncoding: z.enum(['json', 'text']).optional() }),
-  z.strictObject({ ...eventBase, type: z.literal('tool-input-delta'), toolCallId: identifier, inputTextDelta: z.string() }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('tool-input-start'),
+    toolCallId: identifier,
+    toolName: identifier,
+    inputEncoding: z.enum(['json', 'text']).optional(),
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('tool-input-delta'),
+    toolCallId: identifier,
+    inputTextDelta: z.string(),
+  }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-input-available'),
@@ -88,7 +140,16 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
     approvalId: identifier,
     approved: z.boolean(),
   }),
-  z.strictObject({ ...eventBase, type: z.literal('tool-output-available'), toolCallId: identifier, output: z.unknown() }),
-  z.strictObject({ ...eventBase, type: z.literal('tool-output-denied'), toolCallId: identifier }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('tool-output-available'),
+    toolCallId: identifier,
+    output: z.unknown(),
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('tool-output-denied'),
+    toolCallId: identifier,
+  }),
 ]);
 export type RunStreamEvent = z.infer<typeof RunStreamEventSchema>;

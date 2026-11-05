@@ -30,7 +30,11 @@ export interface ReportedUsage {
 export type DecimalUsdString = `${number}`;
 
 export type ModelEvent =
-  | { readonly type: 'metadata'; readonly generationId?: string; readonly provider?: string }
+  | {
+      readonly type: 'metadata';
+      readonly generationId?: string;
+      readonly provider?: string;
+    }
   | { readonly type: 'text'; readonly text: string }
   | {
       readonly type: 'tool-proposal';
@@ -38,7 +42,11 @@ export type ModelEvent =
       readonly toolName: string;
       readonly input: JsonValue;
     }
-  | { readonly type: 'usage'; readonly usage: Partial<ReportedUsage>; readonly costUsd?: DecimalUsdString };
+  | {
+      readonly type: 'usage';
+      readonly usage: Partial<ReportedUsage>;
+      readonly costUsd?: DecimalUsdString;
+    };
 
 export interface ModelOutcome {
   readonly finishReason: 'stop' | 'tool_calls' | 'error';

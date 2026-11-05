@@ -33,3 +33,12 @@ Scope: portable run contracts, state transitions, registration validation, and m
 - Production registration is empty. There is no run execution, provider adapter, transactional effect, route, UI, or feature profile implementation in this task.
 
 See the implementer report at `.superpowers/sdd/2026-11-05-f3-ai-run-engine/task-1-report.md` for the complete changed-file list, full command outcomes, commit SHA, and remaining concerns.
+
+## Review round 1 fixes (2026-11-05)
+
+- Added a strict versioned `operation-status` event with stable UUID `operationId` and finite `OperationStatusSchema` values: `pending`, `awaiting_approval`, `approved`, `rejected`, `completed`, `failed`, and `outcome_unknown`. Positive and negative parsing cases cover every status, missing identity, unknown status, and raw error rejection.
+- Kept the omitted attempt limit default at 2 while allowing server-owned profiles to set higher positive safe-integer limits. Tests accept 3 and reject 0 and non-integer values.
+- Review RED: focused tests failed on the absent operation status schema and explicit attempt limit 3 being rejected. Review GREEN: focused 3-file suite passed 13/13.
+- `pnpm exec prettier --write` and `pnpm exec prettier --check` passed for all seven files listed in review finding I3.
+- Contracts build, backend typecheck/lint, contracts lint, and `git diff --check` passed.
+- Final full suite after these changes: `pnpm test` exit 0; 110 files / 514 tests passed in 55.24s. The same three baseline jsdom navigation warnings appeared.

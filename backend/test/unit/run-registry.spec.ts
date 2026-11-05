@@ -52,33 +52,82 @@ const registrations = (
 describe('run registry', () => {
   it('write registration requires idempotency mode', () => {
     const registry = new RunRegistry();
-    expect(() => registry.register(registrations({ tools: [
-      { ...transactionalWriteTool, idempotency: undefined } as never,
-    ] }))).toThrow();
+    expect(() =>
+      registry.register(
+        registrations({
+          tools: [
+            { ...transactionalWriteTool, idempotency: undefined } as never,
+          ],
+        }),
+      ),
+    ).toThrow();
   });
 
   it('duplicate profile/tool ids rejected', () => {
     const registry = new RunRegistry();
-    expect(() => registry.register(registrations({ profiles: [profile, profile] }))).toThrow();
-    expect(() => registry.register(registrations({ tools: [readTool, readTool] }))).toThrow();
+    expect(() =>
+      registry.register(registrations({ profiles: [profile, profile] })),
+    ).toThrow();
+    expect(() =>
+      registry.register(registrations({ tools: [readTool, readTool] })),
+    ).toThrow();
   });
 
   it('read tool needs no mode', () => {
     const registry = new RunRegistry();
-    expect(() => registry.register(registrations({ tools: [readTool] }))).not.toThrow();
+    expect(() =>
+      registry.register(registrations({ tools: [readTool] })),
+    ).not.toThrow();
+  });
+
+  it('defaults attempts to two and accepts a profile-configured limit', () => {
+    const defaultRegistry = new RunRegistry();
+    expect(() => defaultRegistry.register(registrations())).not.toThrow();
+
+    const configuredRegistry = new RunRegistry();
+    expect(() =>
+      configuredRegistry.register(
+        registrations({
+          profiles: [{ ...profile, maxAttemptsPerStep: 3 }],
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects invalid configured attempt limits', () => {
+    for (const maxAttemptsPerStep of [0, 1.5]) {
+      const registry = new RunRegistry();
+      expect(() =>
+        registry.register(
+          registrations({
+            profiles: [{ ...profile, maxAttemptsPerStep }],
+          }),
+        ),
+      ).toThrow();
+    }
   });
 
   it('external mode requires its declared callback', () => {
     const registry = new RunRegistry();
-    expect(() => registry.register(registrations({
-      tools: [{
-        ...transactionalWriteTool,
-        idempotency: { mode: 'idempotency-key' },
-      } as never],
-    }))).toThrow();
+    expect(() =>
+      registry.register(
+        registrations({
+          tools: [
+            {
+              ...transactionalWriteTool,
+              idempotency: { mode: 'idempotency-key' },
+            } as never,
+          ],
+        }),
+      ),
+    ).toThrow();
   });
 
   it('empty production registry', () => {
-    expect(PRODUCTION_ENGINE_REGISTRATIONS).toEqual({ profiles: [], contexts: [], tools: [] });
+    expect(PRODUCTION_ENGINE_REGISTRATIONS).toEqual({
+      profiles: [],
+      contexts: [],
+      tools: [],
+    });
   });
 });

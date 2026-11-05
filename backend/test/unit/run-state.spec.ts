@@ -29,7 +29,9 @@ describe('run state', () => {
     for (const from of statuses) {
       for (const to of statuses) {
         expect(canTransition(from, to)).toBe(
-          legal.some(([legalFrom, legalTo]) => legalFrom === from && legalTo === to),
+          legal.some(
+            ([legalFrom, legalTo]) => legalFrom === from && legalTo === to,
+          ),
         );
       }
     }

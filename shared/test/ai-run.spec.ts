@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  OperationStatusSchema,
   RunErrorCodeSchema,
   RunJobSchema,
   RunStatusSchema,
@@ -16,11 +17,21 @@ describe('run contracts', () => {
       expectedVersion: 1,
     };
 
-    expect(RunJobSchema.safeParse({ ...base, version: undefined }).success).toBe(false);
-    expect(RunJobSchema.safeParse({ ...base, prompt: 'caller content' }).success).toBe(false);
-    expect(RunJobSchema.safeParse({ ...base, model: 'caller/model' }).success).toBe(false);
-    expect(RunJobSchema.safeParse({ ...base, queue: 'caller-queue' }).success).toBe(false);
-    expect(RunJobSchema.safeParse({ ...base, priority: 99 }).success).toBe(false);
+    expect(
+      RunJobSchema.safeParse({ ...base, version: undefined }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({ ...base, prompt: 'caller content' }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({ ...base, model: 'caller/model' }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({ ...base, queue: 'caller-queue' }).success,
+    ).toBe(false);
+    expect(RunJobSchema.safeParse({ ...base, priority: 99 }).success).toBe(
+      false,
+    );
     expect(RunJobSchema.safeParse(base).success).toBe(true);
   });
 
@@ -59,7 +70,9 @@ describe('run contracts', () => {
       'AI_CAPACITY_EXCEEDED',
       'AI_INTERNAL',
     ]);
-    expect(RunErrorCodeSchema.safeParse('provider raw error').success).toBe(false);
+    expect(RunErrorCodeSchema.safeParse('provider raw error').success).toBe(
+      false,
+    );
   });
 
   it('validates versioned run stream events', () => {
@@ -87,6 +100,51 @@ describe('run contracts', () => {
         runId: 'run-1',
         status: 'running',
         rawError: 'unsafe provider details',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates stable operation status events with finite safe outcomes', () => {
+    const statuses = [
+      'pending',
+      'awaiting_approval',
+      'approved',
+      'rejected',
+      'completed',
+      'failed',
+      'outcome_unknown',
+    ] as const;
+    for (const status of statuses) {
+      expect(OperationStatusSchema.safeParse(status).success).toBe(true);
+      expect(
+        RunStreamEventSchema.safeParse({
+          version: 1,
+          type: 'operation-status',
+          runId: 'run-1',
+          operationId: '00000000-0000-4000-8000-000000000004',
+          status,
+        }).success,
+      ).toBe(true);
+    }
+    expect(OperationStatusSchema.safeParse('provider_error').success).toBe(
+      false,
+    );
+    expect(
+      RunStreamEventSchema.safeParse({
+        version: 1,
+        type: 'operation-status',
+        runId: 'run-1',
+        status: 'outcome_unknown',
+      }).success,
+    ).toBe(false);
+    expect(
+      RunStreamEventSchema.safeParse({
+        version: 1,
+        type: 'operation-status',
+        runId: 'run-1',
+        operationId: '00000000-0000-4000-8000-000000000004',
+        status: 'outcome_unknown',
+        rawError: 'raw provider exception',
       }).success,
     ).toBe(false);
   });
