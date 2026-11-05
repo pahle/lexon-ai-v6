@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { act } from 'react';
+import { renderToString } from 'react-dom/server';
 import { render, settle } from './render';
 const signIn = vi.hoisted(() => vi.fn());
 const signUp = vi.hoisted(() => vi.fn());
@@ -24,6 +25,43 @@ afterEach(() => {
 });
 import { LoginForm } from '../src/components/auth/login-form';
 import { SignupForm } from '../src/components/auth/signup-form';
+test('login credentials and submit start disabled in server-rendered HTML', () => {
+  const markup = renderToString(<LoginForm />);
+  const credentialInputs = [...markup.matchAll(/<input\b[^>]*>/g)]
+    .map((match) => match[0])
+    .filter((input) => /type="email"|type="password"/.test(input));
+  expect(credentialInputs).toHaveLength(2);
+  for (const input of credentialInputs) expect(input).toContain('disabled=""');
+  const showPassword = markup.match(
+    /<button\b[^>]*aria-label="Show password"[^>]*>/,
+  )?.[0];
+  const submit = markup.match(/<button\b[^>]*type="submit"[^>]*>/)?.[0];
+  expect(showPassword).toContain('disabled=""');
+  expect(submit).toContain('disabled=""');
+});
+
+test('login credentials and submit enable after the client mounts', async () => {
+  const view = await render(<LoginForm />);
+  expect(
+    view.container.querySelector<HTMLInputElement>('input[type="email"]')!
+      .disabled,
+  ).toBe(false);
+  expect(
+    view.container.querySelector<HTMLInputElement>(
+      'input[autocomplete="current-password"]',
+    )!.disabled,
+  ).toBe(false);
+  expect(
+    view.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show password"]',
+    )!.disabled,
+  ).toBe(false);
+  expect(
+    view.container.querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .disabled,
+  ).toBe(false);
+  await view.unmount();
+});
 test('chosen login and signup forms have no social controls or decorative image and validate before network', async () => {
   for (const component of [
     <LoginForm key="login" />,

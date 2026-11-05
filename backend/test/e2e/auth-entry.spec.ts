@@ -18,7 +18,7 @@ test('F2 auth entry pages expose the shared skip target and responsive page land
   }
 });
 
-test('scripts-blocked auth forms submit credentials by POST without sensitive query keys', async ({
+test('scripts-blocked signup and two-factor forms POST safely while sign-in stays disabled', async ({
   browser,
 }) => {
   const base = descriptor().frontendUrl;
@@ -30,12 +30,18 @@ test('scripts-blocked auth forms submit credentials by POST without sensitive qu
       {
         path: '/sign-in',
         fill: async () => {
-          await page
-            .getByLabel('Email', { exact: true })
-            .fill('synthetic@example.test');
-          await page
-            .getByLabel('Password', { exact: true })
-            .fill('Synthetic-password-42!');
+          await expect(
+            page.getByLabel('Email', { exact: true }),
+          ).toBeDisabled();
+          await expect(
+            page.getByLabel('Password', { exact: true }),
+          ).toBeDisabled();
+          await expect(
+            page.getByRole('button', { name: 'Show password', exact: true }),
+          ).toBeDisabled();
+          await expect(
+            page.getByRole('button', { name: 'Sign in', exact: true }),
+          ).toBeDisabled();
         },
       },
       {
@@ -66,6 +72,7 @@ test('scripts-blocked auth forms submit credentials by POST without sensitive qu
     for (const form of cases) {
       await page.goto(base + form.path);
       await form.fill();
+      if (form.path === '/sign-in') continue;
       const navigation = page.waitForRequest((request) =>
         request.isNavigationRequest(),
       );
@@ -81,7 +88,7 @@ test('scripts-blocked auth forms submit credentials by POST without sensitive qu
       );
       recorded.push({ method: request.method(), sensitiveKeyBooleans });
     }
-    expect(recorded).toHaveLength(3);
+    expect(recorded).toHaveLength(2);
     expect(recorded.every((entry) => entry.method === 'POST')).toBe(true);
     expect(
       recorded.every((entry) =>

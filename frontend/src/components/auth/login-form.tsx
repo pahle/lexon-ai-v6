@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,6 +39,8 @@ export function LoginForm({
   visualClientReady?: boolean | undefined;
 }) {
   useVisualAuthFormReady(visualClientReady);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const [failure, setFailure] = useState('');
   const [verificationEmail, setVerificationEmail] = useState<string | null>(
     null,
@@ -117,6 +119,7 @@ export function LoginForm({
           autoComplete="email"
           registration={form.register('email')}
           error={form.formState.errors.email}
+          disabled={!hydrated}
         />
         <FormInput
           label="Password"
@@ -132,12 +135,14 @@ export function LoginForm({
           autoComplete="current-password"
           registration={form.register('password')}
           error={form.formState.errors.password}
+          disabled={!hydrated}
         />
         <Field>
           <PendingButton
             type="submit"
             pending={submission.pending}
             pendingLabel="Signing in…"
+            disabled={!hydrated}
           >
             Sign in
           </PendingButton>
