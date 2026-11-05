@@ -5,7 +5,7 @@ import type { AttemptRecord, ReportedUsage, StepClaim } from './ai-records.js';
 import { AiStepRepository } from './ai-step.repository.js';
 
 const uuid = z.uuid();
-const costPattern = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,10})?$/;
+const costPattern = /^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 interface AttemptRow {
   id: string;
   org_id: string;
@@ -213,9 +213,7 @@ export class AiAttemptRepository {
       !['succeeded', 'failed', 'unknown'].includes(input.outcome) ||
       !validUsage(input.usage) ||
       (input.costUsd !== undefined &&
-        (!costPattern.test(input.costUsd) ||
-          input.costUsd.length > 21 ||
-          input.costUsd.split('.')[0]!.length > 10))
+        (!costPattern.test(input.costUsd) || input.costUsd.length > 512))
     )
       return false;
     if (!(await this.steps.lockClaim(tx, claim))) return false;

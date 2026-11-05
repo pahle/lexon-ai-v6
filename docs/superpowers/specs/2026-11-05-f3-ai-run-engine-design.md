@@ -348,9 +348,11 @@ security guarantee: policy and approval enforce writes independently of the mode
 
 ## Model routing, privacy and operator tools
 
-Reviewed per-environment allowlist starts with openai/gpt-6-luna on Azure.
+Reviewed per-environment allowlist starts with
+`{id:"openai/gpt-6-luna",provider:"azure/us",region:"us"}`. Here
+`provider` is the exact OpenRouter route slug, not the OpenRouter SDK gateway.
 Every request enforces provider.zdr=true, data_collection=deny, exact reviewed
-provider restriction and allow_fallbacks=false; never accept request overrides.
+provider restriction and order, and allow_fallbacks=false; never accept request overrides.
 No provider tools, web plugins, or alternate gateways. No API/document-worker key.
 Key/config validation prints field names/safe codes only. Reject unknown model
 before network access. Tests inspect actual outgoing body, not only config objects.
@@ -486,6 +488,15 @@ verified starting points rather than authorizing unverified future APIs.
 
 Research is limited to Lexon's docs/code and official vendors. No third-party
 legal-product code or brief-generator branch was inspected.
+
+### Task 5 research notes (2026-11-05)
+
+| Source                                                                                                                                                                                                                                                                                                                           | Exact version / date read                           | Decision supported                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [AI SDK generating text](https://ai-sdk.dev/docs/ai-sdk-core/generating-text), installed `ai@7.0.159` source (`src/generate-text/stream-text.ts`, `src/test/mock-language-model-v4.ts`) and changelog                                                                                                                            | AI SDK 7.0.159, 2026-11-05                          | One `streamText` invocation per physical request; `maxRetries: 0`, `maxOutputTokens`, caller abort signal, and installed v4 mock are supported.                                                                                                                                                                                                               |
+| [OpenRouter provider selection](https://openrouter.ai/docs/guides/routing/provider-selection), [ZDR](https://openrouter.ai/docs/guides/features/zdr), [usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting), installed `@openrouter/ai-sdk-provider@3.1.0` README/declarations/`dist/index.js` | Provider 3.1.0, 2026-11-05                          | Provider parser emits response metadata from incoming chunks; usage cost is a JavaScript number. Always request `azure/us`, no fallback, ZDR and denied data collection.                                                                                                                                                                                      |
+| [GPT-6 Luna public endpoints](https://openrouter.ai/api/v1/models/openai/gpt-6-luna/endpoints)                                                                                                                                                                                                                                   | Public endpoint response read 2026-11-05            | Azure `azure/us` is listed. Development allowlist uses exact pair `id=openai/gpt-6-luna`, `provider=azure/us`, and `region=us`; request sends `only` and `order` as `['azure/us']`. Endpoint availability does not prove the physical route used by a generation.                                                                                             |
+| [PostgreSQL 17 numeric types](https://www.postgresql.org/docs/17/datatype-numeric.html), installed PostgreSQL 17.11 image; [Drizzle migrations](https://orm.drizzle.team/docs/migrations), installed `drizzle-orm@0.45.4` migrator                                                                                               | PostgreSQL docs read 2026-11-05; drizzle-orm 0.45.4 | Constrained `numeric(20,10)` rounds excess scale; unconstrained `numeric` preserves exact scale. Migration 0018 widens cost storage and blocks negative/infinite values. Convert finite nonnegative provider numbers using shortest `number.toString()` plus string-only exponent expansion, with a 512-character canonical bound and no arithmetic/rounding. |
 
 ## Builder check
 

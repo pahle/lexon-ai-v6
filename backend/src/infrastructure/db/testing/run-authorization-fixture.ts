@@ -250,6 +250,51 @@ export function createRunAuthorizationDatabaseFixture(
       }
     },
 
+    async sameUserAuthorizationsOverlap(orgId: string, userId: string) {
+      const first = await app.connect();
+      const second = await app.connect();
+      let firstOpen = false;
+      let secondOpen = false;
+      try {
+        await setTenant(first, orgId, userId);
+        firstOpen = true;
+        const firstFacts = await first.query(
+          'SELECT * FROM auth.lexon_ai_actor_facts($1,$2)',
+          [orgId, userId],
+        );
+        const firstAuthorized = firstFacts.rowCount === 1;
+
+        await setTenant(second, orgId, userId);
+        secondOpen = true;
+        const secondAuthorization = second.query(
+          'SELECT * FROM auth.lexon_ai_actor_facts($1,$2)',
+          [orgId, userId],
+        );
+        const secondFinishedWhileFirstStepHeld = await Promise.race([
+          secondAuthorization.then((facts) => facts.rowCount === 1),
+          new Promise<false>((resolve) =>
+            setTimeout(() => resolve(false), 500),
+          ),
+        ]);
+
+        await first.query('COMMIT');
+        firstOpen = false;
+        const secondFacts = await secondAuthorization;
+        await second.query('COMMIT');
+        secondOpen = false;
+        return {
+          firstAuthorized,
+          secondAuthorized: secondFacts.rowCount === 1,
+          secondFinishedWhileFirstStepHeld,
+        };
+      } finally {
+        if (firstOpen) await first.query('ROLLBACK').catch(() => undefined);
+        if (secondOpen) await second.query('ROLLBACK').catch(() => undefined);
+        first.release();
+        second.release();
+      }
+    },
+
     async runIterations(orgId: string, userId: string, runId: string) {
       const client = await app.connect();
       try {

@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import type { ModelInput } from '../../src/infrastructure/ai/index.js';
+import type {
+  ModelEvent,
+  ModelInput,
+} from '../../src/infrastructure/ai/index.js';
+import { createRealModelGateway } from '../../src/infrastructure/ai/index.js';
 import { AiAttemptRepository } from '../../src/infrastructure/db/index.js';
 import { estimateInputTokens } from '../../src/modules/usage/token-estimator.js';
 import { test } from '../setup/file-services.js';
@@ -422,37 +426,153 @@ test('missing cost stays null while known zero cost stays zero', async ({
     const attempts = await harness.withTenant((tx) =>
       new AiAttemptRepository().list(tx, harness.runId),
     );
-    expect(attempts.map((attempt) => attempt.costUsd)).toEqual([
-      null,
-      '0.0000000000',
-    ]);
+    expect(attempts.map((attempt) => attempt.costUsd)).toEqual([null, '0']);
   } finally {
     await harness.close();
   }
 });
 
-test('cost precision beyond numeric scale is rejected before settlement', async ({
+test('cost precision beyond the former numeric scale survives settlement and reload', async ({
   services,
 }) => {
   const harness = await createAttemptHarness(services);
   try {
     const reserved = await reserve(harness);
-    await expect(
-      settle(
-        harness,
-        reserved.attemptId,
-        'succeeded',
-        { inputTokens: 1, outputTokens: 1 },
-        '0.00000000001',
-      ),
-    ).rejects.toThrow('AI settlement rejected');
+    await settle(
+      harness,
+      reserved.attemptId,
+      'succeeded',
+      { inputTokens: 1, outputTokens: 1 },
+      '0.00000000001',
+    );
     expect(await harness.listAttempts()).toContainEqual(
       expect.objectContaining({
         attemptId: reserved.attemptId,
-        active: true,
+        active: false,
+        outcome: 'succeeded',
+        costUsd: '0.00000000001',
+        reportedInputTokens: 1,
+      }),
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+test('provider parser cost reaches attempt settlement and reload without precision loss', async ({
+  services,
+}) => {
+  const harness = await createAttemptHarness(services);
+  try {
+    const modelInputValue: ModelInput = {
+      ...modelInput(),
+      model: 'openai/gpt-6-luna',
+      provider: 'azure/us',
+    };
+    const reserved = await reserve(
+      harness,
+      harness.newService(),
+      modelInputValue,
+    );
+    let releaseProviderContinuation!: () => void;
+    const providerContinuation = new Promise<void>((resolve) => {
+      releaseProviderContinuation = resolve;
+    });
+    const gateway = createRealModelGateway({
+      allowlist: {
+        version: 1,
+        models: [
+          {
+            id: 'openai/gpt-6-luna',
+            provider: 'azure/us',
+            region: 'us',
+            zeroDataRetention: true,
+            reviewedAt: '2026-11-05T00:00:00.000Z',
+          },
+        ],
+      },
+      key: 'synthetic-test-key',
+      attestation: '2026-11-05',
+      fetch: async () => {
+        const encoder = new TextEncoder();
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            async start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  'data: {"id":"gen-db-cost","model":"openai/gpt-6-luna","choices":[]}\n\n',
+                ),
+              );
+              await providerContinuation;
+              controller.enqueue(
+                encoder.encode(
+                  'data: {"id":"gen-db-cost","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":null}]}\n\n',
+                ),
+              );
+              controller.enqueue(
+                encoder.encode(
+                  'data: {"id":"gen-db-cost","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10,"cost":0.0000000000123}}\n\n',
+                ),
+              );
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+    });
+    const events: ModelEvent[] = [];
+    const iterator = gateway.generate(modelInputValue)[Symbol.asyncIterator]();
+    const earlyMetadata = await iterator.next();
+    expect(earlyMetadata.value).toMatchObject({
+      type: 'metadata',
+      generationId: 'gen-db-cost',
+    });
+    if (!earlyMetadata.value || earlyMetadata.value.type !== 'metadata')
+      throw new Error('Mock provider did not emit early metadata');
+    await harness.withTenant((tx) =>
+      harness.newService().metadata(tx, harness.claim, {
+        attemptId: reserved.attemptId,
+        generationId: earlyMetadata.value.generationId!,
+      }),
+    );
+    expect(await harness.listAttempts()).toContainEqual(
+      expect.objectContaining({
+        attemptId: reserved.attemptId,
+        generationId: 'gen-db-cost',
         outcome: null,
-        costUsd: null,
-        reportedInputTokens: null,
+      }),
+    );
+    events.push(earlyMetadata.value);
+    releaseProviderContinuation();
+    while (true) {
+      const next = await iterator.next();
+      if (next.done) break;
+      events.push(next.value);
+    }
+    const reported = events.find((event) => event.type === 'usage');
+    expect(reported).toMatchObject({
+      type: 'usage',
+      usage: { inputTokens: 7, outputTokens: 3 },
+      costUsd: '0.0000000000123',
+    });
+    if (!reported || reported.type !== 'usage')
+      throw new Error('Mock provider did not report usage');
+    await settle(
+      harness,
+      reserved.attemptId,
+      'succeeded',
+      reported.usage,
+      reported.costUsd,
+    );
+    expect(await harness.listAttempts()).toContainEqual(
+      expect.objectContaining({
+        attemptId: reserved.attemptId,
+        outcome: 'succeeded',
+        reportedInputTokens: 7,
+        reportedOutputTokens: 3,
+        costUsd: '0.0000000000123',
       }),
     );
   } finally {

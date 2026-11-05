@@ -8,13 +8,34 @@ export type JsonValue =
   | readonly JsonValue[]
   | { readonly [key: string]: JsonValue };
 
+export type ModelMessagePart =
+  | { readonly type: 'text'; readonly text: string }
+  | {
+      readonly type: 'tool-call';
+      readonly toolCallId: string;
+      readonly toolName: string;
+      readonly input: JsonValue;
+    };
+
+export interface ModelToolResultPart {
+  readonly type: 'tool-result';
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly result: JsonValue;
+}
+
+export type ModelMessage =
+  | { readonly role: 'system' | 'user'; readonly content: string | JsonValue }
+  | {
+      readonly role: 'assistant';
+      readonly content: string | readonly ModelMessagePart[];
+    }
+  | { readonly role: 'tool'; readonly content: readonly ModelToolResultPart[] };
+
 export interface ModelInput {
   readonly model: string;
   readonly provider: string;
-  readonly messages: readonly {
-    readonly role: 'system' | 'user' | 'assistant' | 'tool';
-    readonly content: string | JsonValue;
-  }[];
+  readonly messages: readonly ModelMessage[];
   readonly schemas?: Readonly<Record<string, JsonValue>>;
   readonly maxOutputTokens: number;
   readonly signal: AbortSignal;
@@ -26,6 +47,8 @@ export interface ReportedUsage {
   readonly cachedInputTokens?: number;
   readonly reasoningOutputTokens?: number;
 }
+
+export type ModelAttemptOutcome = 'succeeded' | 'failed' | 'unknown';
 
 export type DecimalUsdString = `${number}`;
 
@@ -46,10 +69,12 @@ export type ModelEvent =
       readonly type: 'usage';
       readonly usage: Partial<ReportedUsage>;
       readonly costUsd?: DecimalUsdString;
-    };
+    }
+  | { readonly type: 'outcome'; readonly outcome: ModelOutcome };
 
 export interface ModelOutcome {
   readonly finishReason: 'stop' | 'tool_calls' | 'error';
+  readonly attemptOutcome: ModelAttemptOutcome;
   readonly generationId?: string;
   readonly provider?: string;
   readonly usage?: Partial<ReportedUsage>;

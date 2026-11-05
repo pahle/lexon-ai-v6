@@ -139,6 +139,33 @@ test('selection and worker authorization share the F1 parent lock without deadlo
   }
 });
 
+test('same-user run authorizations overlap while the first authorized step is held', async ({
+  services,
+}) => {
+  const api = await identityApiHarness(services);
+  const authorization = createRunAuthorizationFixture(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const actor = await api.user('Concurrent run authorization');
+    const team = await organizations.seedTeam([actor.profile.id]);
+    const result = await authorization.sameUserAuthorizationsOverlap(
+      team.id,
+      actor.profile.id,
+    );
+    expect(result).toEqual({
+      firstAuthorized: true,
+      secondAuthorized: true,
+      secondFinishedWhileFirstStepHeld: true,
+    });
+  } finally {
+    await authorization.close();
+    await organizations.close();
+    await api.close();
+  }
+});
+
 test('removing the authorized actor waits on the F1 parent pre-lock', async ({
   services,
 }) => {

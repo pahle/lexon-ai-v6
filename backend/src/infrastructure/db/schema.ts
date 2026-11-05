@@ -145,7 +145,7 @@ export const aiAttempts = app.table(
     reportedOutputTokens: integer('reported_output_tokens'),
     cachedInputTokens: integer('cached_input_tokens'),
     reasoningOutputTokens: integer('reasoning_output_tokens'),
-    costUsd: numeric('cost_usd', { precision: 20, scale: 10 }),
+    costUsd: numeric('cost_usd'),
     generationId: text('generation_id'),
     fence: bigint({ mode: 'number' }).notNull(),
     active: boolean().notNull(),

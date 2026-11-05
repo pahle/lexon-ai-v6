@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import type { ModelInput } from '../../src/infrastructure/ai/index.js';
+import type {
+  JsonValue,
+  ModelInput,
+  ModelToolResultPart,
+} from '../../src/infrastructure/ai/index.js';
 import { estimateInputTokens } from '../../src/modules/usage/token-estimator.js';
 
 const signal = new AbortController().signal;
@@ -32,8 +36,26 @@ test('estimates UTF-8 messages, context, tool results, and schemas with overhead
   const messages: ModelInput['messages'] = [
     { role: 'system', content: 'Analyze hukum Indonesia 🇮🇩' },
     {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool-call',
+          toolCallId: 'sdk-call',
+          toolName: 'lookup',
+          input: { query: 'putusan' },
+        },
+      ],
+    },
+    {
       role: 'tool',
-      content: { result: 'putusan selesai', citations: ['Pasal 1'] },
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'sdk-call',
+          toolName: 'lookup',
+          result: { result: 'putusan selesai', citations: ['Pasal 1'] },
+        },
+      ],
     },
   ];
   const schemas: NonNullable<ModelInput['schemas']> = {
@@ -57,7 +79,7 @@ test('estimates UTF-8 messages, context, tool results, and schemas with overhead
 
   expect(estimateInputTokens(input(messages, schemas))).toEqual({
     version: 1,
-    inputTokens: Buffer.byteLength(serialization, 'utf8') + 2 * 64 + 256 + 1024,
+    inputTokens: Buffer.byteLength(serialization, 'utf8') + 3 * 64 + 256 + 1024,
   });
 });
 
@@ -80,9 +102,14 @@ test('rejects non-finite visible numbers and unsafe token arithmetic', () => {
   const invalid = input([
     {
       role: 'tool',
-      content: {
-        count: Number.NaN,
-      } as unknown as ModelInput['messages'][number]['content'],
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'sdk-call',
+          toolName: 'lookup',
+          result: { count: Number.NaN } as unknown as JsonValue,
+        } satisfies ModelToolResultPart,
+      ],
     },
   ]);
 
@@ -93,20 +120,38 @@ test('preserves own __proto__ JSON keys in tool results and tool schemas', () =>
   const large = 'x'.repeat(10_000);
   const toolResult = JSON.parse(
     `{"__proto__":{"payload":"${large}"}}`,
-  ) as ModelInput['messages'][number]['content'];
+  ) as JsonValue;
   const schemas = JSON.parse(
     `{"lookup":{"properties":{"__proto__":{"type":"string","description":"${large}"}}}}`,
   ) as ModelInput['schemas'];
   const messages: ModelInput['messages'] = [
     {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool-call',
+          toolCallId: 'sdk-call',
+          toolName: 'lookup',
+          input: { large },
+        },
+      ],
+    },
+    {
       role: 'tool',
-      content: toolResult,
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'sdk-call',
+          toolName: 'lookup',
+          result: toolResult,
+        },
+      ],
     },
   ];
   const serialization = JSON.stringify({ messages, schemas });
 
   expect(estimateInputTokens(input(messages, schemas))).toEqual({
     version: 1,
-    inputTokens: Buffer.byteLength(serialization, 'utf8') + 64 + 256 + 1024,
+    inputTokens: Buffer.byteLength(serialization, 'utf8') + 2 * 64 + 256 + 1024,
   });
 });

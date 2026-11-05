@@ -81,7 +81,7 @@ test('attempt metadata, checkpoint, reported usage, and step commit persist unde
         reportedOutputTokens: 9,
         cachedInputTokens: 2,
         reasoningOutputTokens: 3,
-        costUsd: '0.0010000000',
+        costUsd: '0.001',
         active: false,
         outcome: 'succeeded',
       },

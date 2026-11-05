@@ -1,1 +1,12 @@
-{ "version": 1, "models": [] }
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "openai/gpt-6-luna",
+      "provider": "azure/us",
+      "region": "us",
+      "zeroDataRetention": true,
+      "reviewedAt": "2026-11-05T00:00:00.000Z"
+    }
+  ]
+}
