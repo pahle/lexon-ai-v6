@@ -11,6 +11,8 @@ export interface RunRecord {
   readonly id: string;
   readonly orgId: string;
   readonly initiatingUserId: string;
+  readonly initiatingSessionId: string | null;
+  readonly initiatingMfaVerifiedAt: Date | null;
   readonly profileId: string;
   readonly profileVersion: number;
   readonly resolvedConfig: unknown;
@@ -34,6 +36,8 @@ export interface RunInsert {
   readonly id: string;
   readonly orgId: string;
   readonly initiatingUserId: string;
+  readonly initiatingSessionId?: string | null;
+  readonly initiatingMfaVerifiedAt?: Date | null;
   readonly profileId: string;
   readonly profileVersion: number;
   readonly resolvedConfig: unknown;

@@ -13,6 +13,11 @@ export { appendAuthAuditRecord } from './auth/auth-functions.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { AiRunRepository } from './ai-run.repository.js';
+export {
+  assertRunActorFactsSession,
+  RunActorFactsRepository,
+  type RunActorFacts,
+} from './run-actor-facts.js';
 export { AiStepRepository } from './ai-step.repository.js';
 export { AiAttemptRepository } from './ai-attempt.repository.js';
 export { AiCapacityRepository } from './ai-capacity.repository.js';

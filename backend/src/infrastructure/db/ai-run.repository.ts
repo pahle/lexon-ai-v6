@@ -38,6 +38,8 @@ interface RunRow {
   id: string;
   org_id: string;
   initiating_user_id: string;
+  initiating_session_id: string | null;
+  initiating_mfa_verified_at: Date | null;
   profile_id: string;
   profile_version: number;
   resolved_config: unknown;
@@ -62,6 +64,8 @@ function mapRun(row: RunRow): RunRecord {
     id: row.id,
     orgId: row.org_id,
     initiatingUserId: row.initiating_user_id,
+    initiatingSessionId: row.initiating_session_id,
+    initiatingMfaVerifiedAt: row.initiating_mfa_verified_at,
     profileId: row.profile_id,
     profileVersion: row.profile_version,
     resolvedConfig: row.resolved_config,
@@ -88,6 +92,11 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
     !idSchema.safeParse(input.id).success ||
     !idSchema.safeParse(input.orgId).success ||
     !idSchema.safeParse(input.initiatingUserId).success ||
+    (input.initiatingSessionId != null &&
+      !idSchema.safeParse(input.initiatingSessionId).success) ||
+    (input.initiatingMfaVerifiedAt != null &&
+      (!Number.isFinite(input.initiatingMfaVerifiedAt.getTime()) ||
+        input.initiatingSessionId == null)) ||
     input.orgId !== ctx.orgId ||
     input.initiatingUserId !== ctx.userId ||
     !Number.isSafeInteger(input.profileVersion) ||
@@ -119,12 +128,14 @@ export class AiRunRepository {
     const { client } = requireSession(tx);
     const result = await client.query<RunRow>(
       `INSERT INTO app.ai_runs
-       (id,org_id,initiating_user_id,profile_id,profile_version,resolved_config,model_id,input_text,status,run_version,next_sequence,model_iterations,input_budget_tokens,output_budget_tokens,partial_output)
-       VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8,'queued',1,1,0,$9,$10,'') RETURNING *`,
+       (id,org_id,initiating_user_id,initiating_session_id,initiating_mfa_verified_at,profile_id,profile_version,resolved_config,model_id,input_text,status,run_version,next_sequence,model_iterations,input_budget_tokens,output_budget_tokens,partial_output)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,'queued',1,1,0,$11,$12,'') RETURNING *`,
       [
         input.id,
         input.orgId,
         input.initiatingUserId,
+        input.initiatingSessionId ?? null,
+        input.initiatingMfaVerifiedAt ?? null,
         input.profileId,
         input.profileVersion,
         JSON.stringify(input.resolvedConfig),

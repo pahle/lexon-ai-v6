@@ -203,3 +203,25 @@ at bootstrap (explicit Task7 handoff); worker forged-context flow7 (Task7);
 receipt/outbox lifecycle composition (Tasks6–9); accounting policy (Task3).
 Do not infer those features from storage acceptance. The three existing jsdom
 warning messages remain a baseline follow-up for final review.
+
+## Task 4 implementation evidence (2026-11-05)
+
+Task 4 implementation is complete and awaiting main-session review; it is not
+marked accepted here. Migration `0017` stores nullable initiating session and
+MFA verification provenance without coupling run retention to auth session
+lifetime. Worker authorization combines that immutable provenance with current
+locked user, organization, and membership facts. The facts function accepts
+caller-supplied tenant identity, has a fixed search path, and contains no run
+lookup or policy logic. Identity owns active-scope actor minting and capability
+policy. Resource grants remain empty pending their owning product slices.
+
+- Focused RED was recorded before implementation; final focused verification
+  `pnpm exec vitest run --project backend-unit --project backend-integration run-capability.spec untrusted-context.spec canonical-operation.spec run-authorization.spec`
+  passed **14/14 tests, 4 files**.
+- Final workspace gates `pnpm build`, `pnpm typecheck`, `pnpm lint` (85/85
+  boundary checks), `pnpm format:check`, and `git diff --check` passed.
+- One final `pnpm test` run passed **577 tests / 120 files**, exit 0, 60.03s.
+  The three existing jsdom navigation warnings appeared; no tests failed.
+- Concurrency regression coverage confirms current membership removal serializes
+  with worker effects through the F1 parent-org locks. No model I/O is performed
+  inside the authorization transaction.
