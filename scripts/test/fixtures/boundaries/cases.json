@@ -324,6 +324,12 @@
     "rule": "infrastructure-domain"
   },
   {
+    "name": "infrastructure cannot import run authorization policy",
+    "importer": "backend/src/infrastructure/db/run-actor-facts.ts",
+    "code": "import '../../modules/identity-access/run-capability-policy.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
     "name": "infrastructure imports sibling infrastructure",
     "importer": "backend/src/infrastructure/queue/queue-producer.ts",
     "code": "import '../db/index.js';",

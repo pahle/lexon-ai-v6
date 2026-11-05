@@ -225,3 +225,24 @@ policy. Resource grants remain empty pending their owning product slices.
 - Concurrency regression coverage confirms current membership removal serializes
   with worker effects through the F1 parent-org locks. No model I/O is performed
   inside the authorization transaction.
+
+### Task 4 review fix round 1 (2026-11-05)
+
+- RED: a controlled two-connection PostgreSQL interleaving held the F1
+  selection user lock, started authorization until it waited for that user,
+  then advanced selection to its parent lock. The original exclusive parent
+  lock produced SQLSTATE `40P01` (deadlock detected).
+- GREEN: migration `0017` now reads/locks the organization `FOR SHARE`,
+  compatible with F1 selection's parent `FOR SHARE` and still conflicting with
+  F1 membership/policy writers' exclusive parent lock. User and membership
+  locks remain `FOR UPDATE`; lock order remains organization → user → member.
+  The same-actor removal regression uses the actual
+  `lexon_lock_organization` pre-lock protocol before deleting that actor's
+  membership and confirms deletion waits until the authorized effect commits.
+- `pnpm exec vitest run --project backend-unit --project backend-integration run-capability.spec untrusted-context.spec canonical-operation.spec run-authorization.spec organization-switch.spec membership-actions.spec run-authorization-module.spec`
+  passed **27/27 tests, 7 files**. The standalone `RunAuthorizationModule`
+  boot trace observed no Better Auth/SMTP imports and no TCP calls.
+- `node --test scripts/test/boundaries.spec.mjs` passed **79/79 fixtures**;
+  the added fixture rejects infrastructure importing run capability policy.
+  `pnpm build`, `pnpm typecheck`, `pnpm lint` (86/86 boundary tests),
+  `pnpm format:check`, and `git diff --check` passed.

@@ -32,6 +32,20 @@ async function waitForAuthBlock(pool: Pool): Promise<void> {
   throw new Error('Membership removal did not wait for the run effect');
 }
 
+async function waitForBlockedPid(pool: Pool, pid: number): Promise<boolean> {
+  const deadline = Date.now() + 1500;
+  while (Date.now() < deadline) {
+    const result = await pool.query<{ blocked: boolean }>(
+      `SELECT cardinality(pg_blocking_pids(pid)) > 0 AS blocked
+       FROM pg_stat_activity WHERE pid=$1`,
+      [pid],
+    );
+    if (result.rows[0]?.blocked) return true;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return false;
+}
+
 export function createRunAuthorizationDatabaseFixture(
   options: RunAuthorizationDatabaseOptions,
 ) {
@@ -132,10 +146,25 @@ export function createRunAuthorizationDatabaseFixture(
           'SELECT * FROM auth.lexon_ai_actor_facts($1,$2)',
           [orgId, initiatorId],
         );
-        const removal = auth.query(
-          'DELETE FROM auth.member WHERE organization_id=$1 AND user_id=$2',
-          [orgId, removedUserId],
-        );
+        const removal = (async () => {
+          const remover = await auth.connect();
+          try {
+            await remover.query('BEGIN');
+            await remover.query('SELECT auth.lexon_lock_organization($1)', [
+              orgId,
+            ]);
+            await remover.query(
+              'DELETE FROM auth.member WHERE organization_id=$1 AND user_id=$2',
+              [orgId, removedUserId],
+            );
+            await remover.query('COMMIT');
+          } catch (error) {
+            await remover.query('ROLLBACK').catch(() => undefined);
+            throw error;
+          } finally {
+            remover.release();
+          }
+        })();
         await waitForAuthBlock(auth);
         await effect.query(
           'UPDATE app.ai_runs SET model_iterations=model_iterations+1 WHERE org_id=$1 AND id=$2',
@@ -149,6 +178,75 @@ export function createRunAuthorizationDatabaseFixture(
         throw error;
       } finally {
         effect.release();
+      }
+    },
+
+    async selectionAndAuthorization(orgId: string, userId: string) {
+      const selection = await auth.connect();
+      const authorization = await app.connect();
+      let selectionOpen = false;
+      let authorizationOpen = false;
+      try {
+        await selection.query('BEGIN');
+        selectionOpen = true;
+        const selectionPid = Number(
+          (
+            await selection.query<{ pid: string }>(
+              'SELECT pg_backend_pid() AS pid',
+            )
+          ).rows[0]!.pid,
+        );
+        const authorizationPid = Number(
+          (
+            await authorization.query<{ pid: string }>(
+              'SELECT pg_backend_pid() AS pid',
+            )
+          ).rows[0]!.pid,
+        );
+        await selection.query(
+          'SELECT id FROM auth."user" WHERE id=$1 FOR UPDATE',
+          [userId],
+        );
+
+        await setTenant(authorization, orgId, userId);
+        authorizationOpen = true;
+        const facts = authorization.query(
+          'SELECT * FROM auth.lexon_ai_actor_facts($1,$2)',
+          [orgId, userId],
+        );
+        const authorizationWaitedForUser = await waitForBlockedPid(
+          app,
+          authorizationPid,
+        );
+
+        // This is the remaining parent-lock step in F1's selection lock
+        // protocol, after it has already locked the user row.
+        const parentSelection = selection.query(
+          'SELECT auth.lexon_lock_selection($1,$2,$3)',
+          [userId, randomUUID(), orgId],
+        );
+        const selectionCycle = await waitForBlockedPid(auth, selectionPid);
+        if (selectionCycle) {
+          await selection.query('ROLLBACK');
+          selectionOpen = false;
+          await facts;
+          await parentSelection;
+        } else {
+          await parentSelection;
+          await selection.query('COMMIT');
+          selectionOpen = false;
+          await facts;
+        }
+        await authorization.query('COMMIT');
+        authorizationOpen = false;
+        return { authorizationWaitedForUser, selectionCycle };
+      } finally {
+        if (selectionOpen)
+          await selection.query('ROLLBACK').catch(() => undefined);
+        if (authorizationOpen)
+          await authorization.query('ROLLBACK').catch(() => undefined);
+        selection.release();
+        authorization.release();
       }
     },
 

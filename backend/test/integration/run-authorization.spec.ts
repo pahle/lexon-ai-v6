@@ -113,6 +113,68 @@ test('membership removal serializes after a worker-authorized effect', async ({
   }
 });
 
+test('selection and worker authorization share the F1 parent lock without deadlock', async ({
+  services,
+}) => {
+  const api = await identityApiHarness(services);
+  const authorization = createRunAuthorizationFixture(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const actor = await api.user('Selection authorization lock');
+    const team = await organizations.seedTeam([actor.profile.id]);
+    const result = await authorization.selectionAndAuthorization(
+      team.id,
+      actor.profile.id,
+    );
+    expect(result).toEqual({
+      authorizationWaitedForUser: true,
+      selectionCycle: false,
+    });
+  } finally {
+    await authorization.close();
+    await organizations.close();
+    await api.close();
+  }
+});
+
+test('removing the authorized actor waits on the F1 parent pre-lock', async ({
+  services,
+}) => {
+  const api = await identityApiHarness(services);
+  const authorization = createRunAuthorizationFixture(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const initiator = await api.user('Self removal initiator');
+    const remainingOwner = await api.user('Self removal remaining owner');
+    const team = await organizations.seedTeam([
+      initiator.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const runId = await authorization.insertCompletedRun(
+      team.id,
+      initiator.profile.id,
+    );
+    const effect = await authorization.authorizeEffectWhileRemovingMember(
+      team.id,
+      initiator.profile.id,
+      initiator.profile.id,
+      runId,
+    );
+    expect(effect.facts).toHaveLength(1);
+    expect(
+      await authorization.runIterations(team.id, initiator.profile.id, runId),
+    ).toBe(1);
+  } finally {
+    await authorization.close();
+    await organizations.close();
+    await api.close();
+  }
+});
+
 test('a different active member cannot authorize a decision or mutate the run', async ({
   services,
 }) => {

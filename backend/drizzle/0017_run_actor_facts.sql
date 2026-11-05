@@ -42,7 +42,7 @@ BEGIN
     INTO org_kind, org_state, org_require2fa
     FROM auth.organization AS o
     WHERE o.id = input_org_id
-    FOR UPDATE;
+    FOR SHARE;
   IF NOT FOUND THEN RETURN; END IF;
 
   SELECT u.email_verified, u.banned, u.two_factor_enabled
