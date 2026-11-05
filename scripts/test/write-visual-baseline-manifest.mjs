@@ -18,6 +18,26 @@ const approval = JSON.parse(approvalBytes);
 const browser = await chromium.launch({ headless: true });
 
 try {
+  const context = await browser.newContext({
+    locale: 'en-US',
+    timezoneId: 'Asia/Jakarta',
+  });
+  let locale;
+  let timezone;
+  try {
+    const page = await context.newPage();
+    ({ locale, timezone } = await page.evaluate(() => ({
+      locale: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })));
+  } finally {
+    await context.close();
+  }
+  if (locale !== 'en-US' || timezone !== 'Asia/Jakarta') {
+    throw new Error(
+      'Baseline manifest browser context does not match visual settings.',
+    );
+  }
   const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',
@@ -28,7 +48,7 @@ try {
     visualDirectory,
     {
       sourceSha,
-      capturedAt: new Date().toISOString(),
+      generatedAt: new Date().toISOString(),
       approvalSha256: sha256(approvalBytes),
       indexSha256: sha256(indexBytes),
       environment: {
@@ -41,8 +61,8 @@ try {
           ),
         ).version,
         node: process.version,
-        locale: 'en-US',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        locale,
+        timezone,
       },
     },
   );

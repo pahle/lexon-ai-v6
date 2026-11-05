@@ -424,12 +424,17 @@ test('approved visual records require a complete, hash-valid named baseline set'
     );
     const manifest = buildVisualBaselineManifest(index, approval, visualRoot, {
       sourceSha: 'b'.repeat(40),
-      environment: { os: 'Linux fixture' },
-      capturedAt: '2026-11-05T00:00:00.000Z',
+      environment: {
+        os: 'Linux fixture',
+        locale: 'en-US',
+        timezone: 'Asia/Jakarta',
+      },
+      generatedAt: '2026-11-05T00:00:00.000Z',
       expectedViewCount: 1,
     });
     assert.equal(manifest.sourceSha, 'b'.repeat(40));
     assert.equal(manifest.viewCount, 1);
+    assert.equal(manifest.environment.timezone, 'Asia/Jakarta');
     assert.equal(
       manifest.images['sample-desktop-light'].path,
       'baseline/sample-desktop-light.png',
