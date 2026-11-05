@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-05
-Current scope: Tasks1–2 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, and atomic global24/org6 admission. Tasks3–17 remain pending; no run execution or model call is delivered yet.
+Current scope: Tasks1–3 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, atomic global24/org6 admission, and durable attempt accounting. Tasks4–17 remain pending; no run execution or model call is delivered yet.
 
 ## Task 3 owner capacity privilege correction (2026-11-05)
 
@@ -10,7 +10,7 @@ Current scope: Tasks1–2 accepted — portable contracts, registry/state, tenan
 - RED: `pnpm exec vitest run --project backend-integration ai-capacity.spec` failed because `lexon_app` could update the singleton (`UPDATE` SQLSTATE was successful/null); DELETE was denied. GREEN after migration/repository change: same command passed **8/8 tests**, including direct UPDATE/DELETE denial and independent repositories accepting an identical fingerprint while rejecting a changed fingerprint specifically as `AI capacity configuration mismatch`.
 - Reviewed fixed capacity inputs remain `slot_bytes=6291456` and per-organization maximum `6`. Raising either CHECK/config ceiling requires a reviewed migration and operator step.
 
-## Task 3 attempt accounting implementation evidence (2026-11-05; owner review pending)
+## Task 3 attempt accounting implementation evidence (2026-11-05)
 
 - Research reread 2026-11-05: [AI SDK 7 generating text](https://ai-sdk.dev/docs/ai-sdk-core/generating-text) and installed `ai@7.0.159` declarations/changelog; [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting) and installed `@openrouter/ai-sdk-provider@3.1.0` README/declarations; [PostgreSQL 17 numeric types](https://www.postgresql.org/docs/17/datatype-numeric.html) and explicit-locking docs; Drizzle migration docs and installed `drizzle-orm@0.45.4` migrator. Detailed decisions and exact-version evidence are in the approved design's Research notes.
 - Usage now owns durable reserve/settle projection with no Chat lifecycle mutation. Admission locks and revalidates the claimed run/step before reading PostgreSQL budget state; reserves estimated input plus enforced output as one amount, counts every attempt, and fails future reserves after any persisted overrun even if remaining is positive. Unknown retains both reserve components; partial usage replaces only reported components; null cost remains distinct from known zero.
@@ -27,6 +27,12 @@ Current scope: Tasks1–2 accepted — portable contracts, registry/state, tenan
 - Correction: canonical JSON objects now have a null prototype so own `__proto__` keys remain enumerable data. Unknown attempts still consume both full reservation components for remaining-budget accounting, while available reported usage is independently compared against the total reservation; a reported overrun sets the durable stop regardless of outcome.
 - GREEN: the same command passed **26/26 tests, 3 files**, exit 0. The Testcontainers regression settles an unknown attempt above reservation, verifies positive remaining reserve survives construction of a new service, and verifies the next reservation fails with `AI_BUDGET_EXCEEDED`.
 - Changed-code gates after the corrections: `pnpm build`, `pnpm typecheck`, `pnpm lint` (**85/85 boundary checks**), `pnpm format:check`, and `git diff --check` all passed, exit 0. The full suite was not rerun for these two scoped fixes; the prior 561/561 baseline remains recorded above.
+
+## Task 3 acceptance after review (2026-11-05)
+
+- Implementation `38297e881e9c88e4c8a1711c5414937c41f5167d`; review corrections `2050dd6c80f419c2cc445810c1003fe987aec015`. Main-session spec and code-quality review accepted the task after both Important findings were fixed and scoped re-review confirmed no new blocking issues.
+- Main-session final verification: `pnpm exec vitest run --project backend-unit --project backend-integration token-estimator.spec attempt-budget.spec ai-attempts.spec ai-capacity.spec` passed **34 tests / 4 files**, exit 0, 14.21s. This includes the privilege, fingerprint, estimator, restart and overrun regressions. Full-suite evidence above predates the scoped fixes; covering tests and workspace gates passed after them.
+- Remaining integration gates: Task 5 must resolve provider cost normalization/precision before real execution; Task 9 must atomically finalize a failed run with truthful usage and partial output when settlement reports overrun. Task 3 supplies accounting only. The three existing jsdom warnings remain recorded for final review.
 
 ## Research checked
 
