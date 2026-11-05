@@ -12,6 +12,10 @@ export type { AuthIntegration } from './auth/auth-types.js';
 export { appendAuthAuditRecord } from './auth/auth-functions.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';
+export { AiRunRepository } from './ai-run.repository.js';
+export { AiStepRepository } from './ai-step.repository.js';
+export { AiAttemptRepository } from './ai-attempt.repository.js';
+export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {
   parseJobEnvelope,
@@ -19,7 +23,18 @@ export {
   type TenantJobHandler,
 } from './job-envelope.js';
 export type { ClaimedOutbox } from './outbox.repository.js';
-export type { StepClaim } from './ai-records.js';
+export type {
+  AiRunStatus,
+  RunRecord,
+  RunInsert,
+  StepRecord,
+  StepState,
+  StepClaim,
+  StepCommit,
+  AttemptRecord,
+  AttemptInsert,
+  ReportedUsage,
+} from './ai-records.js';
 export type {
   AdminSetupOperator,
   AdminSetupOperatorFacts,

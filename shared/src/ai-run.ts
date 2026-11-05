@@ -39,15 +39,18 @@ export const OperationStatusSchema = z.enum([
 export type OperationStatus = z.infer<typeof OperationStatusSchema>;
 
 const identifier = z.string().trim().min(1);
+const sdkPartId = z.string().min(1).max(256);
 const sequence = z.number().int().positive();
 const version = z.number().int().positive();
+const tenantContext = z.strictObject({ orgId: z.uuid(), userId: z.uuid() });
 
 const runJob = z.strictObject({
   version: z.literal(1),
   type: z.enum(['run.start.v1', 'run.advance.v1', 'run.resume.v1']),
-  runId: identifier,
+  runId: z.uuid(),
   sequence,
   expectedVersion: version,
+  ctx: tenantContext,
 });
 
 export const RunJobSchema = z.discriminatedUnion('type', [
@@ -63,12 +66,12 @@ export const RunJobSchema = z.discriminatedUnion('type', [
 ]);
 export type RunJob = z.infer<typeof RunJobSchema>;
 
-const eventBase = { version: z.literal(1), runId: identifier };
+const eventBase = { version: z.literal(1), runId: z.uuid() };
 export const RunStreamEventSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...eventBase,
     type: z.literal('start'),
-    messageId: identifier,
+    messageId: z.uuid(),
   }),
   z.strictObject({
     ...eventBase,
@@ -79,7 +82,7 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...eventBase,
     type: z.literal('approval-required'),
-    operationId: identifier,
+    operationId: z.uuid(),
   }),
   z.strictObject({
     ...eventBase,
@@ -99,57 +102,57 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...eventBase,
     type: z.literal('text-start'),
-    id: identifier,
+    id: sdkPartId,
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('text-delta'),
-    id: identifier,
+    id: sdkPartId,
     delta: z.string(),
   }),
-  z.strictObject({ ...eventBase, type: z.literal('text-end'), id: identifier }),
+  z.strictObject({ ...eventBase, type: z.literal('text-end'), id: sdkPartId }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-input-start'),
-    toolCallId: identifier,
+    toolCallId: sdkPartId,
     toolName: identifier,
     inputEncoding: z.enum(['json', 'text']).optional(),
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-input-delta'),
-    toolCallId: identifier,
+    toolCallId: sdkPartId,
     inputTextDelta: z.string(),
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-input-available'),
-    toolCallId: identifier,
+    toolCallId: sdkPartId,
     toolName: identifier,
     input: z.record(z.string(), z.unknown()),
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-approval-request'),
-    toolCallId: identifier,
-    approvalId: identifier,
+    toolCallId: sdkPartId,
+    approvalId: sdkPartId,
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-approval-response'),
-    approvalId: identifier,
+    approvalId: sdkPartId,
     approved: z.boolean(),
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-output-available'),
-    toolCallId: identifier,
+    toolCallId: sdkPartId,
     output: z.unknown(),
   }),
   z.strictObject({
     ...eventBase,
     type: z.literal('tool-output-denied'),
-    toolCallId: identifier,
+    toolCallId: sdkPartId,
   }),
 ]);
 export type RunStreamEvent = z.infer<typeof RunStreamEventSchema>;

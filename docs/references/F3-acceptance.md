@@ -77,3 +77,48 @@ translation remain the explicit deliverables of Tasks3–5 and9–12; the review
 did not claim them proven by foundational types. At Task5, ensure terminal model
 outcomes are observable through the neutral gateway before Task9 consumes it;
 the standalone ModelOutcome type alone does not prove adapter delivery.
+
+## Task 1 owner contract corrections (2026-11-05)
+
+- RED: `pnpm exec vitest run --project contracts ai-run.spec` failed four
+  behavioral checks (run jobs missing tenant context; Lexon UUID event IDs;
+  opaque SDK IDs were trimmed; positive run-job fixture omitted required ctx).
+  The failures exercised absent behavior; no import/setup failure.
+- GREEN: the same command passed **8 tests / 1 file** after correction.
+- Run start/advance/resume now require strict `{orgId,userId}` UUID context and
+  UUID run IDs. The legacy platform no-op keeps optional userId. Stream run IDs,
+  Lexon message IDs, and both operation ID event fields use UUID validation.
+  SDK text/tool/approval IDs are nonempty, max-256-code-unit opaque strings and
+  are preserved without trimming. Task 2 repositories consume this schema only
+  after the GREEN above.
+
+## Task 2 research and implementation evidence (2026-11-05)
+
+- [PostgreSQL 17 explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html),
+  [RLS](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), and
+  [CREATE FUNCTION](https://www.postgresql.org/docs/17/sql-createfunction.html)
+  were read 2026-11-05 for pinned PostgreSQL 17.11. Row locks serialize the
+  singleton admission path; RLS is default-deny without a tenant policy and
+  `FORCE ROW LEVEL SECURITY` applies to the owner. Trigger helpers use a fixed
+  search path and never discover an org from a run ID.
+- [Drizzle migration guidance](https://orm.drizzle.team/docs/migrations) was
+  read 2026-11-05; installed `drizzle-orm@0.45.4` migrator source was inspected.
+  It reads the ordered `_journal.json`, hashes SQL files, and splits statements
+  on `--> statement-breakpoint`. Installed `drizzle-kit@0.31.11` and existing
+  `0014_admin_setup.sql` were checked. Task 2 uses one append-only `0015` SQL
+  migration and an appended journal record.
+- Capacity inputs follow the approved sizing addendum and
+  [F3-stream-memory.json](F3-stream-memory.json): `maxLen=1024`,
+  `eventBytes=4096`, `slotBytes=6291456`, default memory budget 30 slots,
+  terminal slots 6, and active slots derived as `floor(budget/slotBytes)-6=24`.
+  The 4096-byte probe observed 5,269,728 bytes for 1024 stream entries using
+  the pinned Valkey 9.0.7 image on aarch64.
+- The first migration validation found the checkpoint→attempt composite FK
+  needed a matching unique `(org_id,id)` key; this was added before re-running.
+  Integration assertions use `withTenant` under `lexon_app`, and the test
+  fixture seeds identities only with the migrator; runtime behavior is never
+  exercised through a migrator connection.
+
+- Task 2 focused final verification: `pnpm exec vitest run --project backend-integration --project backend-unit ai-storage.spec ai-capacity.spec ai-config.spec` passed **14/14 tests, 3 files**, exit 0. Tenant/auth regression verification `pnpm exec vitest run --project backend-integration ai-storage.spec ai-capacity.spec tenant-isolation.spec auth-privileges.spec` passed **17/17 tests, 4 files**, exit 0.
+- Final gates on Task 2 source: `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, and `git diff --check` passed, exit 0.
+- Final full `pnpm test` passed **531 tests / 113 files**, exit 0, 57.13s. Three existing jsdom `Not implemented: navigation to another Document` warnings appeared; no test failed. See the Task 2 report for exact RED/GREEN history, intermediate validation issues, and scope notes.

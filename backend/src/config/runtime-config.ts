@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { RuntimeConfigurationError } from './configuration-error.js';
 import { readAuthConfig, type AuthConfig } from './auth-config.js';
+import { readAiConfig, type AiConfig } from './ai-config.js';
 export { RuntimeConfigurationError } from './configuration-error.js';
 export type RuntimeName =
   'api' | 'ai-worker' | 'document-worker' | 'dispatcher';
@@ -144,7 +145,7 @@ export type RuntimeConfig =
       runtime: 'dispatcher';
       dispatcher: ReturnType<typeof readDispatcher>;
     })
-  | (CommonConfig & { runtime: 'ai-worker' });
+  | (CommonConfig & { runtime: 'ai-worker'; ai: AiConfig });
 export type ApiConfig = Extract<RuntimeConfig, { runtime: 'api' }>;
 export function loadRuntimeConfig<R extends RuntimeName>(
   runtime: R,
@@ -169,6 +170,6 @@ export function loadRuntimeConfig(
     case 'dispatcher':
       return { ...config, runtime, dispatcher: readDispatcher(env) };
     case 'ai-worker':
-      return { ...config, runtime };
+      return { ...config, runtime, ai: readAiConfig(env) };
   }
 }
