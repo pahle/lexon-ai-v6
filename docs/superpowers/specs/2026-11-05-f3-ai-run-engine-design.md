@@ -1,8 +1,8 @@
 # F3 — Headless AI Run Engine design
 
-Date: 2026-11-05. Status: approved by the product owner; implementation plan in preparation.
+Date: 2026-11-05. Status: approved by the product owner; approved implementation plan in progress.
 Branch: `f3-ai-run-engine`, based on `origin/main` at `63c26f9`.
-Implementation has not started. This document incorporates the owner's corrections
+Task1 foundation is implemented and accepted; later tasks remain pending. This document incorporates the owner's corrections
 in the F3 brainstorming conversation; those supersede erroneous brief wording.
 
 ## Intent and scope
