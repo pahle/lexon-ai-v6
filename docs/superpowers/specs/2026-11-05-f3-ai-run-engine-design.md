@@ -528,3 +528,16 @@ global active-run cap separately. OpenRouter's routing Max Price section confirm
 max_price prompt/completion values are USD per million tokens; reviewed eval
 ceilings0.25/1.00 use those units. The pinned provider's declarations support
 these request fields.
+
+## Plan approval amendments (2026-11-05)
+
+The owner approved MAXLEN1024, global active cap24, retained terminal cap6,
+early eviction of oldest terminal streams, azure/us for synthetic development
+(P8 still governs production), and manual-only real evals at USD0.10/16requests.
+The same admission trigger additionally enforces a per-organization active-run
+cap6 in the global-admission transaction, counting queued/running/cancelling/
+awaiting_approval. Refusal creates no run/outbox/slot rows; terminal releases the
+org slot exactly once; org B remains able to start when org A has6. This is
+admission fairness, not F17 customer quotas. OpenTelemetry packages are first
+installs: exact versions recorded in acceptance notes, and no exporter is
+constructed unless a collector URL is configured (dev/CI default none).
