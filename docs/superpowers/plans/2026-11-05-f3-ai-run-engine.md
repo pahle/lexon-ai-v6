@@ -211,6 +211,8 @@ expect(executedUnapprovedWrites).toBe(0);
 
 ### Task 5: Implement guarded single-generation model adapter
 
+**Owner clarification before adapter work (2026-11-05):** Task4 user/member FOR UPDATE was a conservative default, not an F1 protocol requirement. First add behavioral RED for two same-user runs authorizing concurrently, then a NEW `backend/drizzle/0018_ai_authorization_shared_reads.sql` and journal entry replacing only those lock modes with FOR SHARE; organization remains FOR SHARE. Never edit or renumber accepted migrations0015–0017. Extend run-authorization integration fixtures/tests as needed. Authorization is called only in short tenant transactions, never across model or Valkey I/O. Prove that both same-user runs can pass authorization without waiting for the other's whole step, with explicit transaction/step barriers and real PostgreSQL. Retain F1 selection and same-actor removal regressions. Record the rationale in acceptance notes. This shifts the still-future operation migration to0019 and optional audit migration to0020.
+
 **Files:** Create ai/{model-gateway.ts,provider-stream.ts,provider-errors.ts,real-model-prerequisites.ts,testing/scripted-model.ts}; modify ai/{index.ts,ai.module.ts,openrouter-provider.ts}, backend/config/model-allowlist.json and config/ai-config.ts; tests in backend/src/infrastructure/ai/{model-gateway.spec.ts,provider-stream.spec.ts,real-model-prerequisites.spec.ts}; update F0 allowlist assertion to F3 reviewed dev config without weakening missing-region/ZDR tests.
 
 **Interfaces:** Implements Task 1 `ModelGateway.generate`. `createRealModelGateway({allowlist,key,attestation,fetch?}):ModelGateway` enforces prerequisites before fetch. `createScriptedModelGateway(scripts:ModelScript[]):ModelGateway` is test/evaluation composition only; ModelScript is neutral JSON events, no raw SDK model returned. Early metadata is yielded/awaited before later content proceeds. `validateRealModelPrerequisites(env):{verifiedOn:string}` refuses invalid/missing/future attestation dates with fixed explanatory copy, without exposing key.
@@ -348,7 +350,7 @@ expect(hop.samplesMs).toHaveLength(20);
 
 ### Task 10: Commit tool operations and enforce idempotency modes
 
-**Files:** Create backend/drizzle/0018_ai_operations.sql + journal, db/ai-operation.repository.ts, Chat/tool-executor.ts; extend db/schema/index/module and ai-records; tests backend/test/unit/tool-recovery.spec.ts, backend/test/integration/ai-tools.spec.ts; effect fixture only in db/testing/ai-fixture.ts.
+**Files:** Create backend/drizzle/0019_ai_operations.sql + journal, db/ai-operation.repository.ts, Chat/tool-executor.ts; extend db/schema/index/module and ai-records; tests backend/test/unit/tool-recovery.spec.ts, backend/test/integration/ai-tools.spec.ts; effect fixture only in db/testing/ai-fixture.ts.
 
 **Interfaces:** `AiOperationRepository.persist(tx,claim,proposal):Promise<OperationRecord>` before execution; `ToolExecutor.execute(tx,claim,operationId):Promise<ToolResult>` uses SAME TenantSession for receipt/result/effect. `chooseToolRecovery({mode,receipt?,remoteApplied?:true|false|'unknown'}):'return-stored'|'execute-transaction'|'retry-same-key'|'reconcile-first'|'outcome_unknown'` is pure. OperationRecord includes stable id, committed step/call occurrence, args/hash/toolversion/mode and execution/approval outcome. External adapters remain unsupported in real execution composition.
 
@@ -430,7 +432,7 @@ expect(toolEffects).toHaveLength(1);
 
 ### Task 13: Add safe AI telemetry and transactional audit
 
-**Files:** First OpenTelemetry installs in backend; add exact backend dependencies/package lock: @ai-sdk/otel1.0.159, @opentelemetry/api1.9.1, sdk-node0.219.0, exporter-trace-otlp-http0.219.0, dev sdk-trace-base2.8.0; create telemetry/ai-telemetry.ts, modify telemetry/index and ai-worker bootstrap; update audit/audit-event.ts; create backend/drizzle/0019_ai_audit.sql + journal if DB allowlist requires it; tests backend/test/unit/ai-telemetry.spec.ts and backend/test/integration/ai-privacy-audit.spec.ts; add boundary fixtures.
+**Files:** First OpenTelemetry installs in backend; add exact backend dependencies/package lock: @ai-sdk/otel1.0.159, @opentelemetry/api1.9.1, sdk-node0.219.0, exporter-trace-otlp-http0.219.0, dev sdk-trace-base2.8.0; create telemetry/ai-telemetry.ts, modify telemetry/index and ai-worker bootstrap; update audit/audit-event.ts; create backend/drizzle/0020_ai_audit.sql + journal if DB allowlist requires it; tests backend/test/unit/ai-telemetry.spec.ts and backend/test/integration/ai-privacy-audit.spec.ts; add boundary fixtures.
 
 **Interfaces:** `startAiTelemetry({collectorUrl?,serviceName}):Promise<{close():Promise<void>}>`; SDK registerTelemetry/OpenTelemetry stays inside ai adapter, injectable safe tracer port comes from telemetry. Audit event names chat.run_started.v1, chat.run_finished.v1, chat.tool_operation.v1, chat.approval_decided.v1 have strict K3 metadata (run/step/operation/attempt IDs, configured model/provider, status/safe code). Append through existing AuditService.append(TenantSession,...), in same org transaction. No raw exception record or token propagation in tracing context.
 
