@@ -48,7 +48,15 @@ test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot',
         fence: 1,
         leaseUntil: new Date(Date.now() + 30_000),
       }),
-      authorizeTerminal: async () => undefined,
+      authorizeTerminal: async () => ({
+        status: 'completed',
+        runVersion: 2,
+        nextSequence: 2,
+        latestCommittedStepId: claim.stepId,
+        latestCommittedSequence: 1,
+        latestCommittedExpectedVersion: 1,
+        latestCommittedFence: 1,
+      }),
       reconcile: async (entries) =>
         entries.map((entry) => ({
           runId: entry.runId,
@@ -79,12 +87,14 @@ test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot',
     }
     const overflowEvent = { ...empty, delta: varyingText(1025, length) };
     expect(await streams.publish(claim, overflowEvent)).toBe('written');
+    await streams.finish(claim, { version: 1, runId, type: 'finish' });
     expect(await redis.xlen(streamKey)).toBe(1024);
     const keys = [
       streamKey,
       `${prefix}:${runId}:guard`,
       `${prefix}:active`,
       `${prefix}:terminal`,
+      `${prefix}:terminal-members`,
       `${prefix}:epoch`,
       `${prefix}:contexts`,
     ];
@@ -94,6 +104,10 @@ test('1024 maximum-sized varying events plus stream indexes fit the 6 MiB slot',
       ),
     );
     const totalRunSlotMemoryBytes = sizes.reduce((sum, size) => sum + size, 0);
+    process.stdout.write(
+      `F3 stream slot memory: ${totalRunSlotMemoryBytes} bytes (${sizes.join(',')} per key)\n`,
+    );
+    expect(await redis.zcard(`${prefix}:terminal`)).toBe(1);
     expect(totalRunSlotMemoryBytes).toBeLessThanOrEqual(
       RUN_STREAM_LIMITS.slotBytes,
     );

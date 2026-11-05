@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { test } from '../setup/file-services.js';
@@ -137,6 +137,466 @@ test('one run stream remains open across events and closes only after terminal D
     redis.disconnect();
     await streams.close();
     await ai.close();
+  }
+});
+
+test('publication contains a Valkey failure and later recovers', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Stream outage claim unavailable');
+    const original = Redis.prototype.zscore;
+    let failActiveLookup = true;
+    const zscore = vi
+      .spyOn(Redis.prototype, 'zscore')
+      .mockImplementation(function (this: Redis, key, member) {
+        if (failActiveLookup && String(key).endsWith(':active')) {
+          failActiveLookup = false;
+          return Promise.reject(new Error('simulated Valkey disconnect'));
+        }
+        return original.call(this, key, member);
+      });
+    try {
+      await expect(
+        streams.publish(claim, {
+          version: 1,
+          runId: run.id,
+          type: 'status',
+          status: 'running',
+        }),
+      ).resolves.toBe('unavailable');
+      await expect(
+        streams.publish(claim, {
+          version: 1,
+          runId: run.id,
+          type: 'status',
+          status: 'running',
+        }),
+      ).resolves.toBe('written');
+    } finally {
+      zscore.mockRestore();
+    }
+    expect(
+      await redis.xlen(
+        `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      ),
+    ).toBe(1);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('an expired proof cannot mutate after a replacement fence is claimed', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  let releasePrepare!: () => void;
+  let prepareReady!: () => void;
+  const release = new Promise<void>((resolve) => {
+    releasePrepare = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    prepareReady = resolve;
+  });
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const oldClaim = await ai.claim(0, run.id, 1, 1, 1_200);
+    if (!oldClaim) throw new Error('Lease race claim unavailable');
+    const originalEval = Redis.prototype.eval;
+    const evalSpy = vi
+      .spyOn(Redis.prototype, 'eval')
+      .mockImplementation(async function (this: Redis, ...args) {
+        if (
+          typeof args[0] === 'string' &&
+          args[0].includes('local activeGuard = ARGV[3]')
+        ) {
+          prepareReady();
+          await release;
+        }
+        return originalEval.apply(this, args);
+      });
+    try {
+      const pending = streams.publish(oldClaim, {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'expired-proof',
+        delta: 'must not append',
+      });
+      await ready;
+      const remaining = oldClaim.leaseUntil.getTime() - Date.now();
+      if (remaining > 0)
+        await new Promise((resolve) => setTimeout(resolve, remaining + 30));
+      const replacement = await ai.claim(0, run.id, 1, 1, 30_000);
+      if (!replacement) throw new Error('Replacement lease claim unavailable');
+      expect(replacement.fence).toBeGreaterThan(oldClaim.fence);
+      releasePrepare();
+      await expect(pending).resolves.toBe('stale');
+    } finally {
+      releasePrepare();
+      evalSpy.mockRestore();
+    }
+    expect(
+      await redis.exists(
+        `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      ),
+    ).toBe(0);
+    expect(
+      await redis.exists(
+        `${services.queuePrefix}:{run-streams}:${run.id}:guard`,
+      ),
+    ).toBe(0);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a renewed DB lease remains publishable after the claim snapshot deadline', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 1_200);
+    if (!claim) throw new Error('Renewed lease claim unavailable');
+    expect(await ai.withTenant(0, (tx) => steps.renew(tx, claim, 30_000))).toBe(
+      true,
+    );
+    const remaining = claim.leaseUntil.getTime() - Date.now();
+    if (remaining > 0)
+      await new Promise((resolve) => setTimeout(resolve, remaining + 30));
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'status',
+        status: 'running',
+      }),
+    ).toBe('written');
+  } finally {
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('public publication cannot write a terminal marker or finalize a nonterminal event', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Stream boundary claim unavailable');
+    await expect(
+      streams.publish(claim, { version: 1, runId: run.id, type: 'finish' }),
+    ).resolves.toBe('stale');
+    await expect(
+      streams.finish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'wrong-terminal',
+        delta: 'no',
+      }),
+    ).rejects.toThrow('Terminal stream event must use finish');
+    expect(
+      await redis.exists(
+        `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      ),
+    ).toBe(0);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('terminal replay after retained-key expiry preserves one generation', async ({
+  services,
+}) => {
+  const testPrefix = `${services.queuePrefix}_r${randomUUID().slice(0, 6)}`;
+  const active = new Set<string>();
+  const terminal = new Set<string>();
+  const claims = new Map<string, StepClaim>();
+  const claim: StepClaim = {
+    runId: randomUUID(),
+    orgId: randomUUID(),
+    userId: randomUUID(),
+    stepId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    fence: 1,
+    leaseUntil: new Date(Date.now() + 30_000),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: testPrefix,
+    authority: {
+      authorizeActive: async (candidate) =>
+        active.has(candidate.runId)
+          ? {
+              runVersion: candidate.expectedVersion,
+              nextSequence: candidate.sequence,
+              status: 'running',
+              stepId: candidate.stepId,
+              sequence: candidate.sequence,
+              expectedVersion: candidate.expectedVersion,
+              fence: candidate.fence,
+              leaseUntil: new Date(Date.now() + 30_000),
+            }
+          : undefined,
+      authorizeTerminal: async (candidate) =>
+        terminal.has(candidate.runId)
+          ? {
+              status: 'completed',
+              runVersion: candidate.expectedVersion + 1,
+              nextSequence: candidate.sequence + 1,
+              latestCommittedStepId: candidate.stepId,
+              latestCommittedSequence: candidate.sequence,
+              latestCommittedExpectedVersion: candidate.expectedVersion,
+              latestCommittedFence: candidate.fence,
+            }
+          : undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => {
+          if (active.has(runId)) return { runId, state: 'active' as const };
+          const knownClaim = claims.get(runId);
+          if (terminal.has(runId) && knownClaim)
+            return { runId, state: 'terminal' as const, claim: knownClaim };
+          return { runId, state: 'missing' as const };
+        }),
+    },
+  });
+  claims.set(claim.runId, claim);
+  const redis = new Redis(services.valkey.streamsUrl);
+  const prefix = `${testPrefix}:{run-streams}`;
+  try {
+    active.add(claim.runId);
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: claim.runId,
+        type: 'status',
+        status: 'running',
+      }),
+    ).toBe('written');
+    active.delete(claim.runId);
+    terminal.add(claim.runId);
+    await streams.finish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'finish',
+    });
+    await redis.del(
+      `${prefix}:${claim.runId}:events`,
+      `${prefix}:${claim.runId}:guard`,
+    );
+    await streams.finish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'finish',
+    });
+    const [member] = await redis.zrange(`${prefix}:terminal`, '0', '-1');
+    expect(await redis.zcard(`${prefix}:terminal`)).toBe(1);
+    expect(member).toMatch(new RegExp(`^${claim.runId}\\|[0-9a-f-]{36}$`));
+    expect(await redis.exists(`${prefix}:${claim.runId}:guard`)).toBe(0);
+    expect(await redis.exists(`${prefix}:${claim.runId}:events`)).toBe(0);
+
+    for (let index = 0; index < 6; index++) {
+      const nextClaim: StepClaim = {
+        ...claim,
+        runId: randomUUID(),
+        stepId: randomUUID(),
+      };
+      claims.set(nextClaim.runId, nextClaim);
+      active.add(nextClaim.runId);
+      expect(
+        await streams.publish(nextClaim, {
+          version: 1,
+          runId: nextClaim.runId,
+          type: 'status',
+          status: 'running',
+        }),
+      ).toBe('written');
+      active.delete(nextClaim.runId);
+      terminal.add(nextClaim.runId);
+      await streams.finish(nextClaim, {
+        version: 1,
+        runId: nextClaim.runId,
+        type: 'finish',
+      });
+    }
+    const retained = await redis.zrange(`${prefix}:terminal`, '0', '-1');
+    expect(retained).toHaveLength(6);
+    expect(new Set(retained.map((entry) => entry.split('|', 1)[0])).size).toBe(
+      6,
+    );
+    for (const terminalMember of retained) {
+      const runId = terminalMember.split('|', 1)[0]!;
+      const guard = await redis.get(`${prefix}:${runId}:guard`);
+      expect(guard?.endsWith(terminalMember.split('|')[1]!)).toBe(true);
+      expect(
+        await redis.exists(
+          `${prefix}:${runId}:events`,
+          `${prefix}:${runId}:guard`,
+        ),
+      ).toBe(2);
+    }
+  } finally {
+    redis.disconnect();
+    await streams.close();
+  }
+});
+
+test('recovery bounds queued publication and resets before fresh deltas', async ({
+  services,
+}) => {
+  const testPrefix = `${services.queuePrefix}_q${randomUUID().slice(0, 6)}`;
+  const claim: StepClaim = {
+    runId: randomUUID(),
+    orgId: randomUUID(),
+    userId: randomUUID(),
+    stepId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    fence: 1,
+    leaseUntil: new Date(Date.now() + 30_000),
+  };
+  let releaseProof!: () => void;
+  let proofReady!: () => void;
+  const release = new Promise<void>((resolve) => {
+    releaseProof = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    proofReady = resolve;
+  });
+  let pause = true;
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: testPrefix,
+    authority: {
+      authorizeActive: async (candidate) => {
+        if (pause) {
+          pause = false;
+          proofReady();
+          await release;
+        }
+        return {
+          runVersion: candidate.expectedVersion,
+          nextSequence: candidate.sequence,
+          status: 'running',
+          stepId: candidate.stepId,
+          sequence: candidate.sequence,
+          expectedVersion: candidate.expectedVersion,
+          fence: candidate.fence,
+          leaseUntil: new Date(Date.now() + 30_000),
+        };
+      },
+      authorizeTerminal: async () => undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+    },
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const first = streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'text-delta',
+      id: 'old',
+      delta: 'old in-flight',
+    });
+    await ready;
+    const queued = Array.from({ length: 8 }, (_, index) =>
+      streams.publish(claim, {
+        version: 1,
+        runId: claim.runId,
+        type: 'text-delta',
+        id: 'old',
+        delta: `old queued ${index}`,
+      }),
+    );
+    const recovery = streams.recover(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'reset',
+      sequence: 1,
+    });
+    const fresh = streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'text-delta',
+      id: 'fresh',
+      delta: 'fresh after reset',
+    });
+    releaseProof();
+    await expect(first).resolves.toBe('stale');
+    const queuedResults = await Promise.all(queued);
+    expect(
+      queuedResults.filter((result) => result === 'unavailable').length,
+    ).toBeGreaterThanOrEqual(5);
+    expect(queuedResults.filter((result) => result === 'stale')).toHaveLength(
+      3,
+    );
+    await recovery;
+    await expect(fresh).resolves.toBe('written');
+    const entries = await redis.xrange(
+      `${testPrefix}:{run-streams}:${claim.runId}:events`,
+      '-',
+      '+',
+    );
+    expect(entries.map((entry) => JSON.parse(entry[1][1]!))).toEqual([
+      { version: 1, runId: claim.runId, type: 'reset', sequence: 1 },
+      {
+        version: 1,
+        runId: claim.runId,
+        type: 'text-delta',
+        id: 'fresh',
+        delta: 'fresh after reset',
+      },
+    ]);
+  } finally {
+    releaseProof();
+    redis.disconnect();
+    await streams.close();
   }
 });
 

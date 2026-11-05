@@ -65,6 +65,21 @@ export interface RunStreamsOptions {
   readonly capacity?: StreamCapacity;
 }
 
+interface SerializedQueue {
+  running: boolean;
+  pending: Array<{
+    generation: number;
+    task: (generation: number) => Promise<unknown>;
+    resolve: (value: unknown) => void;
+    reject: (error: unknown) => void;
+    discard: unknown;
+  }>;
+  generation: number;
+}
+
+const MAX_PENDING_PUBLICATIONS = 4;
+const MAX_PARTS_PER_PUBLICATION = 32;
+
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const terminalStatuses = new Set(['completed', 'failed', 'cancelled']);
@@ -75,7 +90,7 @@ export class RunStreams {
   readonly #prefix: string;
   readonly #authority: RunStreamAuthority;
   readonly #capacity: StreamCapacity;
-  readonly #serial = new Map<string, Promise<unknown>>();
+  readonly #serial = new Map<string, SerializedQueue>();
 
   constructor(options: RunStreamsOptions) {
     if (!/^[a-zA-Z0-9:_-]{1,80}$/.test(options.prefix))
@@ -102,6 +117,7 @@ export class RunStreams {
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
+      event.type === 'finish' ||
       !RunStreamEventSchema.safeParse(event).success
     )
       return 'stale';
@@ -111,71 +127,91 @@ export class RunStreams {
     } catch {
       return 'stale';
     }
-    return this.#serialized(claim, async () => {
-      for (const part of parts) {
-        const result = await this.#publishPart(claim, part);
-        if (result !== 'written') return result;
-      }
-      return 'written';
-    });
+    if (parts.length > MAX_PARTS_PER_PUBLICATION) return 'unavailable';
+    return (
+      this.#enqueue(
+        claim,
+        async (generation) => {
+          for (const part of parts) {
+            if (!this.#isCurrent(claim, generation)) return 'stale';
+            const result = await this.#publishPart(claim, part, () =>
+              this.#isCurrent(claim, generation),
+            );
+            if (result !== 'written') return result;
+          }
+          return 'written';
+        },
+        false,
+        'stale',
+      ) ?? Promise.resolve('unavailable')
+    );
   }
 
   async finish(claim: StepClaim, event: RunStreamEvent): Promise<void> {
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
+      event.type !== 'finish' ||
       !RunStreamEventSchema.safeParse(event).success
     )
-      return;
+      throw new Error('Terminal stream event must use finish');
     const parts = encodeStreamParts(event, this.#capacity.limits.maxEventBytes);
     if (parts.length !== 1)
       throw new Error('Terminal stream event must be one bounded part');
-    await this.#serialized(claim, async () => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const epoch = await this.#readEpoch();
-          if (epoch === undefined) return;
-          const proof = await this.#terminalProof(claim);
-          if (!proof) return;
-          const candidate = await this.#terminalCandidate();
-          const result = Number(
-            await this.#client.eval(
-              FINISH_RUN_STREAM,
-              8,
-              this.#activeKey(),
-              this.#terminalKey(),
-              this.#streamKey(claim.runId),
-              this.#guardKey(claim.runId),
-              candidate
-                ? this.#streamKey(candidate.runId)
-                : this.#streamKey(claim.runId),
-              candidate
-                ? this.#guardKey(candidate.runId)
-                : this.#guardKey(claim.runId),
-              this.#epochKey(),
-              this.#contextKey(),
-              claim.runId,
-              String(claim.expectedVersion),
-              String(claim.sequence),
-              String(claim.fence),
-              JSON.stringify(parts[0]),
-              String(this.#capacity.limits.maxEntries),
-              String(this.#capacity.limits.terminalTtlSeconds),
-              String(Date.now()),
-              randomUUID(),
-              candidate?.member ?? '',
-              candidate?.guard ?? '',
-              epoch,
-              `${claim.orgId}|${claim.userId}`,
-            ),
-          );
-          if (result === 1) return;
-          if (result === 0) return;
-        } catch {
-          return;
+    const queue = this.#queue(claim);
+    this.#invalidate(queue);
+    await this.#enqueue(
+      claim,
+      async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const epoch = await this.#readEpoch();
+            if (epoch === undefined) return;
+            const proof = await this.#terminalProof(claim);
+            if (!proof) return;
+            const candidate = await this.#terminalCandidate();
+            const result = Number(
+              await this.#client.eval(
+                FINISH_RUN_STREAM,
+                9,
+                this.#activeKey(),
+                this.#terminalKey(),
+                this.#streamKey(claim.runId),
+                this.#guardKey(claim.runId),
+                candidate
+                  ? this.#streamKey(candidate.runId)
+                  : this.#streamKey(claim.runId),
+                candidate
+                  ? this.#guardKey(candidate.runId)
+                  : this.#guardKey(claim.runId),
+                this.#epochKey(),
+                this.#contextKey(),
+                this.#terminalMembersKey(),
+                claim.runId,
+                String(claim.expectedVersion),
+                String(claim.sequence),
+                String(claim.fence),
+                JSON.stringify(parts[0]),
+                String(this.#capacity.limits.maxEntries),
+                String(this.#capacity.limits.terminalTtlSeconds),
+                String(Date.now()),
+                randomUUID(),
+                candidate?.member ?? '',
+                candidate?.guard ?? '',
+                epoch,
+                `${claim.orgId}|${claim.userId}`,
+              ),
+            );
+            if (result === 1) return;
+            if (result === 0) return;
+          } catch {
+            return;
+          }
         }
-      }
-    });
+      },
+      true,
+      undefined,
+    );
   }
 
   async recover(
@@ -187,9 +223,27 @@ export class RunStreams {
       durableSnapshot.type !== 'reset'
     )
       throw new Error('Invalid run stream recovery snapshot');
-    const result = await this.publish(claim, durableSnapshot);
-    if (result === 'unavailable') return;
-    if (result === 'stale') return;
+    if (!validClaim(claim)) return;
+    const parts = encodeStreamParts(
+      durableSnapshot,
+      this.#capacity.limits.maxEventBytes,
+    );
+    const queue = this.#queue(claim);
+    this.#invalidate(queue);
+    await this.#enqueue(
+      claim,
+      async (generation) => {
+        for (const part of parts) {
+          if (!this.#isCurrent(claim, generation)) return;
+          const result = await this.#publishPart(claim, part, () =>
+            this.#isCurrent(claim, generation),
+          );
+          if (result !== 'written') return;
+        }
+      },
+      true,
+      undefined,
+    );
   }
 
   async close(): Promise<void> {
@@ -199,48 +253,48 @@ export class RunStreams {
   async #publishPart(
     claim: StepClaim,
     event: RunStreamEvent,
+    isCurrent: () => boolean,
   ): Promise<'written' | 'unavailable' | 'stale'> {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const epoch = await this.#readEpoch();
-      if (epoch === undefined) return 'unavailable';
-      const proof = await this.#activeProof(claim);
-      if (!proof) return 'stale';
-      const guard = guardValue(claim);
-      const existing = await this.#client.zscore(
-        this.#activeKey(),
-        claim.runId,
-      );
-      if (existing === null) {
-        const reconciled = await this.#reconcileRegistry(epoch);
-        if (reconciled === 'unavailable') return 'unavailable';
-        if (reconciled === 'changed') continue;
-      }
-      // Recheck after bounded registry reconciliation and immediately before guard initialization.
-      const latestProof = await this.#activeProof(claim);
-      if (!latestProof) return 'stale';
-      let prepared: number;
       try {
-        prepared = await this.#prepare(
+        const epoch = await this.#readEpoch();
+        if (epoch === undefined) return 'unavailable';
+        if (!isCurrent()) return 'stale';
+        const proof = await this.#activeProof(claim);
+        if (!proof) return 'stale';
+        if (!isCurrent()) return 'stale';
+        const guard = guardValue(claim);
+        const existing = await this.#client.zscore(
+          this.#activeKey(),
+          claim.runId,
+        );
+        if (existing === null) {
+          const reconciled = await this.#reconcileRegistry(epoch);
+          if (reconciled === 'unavailable') return 'unavailable';
+          if (reconciled === 'changed') continue;
+        }
+        if (!isCurrent()) return 'stale';
+        // Recheck after bounded registry reconciliation and immediately before guard initialization.
+        const latestProof = await this.#activeProof(claim);
+        if (!latestProof) return 'stale';
+        if (!isCurrent()) return 'stale';
+        const prepared = await this.#prepare(
           claim,
           guard,
           epoch,
           latestProof.leaseUntil.getTime(),
         );
-      } catch {
-        return 'unavailable';
-      }
-      if (prepared === -2) return 'unavailable';
-      if (prepared === 0) return 'unavailable';
-      if (prepared < 0) continue;
-      const serialized = JSON.stringify(event);
-      if (
-        Buffer.byteLength(serialized, 'utf8') >
-        this.#capacity.limits.maxEventBytes
-      )
-        return 'stale';
-      let result: number;
-      try {
-        result = Number(
+        if (prepared === -2) return 'stale';
+        if (prepared === 0) return 'unavailable';
+        if (prepared < 0) continue;
+        if (!isCurrent()) return 'stale';
+        const serialized = JSON.stringify(event);
+        if (
+          Buffer.byteLength(serialized, 'utf8') >
+          this.#capacity.limits.maxEventBytes
+        )
+          return 'stale';
+        const result = Number(
           await this.#client.eval(
             APPEND_RUN_STREAM,
             4,
@@ -255,13 +309,14 @@ export class RunStreams {
             String(claim.sequence),
             String(claim.fence),
             epoch,
+            String(latestProof.leaseUntil.getTime()),
           ),
         );
+        if (result === 1) return 'written';
+        if (result === -1 || result === -2) return 'stale';
       } catch {
         return 'unavailable';
       }
-      if (result === 1) return 'written';
-      if (result === -1) continue;
     }
     return 'unavailable';
   }
@@ -470,20 +525,68 @@ export class RunStreams {
     );
   }
 
-  #serialized<T>(claim: StepClaim, task: () => Promise<T>): Promise<T> {
+  #queue(claim: StepClaim): SerializedQueue {
     const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
-    const prior = this.#serial.get(key) ?? Promise.resolve();
-    const current = prior.then(task, task);
-    this.#serial.set(key, current);
-    void current.then(
-      () => {
-        if (this.#serial.get(key) === current) this.#serial.delete(key);
-      },
-      () => {
-        if (this.#serial.get(key) === current) this.#serial.delete(key);
-      },
-    );
+    let queue = this.#serial.get(key);
+    if (!queue) {
+      queue = { running: false, pending: [], generation: 0 };
+      this.#serial.set(key, queue);
+    }
+    return queue;
+  }
+
+  #isCurrent(claim: StepClaim, generation: number): boolean {
+    return this.#queue(claim).generation === generation;
+  }
+
+  #enqueue<T>(
+    claim: StepClaim,
+    task: (generation: number) => Promise<T>,
+    allowSaturated = false,
+    discard: T,
+  ): Promise<T> | undefined {
+    const queue = this.#queue(claim);
+    if (
+      !allowSaturated &&
+      queue.pending.length + Number(queue.running) >= MAX_PENDING_PUBLICATIONS
+    )
+      return undefined;
+    const generation = queue.generation;
+    const current = new Promise<T>((resolve, reject) => {
+      queue.pending.push({
+        generation,
+        task: async (value) => task(value),
+        resolve: (value) => resolve(value as T),
+        reject,
+        discard,
+      });
+    });
+    void this.#drain(claim, queue);
     return current;
+  }
+
+  #invalidate(queue: SerializedQueue): void {
+    queue.generation++;
+    for (const pending of queue.pending.splice(0))
+      pending.resolve(pending.discard);
+  }
+
+  async #drain(claim: StepClaim, queue: SerializedQueue): Promise<void> {
+    if (queue.running) return;
+    queue.running = true;
+    while (queue.pending.length > 0) {
+      const next = queue.pending.shift()!;
+      try {
+        next.resolve(await next.task(next.generation));
+      } catch (error) {
+        next.reject(error);
+      }
+    }
+    queue.running = false;
+    if (queue.pending.length === 0) {
+      const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
+      if (this.#serial.get(key) === queue) this.#serial.delete(key);
+    }
   }
 
   #activeKey(): string {
@@ -491,6 +594,9 @@ export class RunStreams {
   }
   #terminalKey(): string {
     return `${this.#prefix}:terminal`;
+  }
+  #terminalMembersKey(): string {
+    return `${this.#prefix}:terminal-members`;
   }
   #epochKey(): string {
     return `${this.#prefix}:epoch`;

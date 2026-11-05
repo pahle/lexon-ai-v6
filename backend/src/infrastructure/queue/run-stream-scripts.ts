@@ -5,6 +5,9 @@ local activeGuard = ARGV[3]
 local candidateId = ARGV[4]
 local candidateGuard = ARGV[5]
 if redis.call('GET', KEYS[7]) ~= ARGV[6] then return -1 end
+local serverTime = redis.call('TIME')
+local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
+if tonumber(ARGV[7]) <= nowMs then return -2 end
 if redis.call('ZSCORE', KEYS[1], runId) then redis.call('ZADD', KEYS[1], ARGV[7], runId) end
 if redis.call('ZSCORE', KEYS[1], runId) then
   if not redis.call('GET', KEYS[4]) then redis.call('SET', KEYS[4], activeGuard) end
@@ -42,9 +45,12 @@ local event = ARGV[3]
 local maxLen = ARGV[4]
 if redis.call('GET', KEYS[4]) ~= ARGV[7] then return -1 end
 if not redis.call('ZSCORE', KEYS[1], runId) then return -1 end
+local serverTime = redis.call('TIME')
+local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
+if tonumber(ARGV[8]) <= nowMs then return -2 end
 local guard = redis.call('GET', KEYS[3])
 if guard then
-  local state, version, sequence, fence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)$')
+  local state, version, sequence, fence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
   if state == 'closed' then return -1 end
   if version and (tonumber(incoming) < tonumber(version) or
     (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) < tonumber(sequence)) or
@@ -68,31 +74,48 @@ local generation = ARGV[9]
 if redis.call('GET', KEYS[7]) ~= ARGV[12] then return -1 end
 local guard = redis.call('GET', KEYS[4])
 if guard then
-  local state, oldVersion, oldSequence, oldFence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)$')
+  local state, oldVersion, oldSequence, oldFence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
   if state == 'closed' or (oldVersion and (version < tonumber(oldVersion) or
     (version == tonumber(oldVersion) and sequence < tonumber(oldSequence)) or
     (version == tonumber(oldVersion) and sequence == tonumber(oldSequence) and fence < tonumber(oldFence)))) then return 0 end
 end
 local candidateId = ARGV[10]
 local candidateGuard = ARGV[11]
+local existingMember = redis.call('HGET', KEYS[9], runId)
+if existingMember then
+  if redis.call('ZSCORE', KEYS[2], existingMember) then return 0 end
+  redis.call('HDEL', KEYS[9], runId)
+end
 if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCORE', KEYS[2], candidateId) then
   local candidateRunId = candidateId:match('^[^|]+')
+  local candidateGeneration = candidateId:match('|([^|]+)$')
   local currentCandidateGuard = redis.call('GET', KEYS[6])
-  if (currentCandidateGuard and currentCandidateGuard == candidateGuard) or
-     (not currentCandidateGuard and not redis.call('ZSCORE', KEYS[1], candidateRunId)) then
+  local guardGeneration = currentCandidateGuard and currentCandidateGuard:match('^closed|%d+|%d+|%d+|([^|]+)$')
+  if currentCandidateGuard and currentCandidateGuard == candidateGuard and guardGeneration == candidateGeneration then
     redis.call('DEL', KEYS[5], KEYS[6])
     redis.call('ZREM', KEYS[2], candidateId)
     redis.call('HDEL', KEYS[8], candidateRunId)
+    redis.call('HDEL', KEYS[9], candidateRunId)
+    redis.call('INCR', KEYS[7])
+  elseif not currentCandidateGuard and not redis.call('ZSCORE', KEYS[1], candidateRunId) then
+    redis.call('ZREM', KEYS[2], candidateId)
+    if redis.call('HGET', KEYS[9], candidateRunId) == candidateId then redis.call('HDEL', KEYS[9], candidateRunId) end
+    redis.call('INCR', KEYS[7])
+  elseif redis.call('HGET', KEYS[9], candidateRunId) == candidateId then
+    redis.call('ZREM', KEYS[2], candidateId)
+    redis.call('HDEL', KEYS[9], candidateRunId)
     redis.call('INCR', KEYS[7])
   end
 end
 if redis.call('ZCARD', KEYS[2]) >= 6 then return -1 end
 redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', event)
-redis.call('SET', KEYS[4], 'closed|' .. version .. '|' .. sequence .. '|' .. fence, 'EX', ttl)
+redis.call('SET', KEYS[4], 'closed|' .. version .. '|' .. sequence .. '|' .. fence .. '|' .. generation, 'EX', ttl)
 redis.call('EXPIRE', KEYS[3], ttl)
 redis.call('ZREM', KEYS[1], runId)
-redis.call('ZADD', KEYS[2], now, runId .. '|' .. generation)
+local member = runId .. '|' .. generation
+redis.call('ZADD', KEYS[2], now, member)
 redis.call('HSET', KEYS[8], runId, ARGV[13])
+redis.call('HSET', KEYS[9], runId, member)
 redis.call('INCR', KEYS[7])
 return 1
 `;
