@@ -80,7 +80,7 @@ export class AiCapacityRepository {
           config_fingerprint: string;
         }>(
           `SELECT max_active,max_active_per_org,terminal_slots,max_len,event_bytes,slot_bytes,memory_budget_bytes,config_fingerprint
-           FROM ops.ai_engine_capacity WHERE singleton=true FOR UPDATE`,
+           FROM ops.ai_engine_capacity WHERE singleton=true`,
         );
         const row = existing.rows[0];
         if (

@@ -74,7 +74,7 @@ function validClaim(tx: TenantSession, claim: StepClaim): boolean {
   );
 }
 
-function validUsage(usage?: ReportedUsage): boolean {
+function validUsage(usage?: Partial<ReportedUsage>): boolean {
   if (!usage) return true;
   return (
     [
@@ -86,8 +86,10 @@ function validUsage(usage?: ReportedUsage): boolean {
       (value) =>
         value === undefined || (Number.isSafeInteger(value) && value >= 0),
     ) &&
-    Number.isSafeInteger(usage.inputTokens) &&
-    Number.isSafeInteger(usage.outputTokens)
+    (usage.inputTokens === undefined ||
+      Number.isSafeInteger(usage.inputTokens)) &&
+    (usage.outputTokens === undefined ||
+      Number.isSafeInteger(usage.outputTokens))
   );
 }
 
@@ -201,7 +203,7 @@ export class AiAttemptRepository {
     input: {
       attemptId: string;
       outcome: 'succeeded' | 'failed' | 'unknown';
-      usage?: ReportedUsage;
+      usage?: Partial<ReportedUsage>;
       costUsd?: string;
     },
   ): Promise<boolean> {
@@ -213,7 +215,7 @@ export class AiAttemptRepository {
       (input.costUsd !== undefined &&
         (!costPattern.test(input.costUsd) ||
           input.costUsd.length > 21 ||
-          Number(input.costUsd.split('.')[0]) > 9_999_999_999))
+          input.costUsd.split('.')[0]!.length > 10))
     )
       return false;
     if (!(await this.steps.lockClaim(tx, claim))) return false;

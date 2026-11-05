@@ -115,3 +115,33 @@ test('capacity configuration refuses inconsistent process limits', async ({
     await ai.close();
   }
 });
+
+test('runtime capacity role cannot update or delete its configuration', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    expect(await ai.capacityMutationSqlStates()).toEqual({
+      update: '42501',
+      deletion: '42501',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('independent capacity repository compares the existing fingerprint safely', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    await expect(ai.configureCapacityFromIndependentRepository()).resolves.toBe(
+      undefined,
+    );
+    await expect(ai.configureMismatchedCapacity()).rejects.toThrow(
+      'AI capacity configuration mismatch',
+    );
+  } finally {
+    await ai.close();
+  }
+});

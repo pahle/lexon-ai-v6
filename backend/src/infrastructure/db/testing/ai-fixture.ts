@@ -5,7 +5,11 @@ import { AiCapacityRepository } from '../ai-capacity.repository.js';
 import { AiRunRepository } from '../ai-run.repository.js';
 import { AiStepRepository } from '../ai-step.repository.js';
 import { TenantDatabase } from '../tenant-database.js';
-import { inspectPool, requireSession } from '../tenant-session.js';
+import {
+  inspectPool,
+  requireSession,
+  type TenantSession,
+} from '../tenant-session.js';
 import { readAiConfig } from '../../../config/ai-config.js';
 import type { AttemptRecord, StepClaim } from '../ai-records.js';
 
@@ -96,6 +100,7 @@ export async function createAiFixture(services: Services) {
   const steps = new AiStepRepository();
   const attempts = new AiAttemptRepository();
   const capacity = new AiCapacityRepository(database);
+  const independentCapacity = new AiCapacityRepository(probeDatabase);
   const config = readAiConfig({});
   for (const tenant of knownTenants)
     await database.withTenant(tenant, async (tx) => {
@@ -110,7 +115,10 @@ export async function createAiFixture(services: Services) {
     });
   await capacity.configure(config);
 
-  async function start(index: number) {
+  async function start(
+    index: number,
+    budgets: { inputBudgetTokens?: number; outputBudgetTokens?: number } = {},
+  ) {
     const tenant = tenants[index];
     if (!tenant) throw new Error('Invalid AI fixture tenant');
     const id = randomUUID();
@@ -124,8 +132,8 @@ export async function createAiFixture(services: Services) {
         resolvedConfig: { model: 'synthetic/test' },
         modelId: 'synthetic/test',
         inputText: 'test input',
-        inputBudgetTokens: 1000,
-        outputBudgetTokens: 1000,
+        inputBudgetTokens: budgets.inputBudgetTokens ?? 1000,
+        outputBudgetTokens: budgets.outputBudgetTokens ?? 1000,
       });
       const { client } = requireSession(tx);
       await client.query(
@@ -208,6 +216,11 @@ export async function createAiFixture(services: Services) {
       ]);
     },
     start,
+    withTenant<T>(index: number, work: (tx: TenantSession) => Promise<T>) {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return database.withTenant(tenant, work);
+    },
     async insertCrossTenantStep(index: number, runId: string) {
       const tenant = tenants[index];
       if (!tenant) throw new Error('Invalid AI fixture tenant');
@@ -703,7 +716,24 @@ export async function createAiFixture(services: Services) {
       });
     },
     async configureMismatchedCapacity() {
-      await capacity.configure(readAiConfig({ AI_MAXLEN: '1000' }));
+      await independentCapacity.configure(readAiConfig({ AI_MAXLEN: '1000' }));
+    },
+    async configureCapacityFromIndependentRepository() {
+      await independentCapacity.configure(config);
+    },
+    async capacityMutationSqlStates() {
+      const pool = inspectPool(database);
+      const update = await pool
+        .query(
+          'UPDATE ops.ai_engine_capacity SET configured_at=configured_at WHERE singleton=true',
+        )
+        .then(() => null)
+        .catch((error: { code?: string }) => error.code ?? 'unknown');
+      const deletion = await pool
+        .query('DELETE FROM ops.ai_engine_capacity WHERE singleton=true')
+        .then(() => null)
+        .catch((error: { code?: string }) => error.code ?? 'unknown');
+      return { update, deletion };
     },
   };
 }
