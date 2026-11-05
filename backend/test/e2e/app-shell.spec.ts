@@ -467,9 +467,24 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   await expect(
     page.getByRole('heading', { name: 'Home', exact: true }),
   ).toBeVisible();
+  const composerInput = page.getByRole('textbox', { name: 'Message input' });
+  const attachment = page.getByRole('button', {
+    name: 'Add Attachment',
+    exact: true,
+  });
+  const send = page.getByRole('button', {
+    name: 'Send message',
+    exact: true,
+  });
+  await expect(composerInput).toBeVisible();
+  await expect(attachment).toBeVisible();
+  await expect(send).toBeVisible();
   // This test-only structural aside checks desktop layout around RightPanel's
   // host; frontend/test/right-panel.spec.tsx verifies its actual mobile modal.
   await page.locator('[data-panel-host]').evaluate((host) => {
+    if (!host.isConnected || host.querySelectorAll('aside').length !== 0) {
+      throw new Error('Expected one connected, empty panel host');
+    }
     const panel = document.createElement('aside');
     panel.setAttribute('aria-label', 'Details');
     panel.className =
@@ -478,62 +493,140 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     panel.innerHTML = '<h2>Panel</h2>';
     host.append(panel);
   });
-  const geometry = await page.evaluate(() => {
-    const sidebar = document
-      .querySelector(
-        '[role="complementary"][aria-label="Workspace navigation"]',
-      )!
-      .getBoundingClientRect();
-    const main = document.querySelector('main#main')!.getBoundingClientRect();
-    const content = document
-      .querySelector(
-        'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
-      )!
-      .getBoundingClientRect();
-    const headingElement = document.querySelector('main#main h1')!;
-    const heading = headingElement.getBoundingClientRect();
-    const textRange = document.createRange();
-    textRange.selectNodeContents(headingElement);
-    const textRight = Math.max(
-      ...[...textRange.getClientRects()].map((rect) => rect.right),
-    );
-    const panel = document
-      .querySelector('[data-panel-host] aside')!
-      .getBoundingClientRect();
-    return {
-      sidebarWidth: sidebar.width,
-      mainRight: main.right,
-      contentRight: content.right,
-      headingRight: heading.right,
-      textRight,
-      panelLeft: panel.left,
-      panelWidth: panel.width,
-      documentWidth: document.documentElement.scrollWidth,
-    };
-  });
-  expect(geometry.sidebarWidth).toBe(256);
-  expect(geometry.panelWidth).toBe(320);
-  expect(geometry.headingRight).toBeLessThanOrEqual(geometry.panelLeft);
-  expect(geometry.textRight).toBeLessThanOrEqual(geometry.panelLeft);
-  expect(geometry.documentWidth).toBeLessThanOrEqual(768);
-  expect(geometry.contentRight).toBeLessThanOrEqual(geometry.panelLeft);
-  expect(geometry.mainRight).toBeGreaterThanOrEqual(geometry.panelLeft);
-  const composerInput = page.getByRole('textbox', { name: 'Message input' });
-  await expect(composerInput).toBeVisible();
-  const composerBounds = await composerInput.boundingBox();
-  expect(composerBounds).not.toBeNull();
-  expect(composerBounds!.x + composerBounds!.width).toBeLessThanOrEqual(
-    geometry.panelLeft,
-  );
-  for (const label of ['Add Attachment', 'Send message']) {
-    const action = page.getByRole('button', { name: label, exact: true });
-    await expect(action).toBeVisible();
-    const actionBounds = await action.boundingBox();
-    expect(actionBounds, `${label} must have visible bounds`).not.toBeNull();
+  const readGeometry = () =>
+    composerInput.evaluate((composer) => {
+      const rect = (element: Element, label: string) => {
+        if (!element.isConnected) throw new Error(`${label} is disconnected`);
+        const style = getComputedStyle(element);
+        const bounds = element.getBoundingClientRect();
+        if (
+          style.display === 'none' ||
+          style.visibility === 'hidden' ||
+          bounds.width === 0 ||
+          bounds.height === 0
+        ) {
+          throw new Error(`${label} is not visibly measurable`);
+        }
+        return {
+          left: bounds.left,
+          right: bounds.right,
+          width: bounds.width,
+        };
+      };
+      const one = (selector: string, label: string) => {
+        const matches = document.querySelectorAll(selector);
+        if (matches.length !== 1) {
+          throw new Error(`Expected one ${label}, found ${matches.length}`);
+        }
+        return matches[0]!;
+      };
+      const sidebar = rect(
+        one(
+          '[role="complementary"][aria-label="Workspace navigation"]',
+          'workspace sidebar',
+        ),
+        'workspace sidebar',
+      );
+      const main = rect(one('main#main', 'main'), 'main');
+      const content = rect(
+        one(
+          'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
+          'main content',
+        ),
+        'main content',
+      );
+      const headingElement = one('main#main h1', 'page heading');
+      const heading = rect(headingElement, 'page heading');
+      const textRange = document.createRange();
+      textRange.selectNodeContents(headingElement);
+      const textRects = [...textRange.getClientRects()];
+      if (textRects.length === 0)
+        throw new Error('Heading text is not visible');
+      const panelHost = one('[data-panel-host]', 'panel host');
+      const panel = rect(
+        one('[data-panel-host] aside[aria-label="Details"]', 'test panel'),
+        'test panel',
+      );
+      const attachment = rect(
+        one('button[aria-label="Add Attachment"]', 'attachment action'),
+        'attachment action',
+      );
+      const send = rect(
+        one('button[aria-label="Send message"]', 'send action'),
+        'send action',
+      );
+      return {
+        sidebarWidth: sidebar.width,
+        mainRight: main.right,
+        contentRight: content.right,
+        headingRight: heading.right,
+        textRight: Math.max(...textRects.map((textRect) => textRect.right)),
+        panelLeft: panel.left,
+        panelWidth: panel.width,
+        documentWidth: document.documentElement.scrollWidth,
+        composer: rect(composer, 'message input'),
+        attachment,
+        send,
+        panelCount: panelHost.querySelectorAll('aside').length,
+      };
+    });
+  const geometry = await readGeometry();
+  const assertGeometry = (
+    snapshot: Awaited<ReturnType<typeof readGeometry>>,
+  ) => {
+    expect(snapshot.sidebarWidth).toBe(256);
+    expect(snapshot.panelWidth).toBe(320);
+    expect(snapshot.headingRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.textRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.documentWidth).toBeLessThanOrEqual(768);
+    expect(snapshot.contentRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.mainRight).toBeGreaterThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.panelCount).toBe(1);
     expect(
-      actionBounds!.x + actionBounds!.width,
-      `${label} must not overlap the panel`,
-    ).toBeLessThanOrEqual(geometry.panelLeft);
+      snapshot.composer.right,
+      'message input must not overlap the optional panel',
+    ).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.attachment.right).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.send.right).toBeLessThanOrEqual(snapshot.panelLeft);
+  };
+  assertGeometry(geometry);
+  const originalTransform = await composerInput.evaluate((element) => ({
+    value: (element as HTMLElement).style.getPropertyValue('transform'),
+    priority: (element as HTMLElement).style.getPropertyPriority('transform'),
+  }));
+  try {
+    await composerInput.evaluate((element) => {
+      (element as HTMLElement).style.setProperty(
+        'transform',
+        'translateX(320px)',
+      );
+    });
+    const overlappingGeometry = await readGeometry();
+    expect(overlappingGeometry.panelLeft).toBe(geometry.panelLeft);
+    expect(overlappingGeometry.composer.right).toBe(
+      geometry.composer.right + 320,
+    );
+    expect(overlappingGeometry.composer.right).toBeGreaterThan(
+      overlappingGeometry.panelLeft,
+    );
+    expect(overlappingGeometry.attachment).toEqual(geometry.attachment);
+    expect(overlappingGeometry.send).toEqual(geometry.send);
+    expect(() => assertGeometry(overlappingGeometry)).toThrow(
+      /message input must not overlap the optional panel/,
+    );
+  } finally {
+    await composerInput.evaluate((element, transform) => {
+      const input = element as HTMLElement;
+      if (transform.value) {
+        input.style.setProperty(
+          'transform',
+          transform.value,
+          transform.priority,
+        );
+      } else {
+        input.style.removeProperty('transform');
+      }
+    }, originalTransform);
   }
 });
 
