@@ -1,9 +1,13 @@
 # Queue transport
 
-The producer targets `ai-interactive` with `jobId = outboxId`. All consumers
-use the platform `JobExecutor` and its supplied tenant transaction. A retained
+The producer routes to `ai-interactive` or `ai-batch` using the queue and
+priority persisted on the claimed outbox row. It always sets `jobId = outboxId`.
+Short-transaction handlers use the platform `JobExecutor` and its supplied
+tenant transaction; durable-step handlers run outside that receipt transaction
+and receive an abort signal plus an owner-fenced organization permit. A retained
 BullMQ ID suppresses another insertion, but removing a completed job permits
-redelivery: the PostgreSQL receipt still prevents a second database effect.
+redelivery: PostgreSQL receipts protect short-transaction effects, while durable
+step claims and fences protect run progression.
 
 The native `@nestjs/bullmq` 12.0.0 `Processor` / `WorkerHost` integration is
 verified with BullMQ 6.5.3 and NestJS 12.3.2. The fallback is unnecessary.
@@ -12,6 +16,15 @@ never instantiate a worker. Worker connections use `maxRetriesPerRequest:null`;
 producer requests have a bounded enqueue deadline. A timeout can leave an
 uncertain insertion outcome, so the dispatcher must retry the same outbox ID.
 Use BullMQ's `prefix`, never an ioredis `keyPrefix`.
+
+Interactive and batch workers have separate concurrency settings. Durable jobs
+must acquire one of two per-organization permits before their handler runs. The
+two permit keys live under the configured limiter prefix and expire at the step
+lease duration; workers renew only their own token and abort the handler after
+ownership loss. A busy result moves the BullMQ delivery to its delayed set with
+`DelayedError`, without spending a failure attempt. PostgreSQL serializes claim
+and renewal transactions per organization and counts live step leases as a
+second admission fence.
 
 Jobs get three attempts with exponential backoff starting at 250ms. Completed
 jobs retain for at most 86400 seconds / 1000 entries; failed jobs retain for

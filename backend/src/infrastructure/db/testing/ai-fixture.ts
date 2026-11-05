@@ -233,6 +233,18 @@ export async function createAiFixture(services: Services) {
         );
       });
     },
+    async seedPendingStep(index: number, runId: string) {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        await client.query(
+          `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state)
+           VALUES($1,$2,$3,1,1,'pending')`,
+          [randomUUID(), tenant.orgId, runId],
+        );
+      });
+    },
     async noContextCounts(): Promise<number[]> {
       const fresh = new Client({ connectionString: services.appUrl });
       await fresh.connect();

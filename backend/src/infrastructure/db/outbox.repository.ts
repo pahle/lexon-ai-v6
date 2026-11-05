@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { parseJobEnvelope, type JobEnvelope } from './job-envelope.js';
+import {
+  isJobQueue,
+  parseJobEnvelope,
+  type JobEnvelope,
+  type JobQueue,
+} from './job-envelope.js';
 import { TenantDatabase } from './tenant-database.js';
 import { inspectPool } from './tenant-session.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
@@ -9,6 +14,8 @@ export interface ClaimedOutbox {
   job: JobEnvelope | null;
   claimToken: string;
   attempts: number;
+  queue: JobQueue | null;
+  priority: number | null;
 }
 export class OutboxRepository {
   constructor(private readonly database?: TenantDatabase) {}
@@ -37,6 +44,8 @@ export class OutboxRepository {
       payload: unknown;
       claim_token: string;
       attempts: number;
+      queue_name: string | null;
+      priority: number | null;
     }>(
       `WITH eligible AS (
  SELECT id FROM ops.outbox WHERE sent_at IS NULL AND next_attempt_at <= $1
@@ -62,11 +71,19 @@ export class OutboxRepository {
       } catch {
         /* Retain malformed metadata and back off without exposing it. */
       }
+      const queue = row.queue_name === null ? null : row.queue_name;
+      const priority = row.priority;
+      const validRouting =
+        (queue === null || isJobQueue(queue)) &&
+        (priority === null ||
+          (Number.isSafeInteger(priority) && priority >= 1 && priority <= 10));
       return {
         id: row.id,
-        job,
+        job: validRouting ? job : null,
         claimToken: row.claim_token,
         attempts: row.attempts,
+        queue: isJobQueue(queue) ? queue : null,
+        priority: validRouting ? priority : null,
       };
     });
   }
@@ -93,21 +110,60 @@ export class OutboxRepository {
   async append(
     tx: TenantSession,
     input: Omit<JobEnvelope, 'outboxId'>,
+    routing: { id?: string; queue?: JobQueue; priority?: number } = {},
   ): Promise<string> {
     const { client, ctx } = requireSession(tx);
-    const job = parseJobEnvelope({ ...input, outboxId: randomUUID() });
+    if (
+      (routing.id !== undefined &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          routing.id,
+        )) ||
+      (routing.queue !== undefined && !isJobQueue(routing.queue)) ||
+      (routing.priority !== undefined &&
+        (!Number.isSafeInteger(routing.priority) ||
+          routing.priority < 1 ||
+          routing.priority > 10))
+    )
+      throw new Error('Invalid outbox routing');
+    const job = parseJobEnvelope({
+      ...input,
+      outboxId: routing.id ?? randomUUID(),
+    });
     if (job.ctx.orgId !== ctx.orgId || job.ctx.userId !== ctx.userId)
       throw new Error('Job context differs from tenant session context');
-    await client.query(
-      'INSERT INTO ops.outbox (id,type,org_id,user_id,payload) VALUES ($1,$2,$3,$4,$5)',
+    const inserted = await client.query<{ id: string }>(
+      `INSERT INTO ops.outbox
+       (id,type,org_id,user_id,payload,queue_name,priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING RETURNING id`,
       [
         job.outboxId,
         job.type,
         job.ctx.orgId,
         job.ctx.userId ?? null,
         job.payload,
+        routing.queue ?? null,
+        routing.priority ?? null,
       ],
     );
+    if (inserted.rowCount !== 1) {
+      const existing = await client.query(
+        `SELECT 1 FROM ops.outbox WHERE id=$1 AND org_id=$2
+         AND user_id IS NOT DISTINCT FROM $3 AND type=$4 AND payload=$5::jsonb
+         AND queue_name IS NOT DISTINCT FROM $6 AND priority IS NOT DISTINCT FROM $7`,
+        [
+          job.outboxId,
+          job.ctx.orgId,
+          job.ctx.userId ?? null,
+          job.type,
+          JSON.stringify(job.payload),
+          routing.queue ?? null,
+          routing.priority ?? null,
+        ],
+      );
+      if (existing.rowCount !== 1)
+        throw new Error('Outbox ID conflicts with existing job');
+      return job.outboxId;
+    }
     // Notifications are delivered only if the caller's transaction commits.
     await client.query("SELECT pg_notify('lexon_outbox', '')");
     return job.outboxId;

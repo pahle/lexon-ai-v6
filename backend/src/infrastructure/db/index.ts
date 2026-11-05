@@ -23,7 +23,9 @@ export { AiAttemptRepository } from './ai-attempt.repository.js';
 export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {
+  isJobQueue,
   parseJobEnvelope,
+  type JobQueue,
   type JobEnvelope,
   type TenantJobHandler,
 } from './job-envelope.js';

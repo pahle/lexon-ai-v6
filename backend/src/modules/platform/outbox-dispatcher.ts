@@ -72,6 +72,10 @@ export class OutboxDispatcher {
             }
             try {
               await this.producer.enqueue(claim.job, {
+                ...(claim.queue ? { queue: claim.queue } : {}),
+                ...(claim.priority === null
+                  ? {}
+                  : { priority: claim.priority }),
                 timeoutMs: this.options.enqueueTimeoutMs,
               });
               this.#enqueueFailed = false;

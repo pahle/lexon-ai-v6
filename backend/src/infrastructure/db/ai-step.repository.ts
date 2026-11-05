@@ -87,6 +87,7 @@ export class AiStepRepository {
   async lockClaim(tx: TenantSession, claim: StepClaim): Promise<boolean> {
     if (!validClaim(tx, claim)) return false;
     const { client } = requireSession(tx);
+    await this.lockTenantClaimGuard(tx);
     const run = await client.query(
       `SELECT 1 FROM app.ai_runs
        WHERE org_id=$1 AND id=$2 AND run_version=$3 AND next_sequence=$4
@@ -133,6 +134,7 @@ export class AiStepRepository {
     )
       return null;
     const scope = buildAuthorizationPredicate(ctx);
+    await this.lockTenantClaimGuard(tx);
     const run = await client.query(
       `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
        AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
@@ -150,6 +152,13 @@ export class AiStepRepository {
     if (!current || !['pending', 'claimed'].includes(current.state))
       return null;
     if (current.state === 'claimed' && current.lease_live) return null;
+
+    const liveClaims = await client.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM app.ai_steps
+       WHERE org_id=$1 AND state='claimed' AND lease_until>clock_timestamp()`,
+      [scope.orgId],
+    );
+    if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
 
     if (current.state === 'claimed') {
       await client.query(
@@ -183,6 +192,24 @@ export class AiStepRepository {
       fence: Number(row.fence),
       leaseUntil: row.lease_until!,
     };
+  }
+
+  private async lockOrganizationClaimGuard(
+    client: ReturnType<typeof requireSession>['client'],
+    orgId: string,
+  ): Promise<void> {
+    await client.query(
+      `SELECT pg_advisory_xact_lock(
+        hashtextextended('lexon.ai_step_claim:' || $1::text, 0)
+      )`,
+      [orgId],
+    );
+  }
+
+  /** Acquire before any run/step row lock in a transaction that will mutate a claim. */
+  async lockTenantClaimGuard(tx: TenantSession): Promise<void> {
+    const { client, ctx } = requireSession(tx);
+    await this.lockOrganizationClaimGuard(client, ctx.orgId);
   }
 
   async renew(

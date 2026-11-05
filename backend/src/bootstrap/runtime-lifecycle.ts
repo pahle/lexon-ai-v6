@@ -12,7 +12,7 @@ import {
   HealthWriter,
   type HealthSnapshot,
 } from '../infrastructure/telemetry/index.js';
-import { OutboxDispatcher } from '../modules/platform/index.js';
+import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
 import type { PinoLogger } from 'nestjs-pino';
 export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   #closed = false;
@@ -34,7 +34,14 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
       const policy = await checkValkeyPolicy(this.config.valkey);
       if (Object.values(policy).some((status) => status !== 'up'))
         throw new Error('Valkey startup policy unavailable');
-      await this.consumer?.start(async () => undefined);
+      if (this.consumer) {
+        const registry = new JobRegistry();
+        registry.register('platform.noop.v1', {
+          strategy: 'short-transaction',
+          handle: async () => undefined,
+        });
+        await this.consumer.start(registry);
+      }
       if (this.dispatcher)
         this.#dispatchTask = this.dispatcher.start(this.#abort.signal);
       if (this.config.runtime !== 'api') {

@@ -46,7 +46,11 @@ export function runtimeProviders(
       inject: [TenantDatabase],
       useFactory: (db: TenantDatabase) =>
         new QueueConsumer(
-          { url: config.valkey.queueUrl, prefix: config.queuePrefix },
+          {
+            url: config.valkey.queueUrl,
+            limiterUrl: config.valkey.limiterUrl,
+            prefix: config.queuePrefix,
+          },
           new JobExecutor(db),
         ),
     });

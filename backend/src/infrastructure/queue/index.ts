@@ -3,7 +3,24 @@ export {
   QUEUE_NAME,
   type QueueOptions,
 } from './queue-producer.js';
-export { QueueConsumer, type JobRunner } from './queue-consumer.js';
+export {
+  QueueConsumer,
+  type JobRunner,
+  type QueueConsumerTiming,
+} from './queue-consumer.js';
+export {
+  StepPermitManager,
+  type StepPermit,
+  type StepPermitOptions,
+  STEP_PERMIT_RENEWAL_DIVISOR,
+} from './step-permits.js';
+export type {
+  DurableJobContext,
+  DurableJobHandler,
+  DurableJobResult,
+  JobHandlerRegistry,
+  QueueJobHandler,
+} from './job-contracts.js';
 export { QueueModule } from './queue.module.js';
 export { checkValkeyPolicy } from './valkey-policy.js';
 export { streamsSmoke } from './streams-smoke.js';
