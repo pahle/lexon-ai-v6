@@ -16,9 +16,11 @@ export interface StepPermit {
   readonly orgId: string;
   readonly slot: number;
   readonly leaseMs: number;
-  renew(): Promise<boolean>;
+  renew(): Promise<StepPermitRenewal>;
   release(): Promise<boolean>;
 }
+
+export type StepPermitRenewal = 'renewed' | 'lost' | 'unavailable';
 
 /** Two bounded, owner-fenced execution slots per organization. */
 export class StepPermitManager {
@@ -39,7 +41,8 @@ export class StepPermitManager {
       lazyConnect: true,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 0,
-      retryStrategy: () => null,
+      autoResendUnfulfilledCommands: false,
+      retryStrategy: (attempt) => Math.min(attempt * 100, 1000),
       connectTimeout: 1000,
       commandTimeout: 1000,
     });
@@ -94,21 +97,20 @@ export class StepPermitManager {
       slot,
       leaseMs: this.#leaseMs,
       renew: async () => {
-        if (released) return false;
+        if (released) return 'lost';
         try {
-          return (
-            (await this.#client.call(
-              'SET',
-              key,
-              owner,
-              'IFEQ',
-              owner,
-              'PX',
-              String(this.#leaseMs),
-            )) === 'OK'
+          const result = await this.#client.call(
+            'SET',
+            key,
+            owner,
+            'IFEQ',
+            owner,
+            'PX',
+            String(this.#leaseMs),
           );
+          return result === 'OK' ? 'renewed' : 'lost';
         } catch {
-          return false;
+          return 'unavailable';
         }
       },
       release: async () => {

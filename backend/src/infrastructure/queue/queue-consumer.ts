@@ -193,23 +193,37 @@ export class QueueConsumer {
     let renewal = Promise.resolve();
     const interval = setInterval(() => {
       renewal = renewal.then(async () => {
-        if (!(await permit.renew())) {
+        if ((await permit.renew()) === 'lost') {
           leaseLost = true;
           controller.abort();
         }
       });
     }, renewIntervalMs);
-    let result: Awaited<ReturnType<typeof registration.handle>>;
+    let result: Awaited<ReturnType<typeof registration.handle>> | undefined;
+    let handlerError: unknown;
+    let handlerFailed = false;
     try {
       result = await registration.handle(job, {
         signal: controller.signal,
         permit,
       });
+    } catch (error) {
+      handlerFailed = true;
+      handlerError = error;
     } finally {
       clearInterval(interval);
       await renewal;
       await permit.release();
     }
+    if (
+      handlerFailed &&
+      leaseLost &&
+      controller.signal.aborted &&
+      handlerError === controller.signal.reason
+    )
+      return { kind: 'busy', retryAtMs: Date.now() + this.#timing.busyRetryMs };
+    if (handlerFailed) throw handlerError;
+    if (!result) throw new Error('Invalid job outcome');
     if (leaseLost)
       return { kind: 'busy', retryAtMs: Date.now() + this.#timing.busyRetryMs };
     if (result.kind === 'done') return result;

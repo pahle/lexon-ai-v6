@@ -206,6 +206,19 @@ export async function createAiFixture(services: Services) {
     return Number(slots.rows[0]?.count ?? 0);
   }
 
+  async function insertPendingStep(index: number, runId: string) {
+    const tenant = tenants[index];
+    if (!tenant) throw new Error('Invalid AI fixture tenant');
+    return database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state)
+         VALUES($1,$2,$3,1,1,'pending')`,
+        [randomUUID(), tenant.orgId, runId],
+      );
+    });
+  }
+
   return {
     tenants,
     async close() {
@@ -221,29 +234,18 @@ export async function createAiFixture(services: Services) {
       if (!tenant) throw new Error('Invalid AI fixture tenant');
       return database.withTenant(tenant, work);
     },
-    async insertCrossTenantStep(index: number, runId: string) {
-      const tenant = tenants[index];
-      if (!tenant) throw new Error('Invalid AI fixture tenant');
-      return database.withTenant(tenant, async (tx) => {
-        const { client } = requireSession(tx);
-        await client.query(
-          `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state)
-           VALUES($1,$2,$3,1,1,'pending')`,
-          [randomUUID(), tenant.orgId, runId],
-        );
-      });
+    insertCrossTenantStep(index: number, runId: string) {
+      return insertPendingStep(index, runId);
     },
-    async seedPendingStep(index: number, runId: string) {
-      const tenant = tenants[index];
-      if (!tenant) throw new Error('Invalid AI fixture tenant');
-      return database.withTenant(tenant, async (tx) => {
-        const { client } = requireSession(tx);
-        await client.query(
-          `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state)
-           VALUES($1,$2,$3,1,1,'pending')`,
-          [randomUUID(), tenant.orgId, runId],
-        );
-      });
+    seedPendingStep(index: number, runId: string) {
+      return insertPendingStep(index, runId);
+    },
+    async receiptCount(outboxId: string): Promise<number> {
+      const result = await migrator.query<{ count: string }>(
+        'SELECT count(*)::text AS count FROM ops.processed_jobs WHERE outbox_id=$1',
+        [outboxId],
+      );
+      return Number(result.rows[0]?.count ?? 0);
     },
     async noContextCounts(): Promise<number[]> {
       const fresh = new Client({ connectionString: services.appUrl });

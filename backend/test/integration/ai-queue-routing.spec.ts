@@ -20,6 +20,7 @@ import {
 } from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
+import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 
 test('durable busy claims are delayed without consuming BullMQ failure attempts', async ({
   services,
@@ -85,6 +86,186 @@ test('durable busy claims are delayed without consuming BullMQ failure attempts'
     await producer.close();
     await queue.close();
     await database.close();
+  }
+});
+
+test('confirmed permit loss aborts a durable handler into delayed DB-fenced reclaim', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const run = await fixture.start(0);
+  await fixture.seedPendingStep(0, run.id);
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: services.valkey.limiterUrl,
+    prefix: services.queuePrefix,
+  };
+  const database = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 3,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const id = randomUUID();
+  const fences: number[] = [];
+  let abortObserved = false;
+  const registry = new JobRegistry();
+  registry.register('run.advance.v1', {
+    strategy: 'durable-step',
+    handle: async (_job, { signal, permit }) => {
+      const claim = await fixture.claim(0, run.id, 1, 1, 1800);
+      if (!claim) return { kind: 'busy', retryAtMs: Date.now() + 100 };
+      fences.push(claim.fence);
+      if (fences.length === 1) {
+        await permit.release();
+        try {
+          await new Promise<void>((_resolve, reject) => {
+            if (signal.aborted) reject(signal.reason);
+            else
+              signal.addEventListener('abort', () => reject(signal.reason), {
+                once: true,
+              });
+          });
+        } catch (error) {
+          abortObserved = signal.aborted && error === signal.reason;
+          throw error;
+        }
+      }
+      return { kind: 'done' };
+    },
+  });
+  const consumer = new QueueConsumer(options, new JobExecutor(database), {
+    interactiveConcurrency: 1,
+    batchConcurrency: 2,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  try {
+    await consumer.start(registry);
+    await producer.enqueue(
+      {
+        outboxId: id,
+        type: 'run.advance.v1',
+        ctx: {
+          orgId: fixture.tenants[0]!.orgId,
+          userId: fixture.tenants[0]!.userId,
+        },
+        payload: { runId: run.id, sequence: 1, expectedVersion: 1 },
+      },
+      { queue: 'ai-batch', priority: 4, timeoutMs: 1000 },
+    );
+    await expect
+      .poll(async () => (await queue.getJob(id))?.getState())
+      .toBe('delayed');
+    expect(abortObserved).toBe(true);
+    expect((await queue.getJob(id))?.attemptsMade).toBe(0);
+    await expect
+      .poll(async () => (await queue.getJob(id))?.getState(), { timeout: 6000 })
+      .toBe('completed');
+    expect(fences.length).toBe(2);
+    expect(fences[1]).toBeGreaterThan(fences[0]!);
+    expect((await queue.getJob(id))?.attemptsMade).toBe(1);
+    expect(await fixture.receiptCount(id)).toBe(0);
+  } finally {
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+    await fixture.close();
+  }
+});
+
+test('durable consumer progresses through limiter disconnect and same consumer recovers', async ({
+  services,
+}) => {
+  const proxy = await FaultProxy.start(services.valkey.limiterUrl);
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: proxy.url,
+    prefix: services.queuePrefix,
+  };
+  const database = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 3,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const ids = [randomUUID(), randomUUID()];
+  let entered!: () => void;
+  let finishFirst!: () => void;
+  const firstStarted = new Promise<void>((resolve) => (entered = resolve));
+  const finish = new Promise<void>((resolve) => (finishFirst = resolve));
+  let aborted = false;
+  let calls = 0;
+  const registry = new JobRegistry();
+  registry.register('run.advance.v1', {
+    strategy: 'durable-step',
+    handle: async (_job, { signal }) => {
+      calls++;
+      if (calls === 1) {
+        entered();
+        signal.addEventListener('abort', () => (aborted = true), {
+          once: true,
+        });
+        await finish;
+      }
+      return { kind: 'done' };
+    },
+  });
+  const consumer = new QueueConsumer(options, new JobExecutor(database), {
+    interactiveConcurrency: 1,
+    batchConcurrency: 2,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  const ctx = { orgId: randomUUID(), userId: randomUUID() };
+  try {
+    await consumer.start(registry);
+    const enqueue = (id: string) =>
+      producer.enqueue(
+        {
+          outboxId: id,
+          type: 'run.advance.v1',
+          ctx,
+          payload: { runId: randomUUID(), sequence: 1, expectedVersion: 1 },
+        },
+        { queue: 'ai-batch', priority: 4, timeoutMs: 1000 },
+      );
+    await enqueue(ids[0]!);
+    await firstStarted;
+    proxy.disconnect();
+    await enqueue(ids[1]!);
+    await expect
+      .poll(async () => (await queue.getJob(ids[1]!))?.getState())
+      .toBe('delayed');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(aborted).toBe(false);
+    finishFirst();
+    await expect
+      .poll(async () => (await queue.getJob(ids[0]!))?.getState())
+      .toBe('completed');
+    proxy.restore();
+    await expect
+      .poll(async () => (await queue.getJob(ids[1]!))?.getState(), {
+        timeout: 5000,
+      })
+      .toBe('completed');
+    expect(calls).toBe(2);
+  } finally {
+    finishFirst();
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+    await proxy.close();
   }
 });
 
@@ -299,11 +480,11 @@ test('organization step permits are isolated, renew by owner, and expire after w
     expect(await manager.acquire(orgB)).not.toBeNull();
 
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(await first!.renew()).toBe(true);
+    expect(await first!.renew()).toBe('renewed');
     await new Promise((resolve) => setTimeout(resolve, 100));
     replacement = await manager.acquire(orgA);
     expect(replacement).not.toBeNull();
-    expect(await second!.renew()).toBe(false);
+    expect(await second!.renew()).toBe('lost');
     expect(await second!.release()).toBe(false);
     second = null;
     expect(await manager.acquire(orgA)).toBeNull();
@@ -315,6 +496,31 @@ test('organization step permits are isolated, renew by owner, and expire after w
     await second?.release();
     await replacement?.release();
     await manager.close();
+  }
+});
+
+test('permit renewal distinguishes limiter transport outage from lost ownership', async ({
+  services,
+}) => {
+  const proxy = await FaultProxy.start(services.valkey.limiterUrl);
+  const manager = await StepPermitManager.create({
+    url: proxy.url,
+    prefix: `${services.queuePrefix}:permit-reconnect`,
+    leaseMs: 600,
+  });
+  const permit = await manager.acquire(randomUUID());
+  try {
+    expect(permit).not.toBeNull();
+    proxy.disconnect();
+    await expect
+      .poll(() => permit!.renew(), { timeout: 3000 })
+      .toBe('unavailable');
+    proxy.restore();
+    await expect.poll(() => permit!.renew(), { timeout: 5000 }).toBe('renewed');
+  } finally {
+    await permit?.release();
+    await manager.close();
+    await proxy.close();
   }
 });
 
