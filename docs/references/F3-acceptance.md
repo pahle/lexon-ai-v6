@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-05
-Current scope: Tasks1–5 accepted — portable contracts, tenant storage/admission, durable attempt accounting, worker-safe authorization/context primitives, and the guarded single-generation model adapter. Tasks6–17 remain pending; run execution is not composed yet. Provider tests use mocked responses; no live model call has been made.
+Current scope: Tasks1–6 accepted — portable contracts, tenant storage/admission, durable attempt accounting, worker-safe authorization/context primitives, guarded model adapter, and deterministic queue transport. Tasks7–17 remain pending; run execution is not composed yet. Provider tests use mocked responses; no live model call has been made.
 
 ## Task 3 owner capacity privilege correction (2026-11-05)
 
@@ -325,3 +325,10 @@ The owner instructed continuous F3 implementation and will configure OpenRouter 
 - Corrected Task 6 report wording: durable handlers bypass the receipt/effect transaction and no receipt is written at claim. `schema.ts` was not edited because `queue_name` and `priority` columns already exist from migration0015; no dummy source change was made.
 
 - Review-fix final gates: `pnpm typecheck`, `pnpm lint` (**86/86 boundary checks**), `pnpm format:check`, `pnpm build`, and `git diff --check` passed, exit 0. The full suite was not rerun for this scoped review round; the controller already verified the unchanged pre-fix baseline full suite at 633/633 with exit 0.
+
+### Task 6 acceptance after review (2026-11-06)
+
+- Implementation `ad7dd888b10f1da56419a93ce8bd20a0f3e5cc84`; review fix `12827e9ee2af0c9c2b0a1775f34307362bdcf749`. Spec compliance and quality approved after resolving all four Important findings. Existing routing schema fields were reused; the plan manifest now reflects that placement.
+- Main-session final command `pnpm exec vitest run --project backend-unit --project backend-integration step-job-id.spec job-registry.spec job-envelope.spec ai-queue-routing.spec dispatcher.spec worker-crash.spec queue.spec runtime-composition.spec ai-storage.spec ai-attempts.spec` passed **60 tests / 10 files**, exit 0, 26.38s. Workspace checks passed on the fix. Root's independent direct `pnpm test` before the scoped fix passed **633 tests / 127 files**, exit 0, 62.63s; this resolves the implementer's reserved-zsh-variable wrapper caveat without representing that wrapper as successful. The full suite predates the scoped fix; current covering tests are recorded separately. Baseline warnings/runtime-event logs remain qualified.
+- Task7 must acquire `lockTenantClaimGuard` before run mutations and preserve organization-advisory → run → step ordering. Durable work creates no receipt at claim; the coordinator must atomically commit effects, receipt, and continuation. Current tests intentionally do not implement that later coordinator.
+- Renewal returns renewed/lost/unavailable. Only confirmed ownership loss aborts; limiter transport uncertainty leaves already admitted DB-fenced work active while new work delays. Reconnection must recover the same consumer. Task9 must propagate the supplied signal.reason for permit-loss cancellation, or explicitly translate a known SDK abort wrapper at its handler boundary, so the consumer delays without consuming failure attempts. Unrelated errors retain ordinary failure handling. Actual DB lease renewal and model/checkpoint progress through outages remain later integration checks.
