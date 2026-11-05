@@ -64,7 +64,7 @@ Intermediate validation issues were corrected before final gates: the first migr
 
 ## Commit
 
-Implementation commit: `c0c201d` (`feat(ai): add durable run storage and admission`). The final evidence correction is committed separately after this report update.
+Implementation commit: `c0c201dd5b9809f0f05097308aad6ded2f409c71` (`feat(ai): add durable run storage and admission`). The final evidence correction is committed separately after this report update.
 
 ## Concerns
 
