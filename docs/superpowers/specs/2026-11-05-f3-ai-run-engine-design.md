@@ -1,6 +1,6 @@
 # F3 — Headless AI Run Engine design
 
-Date: 2026-11-05. Status: proposed design, builder-checked; awaiting product-owner approval.
+Date: 2026-11-05. Status: approved by the product owner; implementation plan in preparation.
 Branch: `f3-ai-run-engine`, based on `origin/main` at `63c26f9`.
 Implementation has not started. This document incorporates the owner's corrections
 in the F3 brainstorming conversation; those supersede erroneous brief wording.
@@ -487,3 +487,44 @@ per-attempt input calibration, and the attested key credit limit as the last
 safeguard for smoke/evals. These corrections are incorporated above; neither
 question remains open for design approval. Region remains
 the explicit P8 deferral; observed smoke facts must not be fabricated.
+
+## Planning research addendum (2026-11-05)
+
+The owner approved this design and requested a calculated global active-run cap,
+an exact dev Azure-slug proposal and explicit real-eval cost/schedule proposals.
+The implementation plan records these for plan review; the earlier MAXLEN 10000
+is a starting point, not a mandatory final default. Accepted: UTF-8 estimator,
+1-second checkpoint interval plus size threshold, terminal TTL 3600 seconds.
+
+Additional official sources read before task decomposition:
+
+| Reference                                                                                                                                                                                                                                                                                   | Exact context and planning decision                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [PostgreSQL locking](https://www.postgresql.org/docs/17/explicit-locking.html), [RLS](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), [CREATE FUNCTION](https://www.postgresql.org/docs/17/sql-createfunction.html), [NOTIFY](https://www.postgresql.org/docs/17/sql-notify.html) | PostgreSQL 17.11; short row/advisory locks, fail-closed tenant tables, K3 global admission, transactional notifications. Tasks 2–4, 6–7, 9–12.                                                                                                                                                                                                 |
+| [Valkey MEMORY USAGE](https://valkey.io/commands/memory-usage/), [EVAL](https://valkey.io/commands/eval/), XADD/EXPIRE above                                                                                                                                                                | Valkey 9.0.7 pinned digest, actual isolated Linux/aarch64 memory probe; exact trim, bounded event bytes and terminal retention. Tasks 1, 7–9, 12. All Lua keys must be explicit KEYS, not generated from stored values.                                                                                                                        |
+| [BullMQ concurrency](https://docs.bullmq.io/guide/workers/concurrency), [priorities](https://docs.bullmq.io/guide/jobs/prioritized), [retry](https://docs.bullmq.io/guide/retrying-failing-jobs)                                                                                            | Installed 6.5.3 and Nest adapter 12.0.0; separate queue concurrency, priority persistence, no coupling of queue attempts to model attempts. Tasks 6–7, 9, 12.                                                                                                                                                                                  |
+| [streamText reference](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text), testing/tools/UI protocol/telemetry sources above                                                                                                                                                        | Installed ai 7.0.159, matching bundled source/docs and provider 3.1.0; neutral single-generation adapter, early response metadata, no hidden retries and no input/output telemetry. Tasks 1, 3–5, 8–15.                                                                                                                                        |
+| Official npm package metadata (pnpm view)                                                                                                                                                                                                                                                   | @ai-sdk/otel 1.0.159 depends on ai 7.0.159 and OTel API 1.9.1. Select @opentelemetry/api 1.9.1, sdk-node/exporter-trace-otlp-http 0.219.0, sdk-trace-base 2.8.0 (sdk-node's matching dependency; peer API >=1.3.0 <1.10.0). Newer sdk-node 0.300.0 requires API 1.10 and is not selected. Task 13; no dependency installation during planning. |
+| [Vitest global setup](https://vitest.dev/config/globalsetup), current Vitest 5.0.5 project configs, F0 Testcontainers setup                                                                                                                                                                 | Keep existing global setup/shared image pins and per-file isolation; mock adapter composition remains within ai boundary. Tasks 2–16.                                                                                                                                                                                                          |
+| [GitHub manual dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow), existing pinned ci.yml                                                                                                                                                   | A newly added workflow must reach default branch before hosted dispatch. Test the same command locally/with mocked workflow wiring before merge; never merge to bypass that platform constraint. Tasks 16–17.                                                                                                                                  |
+| [Node 24 crypto](https://nodejs.org/docs/latest-v24.x/api/crypto.html) and installed Node 24.22.1 APIs                                                                                                                                                                                      | SHA-1 name-based UUID v5 and SHA-256 canonical argument hashes use built-in crypto, no new dependency. Tasks 1, 4, 6, 10.                                                                                                                                                                                                                      |
+| OpenRouter endpoint JSON and routing/ZDR docs above                                                                                                                                                                                                                                         | azure/us observed as an available endpoint tag; listed prompt/completion prices 0.00000011/0.00000055 USD per token on read date; availability/prices are not permanent guarantees. Exact slug and per-run credit allocation remain owner decisions at plan review. Tasks 5, 15–16.                                                            |
+
+The memory probe used a new disposable, network-isolated container from the
+shared pinned Valkey image, not an existing dev/test service. Synthetic versioned
+text-delta JSON included UUIDs and was padded to exactly 1024 or 4096 bytes;
+XADD stored one event field, MEMORY USAGE SAMPLES 0 measured the full stream.
+No consumer group exists for these delivery streams. Results and arithmetic are
+in the plan. The probe container was stopped and removed. This is sizing
+research, not implemented engine code or an engine-hop latency measurement.
+
+Planning self-review clarified two implementation safeguards without changing
+the approved architecture: busy claim deliveries use BullMQ delayed work rather
+than burning failure attempts (6.5.3 moveToDelayed/DelayedError signatures read
+in installed package; official [process-step pattern](https://docs.bullmq.io/patterns/process-step-jobs)),
+and per-organization executing-step fairness from section5.3 remains distinct
+from F17 customer quotas. The plan proposes a2-step limit and keeps the required
+global active-run cap separately. OpenRouter's routing Max Price section confirms
+max_price prompt/completion values are USD per million tokens; reviewed eval
+ceilings0.25/1.00 use those units. The pinned provider's declarations support
+these request fields.

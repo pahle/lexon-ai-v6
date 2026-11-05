@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-05",
+  "image": "valkey/valkey:9.0.7-alpine3.24@sha256:2d04268dfa26ab31cfa3fdc538866e76438b2d00e41db41b8cb86d780ac5a416",
+  "architecture": "aarch64",
+  "measurements": [
+    {
+      "entries": 10000,
+      "serializedEventBytes": 1024,
+      "streamMemoryBytes": 12038488
+    },
+    {
+      "entries": 10000,
+      "serializedEventBytes": 4096,
+      "streamMemoryBytes": 51460568
+    },
+    {
+      "entries": 1024,
+      "serializedEventBytes": 1024,
+      "streamMemoryBytes": 1235520
+    },
+    {
+      "entries": 1024,
+      "serializedEventBytes": 4096,
+      "streamMemoryBytes": 5269728
+    }
+  ],
+  "method": {
+    "network": "none",
+    "operation": "XADD exact MAXLEN, one event field",
+    "measurement": "MEMORY USAGE key SAMPLES 0",
+    "event": "versioned text-delta JSON with UUID envelope padded to serializedEventBytes",
+    "consumerGroups": false,
+    "containerRemoved": true
+  }
+}
