@@ -64,6 +64,125 @@ function validLease(leaseMs: number): boolean {
 }
 
 export class AiStepRepository {
+  async streamActiveProof(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<
+    | {
+        runVersion: number;
+        nextSequence: number;
+        status: 'queued' | 'running' | 'awaiting_approval' | 'cancelling';
+        stepId: string;
+        sequence: number;
+        expectedVersion: number;
+        fence: number;
+        leaseUntil: Date;
+      }
+    | undefined
+  > {
+    if (!validClaim(tx, claim)) return undefined;
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<{
+      run_version: number;
+      next_sequence: number;
+      status: 'queued' | 'running' | 'awaiting_approval' | 'cancelling';
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number;
+      lease_until: Date;
+    }>(
+      `SELECT r.run_version,r.next_sequence,r.status,s.id AS step_id,s.sequence,
+              s.expected_version,s.fence,s.lease_until
+       FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
+       WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
+         AND r.status IN ('queued','running','awaiting_approval','cancelling')
+         AND s.id=$5 AND s.sequence=$4 AND s.expected_version=$3 AND s.fence=$6
+         AND s.state='claimed' AND s.lease_until>clock_timestamp()`,
+      [
+        scope.orgId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          runVersion: Number(row.run_version),
+          nextSequence: Number(row.next_sequence),
+          status: row.status,
+          stepId: row.step_id,
+          sequence: Number(row.sequence),
+          expectedVersion: Number(row.expected_version),
+          fence: Number(row.fence),
+          leaseUntil: row.lease_until,
+        }
+      : undefined;
+  }
+
+  async streamTerminalProof(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<
+    | {
+        status: 'completed' | 'failed' | 'cancelled';
+        runVersion: number;
+        nextSequence: number;
+        latestCommittedStepId: string;
+        latestCommittedSequence: number;
+        latestCommittedExpectedVersion: number;
+        latestCommittedFence: number;
+      }
+    | undefined
+  > {
+    if (!validClaim(tx, claim)) return undefined;
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<{
+      status: 'completed' | 'failed' | 'cancelled';
+      run_version: number;
+      next_sequence: number;
+      latest_step_id: string | null;
+      latest_sequence: number | null;
+      latest_expected_version: number | null;
+      latest_fence: number | null;
+    }>(
+      `SELECT r.status,r.run_version,r.next_sequence,
+              s.id AS latest_step_id,s.sequence AS latest_sequence,
+              s.expected_version AS latest_expected_version,s.fence AS latest_fence
+       FROM app.ai_runs r
+       LEFT JOIN LATERAL (
+         SELECT id,sequence,expected_version,fence FROM app.ai_steps
+         WHERE org_id=r.org_id AND run_id=r.id AND state IN ('committed','awaiting_approval')
+         ORDER BY sequence DESC,updated_at DESC LIMIT 1
+       ) s ON true
+       WHERE r.org_id=$1 AND r.id=$2 AND r.status IN ('completed','failed','cancelled')`,
+      [scope.orgId, claim.runId],
+    );
+    const row = result.rows[0];
+    if (
+      !row ||
+      row.latest_step_id !== claim.stepId ||
+      Number(row.latest_sequence) !== claim.sequence ||
+      Number(row.latest_expected_version) !== claim.expectedVersion ||
+      Number(row.latest_fence) !== claim.fence
+    )
+      return undefined;
+    return {
+      status: row.status,
+      runVersion: Number(row.run_version),
+      nextSequence: Number(row.next_sequence),
+      latestCommittedStepId: row.latest_step_id!,
+      latestCommittedSequence: Number(row.latest_sequence),
+      latestCommittedExpectedVersion: Number(row.latest_expected_version),
+      latestCommittedFence: Number(row.latest_fence),
+    };
+  }
+
   async insertInitial(
     tx: TenantSession,
     input: {

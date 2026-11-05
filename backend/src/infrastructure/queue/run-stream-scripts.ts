@@ -1,0 +1,98 @@
+export const PREPARE_RUN_STREAM = `
+local runId = ARGV[1]
+local now = ARGV[2]
+local activeGuard = ARGV[3]
+local candidateId = ARGV[4]
+local candidateGuard = ARGV[5]
+if redis.call('GET', KEYS[7]) ~= ARGV[6] then return -1 end
+if redis.call('ZSCORE', KEYS[1], runId) then redis.call('ZADD', KEYS[1], ARGV[7], runId) end
+if redis.call('ZSCORE', KEYS[1], runId) then
+  if not redis.call('GET', KEYS[4]) then redis.call('SET', KEYS[4], activeGuard) end
+  return 1
+end
+if redis.call('ZCARD', KEYS[1]) >= 24 then return 0 end
+redis.call('ZADD', KEYS[1], ARGV[7], runId)
+redis.call('SET', KEYS[4], activeGuard)
+redis.call('HSET', KEYS[8], runId, ARGV[8])
+return 1
+`;
+
+export const RECONCILE_RUN_STREAMS = `
+if redis.call('GET', KEYS[3]) ~= ARGV[1] then return -1 end
+local count = tonumber(ARGV[2])
+for index = 1, count do
+  local id = ARGV[2 + ((index - 1) * 2) + 1]
+  local context = ARGV[2 + ((index - 1) * 2) + 2]
+  local streamKey = KEYS[3 + ((index - 1) * 2) + 1]
+  local guardKey = KEYS[3 + ((index - 1) * 2) + 2]
+  if redis.call('HGET', KEYS[2], id) == context then
+    redis.call('DEL', streamKey, guardKey)
+    redis.call('ZREM', KEYS[1], id)
+    redis.call('HDEL', KEYS[2], id)
+    redis.call('INCR', KEYS[3])
+  end
+end
+return 1
+`;
+
+export const APPEND_RUN_STREAM = `
+local runId = ARGV[1]
+local incoming = ARGV[2]
+local event = ARGV[3]
+local maxLen = ARGV[4]
+if redis.call('GET', KEYS[4]) ~= ARGV[7] then return -1 end
+if not redis.call('ZSCORE', KEYS[1], runId) then return -1 end
+local guard = redis.call('GET', KEYS[3])
+if guard then
+  local state, version, sequence, fence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)$')
+  if state == 'closed' then return -1 end
+  if version and (tonumber(incoming) < tonumber(version) or
+    (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) < tonumber(sequence)) or
+    (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) == tonumber(sequence) and tonumber(ARGV[6]) < tonumber(fence))) then return -1 end
+end
+redis.call('SET', KEYS[3], 'open|' .. incoming .. '|' .. ARGV[5] .. '|' .. ARGV[6])
+redis.call('XADD', KEYS[2], 'MAXLEN', '=', maxLen, '*', 'event', event)
+return 1
+`;
+
+export const FINISH_RUN_STREAM = `
+local runId = ARGV[1]
+local version = tonumber(ARGV[2])
+local sequence = tonumber(ARGV[3])
+local fence = tonumber(ARGV[4])
+local event = ARGV[5]
+local maxLen = ARGV[6]
+local ttl = ARGV[7]
+local now = ARGV[8]
+local generation = ARGV[9]
+if redis.call('GET', KEYS[7]) ~= ARGV[12] then return -1 end
+local guard = redis.call('GET', KEYS[4])
+if guard then
+  local state, oldVersion, oldSequence, oldFence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)$')
+  if state == 'closed' or (oldVersion and (version < tonumber(oldVersion) or
+    (version == tonumber(oldVersion) and sequence < tonumber(oldSequence)) or
+    (version == tonumber(oldVersion) and sequence == tonumber(oldSequence) and fence < tonumber(oldFence)))) then return 0 end
+end
+local candidateId = ARGV[10]
+local candidateGuard = ARGV[11]
+if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCORE', KEYS[2], candidateId) then
+  local candidateRunId = candidateId:match('^[^|]+')
+  local currentCandidateGuard = redis.call('GET', KEYS[6])
+  if (currentCandidateGuard and currentCandidateGuard == candidateGuard) or
+     (not currentCandidateGuard and not redis.call('ZSCORE', KEYS[1], candidateRunId)) then
+    redis.call('DEL', KEYS[5], KEYS[6])
+    redis.call('ZREM', KEYS[2], candidateId)
+    redis.call('HDEL', KEYS[8], candidateRunId)
+    redis.call('INCR', KEYS[7])
+  end
+end
+if redis.call('ZCARD', KEYS[2]) >= 6 then return -1 end
+redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', event)
+redis.call('SET', KEYS[4], 'closed|' .. version .. '|' .. sequence .. '|' .. fence, 'EX', ttl)
+redis.call('EXPIRE', KEYS[3], ttl)
+redis.call('ZREM', KEYS[1], runId)
+redis.call('ZADD', KEYS[2], now, runId .. '|' .. generation)
+redis.call('HSET', KEYS[8], runId, ARGV[13])
+redis.call('INCR', KEYS[7])
+return 1
+`;

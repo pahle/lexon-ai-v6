@@ -129,7 +129,8 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
     type: z.literal('tool-input-available'),
     toolCallId: sdkPartId,
     toolName: identifier,
-    input: z.record(z.string(), z.unknown()),
+    operationId: z.uuid().optional(),
+    input: z.record(z.string(), z.unknown()).optional(),
   }),
   z.strictObject({
     ...eventBase,
@@ -147,6 +148,7 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
     ...eventBase,
     type: z.literal('tool-output-available'),
     toolCallId: sdkPartId,
+    operationId: z.uuid().optional(),
     output: z.unknown(),
   }),
   z.strictObject({

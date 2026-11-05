@@ -123,6 +123,75 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
 }
 
 export class AiRunRepository {
+  async streamRegistryState(
+    tx: TenantSession,
+    runId: string,
+    userId: string,
+  ): Promise<
+    | { readonly state: 'active' }
+    | { readonly state: 'missing' }
+    | {
+        readonly state: 'terminal';
+        readonly claim: {
+          readonly runId: string;
+          readonly orgId: string;
+          readonly userId: string;
+          readonly stepId: string;
+          readonly sequence: number;
+          readonly expectedVersion: number;
+          readonly fence: number;
+          readonly leaseUntil: Date;
+        };
+      }
+  > {
+    if (
+      !idSchema.safeParse(runId).success ||
+      !idSchema.safeParse(userId).success
+    )
+      return { state: 'missing' };
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    if (ctx.userId !== userId) return { state: 'missing' };
+    const result = await client.query<{
+      status: AiRunStatus;
+      run_version: number;
+      next_sequence: number;
+    }>(
+      'SELECT status,run_version,next_sequence FROM app.ai_runs WHERE org_id=$1 AND id=$2',
+      [scope.orgId, runId],
+    );
+    const run = result.rows[0];
+    if (!run) return { state: 'missing' };
+    if (!['completed', 'failed', 'cancelled'].includes(run.status))
+      return { state: 'active' };
+    const latest = await client.query<{
+      id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number;
+    }>(
+      `SELECT id,sequence,expected_version,fence FROM app.ai_steps
+       WHERE org_id=$1 AND run_id=$2 AND state IN ('committed','awaiting_approval')
+       ORDER BY sequence DESC,updated_at DESC LIMIT 1`,
+      [scope.orgId, runId],
+    );
+    const step = latest.rows[0];
+    if (!step) return { state: 'missing' };
+    return {
+      state: 'terminal',
+      claim: {
+        runId,
+        orgId: scope.orgId,
+        userId,
+        stepId: step.id,
+        sequence: Number(step.sequence),
+        expectedVersion: Number(step.expected_version),
+        fence: Number(step.fence),
+        leaseUntil: new Date(),
+      },
+    };
+  }
+
   async insert(tx: TenantSession, input: RunInsert): Promise<RunRecord> {
     assertInput(tx, input);
     const { client } = requireSession(tx);

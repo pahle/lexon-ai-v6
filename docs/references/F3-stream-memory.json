@@ -4,6 +4,25 @@
   "architecture": "aarch64",
   "measurements": [
     {
+      "date": "2026-11-06",
+      "entries": 1024,
+      "serializedEventBytes": 4096,
+      "slotMemoryBytes": 5294840,
+      "slotMemoryBudgetBytes": 6291456,
+      "platform": "linux/aarch64",
+      "evidence": "backend/test/integration/ai-stream-memory.spec.ts",
+      "ci": false,
+      "content": "varying noncompressible alphanumeric JSON",
+      "includes": [
+        "stream",
+        "guard",
+        "active registry",
+        "terminal registry",
+        "epoch",
+        "context registry"
+      ]
+    },
+    {
       "entries": 10000,
       "serializedEventBytes": 1024,
       "streamMemoryBytes": 12038488

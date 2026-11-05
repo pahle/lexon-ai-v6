@@ -24,6 +24,19 @@ export type {
 export { QueueModule } from './queue.module.js';
 export { checkValkeyPolicy } from './valkey-policy.js';
 export { streamsSmoke } from './streams-smoke.js';
+export { encodeStreamParts } from './run-stream-parts.js';
+export {
+  RunStreams,
+  type RunStreamsOptions,
+  type RunStreamAuthority,
+  type ActiveStreamProof,
+  type TerminalStreamProof,
+} from './run-streams.js';
+export {
+  StreamCapacity,
+  RUN_STREAM_LIMITS,
+  type StreamCapacityOptions,
+} from './stream-capacity.js';
 export type {
   AuthLimiter,
   AuthLimiterOptions,
