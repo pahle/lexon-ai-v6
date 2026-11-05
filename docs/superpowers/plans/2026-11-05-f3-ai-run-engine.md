@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node 24.22.1, pnpm 10.33.1, TypeScript 6.0.3, Zod 4.6.7, Nest 12.3.2, ai 7.0.159, OpenRouter provider 3.1.0, BullMQ 6.5.3 / Nest adapter 12.0.0, Valkey 9.0.7, PostgreSQL 17.11, Drizzle 0.45.4 / Kit 0.31.11, Vitest 5.0.5; exact existing image manifest.
 
-**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–6 accepted after review; Tasks7–17 remain pending.
+**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–7 accepted after review; Tasks8–17 remain pending.
 
 ## Execution amendment — owner, 2026-11-06
 
@@ -286,7 +286,7 @@ expect(delayedBusyJob.attemptsMade).toBe(0);
 
 **Research:** Design protocol and Postgres row locks; F0 JobExecutor actual implementation, receipt contention and caller-supplied TenantSession; current worker/module graph.
 
-- [ ] **Step 1: Write the failing tests.** Tests `start run+outbox atomic`, `profile/model denial before network`, `two concurrent deliveries one active claim`, `old owner cannot checkpoint/settle/commit`, `duplicate committed step schedules nothing`, `terminal start silent`, `receipt rollback permits retry`. Inject an outbox append failure and assert no run or admission survives. Two independent consumers race the same sequence; assert one generation admitted and one next outbox row (executor integration joins in Task 9).
+- [x] **Step 1: Write the failing tests.** Tests `start run+outbox atomic`, `profile/model denial before network`, `two concurrent deliveries one active claim`, `old owner cannot checkpoint/settle/commit`, `duplicate committed step schedules nothing`, `terminal start silent`, `receipt rollback permits retry`. Inject an outbox append failure and assert no run or admission survives. Two independent consumers race the same sequence; assert one generation admitted and one next outbox row (executor integration joins in Task 9).
 
 Representative assertions in those named tests (locals come from their specified test setup):
 
@@ -296,13 +296,13 @@ expect(committedStepCount).toBe(1);
 expect(nextOutboxRows).toHaveLength(1);
 ```
 
-- [ ] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-run-start.spec ai-step-concurrency.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
+- [x] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-run-start.spec ai-step-concurrency.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
 
-- [ ] **Step 3: Implement the deliverable.** Create initial run/step/outbox in a single tenant transaction after current policy checks and global admission. Keep queue/priority/profile snapshot server-owned/immutable. Claim transaction ends before generation. Commit checks current run state/version/sequence/fence before persisting through F0 receipt path; stale check must roll back any just-inserted receipt rather than consuming work owned by a replacement. Lease renewal every5s; expired takeover marks old active attempt unknown once. Approval continuation consumes fresh sequence while model iteration counts only generation calls. Expose no unguarded start API accepting raw identity IDs.
+- [x] **Step 3: Implement the deliverable.** Create initial run/step/outbox in a single tenant transaction after current policy checks and global admission. Keep queue/priority/profile snapshot server-owned/immutable. Claim transaction ends before generation. Commit checks current run state/version/sequence/fence before persisting through F0 receipt path; stale check must roll back any just-inserted receipt rather than consuming work owned by a replacement. Lease renewal every5s; expired takeover marks old active attempt unknown once. Approval continuation consumes fresh sequence while model iteration counts only generation calls. Expose no unguarded start API accepting raw identity IDs.
 
-- [ ] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-run-start.spec ai-step-concurrency.spec`; expect all selected tests PASS. Run capacity and cross-tenant storage tests; backend lint/typecheck. No model I/O while a transaction remains open.
+- [x] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-run-start.spec ai-step-concurrency.spec`; expect all selected tests PASS. Run capacity and cross-tenant storage tests; backend lint/typecheck. No model I/O while a transaction remains open.
 
-- [ ] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): start runs and coordinate fenced durable steps`, then `git push -u origin f3-ai-run-engine`.
+- [x] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): start runs and coordinate fenced durable steps`, then `git push -u origin f3-ai-run-engine`.
 
 ### Task 8: Bound and fence the run-wide stream pool
 
