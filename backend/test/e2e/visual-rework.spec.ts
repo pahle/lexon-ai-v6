@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
@@ -1403,7 +1403,16 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       const securityCapturePath = resolve(
         'docs/references/F2.1-visual/review/security-desktop-light.png',
       );
-      await unlink(securityCapturePath).catch(() => undefined);
+      const securityBaselinePath = resolve(
+        'docs/references/F2.1-visual/baseline/security-desktop-light.png',
+      );
+      const approvedSecurityReview = existsSync(securityCapturePath)
+        ? readFileSync(securityCapturePath)
+        : undefined;
+      const securityBaselineBefore = existsSync(securityBaselinePath)
+        ? readFileSync(securityBaselinePath)
+        : undefined;
+      expect(approvedSecurityReview).toBeDefined();
       try {
         await page.goto(`${stack.frontendUrl}/workspace?settings=${section}`);
         await sessionRequest;
@@ -1425,7 +1434,18 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
           },
         );
         await expect(incompleteCapture).rejects.toThrow();
-        expect(existsSync(securityCapturePath)).toBe(false);
+        expect(existsSync(securityCapturePath)).toBe(true);
+        expect(readFileSync(securityCapturePath)).toEqual(
+          approvedSecurityReview,
+        );
+        expect(existsSync(securityBaselinePath)).toBe(
+          securityBaselineBefore !== undefined,
+        );
+        if (securityBaselineBefore) {
+          expect(readFileSync(securityBaselinePath)).toEqual(
+            securityBaselineBefore,
+          );
+        }
         releaseSessions();
         await captureTask9ReviewView(
           page,
