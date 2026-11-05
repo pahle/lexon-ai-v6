@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
@@ -361,6 +361,177 @@ test('lease expiry between claim checks rolls settlement back as stale', async (
       },
     ]);
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(await service.renew(claimed.claim)).toBe(true);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('lease expiry after Usage validation rolls repository settlement back as stale', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const usage = new AttemptService();
+    const service = coordinator(ai, usage);
+    const claimed = await service.claim(queuedJob);
+    expect(claimed.kind).toBe('claimed');
+    if (claimed.kind !== 'claimed') return;
+    const modelInput = {
+      model: 'synthetic/test',
+      provider: 'synthetic',
+      messages: [{ role: 'user' as const, content: 'small reserved input' }],
+      maxOutputTokens: 16,
+      signal: new AbortController().signal,
+    };
+    const attempt = await ai.withTenant(0, (tx) =>
+      usage.reserve(tx, claimed.claim, {
+        attemptId: '70000000-0000-4000-8000-000000000003',
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 2000,
+          maxOutputTokens: 16,
+        },
+      }),
+    );
+    const originalSettle = AiAttemptRepository.prototype.settle;
+    const settlementProxy = vi
+      .spyOn(AiAttemptRepository.prototype, 'settle')
+      .mockImplementation(async function (
+        this: AiAttemptRepository,
+        tx,
+        claim,
+        input,
+      ) {
+        await ai.expireClaimLeaseInSession(tx, claim);
+        return originalSettle.call(this, tx, claim, input);
+      });
+
+    try {
+      await expect(
+        service.commit(queuedJob, claimed.claim, {
+          state: 'committed',
+          text: 'late output',
+          data: {},
+          advancement: 'generation',
+          attemptSettlement: {
+            attemptId: attempt.attemptId,
+            outcome: 'succeeded',
+            usage: { inputTokens: 3, outputTokens: 2 },
+          },
+        }),
+      ).resolves.toBe('stale');
+    } finally {
+      settlementProxy.mockRestore();
+    }
+
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'queued',
+      runVersion: 1,
+      nextSequence: 1,
+      modelIterations: 0,
+      partialOutput: '',
+      finalOutput: null,
+    });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiAttemptRepository().list(tx, run.id),
+      ),
+    ).toMatchObject([
+      {
+        attemptId: attempt.attemptId,
+        active: true,
+        outcome: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+      },
+    ]);
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(await service.renew(claimed.claim)).toBe(true);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('a live claim preserves the generic repository settlement rejection', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const usage = new AttemptService();
+    const service = coordinator(ai, usage);
+    const claimed = await service.claim(queuedJob);
+    expect(claimed.kind).toBe('claimed');
+    if (claimed.kind !== 'claimed') return;
+    const modelInput = {
+      model: 'synthetic/test',
+      provider: 'synthetic',
+      messages: [{ role: 'user' as const, content: 'small reserved input' }],
+      maxOutputTokens: 16,
+      signal: new AbortController().signal,
+    };
+    const attempt = await ai.withTenant(0, (tx) =>
+      usage.reserve(tx, claimed.claim, {
+        attemptId: '70000000-0000-4000-8000-000000000004',
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 2000,
+          maxOutputTokens: 16,
+        },
+      }),
+    );
+    const settlementProxy = vi
+      .spyOn(AiAttemptRepository.prototype, 'settle')
+      .mockResolvedValue(false);
+
+    try {
+      await expect(
+        service.commit(queuedJob, claimed.claim, {
+          state: 'committed',
+          text: 'not committed',
+          data: {},
+          advancement: 'generation',
+          attemptSettlement: {
+            attemptId: attempt.attemptId,
+            outcome: 'succeeded',
+            usage: { inputTokens: 3, outputTokens: 2 },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: 'AI_INTERNAL',
+        message: 'AI settlement rejected',
+      });
+    } finally {
+      settlementProxy.mockRestore();
+    }
+
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiAttemptRepository().list(tx, run.id),
+      ),
+    ).toMatchObject([
+      {
+        attemptId: attempt.attemptId,
+        active: true,
+        outcome: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+      },
+    ]);
     expect(await service.renew(claimed.claim)).toBe(true);
   } finally {
     await ai.close();

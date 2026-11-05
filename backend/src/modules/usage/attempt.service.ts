@@ -192,8 +192,11 @@ export class AttemptService {
       projected.some(isOverReservation) ||
       remainingBudgetTokens(tokenBudget, projected) < 0;
     const updated = await this.repositories.attempts.settle(tx, claim, input);
-    if (!updated)
+    if (!updated) {
+      if (!(await this.repositories.steps.lockClaim(tx, claim)))
+        throw new UsageClaimLostError();
       throw new UsagePolicyError('AI_INTERNAL', 'AI settlement rejected');
+    }
     return { budgetExceeded };
   }
 
