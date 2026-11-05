@@ -64,3 +64,11 @@ Root causes:
 
 Fix: LEX-DS-001 v2.0 (brand + "blocks own proportions"), F2.1 brief with a
 pristine-scaffold method and a mandatory screenshot gate (PR #21).
+
+## F2.1 outcome (2026-11-05)
+
+Merged as PR #23 after Checkpoint A, a rejected Checkpoint B, a PO-approved
+prototype (`docs/design/f2.1-prototype/`), Checkpoint C (two rounds of
+fixes), formal Task 9 approval of 82 screenshots, and Linux goldens. Backend
+change limited to the password-checked EMAIL_NOT_VERIFIED envelope on
+sign-in (no account enumeration). Follow-ups in STATE.md.
