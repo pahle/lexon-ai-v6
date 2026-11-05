@@ -14,10 +14,10 @@ const index = JSON.parse(
 const approval = JSON.parse(
   await readFile(resolve(visualRoot, 'approval.json'), 'utf8'),
 );
-assert.deepEqual(
-  approval,
-  { version: 1, status: 'awaiting-owner' },
-  'Task 9 capture must remain awaiting owner approval.',
+assert.equal(approval.version, 1, 'visual approval record version');
+assert.ok(
+  ['awaiting-owner', 'approved'].includes(approval.status),
+  'visual approval status is recognized',
 );
 const reviewViews = Object.entries(index.views).filter(([, view]) =>
   view.path.startsWith('review/'),
@@ -71,6 +71,14 @@ try {
       timezone: 'Asia/Jakarta',
     },
     approvalStatus: approval.status,
+    approvedImageHashesMatch:
+      approval.status === 'approved'
+        ? Object.keys(images).length ===
+            Object.keys(approval.images ?? {}).length &&
+          Object.entries(images).every(
+            ([id, image]) => approval.images[id]?.sha256 === image.sha256,
+          )
+        : null,
     viewCount: reviewViews.length,
     images,
   };

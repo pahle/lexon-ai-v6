@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: '.',
   timeout: 45000,
   expect: { timeout: 10000 },
+  snapshotPathTemplate: '{testDir}/docs/references/F2.1-visual/{arg}{ext}',
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
@@ -45,7 +46,10 @@ export default defineConfig({
     },
     {
       name: 'visual-review',
-      testMatch: 'backend/test/e2e/visual-rework.spec.ts',
+      testMatch: [
+        'backend/test/e2e/visual-rework.spec.ts',
+        'backend/test/e2e/visual-comparison-regression.spec.ts',
+      ],
       use: {
         deviceScaleFactor: 1,
         locale: 'en-US',

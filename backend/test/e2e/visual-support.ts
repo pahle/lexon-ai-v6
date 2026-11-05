@@ -3,9 +3,10 @@ import { expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
-  assertIndexedArtifact,
+  assertApprovedVisualSet,
   assertReviewArtifact,
   resolveVisualMode,
+  type VisualIndex,
 } from '../../../scripts/visual-mode.mjs';
 import { orderExactCaptureRows } from '../../../scripts/test/visual-capture-normalizations.mjs';
 
@@ -106,6 +107,7 @@ const sizes = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
 } as const;
+const validatedApprovedSets = new Set<string>();
 
 export async function captureTask7BViewportReview(
   page: Page,
@@ -292,6 +294,7 @@ export async function captureVisualView(
   theme: VisualTheme,
   viewport: VisualViewport,
 ) {
+  const mode = resolveVisualMode();
   await page.setViewportSize(sizes[viewport]);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate((value) => localStorage.setItem('theme', value), theme);
@@ -359,7 +362,7 @@ export async function captureVisualView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+  if (mode === 'capture' && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
     const output = resolve(
       'docs/references/F2.1-visual/checkpoints',
       `a-${view}-${viewport}-${theme}.png`,
@@ -651,12 +654,7 @@ export async function captureTask9ReviewView(
   const mode = resolveVisualMode();
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as {
-    views: Record<
-      string,
-      { path: string; viewport: VisualViewport; theme: VisualTheme }
-    >;
-  };
+  ) as VisualIndex;
   const id =
     view === 'sidebar-header-collapsed-desktop'
       ? `${view}-${theme}`
@@ -786,12 +784,30 @@ export async function captureTask9ReviewView(
     await expect(organizationTrigger).not.toBeFocused();
   }
   if (mode === 'compare' || mode === 'update') {
-    assertIndexedArtifact(index, id, resolve('docs/references/F2.1-visual'), {
-      mode,
-    });
-    throw new Error(
-      `Approved comparison for "${id}" is reserved for Task 10 baseline integration.`,
+    const directory = resolve('docs/references/F2.1-visual');
+    const approval = JSON.parse(
+      await readFile(resolve(directory, 'approval.json'), 'utf8'),
     );
+    const validationKey = `${mode}:${JSON.stringify(approval)}:${JSON.stringify(index.views)}`;
+    if (!validatedApprovedSets.has(validationKey)) {
+      assertApprovedVisualSet(index, approval, directory, {
+        requireBaselines: mode === 'compare',
+      });
+      validatedApprovedSets.add(validationKey);
+    }
+    await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+      maxDiffPixelRatio: 0.001,
+    });
+    if (view === 'organization-switcher-open' || view === 'user-menu-open') {
+      await page.keyboard.press('Escape');
+      if (viewport === 'mobile') await page.keyboard.press('Escape');
+    } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+      await page.keyboard.press('Escape');
+    }
+    return resolve(directory, `baseline/${id}.png`);
   }
   const output = assertReviewArtifact(
     index,
