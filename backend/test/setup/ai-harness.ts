@@ -1,6 +1,5 @@
 import {
   AiCapacityRepository,
-  AiAttemptRepository,
   AiRunRepository,
   AiStepRepository,
   OutboxRepository,
@@ -18,6 +17,7 @@ import { RunRegistry } from '../../src/modules/chat/run-registry.js';
 import type { EngineRegistrations } from '../../src/modules/chat/run-contracts.js';
 import { RunService } from '../../src/modules/chat/run.service.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
+import { AttemptService } from '../../src/modules/usage/index.js';
 import type { JobEnvelope } from '../../src/infrastructure/db/index.js';
 
 export interface AiHarnessServices {
@@ -58,7 +58,7 @@ export async function createAiHarness(
     services.database,
     runs,
     steps,
-    new AiAttemptRepository(),
+    new AttemptService(),
     outbox,
     executor,
   );

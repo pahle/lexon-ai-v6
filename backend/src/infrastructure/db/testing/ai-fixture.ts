@@ -275,6 +275,25 @@ export async function createAiFixture(services: Services) {
         ).rows[0] ?? null
       );
     },
+    async outboxForRunSequence(index: number, runId: string, sequence: number) {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return (
+        (
+          await migrator.query<{
+            id: string;
+            type: string;
+            queue_name: string | null;
+            priority: number | null;
+            payload: unknown;
+          }>(
+            `SELECT id,type,queue_name,priority,payload FROM ops.outbox
+           WHERE org_id=$1 AND payload->>'runId'=$2 AND (payload->>'sequence')::int=$3`,
+            [tenant.orgId, runId, sequence],
+          )
+        ).rows[0] ?? null
+      );
+    },
     async noContextCounts(): Promise<number[]> {
       const fresh = new Client({ connectionString: services.appUrl });
       await fresh.connect();

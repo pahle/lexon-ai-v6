@@ -160,6 +160,52 @@ export class AiRunRepository {
     return result.rows[0] ? mapRun(result.rows[0]) : null;
   }
 
+  /** Marks a queued run active under its unchanged step precondition. */
+  async markRunningForClaim(
+    tx: TenantSession,
+    input: {
+      readonly runId: string;
+      readonly stepId: string;
+      readonly expectedVersion: number;
+      readonly sequence: number;
+      readonly fence: number;
+    },
+  ): Promise<boolean> {
+    if (
+      !idSchema.safeParse(input.runId).success ||
+      !idSchema.safeParse(input.stepId).success ||
+      !Number.isSafeInteger(input.expectedVersion) ||
+      input.expectedVersion < 1 ||
+      !Number.isSafeInteger(input.sequence) ||
+      input.sequence < 1 ||
+      !Number.isSafeInteger(input.fence) ||
+      input.fence < 1
+    )
+      return false;
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query(
+      `UPDATE app.ai_runs r SET status='running',updated_at=clock_timestamp()
+       WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
+         AND r.status IN ('queued','running','awaiting_approval')
+         AND EXISTS (
+           SELECT 1 FROM app.ai_steps s
+           WHERE s.org_id=r.org_id AND s.run_id=r.id AND s.id=$5
+             AND s.sequence=$4 AND s.expected_version=$3 AND s.fence=$6
+             AND s.state='claimed' AND s.lease_until>clock_timestamp()
+         )`,
+      [
+        scope.orgId,
+        input.runId,
+        input.expectedVersion,
+        input.sequence,
+        input.stepId,
+        input.fence,
+      ],
+    );
+    return result.rowCount === 1;
+  }
+
   async transition(
     tx: TenantSession,
     input: {
@@ -169,6 +215,9 @@ export class AiRunRepository {
       to: AiRunStatus;
       errorCode?: string;
       nextSequence?: number;
+      modelIterationDelta?: 0 | 1;
+      outputAppend?: string;
+      finalizeOutput?: boolean;
     },
   ): Promise<boolean> {
     if (
@@ -179,6 +228,14 @@ export class AiRunRepository {
       (input.nextSequence !== undefined &&
         (!Number.isSafeInteger(input.nextSequence) ||
           input.nextSequence < 1)) ||
+      (input.modelIterationDelta !== undefined &&
+        input.modelIterationDelta !== 0 &&
+        input.modelIterationDelta !== 1) ||
+      (input.outputAppend !== undefined &&
+        (typeof input.outputAppend !== 'string' ||
+          Buffer.byteLength(input.outputAppend, 'utf8') > 262144)) ||
+      (input.finalizeOutput !== undefined &&
+        typeof input.finalizeOutput !== 'boolean') ||
       (input.errorCode !== undefined && !errorCodes.has(input.errorCode))
     )
       return false;
@@ -186,7 +243,12 @@ export class AiRunRepository {
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
       `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,
-       next_sequence=COALESCE($7,next_sequence),updated_at=clock_timestamp(),
+       next_sequence=COALESCE($7,next_sequence),model_iterations=model_iterations+$8,
+       partial_output=partial_output||COALESCE($9,''),
+       final_output=CASE WHEN $10 THEN partial_output||COALESCE($9,'')
+                         WHEN $5 IN ('failed','cancelled') THEN NULL
+                         ELSE final_output END,
+       updated_at=clock_timestamp(),
        error_code=$6,completed_at=CASE WHEN $5 IN ('completed','failed','cancelled') THEN clock_timestamp() ELSE NULL END
        WHERE org_id=$1 AND id=$2 AND run_version=$3 AND status=$4`,
       [
@@ -197,6 +259,9 @@ export class AiRunRepository {
         input.to,
         input.errorCode ?? null,
         input.nextSequence ?? null,
+        input.modelIterationDelta ?? 0,
+        input.outputAppend ?? null,
+        input.finalizeOutput ?? false,
       ],
     );
     return result.rowCount === 1;

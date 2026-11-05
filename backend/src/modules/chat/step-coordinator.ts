@@ -1,7 +1,6 @@
 import type { JobEnvelope } from '../../infrastructure/db/index.js';
 import {
   AiRunRepository,
-  AiAttemptRepository,
   AiStepRepository,
   OutboxRepository,
   TenantDatabase,
@@ -9,10 +8,12 @@ import {
 import type { StepClaim, StepCommit } from '../../infrastructure/db/index.js';
 import type { ReportedUsage } from '../../infrastructure/db/index.js';
 import type { JobExecutor } from '../platform/index.js';
+import { AttemptService } from '../usage/index.js';
 import { stepJobId } from './step-job-id.js';
 import { randomUUID } from 'node:crypto';
 
 export interface StepCoordinatorCommit extends StepCommit {
+  readonly advancement: 'generation' | 'continuation';
   readonly terminal?: boolean;
   readonly continuation?: 'advance' | 'resume';
   readonly outcome?: 'succeeded' | 'failed' | 'unknown';
@@ -37,7 +38,7 @@ export class StepCoordinator {
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
     private readonly steps: AiStepRepository,
-    private readonly attempts: AiAttemptRepository,
+    private readonly usage: AttemptService,
     private readonly outbox: OutboxRepository,
     private readonly executor: JobExecutor,
     private readonly leaseMs = 30_000,
@@ -99,6 +100,7 @@ export class StepCoordinator {
       job.ctx.orgId !== claim.orgId ||
       job.ctx.userId !== claim.userId ||
       (commit.terminal && commit.state === 'awaiting_approval') ||
+      !['generation', 'continuation'].includes(commit.advancement) ||
       commit.outcome === 'unknown' ||
       commit.attemptSettlement?.outcome === 'unknown' ||
       (commit.outcome !== undefined &&
@@ -115,13 +117,24 @@ export class StepCoordinator {
             tx,
             job,
             async (session) => {
-              if (
-                commit.attemptSettlement &&
-                !(await this.attempts.settle(
+              let budgetExceeded = false;
+              if (commit.attemptSettlement) {
+                const settlement = await this.usage.settle(
                   session,
                   claim,
                   commit.attemptSettlement,
-                ))
+                );
+                budgetExceeded = settlement.budgetExceeded;
+              }
+              if (
+                !(await this.steps.lockClaim(session, claim)) ||
+                !(await this.runs.markRunningForClaim(session, {
+                  runId: claim.runId,
+                  stepId: claim.stepId,
+                  expectedVersion: claim.expectedVersion,
+                  sequence: claim.sequence,
+                  fence: claim.fence,
+                }))
               )
                 throw new StaleCommit();
               const data =
@@ -144,21 +157,33 @@ export class StepCoordinator {
                 throw new StaleCommit();
               const currentRun = await this.runs.find(tx, claim.runId);
               if (!currentRun) throw new StaleCommit();
-              const terminal = commit.terminal || commit.outcome === 'failed';
-              const nextStatus = terminal
-                ? commit.outcome === 'failed'
-                  ? 'failed'
-                  : 'completed'
-                : commit.state === 'awaiting_approval'
-                  ? 'awaiting_approval'
-                  : 'running';
+              const terminal =
+                budgetExceeded ||
+                commit.terminal ||
+                commit.outcome === 'failed';
+              const nextStatus = budgetExceeded
+                ? 'failed'
+                : terminal
+                  ? commit.outcome === 'failed'
+                    ? 'failed'
+                    : 'completed'
+                  : commit.state === 'awaiting_approval'
+                    ? 'awaiting_approval'
+                    : 'running';
               if (
                 !(await this.runs.transition(tx, {
                   runId: claim.runId,
                   expectedVersion: claim.expectedVersion,
                   from: currentRun.status,
                   to: nextStatus,
+                  ...(budgetExceeded
+                    ? { errorCode: 'AI_BUDGET_EXCEEDED' }
+                    : {}),
                   nextSequence: claim.sequence + 1,
+                  modelIterationDelta:
+                    commit.advancement === 'generation' ? 1 : 0,
+                  outputAppend: commit.text,
+                  finalizeOutput: nextStatus === 'completed',
                 }))
               )
                 throw new StaleCommit();

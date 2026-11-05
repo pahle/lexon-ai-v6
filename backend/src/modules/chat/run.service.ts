@@ -12,6 +12,11 @@ import {
 import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunRegistry } from './run-registry.js';
+import type { RunProfile } from './run-contracts.js';
+import {
+  DEFAULT_MAX_ATTEMPTS_PER_STEP,
+  RUN_REGISTRATION_LIMITS,
+} from './run-contracts.js';
 import { stepJobId } from './step-job-id.js';
 
 type Allowlist = typeof ModelAllowlistSchema extends {
@@ -81,6 +86,7 @@ export class RunService {
         profileId: profile.id,
         profileVersion: profile.version,
         resolvedConfig: {
+          profileSnapshot: snapshotProfile(profile),
           provider: route.provider,
           region: route.region,
           zeroDataRetention: route.zeroDataRetention,
@@ -112,4 +118,24 @@ export class RunService {
     });
     return { runId };
   }
+}
+
+function snapshotProfile(profile: RunProfile) {
+  return Object.freeze({
+    ...profile,
+    allowedModels: Object.freeze([...profile.allowedModels]),
+    contextBudgets: Object.freeze({ ...profile.contextBudgets }),
+    capabilities: Object.freeze([...profile.capabilities]),
+    maxAttemptsPerStep:
+      profile.maxAttemptsPerStep ?? DEFAULT_MAX_ATTEMPTS_PER_STEP,
+    childBounds: profile.childBounds
+      ? Object.freeze({ ...profile.childBounds })
+      : null,
+    maxToolInputBytes:
+      profile.maxToolInputBytes ?? RUN_REGISTRATION_LIMITS.maxInputBytes,
+    maxToolResultBytes:
+      profile.maxToolResultBytes ?? RUN_REGISTRATION_LIMITS.maxResultBytes,
+    maxToolTimeoutMs:
+      profile.maxToolTimeoutMs ?? RUN_REGISTRATION_LIMITS.maxTimeoutMs,
+  });
 }

@@ -16,6 +16,9 @@ import { currentVerifiedIdentity } from '../../src/modules/identity-access/ident
 import { RunRegistry, type RunProfile } from '../../src/modules/chat/index.js';
 import { RunService } from '../../src/modules/chat/run.service.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
+import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
+import { JobExecutor } from '../../src/modules/platform/job-executor.js';
+import { AttemptService } from '../../src/modules/usage/index.js';
 
 const model = 'openai/gpt-6-luna';
 const profile: RunProfile = {
@@ -30,6 +33,11 @@ const profile: RunProfile = {
   maxOutputTokens: 100,
   contextBudgets: {},
   capabilities: [],
+  maxAttemptsPerStep: 3,
+  childBounds: { maxDepth: 2, tokenBudget: 250 },
+  maxToolInputBytes: 12000,
+  maxToolResultBytes: 14000,
+  maxToolTimeoutMs: 4000,
 };
 function identityScope(
   actor: { orgId: string; userId: string },
@@ -87,10 +95,11 @@ function identityScope(
 function runService(
   ai: Awaited<ReturnType<typeof createAiFixture>>,
   outbox = new OutboxRepository(),
+  profiles: readonly RunProfile[] = [profile],
 ) {
   const authorization = new RunAuthorizationService();
   const registry = new RunRegistry();
-  registry.register({ profiles: [profile], contexts: [], tools: [] });
+  registry.register({ profiles, contexts: [], tools: [] });
   const allowlist = ModelAllowlistSchema.parse(
     JSON.parse(
       readFileSync(
@@ -146,6 +155,24 @@ test('live actor start atomically stores provenance, initial step and determinis
       outputBudgetTokens: 100,
     });
     expect(record?.initiatingSessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(record?.resolvedConfig).toMatchObject({
+      profileSnapshot: {
+        id: profile.id,
+        version: 1,
+        allowedModels: [model],
+        defaultModel: model,
+        maxAttemptsPerStep: 3,
+        maxIterations: 3,
+        contextBudgets: {},
+        capabilities: [],
+        childBounds: { maxDepth: 2, tokenBudget: 250 },
+        maxToolInputBytes: 12000,
+        maxToolResultBytes: 14000,
+        maxToolTimeoutMs: 4000,
+      },
+      queue: profile.queue,
+      priority: profile.priority,
+    });
     expect(step).toMatchObject({
       sequence: 1,
       expectedVersion: 1,
@@ -161,6 +188,80 @@ test('live actor start atomically stores provenance, initial step and determinis
       runs: 1,
       outbox: 1,
       slots: 1,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('profile replacement after start cannot alter the persisted execution snapshot', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const mutable = {
+      ...structuredClone(profile),
+      compatibilityFacts: { routeHints: ['reviewed-only'] },
+    } as RunProfile & { compatibilityFacts: { routeHints: string[] } };
+    const { authorization, service } = runService(ai, new OutboxRepository(), [
+      mutable,
+    ]);
+    const result = (await identityScope(tenant, authorization, (actor) =>
+      service.start(actor, {
+        profileId: mutable.id,
+        prompt: 'A synthetic prompt',
+      }),
+    )) as { runId: string };
+    (mutable.contextBudgets as Record<string, number>).retrieval = 999;
+    (mutable.capabilities as string[]).push('write:unexpected');
+    (mutable as { queue: 'ai-interactive' | 'ai-batch' }).queue = 'ai-batch';
+    mutable.compatibilityFacts.routeHints.push('mutated-later');
+    const stored = await ai.withTenant(0, (tx) =>
+      new AiRunRepository().find(tx, result.runId),
+    );
+    expect(stored?.resolvedConfig).toMatchObject({
+      profileSnapshot: {
+        contextBudgets: {},
+        capabilities: [],
+        compatibilityFacts: { routeHints: ['reviewed-only'] },
+      },
+      queue: 'ai-interactive',
+      priority: 5,
+    });
+    const queued = {
+      outboxId: stepJobId(result.runId, 1),
+      type: 'run.start.v1' as const,
+      ctx: tenant,
+      payload: { runId: result.runId, sequence: 1, expectedVersion: 1 },
+    };
+    const runs = new AiRunRepository();
+    const steps = new AiStepRepository();
+    const coordinator = new StepCoordinator(
+      ai.database,
+      runs,
+      steps,
+      new AttemptService(),
+      new OutboxRepository(),
+      new JobExecutor(ai.database),
+    );
+    const claim = await coordinator.claim(queued);
+    expect(claim.kind).toBe('claimed');
+    if (claim.kind !== 'claimed') return;
+    expect(
+      await coordinator.commit(queued, claim.claim, {
+        state: 'committed',
+        text: 'first step',
+        data: {},
+        advancement: 'generation',
+      }),
+    ).toBe('committed');
+    expect(await ai.outboxForRunSequence(0, result.runId, 2)).toMatchObject({
+      id: stepJobId(result.runId, 2),
+      type: 'run.advance.v1',
+      queue_name: 'ai-interactive',
+      priority: 5,
+      payload: { runId: result.runId, sequence: 2, expectedVersion: 2 },
     });
   } finally {
     await ai.close();
