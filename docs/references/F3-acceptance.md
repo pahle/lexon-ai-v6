@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-05
-Scope: portable run contracts, state transitions, registration validation, and model/identity/database type foundations only.
+Current scope: Tasks1–2 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, and atomic global24/org6 admission. Tasks3–17 remain pending; no run execution or model call is delivered yet.
 
 ## Research checked
 
@@ -46,8 +46,8 @@ Implementation commit: `760c02881c516658f3cf8e7f8467a0b99979f755`. Review-fix co
 ## Task 1 acceptance and main-session review (2026-11-05)
 
 **Accepted:** portable contracts, all49 state transition pairs, registry
-validation, opaque actor/claim and neutral model type foundations. Tasks2–17
-have not started. No run execution, HTTP/UI, model request or database migration
+validation, opaque actor/claim and neutral model type foundations. At this Task1 acceptance point, Tasks2–17
+had not started. No run execution, HTTP/UI, model request or database migration
 ships in this task. Owner's org6 admission and opt-in first-install telemetry
 amendments are recorded in the approved plan for Tasks2 and13.
 
@@ -121,7 +121,7 @@ the standalone ModelOutcome type alone does not prove adapter delivery.
 
 - Task 2 focused final verification: `pnpm exec vitest run --project backend-integration --project backend-unit ai-storage.spec ai-capacity.spec ai-config.spec` passed **14/14 tests, 3 files**, exit 0. Tenant/auth regression verification `pnpm exec vitest run --project backend-integration ai-storage.spec ai-capacity.spec tenant-isolation.spec auth-privileges.spec` passed **17/17 tests, 4 files**, exit 0.
 - Final gates on Task 2 source: `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, and `git diff --check` passed, exit 0.
-- Final full `pnpm test` passed **531 tests / 113 files**, exit 0, 57.13s. Three existing jsdom `Not implemented: navigation to another Document` warnings appeared; no test failed. See the Task 2 report for exact RED/GREEN history, intermediate validation issues, and scope notes.
+- Initial pre-review full `pnpm test` passed **531 tests / 113 files**, exit 0, 57.13s. Three existing jsdom `Not implemented: navigation to another Document` warnings appeared; no test failed. Implementation source: `c0c201dd5b9809f0f05097308aad6ded2f409c71`; review-fix source and final evidence are below.
 
 ## Task 2 review fixes I1/I2 and R6 (2026-11-05)
 
@@ -133,3 +133,38 @@ the standalone ModelOutcome type alone does not prove adapter delivery.
 - Final focused storage/capacity/config: `pnpm exec vitest run --project backend-integration --project backend-unit ai-storage.spec ai-capacity.spec ai-config.spec` passed **18/18 tests / 3 files**. Contracts: `pnpm exec vitest run --project contracts ai-run.spec` passed **8/8**. Tenant/auth regression: `pnpm exec vitest run --project backend-integration ai-storage.spec ai-capacity.spec tenant-isolation.spec auth-privileges.spec` passed **21/21 tests / 4 files**.
 - Final gates: `pnpm build`, `pnpm typecheck`, `pnpm lint` (85/85 boundary checks), `pnpm format:check`, and `git diff --check` passed. The final `pnpm test` passed **535 tests / 113 files**, exit 0, 56.73s; the three baseline jsdom navigation warnings remain.
 - Cannot verify in Task 2 and retained as later-task handoffs: production worker bootstrap invoking `AiCapacityRepository.configure`, worker-boundary job context mismatch behavior, lifecycle atomic effects/outbox/receipt composition, and accounting policy. These are not claimed as delivered by this fix.
+
+## Task 2 acceptance and main-session review (2026-11-05)
+
+Accepted source: `164756720e5a501b7a3553b452f56d7ea48ec53a`.
+Implementer gpt-6-luna/high and independent reviewer gpt-6-astra/high were
+confirmed through actual session metadata. Spec compliance preceded quality
+review. The reviewer confirmed two Important persistence defects with isolated
+PostgreSQL17.11 probes; both were fixed in one round. Scoped re-review accepted
+I1/I2 and both R6 test corrections, with no new Critical/Important issue.
+
+Main-session checks on the final source:
+
+- `pnpm exec vitest run --project contracts --project backend-unit --project backend-integration ai-run.spec ai-storage.spec ai-capacity.spec ai-config.spec`: **26/26 tests,4files,exit0,14.79s**.
+- Prettier on all changed supported files passed (`--ignore-unknown`, because
+  this repository has no SQL Prettier parser); whitespace check passed.
+- Implementer full suite **535/113,exit0,56.73s**, workspace build/typecheck/
+  lint/format and isolated regression results are recorded above. No production
+  source changed after these checks; final closeout edits are documentation only.
+- Tracked `.superpowers` scratch report was removed from the index while kept
+  locally. No ignored workspace artifact remains tracked. No migration was
+  modified by the review fix. Main branch remains untouched.
+
+Minor coverage limitation retained for Task12 and the final branch review:
+the repository barriers pause after the insertion/checkpoint method completes.
+They demonstrate retained transaction blocking, but do not directly gate the
+original SELECT-before-INSERT window, and observed locks may also include
+FK KEY SHARE locks. The independent reviewer verified that the production
+run→step FOR UPDATE guard closes that window; the exact-window regression
+probe is a later test-strengthening handoff, not an unresolved production defect.
+
+Integration still due in later tasks: actual production capacity configuration
+at bootstrap (explicit Task7 handoff); worker forged-context flow7 (Task7);
+receipt/outbox lifecycle composition (Tasks6–9); accounting policy (Task3).
+Do not infer those features from storage acceptance. The three existing jsdom
+warning messages remain a baseline follow-up for final review.
