@@ -31,7 +31,7 @@
       "maxEventBytes": 4096,
       "maximumSizeEntries": 1023,
       "finishEvents": 1,
-      "slotMemoryBytes": 5301632,
+      "slotMemoryBytes": 5301648,
       "slotMemoryBudgetBytes": 6291456,
       "platform": "linux/aarch64",
       "evidence": "backend/test/integration/ai-stream-memory.spec.ts",

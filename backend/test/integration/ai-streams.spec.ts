@@ -595,6 +595,22 @@ test('recovery bounds queued publication and resets before fresh deltas', async 
       delta: 'old in-flight',
     });
     await ready;
+    const overBudgetPending = streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'text-delta',
+      id: 'too-large-while-blocked',
+      delta: 'x'.repeat(200_000),
+    });
+    let pendingTimeout: ReturnType<typeof setTimeout> | undefined;
+    const pendingResult = await Promise.race([
+      overBudgetPending,
+      new Promise<'still-pending'>((resolve) => {
+        pendingTimeout = setTimeout(() => resolve('still-pending'), 100);
+      }),
+    ]);
+    if (pendingTimeout) clearTimeout(pendingTimeout);
+    expect(pendingResult).toBe('unavailable');
     const queued = Array.from({ length: 8 }, (_, index) =>
       streams.publish(claim, {
         version: 1,
@@ -660,6 +676,94 @@ test('recovery bounds queued publication and resets before fresh deltas', async 
         delta: 'fresh after reset',
       },
     ]);
+  } finally {
+    releaseProof();
+    redis.disconnect();
+    await streams.close();
+  }
+});
+
+test('pending structured output publishes the bounded input snapshot', async ({
+  services,
+}) => {
+  const testPrefix = `${services.queuePrefix}_snapshot_${randomUUID().slice(0, 6)}`;
+  const claim: StepClaim = {
+    runId: randomUUID(),
+    orgId: randomUUID(),
+    userId: randomUUID(),
+    stepId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    fence: 1,
+    leaseUntil: new Date(Date.now() + 30_000),
+  };
+  let releaseProof!: () => void;
+  let proofReady!: () => void;
+  const release = new Promise<void>((resolve) => {
+    releaseProof = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    proofReady = resolve;
+  });
+  let pause = true;
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: testPrefix,
+    authority: {
+      authorizeActive: async (candidate) => {
+        if (pause) {
+          pause = false;
+          proofReady();
+          await release;
+        }
+        return {
+          runVersion: candidate.expectedVersion,
+          nextSequence: candidate.sequence,
+          status: 'running',
+          stepId: candidate.stepId,
+          sequence: candidate.sequence,
+          expectedVersion: candidate.expectedVersion,
+          fence: candidate.fence,
+          leaseUntil: new Date(Date.now() + 30_000),
+        };
+      },
+      authorizeTerminal: async () => undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+    },
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const first = streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'status',
+      status: 'running',
+    });
+    await ready;
+    const input = { title: 'bounded snapshot' };
+    const pending = streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'tool-input-available',
+      toolCallId: 'snapshot-call',
+      toolName: 'updateDocument',
+      operationId: randomUUID(),
+      input,
+    });
+    input.title = 'mutated after publish';
+    releaseProof();
+    await expect(first).resolves.toBe('written');
+    await expect(pending).resolves.toBe('written');
+    const entries = await redis.xrange(
+      `${testPrefix}:{run-streams}:${claim.runId}:events`,
+      '-',
+      '+',
+    );
+    expect(JSON.parse(entries[1]![1][1]!)).toMatchObject({
+      type: 'tool-input-available',
+      input: { title: 'bounded snapshot' },
+    });
   } finally {
     releaseProof();
     redis.disconnect();

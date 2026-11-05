@@ -70,6 +70,7 @@ export interface RunStreamsOptions {
 
 interface SerializedQueue {
   running: boolean;
+  reserved: number;
   pending: Array<{
     generation: number;
     task: (generation: number) => Promise<unknown>;
@@ -123,37 +124,38 @@ export class RunStreams {
       event.type === 'finish'
     )
       return 'stale';
-    return (
-      this.#enqueue(
-        claim,
-        async (generation) => {
-          let parts: RunStreamEvent[];
-          try {
-            parts = encodeStreamPartsBounded(
-              event,
-              this.#capacity.limits.maxEventBytes,
-              MAX_PARTS_PER_PUBLICATION,
-            );
-          } catch (error) {
-            if (
-              error instanceof Error &&
-              error.message === 'Stream event exceeds part limit'
-            )
-              return 'unavailable';
-            return 'stale';
-          }
-          for (const part of parts) {
-            if (!this.#isCurrent(claim, generation)) return 'stale';
-            const result = await this.#publishPart(claim, part, () =>
-              this.#isCurrent(claim, generation),
-            );
-            if (result !== 'written') return result;
-          }
-          return 'written';
-        },
-        false,
-        'stale',
-      ) ?? Promise.resolve('unavailable')
+    const reservation = this.#reserve(claim);
+    if (!reservation) return 'unavailable';
+    let parts: RunStreamEvent[];
+    try {
+      parts = encodeStreamPartsBounded(
+        event,
+        this.#capacity.limits.maxEventBytes,
+        MAX_PARTS_PER_PUBLICATION,
+      );
+    } catch (error) {
+      this.#releaseReservation(claim, reservation.queue);
+      if (
+        error instanceof Error &&
+        error.message === 'Stream event exceeds part limit'
+      )
+        return 'unavailable';
+      return 'stale';
+    }
+    return this.#enqueueReserved(
+      claim,
+      reservation,
+      async (generation) => {
+        for (const part of parts) {
+          if (!this.#isCurrent(claim, generation)) return 'stale';
+          const result = await this.#publishPart(claim, part, () =>
+            this.#isCurrent(claim, generation),
+          );
+          if (result !== 'written') return result;
+        }
+        return 'written';
+      },
+      'stale',
     );
   }
 
@@ -539,7 +541,7 @@ export class RunStreams {
     const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
     let queue = this.#serial.get(key);
     if (!queue) {
-      queue = { running: false, pending: [], generation: 0 };
+      queue = { running: false, reserved: 0, pending: [], generation: 0 };
       this.#serial.set(key, queue);
     }
     return queue;
@@ -558,10 +560,49 @@ export class RunStreams {
     const queue = this.#queue(claim);
     if (
       !allowSaturated &&
-      queue.pending.length + Number(queue.running) >= MAX_PENDING_PUBLICATIONS
+      queue.pending.length + Number(queue.running) + queue.reserved >=
+        MAX_PENDING_PUBLICATIONS
     )
       return undefined;
-    const generation = queue.generation;
+    return this.#enqueueTask(claim, queue, queue.generation, task, discard);
+  }
+
+  #reserve(
+    claim: StepClaim,
+  ): { queue: SerializedQueue; generation: number } | undefined {
+    const queue = this.#queue(claim);
+    if (
+      queue.pending.length + Number(queue.running) + queue.reserved >=
+      MAX_PENDING_PUBLICATIONS
+    )
+      return undefined;
+    queue.reserved++;
+    return { queue, generation: queue.generation };
+  }
+
+  #enqueueReserved<T>(
+    claim: StepClaim,
+    reservation: { queue: SerializedQueue; generation: number },
+    task: (generation: number) => Promise<T>,
+    discard: T,
+  ): Promise<T> {
+    reservation.queue.reserved--;
+    return this.#enqueueTask(
+      claim,
+      reservation.queue,
+      reservation.generation,
+      task,
+      discard,
+    );
+  }
+
+  #enqueueTask<T>(
+    claim: StepClaim,
+    queue: SerializedQueue,
+    generation: number,
+    task: (generation: number) => Promise<T>,
+    discard: T,
+  ): Promise<T> {
     const current = new Promise<T>((resolve, reject) => {
       queue.pending.push({
         generation,
@@ -573,6 +614,11 @@ export class RunStreams {
     });
     void this.#drain(claim, queue);
     return current;
+  }
+
+  #releaseReservation(claim: StepClaim, queue: SerializedQueue): void {
+    queue.reserved--;
+    this.#deleteIdleQueue(claim, queue);
   }
 
   #invalidate(queue: SerializedQueue): void {
@@ -593,7 +639,11 @@ export class RunStreams {
       }
     }
     queue.running = false;
-    if (queue.pending.length === 0) {
+    this.#deleteIdleQueue(claim, queue);
+  }
+
+  #deleteIdleQueue(claim: StepClaim, queue: SerializedQueue): void {
+    if (!queue.running && queue.pending.length === 0 && queue.reserved === 0) {
       const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
       if (this.#serial.get(key) === queue) this.#serial.delete(key);
     }

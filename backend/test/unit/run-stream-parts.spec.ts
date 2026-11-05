@@ -178,4 +178,25 @@ describe('encodeStreamParts', () => {
     ).toThrow('Stream event exceeds part limit');
     expect(reads).toBeLessThan(100_000);
   });
+
+  it('uses one bounded immutable snapshot for a small structured completion', () => {
+    let inputReads = 0;
+    const event = {
+      ...base,
+      type: 'tool-input-available' as const,
+      toolCallId: 'snapshot-call',
+      toolName: 'updateDocument',
+      operationId: '40000000-0000-4000-8000-000000000002',
+      get input() {
+        inputReads++;
+        return inputReads === 1
+          ? { title: 'bounded' }
+          : { title: 'x'.repeat(500_000) };
+      },
+    };
+    const parts = encodeStreamPartsBounded(event as never, 4096, 32);
+    expect(inputReads).toBe(1);
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toMatchObject({ input: { title: 'bounded' } });
+  });
 });

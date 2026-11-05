@@ -30,36 +30,37 @@ function encodeStreamPartsWithBudget(
     throw new Error('Invalid stream part limit');
   if (event.type === 'tool-input-available')
     return encodeToolInput(event, maxBytes, maxParts);
-  if (!RunStreamEventSchema.safeParse(event).success)
-    throw new Error('Invalid run stream event');
+  const parsed = RunStreamEventSchema.safeParse(event);
+  if (!parsed.success) throw new Error('Invalid run stream event');
+  const snapshot = parsed.data;
 
-  if (event.type === 'text-delta')
-    return splitText(event, 'delta', event.delta, maxBytes, maxParts);
-  if (event.type === 'tool-input-delta')
+  if (snapshot.type === 'text-delta')
+    return splitText(snapshot, 'delta', snapshot.delta, maxBytes, maxParts);
+  if (snapshot.type === 'tool-input-delta')
     return splitText(
-      event,
+      snapshot,
       'inputTextDelta',
-      event.inputTextDelta,
+      snapshot.inputTextDelta,
       maxBytes,
       maxParts,
     );
-  if (event.type === 'tool-output-available') {
-    if (!event.operationId)
+  if (snapshot.type === 'tool-output-available') {
+    if (!snapshot.operationId)
       throw new Error('Tool result requires durable operation metadata');
     return encodeStreamPartsWithBudget(
       {
-        version: event.version,
-        runId: event.runId,
+        version: snapshot.version,
+        runId: snapshot.runId,
         type: 'operation-status',
-        operationId: event.operationId,
+        operationId: snapshot.operationId,
         status: 'completed',
       },
       maxBytes,
       maxParts,
     );
   }
-  assertSerializedSize(event, maxBytes);
-  return [event];
+  assertSerializedSize(snapshot, maxBytes);
+  return [snapshot];
 }
 
 function encodeToolInput(
@@ -83,15 +84,19 @@ function encodeToolInput(
     if (keyCount > allowedKeys.size || !allowedKeys.has(key))
       throw new Error('Invalid run stream event');
   }
+  const version = event.version;
+  const runId = event.runId;
+  const toolCallId = event.toolCallId;
+  const toolName = event.toolName;
+  const operationId = event.operationId;
+  const input = event.input;
   const metadata: RunStreamEvent = {
-    version: event.version,
-    runId: event.runId,
+    version,
+    runId,
     type: 'tool-input-available',
-    toolCallId: event.toolCallId,
-    toolName: event.toolName,
-    ...(event.operationId === undefined
-      ? {}
-      : { operationId: event.operationId }),
+    toolCallId,
+    toolName,
+    ...(operationId === undefined ? {} : { operationId }),
     input: {},
   };
   if (!RunStreamEventSchema.safeParse(metadata).success)
@@ -99,50 +104,51 @@ function encodeToolInput(
   const maxJsonBytes = Number.isSafeInteger(maxParts * maxBytes)
     ? maxParts * maxBytes
     : Number.POSITIVE_INFINITY;
-  const serialized = serializeJsonValueBounded(event.input, maxJsonBytes);
-  try {
-    assertSerializedSize(event, maxBytes);
-    return [event];
-  } catch {
-    if (!event.operationId)
-      throw new Error(
-        'Oversized tool input requires durable operation metadata',
-      );
-    const start: RunStreamEvent = {
-      version: event.version,
-      runId: event.runId,
-      type: 'tool-input-start',
-      toolCallId: event.toolCallId,
-      toolName: event.toolName,
-      inputEncoding: 'json',
-    };
-    const available: RunStreamEvent = {
-      version: event.version,
-      runId: event.runId,
-      type: 'tool-input-available',
-      toolCallId: event.toolCallId,
-      toolName: event.toolName,
-      operationId: event.operationId,
-    };
-    assertSerializedSize(start, maxBytes);
-    assertSerializedSize(available, maxBytes);
-    const deltaLimit = maxParts - 2;
-    if (deltaLimit < 1) throw new Error('Stream event exceeds part limit');
-    const deltas = splitText(
-      {
-        version: event.version,
-        runId: event.runId,
-        type: 'tool-input-delta',
-        toolCallId: event.toolCallId,
-        inputTextDelta: '',
-      },
-      'inputTextDelta',
-      serialized,
-      maxBytes,
-      deltaLimit,
-    );
-    return [start, ...deltas, available];
-  }
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new Error('Tool input is not JSON serializable');
+  const serialized = serializeJsonValueBounded(input, maxJsonBytes);
+  const completion: RunStreamEvent = {
+    ...metadata,
+    input: JSON.parse(serialized) as Record<string, unknown>,
+  };
+  if (Buffer.byteLength(JSON.stringify(completion), 'utf8') <= maxBytes)
+    return [completion];
+  if (!operationId)
+    throw new Error('Oversized tool input requires durable operation metadata');
+  const start: RunStreamEvent = {
+    version,
+    runId,
+    type: 'tool-input-start',
+    toolCallId,
+    toolName,
+    inputEncoding: 'json',
+  };
+  const available: RunStreamEvent = {
+    version,
+    runId,
+    type: 'tool-input-available',
+    toolCallId,
+    toolName,
+    operationId,
+  };
+  assertSerializedSize(start, maxBytes);
+  assertSerializedSize(available, maxBytes);
+  const deltaLimit = maxParts - 2;
+  if (deltaLimit < 1) throw new Error('Stream event exceeds part limit');
+  const deltas = splitText(
+    {
+      version,
+      runId,
+      type: 'tool-input-delta',
+      toolCallId,
+      inputTextDelta: '',
+    },
+    'inputTextDelta',
+    serialized,
+    maxBytes,
+    deltaLimit,
+  );
+  return [start, ...deltas, available];
 }
 
 function splitText(
