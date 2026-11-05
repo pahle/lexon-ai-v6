@@ -133,8 +133,10 @@ describe('run contracts', () => {
       runId,
       sequence: 1,
       expectedVersion: 1,
+      ctx,
     };
 
+    expect(RunJobSchema.safeParse(base).success).toBe(true);
     expect(
       RunJobSchema.safeParse({ ...base, version: undefined }).success,
     ).toBe(false);
@@ -150,7 +152,6 @@ describe('run contracts', () => {
     expect(RunJobSchema.safeParse({ ...base, priority: 99 }).success).toBe(
       false,
     );
-    expect(RunJobSchema.safeParse({ ...base, ctx }).success).toBe(true);
   });
 
   it('keeps the existing platform no-op envelope compatible', () => {

@@ -7,7 +7,7 @@ import { AiStepRepository } from '../ai-step.repository.js';
 import { TenantDatabase } from '../tenant-database.js';
 import { inspectPool, requireSession } from '../tenant-session.js';
 import { readAiConfig } from '../../../config/ai-config.js';
-import type { StepClaim } from '../ai-records.js';
+import type { AttemptRecord, StepClaim } from '../ai-records.js';
 
 interface Services {
   readonly appUrl: string;
@@ -18,6 +18,43 @@ interface TenantFixture {
   readonly userId: string;
 }
 const knownTenants: TenantFixture[] = [];
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function makeAttempt(claim: StepClaim, ordinal: number): AttemptRecord {
+  const now = new Date();
+  return {
+    attemptId: randomUUID(),
+    orgId: claim.orgId,
+    runId: claim.runId,
+    stepId: claim.stepId,
+    ordinal,
+    modelId: 'synthetic/test',
+    estimatorVersion: 'test-v1',
+    estimatedInputTokens: 1,
+    reservedInputTokens: 1,
+    reservedOutputTokens: 4,
+    generationId: null,
+    provider: null,
+    reportedInputTokens: null,
+    reportedOutputTokens: null,
+    cachedInputTokens: null,
+    reasoningOutputTokens: null,
+    costUsd: null,
+    active: true,
+    outcome: null,
+    createdAt: now,
+    settledAt: null,
+  };
+}
 
 export async function createAiFixture(services: Services) {
   const migrator = new Pool({ connectionString: services.migratorUrl, max: 2 });
@@ -119,6 +156,46 @@ export async function createAiFixture(services: Services) {
       ]);
       return Number(result.rows[0]?.count ?? 0);
     });
+  }
+
+  async function waitForPgLockWait(pid: number): Promise<boolean> {
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const result = await migrator.query<{ waiting: boolean }>(
+        'SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid=$1 AND NOT granted) AS waiting',
+        [pid],
+      );
+      if (result.rows[0]?.waiting) return true;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+  }
+
+  async function waitForLeaseExpiry(
+    index: number,
+    stepId: string,
+  ): Promise<void> {
+    const tenant = tenants[index]!;
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const expired = await database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        const result = await client.query<{ expired: boolean }>(
+          'SELECT lease_until <= clock_timestamp() AS expired FROM app.ai_steps WHERE id=$1',
+          [stepId],
+        );
+        return result.rows[0]?.expired ?? false;
+      });
+      if (expired) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error('AI fixture lease did not expire');
+  }
+
+  async function actualSlotCount(orgId: string): Promise<number> {
+    const slots = await migrator.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM ops.ai_run_slots WHERE org_id=$1',
+      [orgId],
+    );
+    return Number(slots.rows[0]?.count ?? 0);
   }
 
   return {
@@ -257,6 +334,193 @@ export async function createAiFixture(services: Services) {
         return claim;
       });
     },
+    async insertWhileTakeoverWaits(index: number, claim: StepClaim) {
+      const tenant = tenants[index]!;
+      await database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        await client.query(
+          "UPDATE app.ai_steps SET lease_until=clock_timestamp()+interval '250 milliseconds' WHERE id=$1",
+          [claim.stepId],
+        );
+      });
+      const ready = deferred<void>();
+      const release = deferred<void>();
+      const takeoverStarted = deferred<number>();
+      const writer = database.withTenant(tenant, async (tx) => {
+        await attempts.insert(tx, claim, makeAttempt(claim, 1));
+        ready.resolve();
+        await release.promise;
+      });
+      void writer.catch(ready.reject);
+      await ready.promise;
+      let takeover: Promise<StepClaim | null> | undefined;
+      let writerRetainedRunLock: boolean;
+      try {
+        await waitForLeaseExpiry(index, claim.stepId);
+        takeover = database.withTenant(tenant, async (tx) => {
+          const { client } = requireSession(tx);
+          const backend = await client.query<{ pid: number }>(
+            'SELECT pg_backend_pid() AS pid',
+          );
+          takeoverStarted.resolve(backend.rows[0]!.pid);
+          return steps.claim(tx, {
+            runId: claim.runId,
+            sequence: claim.sequence,
+            expectedVersion: claim.expectedVersion,
+            leaseMs: 30_000,
+          });
+        });
+        writerRetainedRunLock = await waitForPgLockWait(
+          await takeoverStarted.promise,
+        );
+      } finally {
+        release.resolve();
+      }
+      const [, takeoverClaim] = await Promise.all([writer, takeover!]);
+      if (!takeoverClaim) throw new Error('AI fixture takeover unavailable');
+      return {
+        writerRetainedRunLock,
+        takeoverFence: takeoverClaim.fence,
+        attempts: await database.withTenant(tenant, (tx) =>
+          attempts.list(tx, claim.runId),
+        ),
+      };
+    },
+    async checkpointWhileTakeoverWaits(index: number, claim: StepClaim) {
+      const tenant = tenants[index]!;
+      const attempt = makeAttempt(claim, 1);
+      await database.withTenant(tenant, async (tx) => {
+        await attempts.insert(tx, claim, attempt);
+        const { client } = requireSession(tx);
+        await client.query(
+          "UPDATE app.ai_steps SET lease_until=clock_timestamp()+interval '250 milliseconds' WHERE id=$1",
+          [claim.stepId],
+        );
+      });
+      const ready = deferred<void>();
+      const release = deferred<void>();
+      const takeoverStarted = deferred<number>();
+      const writer = database.withTenant(tenant, async (tx) => {
+        const checkpointed = await steps.checkpoint(tx, claim, {
+          attemptId: attempt.attemptId,
+          text: 'checkpoint before takeover',
+        });
+        if (!checkpointed) throw new Error('AI fixture checkpoint unavailable');
+        ready.resolve();
+        await release.promise;
+      });
+      void writer.catch(ready.reject);
+      await ready.promise;
+      let takeover: Promise<StepClaim | null> | undefined;
+      let writerRetainedRunLock: boolean;
+      try {
+        await waitForLeaseExpiry(index, claim.stepId);
+        takeover = database.withTenant(tenant, async (tx) => {
+          const { client } = requireSession(tx);
+          const backend = await client.query<{ pid: number }>(
+            'SELECT pg_backend_pid() AS pid',
+          );
+          takeoverStarted.resolve(backend.rows[0]!.pid);
+          return steps.claim(tx, {
+            runId: claim.runId,
+            sequence: claim.sequence,
+            expectedVersion: claim.expectedVersion,
+            leaseMs: 30_000,
+          });
+        });
+        writerRetainedRunLock = await waitForPgLockWait(
+          await takeoverStarted.promise,
+        );
+      } finally {
+        release.resolve();
+      }
+      const [, takeoverClaim] = await Promise.all([writer, takeover!]);
+      if (!takeoverClaim) throw new Error('AI fixture takeover unavailable');
+      return {
+        writerRetainedRunLock,
+        takeoverFence: takeoverClaim.fence,
+        checkpointCount: await countScoped(
+          index,
+          'SELECT count(*)::text AS count FROM app.ai_checkpoints WHERE org_id=$1 AND run_id=$2',
+          [claim.runId],
+        ),
+      };
+    },
+    async commitWhileTransitionWaits(
+      index: number,
+      runId: string,
+      claim: StepClaim,
+    ) {
+      const tenant = tenants[index]!;
+      const ready = deferred<void>();
+      const release = deferred<void>();
+      const transitionStarted = deferred<number>();
+      const writer = database.withTenant(tenant, async (tx) => {
+        const committed = await steps.commit(tx, claim, {
+          state: 'committed',
+          text: 'commit before transition',
+          data: {},
+        });
+        if (!committed) throw new Error('AI fixture commit unavailable');
+        ready.resolve();
+        await release.promise;
+      });
+      void writer.catch(ready.reject);
+      await ready.promise;
+      const transition = database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        const backend = await client.query<{ pid: number }>(
+          'SELECT pg_backend_pid() AS pid',
+        );
+        transitionStarted.resolve(backend.rows[0]!.pid);
+        return runs.transition(tx, {
+          runId,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'failed',
+        });
+      });
+      const commitRetainedRunLock = await waitForPgLockWait(
+        await transitionStarted.promise,
+      );
+      release.resolve();
+      const [, transitioned] = await Promise.all([writer, transition]);
+      return {
+        commitRetainedRunLock,
+        transitioned,
+        runVersion: await database.withTenant(
+          tenant,
+          async (tx) => (await runs.find(tx, runId))?.runVersion ?? null,
+        ),
+      };
+    },
+    async checkpointRetry(index: number, claim: StepClaim) {
+      const tenant = tenants[index]!;
+      return database.withTenant(tenant, async (tx) => {
+        const first = makeAttempt(claim, 1);
+        await attempts.insert(tx, claim, first);
+        if (
+          !(await steps.checkpoint(tx, claim, {
+            attemptId: first.attemptId,
+            text: 'first attempt output',
+          }))
+        )
+          throw new Error('AI fixture first checkpoint unavailable');
+        if (
+          !(await attempts.settle(tx, claim, {
+            attemptId: first.attemptId,
+            outcome: 'failed',
+          }))
+        )
+          throw new Error('AI fixture first attempt settlement unavailable');
+        const second = makeAttempt(claim, 2);
+        await attempts.insert(tx, claim, second);
+        return steps.checkpoint(tx, claim, {
+          attemptId: second.attemptId,
+          text: 'replacement attempt output',
+        });
+      });
+    },
     claim(
       index: number,
       runId: string,
@@ -387,17 +651,11 @@ export async function createAiFixture(services: Services) {
         index,
         "SELECT count(*)::text AS count FROM ops.outbox WHERE org_id=$1 AND type='run.start.v1'",
       );
-      const slotsCount = await countScoped(
-        index,
-        `SELECT count(*)::text AS count FROM app.ai_runs WHERE org_id=$1 AND status IN ('queued','running','awaiting_approval','cancelling')`,
-      );
+      const slotsCount = await actualSlotCount(tenants[index]!.orgId);
       return { runs: runsCount, outbox: outboxCount, slots: slotsCount };
     },
-    orgSlotCount(index: number) {
-      return countScoped(
-        index,
-        `SELECT count(*)::text AS count FROM app.ai_runs WHERE org_id=$1 AND status IN ('queued','running','awaiting_approval','cancelling')`,
-      );
+    async orgSlotCount(index: number) {
+      return actualSlotCount(tenants[index]!.orgId);
     },
     async transition(
       index: number,

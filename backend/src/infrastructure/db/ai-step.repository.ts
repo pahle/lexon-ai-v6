@@ -83,6 +83,35 @@ export class AiStepRepository {
     return result.rows[0] ? mapStep(result.rows[0]) : null;
   }
 
+  /** Lock and revalidate the run before the step; locks remain held by the caller's transaction. */
+  async lockClaim(tx: TenantSession, claim: StepClaim): Promise<boolean> {
+    if (!validClaim(tx, claim)) return false;
+    const { client } = requireSession(tx);
+    const run = await client.query(
+      `SELECT 1 FROM app.ai_runs
+       WHERE org_id=$1 AND id=$2 AND run_version=$3 AND next_sequence=$4
+         AND status IN ('queued','running','awaiting_approval','cancelling')
+       FOR UPDATE`,
+      [claim.orgId, claim.runId, claim.expectedVersion, claim.sequence],
+    );
+    if (run.rowCount !== 1) return false;
+    const step = await client.query(
+      `SELECT 1 FROM app.ai_steps
+       WHERE org_id=$1 AND run_id=$2 AND id=$3 AND sequence=$4 AND expected_version=$5
+         AND fence=$6 AND state='claimed' AND lease_until>clock_timestamp()
+       FOR UPDATE`,
+      [
+        claim.orgId,
+        claim.runId,
+        claim.stepId,
+        claim.sequence,
+        claim.expectedVersion,
+        claim.fence,
+      ],
+    );
+    return step.rowCount === 1;
+  }
+
   async claim(
     tx: TenantSession,
     input: {
@@ -104,21 +133,17 @@ export class AiStepRepository {
     )
       return null;
     const scope = buildAuthorizationPredicate(ctx);
-    const selected = await client.query<
-      StepRow & {
-        run_version: number;
-        next_sequence: number;
-        status: string;
-        lease_live: boolean;
-      }
-    >(
-      `SELECT s.*,r.run_version,r.next_sequence,r.status,
-         (s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
-       FROM app.ai_steps s JOIN app.ai_runs r ON r.org_id=s.org_id AND r.id=s.run_id
+    const run = await client.query(
+      `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
+       AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
+      [scope.orgId, input.runId, input.expectedVersion, input.sequence],
+    );
+    if (run.rowCount !== 1) return null;
+    const selected = await client.query<StepRow & { lease_live: boolean }>(
+      `SELECT s.*,(s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
+       FROM app.ai_steps s
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.sequence=$3 AND s.expected_version=$4
-         AND r.org_id=$1 AND r.run_version=$4 AND r.next_sequence=$3
-         AND r.status IN ('queued','running','awaiting_approval','cancelling')
-       FOR UPDATE OF r,s`,
+       FOR UPDATE`,
       [scope.orgId, input.runId, input.sequence, input.expectedVersion],
     );
     const current = selected.rows[0];
@@ -165,7 +190,12 @@ export class AiStepRepository {
     claim: StepClaim,
     leaseMs: number,
   ): Promise<boolean> {
-    if (!validClaim(tx, claim) || !validLease(leaseMs)) return false;
+    if (
+      !validClaim(tx, claim) ||
+      !validLease(leaseMs) ||
+      !(await this.lockClaim(tx, claim))
+    )
+      return false;
     const { client } = requireSession(tx);
     const result = await client.query(
       `UPDATE app.ai_steps s SET lease_until=clock_timestamp()+($7 * interval '1 millisecond'),updated_at=clock_timestamp()
@@ -199,6 +229,7 @@ export class AiStepRepository {
       Buffer.byteLength(input.text, 'utf8') > 262144
     )
       return false;
+    if (!(await this.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
     const result = await client.query(
       `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text)
@@ -209,8 +240,12 @@ export class AiStepRepository {
          AND s.fence=$6 AND s.state='claimed' AND s.lease_until>clock_timestamp()
          AND r.run_version=$5 AND r.next_sequence=$4 AND r.status IN ('queued','running','awaiting_approval','cancelling')
          AND a.id=$8 AND a.fence=s.fence AND a.active=true
-       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,created_at=clock_timestamp()
-         WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id
+       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,created_at=clock_timestamp()
+         WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id OR EXISTS (
+           SELECT 1 FROM app.ai_attempts prior
+           WHERE prior.org_id=app.ai_checkpoints.org_id AND prior.id=app.ai_checkpoints.attempt_id
+             AND prior.active=false
+         )
        RETURNING id`,
       [
         claim.orgId,
@@ -242,7 +277,8 @@ export class AiStepRepository {
       !['committed', 'awaiting_approval'].includes(commit.state) ||
       Buffer.byteLength(commit.text, 'utf8') > 262144 ||
       typeof data !== 'string' ||
-      Buffer.byteLength(data, 'utf8') > 262144
+      Buffer.byteLength(data, 'utf8') > 262144 ||
+      !(await this.lockClaim(tx, claim))
     )
       return false;
     const { client } = requireSession(tx);

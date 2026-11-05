@@ -90,3 +90,74 @@ test('attempt metadata, checkpoint, reported usage, and step commit persist unde
     await ai.close();
   }
 });
+
+test('an in-flight attempt insert blocks takeover until the row can be swept', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    const claim = await ai.seedClaimableStep(0, run.id, {
+      activeAttempt: false,
+    });
+    const result = await ai.insertWhileTakeoverWaits(0, claim);
+    expect(result.writerRetainedRunLock).toBe(true);
+    expect(result.takeoverFence).toBeGreaterThan(claim.fence);
+    expect(
+      result.attempts.map((attempt) => [attempt.active, attempt.outcome]),
+    ).toEqual([[false, 'unknown']]);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('an in-flight checkpoint blocks takeover until its transaction completes', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    const claim = await ai.seedClaimableStep(0, run.id, {
+      activeAttempt: false,
+    });
+    const result = await ai.checkpointWhileTakeoverWaits(0, claim);
+    expect(result.writerRetainedRunLock).toBe(true);
+    expect(result.takeoverFence).toBeGreaterThan(claim.fence);
+    expect(result.checkpointCount).toBe(1);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('a terminal run transition waits for an in-flight step commit before changing version', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    const claim = await ai.seedClaimableStep(0, run.id, {
+      activeAttempt: false,
+    });
+    const result = await ai.commitWhileTransitionWaits(0, run.id, claim);
+    expect(result.commitRetainedRunLock).toBe(true);
+    expect(result.transitioned).toBe(true);
+    expect(result.runVersion).toBe(2);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('a retry attempt replaces the prior settled attempt checkpoint under the same claim', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    const claim = await ai.seedClaimableStep(0, run.id, {
+      activeAttempt: false,
+    });
+    expect(await ai.checkpointRetry(0, claim)).toBe(true);
+  } finally {
+    await ai.close();
+  }
+});

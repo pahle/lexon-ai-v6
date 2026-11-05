@@ -126,16 +126,7 @@ export class AiAttemptRepository {
         Buffer.byteLength(record.generationId, 'utf8') > 256)
     )
       throw new Error('Invalid AI attempt');
-    const step = await this.steps.find(tx, {
-      runId: claim.runId,
-      sequence: claim.sequence,
-    });
-    if (
-      !step ||
-      step.id !== claim.stepId ||
-      step.state !== 'claimed' ||
-      step.fence !== claim.fence
-    )
+    if (!(await this.steps.lockClaim(tx, claim)))
       throw new Error('AI step claim lost');
     const { client } = requireSession(tx);
     const result = await client.query(
@@ -180,6 +171,7 @@ export class AiAttemptRepository {
         Buffer.byteLength(input.provider, 'utf8') > 128)
     )
       return false;
+    if (!(await this.steps.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
     const result = await client.query(
       `UPDATE app.ai_attempts a SET generation_id=$8,provider=COALESCE($9,a.provider)
@@ -224,6 +216,7 @@ export class AiAttemptRepository {
           Number(input.costUsd.split('.')[0]) > 9_999_999_999))
     )
       return false;
+    if (!(await this.steps.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
     const usage = input.usage;
     const result = await client.query(
