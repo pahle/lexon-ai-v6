@@ -117,7 +117,10 @@ export function SessionList({
                       <Button
                         variant="destructive"
                         disabled={busy !== null}
-                        onClick={() => setConfirmingId(session.id)}
+                        onClick={() => {
+                          setRevokeFailure(false);
+                          setConfirmingId(session.id);
+                        }}
                       >
                         Revoke
                         <span className="sr-only">
@@ -139,7 +142,10 @@ export function SessionList({
       <AlertDialog
         open={confirming !== undefined}
         onOpenChange={(open) => {
-          if (!open) setConfirmingId(null);
+          if (!open) {
+            setRevokeFailure(false);
+            setConfirmingId(null);
+          }
         }}
       >
         <AlertDialogContent>

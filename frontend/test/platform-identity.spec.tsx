@@ -94,6 +94,12 @@ test('platform provisioning uses a published Card, Empty state, and semantic tab
   expect(view.container.querySelector('[data-slot="card"]')).not.toBeNull();
   expect(view.container.querySelector('[data-slot="empty"]')).not.toBeNull();
   expect(view.container.textContent).toContain('No provisioning organizations');
+  expect(view.container.textContent).toContain(
+    'New teams waiting for an owner will appear here.',
+  );
+  expect(view.container.textContent).not.toContain(
+    'Provision an organization above to begin.',
+  );
   await view.unmount();
 
   fetcher.mockResolvedValueOnce(

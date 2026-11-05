@@ -36,7 +36,6 @@ import {
 } from '../ui/table';
 import {
   Empty,
-  EmptyContent,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -159,11 +158,6 @@ export function ProvisioningList() {
                 New teams waiting for an owner will appear here.
               </EmptyDescription>
             </EmptyHeader>
-            <EmptyContent>
-              <span className="text-sm text-muted-foreground">
-                Provision an organization above to begin.
-              </span>
-            </EmptyContent>
           </Empty>
         ) : (
           <div className="min-w-0 overflow-x-auto rounded-md border">

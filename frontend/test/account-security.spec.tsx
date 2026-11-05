@@ -293,6 +293,49 @@ test('session revoke shows pending, blocks repeats, and keeps confirmation open 
   await view.unmount();
 });
 
+test('session revoke clears its previous error after cancel and reopen', async () => {
+  const onRevoke = vi.fn(async () => {
+    throw new Error('synthetic revoke failure');
+  });
+  const view = await render(
+    <SessionList
+      sessions={[
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000005',
+          channel: 'bearer',
+          createdAt: '2026-11-01T00:00:00Z',
+          expiresAt: '2026-11-01T00:15:00Z',
+          current: false,
+        },
+      ]}
+      onRevoke={onRevoke}
+    />,
+  );
+
+  await act(async () => view.container.querySelector('button')!.click());
+  const action = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="alert-dialog-action"]',
+  )!;
+  await act(async () => action.click());
+  await settle();
+  expect(
+    document.body.querySelector('[role="alert"]')?.textContent,
+  ).toContain('Unable to revoke the session');
+
+  await act(async () =>
+    document.body
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-cancel"]')!
+      .click(),
+  );
+  expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+
+  await act(async () => view.container.querySelector('button')!.click());
+  expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  expect(onRevoke).toHaveBeenCalledTimes(1);
+  await view.unmount();
+});
+
 test('session list uses a loading skeleton and an empty state', async () => {
   const loading = await render(
     <SessionList sessions={[]} loading onRevoke={async () => {}} />,
