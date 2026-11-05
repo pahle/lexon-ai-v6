@@ -132,6 +132,7 @@ test('identity Compose secrets are API/operator-only and Mailpit is optional eph
 test('package E2E filters include their identity projects and credential projects never retain browser state', async () => {
   const { E2E_PROJECTS } = await import('../e2e-projects.mjs');
   assert.ok(E2E_PROJECTS.frontend.includes('identity-browser'));
+  assert.ok(E2E_PROJECTS.frontend.includes('visual-review'));
   assert.ok(E2E_PROJECTS.backend.includes('identity-api'));
   const config = (await import('../../playwright.config.ts')).default;
   for (const name of ['identity-browser', 'identity-api']) {
@@ -141,14 +142,17 @@ test('package E2E filters include their identity projects and credential project
       assert.equal(project.use?.[setting], 'off');
     assert.equal(project.use?.storageState, undefined);
   }
+  assert.ok(
+    config.projects.some((project) => project.name === 'visual-review'),
+  );
 });
-test('CI includes F1 and F2 pushes independent layers and the identity mutation gate', async () => {
+test('CI includes F1, F2 and F2.1 pushes independent layers and the identity mutation gate', async () => {
   const { readFile } = await import('node:fs/promises');
   const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
   const normalizedWorkflow = workflow.replace(/\s+/g, ' ');
   assert.match(
     normalizedWorkflow,
-    /branches:.*f1-identity-organizations.*f2-app-shell-design-system/,
+    /branches:.*f1-identity-organizations.*f2-app-shell-design-system.*f2\.1-visual-rework/,
   );
   assert.match(workflow, /unit-integration:/);
   assert.match(workflow, /compose-e2e:/);

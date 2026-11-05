@@ -14,7 +14,7 @@ export function PlatformPage({
 }) {
   const { identity } = useWorkspace();
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-2xl flex-col gap-6">
       <PageHeader title={title} />
       {identity?.platformAdmin ? children : <NoAccessState />}
     </div>

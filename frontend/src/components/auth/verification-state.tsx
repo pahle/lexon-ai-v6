@@ -10,8 +10,11 @@ import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
 import { AuthCard } from './auth-card';
 import { FormInput, authFailure } from './form-input';
-import { Button } from '../ui/button';
-import { FieldGroup, FieldError } from '../ui/field';
+import { FieldGroup } from '../ui/field';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
+import { toast } from 'sonner';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 export function VerificationState({
   state,
   email = '',
@@ -21,15 +24,19 @@ export function VerificationState({
   email?: string | undefined;
   returnTo?: string | undefined;
 }) {
-  const [message, setMessage] = useState('');
   const [failure, setFailure] = useState('');
+  const [message, setMessage] = useState('');
+  const submission = useSubmissionLock();
   const next = safeReturnPath(returnTo);
   const form = useForm<PasswordResetRequestInput>({
     resolver: zodResolver(PasswordResetRequestInputSchema),
     defaultValues: { email },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   return (
     <AuthCard
+      presentation="page"
       title={
         state === 'confirmed'
           ? 'Email verified'
@@ -46,30 +53,45 @@ export function VerificationState({
       {state !== 'confirmed' ? (
         <form
           noValidate
-          onSubmit={form.handleSubmit(async (input) => {
-            setFailure('');
-            try {
-              const result = await authClient.sendVerificationEmail({
-                ...input,
-                callbackURL:
-                  window.location.origin +
-                  '/verify-email?state=confirmed&returnTo=' +
-                  encodeURIComponent(next),
-              });
-              if (
-                result.error?.status === 503 ||
-                result.error?.status === 429
-              ) {
-                setFailure(authFailure(result.error));
-                return;
+          method="post"
+          onSubmit={form.handleSubmit((input) =>
+            submission.run(async () => {
+              setFailure('');
+              setMessage('');
+              try {
+                const result = await authClient.sendVerificationEmail({
+                  ...input,
+                  callbackURL:
+                    window.location.origin +
+                    '/verify-email?state=confirmed&returnTo=' +
+                    encodeURIComponent(next),
+                });
+                if (
+                  result.error?.status === 503 ||
+                  result.error?.status === 429
+                ) {
+                  setFailure(authFailure(result.error));
+                  return;
+                }
+                setMessage(
+                  'If eligible, you will receive a verification link.',
+                );
+                toast.success(
+                  'If eligible, you will receive a verification link.',
+                );
+              } catch {
+                setFailure(authFailure({ status: 503 }));
               }
-              setMessage('If eligible, you will receive a verification link.');
-            } catch {
-              setFailure(authFailure({ status: 503 }));
-            }
-          })}
+            }),
+          )}
         >
           <FieldGroup>
+            {failure ? (
+              <Alert role="alert" variant="destructive">
+                <AlertTitle>Unable to resend the verification email</AlertTitle>
+                <AlertDescription>{failure}</AlertDescription>
+              </Alert>
+            ) : null}
             <FormInput
               label="Email"
               type="email"
@@ -77,11 +99,14 @@ export function VerificationState({
               registration={form.register('email')}
               error={form.formState.errors.email}
             />
-            {failure ? <FieldError>{failure}</FieldError> : null}
-            <p role="status">{message}</p>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            {message ? <p role="status">{message}</p> : null}
+            <PendingButton
+              type="submit"
+              pending={submission.pending}
+              pendingLabel="Sending verification email…"
+            >
               Resend verification email
-            </Button>
+            </PendingButton>
           </FieldGroup>
         </form>
       ) : null}

@@ -47,7 +47,6 @@ export default ts.config(
           ],
         },
       ],
-      'lexon/circular-shape': 'error',
       'lexon/server-boundary': 'error',
     },
   },

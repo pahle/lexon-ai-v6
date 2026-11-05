@@ -17,8 +17,8 @@ export function Workspace() {
   if (!identity.user.onboardingCompleted)
     return <LoadingState message="Opening onboarding…" />;
   return (
-    <div className="flex min-h-[calc(100svh-8rem)] flex-col gap-6">
-      <PageHeader title="Home" />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeader title="Home" visuallyHidden />
       <Thread displayName={identity.user.name} />
     </div>
   );

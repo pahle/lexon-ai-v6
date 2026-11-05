@@ -148,3 +148,42 @@ export async function sanitizeAuthResponse(
   }
   return Response.json(body, { status: response.status, headers });
 }
+
+/**
+ * Preserve Better Auth's exact password-checked verification result only for
+ * the sign-in endpoint. The pinned sign-in handler reaches this error after
+ * its credential hash comparison and before session creation.
+ */
+export async function sanitizeVerifiedSigninFailure(
+  response: Response,
+): Promise<Response | null> {
+  if (response.status !== 403) return null;
+  let data: unknown;
+  try {
+    data = await response.clone().json();
+  } catch {
+    return null;
+  }
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    (data as Record<string, unknown>).code !== 'EMAIL_NOT_VERIFIED'
+  )
+    return null;
+  return Response.json(
+    {
+      error: {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Verify your email address before signing in.',
+      },
+    },
+    {
+      status: 403,
+      headers: {
+        'cache-control': 'no-store',
+        'referrer-policy': 'no-referrer',
+      },
+    },
+  );
+}

@@ -6,6 +6,102 @@ import { authenticateApi } from './identity-support.js';
 
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+type TargetRect = {
+  label: string | null | undefined;
+  rect: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    width: number;
+    height: number;
+  };
+};
+
+function targetsWithoutSpacingException(targets: TargetRect[]) {
+  return targets
+    .filter(({ rect }) => rect.width < 24 || rect.height < 24)
+    .filter((target) => {
+      const centerX = (target.rect.left + target.rect.right) / 2;
+      const centerY = (target.rect.top + target.rect.bottom) / 2;
+      return targets.some((other) => {
+        if (target === other) return false;
+        const nearestX = Math.max(
+          other.rect.left,
+          Math.min(centerX, other.rect.right),
+        );
+        const nearestY = Math.max(
+          other.rect.top,
+          Math.min(centerY, other.rect.bottom),
+        );
+        const intersectsOtherTarget =
+          Math.hypot(centerX - nearestX, centerY - nearestY) < 12;
+        const intersectsOtherUndersizedTargetCircle =
+          (other.rect.width < 24 || other.rect.height < 24) &&
+          Math.hypot(
+            centerX - (other.rect.left + other.rect.right) / 2,
+            centerY - (other.rect.top + other.rect.bottom) / 2,
+          ) < 24;
+        return intersectsOtherTarget || intersectsOtherUndersizedTargetCircle;
+      });
+    })
+    .map(({ label, rect }) => ({
+      label,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    }));
+}
+
+test('F2 target spacing guard rejects crowded undersized controls and accepts spaced ones', async () => {
+  const target = (
+    label: string,
+    left: number,
+    width: number,
+    top = 0,
+    height = 20,
+  ): TargetRect => ({
+    label,
+    rect: {
+      left,
+      right: left + width,
+      top,
+      bottom: top + height,
+      width,
+      height,
+    },
+  });
+  expect(
+    targetsWithoutSpacingException([
+      target('crowded first', 0, 20),
+      target('crowded second', 21, 20),
+    ]),
+  ).toEqual([
+    { label: 'crowded first', width: 20, height: 20 },
+    { label: 'crowded second', width: 20, height: 20 },
+  ]);
+  expect(
+    targetsWithoutSpacingException([
+      target('spaced first', 0, 20),
+      target('spaced second', 24, 20),
+    ]),
+  ).toEqual([]);
+  expect(
+    targetsWithoutSpacingException([
+      target('long thin target', 0, 100),
+      target('near target', 80, 20, 21),
+    ]),
+  ).toEqual([{ label: 'near target', width: 20, height: 20 }]);
+  expect(
+    targetsWithoutSpacingException([
+      target('tiny first', 0, 1, 0, 1),
+      target('tiny second', 23, 1, 0, 1),
+    ]),
+  ).toEqual([
+    { label: 'tiny first', width: 1, height: 1 },
+    { label: 'tiny second', width: 1, height: 1 },
+  ]);
+});
+
 test('F2 required auth, shell, settings, organization, and platform pages pass both-theme accessibility checks', async ({
   browser,
 }) => {
@@ -21,7 +117,12 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
     await page.goto(stack.frontendUrl + '/sign-in');
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme });
-      for (const path of ['/sign-in', '/sign-up', '/two-factor']) {
+      for (const path of [
+        '/sign-in',
+        '/sign-up',
+        '/forgot-password',
+        '/two-factor',
+      ]) {
         await page.evaluate(
           (theme) => localStorage.setItem('theme', theme),
           colorScheme,
@@ -35,6 +136,10 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         } else if (path === '/sign-up') {
           await expect(
             page.getByRole('button', { name: 'Create account', exact: true }),
+          ).toBeVisible();
+        } else if (path === '/forgot-password') {
+          await expect(
+            page.getByRole('button', { name: 'Send reset link', exact: true }),
           ).toBeVisible();
         } else {
           await expect(
@@ -55,6 +160,30 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
       }
     }
     const headers = await authenticateApi(page.request);
+    await page.goto(stack.frontendUrl + '/onboarding');
+    await expect(
+      page.getByRole('heading', { name: 'Welcome to Lexon' }),
+    ).toBeVisible();
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.evaluate((theme) => {
+        localStorage.setItem('theme', theme);
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'theme',
+            newValue: theme,
+            storageArea: localStorage,
+          }),
+        );
+      }, colorScheme);
+      await expect(page.locator('html')).toHaveClass(
+        colorScheme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+      );
+      const violations = (
+        await new AxeBuilder({ page }).withTags(axeTags).analyze()
+      ).violations;
+      expect(violations, `${colorScheme} /onboarding`).toEqual([]);
+    }
     await page.request.post(
       stack.apiUrl + '/api/identity/onboarding/complete',
       {
@@ -101,12 +230,12 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
 
     const pages = [
       '/workspace',
-      '/settings/profile',
-      '/settings/security',
-      '/settings/appearance',
-      `/organizations/${team.id}/settings/members`,
-      `/organizations/${team.id}/settings/invitations`,
-      `/organizations/${team.id}/settings/general`,
+      '/workspace?settings=profile',
+      '/workspace?settings=security',
+      '/workspace?settings=appearance',
+      '/workspace?settings=members',
+      '/workspace?settings=invitations',
+      '/workspace?settings=general',
     ];
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme });
@@ -119,39 +248,80 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         await expect(page).toHaveURL(stack.frontendUrl + path);
         if (path === '/workspace') {
           await expect(
-            page.getByText('Chat is not available yet.'),
+            page.getByRole('heading', { name: /^Welcome, / }),
           ).toBeVisible();
+          await expect(
+            page.getByRole('button', { name: 'Send message' }),
+          ).toHaveAttribute('aria-disabled', 'true');
           await expect(page.getByText('No conversations yet.')).toBeVisible();
-        } else if (path === '/settings/profile') {
+          const messageInput = page.getByRole('textbox', {
+            name: 'Message input',
+          });
+          await expect(messageInput).toBeVisible();
+          const messageInputBox = await messageInput.boundingBox();
+          expect(messageInputBox).not.toBeNull();
+          expect(messageInputBox!.width).toBeGreaterThanOrEqual(24);
+          expect(messageInputBox!.height).toBeGreaterThanOrEqual(24);
+        } else if (path.endsWith('settings=profile')) {
+          await expect(page.getByLabel('Display name')).toBeVisible();
+        } else if (path.endsWith('settings=security')) {
           await expect(
-            page.getByRole('button', { name: 'Save profile', exact: true }),
+            page.getByRole('heading', { name: 'Security' }),
           ).toBeVisible();
-        } else if (path === '/settings/security') {
-          await expect(
-            page.getByRole('button', {
-              name: 'Revoke browser session',
-              exact: true,
-            }),
-          ).toBeVisible();
-        } else if (path === '/settings/appearance') {
+        } else if (path.endsWith('settings=appearance')) {
           await expect(
             page.getByRole('radio', { name: 'System', exact: true }),
           ).toBeVisible();
-        } else if (path.endsWith('/members')) {
+        } else if (path.endsWith('settings=members')) {
           await expect(
             page.locator('[data-testid^="member-"]').first(),
           ).toBeVisible();
-        } else if (path.endsWith('/invitations')) {
+        } else if (path.endsWith('settings=invitations')) {
           await expect(
             page.getByText(invitationEmail, { exact: true }),
           ).toBeVisible();
-        } else if (path.endsWith('/general')) {
+        } else if (path.endsWith('settings=general')) {
           await expect(
             page.getByRole('button', {
-              name: 'Save organization settings',
+              name: 'Save changes',
               exact: true,
             }),
           ).toBeVisible();
+        }
+        if (path.includes('?settings=')) {
+          const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+          const overlay = page.locator('[data-slot="dialog-overlay"]');
+          await expect(settingsDialog).toBeVisible();
+          await expect
+            .poll(() =>
+              settingsDialog.evaluate(
+                (element) =>
+                  !element.hasAttribute('data-starting-style') &&
+                  getComputedStyle(element).opacity === '1',
+              ),
+            )
+            .toBe(true);
+          await expect
+            .poll(() =>
+              overlay.evaluate(
+                (element) =>
+                  !element.hasAttribute('data-starting-style') &&
+                  getComputedStyle(element).opacity === '1',
+              ),
+            )
+            .toBe(true);
+          await page.evaluate(async () => {
+            const layers = Array.from(
+              document.querySelectorAll<HTMLElement>(
+                '[role="dialog"], [data-slot="dialog-overlay"]',
+              ),
+            );
+            await Promise.all(
+              layers
+                .flatMap((element) => element.getAnimations())
+                .map((animation) => animation.finished.catch(() => undefined)),
+            );
+          });
         }
         const violations = (
           await new AxeBuilder({ page }).withTags(axeTags).analyze()
@@ -168,7 +338,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
           ),
           `${colorScheme} ${path} keyboard focus visibility`,
         ).toBe(true);
-        if (path === '/settings/appearance') {
+        if (path.endsWith('settings=appearance')) {
           await page.emulateMedia({ colorScheme });
           const systemTheme = page.getByRole('radio', { name: 'System' });
           await systemTheme.press('Space');
@@ -195,42 +365,51 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
           ),
           `${colorScheme} ${path} horizontal overflow`,
         ).toBe(true);
-        const undersizedTargets = await page.evaluate(() =>
-          Array.from(
-            document.querySelectorAll(
+        const targetsWithoutSizeOrSpacingException = await page.evaluate(() => {
+          const targets = Array.from(
+            document.querySelectorAll<HTMLElement>(
               'button, input:not([type="radio"]), textarea, select, [role="radio"], nav a',
             ),
           )
-            .filter((element) => {
-              const target =
-                element.getAttribute('role') === 'radio'
-                  ? (element.closest('label') ?? element)
-                  : element;
-              const rect = target.getBoundingClientRect();
-              return (
-                rect.width > 0 &&
-                rect.height > 0 &&
-                (rect.width < 44 || rect.height < 44)
-              );
-            })
             .map((element) => {
               const target =
                 element.getAttribute('role') === 'radio'
-                  ? (element.closest('label') ?? element)
+                  ? (element.closest<HTMLElement>('label') ?? element)
                   : element;
               const rect = target.getBoundingClientRect();
+              const style = getComputedStyle(target);
+              if (
+                rect.width <= 0 ||
+                rect.height <= 0 ||
+                style.display === 'none' ||
+                style.visibility !== 'visible' ||
+                target.closest('[aria-hidden="true"], [inert]')
+              ) {
+                return null;
+              }
               return {
-                label:
-                  (element as HTMLElement).getAttribute('aria-label') ||
-                  (element as HTMLElement).textContent?.trim(),
-                width: Math.round(rect.width),
-                height: Math.round(rect.height),
+                element,
+                rect: {
+                  left: rect.left,
+                  right: rect.right,
+                  top: rect.top,
+                  bottom: rect.bottom,
+                  width: rect.width,
+                  height: rect.height,
+                },
               };
-            }),
-        );
+            })
+            .filter((target): target is NonNullable<typeof target> => !!target);
+
+          return targets.map(({ element, rect }) => ({
+            label:
+              element.getAttribute('aria-label') || element.textContent?.trim(),
+            rect,
+          }));
+        });
         expect(
-          undersizedTargets,
-          `${colorScheme} ${path} targets under 44px`,
+          targetsWithoutSpacingException(targetsWithoutSizeOrSpacingException),
+          `${colorScheme} ${path} has targets below 24px without the SC 2.5.8 spacing exception`,
         ).toEqual([]);
       }
     }

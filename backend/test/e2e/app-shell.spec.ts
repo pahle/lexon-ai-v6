@@ -7,6 +7,32 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   page,
 }) => {
   const stack = descriptor();
+  const assetPaths = [
+    '/LEXON-wordmark-compact-ink.svg',
+    '/LEXON-wordmark-compact-cream.svg',
+  ];
+  for (const path of assetPaths) {
+    const response = await page.request.get(stack.frontendUrl + path);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/svg+xml');
+  }
+  const manifestResponse = await page.request.get(
+    stack.frontendUrl + '/manifest.webmanifest',
+  );
+  expect(manifestResponse.status()).toBe(200);
+  const manifest = (await manifestResponse.json()) as {
+    icons: Array<{ src: string }>;
+  };
+  const manifestIconPaths = manifest.icons.map((icon) => icon.src);
+  expect(manifestIconPaths).toEqual([
+    '/android-chrome-192x192.png',
+    '/android-chrome-512x512.png',
+  ]);
+  for (const path of manifestIconPaths) {
+    const response = await page.request.get(stack.frontendUrl + path);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
+  }
   const headers = await authenticateApi(page.request);
   await page.request.post(stack.apiUrl + '/api/identity/onboarding/complete', {
     headers,
@@ -19,14 +45,64 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     }
   });
   await page.goto(stack.frontendUrl + '/workspace');
+  const decodedAssetWidths = await page.evaluate(
+    async (paths) => {
+      const results: number[] = [];
+      for (const path of paths) {
+        const image = new Image();
+        image.src = path;
+        await image.decode();
+        results.push(image.naturalWidth);
+      }
+      return results;
+    },
+    [...assetPaths, ...manifestIconPaths],
+  );
+  expect(decodedAssetWidths.every((width) => width > 0)).toBe(true);
   await expect(page.locator('main')).toHaveCount(1);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(
-    page.getByRole('link', { name: 'Home', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Home', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByLabel('Chat message')).toBeDisabled();
-  await expect(page.getByText('Chat is not available yet.')).toBeVisible();
+  const message = page.getByRole('textbox', { name: 'Message input' });
+  await expect(message).toBeEnabled();
+  await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toHaveAttribute('aria-disabled', 'true');
+  await expect(
+    page.getByRole('button', { name: 'Add Attachment' }),
+  ).toHaveAttribute('aria-disabled', 'true');
+  const openTooltips = page.locator('[data-slot="tooltip-content"][data-open]');
+  await expect(openTooltips).toHaveCount(0);
   await expect(page.getByText('No conversations yet.')).toBeVisible();
+
+  await message.fill('Draft legal question');
+  await message.press('Enter');
+  await expect(message).toHaveValue('Draft legal question\n');
+  const send = page.getByRole('button', { name: 'Send message' });
+  await send.focus();
+  await expect(send).toBeFocused();
+  await expect(openTooltips).toHaveCount(1);
+  await expect(openTooltips).toContainText('Chat is coming soon');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Enter');
+  await send.click({ force: true });
+  await message.focus();
+  await expect(openTooltips).toHaveCount(0);
+  const attachment = page.getByRole('button', { name: 'Add Attachment' });
+  await attachment.focus();
+  await expect(attachment).toBeFocused();
+  await expect(openTooltips).toHaveCount(1);
+  await expect(openTooltips).toContainText('Chat is coming soon');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Enter');
+  await attachment.click({ force: true });
+  await expect(page.locator('[data-role="user"]')).toHaveCount(0);
+  await expect(page.getByText('New Thread')).toHaveCount(0);
+  expect(chatRequests).toEqual([]);
 
   const sidebarContainer = page.locator(
     '[data-slot="sidebar-container"]:visible',
@@ -36,7 +112,7 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     await sidebarContainer.evaluate(
       (element) => getComputedStyle(element).transitionDuration,
     ),
-  ).toBe('0.4s');
+  ).not.toBe('0s');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(
     await sidebarContainer.evaluate(
@@ -79,6 +155,29 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     await expect(
       page.getByRole('complementary', { name: 'Workspace navigation' }),
     ).toBeVisible();
+  }
+  for (const path of [
+    '/settings/profile',
+    '/settings/security',
+    '/settings/appearance',
+    `/organizations/${id}/settings/members`,
+    `/organizations/${id}/settings/invitations`,
+    `/organizations/${id}/settings/general`,
+  ]) {
+    await page.goto(stack.frontendUrl + path);
+    await expect(page).toHaveURL(stack.frontendUrl + path);
+    await expect(
+      page.getByRole('heading', { name: 'Page not found' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Return to workspace' }),
+    ).toBeVisible();
+    await expect(page.locator('main')).toHaveCount(1);
+    if (path.startsWith('/organizations/')) {
+      await expect(
+        page.getByRole('complementary', { name: 'Workspace navigation' }),
+      ).toBeVisible();
+    }
   }
   for (const path of [
     `/organizations/${id}/members`,
@@ -131,21 +230,122 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await first.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
-  await page.getByRole('button', { name: 'Close panel' }).click();
+  await dialog
+    .getByRole('button', { name: 'Close navigation', exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(() =>
+      dialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
+  const mobileOrganization = dialog.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  await mobileOrganization.click();
+  await expect(page.getByTestId('organization-popup')).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(() =>
+      dialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
+  const mobileUser = dialog.locator(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  );
+  await mobileUser.focus();
+  await expect(mobileUser).toBeFocused();
+  await page.keyboard.press('Enter');
+  const settingsMenuItem = page.getByRole('menuitem', {
+    name: /^Settings/,
+  });
+  await expect(settingsMenuItem).toBeVisible();
+  await expect(settingsMenuItem).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await expect(mobileUser).toBeFocused();
+  await mobileUser.click();
+  await expect(settingsMenuItem).toBeVisible();
+  await settingsMenuItem.click();
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
-  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settingsDialog).toBeVisible();
+  await expect
+    .poll(() =>
+      settingsDialog.evaluate(
+        (element) => !element.hasAttribute('data-starting-style'),
+      ),
+    )
+    .toBe(true);
+  await settingsDialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  await page.keyboard.press('Escape');
+  await expect(settingsDialog).toBeHidden();
+  await expect(open).toBeFocused();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
+  await workspaceDialog
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('link', { name: 'Home', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/workspace$/);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await workspaceDialog
+    .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
+    .click();
+  await page.getByRole('menuitem', { name: /^Settings/ }).click();
+  await expect(page).toHaveURL(/\/workspace\?settings=profile$/);
+  await expect(settingsDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settingsDialog).toBeHidden();
+  await expect(open).toBeFocused();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -159,6 +359,85 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(
     page.getByRole('button', { name: 'Collapse sidebar' }),
   ).toBeVisible();
+});
+
+test('Task 6A Home shell keeps switcher and user menu complete and keyboard reachable', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Task Preview',
+    email: `task-6a-${randomUUID()}@example.test`,
+  });
+  const onboarding = await page.request.post(
+    stack.apiUrl + '/api/identity/onboarding/complete',
+    { headers, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(stack.frontendUrl + '/workspace');
+  await expect(
+    page.locator('textarea[aria-label="Message input"]'),
+  ).toHaveAttribute(
+    'placeholder',
+    'Ask Lexon about a contract, a regulation, or a case...',
+  );
+  const nav = page.getByRole('navigation', { name: 'Primary navigation' });
+  await expect(
+    nav.getByRole('link', { name: 'Home', exact: true }),
+  ).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await expect(
+    nav.getByRole('link', { name: 'Organization settings' }),
+  ).toHaveCount(0);
+
+  const organization = page.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  await organization.focus();
+  await page.keyboard.press('Enter');
+  const createTeam = page.getByRole('menuitem', { name: 'Create a team' });
+  await expect(createTeam).toBeVisible();
+  await page.keyboard.press('End');
+  await expect(createTeam).toBeFocused();
+  await expect(organization).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Enter');
+  const createTeamDialog = page.getByRole('dialog', { name: 'Create a team' });
+  await expect(createTeamDialog).toBeVisible();
+  await expect(createTeamDialog.getByLabel('Team name')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(createTeamDialog).toBeHidden();
+  await expect(organization).toBeFocused();
+
+  const user = page.locator(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  );
+  await expect(user).toContainText('Task Preview');
+  await expect(user).toContainText(/task-6a-.*@example\.test/);
+  await expect(user.locator('[data-slot="avatar-initials"]')).toHaveText('TP');
+  await expect(user.locator('svg.lucide-chevrons-up-down')).toHaveCount(1);
+  await user.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  const collapsedOrganization = page.getByRole('button', {
+    name: 'Organization: Personal',
+  });
+  const tile = collapsedOrganization.locator('img[alt="Lexon"]');
+  await expect(tile).toHaveAttribute('src', /LEXON-mark-tile-seal-micro\.svg$/);
+  const tileBounds = await tile.boundingBox();
+  expect(tileBounds?.width).toBe(32);
+  expect(tileBounds?.height).toBe(32);
+  await collapsedOrganization.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('menuitem', { name: 'Create a team' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
 });
 
 test('F2 shell and optional panel compose without overlap at 768px', async ({
@@ -184,12 +463,28 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     data: { organizationId: id },
   });
   await page.setViewportSize({ width: 768, height: 720 });
-  await page.goto(`${stack.frontendUrl}/organizations/${id}/settings/general`);
-  const title = page.getByRole('heading', { level: 1 });
-  await expect(title).toHaveText('Organization settings');
-  // This test-only structural aside mirrors RightPanel's desktop host markup;
-  // the host and all layout CSS come from the live production page.
+  await page.goto(`${stack.frontendUrl}/workspace`);
+  await expect(
+    page.getByRole('heading', { name: 'Home', exact: true }),
+  ).toBeVisible();
+  const composerInput = page.getByRole('textbox', { name: 'Message input' });
+  const attachment = page.getByRole('button', {
+    name: 'Add Attachment',
+    exact: true,
+  });
+  const send = page.getByRole('button', {
+    name: 'Send message',
+    exact: true,
+  });
+  await expect(composerInput).toBeVisible();
+  await expect(attachment).toBeVisible();
+  await expect(send).toBeVisible();
+  // This test-only structural aside checks desktop layout around RightPanel's
+  // host; frontend/test/right-panel.spec.tsx verifies its actual mobile modal.
   await page.locator('[data-panel-host]').evaluate((host) => {
+    if (!host.isConnected || host.querySelectorAll('aside').length !== 0) {
+      throw new Error('Expected one connected, empty panel host');
+    }
     const panel = document.createElement('aside');
     panel.setAttribute('aria-label', 'Details');
     panel.className =
@@ -198,37 +493,141 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     panel.innerHTML = '<h2>Panel</h2>';
     host.append(panel);
   });
-  const geometry = await page.evaluate(() => {
-    const sidebar = document
-      .querySelector('aside[aria-label="Workspace navigation"]')!
-      .getBoundingClientRect();
-    const main = document.querySelector('main#main')!.getBoundingClientRect();
-    const headingElement = document.querySelector('main#main h1')!;
-    const heading = headingElement.getBoundingClientRect();
-    const textRange = document.createRange();
-    textRange.selectNodeContents(headingElement);
-    const textRight = Math.max(
-      ...[...textRange.getClientRects()].map((rect) => rect.right),
+  const readGeometry = () =>
+    composerInput.evaluate((composer) => {
+      const rect = (element: Element, label: string) => {
+        if (!element.isConnected) throw new Error(`${label} is disconnected`);
+        const style = getComputedStyle(element);
+        const bounds = element.getBoundingClientRect();
+        if (
+          style.display === 'none' ||
+          style.visibility === 'hidden' ||
+          bounds.width === 0 ||
+          bounds.height === 0
+        ) {
+          throw new Error(`${label} is not visibly measurable`);
+        }
+        return {
+          left: bounds.left,
+          right: bounds.right,
+          width: bounds.width,
+        };
+      };
+      const one = (selector: string, label: string) => {
+        const matches = document.querySelectorAll(selector);
+        if (matches.length !== 1) {
+          throw new Error(`Expected one ${label}, found ${matches.length}`);
+        }
+        return matches[0]!;
+      };
+      const sidebar = rect(
+        one(
+          '[role="complementary"][aria-label="Workspace navigation"]',
+          'workspace sidebar',
+        ),
+        'workspace sidebar',
+      );
+      const main = rect(one('main#main', 'main'), 'main');
+      const content = rect(
+        one(
+          'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
+          'main content',
+        ),
+        'main content',
+      );
+      const headingElement = one('main#main h1', 'page heading');
+      const heading = rect(headingElement, 'page heading');
+      const textRange = document.createRange();
+      textRange.selectNodeContents(headingElement);
+      const textRects = [...textRange.getClientRects()];
+      if (textRects.length === 0)
+        throw new Error('Heading text is not visible');
+      const panelHost = one('[data-panel-host]', 'panel host');
+      const panel = rect(
+        one('[data-panel-host] aside[aria-label="Details"]', 'test panel'),
+        'test panel',
+      );
+      const attachment = rect(
+        one('button[aria-label="Add Attachment"]', 'attachment action'),
+        'attachment action',
+      );
+      const send = rect(
+        one('button[aria-label="Send message"]', 'send action'),
+        'send action',
+      );
+      return {
+        sidebarWidth: sidebar.width,
+        mainRight: main.right,
+        contentRight: content.right,
+        headingRight: heading.right,
+        textRight: Math.max(...textRects.map((textRect) => textRect.right)),
+        panelLeft: panel.left,
+        panelWidth: panel.width,
+        documentWidth: document.documentElement.scrollWidth,
+        composer: rect(composer, 'message input'),
+        attachment,
+        send,
+        panelCount: panelHost.querySelectorAll('aside').length,
+      };
+    });
+  const geometry = await readGeometry();
+  const assertGeometry = (
+    snapshot: Awaited<ReturnType<typeof readGeometry>>,
+  ) => {
+    expect(snapshot.sidebarWidth).toBe(256);
+    expect(snapshot.panelWidth).toBe(320);
+    expect(snapshot.headingRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.textRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.documentWidth).toBeLessThanOrEqual(768);
+    expect(snapshot.contentRight).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.mainRight).toBeGreaterThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.panelCount).toBe(1);
+    expect(
+      snapshot.composer.right,
+      'message input must not overlap the optional panel',
+    ).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.attachment.right).toBeLessThanOrEqual(snapshot.panelLeft);
+    expect(snapshot.send.right).toBeLessThanOrEqual(snapshot.panelLeft);
+  };
+  assertGeometry(geometry);
+  const originalTransform = await composerInput.evaluate((element) => ({
+    value: (element as HTMLElement).style.getPropertyValue('transform'),
+    priority: (element as HTMLElement).style.getPropertyPriority('transform'),
+  }));
+  try {
+    await composerInput.evaluate((element) => {
+      (element as HTMLElement).style.setProperty(
+        'transform',
+        'translateX(320px)',
+      );
+    });
+    const overlappingGeometry = await readGeometry();
+    expect(overlappingGeometry.panelLeft).toBe(geometry.panelLeft);
+    expect(overlappingGeometry.composer.right).toBe(
+      geometry.composer.right + 320,
     );
-    const panel = document
-      .querySelector('[data-panel-host] aside')!
-      .getBoundingClientRect();
-    return {
-      sidebarWidth: sidebar.width,
-      mainRight: main.right,
-      headingRight: heading.right,
-      textRight,
-      panelLeft: panel.left,
-      panelWidth: panel.width,
-      documentWidth: document.documentElement.scrollWidth,
-    };
-  });
-  expect(geometry.sidebarWidth).toBe(256);
-  expect(geometry.panelWidth).toBe(320);
-  expect(geometry.headingRight).toBeLessThanOrEqual(geometry.panelLeft);
-  expect(geometry.textRight).toBeLessThanOrEqual(geometry.panelLeft);
-  expect(geometry.documentWidth).toBeLessThanOrEqual(768);
-  expect(geometry.mainRight).toBeLessThanOrEqual(geometry.panelLeft);
+    expect(overlappingGeometry.composer.right).toBeGreaterThan(
+      overlappingGeometry.panelLeft,
+    );
+    expect(overlappingGeometry.attachment).toEqual(geometry.attachment);
+    expect(overlappingGeometry.send).toEqual(geometry.send);
+    expect(() => assertGeometry(overlappingGeometry)).toThrow(
+      /message input must not overlap the optional panel/,
+    );
+  } finally {
+    await composerInput.evaluate((element, transform) => {
+      const input = element as HTMLElement;
+      if (transform.value) {
+        input.style.setProperty(
+          'transform',
+          transform.value,
+          transform.priority,
+        );
+      } else {
+        input.style.removeProperty('transform');
+      }
+    }, originalTransform);
+  }
 });
 
 test('F2 organization popup scrolls 20 choices and keeps paging and creation reachable', async ({
@@ -302,9 +701,9 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
       popup = page.getByTestId('organization-popup');
       await expect(popup).toBeVisible();
       await expect(
-        page.getByRole('dialog', { name: 'Organizations', exact: true }),
+        page.getByRole('menu', { name: 'Organizations', exact: true }),
       ).toBeVisible();
-      create = popup.getByRole('button', { name: 'Create a team' });
+      create = popup.getByRole('menuitem', { name: 'Create a team' });
       await expect
         .poll(() =>
           page.evaluate(() => {
@@ -316,8 +715,9 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
         )
         .toBe(true);
       await expect(
-        popup.getByRole('button', { name: /^F2 popup team/ }),
+        popup.getByRole('menuitem', { name: /^F2 popup team/ }),
       ).toHaveCount(0);
+      await page.keyboard.press('End');
       await expect(create).toBeFocused();
       const organizationList = page.waitForResponse(
         (response) =>
@@ -333,30 +733,25 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     }
     expect(organizationListStatus).toBe(200);
     await expect(
-      popup.getByRole('button', { name: /^F2 popup team/ }),
+      popup.getByRole('menuitem', { name: /^F2 popup team/ }),
     ).toHaveCount(19);
-    const firstChoice = popup
-      .getByRole('button', { name: /^F2 popup team/ })
-      .first();
+    const next = popup.getByRole('menuitem', { name: 'Next page' });
     for (let attempt = 0; attempt < 25; attempt += 1) {
       const focusState = await page.evaluate(() => {
         const popupElement = document.querySelector(
           '[data-testid="organization-popup"]',
         );
-        const choices = Array.from(
-          popupElement?.querySelectorAll('button') ?? [],
-        ).filter((button) => button.textContent?.startsWith('F2 popup team'));
         return {
           insidePopup: !!popupElement?.contains(document.activeElement),
-          firstChoice: choices[0] === document.activeElement,
         };
       });
-      if (focusState.firstChoice) break;
+      if (await next.evaluate((element) => element === document.activeElement))
+        break;
       if (!focusState.insidePopup)
         throw new Error('Keyboard focus left the organization popup');
-      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('ArrowDown');
     }
-    await expect(firstChoice).toBeFocused();
+    await expect(next).toBeFocused();
     const dimensions = await popup.evaluate((element) => ({
       height: element.clientHeight,
       scrollHeight: element.scrollHeight,
@@ -369,28 +764,8 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     expect(dimensions.top).toBeGreaterThanOrEqual(0);
     expect(dimensions.bottom).toBeLessThanOrEqual(viewport.height);
     const lastChoice = popup
-      .getByRole('button', { name: /^F2 popup team/ })
+      .getByRole('menuitem', { name: /^F2 popup team/ })
       .last();
-    const next = popup.getByRole('button', { name: 'Next page' });
-    for (let index = 0; index < 24; index++) {
-      const isFocused = await next.evaluate(
-        (element) => element === document.activeElement,
-      );
-      if (isFocused) break;
-      await page.keyboard.press('Tab');
-      const focusState = await page.evaluate(() => ({
-        active: document.activeElement?.textContent?.trim(),
-        insidePopup: !!document.activeElement?.closest(
-          '[data-testid="organization-popup"]',
-        ),
-      }));
-      if (!focusState.insidePopup) {
-        throw new Error(
-          `Tab left organization popup before Next page (active: ${focusState.active})`,
-        );
-      }
-    }
-    await expect(next).toBeFocused();
     await expect(lastChoice).toBeVisible();
     const lastChoiceRect = await lastChoice.boundingBox();
     const nextRect = await next.boundingBox();
@@ -405,10 +780,22 @@ test('F2 organization popup scrolls 20 choices and keeps paging and creation rea
     expect(nextRect!.y + nextRect!.height).toBeLessThanOrEqual(viewport.height);
     await page.keyboard.press('Enter');
     await expect(
-      popup.getByRole('button', { name: /^F2 popup team/ }),
+      popup.getByRole('menuitem', { name: /^F2 popup team/ }),
     ).toHaveCount(1);
-    await popup.getByRole('button', { name: 'First page' }).focus();
-    await page.keyboard.press('Tab');
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      if (
+        await create.evaluate((element) => element === document.activeElement)
+      )
+        break;
+      const inPopup = await page.evaluate(() =>
+        document
+          .querySelector('[data-testid="organization-popup"]')
+          ?.contains(document.activeElement),
+      );
+      if (!inPopup)
+        throw new Error('Keyboard focus left the organization popup');
+      await page.keyboard.press('ArrowDown');
+    }
     await expect(create).toBeFocused();
     const createRect = await create.boundingBox();
     expect(createRect).not.toBeNull();

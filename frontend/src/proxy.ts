@@ -1,13 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { safeReturnPath } from './lib/return-path';
 
-const protectedPrefixes = [
-  '/workspace',
-  '/settings',
-  '/organizations',
-  '/platform',
-  '/onboarding',
-];
+const protectedPrefixes = ['/workspace', '/platform', '/onboarding'];
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -33,8 +27,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/workspace/:path*',
-    '/settings/:path*',
-    '/organizations/:path*',
     '/platform/:path*',
     '/onboarding/:path*',
     '/sign-in',

@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest';
-import { sanitizeAuthResponse } from '../../src/modules/identity-access/index.js';
+import {
+  sanitizeAuthResponse,
+  sanitizeVerifiedSigninFailure,
+} from '../../src/modules/identity-access/auth-output.js';
 
 test('cookie output projects safe native data and preserves only HttpOnly cookies', async () => {
   const response = await sanitizeAuthResponse(
@@ -108,4 +111,38 @@ test('native errors and unsafe cookies never return plugin details', async () =>
     'cookie',
   );
   expect(failedCookie.headers.has('set-cookie')).toBe(false);
+});
+
+test('only the exact password-checked email verification error survives sanitization', async () => {
+  const accepted = await sanitizeVerifiedSigninFailure(
+    Response.json(
+      {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'private native detail',
+        email: 'person@example.test',
+      },
+      {
+        status: 403,
+        headers: {
+          'set-cookie': 'session=uncommitted; HttpOnly; Path=/',
+          'x-private': 'private native detail',
+        },
+      },
+    ),
+  );
+  expect(accepted?.status).toBe(403);
+  expect(await accepted?.json()).toEqual({
+    error: {
+      code: 'EMAIL_NOT_VERIFIED',
+      message: 'Verify your email address before signing in.',
+    },
+  });
+  expect(accepted?.headers.getSetCookie()).toEqual([]);
+  expect(accepted?.headers.get('cache-control')).toBe('no-store');
+  for (const response of [
+    Response.json({ code: 'EMAIL_NOT_VERIFIED' }, { status: 401 }),
+    Response.json({ code: 'AUTH_REQUIRED' }, { status: 403 }),
+    Response.json({ error: { code: 'EMAIL_NOT_VERIFIED' } }, { status: 403 }),
+  ])
+    expect(await sanitizeVerifiedSigninFailure(response)).toBeNull();
 });

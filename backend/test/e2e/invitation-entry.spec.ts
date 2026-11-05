@@ -41,13 +41,53 @@ test('invitation new recipient signs up verifies and accepts without exposing an
   await page.goto(
     (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
   );
-  await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  let releaseScripts!: () => void;
+  let heldScriptRequests = 0;
+  const scriptsGate = new Promise<void>((resolve) => {
+    releaseScripts = resolve;
+  });
+  await page.route('**/*.js*', async (route) => {
+    heldScriptRequests += 1;
+    await scriptsGate;
+    await route.continue();
+  });
+  const authSignInPaths: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/auth/sign-in/email') {
+      authSignInPaths.push(new URL(request.url()).pathname);
+    }
+  });
+  const signInNavigation = page
+    .getByRole('link', { name: 'Sign in', exact: true })
+    .click();
+  try {
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/sign-in');
+    await expect.poll(() => heldScriptRequests).toBeGreaterThan(0);
+    await expect(page.getByLabel('Email', { exact: true })).toBeDisabled();
+    await expect(page.getByLabel('Password', { exact: true })).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Show password', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Sign in', exact: true }),
+    ).toBeDisabled();
+  } finally {
+    releaseScripts();
+    await signInNavigation.catch(() => undefined);
+    await page.unroute('**/*.js*');
+  }
+  await expect(page.getByLabel('Email', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Password', { exact: true })).toBeEnabled();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page
     .getByLabel('Password', { exact: true })
     .fill('Browser-password-42!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page).toHaveURL(/accept-invitation/);
+  await expect
+    .poll(() => new URL(page.url()).pathname)
+    .toBe('/accept-invitation');
+  await page.waitForLoadState('load');
+  expect(authSignInPaths).toEqual(['/api/auth/sign-in/email']);
   await page
     .getByRole('button', { name: 'Accept invitation', exact: true })
     .click();
@@ -89,7 +129,7 @@ test('invitation belonging to another account reveals no organization or recipie
   await page
     .getByRole('button', { name: 'Accept invitation', exact: true })
     .click();
-  await expect(page.locator('[data-slot="field-error"]')).toContainText(
+  await expect(page.locator('[data-slot="alert"]')).toContainText(
     'This invitation is unavailable for this account.',
   );
   const text = await page.locator('body').innerText();

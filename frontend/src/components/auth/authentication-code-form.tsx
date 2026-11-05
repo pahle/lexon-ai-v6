@@ -7,10 +7,13 @@ import {
   type TotpInput,
 } from '@lexon/contracts';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
-import { Button } from '../ui/button';
 import { Field, FieldLabel, FieldError, FieldGroup } from '../ui/field';
 import { FormInput } from './form-input';
 import { useId } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { PendingButton } from '../forms/pending-button';
+import { useState } from 'react';
+import { useSubmissionLock } from '../forms/use-submission-lock';
 export function AuthenticationCodeForm({
   recovery = false,
   label = 'Authenticator code',
@@ -23,27 +26,38 @@ export function AuthenticationCodeForm({
   onSubmit: (input: TotpInput) => Promise<void>;
 }) {
   const id = useId();
+  const [failure, setFailure] = useState('');
+  const submission = useSubmissionLock();
   const form = useForm<TotpInput>({
     resolver: zodResolver(recovery ? RecoveryCodeInputSchema : TotpInputSchema),
     defaultValues: { code: '' },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   });
   return (
     <form
       noValidate
-      onSubmit={form.handleSubmit(async (input) => {
-        try {
-          await onSubmit(input);
-          form.reset();
-        } catch {
-          form.setError('code', {
-            type: 'server',
-            message: 'Unable to verify this code. Please try again.',
-          });
-          form.setFocus('code');
-        }
-      })}
+      method="post"
+      onSubmit={form.handleSubmit((input) =>
+        submission.run(async () => {
+          setFailure('');
+          try {
+            await onSubmit(input);
+            form.reset();
+          } catch {
+            setFailure('Unable to verify this code. Please try again.');
+            form.setFocus('code');
+          }
+        }),
+      )}
     >
       <FieldGroup>
+        {failure ? (
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Unable to verify</AlertTitle>
+            <AlertDescription>{failure}</AlertDescription>
+          </Alert>
+        ) : null}
         {recovery ? (
           <FormInput
             label="Recovery code"
@@ -84,9 +98,15 @@ export function AuthenticationCodeForm({
             )}
           />
         )}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <PendingButton
+          type="submit"
+          pending={submission.pending}
+          pendingLabel={
+            recovery ? 'Verifying recovery code…' : 'Verifying code…'
+          }
+        >
           {submitLabel}
-        </Button>
+        </PendingButton>
       </FieldGroup>
     </form>
   );

@@ -29,10 +29,10 @@ export function QueryFailure({ error }: { error: unknown }) {
           className="flex flex-wrap gap-2 px-6 pb-6"
           aria-label="Access options"
         >
-          <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+          <a href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity">
             Verify your sign-in
           </a>
-          <a href="/settings/security">Account security</a>
+          <a href="/workspace?settings=security">Account security</a>
           <a href="/workspace">Return to workspace</a>
         </nav>
       </>
@@ -62,20 +62,26 @@ export function useCursorPage<T>(
     enabled,
     retry: false,
   });
+  const firstPage = () => setCursor(undefined);
+  const nextPage = () => {
+    const nextCursor = query.data?.pageInfo.nextCursor;
+    if (nextCursor) setCursor(nextCursor);
+  };
   return {
     query,
+    canGoToFirstPage: cursor !== undefined,
+    canGoToNextPage: Boolean(query.data?.pageInfo.nextCursor),
+    firstPage,
+    nextPage,
     pagination: (
       <div className="flex gap-2">
-        {cursor ? (
-          <Button variant="outline" onClick={() => setCursor(undefined)}>
+        {cursor !== undefined ? (
+          <Button variant="outline" onClick={firstPage}>
             First page
           </Button>
         ) : null}
         {query.data?.pageInfo.nextCursor ? (
-          <Button
-            variant="outline"
-            onClick={() => setCursor(query.data!.pageInfo.nextCursor!)}
-          >
+          <Button variant="outline" onClick={nextPage}>
             Next page
           </Button>
         ) : null}

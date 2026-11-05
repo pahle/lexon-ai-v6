@@ -16,10 +16,7 @@ import OrganizationPage from '../src/app/(workspace)/organizations/[orgId]/page'
 import UnmatchedOrganizationPage from '../src/app/(workspace)/organizations/[orgId]/[...unmatched]/page';
 import WorkspaceNotFound from '../src/app/(workspace)/not-found';
 import RootNotFound from '../src/app/not-found';
-import SettingsIndexPage from '../src/app/(workspace)/settings/page';
-import OrganizationSettingsIndexPage from '../src/app/(workspace)/organizations/[orgId]/settings/page';
 import UnmatchedWorkspacePage from '../src/app/(workspace)/workspace/[...unmatched]/page';
-import UnmatchedSettingsPage from '../src/app/(workspace)/settings/[...unmatched]/page';
 import UnmatchedPlatformPage from '../src/app/(workspace)/platform/[...unmatched]/page';
 import UnmatchedOnboardingPage from '../src/app/(workspace)/onboarding/[...unmatched]/page';
 import RootError from '../src/app/error';
@@ -32,18 +29,8 @@ test('bare organizations, bare organization IDs, and nested unknown paths call n
   expect(() => UnmatchedOrganizationPage()).toThrow('not-found');
 });
 
-test('settings indexes redirect to the intended default sections', async () => {
-  expect(() => SettingsIndexPage()).toThrow('redirect:/settings/profile');
-  await expect(
-    OrganizationSettingsIndexPage({
-      params: Promise.resolve({ orgId: 'team-42' }),
-    }),
-  ).rejects.toThrow('redirect:/organizations/team-42/settings/members');
-});
-
-test('each shell-prefix catch-all uses the shell not-found boundary', () => {
+test('each retained shell-prefix catch-all uses the shell not-found boundary', () => {
   expect(() => UnmatchedWorkspacePage()).toThrow('not-found');
-  expect(() => UnmatchedSettingsPage()).toThrow('not-found');
   expect(() => UnmatchedPlatformPage()).toThrow('not-found');
   expect(() => UnmatchedOnboardingPage()).toThrow('not-found');
 });

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { WorkspaceProvider } from '../../components/shell/workspace-provider';
 import { WorkspaceShell } from '../../components/shell/workspace-shell';
 import { AppSidebar } from '../../components/shell/app-sidebar';
-import { SidebarProvider } from '../../components/ui/sidebar';
+import { CompositeSidebarProvider } from '../../components/shell/sidebar-context';
 import { TooltipProvider } from '../../components/ui/tooltip';
 import { sidebarDefaultOpen } from '../../components/shell/sidebar-cookie';
 import { loadWorkspaceBootstrap } from '../../lib/workspace-bootstrap';
@@ -23,9 +23,11 @@ export default async function WorkspaceLayout({
   return (
     <WorkspaceProvider bootstrap={bootstrap}>
       <TooltipProvider>
-        <SidebarProvider defaultOpen={sidebarDefaultOpen(sidebarCookie)}>
+        <CompositeSidebarProvider
+          defaultOpen={sidebarDefaultOpen(sidebarCookie)}
+        >
           <WorkspaceShell sidebar={<AppSidebar />}>{children}</WorkspaceShell>
-        </SidebarProvider>
+        </CompositeSidebarProvider>
       </TooltipProvider>
     </WorkspaceProvider>
   );

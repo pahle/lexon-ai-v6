@@ -7,12 +7,10 @@ export default async function OnboardingPage() {
   if (result.identity.user.onboardingCompleted) redirect('/workspace');
   const invitations = await result.api.listMyInvitations({ limit: 100 });
   return (
-    <div className="flex min-h-svh items-center justify-center">
-      <Onboarding
-        profile={result.identity.user}
-        invitations={invitations.items}
-      />
-    </div>
+    <Onboarding
+      profile={result.identity.user}
+      invitations={invitations.items}
+    />
   );
 }
 export const metadata = {

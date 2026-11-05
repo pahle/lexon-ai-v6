@@ -22,10 +22,6 @@ test('return paths reject external and encoded authority escapes', () => {
 test.each([
   ['/workspace', '/workspace?from=home'],
   ['/workspace/files', '/workspace/files?from=home'],
-  ['/settings', '/settings?from=home'],
-  ['/settings/security', '/settings/security?from=home'],
-  ['/organizations', '/organizations?from=home'],
-  ['/organizations/acme', '/organizations/acme?from=home'],
   ['/platform', '/platform?from=home'],
   ['/platform/users', '/platform/users?from=home'],
   ['/onboarding', '/onboarding?from=home'],
@@ -45,21 +41,18 @@ test.each([
   },
 );
 
-test.each([
-  '/workspace',
-  '/settings/security',
-  '/organizations/acme',
-  '/platform/users',
-  '/onboarding/profile',
-])('passes shell route %s when a session cookie is present', (path) => {
-  expect(
-    proxy(
-      new NextRequest(`http://localhost${path}`, {
-        headers: { cookie: 'better-auth.session_token=opaque-unverified' },
-      }),
-    )?.headers.get('location'),
-  ).toBeNull();
-});
+test.each(['/workspace', '/platform/users', '/onboarding/profile'])(
+  'passes shell route %s when a session cookie is present',
+  (path) => {
+    expect(
+      proxy(
+        new NextRequest(`http://localhost${path}`, {
+          headers: { cookie: 'better-auth.session_token=opaque-unverified' },
+        }),
+      )?.headers.get('location'),
+    ).toBeNull();
+  },
+);
 
 test('proxy checks cookie presence only and excludes public liveness', () => {
   expect(
@@ -81,17 +74,15 @@ test('proxy checks cookie presence only and excludes public liveness', () => {
   expect(
     proxy(new NextRequest('http://localhost/health'))?.headers.get('location'),
   ).toBeNull();
-  const sidebarPreferenceOnly = proxy(
-    new NextRequest('http://localhost/settings', {
-      headers: { cookie: 'sidebar_state=expanded' },
-    }),
-  );
-  expect(sidebarPreferenceOnly?.headers.get('location')).toContain('/sign-in');
+  expect(
+    proxy(new NextRequest('http://localhost/settings'))?.headers.get(
+      'location',
+    ),
+  ).toBeNull();
 });
 
 test.each([
   '/workspaceish',
-  '/settingsx',
   '/organizations-archive',
   '/platform-admin',
   '/onboarding-next',
@@ -104,11 +95,17 @@ test.each([
 test('matcher covers each shell root and its descendants', () => {
   expect(config.matcher).toEqual([
     '/workspace/:path*',
-    '/settings/:path*',
-    '/organizations/:path*',
     '/platform/:path*',
     '/onboarding/:path*',
     '/sign-in',
     '/sign-up',
   ]);
+});
+
+test('retired organization URLs pass through without proxy auth redirection', () => {
+  const response = proxy(
+    new NextRequest('http://localhost/organizations/acme/settings/members'),
+  );
+  expect(response?.headers.get('location')).toBeNull();
+  expect(response?.headers.get('x-middleware-next')).toBe('1');
 });

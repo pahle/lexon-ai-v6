@@ -1,14 +1,16 @@
 'use client';
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
-import { SidebarTrigger, useSidebarOptional } from '../ui/sidebar';
-import { useIsMobile } from '../../hooks/use-mobile';
+import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
+import { Separator } from '../ui/separator';
+import { WorkspaceBreadcrumb } from './workspace-breadcrumb';
+import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
+import { AuthFrame } from '../auth/auth-frame';
+import { SettingsDialog } from '../settings/settings-dialog';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
-const securityPaths = new Set(['/settings/security']);
 function SkipLink() {
   return (
     <a
@@ -36,10 +38,9 @@ export function WorkspaceShell({
     refreshIdentity,
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
-  const pathname = usePathname();
-  const isMobile = useIsMobile();
-  const sidebarCollapsed = useSidebarOptional()?.state === 'collapsed';
-  const securityRoute = securityPaths.has(pathname ?? '');
+  const sidebarState = useOptionalSidebar();
+  const isMobile = sidebarState?.isMobile ?? false;
+  const sidebarCollapsed = sidebarState?.state === 'collapsed';
 
   if (status === 'expired' || status === 'unavailable')
     return (
@@ -58,12 +59,12 @@ export function WorkspaceShell({
         <SkipLink />
         <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
           <nav className="flex flex-wrap gap-4" aria-label="Account recovery">
-            <a href="/settings/security">Account security</a>
-            <a href="/two-factor?returnTo=%2Fsettings%2Fsecurity">
+            <a href="/workspace?settings=security">Account security</a>
+            <a href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity">
               Verify your sign-in
             </a>
           </nav>
-          {securityRoute && !transitioning ? children : null}
+          {!transitioning ? <SettingsDialog /> : null}
         </main>
       </>
     );
@@ -76,44 +77,72 @@ export function WorkspaceShell({
         </main>
       </>
     );
+  if (!identity.user.onboardingCompleted)
+    return (
+      <>
+        <SkipLink />
+        <AuthFrame>{children}</AuthFrame>
+        <SettingsDialog />
+      </>
+    );
   const shell = (
     <PanelHostContext.Provider value={panelHost}>
       <>
         <SkipLink />
-        <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 p-6 md:flex-row">
-          {identity.user.onboardingCompleted && sidebar ? (
-            <aside aria-label="Workspace navigation" className="shrink-0">
-              {sidebar}
-            </aside>
+        {sidebar && sidebarState ? sidebar : null}
+        <SidebarInset id="main" tabIndex={-1} className="min-w-0">
+          {sidebar && sidebarState ? (
+            <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+              <div className="flex items-center gap-2 px-4">
+                <SidebarTrigger
+                  className="-ml-1"
+                  aria-label={
+                    isMobile
+                      ? 'Open navigation'
+                      : sidebarCollapsed
+                        ? 'Expand sidebar'
+                        : 'Collapse sidebar'
+                  }
+                />
+                <Separator
+                  orientation="vertical"
+                  className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+                />
+                <WorkspaceBreadcrumb />
+              </div>
+            </header>
           ) : null}
-          <main id="main" tabIndex={-1} className="min-w-0 flex-1">
-            {sidebar && identity.user.onboardingCompleted ? (
-              <SidebarTrigger
-                className="mb-4"
-                aria-label={
-                  isMobile
-                    ? 'Open navigation'
-                    : sidebarCollapsed
-                      ? 'Expand sidebar'
-                      : 'Collapse sidebar'
-                }
-              />
-            ) : null}
-            {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
-            {transitionNotice ? (
-              <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
-                {transitionNotice.message}{' '}
-                {transitionNotice.securityLink ? (
-                  <a className="underline" href="/settings/security">
-                    Account security
-                  </a>
-                ) : null}
-              </p>
-            ) : null}
-            {children}
-          </main>
-          <div ref={setPanelHost} data-panel-host="" />
-        </div>
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+              {sidebar && !sidebarState ? (
+                <aside aria-label="Workspace navigation" className="shrink-0">
+                  {sidebar}
+                </aside>
+              ) : null}
+              {fallbackNotice ? <p role="status">{fallbackNotice}</p> : null}
+              {transitionNotice ? (
+                <p role={transitionNotice.securityLink ? 'status' : 'alert'}>
+                  {transitionNotice.message}{' '}
+                  {transitionNotice.securityLink ? (
+                    <a
+                      className="underline"
+                      href="/workspace?settings=security"
+                    >
+                      Account security
+                    </a>
+                  ) : null}
+                </p>
+              ) : null}
+              {children}
+            </div>
+            <div
+              ref={setPanelHost}
+              data-panel-host=""
+              className="flex min-h-0"
+            />
+          </div>
+        </SidebarInset>
+        <SettingsDialog />
       </>
     </PanelHostContext.Provider>
   );

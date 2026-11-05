@@ -33,18 +33,20 @@ export async function readCapturedMail(
 }
 export async function authenticateApi(
   request: import('@playwright/test').APIRequestContext,
+  fixture: { name?: string; email?: string; password?: string } = {},
 ): Promise<Record<string, string>> {
   const { descriptor } = await import('./runtime-support.js');
   const { randomUUID } = await import('node:crypto');
   const stack = descriptor();
-  const email = `${randomUUID()}@example.test`;
-  const password = 'E2E-api-identity-42!';
+  const name = fixture.name ?? 'E2E identity';
+  const email = fixture.email ?? `${randomUUID()}@example.test`;
+  const password = fixture.password ?? 'E2E-api-identity-42!';
   const headers = { origin: stack.frontendUrl };
   expect(
     (
       await request.post(stack.apiUrl + '/api/auth/sign-up/email', {
         headers,
-        data: { name: 'E2E identity', email, password },
+        data: { name, email, password },
       })
     ).status(),
   ).toBe(200);

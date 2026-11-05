@@ -13,6 +13,7 @@ export function TwoFactorChallenge({
   const [recovery, setRecovery] = useState(false);
   return (
     <AuthCard
+      presentation="page"
       title="Verify your sign-in"
       description="Use your authenticator app or a recovery code to continue."
     >

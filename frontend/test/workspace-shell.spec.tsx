@@ -20,22 +20,31 @@ import { OrganizationMenu } from '../src/components/shell/organization-menu';
 import { fullReload } from '../src/lib/full-reload';
 import { identityApi } from '../src/components/organizations/page-state';
 import { IdentityClientError } from '../src/lib/identity-client';
+import { CompositeSidebarProvider } from '../src/components/shell/sidebar-context';
+import { AppSidebar } from '../src/components/shell/app-sidebar';
+import { PageHeader } from '../src/components/shell/page-header';
 const navigation = vi.hoisted(() => ({
   path: '/workspace',
+  search: '',
   replace: vi.fn(),
   router: { replace: vi.fn() },
 }));
 const signOut = vi.hoisted(() => vi.fn());
 vi.mock('../src/lib/auth-client', () => ({ authClient: { signOut } }));
 vi.mock('../src/lib/full-reload', () => ({ fullReload: vi.fn() }));
+vi.mock('../src/components/auth/account-security', () => ({
+  AccountSecurity: () => <p>Account security fixture</p>,
+}));
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.path,
+  useSearchParams: () => new URLSearchParams(navigation.search),
   useRouter: () => navigation.router,
 }));
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   navigation.path = '/workspace';
+  navigation.search = '';
   navigation.router.replace.mockClear();
   signOut.mockReset();
   signOut.mockResolvedValue({ error: null });
@@ -83,6 +92,263 @@ function Harness({
     </QueryClientProvider>
   );
 }
+
+function FallbackNoticeProbe() {
+  const { fallbackNotice, refreshIdentity, beginExplicitTransition } =
+    useWorkspace();
+  return (
+    <>
+      <p data-testid="fallback-notice">{fallbackNotice}</p>
+      <button onClick={() => void refreshIdentity().catch(() => undefined)}>
+        Refresh identity
+      </button>
+      <button onClick={() => beginExplicitTransition()}>
+        Begin tenant transition
+      </button>
+    </>
+  );
+}
+
+test('workspace shell composes one sidebar inset, one main, and a route breadcrumb', async () => {
+  window.innerWidth = 1280;
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Workspace content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  expect(view.container.querySelectorAll('[data-slot="sidebar"]')).toHaveLength(
+    1,
+  );
+  expect(
+    view.container.querySelectorAll(
+      '[role="complementary"][aria-label="Workspace navigation"]',
+    ),
+  ).toHaveLength(1);
+  expect(view.container.querySelectorAll('main')).toHaveLength(1);
+  expect(
+    view.container.querySelector('[data-slot="sidebar-inset"]'),
+  ).not.toBeNull();
+  expect(
+    view.container.querySelector('[aria-label="breadcrumb"]')?.textContent,
+  ).toContain('Home');
+  expect(view.container.textContent).toContain('Workspace content');
+  await view.unmount();
+});
+
+test('incomplete onboarding keeps Account Security available without team settings', async () => {
+  navigation.search = '?settings=security';
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const incomplete = {
+    ...identity,
+    user: { ...identity.user, onboardingCompleted: false },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const renderShell = () => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: incomplete }}>
+        <WorkspaceShell>
+          <p>Onboarding flow</p>
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(renderShell());
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain('Account security fixture');
+  expect(document.body.textContent).toContain('Onboarding flow');
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual(['Security']);
+  expect(document.body.textContent).not.toContain('Members');
+  navigation.search = '?settings=members';
+  await view.rerender(renderShell());
+  expect(document.body.textContent).toContain(
+    'You do not have access to this section.',
+  );
+  expect(document.body.textContent).not.toContain('Account security fixture');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  navigation.path = '/workspace';
+  navigation.search = '?settings=general';
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider
+        bootstrap={{
+          status: 'ready',
+          identity: {
+            ...identity,
+            organization: {
+              ...identity.organization,
+              name: 'Private team name',
+            },
+          },
+        }}
+      >
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Settings content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const breadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  const items = [...breadcrumb.querySelectorAll('ol > li')];
+  expect(items).toHaveLength(1);
+  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
+    'Home',
+  );
+  expect(breadcrumb.textContent).not.toContain('Private team name');
+  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(
+    view.container.querySelector(
+      `nav[aria-label="Primary navigation"] a[href*="settings=general"]`,
+    ),
+  ).toBeNull();
+  await view.unmount();
+});
+
+test('workspace breadcrumb labels provisioning details and invalid organization routes safely', async () => {
+  navigation.path = '/platform/provisioning/org-private-id';
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Route content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const breadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
+    'Provisioning details',
+  );
+  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(breadcrumb.textContent).not.toContain('org-private-id');
+
+  navigation.path = `/organizations/${identity.organization.id}/members`;
+  await view.rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <p>Route content</p>
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const invalidBreadcrumb = view.container.querySelector(
+    'nav[aria-label="breadcrumb"]',
+  )!;
+  expect(
+    invalidBreadcrumb.querySelector('[aria-current="page"]')?.textContent,
+  ).toBe('Page not found');
+  expect(
+    invalidBreadcrumb.querySelectorAll('[aria-current="page"]'),
+  ).toHaveLength(1);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('mobile user menu opens settings and closing restores focus to the navigation opener', async () => {
+  navigation.path = '/workspace';
+  vi.stubGlobal('innerWidth', 767);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const renderShell = () => (
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen={false}>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <PageHeader title="Home" />
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(renderShell());
+  const opener = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Open navigation"]',
+  )!;
+  await act(async () => opener.click());
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  const userMenu = document.body.querySelector<HTMLButtonElement>(
+    '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+  )!;
+  await act(async () => userMenu.click());
+  const settings = document.body.querySelector<HTMLAnchorElement>(
+    '[role="menuitem"][href*="settings=profile"]',
+  )!;
+  await act(async () => settings.click());
+  navigation.search = '?settings=profile';
+  await view.rerender(renderShell());
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull(),
+  );
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual([
+    'Profile',
+    'Appearance',
+    'Security',
+    'Members',
+    'Invitations',
+    'General',
+  ]);
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  navigation.search = '';
+  await view.rerender(renderShell());
+  await vi.waitFor(() =>
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+  );
+  await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
 
 function Protected() {
   const workspace = useWorkspace();
@@ -190,14 +456,14 @@ test('organization switch hides old protected content and enrollment denial rest
   await act(async () =>
     (
       view.container.querySelector(
-        '[aria-label="Organization: Team"]',
+        '[aria-label^="Organization: Team"]',
       ) as HTMLButtonElement
     ).click(),
   );
   await settle();
   await act(async () =>
-    [...document.body.querySelectorAll('button')]
-      .find((button) => button.textContent === 'Next team')
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Next team')
       ?.click(),
   );
   expect(switchCall).toHaveBeenCalledWith(target.id);
@@ -232,20 +498,22 @@ test('organization switch hides old protected content and enrollment denial rest
   await act(async () =>
     (
       deniedView.container.querySelector(
-        '[aria-label="Organization: Team"]',
+        '[aria-label^="Organization: Team"]',
       ) as HTMLButtonElement
     ).click(),
   );
   await settle();
   await act(async () =>
-    [...document.body.querySelectorAll('button')]
-      .find((button) => button.textContent === 'Next team')
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Next team')
       ?.click(),
   );
   await settle();
   expect(deniedView.container.textContent).toContain('Old private members');
   expect(
-    deniedView.container.querySelector('a[href="/settings/security"]'),
+    deniedView.container.querySelector(
+      'a[href="/workspace?settings=security"]',
+    ),
   ).not.toBeNull();
   expect(deniedView.container.textContent).toContain(
     'Your current organization is unchanged.',
@@ -764,6 +1032,11 @@ test('onboarding identity does not render the optional sidebar', async () => {
 });
 
 test('MFA-required bootstrap keeps a security route and hides other protected content', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
   const identityCall = vi
     .spyOn(identityApi, 'identity')
     .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
@@ -782,14 +1055,17 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
     'Protected organization data',
   );
   expect(
-    restricted.container.querySelector('a[href="/settings/security"]'),
+    restricted.container.querySelector(
+      'a[href="/workspace?settings=security"]',
+    ),
   ).not.toBeNull();
   await restricted.unmount();
   identityCall.mockRestore();
   const securityIdentityCall = vi
     .spyOn(identityApi, 'identity')
     .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
-  navigation.path = '/settings/security';
+  navigation.path = '/workspace';
+  navigation.search = '?settings=security';
   const recovery = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider bootstrap={{ status: 'mfa-required' }}>
@@ -799,18 +1075,33 @@ test('MFA-required bootstrap keeps a security route and hides other protected co
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  expect(recovery.container.textContent).toContain('Recovery controls');
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(
+    [
+      ...document.body.querySelectorAll('[aria-label="Settings sections"] a'),
+    ].map((link) => link.textContent),
+  ).toEqual(['Security']);
+  expect(recovery.container.textContent).not.toContain(
+    'Protected organization data',
+  );
   await recovery.unmount();
   securityIdentityCall.mockRestore();
+  vi.unstubAllGlobals();
   navigation.path = '/workspace';
 });
 
 test('security recovery works at both preserved paths and keeps direct sign-in verification available', async () => {
-  for (const path of ['/settings/security']) {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  for (const path of ['/workspace']) {
     const identityCall = vi
       .spyOn(identityApi, 'identity')
       .mockRejectedValue(new IdentityClientError('AUTH_2FA_REQUIRED', 403));
     navigation.path = path;
+    navigation.search = '?settings=security';
     const view = await render(
       <QueryClientProvider client={new QueryClient()}>
         <WorkspaceProvider bootstrap={{ status: 'mfa-required' }}>
@@ -820,15 +1111,19 @@ test('security recovery works at both preserved paths and keeps direct sign-in v
         </WorkspaceProvider>
       </QueryClientProvider>,
     );
-    expect(view.container.textContent).toContain('Recovery controls');
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(view.container.textContent).not.toContain(
+      'Protected organization data',
+    );
     expect(
       view.container.querySelector(
-        'a[href="/two-factor?returnTo=%2Fsettings%2Fsecurity"]',
+        'a[href="/two-factor?returnTo=%2Fworkspace%3Fsettings%3Dsecurity"]',
       ),
     ).not.toBeNull();
     await view.unmount();
     identityCall.mockRestore();
   }
+  vi.unstubAllGlobals();
   navigation.path = '/workspace';
 });
 
@@ -889,7 +1184,7 @@ test('only AUTH_2FA_REQUIRED is classified as MFA recovery', async () => {
     await vi.advanceTimersByTimeAsync(1);
   });
   expect(
-    view.container.querySelector('a[href="/settings/security"]'),
+    view.container.querySelector('a[href="/workspace?settings=security"]'),
   ).toBeNull();
   expect(view.container.textContent).toContain(
     'Service temporarily unavailable',
@@ -968,6 +1263,377 @@ test('the same fallback event stays dismissed while a fallback from another sour
     view.container.textContent?.match(/no longer have access/gi),
   ).toHaveLength(1);
   await view.unmount();
+});
+
+test('a known fallback header refreshes identity and announces only a verified same-user Personal transition', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValueOnce(personal)
+    .mockRejectedValueOnce(new Error('temporary verification failure'))
+    .mockResolvedValue(personal);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledTimes(1);
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(personal);
+  expect(client.getQueryData<IdentitySummary>(['identity'])).not.toHaveProperty(
+    'fallbackReason',
+  );
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain(
+    'You no longer have access to the previous organization. Personal is selected.',
+  );
+
+  await act(async () => {
+    view.container.querySelectorAll('button')[0]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toContain(
+    'You no longer have access to the previous organization. Personal is selected.',
+  );
+
+  await act(async () => {
+    view.container.querySelectorAll('button')[0]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toBe('');
+  expect(identityCall).toHaveBeenCalledTimes(3);
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('stale fallback hints do not announce same-organization, other-team, or other-account identity', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherTeam: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      name: 'Other team',
+      slug: 'other-team',
+    },
+  };
+  const otherAccount: IdentitySummary = {
+    ...personal,
+    user: {
+      ...personal.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  for (const verified of [identity, otherTeam, otherAccount]) {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const identityCall = vi
+      .spyOn(identityApi, 'identity')
+      .mockResolvedValue(verified);
+    const view = await render(
+      <QueryClientProvider client={client}>
+        <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+          <FallbackNoticeProbe />
+        </WorkspaceProvider>
+      </QueryClientProvider>,
+    );
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('lexon:identity-fallback-hint', {
+          detail: { reason: 'membership_removed' },
+        }),
+      );
+      await settle();
+    });
+    expect(identityCall).toHaveBeenCalledOnce();
+    expect(
+      view.container.querySelector('[data-testid="fallback-notice"]')
+        ?.textContent,
+    ).toBe('');
+    await view.unmount();
+    identityCall.mockRestore();
+  }
+});
+
+test('header fallback notice is cleared when an explicit tenant transition starts', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(personal);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain('You no longer have access');
+  await act(async () => {
+    view.container.querySelectorAll('button')[1]!.click();
+    await settle();
+  });
+  expect(notice.textContent).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('header fallback notice does not survive a verified bootstrap account change', async () => {
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherAccount = {
+    ...personal,
+    user: {
+      ...personal.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(personal);
+  const makeTree = (bootstrapIdentity: IdentitySummary) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        bootstrap={{ status: 'ready', identity: bootstrapIdentity }}
+      >
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(makeTree(identity));
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  const notice = view.container.querySelector(
+    '[data-testid="fallback-notice"]',
+  )!;
+  expect(notice.textContent).toContain('You no longer have access');
+  await view.rerender(makeTree(otherAccount));
+  await settle();
+  expect(notice.textContent).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('unmount discards a pending header-triggered identity verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  let resolveIdentity: (verified: IdentitySummary) => void = () => {};
+  const identityCall = vi.spyOn(identityApi, 'identity').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveIdentity = resolve;
+      }),
+  );
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledOnce();
+  await view.unmount();
+  resolveIdentity(personal);
+  await settle();
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(identity);
+  identityCall.mockRestore();
+});
+
+test('a bootstrap account change invalidates a pending header verification', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const personal: IdentitySummary = {
+    ...identity,
+    organization: {
+      ...identity.organization,
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      name: 'Personal',
+      slug: 'personal',
+      kind: 'personal',
+      role: 'owner',
+      require2fa: false,
+    },
+  };
+  const otherAccount: IdentitySummary = {
+    ...identity,
+    user: {
+      ...identity.user,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    },
+  };
+  let resolveIdentity: (verified: IdentitySummary) => void = () => {};
+  const identityCall = vi.spyOn(identityApi, 'identity').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveIdentity = resolve;
+      }),
+  );
+  const makeTree = (bootstrapIdentity: IdentitySummary) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        bootstrap={{ status: 'ready', identity: bootstrapIdentity }}
+      >
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = await render(makeTree(identity));
+  await act(async () => {
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).toHaveBeenCalledOnce();
+
+  await view.rerender(makeTree(otherAccount));
+  await settle();
+  resolveIdentity(personal);
+  await settle();
+
+  expect(client.getQueryData<IdentitySummary>(['identity'])).toEqual(identity);
+  expect(
+    view.container.querySelector('[data-testid="fallback-notice"]')
+      ?.textContent,
+  ).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
+});
+
+test('fallback hints are ignored during an explicit tenant transition and when identity does not verify fallback to Personal', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const identityCall = vi
+    .spyOn(identityApi, 'identity')
+    .mockResolvedValue(identity);
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <FallbackNoticeProbe />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await act(async () => {
+    view.container.querySelectorAll('button')[1]!.click();
+    window.dispatchEvent(
+      new CustomEvent('lexon:identity-fallback-hint', {
+        detail: { reason: 'membership_removed' },
+      }),
+    );
+    await settle();
+  });
+  expect(identityCall).not.toHaveBeenCalled();
+  expect(
+    view.container.querySelector('[data-testid="fallback-notice"]')
+      ?.textContent,
+  ).toBe('');
+  await view.unmount();
+  identityCall.mockRestore();
 });
 
 test('same-organization role demotion hides and clears private tenant data before revealing the new role', async () => {
@@ -1278,7 +1944,7 @@ function PanelHostProbe() {
   return <span data-host-ready={host ? 'yes' : 'no'} />;
 }
 
-test('panel host is a named aside beside a focusable main', async () => {
+test('panel host is page-owned inside a focusable inset main', async () => {
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
@@ -1292,10 +1958,10 @@ test('panel host is a named aside beside a focusable main', async () => {
   const main = view.container.querySelector('main');
   expect(host).not.toBeNull();
   expect(host?.tagName).toBe('DIV');
-  expect(main?.contains(host)).toBe(false);
+  expect(main?.contains(host)).toBe(true);
   expect(host?.closest('aside[aria-label="Context panel"]')).toBeNull();
   expect(main?.tabIndex).toBe(-1);
-  expect(main?.parentElement?.className).toContain('min-w-0');
+  expect(main?.className).toContain('min-w-0');
   expect(view.container.querySelectorAll('main')).toHaveLength(1);
   expect(host?.getAttribute('class') ?? '').not.toMatch(/w-80|w-full/);
   await view.unmount();

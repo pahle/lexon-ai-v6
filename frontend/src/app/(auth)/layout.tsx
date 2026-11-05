@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AuthFrame } from '../../components/auth/auth-frame';
 export const metadata = {
   title: 'Lexon account',
   description: 'Sign in and manage your Lexon account.',
@@ -14,13 +15,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <main
-        id="main"
-        tabIndex={-1}
-        className="flex min-h-svh items-center justify-center p-6"
-      >
-        {children}
-      </main>
+      <AuthFrame>{children}</AuthFrame>
     </>
   );
 }

@@ -1,6 +1,21 @@
 import { z } from 'zod';
 import * as contracts from '@lexon/contracts';
 import type { IdentityApi } from '@lexon/contracts';
+export const IDENTITY_FALLBACK_HINT_EVENT =
+  'lexon:identity-fallback-hint' as const;
+export type IdentityFallbackReason =
+  'membership_removed' | 'selection_repaired';
+const identityFallbackReasons = new Set<IdentityFallbackReason>([
+  'membership_removed',
+  'selection_repaired',
+]);
+
+function fallbackReasonFromHeader(value: string | null) {
+  return value && identityFallbackReasons.has(value as IdentityFallbackReason)
+    ? (value as IdentityFallbackReason)
+    : undefined;
+}
+
 export class IdentityClientError extends Error {
   constructor(
     readonly code: string,
@@ -57,6 +72,22 @@ export function buildIdentityClient(
       });
     } catch {
       throw new IdentityClientError('AUTH_UNAVAILABLE', 503);
+    }
+    if (
+      path !== '/identity' &&
+      !serverCookie &&
+      typeof window !== 'undefined'
+    ) {
+      const reason = fallbackReasonFromHeader(
+        response.headers.get('x-lexon-fallback-reason'),
+      );
+      if (reason) {
+        window.dispatchEvent(
+          new CustomEvent(IDENTITY_FALLBACK_HINT_EVENT, {
+            detail: { reason },
+          }),
+        );
+      }
     }
     if (!response.ok) {
       let code = 'AUTH_UNAVAILABLE';

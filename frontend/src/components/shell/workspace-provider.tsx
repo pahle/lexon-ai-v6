@@ -11,7 +11,11 @@ import {
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IdentitySummary } from '@lexon/contracts';
-import { IdentityClientError } from '../../lib/identity-client';
+import {
+  IDENTITY_FALLBACK_HINT_EVENT,
+  IdentityClientError,
+  type IdentityFallbackReason,
+} from '../../lib/identity-client';
 import { identityApi } from '../organizations/page-state';
 import { transitionTenant } from '../../lib/tenant-queries';
 
@@ -52,6 +56,11 @@ async function clearQueryFamilies(
 }
 const fallbackMessage =
   'You no longer have access to the previous organization. Personal is selected.';
+type PendingFallbackHint = {
+  reason: IdentityFallbackReason;
+  userId: string;
+  sourceOrganizationId: string;
+};
 
 export function WorkspaceProvider({
   bootstrap,
@@ -77,12 +86,16 @@ export function WorkspaceProvider({
     useState<IdentitySummary | null>(
       bootstrap.status === 'ready' ? bootstrap.identity : null,
     );
+  const committedIdentityRef = useRef(committedIdentity);
   const [latestVerifiedIdentity, setLatestVerifiedIdentity] =
     useState<IdentitySummary | null>(
       bootstrap.status === 'ready' ? bootstrap.identity : null,
     );
   const latestVerifiedIdentityRef = useRef(latestVerifiedIdentity);
   const identityRequestVersion = useRef(0);
+  const pendingFallbackHintRef = useRef<PendingFallbackHint | null>(null);
+  const headerFallbackNoticeActiveRef = useRef(false);
+  const explicitTransitionPendingRef = useRef(false);
   const [untrustedCacheClearPending, setUntrustedCacheClearPending] = useState(
     bootstrap.status !== 'ready',
   );
@@ -100,13 +113,42 @@ export function WorkspaceProvider({
     securityLink?: boolean;
   } | null>(null);
 
-  const publishVerifiedIdentity = useCallback((verified: IdentitySummary) => {
-    latestVerifiedIdentityRef.current = verified;
-    setLatestVerifiedIdentity(verified);
-    setMustVerifyIdentity(false);
-    setRefreshFailure(null);
-    setBootstrapSyncPending(false);
-  }, []);
+  const publishVerifiedIdentity = useCallback(
+    (verified: IdentitySummary, requestVersion?: number) => {
+      if (requestVersion !== undefined) {
+        const hint = pendingFallbackHintRef.current;
+        if (hint) {
+          pendingFallbackHintRef.current = null;
+          const previous = committedIdentityRef.current;
+          if (
+            !verified.fallbackReason &&
+            !explicitTransitionPendingRef.current &&
+            previous?.user.id === hint.userId &&
+            previous.organization.id === hint.sourceOrganizationId &&
+            previous.organization.kind === 'team' &&
+            verified.user.id === hint.userId &&
+            verified.organization.id !== hint.sourceOrganizationId &&
+            verified.organization.kind === 'personal'
+          ) {
+            headerFallbackNoticeActiveRef.current = true;
+            setFallbackNotice(fallbackMessage);
+          }
+        } else if (headerFallbackNoticeActiveRef.current) {
+          headerFallbackNoticeActiveRef.current = false;
+          setFallbackNotice(null);
+        }
+      } else if (headerFallbackNoticeActiveRef.current) {
+        headerFallbackNoticeActiveRef.current = false;
+        setFallbackNotice(null);
+      }
+      latestVerifiedIdentityRef.current = verified;
+      setLatestVerifiedIdentity(verified);
+      setMustVerifyIdentity(false);
+      setRefreshFailure(null);
+      setBootstrapSyncPending(false);
+    },
+    [],
+  );
 
   const requestIdentity = useCallback(async () => {
     const requestVersion = ++identityRequestVersion.current;
@@ -117,7 +159,7 @@ export function WorkspaceProvider({
         if (latest) return latest;
         throw new Error('Identity request was superseded before verification.');
       }
-      publishVerifiedIdentity(verified);
+      publishVerifiedIdentity(verified, requestVersion);
       return verified;
     } catch (error) {
       if (requestVersion !== identityRequestVersion.current) {
@@ -165,6 +207,28 @@ export function WorkspaceProvider({
   const transitioning = accessTransitioning || explicitTransitionPending;
 
   useEffect(() => {
+    const bootstrapIdentity =
+      bootstrap.status === 'ready' ? bootstrap.identity : null;
+    const committed = committedIdentityRef.current;
+    const pendingHint = pendingFallbackHintRef.current;
+    if (
+      pendingHint &&
+      (!bootstrapIdentity ||
+        pendingHint.userId !== bootstrapIdentity.user.id ||
+        pendingHint.sourceOrganizationId !== bootstrapIdentity.organization.id)
+    ) {
+      pendingFallbackHintRef.current = null;
+      identityRequestVersion.current += 1;
+    }
+    if (
+      headerFallbackNoticeActiveRef.current &&
+      (!bootstrapIdentity ||
+        bootstrapIdentity.user.id !== committed?.user.id ||
+        bootstrapIdentity.organization.id !== committed?.organization.id)
+    ) {
+      headerFallbackNoticeActiveRef.current = false;
+      setFallbackNotice(null);
+    }
     if (bootstrap.status !== 'ready' || !bootstrapSyncPending) return;
     const syncVersion = ++identityRequestVersion.current;
     let current = true;
@@ -188,6 +252,7 @@ export function WorkspaceProvider({
       if (!current || syncVersion !== identityRequestVersion.current) return;
       queryClient.setQueryData(['identity'], bootstrap.identity);
       publishVerifiedIdentity(bootstrap.identity);
+      committedIdentityRef.current = bootstrap.identity;
       setCommittedIdentity(bootstrap.identity);
     })();
     return () => {
@@ -214,13 +279,17 @@ export function WorkspaceProvider({
         await queryClient.invalidateQueries({ queryKey: ['organizations'] });
       }
       if (!current) return;
+      committedIdentityRef.current = identity;
       setCommittedIdentity(identity);
       if (
         identity.fallbackReason &&
         previous?.organization.id !== identity.organization.id
       ) {
         setFallbackNotice(fallbackMessage);
-      } else if (!identity.fallbackReason) {
+      } else if (
+        !identity.fallbackReason &&
+        !headerFallbackNoticeActiveRef.current
+      ) {
         setFallbackNotice(null);
       }
     })();
@@ -236,7 +305,8 @@ export function WorkspaceProvider({
   ]);
 
   useEffect(() => {
-    if (!identity?.fallbackReason) setFallbackNotice(null);
+    if (!identity?.fallbackReason && !headerFallbackNoticeActiveRef.current)
+      setFallbackNotice(null);
   }, [identity?.fallbackReason, identity?.organization.id]);
 
   const effectiveIdentityError = identityError ?? refreshFailure;
@@ -277,7 +347,7 @@ export function WorkspaceProvider({
         if (latest) return latest;
         throw new Error('Identity request was superseded before verification.');
       }
-      publishVerifiedIdentity(verified);
+      publishVerifiedIdentity(verified, requestVersion);
       queryClient.setQueryData(['identity'], verified);
       return verified;
     } catch (error) {
@@ -286,8 +356,50 @@ export function WorkspaceProvider({
       throw error;
     }
   }, [publishVerifiedIdentity, queryClient]);
+  useEffect(() => {
+    const onFallbackHint = (event: Event) => {
+      const reason = (event as CustomEvent<{ reason?: unknown }>).detail
+        ?.reason;
+      if (
+        (reason !== 'membership_removed' && reason !== 'selection_repaired') ||
+        explicitTransitionPendingRef.current
+      )
+        return;
+      const committed = committedIdentityRef.current;
+      if (!committed || committed.organization.kind !== 'team') return;
+      const pending = pendingFallbackHintRef.current;
+      if (
+        pending?.userId === committed.user.id &&
+        pending.sourceOrganizationId === committed.organization.id
+      )
+        return;
+      pendingFallbackHintRef.current = {
+        reason,
+        userId: committed.user.id,
+        sourceOrganizationId: committed.organization.id,
+      };
+      void refreshIdentity().catch(() => undefined);
+    };
+    window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+    return () => {
+      window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+      if (pendingFallbackHintRef.current) {
+        pendingFallbackHintRef.current = null;
+        identityRequestVersion.current += 1;
+      }
+    };
+  }, [refreshIdentity]);
   const beginExplicitTransition = useCallback(
     (options?: { requireFreshIdentity?: boolean }) => {
+      explicitTransitionPendingRef.current = true;
+      if (headerFallbackNoticeActiveRef.current) {
+        headerFallbackNoticeActiveRef.current = false;
+        setFallbackNotice(null);
+      }
+      if (pendingFallbackHintRef.current) {
+        pendingFallbackHintRef.current = null;
+        identityRequestVersion.current += 1;
+      }
       setTransitionNotice(null);
       setExplicitTransitionPending(true);
       if (options?.requireFreshIdentity) {
@@ -302,6 +414,7 @@ export function WorkspaceProvider({
   );
   const finishExplicitTransition = useCallback(
     (notice?: { message: string; securityLink?: boolean }) => {
+      explicitTransitionPendingRef.current = false;
       setTransitionNotice(notice ?? null);
       setExplicitTransitionPending(false);
     },

@@ -78,6 +78,8 @@ try {
     root + 'backend/test/e2e/compose.egress-probe.yml',
     root + 'backend/test/e2e/compose.identity.yml',
   ];
+  if (process.env.LEXON_VISUAL_DEV === '1')
+    files.push(root + 'backend/test/e2e/compose.visual-dev.yml');
   await withOwnedStack({
     project,
     directory,

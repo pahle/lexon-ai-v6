@@ -4,8 +4,12 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { consumeRouteHeadingFocus } from './navigation-focus';
 
-export function PageHeader(_props: { title: string; actions?: ReactNode }) {
-  const { title, actions } = _props;
+export function PageHeader(_props: {
+  title: string;
+  actions?: ReactNode;
+  visuallyHidden?: boolean;
+}) {
+  const { title, actions, visuallyHidden = false } = _props;
   const pathname = usePathname();
   const heading = useRef<HTMLHeadingElement>(null);
   const previousPath = useRef(pathname);
@@ -20,11 +24,17 @@ export function PageHeader(_props: { title: string; actions?: ReactNode }) {
     return () => window.clearTimeout(focusTimer);
   }, [pathname]);
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+    <header
+      className={
+        visuallyHidden
+          ? 'sr-only'
+          : 'flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4'
+      }
+    >
       <h1
         ref={heading}
         tabIndex={-1}
-        className="min-w-0 [overflow-wrap:anywhere] text-[length:var(--font-size-heading)] leading-[1.5] font-semibold"
+        className="min-w-0 text-balance font-serif text-2xl font-bold"
       >
         {title}
       </h1>
