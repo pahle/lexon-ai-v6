@@ -34,6 +34,10 @@ Current scope: Tasks1–3 accepted — portable contracts, registry/state, tenan
 - Main-session final verification: `pnpm exec vitest run --project backend-unit --project backend-integration token-estimator.spec attempt-budget.spec ai-attempts.spec ai-capacity.spec` passed **34 tests / 4 files**, exit 0, 14.21s. This includes the privilege, fingerprint, estimator, restart and overrun regressions. Full-suite evidence above predates the scoped fixes; covering tests and workspace gates passed after them.
 - Remaining integration gates: Task 5 must resolve provider cost normalization/precision before real execution; Task 9 must atomically finalize a failed run with truthful usage and partial output when settlement reports overrun. Task 3 supplies accounting only. The three existing jsdom warnings remain recorded for final review.
 
+## Estimator calibration follow-up (owner, 2026-11-05)
+
+The current estimator reserves one token per UTF-8 byte plus overhead. The owner notes this is roughly 3–4 times typical real usage; this is an expectation, not a measured result, and remains within the approved conservative-admission rule. Task 15 must record the measured estimated/reported input-token ratio. Calibrate the estimator before F8 sends large document context. No estimator behavior changes in Task 4.
+
 ## Research checked
 
 - [AI SDK 7 UI stream protocol](https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol), read 2026-11-05; installed `ai@7.0.159` verified from backend package metadata and the approved design notes. Selected the versioned text/tool/step parts and retained Lexon's status, reset, approval-required, finish, and safe error envelope events. Provider SDK types remain outside `shared/`.
