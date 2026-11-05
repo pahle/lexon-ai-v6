@@ -555,3 +555,25 @@ operationId are UUID-validated, including approval-required and operation-status
 Lexon-generated message IDs are UUIDs. SDK-provided text/tool/approval part IDs
 remain bounded opaque strings (256code units proposed), not forced to UUID or
 trimmed. Behavioral RED precedes these corrections before repository adoption.
+
+## Task2 owner least-privilege correction, first in Task3
+
+Owner accepted Task2 subject to revoking lexon_app UPDATE on
+ops.ai_engine_capacity in a new migration;0015 remains immutable. Runtime
+retains SELECT/INSERT for insert-or-compare. UPDATE/DELETE denial, same-fingerprint
+second-process success, and different-fingerprint mismatch refusal are tested.
+Changing capacity later is migration/operator work. slot_bytes6291456 and the
+per-org maximum6 are deliberate fixed CHECK/config limits; raising either
+requires a reviewed migration.
+
+Research rechecked2026-11-05: [PostgreSQL17 SELECT](https://www.postgresql.org/docs/17/sql-select.html)
+states all SELECT row-locking clauses also require UPDATE privilege;
+[REVOKE](https://www.postgresql.org/docs/17/sql-revoke.html) and transaction
+isolation docs support removing the runtime FOR UPDATE comparison while
+retaining the existing advisory xact lock. The owner-only admission trigger
+keeps its own serialization; no new SECURITY DEFINER configuration bypass.
+
+Accounting convention for the current storage shape: inputBudgetTokens plus
+outputBudgetTokens is the single persisted aggregate token budget. Server
+profile projection must match it; unknown reservations never release either
+component. Missing reported components retain their component reservation.
