@@ -23,6 +23,21 @@ export class RunAuthorizationService {
     return withRunActor(identity, work);
   }
 
+  /** Proves the actor is the exact, still-active Identity scope value. */
+  assertLiveActor(actor: RunActor): void {
+    if (!actor || currentRunActor() !== actor)
+      throw new Error('Run actor is not active');
+    // Touch the guarded getters while the matching async scope is active.
+    if (
+      !actor.orgId ||
+      !actor.userId ||
+      !actor.sessionId ||
+      (actor.mfaVerifiedAt !== null &&
+        !Number.isFinite(actor.mfaVerifiedAt.getTime()))
+    )
+      throw new Error('Run actor is invalid');
+  }
+
   async authorize(
     tx: TenantSession,
     actorFacts: RunActorFacts,

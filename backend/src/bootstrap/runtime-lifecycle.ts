@@ -1,6 +1,9 @@
 import type { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import type { RuntimeConfig } from '../config/runtime-config.js';
-import { TenantDatabase } from '../infrastructure/db/index.js';
+import {
+  AiCapacityRepository,
+  TenantDatabase,
+} from '../infrastructure/db/index.js';
 import {
   QueueProducer,
   QueueConsumer,
@@ -28,9 +31,18 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly storage?: StoragePort,
     private readonly consumer?: QueueConsumer,
     private readonly dispatcher?: OutboxDispatcher,
+    private readonly capacity?: AiCapacityRepository,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
+      if (
+        this.config.runtime === 'api' ||
+        this.config.runtime === 'ai-worker'
+      ) {
+        if (!this.capacity)
+          throw new Error('AI capacity repository unavailable');
+        await this.capacity.configure(this.config.ai);
+      }
       const policy = await checkValkeyPolicy(this.config.valkey);
       if (Object.values(policy).some((status) => status !== 'up'))
         throw new Error('Valkey startup policy unavailable');

@@ -220,6 +220,9 @@ export async function createAiFixture(services: Services) {
   }
 
   return {
+    database,
+    capacity,
+    capacityConfig: config,
     tenants,
     async close() {
       await Promise.all([
@@ -246,6 +249,31 @@ export async function createAiFixture(services: Services) {
         [outboxId],
       );
       return Number(result.rows[0]?.count ?? 0);
+    },
+    async outboxCount(index: number, type: string): Promise<number> {
+      return countScoped(
+        index,
+        'SELECT count(*)::text AS count FROM ops.outbox WHERE org_id=$1 AND type=$2',
+        [type],
+      );
+    },
+    async outboxForRun(index: number, runId: string) {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return (
+        (
+          await migrator.query<{
+            id: string;
+            queue_name: string | null;
+            priority: number | null;
+            payload: unknown;
+          }>(
+            `SELECT id,queue_name,priority,payload FROM ops.outbox
+           WHERE org_id=$1 AND type='run.start.v1' AND payload->>'runId'=$2`,
+            [tenant.orgId, runId],
+          )
+        ).rows[0] ?? null
+      );
     },
     async noContextCounts(): Promise<number[]> {
       const fresh = new Client({ connectionString: services.appUrl });

@@ -3,6 +3,7 @@ import {
   bindPool,
   beginSession,
   endSession,
+  requireSession,
   type TenantSession,
 } from './tenant-session.js';
 import {
@@ -61,6 +62,16 @@ export class TenantDatabase {
       if (session) endSession(session);
       client.release(releaseError);
     }
+  }
+
+  assertSessionContext(session: TenantSession, input: TenantContext): void {
+    const context = validateTenantContext(input);
+    const active = requireSession(session).ctx;
+    if (
+      active.orgId !== context.orgId ||
+      (active.userId ?? undefined) !== (context.userId ?? undefined)
+    )
+      throw new Error('Tenant session context mismatch');
   }
 
   async check(): Promise<'up' | 'down'> {

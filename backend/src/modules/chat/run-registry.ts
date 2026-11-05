@@ -55,6 +55,10 @@ export class RunRegistry {
     for (const [id, context] of contexts) this.#contexts.set(id, context);
     for (const [id, tool] of tools) this.#tools.set(id, tool);
   }
+
+  profile(id: string): RunProfile | undefined {
+    return this.#profiles.get(id);
+  }
 }
 
 function validateProfile(profile: RunProfile): void {

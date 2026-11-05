@@ -13,6 +13,7 @@ import { RuntimeLifecycle } from '../../src/bootstrap/runtime-lifecycle.js';
 import { runtimeEnvironment } from '../setup/runtime-environment.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { dispatcherConnections } from '../../src/infrastructure/db/testing/dispatcher.js';
+import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 
 test('API and dispatcher register no processors; standby is ready and lock loss is unready', async ({
   services,
@@ -64,6 +65,23 @@ test('API and dispatcher register no processors; standby is ready and lock loss 
     await proxy.close();
     await rm(directory, { recursive: true, force: true });
     expect(await dispatcherConnections(services)).toBe(0);
+  }
+});
+
+test('API module boot refuses a persisted AI capacity mismatch before startup gates', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  await ai.close();
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-api-capacity-'));
+  try {
+    const env = createAuthEnvironment(services, join(directory, 'health.json'));
+    env.AI_MAXLEN = '1000';
+    await expect(createApi(loadRuntimeConfig('api', env))).rejects.toThrow(
+      'API startup failed',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 test('document-worker boot imports no AI and opens no TCP listener', async ({

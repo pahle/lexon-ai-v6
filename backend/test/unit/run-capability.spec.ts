@@ -167,4 +167,70 @@ describe('RunAuthorizationService.withActor', () => {
       ),
     ).toThrow();
   });
+
+  test('asserts that a RunActor is the current live actor before persistence', async () => {
+    const request = {};
+    const identities = new RequestIdentity();
+    identities.prepare(
+      request,
+      {
+        identity: {
+          userId: baseFacts.actorUserId,
+          sessionId: '20000000-0000-4000-8000-000000000001',
+          activeOrganizationId: '30000000-0000-4000-8000-000000000001',
+          channel: 'cookie',
+          platformAdmin: false,
+          mfaVerifiedAt: null,
+          reauthenticatedAt: null,
+        },
+        tenant: {
+          orgId: '30000000-0000-4000-8000-000000000001',
+          userId: baseFacts.actorUserId,
+          role: 'owner',
+        },
+        summary: {
+          version: 1,
+          user: {
+            version: 1,
+            id: baseFacts.actorUserId,
+            name: 'Run initiator',
+            email: 'initiator@example.test',
+            emailVerified: true,
+            twoFactorEnabled: false,
+            onboardingCompleted: false,
+          },
+          organization: {
+            version: 1,
+            id: '30000000-0000-4000-8000-000000000001',
+            name: 'Run team',
+            slug: 'run-team',
+            kind: 'team',
+            state: 'active',
+            require2fa: false,
+            role: 'owner',
+            createdAt: '2026-11-05T08:00:00.000Z',
+          },
+          platformAdmin: false,
+        },
+      },
+      new Headers(),
+    );
+    let actorOutsideScope:
+      import('../../src/modules/identity-access/index.js').RunActor | undefined;
+    await identities.run(request, async () => {
+      await service.withActor(currentVerifiedIdentity(), async (actor) => {
+        actorOutsideScope = actor;
+        expect(() => service.assertLiveActor(actor)).not.toThrow();
+      });
+    });
+    expect(() => service.assertLiveActor(actorOutsideScope!)).toThrow();
+    expect(() =>
+      service.assertLiveActor({
+        orgId: '30000000-0000-4000-8000-000000000001',
+        userId: baseFacts.actorUserId,
+        sessionId: '20000000-0000-4000-8000-000000000001',
+        mfaVerifiedAt: new Date(),
+      } as never),
+    ).toThrow();
+  });
 });

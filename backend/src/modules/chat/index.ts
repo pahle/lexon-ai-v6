@@ -3,6 +3,9 @@ export {
   RunRegistry,
 } from './run-registry.js';
 export { canTransition } from './run-state.js';
+export { RunService } from './run.service.js';
+export { StepCoordinator } from './step-coordinator.js';
+export { ChatModule } from './chat.module.js';
 export type {
   ContextPiece,
   ContextProvider,

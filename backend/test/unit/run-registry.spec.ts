@@ -50,6 +50,13 @@ const registrations = (
 });
 
 describe('run registry', () => {
+  it('resolves only an explicitly registered profile', () => {
+    const registry = new RunRegistry();
+    registry.register(registrations());
+    expect(registry.profile('test-profile')).toBe(profile);
+    expect(registry.profile('unknown-profile')).toBeUndefined();
+  });
+
   it('write registration requires idempotency mode', () => {
     const registry = new RunRegistry();
     expect(() =>

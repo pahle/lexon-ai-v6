@@ -64,6 +64,34 @@ function validLease(leaseMs: number): boolean {
 }
 
 export class AiStepRepository {
+  async insertInitial(
+    tx: TenantSession,
+    input: {
+      readonly id: string;
+      readonly runId: string;
+      readonly sequence?: number;
+      readonly expectedVersion?: number;
+    },
+  ): Promise<void> {
+    const sequence = input.sequence ?? 1;
+    const expectedVersion = input.expectedVersion ?? 1;
+    if (
+      !uuid.safeParse(input.id).success ||
+      !uuid.safeParse(input.runId).success ||
+      !Number.isSafeInteger(sequence) ||
+      sequence < 1 ||
+      !Number.isSafeInteger(expectedVersion) ||
+      expectedVersion < 1
+    )
+      throw new Error('Invalid AI step');
+    const { client, ctx } = requireSession(tx);
+    await client.query(
+      `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state)
+       VALUES($1,$2,$3,$4,$5,'pending')`,
+      [input.id, ctx.orgId, input.runId, sequence, expectedVersion],
+    );
+  }
+
   async find(
     tx: TenantSession,
     input: { runId: string; sequence: number },

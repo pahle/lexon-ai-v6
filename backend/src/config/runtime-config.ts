@@ -136,6 +136,7 @@ export type RuntimeConfig =
       storage: ReturnType<typeof readStorage>;
       port: number;
       auth: AuthConfig;
+      ai: AiConfig;
     })
   | (CommonConfig & {
       runtime: 'document-worker';
@@ -164,6 +165,7 @@ export function loadRuntimeConfig(
         storage: readStorage(env),
         port: read(apiSchema, env).PORT,
         auth: readAuthConfig(env),
+        ai: readAiConfig(env),
       };
     case 'document-worker':
       return { ...config, runtime, storage: readStorage(env) };

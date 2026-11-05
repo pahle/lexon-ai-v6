@@ -19,7 +19,7 @@ const errorCodes = new Set([
   'AI_INTERNAL',
 ]);
 const transitions: Readonly<Record<AiRunStatus, readonly AiRunStatus[]>> = {
-  queued: ['running', 'cancelling', 'failed', 'cancelled'],
+  queued: ['running', 'completed', 'cancelling', 'failed', 'cancelled'],
   running: [
     'running',
     'awaiting_approval',
@@ -168,6 +168,7 @@ export class AiRunRepository {
       from: AiRunStatus;
       to: AiRunStatus;
       errorCode?: string;
+      nextSequence?: number;
     },
   ): Promise<boolean> {
     if (
@@ -175,13 +176,17 @@ export class AiRunRepository {
       !Number.isSafeInteger(input.expectedVersion) ||
       input.expectedVersion < 1 ||
       !transitions[input.from]?.includes(input.to) ||
+      (input.nextSequence !== undefined &&
+        (!Number.isSafeInteger(input.nextSequence) ||
+          input.nextSequence < 1)) ||
       (input.errorCode !== undefined && !errorCodes.has(input.errorCode))
     )
       return false;
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
-      `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,updated_at=clock_timestamp(),
+      `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,
+       next_sequence=COALESCE($7,next_sequence),updated_at=clock_timestamp(),
        error_code=$6,completed_at=CASE WHEN $5 IN ('completed','failed','cancelled') THEN clock_timestamp() ELSE NULL END
        WHERE org_id=$1 AND id=$2 AND run_version=$3 AND status=$4`,
       [
@@ -191,6 +196,7 @@ export class AiRunRepository {
         input.from,
         input.to,
         input.errorCode ?? null,
+        input.nextSequence ?? null,
       ],
     );
     return result.rowCount === 1;

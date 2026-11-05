@@ -1,10 +1,11 @@
-import type { Provider } from '@nestjs/common';
+import type { InjectionToken, Provider } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import type { RuntimeConfig } from '../config/runtime-config.js';
 import {
   TenantDatabase,
   OutboxRepository,
   DispatcherSession,
+  AiCapacityRepository,
 } from '../infrastructure/db/index.js';
 import {
   QueueProducer,
@@ -66,7 +67,8 @@ export function runtimeProviders(
           config.dispatcher,
         ),
     });
-  const tokens =
+  const capacity = config.runtime === 'api' || config.runtime === 'ai-worker';
+  const tokens: InjectionToken[] =
     config.runtime === 'api'
       ? [QueueProducer, StoragePort]
       : config.runtime === 'document-worker'
@@ -74,6 +76,7 @@ export function runtimeProviders(
         : config.runtime === 'ai-worker'
           ? [QueueConsumer]
           : [QueueProducer, OutboxDispatcher];
+  if (capacity) tokens.push(AiCapacityRepository);
   providers.push({
     provide: RuntimeLifecycle,
     inject: [TenantDatabase, HealthIndicators, PinoLogger, ...tokens],
@@ -82,7 +85,11 @@ export function runtimeProviders(
       indicators: HealthIndicators,
       logger: PinoLogger,
       ...dependencies: (
-        QueueProducer | QueueConsumer | StoragePort | OutboxDispatcher
+        | QueueProducer
+        | QueueConsumer
+        | StoragePort
+        | OutboxDispatcher
+        | AiCapacityRepository
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -99,6 +106,9 @@ export function runtimeProviders(
         ),
         dependencies.find(
           (x): x is OutboxDispatcher => x instanceof OutboxDispatcher,
+        ),
+        dependencies.find(
+          (x): x is AiCapacityRepository => x instanceof AiCapacityRepository,
         ),
       ),
   });

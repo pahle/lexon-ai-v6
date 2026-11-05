@@ -4,9 +4,7 @@ import { test } from '../setup/file-services.js';
 import { identityApiHarness } from '../setup/identity-api-harness.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createRunAuthorizationFixture } from '../setup/run-authorization-fixture.js';
-import { readAiConfig } from '../../src/config/ai-config.js';
 import {
-  AiCapacityRepository,
   AiRunRepository,
   RunActorFactsRepository,
   TenantDatabase,
@@ -221,15 +219,6 @@ test('a different active member cannot authorize a decision or mutate the run', 
       initiator.profile.id,
       otherOwner.profile.id,
     ]);
-    const capacity = new AiCapacityRepository(database);
-    await capacity.configure(
-      readAiConfig({
-        AI_MEMORY_BUDGET_BYTES: String(6_291_456 * 2),
-        AI_MAX_ACTIVE: '1',
-        AI_MAX_ACTIVE_PER_ORG: '1',
-        AI_TERMINAL_SLOTS: '1',
-      }),
-    );
     const runs = new AiRunRepository();
     const run = await database.withTenant(
       { orgId: team.id, userId: initiator.profile.id },
