@@ -4,7 +4,7 @@ Last updated: 2026-11-02 by the brief generator (session 1).
 
 ## Next action
 
-**F3 brief in draft PR #24.** PO decisions: allowlist `openai/gpt-6-luna`
+**F3 brief merged (PR #24).** PO decisions: allowlist `openai/gpt-6-luna`
 (ZDR via Azure verified 2026-11-05), mandatory ZDR, mock evals in CI and real
 evals manual. The PO pasted an OpenRouter key in chat on 2026-11-05: it was
 not stored anywhere; PO asked to revoke it and create a new one kept only as
@@ -20,7 +20,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F2.1 Visual rework | **Done** — merged to `main` (PR #23); prototype, brand v1.1, DS v2.1 via PR #22 | Screenshot gate; PO approves before merge |
-| F3 AI Run Engine | Brief in PR #24 | — |
+| F3 AI Run Engine | Brief merged (PR #24); awaiting Codex brainstorming | — |
 | F4–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
