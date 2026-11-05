@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-05
-Current scope: Tasks1–4 accepted — portable contracts, registry/state, tenant persistence, capacity configuration primitives, atomic global24/org6 admission, durable attempt accounting, and worker-safe authorization/context primitives. Tasks5–17 remain pending; no run execution or model call is delivered yet.
+Current scope: Tasks1–5 accepted — portable contracts, tenant storage/admission, durable attempt accounting, worker-safe authorization/context primitives, and the guarded single-generation model adapter. Tasks6–17 remain pending; run execution is not composed yet. Provider tests use mocked responses; no live model call has been made.
 
 ## Task 3 owner capacity privilege correction (2026-11-05)
 
@@ -275,7 +275,7 @@ The user/member FOR UPDATE locks were conservative defaults, not a deliberate F1
 
 ### Task 5 review fix round 1
 
-- Fix-round commit: `8461289a04f7e56f84aaca9f8dbd2653740ba339` (`fix(f3): tighten model terminal and retry outcomes`).
+- Fix-round commit: `b1a16df59345b3694840d6c51b0157d6fa982828` (`fix(f3): tighten model terminal and retry outcomes`).
 - I1: neutral message conversion now validates exact message/part discriminators and keys before `streamText`; tool-call IDs are unique and matching results consume each outstanding ID once. Malformed discriminator and duplicate-result gateway tests prove zero injected fetch calls.
 - I2: actual mocked OpenRouter parser tests cover authoritative `length` (succeeded) and `content_filter` (failed) finishes while preserving usage/cost. Both are nonretryable. Caller abort/interruption remains unknown and nonretryable.
 - I3: prerequisite date tests inject a fixed `now` and cover same-day valid, missing, malformed, impossible calendar and future dates without clock dependence.
@@ -289,3 +289,12 @@ The user/member FOR UPDATE locks were conservative defaults, not a deliberate F1
 - Retry classification now authenticates SDK errors with installed `APICallError.isInstance` and `StreamProviderError.isInstance`; raw causes must be genuine `Error` chains with a documented retryable transport code. Unknown cause chains and known TLS certificate codes remain nonretryable even when the SDK wrapper flag is true. No error message or raw cause is emitted.
 - GREEN focused command `pnpm exec vitest run --project backend-unit model-gateway.spec provider-stream.spec real-model-prerequisites.spec ai-compatibility.spec`: **40 tests / 4 files passed**, exit 0. Includes copied-name rejection, genuine SDK-instance positive, raw unknown/certificate causes, and actual injected-fetch certificate failure through the SDK.
 - `pnpm build`, `pnpm typecheck`, `pnpm lint` (**86/86**), and `pnpm format:check` all passed. The full suite was not rerun, per the scoped fix instruction.
+
+### Task 5 acceptance after review (2026-11-05)
+
+- Reviewed implementation `8c811b2e317771b0eed0ad189f9d1109b01e16ec`, first fix `b1a16df59345b3694840d6c51b0157d6fa982828`, and final fix `e52583582033fa78c20d2df0e8a746dee8ac9be9`. Spec compliance and code quality approved after two scoped re-reviews; all four Important findings are addressed with no remaining blocking issue.
+- Main-session final command `pnpm exec vitest run --project backend-unit --project backend-integration model-gateway.spec provider-stream.spec real-model-prerequisites.spec ai-compatibility.spec run-authorization.spec ai-attempts.spec ai-storage.spec token-estimator.spec` passed **76 tests / 8 files**, exit 0, 19.04s. The recorded full suite **600/124** predates the scoped review fixes; covering tests and workspace build/typecheck/lint/format checks passed after them. Existing runtime-event logs and baseline jsdom warnings remain qualified above.
+- The owner-requested lock clarification is resolved by append-only migration0018 and the real PostgreSQL same-user authorization overlap test. All three facts reads use FOR SHARE. Authorization transactions must end before model or Valkey I/O; Tasks7–12 must preserve this boundary in the actual engine. Applied migrations0015–0017 remain unchanged; future operation/audit migrations are0019/0020.
+- Task3's cost-precision handoff is resolved with exact unscaled numeric persistence and provider-parser-to-settlement reload evidence. The SDK's upstream JavaScript-number parsing limitation remains explicit. No real key, account verification, physical-region evidence, or live model execution is claimed by these mocks; Tasks15–16 retain those operator-gated checks.
+- Task9 must honor explicit `retryable === true`, preserve known length/filter usage, retain unknown reservations, and atomically finalize run/partial output. Tool-history validation and metadata backpressure are provided here; durable orchestration and tool effects remain later tasks.
+- Review manifest reconciliation: the existing provider constructor already supplies key/fetch injection. New gateway options/prerequisite validation own the new boundary; capacity configuration stays in ai-config.ts. No dummy source edits were added. Minor final-review follow-ups remain the provider constructor's stale F0 comment, existing test-output noise, and Task4's scoped-import detector assertion.
