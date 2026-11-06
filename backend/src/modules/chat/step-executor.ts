@@ -822,9 +822,9 @@ function permittedToolSchemas(
       (tool.kind === 'write' && tool.idempotency.mode !== 'transactional')
     )
       continue;
-    schemas[tool.id] = z.toJSONSchema(
-      tool.inputSchema,
-    ) as import('../../infrastructure/ai/index.js').JsonValue;
+    schemas[tool.id] = z.toJSONSchema(tool.inputSchema, {
+      io: 'input',
+    }) as import('../../infrastructure/ai/index.js').JsonValue;
   }
   return schemas;
 }

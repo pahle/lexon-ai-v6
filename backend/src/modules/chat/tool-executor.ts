@@ -153,9 +153,6 @@ export class ToolExecutor {
     )
       throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
     if (tool.requiresApproval) throw new ToolApprovalRequiredOutcome();
-    const parsed = tool.inputSchema.safeParse(operation.args);
-    if (!parsed.success) throw new ToolPolicyOutcome('AI_INVALID_TOOL');
-
     const actorScope = this.authorization.workerActorScope(tx, actorFacts);
     const rawResult = await actorScope.run((actor) => {
       const context = {
@@ -164,10 +161,10 @@ export class ToolExecutor {
         operationId: operation.id,
         signal,
       };
-      if (tool.kind === 'read') return tool.execute(parsed.data, context);
+      if (tool.kind === 'read') return tool.execute(operation.args, context);
       if (tool.idempotency.mode !== 'transactional' || !('execute' in tool))
         throw new Error('AI tool is not executable');
-      return tool.execute(parsed.data, { ...context, tenant: tx });
+      return tool.execute(operation.args, { ...context, tenant: tx });
     });
     const result = boundToolResult(rawResult, tool.maxResultBytes);
     if (

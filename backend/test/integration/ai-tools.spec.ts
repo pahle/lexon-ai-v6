@@ -10,6 +10,7 @@ import {
   AiOperationRepository,
   hashOperationArgs,
   jsonbTextBytes,
+  TenantTransactionTimeoutError,
 } from '../../src/infrastructure/db/index.js';
 import { canonicalOperationHash } from '../../src/modules/chat/canonical-operation.js';
 
@@ -213,7 +214,7 @@ test('tool transaction deadline rolls back a pending statement and leaves the po
         },
         { timeoutMs: 100 },
       ),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(TenantTransactionTimeoutError);
     expect(await ai.database.check()).toBe('up');
   } finally {
     await ai.close();

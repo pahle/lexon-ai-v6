@@ -87,6 +87,22 @@ describe('run registry', () => {
     ).not.toThrow();
   });
 
+  it('rejects a tool schema that cannot be advertised at registration', () => {
+    const registry = new RunRegistry();
+    expect(() =>
+      registry.register(
+        registrations({
+          tools: [
+            {
+              ...readTool,
+              inputSchema: z.custom<string>(),
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/input schema/i);
+  });
+
   it('context registration requires a callable collector', () => {
     const registry = new RunRegistry();
     expect(() =>

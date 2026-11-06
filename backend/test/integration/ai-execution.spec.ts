@@ -6,6 +6,7 @@ import { test } from '../setup/file-services.js';
 import {
   createAiFixture,
   recordAiTestToolEffect,
+  sleepInAiTestSession,
 } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   AiOperationRepository,
@@ -733,7 +734,7 @@ test('new approval requirement stages the pending operation without an effect', 
   }
 });
 
-test('model input advertises permitted tool schemas and excludes denied tools', async ({
+test('model input advertises permitted input schemas and excludes denied tools', async ({
   services,
 }) => {
   const ai = await createAiFixture(services);
@@ -742,7 +743,10 @@ test('model input advertises permitted tool schemas and excludes denied tools', 
       id,
       version: 1,
       kind: 'read',
-      inputSchema: z.strictObject({ key: z.string() }),
+      inputSchema: z.strictObject({
+        key: z.string().transform((value) => value.trim()),
+        label: z.string().default('default label'),
+      }),
       requiresApproval: false,
       timeoutMs: 1000,
       maxResultBytes: 512,
@@ -775,11 +779,81 @@ test('model input advertises permitted tool schemas and excludes denied tools', 
     expect(captured?.schemas).toMatchObject({
       'allowed-read': {
         type: 'object',
-        properties: { key: { type: 'string' } },
+        properties: {
+          key: { type: 'string' },
+          label: { type: 'string', default: 'default label' },
+        },
         required: ['key'],
       },
     });
     expect(captured?.schemas).not.toHaveProperty('denied-read');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('transformed operation input is normalized once and executed as stored', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const observed: unknown[] = [];
+    const tool: ToolDefinition = {
+      id: 'string-to-number-read',
+      version: 1,
+      kind: 'read',
+      inputSchema: z.strictObject({ value: z.string().transform(Number) }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      async execute(input) {
+        observed.push(input);
+        return { value: (input as { value: number }).value };
+      },
+    };
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'numeric-input',
+            toolName: tool.id,
+            input: { value: '41' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+    ]);
+    const h = await setup(ai, [], { tools: [tool], gateway: scripted });
+
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const stored = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+    );
+    expect(stored[0]?.args).toEqual({ value: 41 });
+
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    expect(observed).toEqual([{ value: 41 }]);
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      ),
+    ).toMatchObject([{ status: 'succeeded', result: { value: 41 } }]);
   } finally {
     await ai.close();
   }
@@ -1334,6 +1408,99 @@ test('late transactional tool callback sees an expired tenant session and cannot
       modelIterations: 2,
     });
     expect(await ai.database.check()).toBe('up');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('active PostgreSQL tool timeout is durably reported to the next model input', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'active-sql-timeout',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 100,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(_input, context) {
+        await sleepInAiTestSession(context.tenant, 5);
+        return { complete: true };
+      },
+    };
+    const captured: ModelInput[] = [];
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'active-query',
+            toolName: tool.id,
+            input: { value: 'query' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+      { events: [{ type: 'text', text: 'Handled' }, success] },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        captured.push(input);
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], { tools: [tool], gateway });
+
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    const operation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      )
+    )[0]!;
+    expect(operation).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_TOOL_TIMEOUT',
+      result: { errorCode: 'AI_TOOL_TIMEOUT' },
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    const toolResult = captured
+      .at(-1)
+      ?.messages.find((message) => message.role === 'tool');
+    expect(toolResult).toMatchObject({
+      role: 'tool',
+      content: [
+        expect.objectContaining({
+          type: 'tool-result',
+          toolCallId: operation.id,
+          toolName: tool.id,
+          result: {
+            untrusted: expect.stringContaining('AI_TOOL_TIMEOUT'),
+          },
+        }),
+      ],
+    });
   } finally {
     await ai.close();
   }

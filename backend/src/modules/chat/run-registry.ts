@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type {
   ContextProvider,
   EngineRegistrations,
@@ -148,6 +149,11 @@ function validateTool(
     tool.capabilities.some((capability) => !capability.trim())
   )
     throw new Error('Invalid tool identity');
+  try {
+    z.toJSONSchema(tool.inputSchema, { io: 'input' });
+  } catch {
+    throw new Error('Tool input schema cannot be advertised as JSON Schema');
+  }
   if (
     !Number.isSafeInteger(tool.timeoutMs) ||
     tool.timeoutMs < 1 ||
