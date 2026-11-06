@@ -299,6 +299,7 @@ export async function createEvaluationHarness(
     const scenarios = new Map<string, string>();
     const runTenantIndices = new Map<string, number>();
     const activeRuns = new Set<string>();
+    const recoveredClaims = new Set<string>();
     const replayedRuns = new Set<string>();
     const approval = new ApprovalService(
       database,
@@ -608,8 +609,10 @@ export async function createEvaluationHarness(
         if (!consumer || !producer)
           throw new Error('Evaluation queue is unavailable');
         for (const id of activeRuns) {
-          if (scenarios.get(id) !== 'claim-recovery') continue;
+          if (scenarios.get(id) !== 'claim-recovery' || recoveredClaims.has(id))
+            continue;
           await recoverExpiredClaim(id);
+          recoveredClaims.add(id);
         }
         if (!dispatcherTask) {
           await consumer.start(jobRegistry);

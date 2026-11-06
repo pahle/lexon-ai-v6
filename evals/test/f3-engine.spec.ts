@@ -336,7 +336,7 @@ it('runs a hostile context provider through the real engine without exporting it
   }
 });
 
-it('recovers an expired model claim while retaining unknown reservation and one write effect', async () => {
+it('recovers an expired model claim once and keeps the context reusable', async () => {
   const context = await createEvaluationContext({
     services: inject('evaluationServices'),
     fixtureSet: 'deterministic',
@@ -347,6 +347,7 @@ it('recovers an expired model claim while retaining unknown reservation and one 
       scenarioId: 'claim-recovery',
       prompt: 'Perform the synthetic write exactly once.',
     });
+    await context.drain();
     await context.drain();
     expect(await context.read(actor, run.runId)).toMatchObject({
       scenarioId: 'claim-recovery',
@@ -362,6 +363,22 @@ it('recovers an expired model claim while retaining unknown reservation and one 
         claimRecoveries: 1,
         recoveryStepAttempts: 2,
         postOperationCompletionAttempts: 1,
+      },
+    });
+
+    const laterRun = await context.start(actor, {
+      scenarioId: 'complete',
+      prompt: 'Complete a later synthetic run normally.',
+    });
+    await context.drain();
+    expect(await context.read(actor, laterRun.runId)).toMatchObject({
+      scenarioId: 'complete',
+      status: 'completed',
+      counts: {
+        attempts: 1,
+        succeededAttempts: 1,
+        modelRequests: 1,
+        effects: 0,
       },
     });
   } finally {
