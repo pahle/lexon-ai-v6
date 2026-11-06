@@ -7,7 +7,7 @@ import { createRealModelGateway } from './model-gateway.js';
 const MODEL_ALLOWLIST = Symbol('ModelAllowlist');
 const MCP_CLIENT = Symbol('McpClient');
 const OPENROUTER_PROVIDER = Symbol('OpenRouterProvider');
-const MODEL_GATEWAY = Symbol('ModelGateway');
+export const MODEL_GATEWAY = Symbol('ModelGateway');
 @Module({
   providers: [
     {
@@ -46,5 +46,6 @@ const MODEL_GATEWAY = Symbol('ModelGateway');
         }),
     },
   ],
+  exports: [MODEL_GATEWAY],
 })
 export class AiInfrastructureModule {}

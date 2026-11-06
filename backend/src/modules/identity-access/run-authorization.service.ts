@@ -6,7 +6,13 @@ import {
 } from '../../infrastructure/db/index.js';
 import type { VerifiedIdentity } from './identity.types.js';
 import { assertVerifiedIdentity } from './identity.types.js';
-import { currentRunActor, withRunActor, type RunActor } from './run-actor.js';
+import {
+  createWorkerRunActorScope,
+  currentRunActor,
+  withRunActor,
+  type RunActor,
+  type WorkerRunActorScope,
+} from './run-actor.js';
 import {
   decideRunCapabilities,
   type CapabilityDecision,
@@ -15,6 +21,13 @@ import {
 
 @Injectable()
 export class RunAuthorizationService {
+  workerActorScope(
+    tx: TenantSession,
+    actorFacts: RunActorFacts,
+  ): WorkerRunActorScope {
+    return createWorkerRunActorScope(tx, actorFacts);
+  }
+
   withActor<T>(
     identity: VerifiedIdentity,
     work: (actor: RunActor) => Promise<T>,

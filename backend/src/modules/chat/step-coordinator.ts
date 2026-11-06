@@ -17,6 +17,19 @@ export interface StepCoordinatorCommit extends StepCommit {
   readonly terminal?: boolean;
   readonly continuation?: 'advance' | 'resume';
   readonly outcome?: 'succeeded' | 'failed' | 'unknown';
+  readonly errorCode?:
+    | 'AI_BUDGET_EXCEEDED'
+    | 'AI_ATTEMPT_LIMIT'
+    | 'AI_ITERATION_LIMIT'
+    | 'AI_ACCESS_REVOKED'
+    | 'AI_MODEL_FORBIDDEN'
+    | 'AI_PROVIDER_UNAVAILABLE'
+    | 'AI_PROVIDER_AUTH'
+    | 'AI_INVALID_TOOL'
+    | 'AI_TOOL_TIMEOUT'
+    | 'AI_TOOL_OUTCOME_UNKNOWN'
+    | 'AI_CAPACITY_EXCEEDED'
+    | 'AI_INTERNAL';
   readonly attemptSettlement?: Readonly<{
     attemptId: string;
     outcome: 'succeeded' | 'failed' | 'unknown';
@@ -168,9 +181,10 @@ export class StepCoordinator {
               if (!currentRun) throw new StaleCommit();
               const terminal =
                 budgetExceeded ||
+                commit.errorCode !== undefined ||
                 commit.terminal ||
                 commit.outcome === 'failed';
-              const nextStatus = budgetExceeded
+              const nextStatus = budgetExceeded || commit.errorCode
                 ? 'failed'
                 : terminal
                   ? commit.outcome === 'failed'
@@ -185,8 +199,12 @@ export class StepCoordinator {
                   expectedVersion: claim.expectedVersion,
                   from: currentRun.status,
                   to: nextStatus,
-                  ...(budgetExceeded
-                    ? { errorCode: 'AI_BUDGET_EXCEEDED' }
+                  ...(budgetExceeded || commit.errorCode
+                    ? {
+                        errorCode: budgetExceeded
+                          ? 'AI_BUDGET_EXCEEDED'
+                          : commit.errorCode,
+                      }
                     : {}),
                   nextSequence: claim.sequence + 1,
                   modelIterationDelta:

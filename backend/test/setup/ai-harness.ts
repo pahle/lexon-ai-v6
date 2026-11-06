@@ -18,6 +18,7 @@ import type { EngineRegistrations } from '../../src/modules/chat/run-contracts.j
 import { RunService } from '../../src/modules/chat/run.service.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
+import { StepExecutor } from '../../src/modules/chat/step-executor.js';
 import type { JobEnvelope } from '../../src/infrastructure/db/index.js';
 
 export interface AiHarnessServices {
@@ -29,11 +30,43 @@ export interface AiHarnessServices {
   readonly close: () => Promise<void>;
 }
 
+export async function measureHop(
+  services: { run(samples: number): Promise<readonly number[]> },
+  options: { samples?: number } = {},
+) {
+  const count = options.samples ?? 20;
+  if (!Number.isSafeInteger(count) || count !== 20)
+    throw new Error('Hop measurement requires twenty warm samples');
+  const values = [...(await services.run(count))];
+  if (
+    values.length !== count + 1 ||
+    values.some((value) => !Number.isFinite(value) || value < 0)
+  )
+    throw new Error('Invalid queue-hop measurement');
+  const coldMs = values[0]!;
+  const samplesMs = values.slice(1);
+  const sorted = [...samplesMs].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return {
+    coldMs,
+    medianMs:
+      sorted.length % 2
+        ? sorted[middle]!
+        : (sorted[middle - 1]! + sorted[middle]!) / 2,
+    p95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1]!,
+    maxMs: sorted[sorted.length - 1]!,
+    samplesMs,
+  };
+}
+
 /** Test/evaluation composition: real tenant storage and policy, explicit gateway and registrations. */
 export async function createAiHarness(
   services: AiHarnessServices,
   registrations: EngineRegistrations,
   gateway: ModelGateway,
+  instrumentation?: {
+    onStepClaim(outboxId: string, at: number): void;
+  },
 ) {
   await services.capacity.configure(services.capacityConfig);
   const registry = new RunRegistry();
@@ -54,7 +87,14 @@ export async function createAiHarness(
     services.capacityConfig,
     services.allowlist as never,
   );
-  const coordinator = new StepCoordinator(
+  const coordinator = new (class extends StepCoordinator {
+    override async claim(job: JobEnvelope) {
+      const result = await super.claim(job);
+      if (result.kind === 'claimed')
+        instrumentation?.onStepClaim(job.outboxId, performance.now());
+      return result;
+    }
+  })(
     services.database,
     runs,
     steps,
@@ -62,6 +102,17 @@ export async function createAiHarness(
     outbox,
     executor,
   );
+  const stepExecutor = new StepExecutor({
+    database: services.database,
+    runs,
+    steps,
+    facts: new RunActorFactsRepository(),
+    authorization: services.authorization,
+    coordinator,
+    attempts: new AttemptService(),
+    registry,
+    gateway,
+  });
   return {
     gateway,
     start(actor: RunActor, input: { profileId: string; prompt: string }) {
@@ -70,8 +121,8 @@ export async function createAiHarness(
     dispatch(job: JobEnvelope) {
       return coordinator.claim(job);
     },
-    async drain(): Promise<never> {
-      throw new Error('AI generation executor is not enabled in Task 7');
+    execute(job: JobEnvelope, context: { signal: AbortSignal }) {
+      return stepExecutor.execute(job, context);
     },
     inspect(ctx: { orgId: string; userId: string }, runId: string) {
       return services.database.withTenant(ctx, (tx) => runs.find(tx, runId));

@@ -37,7 +37,8 @@ export class RunRegistry {
       if (
         !context.id.trim() ||
         !Number.isInteger(context.version) ||
-        context.version < 1
+        context.version < 1 ||
+        typeof context.collect !== 'function'
       )
         throw new Error('Invalid context provider');
       contexts.set(context.id, context);
@@ -58,6 +59,10 @@ export class RunRegistry {
 
   profile(id: string): RunProfile | undefined {
     return this.#profiles.get(id);
+  }
+
+  context(id: string): ContextProvider | undefined {
+    return this.#contexts.get(id);
   }
 }
 

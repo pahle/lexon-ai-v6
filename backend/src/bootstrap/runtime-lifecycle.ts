@@ -8,6 +8,7 @@ import {
   QueueProducer,
   QueueConsumer,
   checkValkeyPolicy,
+  RunStreams,
 } from '../infrastructure/queue/index.js';
 import { StoragePort } from '../infrastructure/storage/index.js';
 import {
@@ -16,6 +17,7 @@ import {
   type HealthSnapshot,
 } from '../infrastructure/telemetry/index.js';
 import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
+import { StepExecutor } from '../modules/chat/index.js';
 import type { PinoLogger } from 'nestjs-pino';
 export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   #closed = false;
@@ -32,6 +34,8 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly consumer?: QueueConsumer,
     private readonly dispatcher?: OutboxDispatcher,
     private readonly capacity?: AiCapacityRepository,
+    private readonly stepExecutor?: StepExecutor,
+    private readonly runStreams?: RunStreams,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
@@ -52,6 +56,13 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
           strategy: 'short-transaction',
           handle: async () => undefined,
         });
+        if (this.stepExecutor) {
+          for (const type of ['run.start.v1', 'run.advance.v1', 'run.resume.v1'])
+            registry.register(type, {
+              strategy: 'durable-step',
+              handle: (job, context) => this.stepExecutor!.execute(job, context),
+            });
+        }
         await this.consumer.start(registry);
       }
       if (this.dispatcher)
@@ -101,6 +112,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     await this.#writer?.stop();
     await this.#dispatchTask;
     await this.consumer?.close();
+    await this.runStreams?.close();
     await this.producer?.close();
     await this.storage?.close();
     await this.db.close();

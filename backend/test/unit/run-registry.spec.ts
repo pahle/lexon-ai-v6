@@ -87,6 +87,17 @@ describe('run registry', () => {
     ).not.toThrow();
   });
 
+  it('context registration requires a callable collector', () => {
+    const registry = new RunRegistry();
+    expect(() =>
+      registry.register(
+        registrations({
+          contexts: [{ id: 'context', version: 1, collect: undefined } as never],
+        }),
+      ),
+    ).toThrow();
+  });
+
   it('defaults attempts to two and accepts a profile-configured limit', () => {
     const defaultRegistry = new RunRegistry();
     expect(() => defaultRegistry.register(registrations())).not.toThrow();
