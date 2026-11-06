@@ -63,24 +63,23 @@ export async function runAiSmoke({
     };
     const estimate = estimateInputTokens(input).inputTokens;
     const outcome = await readOutcome(gateway.generate(input));
-    if (!outcome || outcome.attemptOutcome !== 'succeeded') {
-      write(
-        `AI smoke status=failed safeCode=${outcome?.safeCode ?? 'unknown'}\n`,
-      );
-      return 1;
-    }
-
-    const reportedInput = safePositiveInteger(outcome.usage?.inputTokens);
-    const reportedOutput = safeNonnegativeInteger(outcome.usage?.outputTokens);
+    const reportedInput = safePositiveInteger(outcome?.usage?.inputTokens);
+    const reportedOutput = safeNonnegativeInteger(outcome?.usage?.outputTokens);
     const ratio =
       reportedInput === undefined
         ? 'unavailable'
         : String(estimate / reportedInput);
-    const cost = safeCost(outcome.costUsd);
+    const cost = safeCost(outcome?.costUsd);
     const observedProvider = normalizeObservedProvider(
-      outcome.provider,
+      outcome?.provider,
       route.provider,
     );
+    const exceedsReservation =
+      reportedInput !== undefined &&
+      reportedOutput !== undefined &&
+      reportedInput > estimate + MAX_OUTPUT_TOKENS - reportedOutput;
+    const exceedsOutputBound =
+      reportedOutput !== undefined && reportedOutput > MAX_OUTPUT_TOKENS;
     write(
       [
         `model=${route.id}`,
@@ -96,6 +95,19 @@ export async function runAiSmoke({
         `costUsd=${cost ?? 'unavailable'}`,
       ].join(' ') + '\n',
     );
+    if (
+      !outcome ||
+      outcome.attemptOutcome !== 'succeeded' ||
+      exceedsReservation ||
+      exceedsOutputBound
+    ) {
+      const safeCode =
+        exceedsReservation || exceedsOutputBound
+          ? 'AI_BUDGET_EXCEEDED'
+          : (outcome?.safeCode ?? 'unknown');
+      write(`AI smoke status=failed safeCode=${safeCode}\n`);
+      return 1;
+    }
     return 0;
   } catch (error) {
     if (isPrerequisiteError(error)) write(`${PREREQUISITES_MESSAGE}\n`);
