@@ -186,6 +186,146 @@ describe('invocation-wide real evaluation budget', () => {
     expect(JSON.stringify(report)).not.toContain('Synthetic answer.');
   });
 
+  it('stops later smaller cases after the hostile-context token estimate is refused', async () => {
+    let fetchCount = 0;
+    const report = await runRealEvaluations({
+      budgetUsd: '0.10',
+      maxRequests: 16,
+      maxOutputTokens: 512,
+      maxEstimatedInputTokens: 1200,
+      priceCeiling: { inputPerMillion: '0.25', outputPerMillion: '1.00' },
+      timeoutMs: 300000,
+      fetch: async () => {
+        fetchCount += 1;
+        return new Response(
+          [
+            'data: {"id":"token-stop","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"Synthetic answer."},"finish_reason":null}]}\n\n',
+            'data: {"id":"token-stop","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.00001}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+      services: inject('evaluationServices'),
+      env: {
+        OPENROUTER_API_KEY: 'test-only-key',
+        LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: new Date()
+          .toISOString()
+          .slice(0, 10),
+        LEXON_REAL_EVAL_ALLOCATION_ATTESTED:
+          '0.10-usd-dedicated-no-other-consumers',
+      },
+    });
+
+    expect(report.cases.map((item) => item.caseId)).toEqual([
+      'complete',
+      'hostile-context',
+    ]);
+    expect(fetchCount).toBe(1);
+  });
+
+  it('fails the durable run on reported USD over-reservation and retains its cost', async () => {
+    let fetchCount = 0;
+    const report = await runRealEvaluations({
+      budgetUsd: '0.10',
+      maxRequests: 16,
+      maxOutputTokens: 512,
+      maxEstimatedInputTokens: 16384,
+      priceCeiling: { inputPerMillion: '0.25', outputPerMillion: '1.00' },
+      timeoutMs: 300000,
+      fetch: async () => {
+        fetchCount += 1;
+        return new Response(
+          [
+            'data: {"id":"usd-overrun","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"Synthetic partial answer."},"finish_reason":null}]}\n\n',
+            'data: {"id":"usd-overrun","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.01}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+      services: inject('evaluationServices'),
+      env: {
+        OPENROUTER_API_KEY: 'test-only-key',
+        LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: new Date()
+          .toISOString()
+          .slice(0, 10),
+        LEXON_REAL_EVAL_ALLOCATION_ATTESTED:
+          '0.10-usd-dedicated-no-other-consumers',
+      },
+    });
+
+    expect(fetchCount).toBe(1);
+    expect(report.cases).toEqual([{ caseId: 'complete', score: 0 }]);
+    expect(report.knownCostUsd).toBe('0.01');
+    expect(report.unknownAttemptCount).toBe(0);
+    expect(JSON.stringify(report)).not.toContain('Synthetic partial answer.');
+  });
+
+  it('fails a durable run and rejects tool proposals after USD overrun', async () => {
+    let requestCount = 0;
+    let settledCost: string | null = null;
+    let settledOutcome: string | null = null;
+    const context = await createEvaluationContext({
+      services: inject('evaluationServices'),
+      fixtureSet: 'real',
+      key: 'test-only-key',
+      attestation: new Date().toISOString().slice(0, 10),
+      priceCeiling: { prompt: 0.25, completion: 1.0 },
+      requestPolicy: {
+        async reserve() {
+          requestCount += 1;
+          return { id: String(requestCount), allowed: true };
+        },
+        async settle(input) {
+          settledCost = input.costUsd;
+          settledOutcome = input.attemptOutcome;
+          return { budgetExceeded: input.costUsd === '0.01' };
+        },
+      },
+      fetch: async () =>
+        new Response(
+          [
+            'data: {"id":"overrun","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"Synthetic partial answer."},"finish_reason":null}]}\n\n',
+            'data: {"id":"overrun","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"synthetic-call","type":"function","function":{"name":"fixture-write-approval","arguments":"{\\"value\\":\\"must-not-persist\\"}"}}]},"finish_reason":null}]}\n\n',
+            'data: {"id":"overrun","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.01}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        ),
+    });
+    try {
+      const actor = context.actors[0]!;
+      const run = await context.start(actor, {
+        scenarioId: 'approval',
+        prompt: 'Synthetic over-reservation verification.',
+      });
+      await context.drain();
+      const result = await context.read(actor, run.runId);
+
+      expect(result).toMatchObject({
+        status: 'failed',
+        safeCode: 'AI_BUDGET_EXCEEDED',
+        score: 0,
+        counts: {
+          attempts: 1,
+          modelRequests: 1,
+          succeededAttempts: 1,
+          reportedUsageAttempts: 1,
+          reportedCostAttempts: 1,
+          partialTextPresent: 1,
+          operations: 0,
+          effects: 0,
+        },
+      });
+      expect(requestCount).toBe(1);
+      expect(settledCost).toBe('0.01');
+      expect(settledOutcome).toBe('succeeded');
+    } finally {
+      await context.close();
+    }
+  });
+
   it('persists every retry as an attempt through the real evaluation engine', async () => {
     let requestCount = 0;
     let fetchCount = 0;
@@ -200,7 +340,9 @@ describe('invocation-wide real evaluation budget', () => {
           requestCount += 1;
           return { id: String(requestCount), allowed: true };
         },
-        async settle() {},
+        async settle() {
+          return { budgetExceeded: false };
+        },
       },
       fetch: async () => {
         fetchCount += 1;

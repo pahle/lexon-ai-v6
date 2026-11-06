@@ -838,7 +838,9 @@ export class StepExecutor {
         break;
       }
       if (!finalOutcome) throw new Error('AI model outcome unavailable');
-      const succeeded = finalOutcome.attemptOutcome === 'succeeded';
+      const budgetExceeded = finalOutcome.safeCode === 'AI_BUDGET_EXCEEDED';
+      const succeeded =
+        finalOutcome.attemptOutcome === 'succeeded' && !budgetExceeded;
       const prepared =
         succeeded && proposals.length
           ? prepareOperationProposals(proposals, this.options.registry, profile)
@@ -877,22 +879,29 @@ export class StepExecutor {
         data: { outcome: finalOutcome.finishReason },
         advancement: 'generation',
         terminal,
-        outcome: succeeded ? 'succeeded' : 'failed',
+        outcome:
+          finalOutcome.attemptOutcome === 'succeeded' ? 'succeeded' : 'failed',
         ...(invalidProposals
           ? { errorCode: 'AI_INVALID_TOOL' as const }
           : iterationLimit && finalOutcome.finishReason === 'length'
             ? { errorCode: 'AI_ITERATION_LIMIT' as const }
-            : unknown
-              ? {
-                  errorCode: finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
-                }
-              : {}),
+            : budgetExceeded
+              ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
+              : unknown
+                ? {
+                    errorCode:
+                      finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
+                  }
+                : {}),
         ...(operationProposals.length ? { operationProposals } : {}),
         ...(!unknown
           ? {
               attemptSettlement: {
                 attemptId,
-                outcome: succeeded ? 'succeeded' : 'failed',
+                outcome:
+                  finalOutcome.attemptOutcome === 'succeeded'
+                    ? 'succeeded'
+                    : 'failed',
                 ...(settledUsage ? { usage: settledUsage } : {}),
                 ...(costUsd ? { costUsd } : {}),
               },

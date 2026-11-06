@@ -107,6 +107,10 @@ export class InvocationBudget {
     return this.isStopped;
   }
 
+  stop(): void {
+    this.isStopped = true;
+  }
+
   async reserve(amountUsd: string): Promise<Reservation> {
     const amount = parseUsd(amountUsd);
     if (this.isStopped) throw new Error('evaluation budget stopped');
@@ -137,20 +141,20 @@ export class InvocationBudget {
     reservation: Reservation,
     actualUsd: string | null,
     unknownAttempt: boolean,
-  ): void {
-    if (!this.reservations.has(reservation)) return;
+  ): boolean {
+    if (!this.reservations.has(reservation)) return false;
     this.reservations.delete(reservation);
+    let overrun = false;
     if (actualUsd !== null) {
       const actual = parseUsd(actualUsd);
       this.reserved -= reservation.amount;
       this.known += actual;
-      if (
-        actual > reservation.amount ||
-        this.known + this.reserved > this.limit
-      )
-        this.isStopped = true;
+      overrun =
+        actual > reservation.amount || this.known + this.reserved > this.limit;
+      if (overrun) this.isStopped = true;
     }
     if (unknownAttempt) this.unknowns += 1;
+    return overrun;
   }
 
   recordKnownCost(amountUsd: string): void {
@@ -225,8 +229,10 @@ export async function runRealEvaluations(
         budget.stopped ||
         input.estimatedInputTokens > configured.maxEstimatedInputTokens ||
         input.maxOutputTokens > configured.maxOutputTokens
-      )
+      ) {
+        budget.stop();
         return { id: '', allowed: false };
+      }
       const amount = reservationUsd(
         input.estimatedInputTokens,
         input.maxOutputTokens,
@@ -246,15 +252,16 @@ export async function runRealEvaluations(
       id: string;
       costUsd: string | null;
       attemptOutcome: 'succeeded' | 'failed' | 'unknown';
-    }) {
+    }): Promise<{ budgetExceeded: boolean }> {
       const reservation = reservations.get(input.id);
-      if (!reservation) return;
+      if (!reservation) return { budgetExceeded: false };
       reservations.delete(input.id);
-      budget.settle(
+      const budgetExceeded = budget.settle(
         reservation,
         input.costUsd,
         input.attemptOutcome === 'unknown',
       );
+      return { budgetExceeded };
     },
   };
 

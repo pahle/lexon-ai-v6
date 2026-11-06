@@ -48,7 +48,7 @@ export interface EvaluationRealRequestPolicy {
     readonly id: string;
     readonly costUsd: string | null;
     readonly attemptOutcome: 'succeeded' | 'failed' | 'unknown';
-  }): Promise<void>;
+  }): Promise<{ readonly budgetExceeded: boolean }>;
 }
 
 export interface RealEvaluationOptions {

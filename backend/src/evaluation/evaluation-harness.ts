@@ -609,6 +609,15 @@ export async function createEvaluationHarness(
             succeededAttempts: attemptRows.filter(
               (attempt) => attempt.outcome === 'succeeded',
             ).length,
+            reportedUsageAttempts: attemptRows.filter(
+              (attempt) =>
+                attempt.reportedInputTokens !== null ||
+                attempt.reportedOutputTokens !== null,
+            ).length,
+            reportedCostAttempts: attemptRows.filter(
+              (attempt) => attempt.costUsd !== null,
+            ).length,
+            partialTextPresent: run.partialOutput.length > 0 ? 1 : 0,
             modelRequests: requestsByRun.get(id) ?? 0,
             contextFixtures: contextSeenByRun.has(id) ? 1 : 0,
             replays: replayedRuns.has(id) ? 1 : 0,
@@ -806,6 +815,17 @@ async function* guardedRealGeneration(
   if (input.runId) onRequest(input.runId);
   let costUsd: string | null = null;
   let attemptOutcome: ModelOutcome['attemptOutcome'] = 'unknown';
+  let settled = false;
+  const settle = async (): Promise<boolean> => {
+    if (settled) return false;
+    settled = true;
+    const result = await options.requestPolicy.settle({
+      id: reservation.id,
+      costUsd,
+      attemptOutcome,
+    });
+    return result.budgetExceeded;
+  };
   try {
     for await (const event of gateway.generate(input)) {
       if (event.type === 'usage' && event.costUsd !== undefined)
@@ -814,15 +834,22 @@ async function* guardedRealGeneration(
         attemptOutcome = event.outcome.attemptOutcome;
         if (event.outcome.costUsd !== undefined)
           costUsd = event.outcome.costUsd;
+        const budgetExceeded = await settle();
+        yield budgetExceeded
+          ? {
+              ...event,
+              outcome: {
+                ...event.outcome,
+                safeCode: 'AI_BUDGET_EXCEEDED',
+              },
+            }
+          : event;
+        continue;
       }
       yield event;
     }
   } finally {
-    await options.requestPolicy.settle({
-      id: reservation.id,
-      costUsd,
-      attemptOutcome,
-    });
+    await settle();
   }
 }
 

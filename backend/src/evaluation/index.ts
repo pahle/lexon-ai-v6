@@ -121,6 +121,9 @@ const scoreCountKeys = new Set([
   'unknownReservationInvariant',
   'claimRecoveries',
   'succeededAttempts',
+  'reportedUsageAttempts',
+  'reportedCostAttempts',
+  'partialTextPresent',
   'recoveryStepAttempts',
   'postOperationCompletionAttempts',
 ]);
