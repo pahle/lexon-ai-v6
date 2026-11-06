@@ -1,14 +1,23 @@
 # Project state
 
-Last updated: 2026-11-02 by the brief generator (session 1).
+Last updated: 2026-11-06 by the brief generator (session 2, Claude Code).
 
 ## Next action
 
-**F3 brief merged (PR #24).** PO decisions: allowlist `openai/gpt-6-luna`
-(ZDR via Azure verified 2026-11-05), mandatory ZDR, mock evals in CI and real
-evals manual. The PO pasted an OpenRouter key in chat on 2026-11-05: it was
-not stored anywhere; PO asked to revoke it and create a new one kept only as
-a secret. Next: PO merges #24, Codex brainstorms F3.
+**F3 execution in progress on `f3-ai-run-engine`** (Codex, SDD: manager
+gpt-6.1 sol medium, subagents gpt-6 luna high). Tasks 1–8 accepted by
+Codex's own reviews; Task 9 partial (`a0097a7`) stopped at the hop-latency gate.
+
+Session 2 review (2026-11-06): the Task 9 gate failure was a measurement
+artifact. The hop test started runs in one org while earlier runs still ran,
+so every other run hit the 2-slot org permit (busyRetryMs 500 + delayed
+promotion). Fix PR #25 into `f3-ai-run-engine`: uncontended hop measurement
+that asserts no busy deferrals, a real bug fix (a claim refused by the DB org
+cap was acked as noop, stranding the run), and lint/format fixes on the WIP.
+Waiting: CI on #25 (first CI run of the whole F3 branch; push triggers do not
+include it), then PO merges #25 and Codex resumes Task 9 with the review
+items given to the PO (missing DB step-lease renewal during long generations;
+broad catch maps lost-claim/DB errors to provider-unknown).
 
 ## Slice status
 
@@ -20,7 +29,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F2.1 Visual rework | **Done** — merged to `main` (PR #23); prototype, brand v1.1, DS v2.1 via PR #22 | Screenshot gate; PO approves before merge |
-| F3 AI Run Engine | Brief merged (PR #24); awaiting Codex brainstorming | — |
+| F3 AI Run Engine | Executing; Tasks 1–8 accepted, Task 9 partial; fix PR #25 | Design/plan on `f3-ai-run-engine` |
 | F4–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -42,6 +51,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - **F18/ops:** processed-job receipts are never deleted in F0; cleanup must
   keep receipts longer than the maximum redelivery window.
 
+- **CI hygiene (urgent for F3):** feature-branch pushes get no CI; F3 Tasks 1–8 ran only on the implementer's Mac until PR #25.
 - **CI hygiene:** `.github/workflows/ci.yml` push triggers still list old feature branches (f0…f2.1); replace with `main` plus a pattern or drop, in the next slice.
 - **Later UI refinement:** full-screen mobile Settings pattern (section list, then content) deferred by PO.
 
