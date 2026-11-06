@@ -342,4 +342,21 @@ export class AiOperationRepository {
     );
     return result.rowCount === 1;
   }
+
+  async failPendingForAccessLoss(
+    tx: TenantSession,
+    operationId: string,
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query(
+      `UPDATE app.ai_operations
+       SET status='failed',error_code='AI_ACCESS_REVOKED',
+           result='{"errorCode":"AI_ACCESS_REVOKED"}'::jsonb,
+           completed_at=clock_timestamp()
+       WHERE org_id=$1 AND id=$2 AND approval_required=false
+         AND status='pending' AND decision IS NULL`,
+      [ctx.orgId, operationId],
+    );
+    return result.rowCount === 1;
+  }
 }

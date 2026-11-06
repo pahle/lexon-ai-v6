@@ -1694,10 +1694,12 @@ test('initiator access loss before a decision finishes the stream from the actua
     const remainingOwner = await api.user(
       'Approval membership remaining owner',
     );
+    const foreignUser = await api.user('Foreign organization approver');
     const team = await organizations.seedTeam([
       initiator.profile.id,
       remainingOwner.profile.id,
     ]);
+    const foreignTeam = await organizations.seedTeam([foreignUser.profile.id]);
     const tenant = { orgId: team.id, userId: initiator.profile.id };
     const tool: TransactionalWriteToolDefinition = {
       id: 'approval-access-loss-write',
@@ -1763,6 +1765,28 @@ test('initiator access loss before a decision finishes the stream from the actua
         h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
       )
     )[0]!;
+    await expect(
+      actorScope(
+        { orgId: foreignTeam.id, userId: foreignUser.profile.id },
+        h.authorization,
+        (actor) =>
+          approvals.decide(actor, {
+            runId: h.runId,
+            operationId: operation.id,
+            snapshotHash: operation.snapshotHash,
+            decision: 'approve',
+          }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(
+      await ai.database.withTenant(tenant, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'awaiting_approval' });
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      ),
+    ).toEqual([expect.objectContaining({ status: 'awaiting_approval' })]);
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
     await expect(
       actorScope(
         { orgId: team.id, userId: remainingOwner.profile.id },
@@ -2364,6 +2388,171 @@ test('initiator membership loss after approval fails resume without an effect', 
       errorCode: 'AI_ACCESS_REVOKED',
       decision: 'approve',
     });
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
+    expect(await ai.toolEffectCountFor(tenant)).toBe(0);
+    expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.steps.find(tx, { runId: h.runId, sequence: 2 }),
+      ),
+    ).toMatchObject({ state: 'committed', leaseUntil: null });
+  } finally {
+    await organizations.close();
+    await api.close();
+    await ai.close();
+  }
+});
+
+test('mixed pending and approved operations terminate on membership loss before resume', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const api = await identityApiHarness(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const initiator = await api.user('Mixed operation initiator');
+    const remainingOwner = await api.user('Mixed operation remaining owner');
+    const team = await organizations.seedTeam([
+      initiator.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const tenant = { orgId: team.id, userId: initiator.profile.id };
+    const pendingTool: TransactionalWriteToolDefinition = {
+      id: 'mixed-pending-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute() {
+        throw new Error('pending operation executed after access loss');
+      },
+    };
+    const approvedTool: TransactionalWriteToolDefinition = {
+      ...pendingTool,
+      id: 'mixed-approved-write',
+      requiresApproval: true,
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'mixed-pending-call',
+              toolName: pendingTool.id,
+              input: { value: 'ordinary pending' },
+            },
+            {
+              type: 'tool-proposal',
+              toolCallId: 'mixed-approved-call',
+              toolName: approvedTool.id,
+              input: { value: 'approved' },
+            },
+            {
+              type: 'tool-proposal',
+              toolCallId: 'mixed-awaiting-call',
+              toolName: approvedTool.id,
+              input: { value: 'still awaiting approval' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [pendingTool, approvedTool], tenant },
+    );
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+    );
+    await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operations = await ai.database.withTenant(tenant, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+    );
+    expect(operations).toHaveLength(3);
+    expect(operations.map(({ status }) => status)).toEqual([
+      'pending',
+      'awaiting_approval',
+      'awaiting_approval',
+    ]);
+    const approved = operations[1]!;
+    await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: approved.id,
+        snapshotHash: approved.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    await organizations.mutateMember(team.members[0]!.id, 'delete');
+    const resume = await ai.outboxForTenantRunSequence(tenant, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await h.executor.execute(
+      job(
+        h.runId,
+        tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    const run = await ai.database.withTenant(tenant, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    const terminalOperations = await ai.database.withTenant(tenant, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+    );
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(terminalOperations).toEqual([
+      expect.objectContaining({
+        id: operations[0]!.id,
+        status: 'failed',
+        decision: null,
+        errorCode: 'AI_ACCESS_REVOKED',
+      }),
+      expect.objectContaining({
+        id: approved.id,
+        status: 'rejected',
+        decision: 'approve',
+        errorCode: 'AI_ACCESS_REVOKED',
+      }),
+      expect.objectContaining({
+        id: operations[2]!.id,
+        status: 'rejected',
+        decision: 'reject',
+        errorCode: 'AI_ACCESS_REVOKED',
+      }),
+    ]);
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);

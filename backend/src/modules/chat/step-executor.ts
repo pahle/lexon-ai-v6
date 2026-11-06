@@ -808,48 +808,60 @@ export class StepExecutor {
     claim: StepClaim,
     heartbeat: ReturnType<typeof claimHeartbeat>,
   ): Promise<void> {
-    const operation = this.options.operations
-      ? (
-          await this.options.database.withTenant(
-            { orgId: claim.orgId, userId: claim.userId },
-            (tx) => this.options.operations!.pendingFromPreviousStep(tx, claim),
-          )
-        )[0]
-      : undefined;
     const committed = await this.options.coordinator.commit(job, claim, {
       state: 'committed',
       text: '',
       data: {
-        ...(operation ? { operationId: operation.id } : {}),
         errorCode: 'AI_ACCESS_REVOKED',
       },
       advancement: 'continuation',
       terminal: true,
       outcome: 'failed',
       errorCode: 'AI_ACCESS_REVOKED',
-      ...(operation
-        ? {
-            transactionTimeoutMs: 5_000,
-            transactionWork: async (tx: TenantSession) => {
-              const updated =
-                operation.status === 'approved'
-                  ? await this.options.operations!.rejectApprovedForAccessLoss(
-                      tx,
-                      operation.id,
-                    )
-                  : await this.options.operations!.rejectApprovalForAccessLoss(
-                      tx,
-                      {
-                        runId: operation.runId,
-                        operationId: operation.id,
-                        snapshotHash: operation.snapshotHash,
-                        initiatorUserId: claim.userId,
-                      },
-                    );
-              if (!updated) throw new Error('AI operation rejection failed');
-            },
+      transactionTimeoutMs: 5_000,
+      transactionWork: async (tx: TenantSession) => {
+        if (!this.options.operations) return;
+        const outstanding =
+          await this.options.operations.pendingFromPreviousStep(tx, claim);
+        for (const operation of outstanding) {
+          switch (operation.status) {
+            case 'approved':
+              if (
+                !(await this.options.operations.rejectApprovedForAccessLoss(
+                  tx,
+                  operation.id,
+                ))
+              )
+                throw new Error('AI operation access-loss update failed');
+              break;
+            case 'awaiting_approval':
+              if (
+                !(await this.options.operations.rejectApprovalForAccessLoss(
+                  tx,
+                  {
+                    runId: operation.runId,
+                    operationId: operation.id,
+                    snapshotHash: operation.snapshotHash,
+                    initiatorUserId: claim.userId,
+                  },
+                ))
+              )
+                throw new Error('AI operation access-loss update failed');
+              break;
+            case 'pending':
+              if (
+                !(await this.options.operations.failPendingForAccessLoss(
+                  tx,
+                  operation.id,
+                ))
+              )
+                throw new Error('AI operation access-loss update failed');
+              break;
+            default:
+              throw new Error('AI operation access-loss state is invalid');
           }
-        : {}),
+        }
+      },
     });
     if (committed === 'committed') {
       await heartbeat.stop();
