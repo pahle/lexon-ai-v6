@@ -429,6 +429,19 @@ export async function createAiFixture(services: Services) {
         'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
       );
     },
+    async toolEffectCountForRun(index: number, runId: string): Promise<number> {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return countScoped(
+        index,
+        `SELECT count(*)::text AS count
+         FROM app.ai_test_tool_effects effect
+         JOIN app.ai_operations operation
+           ON operation.org_id=effect.org_id AND operation.id=effect.operation_id
+         WHERE effect.org_id=$1 AND operation.run_id=$2`,
+        [runId],
+      );
+    },
     async toolEffectCountFor(tenant: TenantFixture): Promise<number> {
       const result = await migrator.query<{ count: string }>(
         'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',

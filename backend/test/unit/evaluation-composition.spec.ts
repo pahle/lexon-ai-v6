@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import {
+  createEvaluationContext,
   prepareEvaluationInfrastructure,
   type EvaluationServices,
 } from '../../src/evaluation/index.js';
@@ -84,4 +85,38 @@ it('shares infrastructure state across separately loaded module graphs', async (
   expect(releases).toBe(0);
   await second.release();
   expect(releases).toBe(1);
+});
+
+it('does not expose fixture setup messages, stacks, or causes at the public entry', async () => {
+  const canaries =
+    'bare-secret-canary Authorization: Bearer header-secret-canary server-detail-canary';
+  vi.doMock('../../src/evaluation/evaluation-harness.js', () => ({
+    createEvaluationHarness: async () => {
+      throw new Error(canaries);
+    },
+  }));
+  try {
+    let caught: unknown;
+    try {
+      await createEvaluationContext({
+        services: {
+          postgresUrl: 'postgresql://fixture.invalid/db',
+          valkeyUrl: 'redis://fixture.invalid/0',
+          seaweedS3Url: 'http://fixture.invalid',
+        },
+        fixtureSet: 'deterministic',
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    const error = caught as Error & { cause?: unknown };
+    expect(error.message).toBe('Deterministic evaluation setup failed');
+    expect(error.stack).toBeUndefined();
+    expect(error.cause).toBeUndefined();
+    expect(JSON.stringify(error)).not.toContain(canaries);
+  } finally {
+    vi.doUnmock('../../src/evaluation/evaluation-harness.js');
+    vi.resetModules();
+  }
 });

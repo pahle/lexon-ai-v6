@@ -43,11 +43,12 @@ export function createScriptedModelGateway(
 export function createSdkScriptedModelGateway(
   responseFor: (input: ModelInput) => SdkModelScript,
   onRequest: (runId: string | undefined) => void = () => undefined,
+  afterResponse: (input: ModelInput) => Promise<void> = async () => undefined,
 ): ModelGateway {
   return {
     generate(input) {
       onRequest(input.runId);
-      return sdkEvents(input, responseFor(input));
+      return sdkEvents(input, responseFor(input), afterResponse);
     },
   };
 }
@@ -55,6 +56,7 @@ export function createSdkScriptedModelGateway(
 async function* sdkEvents(
   input: ModelInput,
   script: SdkModelScript,
+  afterResponse: (input: ModelInput) => Promise<void>,
 ): AsyncGenerator<ModelEvent> {
   const text = script.text ?? '';
   const streamChunks = script.toolCall
@@ -132,6 +134,7 @@ async function* sdkEvents(
   });
   for await (const part of result.fullStream)
     for (const event of mapProviderPart(part)) yield event;
+  await afterResponse(input);
   const usage = await result.usage;
   yield {
     type: 'usage',

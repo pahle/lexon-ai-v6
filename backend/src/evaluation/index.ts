@@ -48,8 +48,10 @@ export async function createEvaluationContext(
   try {
     const { createEvaluationHarness } = await import('./evaluation-harness.js');
     engine = await createEvaluationHarness(options);
-  } catch (error) {
-    await context.close();
+  } catch {
+    await context.close().catch(() => undefined);
+    const error = new Error('Deterministic evaluation setup failed');
+    delete error.stack;
     throw error;
   }
   return {
@@ -77,6 +79,7 @@ const scenarioIds = new Set([
   'hostile-context',
   'hostile-tool-result',
   'unauthorized-write',
+  'claim-recovery',
   'replay',
   'unknown-attempt',
 ]);
@@ -89,6 +92,11 @@ const scoreCountKeys = new Set([
   'modelRequests',
   'replays',
   'contextFixtures',
+  'unknownReservationInvariant',
+  'claimRecoveries',
+  'succeededAttempts',
+  'recoveryStepAttempts',
+  'postOperationCompletionAttempts',
 ]);
 const safeCodes = new Set([
   'AI_RUN_NOT_FOUND',
@@ -100,6 +108,7 @@ const safeCodes = new Set([
   'AI_PROVIDER_FAILED',
   'AI_PROVIDER_UNAVAILABLE',
   'AI_INTERNAL',
+  'AI_INVALID_TOOL',
 ]);
 
 function safeScoreReport(
