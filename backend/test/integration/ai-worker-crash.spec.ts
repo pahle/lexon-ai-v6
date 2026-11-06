@@ -7,6 +7,8 @@ import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   AiAttemptRepository,
+  AiRunRepository,
+  RunActorFactsRepository,
   AiStepRepository,
   type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
@@ -20,6 +22,7 @@ import { currentVerifiedIdentity } from '../../src/modules/identity-access/ident
 import { createAiHarness } from '../setup/ai-harness.js';
 import type { RunProfile } from '../../src/modules/chat/run-contracts.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
+import { CancelService } from '../../src/modules/chat/cancel.service.js';
 import { QueueProducer } from '../../src/infrastructure/queue/index.js';
 import { spawnAiWorker } from '../process/ai-worker-harness.js';
 
@@ -198,6 +201,145 @@ test('SIGKILL before final receipt recovers unknown attempt under a new fence', 
     await producer.close();
     await queue.close();
     await ai.close();
+  }
+});
+
+test('SIGKILL after cancellation persists recovers the exact old fence and finalizes partial output', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const tenant = ai.tenants[0]!;
+  const authorization = new RunAuthorizationService();
+  const allowlist = ModelAllowlistSchema.parse(
+    JSON.parse(
+      readFileSync(
+        new URL('../../config/model-allowlist.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+  );
+  const harness = await createAiHarness(
+    {
+      database: ai.database,
+      capacity: ai.capacity,
+      capacityConfig: ai.capacityConfig,
+      allowlist,
+      authorization,
+      close: ai.close,
+    },
+    { profiles: [profile], contexts: [], tools: [] },
+    createScriptedModelGateway([]),
+  );
+  const run = await asActor(tenant, authorization, (actor) =>
+    harness.start(actor, {
+      profileId: profile.id,
+      prompt: 'Cancel before crash',
+    }),
+  );
+  const job: JobEnvelope = {
+    outboxId: stepJobId(run.runId, 1),
+    type: 'run.start.v1',
+    ctx: tenant,
+    payload: { runId: run.runId, sequence: 1, expectedVersion: 1 },
+  };
+  const producer = new QueueProducer({
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix,
+  });
+  const queue = new Queue('ai-interactive', {
+    connection: { url: services.valkey.queueUrl },
+    prefix: services.queuePrefix,
+  });
+  let crashed: Awaited<ReturnType<typeof spawnAiWorker>> | undefined;
+  let replacement: Awaited<ReturnType<typeof spawnAiWorker>> | undefined;
+  let signalEntered!: () => void;
+  let releaseSignal!: () => void;
+  const signalStarted = new Promise<void>((resolve) => {
+    signalEntered = resolve;
+  });
+  const signalGate = new Promise<void>((resolve) => {
+    releaseSignal = resolve;
+  });
+  try {
+    crashed = await spawnAiWorker({
+      services,
+      tenant,
+      profile,
+      pause: 'after-model-response',
+      resultText: 'partial before cancellation',
+      generationId: 'generation-cancel-crash',
+    });
+    await producer.enqueue(job);
+    await crashed.checkpoint('model-responded-before-persistence');
+    await expect
+      .poll(async () =>
+        ai.withTenant(
+          0,
+          async (tx) =>
+            (await new AiRunRepository().latestCheckpointText(tx, run.runId, 1))
+              .length,
+        ),
+      )
+      .toBeGreaterThan(0);
+    const cancel = new CancelService(
+      ai.database,
+      harness.runs,
+      harness.steps,
+      new RunActorFactsRepository(),
+      authorization,
+      undefined,
+      {
+        publish: async () => {
+          signalEntered();
+          await signalGate;
+        },
+      },
+    );
+    const cancellation = asActor(tenant, authorization, (actor) =>
+      cancel.cancel(actor, run.runId),
+    );
+    await signalStarted;
+    expect(await harness.inspect(tenant, run.runId)).toMatchObject({
+      status: 'cancelling',
+    });
+    await crashed.kill();
+    releaseSignal();
+    await cancellation;
+    replacement = await spawnAiWorker({
+      services,
+      tenant,
+      profile,
+      resultText: 'must not generate',
+      generationId: 'must-not-generate',
+    });
+    await expect
+      .poll(async () => (await harness.inspect(tenant, run.runId))?.status, {
+        timeout: 20_000,
+      })
+      .toBe('cancelled');
+    const terminal = await harness.inspect(tenant, run.runId);
+    const attempts = await ai.withTenant(0, (tx) =>
+      new AiAttemptRepository().list(tx, run.runId),
+    );
+    expect(terminal?.partialOutput).toBe('partial before cancellation');
+    expect(attempts).toMatchObject([
+      {
+        generationId: 'generation-cancel-crash',
+        outcome: 'unknown',
+        active: false,
+      },
+    ]);
+    expect(await ai.orgSlotCount(0)).toBe(0);
+    expect(await (await queue.getJob(job.outboxId))?.getState()).toBe(
+      'completed',
+    );
+  } finally {
+    releaseSignal?.();
+    if (crashed) await crashed.close();
+    if (replacement) await replacement.close();
+    await producer.close();
+    await queue.close();
+    await harness.close();
   }
 });
 

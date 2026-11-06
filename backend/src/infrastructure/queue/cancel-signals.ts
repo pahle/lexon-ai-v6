@@ -4,6 +4,7 @@ import type { AiRunRepository, TenantDatabase } from '../db/index.js';
 
 const runIdSchema = z.uuid();
 const POLL_INTERVAL_MS = 1000;
+const DATABASE_POLL_TIMEOUT_MS = 500;
 
 export interface CancelSignalsOptions {
   readonly url: string;
@@ -95,8 +96,10 @@ export class CancelSignals {
     const poll = async () => {
       if (!active || fired) return;
       try {
-        const run = await this.#database.withTenant(context, (tx) =>
-          this.#runs.find(tx, runId),
+        const run = await this.#database.withTenant(
+          context,
+          (tx) => this.#runs.find(tx, runId),
+          { timeoutMs: DATABASE_POLL_TIMEOUT_MS },
         );
         if (run?.status === 'cancelling' || run?.status === 'cancelled') fire();
       } catch {

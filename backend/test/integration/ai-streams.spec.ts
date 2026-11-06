@@ -141,6 +141,114 @@ test('one run stream remains open across events and closes only after terminal D
   }
 });
 
+test('failed first step terminal finish is recovered from the real registry reference', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const claimAuthorityValue = claimAuthority(
+    ai.database as TenantDatabase,
+    steps,
+  );
+  const firstRun = await ai.start(0);
+  await ai.seedPendingStep(0, firstRun.id);
+  const oldClaim = await ai.claim(0, firstRun.id, 1, 1, 30_000);
+  if (!oldClaim) throw new Error('Stream test claim unavailable');
+  let loseFirstTerminalProof = true;
+  const authority = {
+    ...claimAuthorityValue,
+    authorizeTerminal: (claim: TerminalStreamReference) => {
+      if (loseFirstTerminalProof) {
+        loseFirstTerminalProof = false;
+        return Promise.resolve(undefined);
+      }
+      return claimAuthorityValue.authorizeTerminal(claim);
+    },
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    await streams.recover(oldClaim, {
+      version: 1,
+      runId: firstRun.id,
+      type: 'reset',
+      sequence: 1,
+    });
+    await ai.withTenant(0, async (tx) => {
+      await ai.expireClaimLeaseInSession(tx, oldClaim);
+      await steps.lockTenantClaimGuard(tx);
+      expect(
+        await steps.failExpiredCurrent(tx, {
+          runId: oldClaim.runId,
+          sequence: oldClaim.sequence,
+          expectedVersion: oldClaim.expectedVersion,
+          stepId: oldClaim.stepId,
+          fence: oldClaim.fence,
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: oldClaim.runId,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'failed',
+          errorCode: 'AI_INTERNAL',
+          nextSequence: 2,
+        }),
+      ).toBe(true);
+    });
+    const terminal = await ai.withTenant(0, (tx) =>
+      runs.terminalStreamReference(tx, firstRun.id),
+    );
+    expect(terminal).toMatchObject({
+      runId: firstRun.id,
+      stepId: oldClaim.stepId,
+      sequence: 1,
+      expectedVersion: 1,
+      fence: oldClaim.fence,
+      neutral: true,
+    });
+    await streams.finish(terminal!, {
+      version: 1,
+      runId: firstRun.id,
+      type: 'finish',
+    });
+    const firstStream = `${services.queuePrefix}:{run-streams}:${firstRun.id}:events`;
+    expect(await redis.xlen(firstStream)).toBe(1);
+
+    const secondRun = await ai.start(0);
+    await ai.seedPendingStep(0, secondRun.id);
+    const newClaim = await ai.claim(0, secondRun.id, 1, 1, 30_000);
+    if (!newClaim) throw new Error('Second stream test claim unavailable');
+    expect(
+      await streams.publish(newClaim, {
+        version: 1,
+        runId: secondRun.id,
+        type: 'start',
+        messageId: randomUUID(),
+      }),
+    ).toBe('written');
+    const events = await redis.xrange(firstStream, '-', '+');
+    expect(events).toHaveLength(2);
+    expect(JSON.parse(events[1]![1][1]!).type).toBe('finish');
+    expect(
+      await redis.zscore(
+        `${services.queuePrefix}:{run-streams}:active`,
+        firstRun.id,
+      ),
+    ).toBeNull();
+  } finally {
+    await streams.close();
+    redis.disconnect();
+    await ai.close();
+  }
+});
+
 test('publication contains a Valkey failure and later recovers', async ({
   services,
 }) => {

@@ -7,15 +7,20 @@ import {
   AiRunRepository,
   AiStepRepository,
   RunActorFactsRepository,
+  TenantDatabase,
   type StepClaim,
   type TerminalStreamReference,
   type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { aiTestBackendPid } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   CancelSignals,
+  QueueConsumer,
+  QueueProducer,
   RunStreams,
 } from '../../src/infrastructure/queue/index.js';
+import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
 import { RequestIdentity } from '../../src/modules/identity-access/request-identity.js';
 import { currentVerifiedIdentity } from '../../src/modules/identity-access/identity.types.js';
@@ -347,7 +352,8 @@ test('cancelling a streaming model aborts it and commits partial output once', a
       leaseUntil: new Date(Date.now() + 1000),
     };
     const beforeStalePublish = await redis.xlen(streamKey);
-    await redis.del(`${services.queuePrefix}:${started.runId}:guard`);
+    const guardKey = `${services.queuePrefix}:{run-streams}:${started.runId}:guard`;
+    expect(await redis.del(guardKey)).toBe(1);
     expect(
       await streams.publish(staleClaim, {
         version: 1,
@@ -358,9 +364,7 @@ test('cancelling a streaming model aborts it and commits partial output once', a
       }),
     ).toBe('stale');
     expect(await redis.xlen(streamKey)).toBe(beforeStalePublish);
-    expect(
-      await redis.exists(`${services.queuePrefix}:${started.runId}:guard`),
-    ).toBe(0);
+    expect(await redis.exists(guardKey)).toBe(0);
   } finally {
     redis.disconnect();
     await streams.close();
@@ -429,6 +433,21 @@ test('exhausted delivery fails only its current expired step and stale delivery 
       runVersion: 2,
       nextSequence: 2,
     });
+    const neutralReference = await ai.withTenant(0, (tx) =>
+      harness.runs.terminalStreamReference(tx, run.runId),
+    );
+    expect(neutralReference).toMatchObject({
+      runId: run.runId,
+      sequence: 1,
+      expectedVersion: 1,
+      fence: 0,
+      neutral: true,
+    });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        harness.runs.streamRegistryState(tx, run.runId, tenant.userId),
+      ),
+    ).toMatchObject({ state: 'terminal' });
     expect(
       await ai.database.withTenant(tenant, (tx) =>
         harness.steps.find(tx, {
@@ -582,6 +601,236 @@ test('cancelling an approval-paused run preserves committed output exactly once'
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
   } finally {
     await harness.close();
+  }
+});
+
+test('cancellation winning immediately before model commit runs cleanup before acknowledging', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const authorization = new RunAuthorizationService();
+  const tenant = ai.tenants[0]!;
+  const model = 'openai/gpt-6-luna';
+  const profile: RunProfile = {
+    id: 'cancel-before-commit-profile',
+    version: 1,
+    allowedModels: [model],
+    defaultModel: model,
+    queue: 'ai-interactive',
+    priority: 5,
+    maxIterations: 3,
+    tokenBudget: 4000,
+    maxOutputTokens: 100,
+    contextBudgets: {},
+    capabilities: [],
+  };
+  const allowlist = ModelAllowlistSchema.parse(
+    JSON.parse(
+      readFileSync(
+        new URL('../../config/model-allowlist.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+  );
+  const gateway: ModelGateway = {
+    async *generate() {
+      yield {
+        type: 'metadata',
+        generationId: 'generation-race',
+        provider: 'synthetic',
+      };
+      yield { type: 'text', text: 'race partial' };
+      yield { type: 'usage', usage: { inputTokens: 1, outputTokens: 2 } };
+      yield {
+        type: 'outcome',
+        outcome: {
+          finishReason: 'stop',
+          attemptOutcome: 'succeeded',
+          retryable: false,
+          generationId: 'generation-race',
+          provider: 'synthetic',
+          usage: { inputTokens: 1, outputTokens: 2 },
+          costUsd: '0.02',
+        },
+      };
+    },
+  };
+  const harness = await createAiHarness(
+    {
+      database: ai.database,
+      capacity: ai.capacity,
+      capacityConfig: ai.capacityConfig,
+      allowlist,
+      authorization,
+      close: ai.close,
+    },
+    { profiles: [profile], contexts: [], tools: [] },
+    gateway,
+  );
+  let commitEntered!: () => void;
+  let releaseCommit!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    commitEntered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    releaseCommit = resolve;
+  });
+  const commit = harness.coordinator.commit.bind(harness.coordinator);
+  harness.coordinator.commit = async (...args) => {
+    if (args[2].advancement === 'generation') {
+      commitEntered();
+      await gate;
+    }
+    return commit(...args);
+  };
+  try {
+    const run = await asActor(tenant, authorization, (actor) =>
+      harness.start(actor, {
+        profileId: profile.id,
+        prompt: 'race prompt',
+      }),
+    );
+    const job: JobEnvelope = {
+      outboxId: stepJobId(run.runId, 1),
+      type: 'run.start.v1',
+      ctx: tenant,
+      payload: { runId: run.runId, sequence: 1, expectedVersion: 1 },
+    };
+    const execution = harness.execute(job, {
+      signal: new AbortController().signal,
+    });
+    await entered;
+    const cancel = new CancelService(
+      ai.database,
+      harness.runs,
+      harness.steps,
+      new RunActorFactsRepository(),
+      authorization,
+    );
+    await asActor(tenant, authorization, (actor) =>
+      cancel.cancel(actor, run.runId),
+    );
+    releaseCommit();
+    await execution;
+    expect(await harness.inspect(tenant, run.runId)).toMatchObject({
+      status: 'cancelled',
+      partialOutput: 'race partial',
+      finalOutput: null,
+    });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiAttemptRepository().list(tx, run.runId),
+      ),
+    ).toMatchObject([
+      {
+        outcome: 'succeeded',
+        reportedInputTokens: 1,
+        reportedOutputTokens: 2,
+        costUsd: '0.02',
+      },
+    ]);
+    expect(await ai.receiptCount(job.outboxId)).toBe(1);
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(await ai.orgSlotCount(0)).toBe(0);
+  } finally {
+    releaseCommit();
+    await harness.close();
+  }
+});
+
+test('queue shutdown aborts a handler and waits for bounded cancellation poll cleanup', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const proxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: proxy.url,
+    poolMax: 1,
+    statementTimeoutMs: 5000,
+  });
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:cancel-shutdown`,
+  };
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    database,
+    runs: new AiRunRepository(),
+  });
+  const producer = new QueueProducer(options);
+  const consumer = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 5000,
+    stalledInterval: 5000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 5000,
+    busyRetryMs: 100,
+  });
+  const registry = new JobRegistry();
+  const tenant = ai.tenants[0]!;
+  const runId = randomUUID();
+  let resolveSubscribed!: () => void;
+  const subscribed = new Promise<void>((resolve) => {
+    resolveSubscribed = resolve;
+  });
+  registry.register('run.start.v1', {
+    strategy: 'durable-step',
+    handle: async (job, { signal }) => {
+      if (!('runId' in job.payload) || !job.ctx.userId) return { kind: 'done' };
+      const context = { orgId: job.ctx.orgId, userId: job.ctx.userId };
+      const unbind = signals.bind(job.payload.runId, context);
+      const unsubscribe = await signals.subscribe(
+        job.payload.runId,
+        () => undefined,
+      );
+      resolveSubscribed();
+      await new Promise<void>((resolve) => {
+        if (signal.aborted) resolve();
+        else signal.addEventListener('abort', () => resolve(), { once: true });
+      });
+      await unsubscribe();
+      unbind();
+      return { kind: 'done' };
+    },
+  });
+  let closeTask: Promise<void> | undefined;
+  let pid!: number;
+  try {
+    pid = await database.withTenant(tenant, (tx) => aiTestBackendPid(tx));
+    await consumer.start(registry);
+    await producer.enqueue(
+      {
+        outboxId: randomUUID(),
+        type: 'run.start.v1',
+        ctx: tenant,
+        payload: { runId, sequence: 1, expectedVersion: 1 },
+      },
+      { queue: 'ai-interactive', priority: 5, timeoutMs: 2000 },
+    );
+    await subscribed;
+    proxy.hang();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const started = Date.now();
+    closeTask = consumer.close();
+    const closed = await Promise.race([
+      closeTask.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 2500)),
+    ]);
+    expect(closed).toBe(true);
+    expect(Date.now() - started).toBeLessThan(2500);
+    proxy.restore();
+    expect(await ai.waitForBackendExit(pid)).toBe(true);
+  } finally {
+    proxy.restore();
+    if (closeTask) await closeTask;
+    else await consumer.close();
+    await signals.close();
+    await producer.close();
+    await database.close();
+    await proxy.close();
+    await ai.close();
   }
 });
 

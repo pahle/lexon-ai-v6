@@ -66,6 +66,20 @@ export class TenantDatabase {
     const connectionEnded = new Promise<void>((resolve) => {
       notifyConnectionEnd = resolve;
     });
+    let notifyClientClosed!: () => void;
+    const clientClosed = new Promise<void>((resolve) => {
+      notifyClientClosed = resolve;
+    });
+    let released = false;
+    const releaseClient = (error?: Error) => {
+      if (released) return;
+      released = true;
+      client.release(error);
+    };
+    const handleConnectionEnd = () => {
+      notifyConnectionEnd();
+      notifyClientClosed();
+    };
     const handleConnectionError = (error: Error) => {
       connectionError = error;
       notifyConnectionEnd();
@@ -73,17 +87,40 @@ export class TenantDatabase {
     const controller = new AbortController();
     let timedOut = false;
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    if (timeoutMs !== undefined) client.on('error', handleConnectionError);
+    let rejectDeadline!: (error: TenantTransactionTimeoutError) => void;
+    const deadlineFailure = new Promise<never>((_resolve, reject) => {
+      rejectDeadline = reject;
+    });
+    const waitForDeadline = <T>(operation: Promise<T>): Promise<T> =>
+      timeoutMs === undefined
+        ? operation
+        : Promise.race([operation, deadlineFailure]);
+    if (timeoutMs !== undefined) {
+      client.on('error', handleConnectionError);
+      client.once('end', handleConnectionEnd);
+      timeout = setTimeout(() => {
+        timedOut = true;
+        const error = new TenantTransactionTimeoutError();
+        releaseError = error;
+        if (session) endSession(session);
+        controller.abort(new Error('Tenant transaction timed out'));
+        releaseClient(error);
+        void clientClosed.then(() => rejectDeadline(error));
+      }, timeoutMs);
+    }
     try {
-      await client.query('BEGIN');
-      await client.query(
-        "SELECT set_config('app.org_id', $1, true), set_config('app.user_id', $2, true)",
-        [context.orgId, context.userId ?? ''],
+      await waitForDeadline(client.query('BEGIN'));
+      await waitForDeadline(
+        client.query(
+          "SELECT set_config('app.org_id', $1, true), set_config('app.user_id', $2, true)",
+          [context.orgId, context.userId ?? ''],
+        ),
       );
       if (timeoutMs !== undefined) {
-        await client.query(
-          "SELECT set_config('transaction_timeout', $1, true)",
-          [String(timeoutMs)],
+        await waitForDeadline(
+          client.query("SELECT set_config('transaction_timeout', $1, true)", [
+            String(timeoutMs),
+          ]),
         );
       }
       session = beginSession(client, context);
@@ -107,41 +144,40 @@ export class TenantDatabase {
           }
           throw connectionError ?? new Error('Database connection failed');
         });
-        const deadlineFailure = new Promise<never>((_resolve, reject) => {
-          timeout = setTimeout(() => {
-            timedOut = true;
-            if (session) endSession(session);
-            controller.abort(new Error('Tenant transaction timed out'));
-            void connectionEnded.then(() =>
-              reject(new Error('Tenant transaction timed out')),
-            );
-          }, timeoutMs);
-        });
         result = await Promise.race([
-          operation,
+          waitForDeadline(operation),
           transactionFailure,
-          deadlineFailure,
         ]);
       }
       if (timedOut) throw new TenantTransactionTimeoutError();
       endSession(session);
-      await client.query('COMMIT');
+      await waitForDeadline(client.query('COMMIT'));
       return result;
     } catch (error) {
       if (session) endSession(session);
+      if (timedOut) {
+        releaseClient(releaseError ?? new TenantTransactionTimeoutError());
+        await clientClosed;
+        throw new TenantTransactionTimeoutError({ cause: error });
+      }
+      if (connectionError) {
+        releaseError = connectionError;
+        releaseClient(connectionError);
+        await clientClosed;
+        throw connectionError;
+      }
       await client.query('ROLLBACK').catch(() => {
         releaseError = new Error('Rollback failed');
       });
-      if (timedOut) {
-        throw new TenantTransactionTimeoutError({ cause: error });
-      }
       throw error;
     } finally {
       if (timeout) clearTimeout(timeout);
       if (session) endSession(session);
-      client.release(releaseError ?? connectionError);
-      if (timeoutMs !== undefined)
+      releaseClient(releaseError ?? connectionError);
+      if (timeoutMs !== undefined) {
         client.removeListener('error', handleConnectionError);
+        client.removeListener('end', handleConnectionEnd);
+      }
     }
   }
 

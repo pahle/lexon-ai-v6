@@ -39,6 +39,21 @@ export async function queryAiTestSession(tx: TenantSession): Promise<void> {
   await requireSession(tx).client.query('SELECT 1');
 }
 
+export async function aiTestBackendPid(tx: TenantSession): Promise<number> {
+  const result = await requireSession(tx).client.query<{ pid: number }>(
+    'SELECT pg_backend_pid() AS pid',
+  );
+  return Number(result.rows[0]!.pid);
+}
+
+export async function holdAiTestTransactionLock(
+  tx: TenantSession,
+): Promise<void> {
+  await requireSession(tx).client.query(
+    "SELECT pg_advisory_xact_lock(hashtextextended('ai-test-timeout-blackhole', 0))",
+  );
+}
+
 export async function sleepInAiTestSession(
   tx: TenantSession,
   seconds: number,
@@ -221,6 +236,34 @@ export async function createAiFixture(services: Services) {
     return false;
   }
 
+  async function waitForBackendLock(
+    pid: number,
+    held: boolean,
+  ): Promise<boolean> {
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const result = await migrator.query<{ held: boolean }>(
+        `SELECT EXISTS(SELECT 1 FROM pg_locks
+          WHERE pid=$1 AND locktype='advisory' AND granted) AS held`,
+        [pid],
+      );
+      if (result.rows[0]?.held === held) return true;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+  }
+
+  async function waitForBackendExit(pid: number): Promise<boolean> {
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const result = await migrator.query<{ alive: boolean }>(
+        'SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1) AS alive',
+        [pid],
+      );
+      if (!result.rows[0]?.alive) return true;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+  }
+
   async function waitForLeaseExpiry(
     index: number,
     stepId: string,
@@ -338,6 +381,8 @@ export async function createAiFixture(services: Services) {
     },
     start,
     holdRunRowLock,
+    waitForBackendLock,
+    waitForBackendExit,
     currentBackendPid,
     blockingPids,
     withTenantSession,

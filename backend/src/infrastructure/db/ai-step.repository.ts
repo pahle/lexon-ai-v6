@@ -160,7 +160,11 @@ export class AiStepRepository {
          SELECT id,sequence,expected_version,fence FROM app.ai_steps s
          WHERE s.org_id=r.org_id AND s.run_id=r.id AND (
            (NOT $3 AND s.state IN ('committed','awaiting_approval')) OR
-           ($3 AND s.id=$4 AND s.sequence=$5 AND NOT EXISTS (
+           ($3 AND s.id=$4 AND s.sequence=$5 AND (
+             (r.status='failed' AND s.state='failed' AND s.sequence=r.next_sequence-1) OR
+             (r.status='cancelled' AND s.state IN ('pending','claimed')
+               AND s.sequence=r.next_sequence AND s.expected_version<=r.run_version)
+           ) AND NOT EXISTS (
              SELECT 1 FROM app.ai_steps prior
              WHERE prior.org_id=r.org_id AND prior.run_id=r.id
                AND prior.state IN ('committed','awaiting_approval')
@@ -528,6 +532,41 @@ export class AiStepRepository {
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4
          AND s.expected_version=$5 AND s.fence=$6 AND s.state='claimed'
          AND s.lease_until>clock_timestamp() AND r.org_id=s.org_id AND r.id=s.run_id
+         AND r.run_version=$5+1 AND r.next_sequence=$4 AND r.status='cancelling'`,
+      [
+        claim.orgId,
+        claim.runId,
+        claim.stepId,
+        claim.sequence,
+        claim.expectedVersion,
+        claim.fence,
+        text,
+      ],
+    );
+    return result.rowCount === 1;
+  }
+
+  async commitExpiredCancellation(
+    tx: TenantSession,
+    claim: StepClaim,
+    text: string,
+  ): Promise<boolean> {
+    if (!validClaim(tx, claim) || Buffer.byteLength(text, 'utf8') > 262144)
+      return false;
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    await client.query(
+      `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+      [scope.orgId, claim.stepId, claim.fence],
+    );
+    const result = await client.query(
+      `UPDATE app.ai_steps s SET state='committed',committed_text=$7,
+       commit_data='{"outcome":"cancelled"}'::jsonb,lease_until=NULL,updated_at=clock_timestamp()
+       FROM app.ai_runs r
+       WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4
+         AND s.expected_version=$5 AND s.fence=$6 AND s.state='claimed'
+         AND s.lease_until<=clock_timestamp() AND r.org_id=s.org_id AND r.id=s.run_id
          AND r.run_version=$5+1 AND r.next_sequence=$4 AND r.status='cancelling'`,
       [
         claim.orgId,

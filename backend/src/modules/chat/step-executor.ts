@@ -119,6 +119,14 @@ export class StepExecutor {
     if (claimed.kind === 'noop') return { kind: 'done' };
     if (claimed.kind === 'busy')
       return { kind: 'busy', retryAtMs: claimed.retryAtMs };
+    if (claimed.kind === 'cancelled') {
+      await this.options.streams?.finish(claimed.reference, {
+        version: 1,
+        runId: job.payload.runId,
+        type: 'finish',
+      });
+      return { kind: 'done' };
+    }
     const claim = claimed.claim;
     const unbindCancelContext = this.options.cancelSignals?.bind(claim.runId, {
       orgId: claim.orgId,

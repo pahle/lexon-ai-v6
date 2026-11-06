@@ -60,7 +60,7 @@ export type RunStreamRegistryResult =
   | {
       readonly runId: string;
       readonly state: 'terminal';
-      readonly claim: StepClaim;
+      readonly claim: TerminalStreamReference;
     };
 
 export interface RunStreamsOptions {

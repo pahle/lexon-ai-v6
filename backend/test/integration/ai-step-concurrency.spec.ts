@@ -182,10 +182,54 @@ test('persisted cancellation prevents ordinary commit callbacks before they run'
           effectInvoked = true;
         },
       }),
-    ).resolves.toBe('stale');
+    ).resolves.toBe('committed');
     expect(effectInvoked).toBe(false);
-    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(1);
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'cancelled',
+      partialOutput: 'late model result',
+    });
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('redelivered cancellation recovers an expired owner instead of acknowledging a stranded run', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const service = coordinator(ai);
+    const claim = await service.claim(queuedJob);
+    expect(claim.kind).toBe('claimed');
+    if (claim.kind !== 'claimed') throw new Error('Expected current owner');
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiRunRepository().transition(tx, {
+          runId: run.id,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'cancelling',
+        }),
+      ),
+    ).toBe(true);
+    await ai.withTenant(0, (tx) =>
+      ai.expireClaimLeaseInSession(tx, claim.claim),
+    );
+
+    await service.claim(queuedJob);
+
+    expect(await ai.runVersion(0, run.id)).toBe(3);
+    expect(await ai.admittedRunCount()).toBe(0);
+    expect(await ai.orgSlotCount(0)).toBe(0);
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(1);
   } finally {
     await ai.close();
   }

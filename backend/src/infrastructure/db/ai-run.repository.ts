@@ -137,16 +137,7 @@ export class AiRunRepository {
     | { readonly state: 'missing' }
     | {
         readonly state: 'terminal';
-        readonly claim: {
-          readonly runId: string;
-          readonly orgId: string;
-          readonly userId: string;
-          readonly stepId: string;
-          readonly sequence: number;
-          readonly expectedVersion: number;
-          readonly fence: number;
-          readonly leaseUntil: Date;
-        };
+        readonly claim: TerminalStreamReference;
       }
   > {
     if (
@@ -181,7 +172,45 @@ export class AiRunRepository {
       [scope.orgId, runId],
     );
     const step = latest.rows[0];
-    if (!step) return { state: 'missing' };
+    if (!step) {
+      const failed = await client.query<{
+        id: string;
+        sequence: number;
+        expected_version: number;
+        fence: number;
+      }>(
+        `SELECT s.id,s.sequence,s.expected_version,s.fence
+         FROM app.ai_runs r JOIN app.ai_steps s
+           ON s.org_id=r.org_id AND s.run_id=r.id
+         WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+           AND ((r.status='failed' AND s.state='failed'
+                 AND s.sequence=r.next_sequence-1) OR
+                (r.status='cancelled' AND s.state IN ('pending','claimed')
+                 AND s.sequence=r.next_sequence AND s.expected_version<=r.run_version))
+           AND NOT EXISTS (
+             SELECT 1 FROM app.ai_steps prior
+             WHERE prior.org_id=r.org_id AND prior.run_id=r.id
+               AND prior.state IN ('committed','awaiting_approval')
+           )
+         ORDER BY s.updated_at DESC LIMIT 1`,
+        [scope.orgId, runId, userId],
+      );
+      const failedStep = failed.rows[0];
+      if (!failedStep) return { state: 'missing' };
+      return {
+        state: 'terminal',
+        claim: {
+          runId,
+          orgId: scope.orgId,
+          userId,
+          stepId: failedStep.id,
+          sequence: Number(failedStep.sequence),
+          expectedVersion: Number(failedStep.expected_version),
+          fence: Number(failedStep.fence),
+          neutral: true,
+        },
+      };
+    }
     return {
       state: 'terminal',
       claim: {
@@ -192,7 +221,6 @@ export class AiRunRepository {
         sequence: Number(step.sequence),
         expectedVersion: Number(step.expected_version),
         fence: Number(step.fence),
-        leaseUntil: new Date(),
       },
     };
   }
@@ -314,7 +342,15 @@ export class AiRunRepository {
            ON s.org_id=r.org_id AND s.run_id=r.id
          WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
            AND r.status IN ('completed','failed','cancelled')
-           AND s.sequence=r.next_sequence AND s.expected_version<=r.run_version
+           AND ((r.status='failed' AND s.state='failed'
+                 AND s.sequence=r.next_sequence-1 AND s.expected_version<=r.run_version) OR
+                (r.status='cancelled' AND s.state IN ('pending','claimed')
+                 AND s.sequence=r.next_sequence AND s.expected_version<=r.run_version))
+           AND NOT EXISTS (
+             SELECT 1 FROM app.ai_steps prior
+             WHERE prior.org_id=r.org_id AND prior.run_id=r.id
+               AND prior.state IN ('committed','awaiting_approval')
+           )
          ORDER BY s.updated_at DESC LIMIT 1`,
         [ctx.orgId, runId, ctx.userId],
       );

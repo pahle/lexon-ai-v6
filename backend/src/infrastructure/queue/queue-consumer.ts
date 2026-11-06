@@ -336,12 +336,12 @@ export class QueueConsumer {
 
   #failedScanning = false;
 
-  async #reconcileFailed(job: Job): Promise<'done' | 'retry'> {
+  async #reconcileFailed(job: Job): Promise<'done' | 'retry' | 'retain'> {
     try {
       const envelope = parseJobEnvelope(job.data);
-      if (job.name !== envelope.type) return 'done';
+      if (job.name !== envelope.type) return 'retain';
       const handler = this.#registryValue?.resolve(job.name);
-      if (handler?.strategy !== 'durable-step') return 'done';
+      if (handler?.strategy !== 'durable-step') return 'retain';
       if (!handler.exhausted) return 'retry';
       return await handler.exhausted(envelope);
     } catch {

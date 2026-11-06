@@ -193,6 +193,65 @@ test('retained exhausted delivery finalizes the PostgreSQL run after database re
   }
 });
 
+test('failed short jobs retain the existing BullMQ failure history', async ({
+  services,
+}) => {
+  const options = {
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix,
+  };
+  const database = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 2,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const id = randomUUID();
+  const registry = new JobRegistry();
+  registry.register('platform.noop.v1', {
+    strategy: 'short-transaction',
+    handle: async () => {
+      throw new Error('synthetic short job failure');
+    },
+  });
+  const consumer = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  try {
+    await consumer.start(registry);
+    await producer.enqueue(
+      {
+        outboxId: id,
+        type: 'platform.noop.v1',
+        ctx: { orgId: randomUUID(), userId: randomUUID() },
+        payload: { probeId: randomUUID() },
+      },
+      { queue: 'ai-batch', priority: 4, timeoutMs: 1000 },
+    );
+    await expect
+      .poll(async () => (await queue.getJob(id))?.getState(), {
+        timeout: 10000,
+      })
+      .toBe('failed');
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(await queue.getJob(id)).toBeDefined();
+  } finally {
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+  }
+});
+
 test('confirmed permit loss aborts a durable handler into delayed DB-fenced reclaim', async ({
   services,
 }) => {

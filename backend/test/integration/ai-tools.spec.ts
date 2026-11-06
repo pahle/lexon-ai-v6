@@ -1,7 +1,9 @@
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
+  aiTestBackendPid,
   createAiFixture,
+  holdAiTestTransactionLock,
   queryAiTestSession,
   recordAiTestToolEffect,
   sleepInAiTestSession,
@@ -11,8 +13,10 @@ import {
   hashOperationArgs,
   jsonbTextBytes,
   TenantTransactionTimeoutError,
+  TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
 import { canonicalOperationHash } from '../../src/modules/chat/canonical-operation.js';
+import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 
 test('proposal persistence deduplicates replay but keeps identical intentional calls distinct', async ({
   services,
@@ -265,6 +269,103 @@ test('tool transaction deadline supervises a callback that never settles', async
     ).rejects.toThrow('Tenant transaction timed out');
     expect(await ai.database.check()).toBe('up');
   } finally {
+    await ai.close();
+  }
+});
+
+test('wall-clock transaction timeout destroys a blackholed established connection before returning', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const proxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: proxy.url,
+    poolMax: 1,
+    statementTimeoutMs: 20000,
+  });
+  let setPid!: (pid: number) => void;
+  const pidReady = new Promise<number>((resolve) => {
+    setPid = resolve;
+  });
+  const operation = database
+    .withTenant(
+      ai.tenants[0]!,
+      async (tx) => {
+        await holdAiTestTransactionLock(tx);
+        const pid = await aiTestBackendPid(tx);
+        setPid(pid);
+        await sleepInAiTestSession(tx, 20);
+      },
+      { timeoutMs: 1500 },
+    )
+    .then(
+      () => 'completed',
+      () => 'timed-out',
+    );
+  try {
+    const pid = await pidReady;
+    expect(await ai.waitForBackendLock(pid, true)).toBe(true);
+    proxy.hang();
+    const result = await Promise.race([
+      operation,
+      new Promise<'still-blocked'>((resolve) =>
+        setTimeout(() => resolve('still-blocked'), 2500),
+      ),
+    ]);
+    expect(result).toBe('timed-out');
+    expect(await ai.waitForBackendExit(pid)).toBe(true);
+  } finally {
+    proxy.restore();
+    await operation;
+    await database.close();
+    await proxy.close();
+    await ai.close();
+  }
+});
+
+test('wall-clock deadline destroys a reused pool connection blocked before the next BEGIN', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const proxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: proxy.url,
+    poolMax: 1,
+    statementTimeoutMs: 5000,
+  });
+  let operation: Promise<'completed' | 'timed-out'> | undefined;
+  try {
+    const tenant = ai.tenants[0]!;
+    const pid = await database.withTenant(tenant, (tx) => aiTestBackendPid(tx));
+    proxy.hang();
+    const started = Date.now();
+    operation = database
+      .withTenant(tenant, queryAiTestSession, { timeoutMs: 1500 })
+      .then(
+        () => 'completed' as const,
+        (error: unknown) => {
+          expect(error).toBeInstanceOf(TenantTransactionTimeoutError);
+          return 'timed-out' as const;
+        },
+      );
+    const outcome = await Promise.race([
+      operation,
+      new Promise<'still-blocked'>((resolve) =>
+        setTimeout(() => resolve('still-blocked'), 2500),
+      ),
+    ]);
+    expect(outcome).toBe('timed-out');
+    expect(Date.now() - started).toBeLessThan(2500);
+    proxy.restore();
+    expect(await ai.waitForBackendExit(pid)).toBe(true);
+    await expect(
+      database.withTenant(tenant, queryAiTestSession, { timeoutMs: 1500 }),
+    ).resolves.toBeUndefined();
+  } finally {
+    proxy.restore();
+    if (operation) await operation;
+    await database.close();
+    await proxy.close();
     await ai.close();
   }
 });
