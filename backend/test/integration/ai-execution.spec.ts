@@ -46,6 +46,7 @@ import {
   StepExecutor,
 } from '../../src/modules/chat/index.js';
 import { ApprovalService } from '../../src/modules/chat/approval.service.js';
+import { CancelService } from '../../src/modules/chat/cancel.service.js';
 import { RunService } from '../../src/modules/chat/run.service.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { JobExecutor } from '../../src/modules/platform/job-executor.js';
@@ -381,6 +382,192 @@ test('one generation persists metadata, checkpoint, usage, output and terminal s
       provider: 'openai',
       reportedInputTokens: 20,
       reportedOutputTokens: 3,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('attempt-limit refusal retains the last checkpoint from a crashed attempt', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const h = await setup(ai, [], {
+      profile: { ...profile, maxAttemptsPerStep: 2 },
+    });
+    const envelope = job(h.runId, h.tenant, 1, 1, 'run.start.v1');
+    const first = await h.coordinator.claim(envelope);
+    if (first.kind !== 'claimed') throw new Error('Initial claim unavailable');
+    await ai.checkpointRetry(0, first.claim);
+    await ai.withTenant(0, (tx) =>
+      ai.expireClaimLeaseInSession(tx, first.claim),
+    );
+
+    await h.executor.execute(envelope, {
+      signal: new AbortController().signal,
+    });
+
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ATTEMPT_LIMIT',
+      partialOutput: 'replacement attempt output',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('cancellation wins before transactional tool effect commit', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'cancel-order-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'cancel-before-effect',
+              toolName: tool.id,
+              input: { value: 'must-not-execute' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool], profile: { ...profile, capabilities: [] } },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const cancel = new CancelService(
+      ai.database,
+      h.runs,
+      h.steps,
+      new RunActorFactsRepository(),
+      h.authorization,
+    );
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      cancel.cancel(actor, h.runId),
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'cancelled',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('transactional tool effect commits before later cancellation', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'cancel-order-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'effect-before-cancel',
+              toolName: tool.id,
+              input: { value: 'stored-once' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool], profile: { ...profile, capabilities: [] } },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(await ai.toolEffectCount(0)).toBe(1);
+    const cancel = new CancelService(
+      ai.database,
+      h.runs,
+      h.steps,
+      new RunActorFactsRepository(),
+      h.authorization,
+    );
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      cancel.cancel(actor, h.runId),
+    );
+    expect(await ai.toolEffectCount(0)).toBe(1);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'cancelled',
     });
   } finally {
     await ai.close();

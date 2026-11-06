@@ -459,6 +459,13 @@ before planning instead of quietly broadening the engine.
 
 ## Research notes
 
+### Task 12 queue exhaustion and retained delivery verification (2026-11-06)
+
+- BullMQ QueueGetters API, v6.5.3: https://docs.bullmq.io/api/classes/v4.QueueGetters.html — read 2026-11-06. `Queue.getFailed(start, end)` returns a zero-based page of failed jobs. This supports bounded restart scans of retained exhausted deliveries.
+- BullMQ retry guide: https://docs.bullmq.io/guide/jobs/retrying-job — read 2026-11-06. Failed jobs remain in the failed set until explicitly retried or removed; the finalizer therefore removes a durable delivery only after PostgreSQL confirms terminal or stale status.
+- Installed BullMQ source: `backend/node_modules/bullmq/dist/cjs/classes/queue-getters.js` and `backend/node_modules/bullmq/dist/cjs/commands/moveToFinished-14.lua`, package 6.5.3 — inspected 2026-11-06. `getFailed` pages the failed set; final attempt count is enforced atomically by BullMQ and terminal failure also covers stalled-job failure handling. This supports failed-set membership as the scan predicate instead of parsing error strings.
+- Installed Node.js 24.22.1 docs were fetched with `node scripts/fetch-docs.mjs nodejs` — read 2026-11-06. AbortSignal and timer APIs used by cancellation/shutdown are available at the pinned runtime.
+
 Read 2026-11-05. Installed exact versions checked, not inferred from memory.
 Planning must revisit relevant official docs per task; these notes identify the
 verified starting points rather than authorizing unverified future APIs.

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PoolClient } from 'pg';
 import { Client, Pool } from 'pg';
 import { AiAttemptRepository } from '../ai-attempt.repository.js';
 import { AiCapacityRepository } from '../ai-capacity.repository.js';
@@ -248,6 +249,68 @@ export async function createAiFixture(services: Services) {
     return Number(slots.rows[0]?.count ?? 0);
   }
 
+  function holdRunRowLock(index: number, runId: string) {
+    const tenant = tenants[index];
+    if (!tenant) throw new Error('Invalid AI fixture tenant');
+    let ready!: (pid: number) => void;
+    let release!: () => void;
+    const readyPromise = new Promise<number>((resolve) => {
+      ready = resolve;
+    });
+    const releasePromise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const done = database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        'SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 FOR UPDATE',
+        [tenant.orgId, runId],
+      );
+      const result = await client.query<{ pid: number }>(
+        'SELECT pg_backend_pid() AS pid',
+      );
+      ready(Number(result.rows[0]!.pid));
+      await releasePromise;
+    });
+    return { ready: readyPromise, release, done };
+  }
+
+  async function currentBackendPid(index: number): Promise<number> {
+    const tenant = tenants[index];
+    if (!tenant) throw new Error('Invalid AI fixture tenant');
+    return database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      const result = await client.query<{ pid: number }>(
+        'SELECT pg_backend_pid() AS pid',
+      );
+      return Number(result.rows[0]!.pid);
+    });
+  }
+
+  async function blockingPids(index: number, pid: number): Promise<number[]> {
+    const tenant = tenants[index];
+    if (!tenant) throw new Error('Invalid AI fixture tenant');
+    return database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      const result = await client.query<{ blockers: number[] }>(
+        'SELECT pg_blocking_pids($1) AS blockers',
+        [pid],
+      );
+      return result.rows[0]?.blockers ?? [];
+    });
+  }
+
+  function withTenantSession<T>(
+    index: number,
+    work: (tx: TenantSession, client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    const tenant = tenants[index];
+    if (!tenant) throw new Error('Invalid AI fixture tenant');
+    return database.withTenant(tenant, (tx) =>
+      work(tx, requireSession(tx).client),
+    );
+  }
+
   async function insertPendingStep(index: number, runId: string) {
     const tenant = tenants[index];
     if (!tenant) throw new Error('Invalid AI fixture tenant');
@@ -274,6 +337,10 @@ export async function createAiFixture(services: Services) {
       ]);
     },
     start,
+    holdRunRowLock,
+    currentBackendPid,
+    blockingPids,
+    withTenantSession,
     withTenant<T>(index: number, work: (tx: TenantSession) => Promise<T>) {
       const tenant = tenants[index];
       if (!tenant) throw new Error('Invalid AI fixture tenant');

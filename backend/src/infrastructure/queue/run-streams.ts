@@ -538,7 +538,9 @@ export class RunStreams {
       proof.latestCommittedExpectedVersion === claim.expectedVersion &&
       proof.latestCommittedFence === claim.fence &&
       proof.runVersion >= claim.expectedVersion + 1 &&
-      proof.nextSequence >= claim.sequence + 1,
+      (claim.neutral === true
+        ? proof.nextSequence >= claim.sequence
+        : proof.nextSequence >= claim.sequence + 1),
     );
   }
 
@@ -716,6 +718,7 @@ function validTerminalReference(reference: TerminalStreamReference): boolean {
     Number.isSafeInteger(reference.expectedVersion) &&
     reference.expectedVersion > 0 &&
     Number.isSafeInteger(reference.fence) &&
-    reference.fence > 0
+    (reference.fence > 0 ||
+      (reference.neutral === true && reference.fence === 0))
   );
 }

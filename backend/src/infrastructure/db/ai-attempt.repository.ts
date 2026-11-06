@@ -181,7 +181,9 @@ export class AiAttemptRepository {
        WHERE a.org_id=$1 AND a.run_id=$2 AND a.step_id=$3 AND a.id=$7 AND a.fence=$6 AND a.active=true
          AND s.org_id=a.org_id AND s.id=a.step_id AND s.sequence=$4 AND s.expected_version=$5
          AND s.fence=$6 AND s.state='claimed' AND s.lease_until>clock_timestamp()
-         AND r.run_version=$5 AND r.next_sequence=$4 AND r.status IN ('queued','running','awaiting_approval','cancelling')`,
+         AND r.next_sequence=$4
+         AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
+              (r.run_version=$5+1 AND r.status='cancelling'))`,
       [
         claim.orgId,
         claim.runId,
@@ -227,7 +229,9 @@ export class AiAttemptRepository {
        WHERE a.org_id=$1 AND a.run_id=$2 AND a.step_id=$3 AND a.id=$7 AND a.fence=$6 AND a.active=true
          AND s.org_id=a.org_id AND s.id=a.step_id AND s.sequence=$4 AND s.expected_version=$5
          AND s.fence=$6 AND s.state='claimed' AND s.lease_until>clock_timestamp()
-         AND r.run_version=$5 AND r.next_sequence=$4 AND r.status IN ('queued','running','awaiting_approval','cancelling')`,
+         AND r.next_sequence=$4
+         AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
+              (r.run_version=$5+1 AND r.status='cancelling'))`,
       [
         claim.orgId,
         claim.runId,

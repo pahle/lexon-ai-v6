@@ -19,6 +19,8 @@ import { RunService } from '../../src/modules/chat/run.service.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
 import { StepExecutor } from '../../src/modules/chat/step-executor.js';
+import type { CancelSignals } from '../../src/infrastructure/queue/index.js';
+import type { RunStreams } from '../../src/infrastructure/queue/index.js';
 import type { JobEnvelope } from '../../src/infrastructure/db/index.js';
 
 export interface AiHarnessServices {
@@ -67,6 +69,7 @@ export async function createAiHarness(
   instrumentation?: {
     onStepClaim(outboxId: string, at: number): void;
   },
+  options: { cancelSignals?: CancelSignals; streams?: RunStreams } = {},
 ) {
   await services.capacity.configure(services.capacityConfig);
   const registry = new RunRegistry();
@@ -75,6 +78,14 @@ export async function createAiHarness(
   const steps = new AiStepRepository();
   const outbox = new OutboxRepository();
   const executor = new JobExecutor(services.database);
+  const coordinator: StepCoordinator = new (class extends StepCoordinator {
+    override async claim(job: JobEnvelope) {
+      const result = await super.claim(job);
+      if (result.kind === 'claimed')
+        instrumentation?.onStepClaim(job.outboxId, performance.now());
+      return result;
+    }
+  })(services.database, runs, steps, new AttemptService(), outbox, executor);
   const runService = new RunService(
     services.database,
     runs,
@@ -87,14 +98,6 @@ export async function createAiHarness(
     services.capacityConfig,
     services.allowlist as never,
   );
-  const coordinator = new (class extends StepCoordinator {
-    override async claim(job: JobEnvelope) {
-      const result = await super.claim(job);
-      if (result.kind === 'claimed')
-        instrumentation?.onStepClaim(job.outboxId, performance.now());
-      return result;
-    }
-  })(services.database, runs, steps, new AttemptService(), outbox, executor);
   const stepExecutor = new StepExecutor({
     database: services.database,
     runs,
@@ -105,9 +108,15 @@ export async function createAiHarness(
     attempts: new AttemptService(),
     registry,
     gateway,
+    ...(options.cancelSignals ? { cancelSignals: options.cancelSignals } : {}),
+    ...(options.streams ? { streams: options.streams } : {}),
   });
   return {
     gateway,
+    runs,
+    steps,
+    coordinator,
+    authorization: services.authorization,
     start(actor: RunActor, input: { profileId: string; prompt: string }) {
       return runService.start(actor, input);
     },

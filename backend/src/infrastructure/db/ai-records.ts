@@ -84,6 +84,8 @@ export interface TerminalStreamReference {
   readonly sequence: number;
   readonly expectedVersion: number;
   readonly fence: number;
+  /** True when no step has committed and this references the real current step. */
+  readonly neutral?: boolean;
 }
 
 export type AiOperationMode =

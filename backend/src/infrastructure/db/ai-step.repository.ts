@@ -157,12 +157,25 @@ export class AiStepRepository {
               s.expected_version AS latest_expected_version,s.fence AS latest_fence
        FROM app.ai_runs r
        LEFT JOIN LATERAL (
-         SELECT id,sequence,expected_version,fence FROM app.ai_steps
-         WHERE org_id=r.org_id AND run_id=r.id AND state IN ('committed','awaiting_approval')
+         SELECT id,sequence,expected_version,fence FROM app.ai_steps s
+         WHERE s.org_id=r.org_id AND s.run_id=r.id AND (
+           (NOT $3 AND s.state IN ('committed','awaiting_approval')) OR
+           ($3 AND s.id=$4 AND s.sequence=$5 AND NOT EXISTS (
+             SELECT 1 FROM app.ai_steps prior
+             WHERE prior.org_id=r.org_id AND prior.run_id=r.id
+               AND prior.state IN ('committed','awaiting_approval')
+           ))
+         )
          ORDER BY sequence DESC,updated_at DESC LIMIT 1
        ) s ON true
        WHERE r.org_id=$1 AND r.id=$2 AND r.status IN ('completed','failed','cancelled')`,
-      [scope.orgId, claim.runId],
+      [
+        scope.orgId,
+        claim.runId,
+        claim.neutral === true,
+        claim.stepId,
+        claim.sequence,
+      ],
     );
     const row = result.rows[0];
     if (
@@ -231,6 +244,61 @@ export class AiStepRepository {
     return result.rows[0] ? mapStep(result.rows[0]) : null;
   }
 
+  async lockCurrent(
+    tx: TenantSession,
+    input: { runId: string; sequence: number },
+  ): Promise<StepRecord | null> {
+    if (
+      !uuid.safeParse(input.runId).success ||
+      !Number.isSafeInteger(input.sequence) ||
+      input.sequence < 1
+    )
+      throw new Error('Invalid AI step lookup');
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<StepRow>(
+      `SELECT * FROM app.ai_steps
+       WHERE org_id=$1 AND run_id=$2 AND sequence=$3 FOR UPDATE`,
+      [scope.orgId, input.runId, input.sequence],
+    );
+    return result.rows[0] ? mapStep(result.rows[0]) : null;
+  }
+
+  async failExpiredCurrent(
+    tx: TenantSession,
+    input: {
+      runId: string;
+      sequence: number;
+      expectedVersion: number;
+      stepId: string;
+      fence: number;
+    },
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query(
+      `UPDATE app.ai_steps SET state='failed',lease_until=NULL,updated_at=clock_timestamp()
+       WHERE org_id=$1 AND run_id=$2 AND id=$3 AND sequence=$4 AND expected_version=$5
+         AND fence=$6 AND (state='pending' OR
+           (state='claimed' AND lease_until<=clock_timestamp())) RETURNING state`,
+      [
+        scope.orgId,
+        input.runId,
+        input.stepId,
+        input.sequence,
+        input.expectedVersion,
+        input.fence,
+      ],
+    );
+    if (result.rowCount !== 1) return false;
+    await client.query(
+      `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+      [scope.orgId, input.stepId, input.fence],
+    );
+    return true;
+  }
+
   /** Lock and revalidate the run before the step; locks remain held by the caller's transaction. */
   async lockClaim(tx: TenantSession, claim: StepClaim): Promise<boolean> {
     if (!validClaim(tx, claim)) return false;
@@ -238,8 +306,10 @@ export class AiStepRepository {
     await this.lockTenantClaimGuard(tx);
     const run = await client.query(
       `SELECT 1 FROM app.ai_runs
-       WHERE org_id=$1 AND id=$2 AND run_version=$3 AND next_sequence=$4
-         AND status IN ('queued','running','awaiting_approval','cancelling')
+       WHERE org_id=$1 AND id=$2 AND next_sequence=$4 AND (
+         (run_version=$3 AND status IN ('queued','running','awaiting_approval')) OR
+         (run_version=$3+1 AND status='cancelling')
+       )
        FOR UPDATE`,
       [claim.orgId, claim.runId, claim.expectedVersion, claim.sequence],
     );
@@ -378,8 +448,9 @@ export class AiStepRepository {
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4
          AND s.expected_version=$5 AND s.fence=$6 AND s.state='claimed'
          AND s.lease_until>clock_timestamp() AND r.org_id=s.org_id AND r.id=s.run_id
-         AND r.run_version=$5 AND r.next_sequence=$4
-         AND r.status IN ('queued','running','awaiting_approval','cancelling')`,
+         AND r.next_sequence=$4
+         AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
+              (r.run_version=$5+1 AND r.status='cancelling'))`,
       [
         claim.orgId,
         claim.runId,
@@ -413,7 +484,9 @@ export class AiStepRepository {
        JOIN app.ai_runs r ON r.org_id=s.org_id AND r.id=s.run_id
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4 AND s.expected_version=$5
          AND s.fence=$6 AND s.state='claimed' AND s.lease_until>clock_timestamp()
-         AND r.run_version=$5 AND r.next_sequence=$4 AND r.status IN ('queued','running','awaiting_approval','cancelling')
+         AND r.next_sequence=$4
+         AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
+              (r.run_version=$5+1 AND r.status='cancelling'))
          AND a.id=$8 AND a.fence=s.fence AND a.active=true
        ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,created_at=clock_timestamp()
          WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id OR EXISTS (
@@ -431,6 +504,39 @@ export class AiStepRepository {
         claim.fence,
         input.text,
         input.attemptId,
+      ],
+    );
+    return result.rowCount === 1;
+  }
+
+  async commitCancellation(
+    tx: TenantSession,
+    claim: StepClaim,
+    text: string,
+  ): Promise<boolean> {
+    if (
+      !validClaim(tx, claim) ||
+      Buffer.byteLength(text, 'utf8') > 262144 ||
+      !(await this.lockClaim(tx, claim))
+    )
+      return false;
+    const { client } = requireSession(tx);
+    const result = await client.query(
+      `UPDATE app.ai_steps s SET state='committed',committed_text=$7,
+       commit_data='{"outcome":"cancelled"}'::jsonb,lease_until=NULL,updated_at=clock_timestamp()
+       FROM app.ai_runs r
+       WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4
+         AND s.expected_version=$5 AND s.fence=$6 AND s.state='claimed'
+         AND s.lease_until>clock_timestamp() AND r.org_id=s.org_id AND r.id=s.run_id
+         AND r.run_version=$5+1 AND r.next_sequence=$4 AND r.status='cancelling'`,
+      [
+        claim.orgId,
+        claim.runId,
+        claim.stepId,
+        claim.sequence,
+        claim.expectedVersion,
+        claim.fence,
+        text,
       ],
     );
     return result.rowCount === 1;
@@ -498,6 +604,7 @@ function validTerminalReference(
     Number.isSafeInteger(reference.expectedVersion) &&
     reference.expectedVersion > 0 &&
     Number.isSafeInteger(reference.fence) &&
-    reference.fence > 0
+    (reference.fence > 0 ||
+      (reference.neutral === true && reference.fence === 0))
   );
 }

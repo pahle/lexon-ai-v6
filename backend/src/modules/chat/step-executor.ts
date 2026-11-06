@@ -24,6 +24,7 @@ import type {
   ReportedUsage,
 } from '../../infrastructure/ai/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
+import type { CancelSignals } from '../../infrastructure/queue/index.js';
 import type {
   JobEnvelope,
   OperationProposal,
@@ -58,6 +59,7 @@ export interface StepExecutorOptions {
   readonly registry: RunRegistry;
   readonly gateway: ModelGateway;
   readonly streams?: RunStreams;
+  readonly cancelSignals?: CancelSignals;
   readonly modelCallTimeoutMs?: number;
 }
 
@@ -84,6 +86,30 @@ export class StepExecutor {
       throw new Error('Invalid model-call timeout');
   }
 
+  exhausted(job: JobEnvelope): Promise<'done' | 'retry'> {
+    return this.#finalizeExhausted(job);
+  }
+
+  async #finalizeExhausted(job: JobEnvelope): Promise<'done' | 'retry'> {
+    if (job.type === 'platform.noop.v1') return 'done';
+    const result = await this.options.coordinator.finalizeExhausted(job);
+    if (result !== 'done' || !this.options.streams) return result;
+    try {
+      const reference = await this.options.database.withTenant(job.ctx, (tx) =>
+        this.options.runs.terminalStreamReference(tx, job.payload.runId),
+      );
+      if (reference)
+        await this.options.streams.finish(reference, {
+          version: 1,
+          runId: job.payload.runId,
+          type: 'finish',
+        });
+      return 'done';
+    } catch {
+      return 'retry';
+    }
+  }
+
   async execute(
     job: JobEnvelope,
     durable: { signal: AbortSignal },
@@ -94,10 +120,33 @@ export class StepExecutor {
     if (claimed.kind === 'busy')
       return { kind: 'busy', retryAtMs: claimed.retryAtMs };
     const claim = claimed.claim;
+    const unbindCancelContext = this.options.cancelSignals?.bind(claim.runId, {
+      orgId: claim.orgId,
+      userId: claim.userId,
+    });
+    const cancelController = new AbortController();
+    let cancelRequested = false;
+    let unsubscribeCancel: (() => Promise<void>) | undefined;
+    try {
+      unsubscribeCancel = await this.options.cancelSignals?.subscribe(
+        claim.runId,
+        () => {
+          cancelRequested = true;
+          cancelController.abort(new Error('AI run cancelled'));
+        },
+      );
+    } catch (error) {
+      unbindCancelContext?.();
+      throw error;
+    }
+    const workerSignal = AbortSignal.any([
+      durable.signal,
+      cancelController.signal,
+    ]);
     const heartbeat = claimHeartbeat(
       this.options.coordinator,
       claim,
-      durable.signal,
+      workerSignal,
     );
     let text = '';
     let proposals: Extract<ModelEvent, { type: 'tool-proposal' }>[] = [];
@@ -107,6 +156,8 @@ export class StepExecutor {
     let lastCheckpoint = Date.now();
     let checkpointBytes = 0;
     let attemptId = '';
+    let attemptReserved = false;
+    let activeAttemptText = '';
 
     try {
       heartbeat.throwIfAborted();
@@ -137,6 +188,11 @@ export class StepExecutor {
       }
       if (!initial) return { kind: 'done' };
       const { run, profile, actorScope, activeCapabilities } = initial;
+      text = await this.options.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) =>
+          this.options.runs.latestCheckpointText(tx, run.id, claim.sequence),
+      );
       if (this.options.operations && this.#toolExecutor && claim.sequence > 1) {
         const previousOperations = await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
@@ -374,6 +430,7 @@ export class StepExecutor {
       for (let ordinal = 1; ordinal <= maxAttempts; ordinal++) {
         heartbeat.throwIfAborted();
         let attemptText = '';
+        activeAttemptText = '';
         const attemptProposals: Extract<
           ModelEvent,
           { type: 'tool-proposal' }
@@ -394,7 +451,7 @@ export class StepExecutor {
             ...toolResultsAsMessages(operationHistory),
           ],
           maxOutputTokens: profile.maxOutputTokens,
-          signal: durable.signal,
+          signal: heartbeat.signal,
           schemas: permittedToolSchemas(
             this.options.registry,
             activeCapabilities,
@@ -433,7 +490,7 @@ export class StepExecutor {
               );
               if (!decision.allowed)
                 throw new Error('AI run authorization denied');
-              return this.options.attempts.reserve(tx, claim, {
+              const reserved = await this.options.attempts.reserve(tx, claim, {
                 attemptId,
                 modelInput,
                 limits: {
@@ -442,6 +499,8 @@ export class StepExecutor {
                   maxOutputTokens: profile.maxOutputTokens,
                 },
               });
+              attemptReserved = true;
+              return reserved;
             },
           );
         } catch (error) {
@@ -584,6 +643,7 @@ export class StepExecutor {
                 );
               } else if (event.type === 'text') {
                 attemptText += event.text;
+                activeAttemptText = attemptText;
                 const deltaBytes = Buffer.byteLength(event.text, 'utf8');
                 checkpointBytes += deltaBytes;
                 dirtyBytes += deltaBytes;
@@ -672,6 +732,7 @@ export class StepExecutor {
                 ...(costUsd ? { costUsd } : {}),
               }),
           );
+          attemptReserved = false;
           heartbeat.throwIfAborted();
           await this.#publish(claim, {
             version: 1,
@@ -713,6 +774,7 @@ export class StepExecutor {
               outcome: 'unknown',
             }),
         );
+      if (unknown) attemptReserved = false;
       const terminal =
         invalidProposals ||
         (!continueLength && operationProposals.length === 0);
@@ -749,8 +811,25 @@ export class StepExecutor {
         await this.#finishIfTerminal(claim);
       }
       return { kind: 'done' };
+    } catch (error) {
+      if (!cancelRequested) throw error;
+      const result = await this.options.coordinator.commitCancellation(
+        job,
+        claim,
+        {
+          text: activeAttemptText || text,
+          ...(attemptReserved && attemptId ? { attemptId } : {}),
+        },
+      );
+      if (result === 'committed') {
+        await heartbeat.stop();
+        await this.#finishIfTerminal(claim);
+      }
+      return { kind: 'done' };
     } finally {
       await heartbeat.stop();
+      await unsubscribeCancel?.();
+      unbindCancelContext?.();
     }
   }
 

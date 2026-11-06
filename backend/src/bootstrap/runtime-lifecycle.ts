@@ -7,6 +7,7 @@ import {
 import {
   QueueProducer,
   QueueConsumer,
+  CancelSignals,
   checkValkeyPolicy,
   RunStreams,
 } from '../infrastructure/queue/index.js';
@@ -36,6 +37,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly capacity?: AiCapacityRepository,
     private readonly stepExecutor?: StepExecutor,
     private readonly runStreams?: RunStreams,
+    private readonly cancelSignals?: CancelSignals,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
@@ -66,6 +68,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
               strategy: 'durable-step',
               handle: (job, context) =>
                 this.stepExecutor!.execute(job, context),
+              exhausted: (job) => this.stepExecutor!.exhausted(job),
             });
         }
         await this.consumer.start(registry);
@@ -117,6 +120,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     await this.#writer?.stop();
     await this.#dispatchTask;
     await this.consumer?.close();
+    await this.cancelSignals?.close();
     await this.runStreams?.close();
     await this.producer?.close();
     await this.storage?.close();

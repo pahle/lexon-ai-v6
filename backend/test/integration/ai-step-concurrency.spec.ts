@@ -1,4 +1,5 @@
 import { expect, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
@@ -56,6 +57,73 @@ test('two concurrent deliveries admit one active claim and preserve its version'
   }
 });
 
+test('attempt insert waits on the locked run row before reaching its foreign key', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let releaseBlocker: (() => void) | undefined;
+  let setWaiterPid!: (pid: number) => void;
+  const waiterReady = new Promise<number>((resolve) => {
+    setWaiterPid = resolve;
+  });
+  let blocker: ReturnType<typeof ai.holdRunRowLock> | undefined;
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Attempt guard claim unavailable');
+    const repository = new AiAttemptRepository();
+    const attemptId = randomUUID();
+    const attempt = {
+      attemptId,
+      orgId: claim.orgId,
+      runId: claim.runId,
+      stepId: claim.stepId,
+      ordinal: 1,
+      modelId: 'synthetic/test',
+      estimatorVersion: 'test-v1',
+      estimatedInputTokens: 1,
+      reservedInputTokens: 1,
+      reservedOutputTokens: 4,
+      generationId: null,
+      provider: null,
+      reportedInputTokens: null,
+      reportedOutputTokens: null,
+      cachedInputTokens: null,
+      reasoningOutputTokens: null,
+      costUsd: null,
+      active: true,
+      outcome: null,
+      createdAt: new Date(),
+      settledAt: null,
+    } as const;
+    blocker = ai.holdRunRowLock(0, run.id);
+    releaseBlocker = blocker.release;
+    const waiter = ai.withTenantSession(0, async (tx, client) => {
+      const pid = await client.query<{ pid: number }>(
+        'SELECT pg_backend_pid() AS pid',
+      );
+      setWaiterPid(Number(pid.rows[0]!.pid));
+      await repository.insert(tx, claim, attempt);
+    });
+    const [blockerPid, waiterPid] = await Promise.all([
+      blocker.ready,
+      waiterReady,
+    ]);
+    await expect
+      .poll(() => ai.blockingPids(0, waiterPid))
+      .toContain(blockerPid);
+    blocker.release();
+    await Promise.all([blocker.done, waiter]);
+    expect(
+      await ai.withTenant(0, (tx) => repository.list(tx, run.id)),
+    ).toMatchObject([expect.objectContaining({ attemptId, active: true })]);
+  } finally {
+    releaseBlocker?.();
+    await ai.close();
+  }
+});
+
 test('coordinator returns busy to a second delivery and performs no tenant discovery', async ({
   services,
 }) => {
@@ -73,6 +141,51 @@ test('coordinator returns busy to a second delivery and performs no tenant disco
     expect(await service.claim(job(run.id, ai.tenants[1]!))).toEqual({
       kind: 'noop',
     });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('persisted cancellation prevents ordinary commit callbacks before they run', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const service = coordinator(ai);
+    const claim = await service.claim(queuedJob);
+    expect(claim.kind).toBe('claimed');
+    if (claim.kind !== 'claimed') return;
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiRunRepository().transition(tx, {
+          runId: run.id,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'cancelling',
+        }),
+      ),
+    ).toBe(true);
+    let effectInvoked = false;
+
+    await expect(
+      service.commit(queuedJob, claim.claim, {
+        state: 'committed',
+        text: 'late model result',
+        data: {},
+        advancement: 'continuation',
+        transactionTimeoutMs: 1000,
+        transactionWork: async () => {
+          effectInvoked = true;
+        },
+      }),
+    ).resolves.toBe('stale');
+    expect(effectInvoked).toBe(false);
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(0);
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
   } finally {
     await ai.close();
   }

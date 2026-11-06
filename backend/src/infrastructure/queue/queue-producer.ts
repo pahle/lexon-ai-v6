@@ -65,6 +65,11 @@ export class QueueProducer {
       await Promise.race([
         queue.add(job.type, job, {
           jobId: job.outboxId,
+          ...(job.type === 'run.start.v1' ||
+          job.type === 'run.advance.v1' ||
+          job.type === 'run.resume.v1'
+            ? { removeOnFail: false }
+            : {}),
           ...(options.priority === undefined
             ? {}
             : { priority: options.priority }),

@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Module, type INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { BullModule, Processor, WorkerHost } from '@nestjs/bullmq';
-import { DelayedError, type Job } from 'bullmq';
+import { DelayedError, Queue, type Job } from 'bullmq';
 import {
   parseJobEnvelope,
   type JobEnvelope,
@@ -46,6 +46,13 @@ export class QueueConsumer {
   #permitManager: StepPermitManager | undefined;
   #lastProgress = 0;
   #activeJobs = 0;
+  readonly #activeControllers = new Set<AbortController>();
+  readonly #failedQueues = new Map<string, Queue>();
+  #failedTimer: ReturnType<typeof setInterval> | undefined;
+  #failedScan: Promise<void> = Promise.resolve();
+  #failedCursor = new Map<string, number>();
+  #registryValue: JobHandlerRegistry | undefined;
+  #closing = false;
   readonly #timing: QueueConsumerTiming;
 
   constructor(
@@ -60,6 +67,7 @@ export class QueueConsumer {
     registryOrHandler: JobHandlerRegistry | TenantJobHandler,
   ): Promise<void> {
     if (this.#app) throw new Error('Consumer already started');
+    this.#closing = false;
     if (
       Object.values(this.#timing).some(
         (value) => !Number.isSafeInteger(value) || value < 1,
@@ -113,14 +121,37 @@ export class QueueConsumer {
       });
       this.#app = app;
       this.#permitManager = permits;
+      this.#registryValue = registry;
+      for (const name of QUEUE_NAMES) {
+        const queue = new Queue(name, {
+          connection: {
+            url: this.options.url,
+            maxRetriesPerRequest: 1,
+            connectTimeout: 2000,
+            commandTimeout: 2000,
+            retryStrategy: (attempt: number) => Math.min(attempt * 100, 500),
+          },
+          prefix: this.options.prefix,
+        });
+        queue.on('error', () => undefined);
+        this.#failedQueues.set(name, queue);
+        this.#failedCursor.set(name, 0);
+      }
       const interactive = app.get(InteractiveProcessor).worker;
       const batch = app.get(BatchProcessor).worker;
       interactive.on('error', () => undefined);
       batch.on('error', () => undefined);
       await Promise.all([interactive.waitUntilReady(), batch.waitUntilReady()]);
+      this.#failedTimer = setInterval(() => this.#scanFailed(), 1000);
+      void this.#scanFailed();
     } catch {
       this.#app = undefined;
       this.#permitManager = undefined;
+      this.#registryValue = undefined;
+      await Promise.all(
+        [...this.#failedQueues.values()].map((queue) => queue.close()),
+      );
+      this.#failedQueues.clear();
       await app?.close();
       await permits.close();
       throw new Error('Queue consumer startup failed');
@@ -139,7 +170,18 @@ export class QueueConsumer {
     const permits = this.#permitManager;
     this.#app = undefined;
     this.#permitManager = undefined;
+    this.#closing = true;
+    if (this.#failedTimer) clearInterval(this.#failedTimer);
+    this.#failedTimer = undefined;
+    for (const controller of this.#activeControllers)
+      controller.abort(new Error('AI worker shutting down'));
     await app?.close();
+    await this.#failedScan;
+    await Promise.all(
+      [...this.#failedQueues.values()].map((queue) => queue.close()),
+    );
+    this.#failedQueues.clear();
+    this.#registryValue = undefined;
     await permits?.close();
   }
 
@@ -185,6 +227,7 @@ export class QueueConsumer {
       return { kind: 'busy', retryAtMs: Date.now() + this.#timing.busyRetryMs };
 
     const controller = new AbortController();
+    this.#activeControllers.add(controller);
     const renewIntervalMs = Math.max(
       1,
       Math.floor(manager.leaseMs / STEP_PERMIT_RENEWAL_DIVISOR),
@@ -212,8 +255,12 @@ export class QueueConsumer {
       handlerError = error;
     } finally {
       clearInterval(interval);
-      await renewal;
-      await permit.release();
+      try {
+        await renewal;
+        await permit.release();
+      } finally {
+        this.#activeControllers.delete(controller);
+      }
     }
     if (
       handlerFailed &&
@@ -260,5 +307,45 @@ export class QueueConsumer {
   #endProgress(): void {
     this.#activeJobs = Math.max(0, this.#activeJobs - 1);
     this.#lastProgress = Date.now();
+  }
+
+  #scanFailed(): void {
+    if (this.#failedScanning || !this.#registryValue) return;
+    this.#failedScanning = true;
+    this.#failedScan = Promise.all(
+      [...this.#failedQueues.entries()].map(async ([name, queue]) => {
+        const start = this.#failedCursor.get(name) ?? 0;
+        try {
+          const jobs = await queue.getFailed(start, start + 99);
+          this.#failedCursor.set(name, jobs.length === 100 ? start + 100 : 0);
+          for (const job of jobs) {
+            if (this.#closing) break;
+            const result = await this.#reconcileFailed(job);
+            if (result === 'done') await job.remove();
+          }
+        } catch {
+          // Failed deliveries remain in BullMQ and are retried by the next scan.
+        }
+      }),
+    )
+      .then(() => undefined)
+      .finally(() => {
+        this.#failedScanning = false;
+      });
+  }
+
+  #failedScanning = false;
+
+  async #reconcileFailed(job: Job): Promise<'done' | 'retry'> {
+    try {
+      const envelope = parseJobEnvelope(job.data);
+      if (job.name !== envelope.type) return 'done';
+      const handler = this.#registryValue?.resolve(job.name);
+      if (handler?.strategy !== 'durable-step') return 'done';
+      if (!handler.exhausted) return 'retry';
+      return await handler.exhausted(envelope);
+    } catch {
+      return 'retry';
+    }
   }
 }

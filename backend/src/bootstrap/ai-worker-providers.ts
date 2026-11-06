@@ -12,7 +12,7 @@ import {
   MODEL_GATEWAY,
   type ModelGateway,
 } from '../infrastructure/ai/index.js';
-import { RunStreams } from '../infrastructure/queue/index.js';
+import { CancelSignals, RunStreams } from '../infrastructure/queue/index.js';
 import { JobExecutor } from '../modules/platform/index.js';
 import {
   RunRegistry,
@@ -26,6 +26,17 @@ export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
 ): Provider[] {
   return [
+    {
+      provide: CancelSignals,
+      inject: [TenantDatabase, AiRunRepository],
+      useFactory: (db: TenantDatabase, runs: AiRunRepository) =>
+        new CancelSignals({
+          url: config.valkey.streamsUrl,
+          prefix: config.queuePrefix,
+          database: db,
+          runs,
+        }),
+    },
     {
       provide: RunStreams,
       inject: [TenantDatabase, AiRunRepository, AiStepRepository],
@@ -79,6 +90,7 @@ export function aiWorkerProviders(
         RunAuthorizationService,
         MODEL_GATEWAY,
         RunStreams,
+        CancelSignals,
       ],
       useFactory: (
         db: TenantDatabase,
@@ -89,6 +101,7 @@ export function aiWorkerProviders(
         authorization: RunAuthorizationService,
         gateway: ModelGateway,
         streams: RunStreams,
+        cancelSignals: CancelSignals,
       ) => {
         const operations = new AiOperationRepository();
         const coordinator = new StepCoordinator(
@@ -113,6 +126,7 @@ export function aiWorkerProviders(
           registry,
           gateway,
           streams,
+          cancelSignals,
         });
       },
     },

@@ -3,9 +3,12 @@ import { Queue } from 'bullmq';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
+  AiRunRepository,
+  AiStepRepository,
   DispatcherSession,
   OutboxRepository,
   TenantDatabase,
+  type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
 import { OutboxDispatcher } from '../../src/modules/platform/index.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
@@ -14,13 +17,11 @@ import {
   QueueProducer,
 } from '../../src/infrastructure/queue/index.js';
 import { StepPermitManager } from '../../src/infrastructure/queue/step-permits.js';
-import {
-  AiStepRepository,
-  type JobEnvelope,
-} from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
+import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
+import { AttemptService } from '../../src/modules/usage/index.js';
 
 test('durable busy claims are delayed without consuming BullMQ failure attempts', async ({
   services,
@@ -86,6 +87,109 @@ test('durable busy claims are delayed without consuming BullMQ failure attempts'
     await producer.close();
     await queue.close();
     await database.close();
+  }
+});
+
+test('retained exhausted delivery finalizes the PostgreSQL run after database recovery and restart', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const options = {
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix,
+  };
+  const databaseProxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: databaseProxy.url,
+    poolMax: 3,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const run = await fixture.start(0);
+  await fixture.seedPendingStep(0, run.id);
+  const tenant = fixture.tenants[0]!;
+  const job: JobEnvelope = {
+    outboxId: stepJobId(run.id, 1),
+    type: 'run.advance.v1',
+    ctx: tenant,
+    payload: { runId: run.id, sequence: 1, expectedVersion: 1 },
+  };
+  const coordinator = new StepCoordinator(
+    database,
+    new AiRunRepository(),
+    new AiStepRepository(),
+    new AttemptService(),
+    new OutboxRepository(),
+    new JobExecutor(database),
+  );
+  const registry = new JobRegistry();
+  registry.register('run.advance.v1', {
+    strategy: 'durable-step',
+    handle: async () => {
+      throw new Error('synthetic exhausted delivery');
+    },
+    exhausted: (delivery) => coordinator.finalizeExhausted(delivery),
+  });
+  const first = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  const second = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  try {
+    databaseProxy.disconnect();
+    await first.start(registry);
+    await producer.enqueue(job, {
+      queue: 'ai-batch',
+      priority: 4,
+      timeoutMs: 1000,
+    });
+    await expect
+      .poll(
+        () => queue.getJob(job.outboxId).then((value) => value?.getState()),
+        { timeout: 15000 },
+      )
+      .toBe('failed');
+    expect(await fixture.runVersion(0, run.id)).toBe(1);
+    expect(await fixture.orgSlotCount(0)).toBe(1);
+    await first.close();
+    databaseProxy.restore();
+    await second.start(registry);
+    await expect
+      .poll(
+        async () =>
+          (
+            await fixture.withTenant(0, (tx) =>
+              new AiRunRepository().find(tx, run.id),
+            )
+          )?.status,
+        { timeout: 15000 },
+      )
+      .toBe('failed');
+    expect(await fixture.orgSlotCount(0)).toBe(0);
+    await expect.poll(() => queue.getJob(job.outboxId)).toBeUndefined();
+  } finally {
+    await first.close();
+    await second.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+    await databaseProxy.close();
+    await fixture.close();
   }
 });
 

@@ -234,6 +234,44 @@ export class AiRunRepository {
     return result.rows[0] ? mapRun(result.rows[0]) : null;
   }
 
+  async lockForLifecycle(
+    tx: TenantSession,
+    runId: string,
+  ): Promise<RunRecord | null> {
+    if (!idSchema.safeParse(runId).success)
+      throw new Error('Invalid AI run ID');
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<RunRow>(
+      'SELECT * FROM app.ai_runs WHERE org_id=$1 AND id=$2 FOR UPDATE',
+      [scope.orgId, runId],
+    );
+    return result.rows[0] ? mapRun(result.rows[0]) : null;
+  }
+
+  async latestCheckpointText(
+    tx: TenantSession,
+    runId: string,
+    sequence: number,
+  ): Promise<string> {
+    if (
+      !idSchema.safeParse(runId).success ||
+      !Number.isSafeInteger(sequence) ||
+      sequence < 1
+    )
+      throw new Error('Invalid AI checkpoint lookup');
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<{ text: string }>(
+      `SELECT c.text FROM app.ai_checkpoints c
+       JOIN app.ai_steps s ON s.org_id=c.org_id AND s.run_id=c.run_id AND s.id=c.step_id
+       WHERE c.org_id=$1 AND c.run_id=$2 AND s.sequence=$3
+       ORDER BY c.created_at DESC LIMIT 1`,
+      [scope.orgId, runId, sequence],
+    );
+    return result.rows[0]?.text ?? '';
+  }
+
   async terminalStreamReference(
     tx: TenantSession,
     runId: string,
@@ -262,7 +300,36 @@ export class AiRunRepository {
          AND r.status IN ('completed','failed','cancelled')`,
       [ctx.orgId, runId, ctx.userId],
     );
-    const row = result.rows[0];
+    let row = result.rows[0];
+    let neutral = false;
+    if (row && !row.step_id) {
+      const current = await client.query<{
+        step_id: string;
+        sequence: number;
+        expected_version: number;
+        fence: number;
+      }>(
+        `SELECT s.id AS step_id,s.sequence,s.expected_version,s.fence
+         FROM app.ai_runs r JOIN app.ai_steps s
+           ON s.org_id=r.org_id AND s.run_id=r.id
+         WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+           AND r.status IN ('completed','failed','cancelled')
+           AND s.sequence=r.next_sequence AND s.expected_version<=r.run_version
+         ORDER BY s.updated_at DESC LIMIT 1`,
+        [ctx.orgId, runId, ctx.userId],
+      );
+      const step = current.rows[0];
+      if (step) {
+        row = {
+          ...row,
+          step_id: step.step_id,
+          sequence: step.sequence,
+          expected_version: step.expected_version,
+          fence: step.fence,
+        };
+        neutral = true;
+      }
+    }
     if (
       !row ||
       !row.step_id ||
@@ -279,6 +346,7 @@ export class AiRunRepository {
       sequence: Number(row.sequence),
       expectedVersion: Number(row.expected_version),
       fence: Number(row.fence),
+      ...(neutral ? { neutral: true } : {}),
     };
   }
 

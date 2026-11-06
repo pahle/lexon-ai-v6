@@ -22,6 +22,7 @@ export type QueueJobHandler =
   | Readonly<{
       strategy: 'durable-step';
       handle: DurableJobHandler;
+      exhausted?: (job: JobEnvelope) => Promise<'done' | 'retry'>;
     }>;
 
 export interface JobHandlerRegistry {

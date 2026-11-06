@@ -10,6 +10,7 @@ import {
 import {
   QueueProducer,
   QueueConsumer,
+  CancelSignals,
   checkValkeyPolicy,
 } from '../infrastructure/queue/index.js';
 import { StoragePort } from '../infrastructure/storage/index.js';
@@ -76,7 +77,7 @@ export function runtimeProviders(
       : config.runtime === 'document-worker'
         ? [StoragePort]
         : config.runtime === 'ai-worker'
-          ? [QueueConsumer, StepExecutor, RunStreams]
+          ? [QueueConsumer, StepExecutor, RunStreams, CancelSignals]
           : [QueueProducer, OutboxDispatcher];
   if (capacity) tokens.push(AiCapacityRepository);
   providers.push({
@@ -94,6 +95,7 @@ export function runtimeProviders(
         | AiCapacityRepository
         | StepExecutor
         | RunStreams
+        | CancelSignals
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -116,6 +118,9 @@ export function runtimeProviders(
         ),
         dependencies.find((x): x is StepExecutor => x instanceof StepExecutor),
         dependencies.find((x): x is RunStreams => x instanceof RunStreams),
+        dependencies.find(
+          (x): x is CancelSignals => x instanceof CancelSignals,
+        ),
       ),
   });
   return providers;

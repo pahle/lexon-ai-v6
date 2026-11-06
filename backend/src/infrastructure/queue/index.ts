@@ -32,6 +32,7 @@ export {
   type ActiveStreamProof,
   type TerminalStreamProof,
 } from './run-streams.js';
+export { CancelSignals, type CancelSignalsOptions } from './cancel-signals.js';
 export {
   StreamCapacity,
   RUN_STREAM_LIMITS,

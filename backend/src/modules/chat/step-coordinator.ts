@@ -59,6 +59,7 @@ export type ClaimResult =
   | { readonly kind: 'noop' };
 
 class StaleCommit extends Error {}
+class RetryFinalization extends Error {}
 
 export class StepCoordinator {
   constructor(
@@ -303,6 +304,143 @@ export class StepCoordinator {
     } catch (error) {
       if (error instanceof StaleCommit) return 'stale';
       throw error;
+    }
+  }
+
+  async commitCancellation(
+    job: JobEnvelope,
+    claim: StepClaim,
+    input: { readonly text: string; readonly attemptId?: string },
+  ): Promise<'committed' | 'stale'> {
+    if (
+      job.type === 'platform.noop.v1' ||
+      job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence) ||
+      job.payload.runId !== claim.runId ||
+      job.payload.sequence !== claim.sequence ||
+      job.payload.expectedVersion !== claim.expectedVersion ||
+      job.ctx.orgId !== claim.orgId ||
+      job.ctx.userId !== claim.userId ||
+      Buffer.byteLength(input.text, 'utf8') > 262144 ||
+      (input.attemptId !== undefined && input.attemptId.length === 0)
+    )
+      return 'stale';
+    try {
+      await this.database.withTenant(job.ctx, async (tx) => {
+        await this.steps.lockTenantClaimGuard(tx);
+        await this.executor.executeWithin(tx, job, async (session) => {
+          if (!(await this.steps.lockClaim(session, claim)))
+            throw new StaleCommit();
+          const run = await this.runs.find(session, claim.runId);
+          if (
+            !run ||
+            run.status !== 'cancelling' ||
+            run.runVersion !== claim.expectedVersion + 1 ||
+            run.nextSequence !== claim.sequence
+          )
+            throw new StaleCommit();
+          if (input.attemptId)
+            await this.usage.settle(session, claim, {
+              attemptId: input.attemptId,
+              outcome: 'unknown',
+            });
+          if (
+            !(await this.steps.commitCancellation(session, claim, input.text))
+          )
+            throw new StaleCommit();
+          if (
+            !(await this.runs.transition(session, {
+              runId: claim.runId,
+              expectedVersion: run.runVersion,
+              from: 'cancelling',
+              to: 'cancelled',
+              nextSequence: claim.sequence + 1,
+              outputAppend: input.text,
+            }))
+          )
+            throw new StaleCommit();
+        });
+      });
+      return 'committed';
+    } catch (error) {
+      if (error instanceof StaleCommit) return 'stale';
+      throw error;
+    }
+  }
+
+  /** Terminalizes only the exact expired current delivery after BullMQ exhaustion. */
+  async finalizeExhausted(job: JobEnvelope): Promise<'done' | 'retry'> {
+    if (
+      job.type === 'platform.noop.v1' ||
+      job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence)
+    )
+      return 'done';
+    try {
+      return await this.database.withTenant<'done' | 'retry'>(
+        job.ctx,
+        async (tx) => {
+          await this.steps.lockTenantClaimGuard(tx);
+          await this.executor.executeWithin(tx, job, async (session) => {
+            const run = await this.runs.lockForLifecycle(
+              session,
+              job.payload.runId,
+            );
+            if (
+              !run ||
+              run.initiatingUserId !== job.ctx.userId ||
+              run.runVersion !== job.payload.expectedVersion ||
+              run.nextSequence !== job.payload.sequence ||
+              !['queued', 'running', 'awaiting_approval'].includes(run.status)
+            )
+              return;
+            const step = await this.steps.lockCurrent(session, {
+              runId: run.id,
+              sequence: job.payload.sequence,
+            });
+            if (
+              !step ||
+              step.expectedVersion !== job.payload.expectedVersion ||
+              !['pending', 'claimed'].includes(step.state)
+            )
+              return;
+            if (
+              step.state === 'claimed' &&
+              step.leaseUntil &&
+              step.leaseUntil > new Date()
+            )
+              throw new RetryFinalization();
+            const checkpoint = await this.runs.latestCheckpointText(
+              session,
+              run.id,
+              step.sequence,
+            );
+            if (
+              !(await this.steps.failExpiredCurrent(session, {
+                runId: run.id,
+                sequence: step.sequence,
+                expectedVersion: step.expectedVersion,
+                stepId: step.id,
+                fence: step.fence,
+              }))
+            )
+              throw new RetryFinalization();
+            if (
+              !(await this.runs.transition(session, {
+                runId: run.id,
+                expectedVersion: run.runVersion,
+                from: run.status,
+                to: 'failed',
+                errorCode: 'AI_INTERNAL',
+                nextSequence: step.sequence + 1,
+                outputAppend: checkpoint,
+              }))
+            )
+              throw new StaleCommit();
+          });
+          return 'done';
+        },
+      );
+    } catch {
+      return 'retry';
     }
   }
 }
