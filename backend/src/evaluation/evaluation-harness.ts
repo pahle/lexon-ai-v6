@@ -8,7 +8,7 @@ import {
 import type {
   EvaluationActor,
   EvaluationEngine,
-  EvaluationOptions,
+  EvaluationHarnessOptions,
 } from './evaluation-contracts.js';
 import { createAiFixture } from '../infrastructure/db/testing/ai-fixture.js';
 import {
@@ -26,10 +26,18 @@ import {
   RunActorFactsRepository,
 } from '../infrastructure/db/index.js';
 import {
+  createRealModelGateway,
   createSdkScriptedModelGateway,
   ModelAllowlistSchema,
 } from '../infrastructure/ai/index.js';
+import type {
+  ModelEvent,
+  ModelGateway,
+  ModelInput,
+  ModelOutcome,
+} from '../infrastructure/ai/index.js';
 import { readAiConfig } from '../config/ai-config.js';
+import { estimateInputTokens } from '../modules/usage/token-estimator.js';
 import { z } from 'zod';
 import {
   CancelSignals,
@@ -80,9 +88,9 @@ const scenarioIds = new Set([
 ]);
 
 export async function createEvaluationHarness(
-  options: EvaluationOptions,
+  options: EvaluationHarnessOptions,
 ): Promise<EvaluationEngine> {
-  if (options.fixtureSet !== 'deterministic')
+  if (options.fixtureSet !== 'deterministic' && options.fixtureSet !== 'real')
     throw new Error('Invalid evaluation fixture set');
   const base = new URL(options.services.postgresUrl);
   const password = decodeURIComponent(base.password);
@@ -134,8 +142,9 @@ export async function createEvaluationHarness(
     const capacity = new AiCapacityRepository(database);
     const capacityConfig = readAiConfig({});
     const authorization = new RunAuthorizationService();
+    const realMode = options.fixtureSet === 'real';
     const profiles = [...scenarioIds].map((scenarioId) =>
-      profileFor(scenarioId),
+      profileFor(scenarioId, realMode),
     );
     const registry = new RunRegistry();
     registry.register({
@@ -234,39 +243,45 @@ export async function createEvaluationHarness(
       string,
       ReturnType<typeof createRecoveryGate>
     >();
-    const gateway = createSdkScriptedModelGateway(
-      (input) => {
-        const id = input.runId ?? '';
-        if (
-          input.messages.some(
-            (message) =>
-              message.role === 'system' &&
-              typeof message.content === 'string' &&
-              message.content.includes('HOSTILE_CONTEXT_SENTINEL'),
-          )
-        )
-          contextSeenByRun.add(id);
-        return scriptedResponse(
-          scenarioByRun.get(id) ?? 'complete',
-          requestsByRun.get(id) ?? 0,
-        );
-      },
-      (id) => {
-        if (id) requestsByRun.set(id, (requestsByRun.get(id) ?? 0) + 1);
-      },
-      async (input) => {
-        const id = input.runId ?? '';
-        if (
-          scenarioByRun.get(id) === 'claim-recovery' &&
-          requestsByRun.get(id) === 1
-        ) {
-          const gate = recoveryGates.get(id);
-          if (!gate) throw new Error('Evaluation recovery gate is missing');
-          gate.markResponseObserved();
-          await gate.waitForRelease;
-        }
-      },
-    );
+    const gateway: ModelGateway =
+      options.fixtureSet === 'real'
+        ? createBudgetedRealGateway(options, (runId) => {
+            requestsByRun.set(runId, (requestsByRun.get(runId) ?? 0) + 1);
+          })
+        : createSdkScriptedModelGateway(
+            (input) => {
+              const id = input.runId ?? '';
+              if (
+                input.messages.some(
+                  (message) =>
+                    message.role === 'system' &&
+                    typeof message.content === 'string' &&
+                    message.content.includes('HOSTILE_CONTEXT_SENTINEL'),
+                )
+              )
+                contextSeenByRun.add(id);
+              return scriptedResponse(
+                scenarioByRun.get(id) ?? 'complete',
+                requestsByRun.get(id) ?? 0,
+              );
+            },
+            (id) => {
+              if (id) requestsByRun.set(id, (requestsByRun.get(id) ?? 0) + 1);
+            },
+            async (input) => {
+              const id = input.runId ?? '';
+              if (
+                scenarioByRun.get(id) === 'claim-recovery' &&
+                requestsByRun.get(id) === 1
+              ) {
+                const gate = recoveryGates.get(id);
+                if (!gate)
+                  throw new Error('Evaluation recovery gate is missing');
+                gate.markResponseObserved();
+                await gate.waitForRelease;
+              }
+            },
+          );
     const stepExecutor = new StepExecutor({
       database,
       runs,
@@ -705,9 +720,9 @@ export async function createEvaluationHarness(
   }
 }
 
-function profileFor(scenarioId: string): RunProfile {
-  const budget = scenarioId === 'budget' ? 130 : 10_000;
-  const output = scenarioId === 'budget' ? 128 : 100;
+function profileFor(scenarioId: string, realMode = false): RunProfile {
+  const budget = scenarioId === 'budget' ? 130 : realMode ? 50_000 : 10_000;
+  const output = scenarioId === 'budget' ? 128 : realMode ? 512 : 100;
   return {
     id: `eval-${scenarioId}`,
     version: 1,
@@ -733,6 +748,82 @@ function profileFor(scenarioId: string): RunProfile {
     maxToolResultBytes: 14000,
     maxToolTimeoutMs: 4000,
   };
+}
+
+function createBudgetedRealGateway(
+  options: Extract<EvaluationHarnessOptions, { fixtureSet: 'real' }>,
+  onRequest: (runId: string) => void,
+): ModelGateway {
+  const allowlist = ModelAllowlistSchema.parse(
+    JSON.parse(
+      readFileSync(
+        new URL('../../config/model-allowlist.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+  );
+  const realGateway = createRealModelGateway({
+    allowlist,
+    key: options.key,
+    attestation: options.attestation,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+    priceCeiling: options.priceCeiling,
+  });
+  return {
+    generate(input: ModelInput): AsyncIterable<ModelEvent> {
+      return guardedRealGeneration(realGateway, input, options, onRequest);
+    },
+  };
+}
+
+async function* guardedRealGeneration(
+  gateway: ModelGateway,
+  input: ModelInput,
+  options: Extract<EvaluationHarnessOptions, { fixtureSet: 'real' }>,
+  onRequest: (runId: string) => void,
+): AsyncGenerator<ModelEvent> {
+  let reservation: { readonly id: string; readonly allowed: boolean };
+  try {
+    reservation = await options.requestPolicy.reserve({
+      estimatedInputTokens: estimateInputTokens(input).inputTokens,
+      maxOutputTokens: input.maxOutputTokens,
+    });
+  } catch {
+    reservation = { id: '', allowed: false };
+  }
+  if (!reservation.allowed) {
+    yield {
+      type: 'outcome',
+      outcome: {
+        finishReason: 'error',
+        attemptOutcome: 'failed',
+        retryable: false,
+        safeCode: 'AI_BUDGET_EXCEEDED',
+      },
+    };
+    return;
+  }
+  if (input.runId) onRequest(input.runId);
+  let costUsd: string | null = null;
+  let attemptOutcome: ModelOutcome['attemptOutcome'] = 'unknown';
+  try {
+    for await (const event of gateway.generate(input)) {
+      if (event.type === 'usage' && event.costUsd !== undefined)
+        costUsd = event.costUsd;
+      else if (event.type === 'outcome') {
+        attemptOutcome = event.outcome.attemptOutcome;
+        if (event.outcome.costUsd !== undefined)
+          costUsd = event.outcome.costUsd;
+      }
+      yield event;
+    }
+  } finally {
+    await options.requestPolicy.settle({
+      id: reservation.id,
+      costUsd,
+      attemptOutcome,
+    });
+  }
 }
 
 function transactionalTool(

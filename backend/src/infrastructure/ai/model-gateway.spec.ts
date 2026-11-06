@@ -52,6 +52,7 @@ it('applies fixed route and privacy options to every request and preserves detai
     allowlist,
     key: 'test-only-K1',
     attestation: '2026-11-05',
+    priceCeiling: { prompt: 0.25, completion: 1.0 },
     fetch: fetchSpy,
   });
 
@@ -66,6 +67,7 @@ it('applies fixed route and privacy options to every request and preserves detai
     zdr: true,
     data_collection: 'deny',
     allow_fallbacks: false,
+    max_price: { prompt: 0.25, completion: 1.0 },
   });
   expect(events).toContainEqual({
     type: 'metadata',

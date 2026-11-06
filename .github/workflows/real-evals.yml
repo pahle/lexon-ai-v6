@@ -1,0 +1,29 @@
+name: Manual real evaluations
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lexon-real-evaluations
+  cancel-in-progress: false
+jobs:
+  real-evaluations:
+    if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run bounded score-only synthetic evaluations
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: ${{ vars.LEXON_OPENROUTER_ZDR_ONLY_VERIFIED }}
+          LEXON_REAL_EVAL_ALLOCATION_ATTESTED: ${{ vars.LEXON_REAL_EVAL_ALLOCATION_ATTESTED }}
+        run: pnpm --filter @lexon/evals eval:real

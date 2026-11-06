@@ -39,6 +39,34 @@ export interface EvaluationOptions {
   readonly fixtureSet: 'deterministic';
 }
 
+export interface EvaluationRealRequestPolicy {
+  reserve(input: {
+    readonly estimatedInputTokens: number;
+    readonly maxOutputTokens: number;
+  }): Promise<{ readonly id: string; readonly allowed: boolean }>;
+  settle(input: {
+    readonly id: string;
+    readonly costUsd: string | null;
+    readonly attemptOutcome: 'succeeded' | 'failed' | 'unknown';
+  }): Promise<void>;
+}
+
+export interface RealEvaluationOptions {
+  readonly services: EvaluationServices;
+  readonly fixtureSet: 'real';
+  readonly key: string;
+  readonly attestation: string;
+  readonly fetch?: typeof fetch;
+  readonly priceCeiling: {
+    readonly prompt: number;
+    readonly completion: number;
+  };
+  readonly requestPolicy: EvaluationRealRequestPolicy;
+}
+
+export type EvaluationHarnessOptions =
+  EvaluationOptions | RealEvaluationOptions;
+
 export interface EvaluationStartInput {
   readonly scenarioId: string;
   readonly prompt: string;

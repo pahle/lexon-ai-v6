@@ -3,12 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      [
-        f0-foundation,
-        f1-identity-organizations,
-        f2-app-shell-design-system,
-        f2.1-visual-rework,
-      ]
+      - main
   workflow_dispatch:
     inputs:
       visual_mode:

@@ -12,6 +12,7 @@
     "lint": "eslint . && node ../scripts/check-boundaries.mjs",
     "test": "vitest run --config ../vitest.config.ts --project evals",
     "test:e2e": "node ../scripts/e2e.mjs --package evals",
+    "eval:real": "pnpm --filter @lexon/backend build && pnpm build && node dist/real-evals.js",
     "dev": "node ../scripts/dev.mjs --package evals",
     "format": "prettier --write --ignore-path ../.prettierignore ."
   },

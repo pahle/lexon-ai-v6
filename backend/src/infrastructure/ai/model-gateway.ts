@@ -22,6 +22,10 @@ export interface RealModelGatewayOptions {
   readonly key?: string | undefined;
   readonly attestation?: string | undefined;
   readonly fetch?: typeof fetch | undefined;
+  readonly priceCeiling?: {
+    readonly prompt: number;
+    readonly completion: number;
+  };
 }
 
 export function createRealModelGateway(
@@ -138,6 +142,14 @@ async function* generate(
             allow_fallbacks: false,
             zdr: true,
             data_collection: 'deny',
+            ...(options.priceCeiling
+              ? {
+                  max_price: {
+                    prompt: options.priceCeiling.prompt,
+                    completion: options.priceCeiling.completion,
+                  },
+                }
+              : {}),
           },
         },
       },

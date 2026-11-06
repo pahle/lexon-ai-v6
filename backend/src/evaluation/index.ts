@@ -8,6 +8,8 @@ import type {
   EvaluationInfrastructureAcquire,
   EvaluationInfrastructureLease,
   EvaluationOptions,
+  EvaluationHarnessOptions,
+  RealEvaluationOptions,
   EvaluationScoreReport,
 } from './evaluation-contracts.js';
 export type {
@@ -16,6 +18,9 @@ export type {
   EvaluationInfrastructureAcquire,
   EvaluationInfrastructureLease,
   EvaluationOptions,
+  EvaluationHarnessOptions,
+  EvaluationRealRequestPolicy,
+  RealEvaluationOptions,
   EvaluationRun,
   EvaluationScoreReport,
   EvaluationStartInput,
@@ -28,6 +33,24 @@ export async function prepareEvaluationInfrastructure(
     await import('../infrastructure/db/testing/test-infrastructure.js');
   return acquireTestInfrastructure(options.acquire);
 }
+
+export async function isRealEvaluationPrerequisiteReady(
+  env: Record<string, string | undefined>,
+): Promise<boolean> {
+  if (
+    env.LEXON_REAL_EVAL_ALLOCATION_ATTESTED !==
+    '0.10-usd-dedicated-no-other-consumers'
+  )
+    return false;
+  try {
+    const { validateRealModelPrerequisites } =
+      await import('../infrastructure/ai/index.js');
+    validateRealModelPrerequisites(env);
+    return true;
+  } catch {
+    return false;
+  }
+}
 export function createEvaluationContext(): Promise<{
   version: string;
   close(): Promise<void>;
@@ -35,8 +58,11 @@ export function createEvaluationContext(): Promise<{
 export function createEvaluationContext(
   options: EvaluationOptions,
 ): Promise<EvaluationContext>;
+export function createEvaluationContext(
+  options: RealEvaluationOptions,
+): Promise<EvaluationContext>;
 export async function createEvaluationContext(
-  options?: EvaluationOptions,
+  options?: EvaluationHarnessOptions,
 ): Promise<{ version: string; close(): Promise<void> } | EvaluationContext> {
   const context = await NestFactory.createApplicationContext(EvaluationModule, {
     logger: false,
