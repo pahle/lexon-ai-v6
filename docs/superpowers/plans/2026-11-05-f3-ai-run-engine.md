@@ -386,9 +386,11 @@ expect(
 
 ### Task 11: Pause for approval and resume under current policy
 
-**Files:** Create Chat/approval.service.ts; extend step-executor/run.service/run-contracts and repository expected-state primitives; tests backend/test/integration/{ai-approval.spec.ts,ai-approval-concurrency.spec.ts}.
+**Files:** Create backend/drizzle/0020_ai_approvals.sql + journal and Chat/approval.service.ts; extend step-executor/run.service/run-contracts and repository expected-state primitives; tests backend/test/integration/{ai-approval.spec.ts,ai-approval-concurrency.spec.ts}.
 
 **Interfaces:** `ApprovalService.decide(actor:RunActor,input:{runId:string;operationId:string;snapshotHash:string;decision:'approve'|'reject'}):Promise<void>`. Consumes one Task4 capability-policy function. Resume job reads stored decision/operation, reauthorizes and uses fresh sequence/outbox ID. Decision error is safe and no HTTP status contract is introduced in F3.
+
+**Migration handoff:** Accepted migration0019 has no decision metadata or rejected operation state. Add0020 without editing applied0019; the later optional audit migration is0021.
 
 **Research:** Design initiator-only authority and once-only decision; F1 lock ordering and current member facts; approved job sequence versus model iteration distinction.
 
@@ -440,7 +442,7 @@ expect(toolEffects).toHaveLength(1);
 
 ### Task 13: Add safe AI telemetry and transactional audit
 
-**Files:** First OpenTelemetry installs in backend; add exact backend dependencies/package lock: @ai-sdk/otel1.0.159, @opentelemetry/api1.9.1, sdk-node0.219.0, exporter-trace-otlp-http0.219.0, dev sdk-trace-base2.8.0; create telemetry/ai-telemetry.ts, modify telemetry/index and ai-worker bootstrap; update audit/audit-event.ts; create backend/drizzle/0020_ai_audit.sql + journal if DB allowlist requires it; tests backend/test/unit/ai-telemetry.spec.ts and backend/test/integration/ai-privacy-audit.spec.ts; add boundary fixtures.
+**Files:** First OpenTelemetry installs in backend; add exact backend dependencies/package lock: @ai-sdk/otel1.0.159, @opentelemetry/api1.9.1, sdk-node0.219.0, exporter-trace-otlp-http0.219.0, dev sdk-trace-base2.8.0; create telemetry/ai-telemetry.ts, modify telemetry/index and ai-worker bootstrap; update audit/audit-event.ts; create backend/drizzle/0021_ai_audit.sql + journal if DB allowlist requires it; tests backend/test/unit/ai-telemetry.spec.ts and backend/test/integration/ai-privacy-audit.spec.ts; add boundary fixtures.
 
 **Interfaces:** `startAiTelemetry({collectorUrl?,serviceName}):Promise<{close():Promise<void>}>`; SDK registerTelemetry/OpenTelemetry stays inside ai adapter, injectable safe tracer port comes from telemetry. Audit event names chat.run_started.v1, chat.run_finished.v1, chat.tool_operation.v1, chat.approval_decided.v1 have strict K3 metadata (run/step/operation/attempt IDs, configured model/provider, status/safe code). Append through existing AuditService.append(TenantSession,...), in same org transaction. No raw exception record or token propagation in tracing context.
 
