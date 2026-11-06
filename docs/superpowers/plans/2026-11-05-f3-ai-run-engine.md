@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node 24.22.1, pnpm 10.33.1, TypeScript 6.0.3, Zod 4.6.7, Nest 12.3.2, ai 7.0.159, OpenRouter provider 3.1.0, BullMQ 6.5.3 / Nest adapter 12.0.0, Valkey 9.0.7, PostgreSQL 17.11, Drizzle 0.45.4 / Kit 0.31.11, Vitest 5.0.5; exact existing image manifest.
 
-**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–14 accepted after functional review; Tasks15–17 remain pending. Tasks11–13 retain disclosed historical TDD process deviations (initial hash/concurrency, corrected overrun, and engine-span/direct-SQL assertions). Driver cleanup warning and ended-span statuses are tracked for final review.
+**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–15 accepted after functional review; Tasks16–17 remain pending. Actual Task15 smoke/calibration is owner-deferred. Tasks11–13 retain disclosed historical TDD process deviations (initial hash/concurrency, corrected overrun, and engine-span/direct-SQL assertions). Driver cleanup warning and ended-span statuses are tracked for final review.
 
 ## Execution amendment — owner, 2026-11-06
 
@@ -500,7 +500,7 @@ expect(realProviderFetchCount).toBe(0);
 
 **Research:** OpenRouter provider3.1 response metadata/usage accounting and exact routing; accepted budget calibration and prerequisite; Node AbortSignal timeout.
 
-- [ ] **Step 1: Write the failing tests.** Unit tests absent/invalid attestation/key fail before fetch and output explains ZDR-only/no Safety Retention/logging off/keycreditcap; never echoes env values. Real-shaped mocked response yields expected estimate/reported ratio; zero/missing input usage prints unavailable; no DB object constructed; one request even503; raw content/key never in writes/errors. Then execute actual local smoke ONLY if owner-configured prerequisites are available; do not fabricate attestation or change account. Missing prerequisite remains an explicit operator dependency, not a skip marked pass.
+- [x] **Step 1: Write the failing tests.** Unit tests absent/invalid attestation/key fail before fetch and output explains ZDR-only/no Safety Retention/logging off/keycreditcap; never echoes env values. Real-shaped mocked response yields expected estimate/reported ratio; zero/missing input usage prints unavailable; no DB object constructed; one request even503; raw content/key never in writes/errors. Then execute actual local smoke ONLY if owner-configured prerequisites are available; do not fabricate attestation or change account. Missing prerequisite remains an explicit operator dependency, not a skip marked pass.
 
 Representative assertions in those named tests (locals come from their specified test setup):
 
@@ -512,13 +512,13 @@ expect(calibration.ratio).toBe(
 expect(output).not.toContain(modelOutputSentinel);
 ```
 
-- [ ] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-unit ai-smoke.spec real-model-prerequisites.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
+- [x] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-unit ai-smoke.spec real-model-prerequisites.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
 
-- [ ] **Step 3: Implement the deliverable.** Reuse guarded adapter/estimator, no duplicated provider path. Numeric calibration is the small real eval case comparing estimator to actual input usage. Record operator's actual verified date, timestamp/model/provider/route evidence, estimated/reported input and ratio, tokens/cost, no admin endpoints called; if response exposes only provider Azure, disclose that regional route came from restricted azure/us/catalog evidence, not physical-location observation. Store NO provider output or key. If actual response usage exceeds reservation, report calibration and safe failure honestly.
+- [x] **Step 3: Implement the deliverable.** Reuse guarded adapter/estimator, no duplicated provider path. Numeric calibration is the small real eval case comparing estimator to actual input usage. Record operator's actual verified date, timestamp/model/provider/route evidence, estimated/reported input and ratio, tokens/cost, no admin endpoints called; if response exposes only provider Azure, disclose that regional route came from restricted azure/us/catalog evidence, not physical-location observation. Store NO provider output or key. If actual response usage exceeds reservation, report calibration and safe failure honestly.
 
-- [ ] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-unit ai-smoke.spec real-model-prerequisites.spec`; expect all selected tests PASS. Backend build/typecheck and actual smoke evidence gate. Do not run network-dependent tests in pnpm test or PR CI; no screenshot needed for headless output.
+- [x] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-unit ai-smoke.spec real-model-prerequisites.spec`; expect all selected tests PASS. Backend build/typecheck and actual smoke evidence gate. Do not run network-dependent tests in pnpm test or PR CI; no screenshot needed for headless output.
 
-- [ ] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): add guarded real smoke and estimator calibration`, then `git push -u origin f3-ai-run-engine`.
+- [x] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): add guarded real smoke and estimator calibration`, then `git push -u origin f3-ai-run-engine`.
 
 ### Task 16: Run mock PR evals and bound manual real evaluations
 

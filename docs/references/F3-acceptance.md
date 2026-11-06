@@ -1,7 +1,7 @@
 # F3 acceptance evidence
 
 Date: 2026-11-07
-Current scope: Tasks1–14 accepted after functional review, including durable generation, tool operations, approval, cancellation/recovery, telemetry/audit, and deterministic evaluations. Tasks15–17 remain pending. Provider tests use mocked responses; no live model call has been made. Actual OpenRouter smoke, calibration, and paid evaluations remain owner-deferred until account setup.
+Current scope: Tasks1–15 accepted after functional review, including durable generation, tool operations, approval, cancellation/recovery, telemetry/audit, deterministic evaluations, and the guarded smoke command. Tasks16–17 remain pending. Provider tests use mocked responses; no live model call has been made. Actual OpenRouter smoke, calibration, and paid evaluations remain owner-deferred until account setup.
 
 ## Task 15 implementation evidence (2026-11-07; controller review pending)
 
@@ -515,3 +515,9 @@ The owner subsequently requested committing and pushing the partial Task 9 work 
 - Implementation range `de5d9b0..5a41531` passed spec-compliance and code-quality review after two scoped correction rounds. The first closed hostile-write, durable expired-claim reservation, per-run effect accounting, and setup-error privacy findings. The second closed repeated-drain recovery; the reviewer found no new issues. Direct service composition instead of extending `evaluation.module.ts` is the recorded implementation-plan deviation.
 - Main-session independent verification: the initial implementation passed **67 tests / 8 files**; after round 1 the same selection passed **72 / 8**, exit 0, 34.60s. Final-source command `pnpm exec vitest run --project evals --project backend-unit f3-engine.spec evaluation-composition.spec model-gateway.spec` passed **37 / 3**, exit 0, 16.16s on `5a41531`. The full **824 / 146** result predates the narrow round-2 guard; it is not an exact-head full-suite claim.
 - Container-event evidence and independent package startup are qualified above. No real model, account, administrative endpoint, or remote collector was used. This accepts Task 14 implementation; it does not accept deferred real-provider execution.
+
+### Task 15 acceptance after review
+
+- Implementation range `e03dc4e..14b1fae` passed spec-compliance and code-quality review. The correction reports safe known usage/calibration for failed outcomes and returns `AI_BUDGET_EXCEEDED` when reported total exceeds the full reservation or reported output exceeds 128; input underestimation alone does not fail when total usage fits the reservation. No new findings remained after scoped review.
+- Main-session independent final command `pnpm exec vitest run --project backend-unit ai-smoke.spec real-model-prerequisites.spec model-gateway.spec provider-stream.spec token-estimator.spec attempt-budget.spec` passed **58 tests / 6 files**, exit 0, 3.89s on `14b1fae`. The earlier independent selection passed **31 / 4** on the initial implementation. Full **829 / 147** evidence belongs to pre-fix `3e4d9ea`; the focused checks and workspace gates cover the correction.
+- Actual smoke, operator verification date, observed provider/region evidence, measured estimator ratio, and paid evaluations remain pending owner account setup. No real provider or administrative endpoint was called. Task 15 implementation acceptance does not imply real-model acceptance.
