@@ -3,6 +3,13 @@
 Date: 2026-11-07
 Current scope: Tasks1–14 accepted after functional review, including durable generation, tool operations, approval, cancellation/recovery, telemetry/audit, and deterministic evaluations. Tasks15–17 remain pending. Provider tests use mocked responses; no live model call has been made. Actual OpenRouter smoke, calibration, and paid evaluations remain owner-deferred until account setup.
 
+## Task 15 implementation evidence (2026-11-07; controller review pending)
+
+- Research notes for Task 15 were added to the F3 design's Research notes. Current official OpenRouter routing and usage-accounting documentation, AI SDK 7 references, and Node 24 `AbortSignal.timeout` documentation were read 2026-11-07 and checked against installed `@openrouter/ai-sdk-provider@3.1.0`, `ai@7.0.159`, and Node `24.22.1`. The provider adapter exposes provider metadata and prompt/completion/cost usage but no physical-region field; the command reports declared route/region separately and marks physical observed region unverified.
+- Added a standalone `ai:smoke` package command and `runAiSmoke({ env, write, fetch? })`. It uses the existing real gateway and estimator, a fixed synthetic prompt, max output 128, 30000 ms timeout, exact allowlisted route, and zero retries. It does not initialize application, database, or storage context. Prerequisite refusal explains the dated ZDR-only attestation, no Safety Retention, disabled prompt/response logging, and operator key credit limit without echoing environment values. Text and raw provider errors are never printed or retained.
+- Mocked gateway tests verify missing/invalid prerequisites prevent fetch, one outgoing request with the expected fixed prompt and route, reported/estimated ratio, unavailable ratio for missing/zero usage, one request on HTTP 503, and output/key/error privacy. These tests use no live provider call.
+- Actual OpenRouter request, verified account settings, public observed provider/route evidence, and measured calibration ratio remain explicitly pending owner configuration; no real smoke/calibration or paid evaluation was run for this implementation.
+
 ## Task 3 owner capacity privilege correction (2026-11-05)
 
 - Owner correction applied before accounting work: new append-only migration `0016_ai_capacity_privileges.sql` revokes runtime `UPDATE` and `DELETE` on `ops.ai_engine_capacity`; `0015` is unchanged. Runtime insert-or-compare keeps only `SELECT`/`INSERT`. The compare query is plain `SELECT` because PostgreSQL 17 row-locking clauses also require `UPDATE`; its existing advisory transaction lock remains.
