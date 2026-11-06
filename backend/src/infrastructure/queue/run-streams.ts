@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { RunStreamEventSchema, type RunStreamEvent } from '@lexon/contracts';
-import type { StepClaim } from '../db/index.js';
+import type { StepClaim, TerminalStreamReference } from '../db/index.js';
 import {
   encodeStreamParts,
   encodeStreamPartsBounded,
@@ -39,7 +39,9 @@ export interface RunStreamAuthority {
   /** Return fresh facts from a short tenant-scoped DB read; do no Valkey I/O in it. */
   authorizeActive(claim: StepClaim): Promise<ActiveStreamProof | undefined>;
   /** Return the latest committed-step proof after PostgreSQL terminal commit. */
-  authorizeTerminal(claim: StepClaim): Promise<TerminalStreamProof | undefined>;
+  authorizeTerminal(
+    claim: TerminalStreamReference,
+  ): Promise<TerminalStreamProof | undefined>;
   /** Inspect at most 24 registered runs using each stored K3 tenant context. */
   reconcile(
     entries: readonly RunStreamRegistryEntry[],
@@ -159,9 +161,12 @@ export class RunStreams {
     );
   }
 
-  async finish(claim: StepClaim, event: RunStreamEvent): Promise<void> {
+  async finish(
+    claim: TerminalStreamReference,
+    event: RunStreamEvent,
+  ): Promise<void> {
     if (
-      !validClaim(claim) ||
+      !validTerminalReference(claim) ||
       event.runId !== claim.runId ||
       event.type !== 'finish' ||
       !RunStreamEventSchema.safeParse(event).success
@@ -518,7 +523,7 @@ export class RunStreams {
       : undefined;
   }
 
-  async #terminalProof(claim: StepClaim): Promise<boolean> {
+  async #terminalProof(claim: TerminalStreamReference): Promise<boolean> {
     let proof: TerminalStreamProof | undefined;
     try {
       proof = await this.#authority.authorizeTerminal(claim);
@@ -537,7 +542,7 @@ export class RunStreams {
     );
   }
 
-  #queue(claim: StepClaim): SerializedQueue {
+  #queue(claim: TerminalStreamReference): SerializedQueue {
     const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
     let queue = this.#serial.get(key);
     if (!queue) {
@@ -547,12 +552,12 @@ export class RunStreams {
     return queue;
   }
 
-  #isCurrent(claim: StepClaim, generation: number): boolean {
+  #isCurrent(claim: TerminalStreamReference, generation: number): boolean {
     return this.#queue(claim).generation === generation;
   }
 
   #enqueue<T>(
-    claim: StepClaim,
+    claim: TerminalStreamReference,
     task: (generation: number) => Promise<T>,
     allowSaturated = false,
     discard: T,
@@ -568,7 +573,7 @@ export class RunStreams {
   }
 
   #reserve(
-    claim: StepClaim,
+    claim: TerminalStreamReference,
   ): { queue: SerializedQueue; generation: number } | undefined {
     const queue = this.#queue(claim);
     if (
@@ -581,7 +586,7 @@ export class RunStreams {
   }
 
   #enqueueReserved<T>(
-    claim: StepClaim,
+    claim: TerminalStreamReference,
     reservation: { queue: SerializedQueue; generation: number },
     task: (generation: number) => Promise<T>,
     discard: T,
@@ -597,7 +602,7 @@ export class RunStreams {
   }
 
   #enqueueTask<T>(
-    claim: StepClaim,
+    claim: TerminalStreamReference,
     queue: SerializedQueue,
     generation: number,
     task: (generation: number) => Promise<T>,
@@ -616,7 +621,10 @@ export class RunStreams {
     return current;
   }
 
-  #releaseReservation(claim: StepClaim, queue: SerializedQueue): void {
+  #releaseReservation(
+    claim: TerminalStreamReference,
+    queue: SerializedQueue,
+  ): void {
     queue.reserved--;
     this.#deleteIdleQueue(claim, queue);
   }
@@ -627,7 +635,10 @@ export class RunStreams {
       pending.resolve(pending.discard);
   }
 
-  async #drain(claim: StepClaim, queue: SerializedQueue): Promise<void> {
+  async #drain(
+    claim: TerminalStreamReference,
+    queue: SerializedQueue,
+  ): Promise<void> {
     if (queue.running) return;
     queue.running = true;
     while (queue.pending.length > 0) {
@@ -642,7 +653,10 @@ export class RunStreams {
     this.#deleteIdleQueue(claim, queue);
   }
 
-  #deleteIdleQueue(claim: StepClaim, queue: SerializedQueue): void {
+  #deleteIdleQueue(
+    claim: TerminalStreamReference,
+    queue: SerializedQueue,
+  ): void {
     if (!queue.running && queue.pending.length === 0 && queue.reserved === 0) {
       const key = `${claim.orgId}:${claim.runId}:${claim.stepId}:${claim.sequence}:${claim.expectedVersion}:${claim.fence}`;
       if (this.#serial.get(key) === queue) this.#serial.delete(key);
@@ -687,6 +701,21 @@ function validClaim(claim: StepClaim): boolean {
   );
 }
 
-function guardValue(claim: StepClaim): string {
+function guardValue(claim: TerminalStreamReference): string {
   return `open|${claim.expectedVersion}|${claim.sequence}|${claim.fence}`;
+}
+
+function validTerminalReference(reference: TerminalStreamReference): boolean {
+  return (
+    uuid.test(reference.runId) &&
+    uuid.test(reference.orgId) &&
+    uuid.test(reference.userId) &&
+    uuid.test(reference.stepId) &&
+    Number.isSafeInteger(reference.sequence) &&
+    reference.sequence > 0 &&
+    Number.isSafeInteger(reference.expectedVersion) &&
+    reference.expectedVersion > 0 &&
+    Number.isSafeInteger(reference.fence) &&
+    reference.fence > 0
+  );
 }

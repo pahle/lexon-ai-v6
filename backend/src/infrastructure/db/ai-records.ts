@@ -75,10 +75,27 @@ export interface StepClaim {
   readonly leaseUntil: Date;
 }
 
+/** Tenant-scoped reference to the latest durable step of a terminal run. */
+export interface TerminalStreamReference {
+  readonly runId: string;
+  readonly orgId: string;
+  readonly userId: string;
+  readonly stepId: string;
+  readonly sequence: number;
+  readonly expectedVersion: number;
+  readonly fence: number;
+}
+
 export type AiOperationMode =
   'read' | 'transactional' | 'idempotency-key' | 'reconcile';
 export type AiOperationStatus =
-  'pending' | 'awaiting_approval' | 'succeeded' | 'failed' | 'outcome_unknown';
+  | 'pending'
+  | 'awaiting_approval'
+  | 'approved'
+  | 'rejected'
+  | 'succeeded'
+  | 'failed'
+  | 'outcome_unknown';
 
 export interface OperationProposal {
   readonly callOccurrence: number;
@@ -101,6 +118,9 @@ export interface OperationRecord extends OperationProposal {
   readonly errorCode: string | null;
   readonly createdAt: Date;
   readonly completedAt: Date | null;
+  readonly decision?: 'approve' | 'reject' | null;
+  readonly decidedByUserId?: string | null;
+  readonly decidedAt?: Date | null;
 }
 
 export interface StepCommit {

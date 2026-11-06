@@ -314,6 +314,13 @@ export async function createAiFixture(services: Services) {
         'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
       );
     },
+    async toolEffectCountFor(tenant: TenantFixture): Promise<number> {
+      const result = await migrator.query<{ count: string }>(
+        'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
+        [tenant.orgId],
+      );
+      return Number(result.rows[0]?.count ?? 0);
+    },
     async jsonbStorageBytes(index: number, value: unknown): Promise<number> {
       const tenant = tenants[index];
       if (!tenant) throw new Error('Invalid AI fixture tenant');
@@ -358,6 +365,27 @@ export async function createAiFixture(services: Services) {
           }>(
             `SELECT id,type,queue_name,priority,payload FROM ops.outbox
            WHERE org_id=$1 AND payload->>'runId'=$2 AND (payload->>'sequence')::int=$3`,
+            [tenant.orgId, runId, sequence],
+          )
+        ).rows[0] ?? null
+      );
+    },
+    async outboxForTenantRunSequence(
+      tenant: TenantFixture,
+      runId: string,
+      sequence: number,
+    ) {
+      return (
+        (
+          await migrator.query<{
+            id: string;
+            type: string;
+            queue_name: string | null;
+            priority: number | null;
+            payload: unknown;
+          }>(
+            `SELECT id,type,queue_name,priority,payload FROM ops.outbox
+             WHERE org_id=$1 AND payload->>'runId'=$2 AND (payload->>'sequence')::int=$3`,
             [tenant.orgId, runId, sequence],
           )
         ).rows[0] ?? null
@@ -799,6 +827,9 @@ export async function createAiFixture(services: Services) {
     },
     async orgSlotCount(index: number) {
       return actualSlotCount(tenants[index]!.orgId);
+    },
+    async orgSlotCountFor(tenant: TenantFixture) {
+      return actualSlotCount(tenant.orgId);
     },
     async transition(
       index: number,

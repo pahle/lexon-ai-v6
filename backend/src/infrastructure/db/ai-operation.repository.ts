@@ -29,6 +29,9 @@ interface OperationRow {
   error_code: string | null;
   created_at: Date;
   completed_at: Date | null;
+  decision?: 'approve' | 'reject' | null;
+  decision_by_user_id?: string | null;
+  decided_at?: Date | null;
 }
 
 function mapOperation(row: OperationRow): OperationRecord {
@@ -50,6 +53,9 @@ function mapOperation(row: OperationRow): OperationRecord {
     errorCode: row.error_code,
     createdAt: row.created_at,
     completedAt: row.completed_at,
+    decision: row.decision ?? null,
+    decidedByUserId: row.decision_by_user_id ?? null,
+    decidedAt: row.decided_at ?? null,
   };
 }
 
@@ -165,7 +171,7 @@ export class AiOperationRepository {
       `SELECT o.* FROM app.ai_operations o
        JOIN app.ai_steps s ON s.org_id=o.org_id AND s.run_id=o.run_id AND s.id=o.step_id
        WHERE o.org_id=$1 AND o.run_id=$2 AND s.sequence<$3
-         AND o.status IN ('pending','awaiting_approval')
+         AND o.status IN ('pending','awaiting_approval','approved')
        ORDER BY s.sequence,o.call_occurrence FOR UPDATE OF o`,
       [ctx.orgId, claim.runId, claim.sequence],
     );
@@ -219,7 +225,7 @@ export class AiOperationRepository {
     const result = await client.query(
       `UPDATE app.ai_operations
        SET status=$3,result=$4::jsonb,error_code=$5,completed_at=clock_timestamp()
-       WHERE org_id=$1 AND id=$2 AND status='pending'`,
+       WHERE org_id=$1 AND id=$2 AND status IN ('pending','approved')`,
       [
         ctx.orgId,
         operationId,
@@ -240,6 +246,98 @@ export class AiOperationRepository {
       `UPDATE app.ai_operations
        SET status='awaiting_approval',approval_required=true
        WHERE org_id=$1 AND id=$2 AND status='pending'`,
+      [ctx.orgId, operationId],
+    );
+    return result.rowCount === 1;
+  }
+
+  async decideApproval(
+    tx: TenantSession,
+    input: {
+      runId: string;
+      operationId: string;
+      snapshotHash: string;
+      userId: string;
+      decision: 'approve' | 'reject';
+    },
+  ): Promise<OperationRecord | null> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.userId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success ||
+      !/^[0-9a-f]{64}$/.test(input.snapshotHash)
+    )
+      return null;
+    const status = input.decision === 'approve' ? 'approved' : 'rejected';
+    const result = input.decision === 'reject' ? { denied: true } : null;
+    const updated = await client.query<OperationRow>(
+      `UPDATE app.ai_operations
+       SET status=$5,decision=$6,decision_by_user_id=$4,decided_at=clock_timestamp(),
+           result=$7::jsonb,completed_at=CASE WHEN $6='reject' THEN clock_timestamp() ELSE NULL END
+       WHERE org_id=$1 AND run_id=$2 AND id=$3 AND snapshot_hash=$8
+         AND approval_required=true AND status='awaiting_approval' AND decision IS NULL
+       RETURNING *`,
+      [
+        ctx.orgId,
+        input.runId,
+        input.operationId,
+        input.userId,
+        status,
+        input.decision,
+        result === null ? null : JSON.stringify(result),
+        input.snapshotHash,
+      ],
+    );
+    return updated.rows[0] ? mapOperation(updated.rows[0]) : null;
+  }
+
+  async rejectApprovalForAccessLoss(
+    tx: TenantSession,
+    input: {
+      runId: string;
+      operationId: string;
+      snapshotHash: string;
+      initiatorUserId: string;
+    },
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.initiatorUserId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success ||
+      !/^[0-9a-f]{64}$/.test(input.snapshotHash)
+    )
+      return false;
+    const result = await client.query(
+      `UPDATE app.ai_operations
+       SET status='rejected',decision='reject',decision_by_user_id=$4,
+           decided_at=clock_timestamp(),result='{"errorCode":"AI_ACCESS_REVOKED"}'::jsonb,
+           error_code='AI_ACCESS_REVOKED',completed_at=clock_timestamp()
+       WHERE org_id=$1 AND run_id=$2 AND id=$3 AND snapshot_hash=$5
+         AND approval_required=true AND status='awaiting_approval' AND decision IS NULL`,
+      [
+        ctx.orgId,
+        input.runId,
+        input.operationId,
+        input.initiatorUserId,
+        input.snapshotHash,
+      ],
+    );
+    return result.rowCount === 1;
+  }
+
+  async rejectApprovedForAccessLoss(
+    tx: TenantSession,
+    operationId: string,
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query(
+      `UPDATE app.ai_operations
+       SET status='rejected',error_code='AI_ACCESS_REVOKED',
+           result='{"errorCode":"AI_ACCESS_REVOKED"}'::jsonb,
+           completed_at=clock_timestamp()
+       WHERE org_id=$1 AND id=$2 AND status='approved' AND decision='approve'`,
       [ctx.orgId, operationId],
     );
     return result.rowCount === 1;

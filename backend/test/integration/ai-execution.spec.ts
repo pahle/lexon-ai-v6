@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { Redis } from 'ioredis';
 import { expect, vi } from 'vitest';
 import { z } from 'zod';
 import { test } from '../setup/file-services.js';
+import { identityApiHarness } from '../setup/identity-api-harness.js';
+import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import {
   createAiFixture,
   recordAiTestToolEffect,
@@ -15,6 +18,7 @@ import {
   AiStepRepository,
   OutboxRepository,
   RunActorFactsRepository,
+  type StepClaim,
 } from '../../src/infrastructure/db/index.js';
 import {
   createScriptedModelGateway,
@@ -24,7 +28,7 @@ import type {
   ModelGateway,
   ModelInput,
 } from '../../src/infrastructure/ai/index.js';
-import type { RunStreams } from '../../src/infrastructure/queue/index.js';
+import { RunStreams } from '../../src/infrastructure/queue/index.js';
 import type { ContextProvider } from '../../src/modules/chat/run-contracts.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
 import { RequestIdentity } from '../../src/modules/identity-access/request-identity.js';
@@ -41,6 +45,7 @@ import {
   StepCoordinator,
   StepExecutor,
 } from '../../src/modules/chat/index.js';
+import { ApprovalService } from '../../src/modules/chat/approval.service.js';
 import { RunService } from '../../src/modules/chat/run.service.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { JobExecutor } from '../../src/modules/platform/job-executor.js';
@@ -66,6 +71,7 @@ function actorScope(
   tenant: { orgId: string; userId: string },
   auth: RunAuthorizationService,
   work: (actor: RunActor) => Promise<unknown>,
+  options: { platformAdmin?: boolean } = {},
 ) {
   const request = {};
   const identities = new RequestIdentity();
@@ -77,7 +83,7 @@ function actorScope(
         sessionId: randomUUID(),
         activeOrganizationId: tenant.orgId,
         channel: 'cookie',
-        platformAdmin: false,
+        platformAdmin: options.platformAdmin ?? false,
         mfaVerifiedAt: null,
         reauthenticatedAt: null,
       },
@@ -104,7 +110,7 @@ function actorScope(
           role: 'owner',
           createdAt: new Date().toISOString(),
         },
-        platformAdmin: false,
+        platformAdmin: options.platformAdmin ?? false,
       },
     },
     new Headers(),
@@ -125,6 +131,7 @@ async function setup(
     profile?: RunProfile;
     tools?: readonly ToolDefinition[];
     modelCallTimeoutMs?: number;
+    tenant?: { orgId: string; userId: string };
   } = {},
 ) {
   const authorization = new RunAuthorizationService();
@@ -185,7 +192,7 @@ async function setup(
       : {}),
     ...(options.streams ? { streams: options.streams } : {}),
   });
-  const tenant = ai.tenants[0]!;
+  const tenant = options.tenant ?? ai.tenants[0]!;
   const created = (await actorScope(tenant, authorization, (actor) =>
     runService.start(actor, {
       profileId: (options.profile ?? profile).id,
@@ -254,12 +261,65 @@ async function proposeToolOnce(
   return h;
 }
 
+async function prepareApproval(
+  ai: Awaited<ReturnType<typeof createAiFixture>>,
+  tool: TransactionalWriteToolDefinition,
+  runProfile: RunProfile = profile,
+  tenant = ai.tenants[0]!,
+) {
+  const h = await setup(
+    ai,
+    [
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'approval-test-provider-call',
+            toolName: tool.id,
+            input: { value: 'approval test payload' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+    ],
+    { tools: [tool], profile: runProfile, tenant },
+  );
+  const approvals = new ApprovalService(
+    ai.database,
+    h.runs,
+    h.steps,
+    h.operations,
+    new RunActorFactsRepository(),
+    h.authorization,
+    new OutboxRepository(),
+    h.registry,
+  );
+  await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {
+    signal: new AbortController().signal,
+  });
+  const operation = (
+    await ai.database.withTenant(tenant, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+    )
+  )[0]!;
+  return { h, approvals, operation, tenant };
+}
+
 function job(
   runId: string,
   tenant: { orgId: string; userId: string },
   sequence: number,
   expectedVersion: number,
-  type: 'run.start.v1' | 'run.advance.v1',
+  type: 'run.start.v1' | 'run.advance.v1' | 'run.resume.v1',
 ) {
   return {
     outboxId: stepJobId(runId, sequence),
@@ -1277,6 +1337,1044 @@ test('approval-required transactional operations remain staged and produce no ef
     expect(await ai.toolEffectCount(0)).toBe(0);
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
   } finally {
+    await ai.close();
+  }
+});
+
+test('approved operation resumes from a fresh sequence and executes one transaction', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-resume-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'approval-provider-call',
+              toolName: tool.id,
+              input: { value: 'approved effect' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+        {
+          events: [
+            { type: 'text', text: 'Done' },
+            { type: 'usage', usage },
+            success,
+          ],
+        },
+      ],
+      { tools: [tool] },
+    );
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0]!;
+    expect(await ai.orgSlotCount(0)).toBe(1);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(await ai.database.check()).toBe('up');
+    await expect(
+      actorScope(
+        { orgId: h.tenant.orgId, userId: randomUUID() },
+        h.authorization,
+        (actor) =>
+          approvals.decide(actor, {
+            runId: h.runId,
+            operationId: operation.id,
+            snapshotHash: operation.snapshotHash,
+            decision: 'approve',
+          }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'awaiting_approval' });
+    expect(await ai.outboxForRunSequence(0, h.runId, 2)).toBeNull();
+    const decisions = await Promise.allSettled(
+      Array.from({ length: 2 }, () =>
+        actorScope(h.tenant, h.authorization, (actor) =>
+          approvals.decide(actor, {
+            runId: h.runId,
+            operationId: operation.id,
+            snapshotHash: operation.snapshotHash,
+            decision: 'approve',
+          }),
+        ),
+      ),
+    );
+    expect(
+      decisions.filter((item) => item.status === 'fulfilled'),
+    ).toHaveLength(1);
+    const resume = await ai.outboxForRunSequence(0, h.runId, 2);
+    expect(resume).toMatchObject({ type: 'run.resume.v1' });
+    expect(resume!.id).not.toBe(stepJobId(h.runId, 1));
+    const resumePayload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await h.executor.execute(
+      job(
+        h.runId,
+        h.tenant,
+        resumePayload.sequence,
+        resumePayload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(await ai.toolEffectCount(0)).toBe(1);
+    await h.executor.execute(
+      job(
+        h.runId,
+        h.tenant,
+        resumePayload.sequence,
+        resumePayload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(await ai.toolEffectCount(0)).toBe(1);
+    const next = await ai.outboxForRunSequence(0, h.runId, 3);
+    expect(next).toMatchObject({ type: 'run.advance.v1' });
+    const nextPayload = next!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await h.executor.execute(
+      job(
+        h.runId,
+        h.tenant,
+        nextPayload.sequence,
+        nextPayload.expectedVersion,
+        'run.advance.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    const completed = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(completed).toMatchObject({
+      status: 'completed',
+      finalOutput: 'Done',
+    });
+    expect(await ai.orgSlotCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('rejected operation is returned to the next model generation without effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-reject-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute() {
+        throw new Error('rejected operation executed');
+      },
+    };
+    const captured: ModelInput[] = [];
+    const scripts = createScriptedModelGateway([
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'reject-provider-call',
+            toolName: tool.id,
+            input: { value: 'rejected value' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+      {
+        events: [
+          { type: 'text', text: 'Rejected safely' },
+          { type: 'usage', usage },
+          success,
+        ],
+      },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        captured.push(input);
+        return scripts.generate(input);
+      },
+    };
+    const h = await setup(ai, [], { tools: [tool], gateway });
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0]!;
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'reject',
+      }),
+    );
+    const resume = await ai.outboxForRunSequence(0, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await h.executor.execute(
+      job(
+        h.runId,
+        h.tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(captured).toHaveLength(2);
+    expect(captured[1]!.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'assistant',
+          content: [
+            expect.objectContaining({
+              type: 'tool-call',
+              toolCallId: operation.id,
+              toolName: tool.id,
+            }),
+          ],
+        }),
+        expect.objectContaining({
+          role: 'tool',
+          content: [
+            expect.objectContaining({
+              type: 'tool-result',
+              toolCallId: operation.id,
+              toolName: tool.id,
+            }),
+          ],
+        }),
+      ]),
+    );
+    expect(captured[1]!.messages.at(-1)).toMatchObject({ role: 'tool' });
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, {
+          runId: h.runId,
+          throughSequence: 4,
+        }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: operation.id,
+        status: 'rejected',
+        decision: 'reject',
+      }),
+    ]);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('initiator access loss before a decision finishes the stream from the actual paused step', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const api = await identityApiHarness(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  let activeClaim: StepClaim | undefined;
+  let h: Awaited<ReturnType<typeof setup>>;
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: {
+      authorizeActive: (claim) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => h.steps.streamActiveProof(tx, claim),
+        ),
+      authorizeTerminal: (reference) =>
+        ai.database.withTenant(
+          { orgId: reference.orgId, userId: reference.userId },
+          (tx) => h.steps.streamTerminalProof(tx, reference),
+        ),
+      reconcile: (entries) =>
+        Promise.all(
+          entries.map(async ({ runId, orgId, userId }) => {
+            const state = await ai.database.withTenant(
+              { orgId, userId },
+              (tx) => h.runs.streamRegistryState(tx, runId, userId),
+            );
+            return state.state === 'terminal'
+              ? { runId, state: 'terminal' as const, claim: state.claim }
+              : { runId, state: state.state };
+          }),
+        ),
+    },
+  });
+  try {
+    const initiator = await api.user('Approval membership initiator');
+    const remainingOwner = await api.user(
+      'Approval membership remaining owner',
+    );
+    const team = await organizations.seedTeam([
+      initiator.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const tenant = { orgId: team.id, userId: initiator.profile.id };
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-access-loss-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute() {
+        throw new Error('access-revoked operation executed');
+      },
+    };
+    h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'revoked-provider-call',
+              toolName: tool.id,
+              input: { value: 'must remain unapplied' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool], streams, tenant },
+    );
+    const recover = streams.recover.bind(streams);
+    vi.spyOn(streams, 'recover').mockImplementation(async (claim, snapshot) => {
+      activeClaim = claim;
+      await recover(claim, snapshot);
+    });
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+      streams,
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operation = (
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0]!;
+    await expect(
+      actorScope(
+        { orgId: team.id, userId: remainingOwner.profile.id },
+        h.authorization,
+        (actor) =>
+          approvals.decide(actor, {
+            runId: h.runId,
+            operationId: operation.id,
+            snapshotHash: operation.snapshotHash,
+            decision: 'approve',
+          }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    await expect(
+      actorScope(
+        { orgId: team.id, userId: remainingOwner.profile.id },
+        h.authorization,
+        (actor) =>
+          approvals.decide(actor, {
+            runId: h.runId,
+            operationId: operation.id,
+            snapshotHash: operation.snapshotHash,
+            decision: 'approve',
+          }),
+        { platformAdmin: true },
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(
+      await ai.database.withTenant(tenant, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'awaiting_approval' });
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
+    await organizations.mutateMember(team.members[0]!.id, 'delete');
+    await expect(
+      actorScope(tenant, h.authorization, (actor) =>
+        approvals.decide(actor, {
+          runId: h.runId,
+          operationId: operation.id,
+          snapshotHash: operation.snapshotHash,
+          decision: 'approve',
+        }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    const run = await ai.database.withTenant(tenant, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    const stored = (
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      )
+    )[0]!;
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(stored).toMatchObject({
+      status: 'rejected',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
+    expect(await ai.toolEffectCountFor(tenant)).toBe(0);
+    expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.steps.find(tx, { runId: h.runId, sequence: 1 }),
+      ),
+    ).toMatchObject({ state: 'awaiting_approval', leaseUntil: null });
+    expect(activeClaim).toBeDefined();
+    const streamKey = `${services.queuePrefix}:{run-streams}:${h.runId}:events`;
+    const entries = await redis.xrange(streamKey, '-', '+');
+    expect(
+      entries.some((entry) =>
+        entry[1].some((value) => value.includes('"type":"finish"')),
+      ),
+    ).toBe(true);
+    const beforeLateAppend = entries.length;
+    await expect(
+      streams.publish(activeClaim!, {
+        version: 1,
+        runId: h.runId,
+        type: 'text-delta',
+        id: 'late-after-access-loss',
+        delta: 'must not append',
+      }),
+    ).resolves.toBe('stale');
+    expect(await redis.xlen(streamKey)).toBe(beforeLateAppend);
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.runs
+          .terminalStreamReference(tx, h.runId)
+          .then((reference) =>
+            reference ? h.steps.streamTerminalProof(tx, reference) : undefined,
+          ),
+      ),
+    ).toMatchObject({
+      status: 'failed',
+      latestCommittedStepId: activeClaim!.stepId,
+    });
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await organizations.close();
+    await api.close();
+    await ai.close();
+  }
+});
+
+test('resume enforces the current profile capability floor before a tool effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const initialProfile: RunProfile = {
+      ...profile,
+      capabilities: ['documents:write'],
+    };
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-capability-floor-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: ['documents:write'],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'capability-floor-call',
+              toolName: tool.id,
+              input: { value: 'must be denied' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { profile: initialProfile, tools: [tool] },
+    );
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0]!;
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    const reducedRegistry = new RunRegistry();
+    reducedRegistry.register({
+      profiles: [{ ...initialProfile, capabilities: [] }],
+      contexts: [],
+      tools: [tool],
+    });
+    const resumeExecutor = new StepExecutor({
+      database: ai.database,
+      runs: h.runs,
+      steps: h.steps,
+      operations: h.operations,
+      facts: new RunActorFactsRepository(),
+      authorization: h.authorization,
+      coordinator: h.coordinator,
+      attempts: h.attemptService,
+      registry: reducedRegistry,
+      gateway: createScriptedModelGateway([]),
+    });
+    const resume = await ai.outboxForRunSequence(0, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    const resumedResult = await resumeExecutor.execute(
+      job(
+        h.runId,
+        h.tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(resumedResult).toEqual({ kind: 'done' });
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    const failedOperation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      )
+    )[0]!;
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(failedOperation).toMatchObject({
+      status: 'rejected',
+      errorCode: 'AI_ACCESS_REVOKED',
+      decision: 'approve',
+    });
+    expect(await ai.toolEffectCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('resume refuses a registered tool version change after approval', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-version-change-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
+    await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    const changedRegistry = new RunRegistry();
+    changedRegistry.register({
+      profiles: [profile],
+      contexts: [],
+      tools: [{ ...tool, version: 2 }],
+    });
+    const resumeExecutor = new StepExecutor({
+      database: ai.database,
+      runs: h.runs,
+      steps: h.steps,
+      operations: h.operations,
+      facts: new RunActorFactsRepository(),
+      authorization: h.authorization,
+      coordinator: h.coordinator,
+      attempts: h.attemptService,
+      registry: changedRegistry,
+      gateway: createScriptedModelGateway([]),
+    });
+    const resume = await ai.outboxForRunSequence(0, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await resumeExecutor.execute(
+      job(
+        h.runId,
+        tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'failed', errorCode: 'AI_INVALID_TOOL' });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: operation.id,
+        status: 'failed',
+        errorCode: 'AI_INVALID_TOOL',
+      }),
+    ]);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('resume fails a tool removed from the current registry without an effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-removed-tool-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
+    await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    const removedRegistry = new RunRegistry();
+    removedRegistry.register({ profiles: [profile], contexts: [], tools: [] });
+    const resumeExecutor = new StepExecutor({
+      database: ai.database,
+      runs: h.runs,
+      steps: h.steps,
+      operations: h.operations,
+      facts: new RunActorFactsRepository(),
+      authorization: h.authorization,
+      coordinator: h.coordinator,
+      attempts: h.attemptService,
+      registry: removedRegistry,
+      gateway: createScriptedModelGateway([]),
+    });
+    const resume = await ai.outboxForRunSequence(0, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await resumeExecutor.execute(
+      job(
+        h.runId,
+        tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'failed', errorCode: 'AI_INVALID_TOOL' });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: operation.id,
+        status: 'failed',
+        errorCode: 'AI_INVALID_TOOL',
+      }),
+    ]);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('decision uses the current organization two-factor requirement', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const api = await identityApiHarness(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const initiator = await api.user('Approval MFA initiator');
+    const remainingOwner = await api.user('Approval MFA remaining owner');
+    const team = await organizations.seedTeam([
+      initiator.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const tenant = { orgId: team.id, userId: initiator.profile.id };
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-current-mfa-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute() {
+        throw new Error('MFA-revoked approval executed');
+      },
+    };
+    const { h, approvals, operation } = await prepareApproval(
+      ai,
+      tool,
+      profile,
+      tenant,
+    );
+    await organizations.setRequire2fa(team.id, true);
+    await expect(
+      actorScope(tenant, h.authorization, (actor) =>
+        approvals.decide(actor, {
+          runId: h.runId,
+          operationId: operation.id,
+          snapshotHash: operation.snapshotHash,
+          decision: 'approve',
+        }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(
+      await ai.database.withTenant(tenant, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'failed', errorCode: 'AI_ACCESS_REVOKED' });
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: operation.id,
+        status: 'rejected',
+        decision: 'reject',
+        errorCode: 'AI_ACCESS_REVOKED',
+      }),
+    ]);
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
+    expect(await ai.toolEffectCountFor(tenant)).toBe(0);
+    expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+  } finally {
+    await organizations.close();
+    await api.close();
+    await ai.close();
+  }
+});
+
+test('initiator membership loss after approval fails resume without an effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const api = await identityApiHarness(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const initiator = await api.user('Approved then removed initiator');
+    const remainingOwner = await api.user('Approved remaining owner');
+    const team = await organizations.seedTeam([
+      initiator.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const tenant = { orgId: team.id, userId: initiator.profile.id };
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'approval-post-decision-removal-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'post-decision-removal-call',
+              toolName: tool.id,
+              input: { value: 'must not apply after membership loss' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool], tenant },
+    );
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+    );
+    await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const operation = (
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0]!;
+    await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    await organizations.mutateMember(team.members[0]!.id, 'delete');
+    const resume = await ai.outboxForTenantRunSequence(tenant, h.runId, 2);
+    const payload = resume!.payload as {
+      sequence: number;
+      expectedVersion: number;
+    };
+    await h.executor.execute(
+      job(
+        h.runId,
+        tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    const run = await ai.database.withTenant(tenant, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    const failedOperation = (
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      )
+    )[0]!;
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(failedOperation).toMatchObject({
+      status: 'rejected',
+      errorCode: 'AI_ACCESS_REVOKED',
+      decision: 'approve',
+    });
+    expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
+    expect(await ai.toolEffectCountFor(tenant)).toBe(0);
+    expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.steps.find(tx, { runId: h.runId, sequence: 2 }),
+      ),
+    ).toMatchObject({ state: 'committed', leaseUntil: null });
+  } finally {
+    await organizations.close();
+    await api.close();
     await ai.close();
   }
 });

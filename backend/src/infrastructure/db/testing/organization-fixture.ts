@@ -177,6 +177,12 @@ export function createOrganizationInspector(options: { migratorUrl: string }) {
         [id],
       );
     },
+    async setRequire2fa(organizationId: string, required: boolean) {
+      await pool.query(
+        'UPDATE auth.organization SET require2fa=$2 WHERE id=$1',
+        [organizationId, required],
+      );
+    },
     async invalidRole(id: string) {
       await pool.query(
         "UPDATE auth.member SET role='owner,admin' WHERE id=$1",

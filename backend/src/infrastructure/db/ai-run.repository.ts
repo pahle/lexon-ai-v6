@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
-import type { AiRunStatus, RunInsert, RunRecord } from './ai-records.js';
+import type {
+  AiRunStatus,
+  RunInsert,
+  RunRecord,
+  TerminalStreamReference,
+} from './ai-records.js';
 
 const idSchema = z.uuid();
 const errorCodes = new Set([
@@ -227,6 +232,54 @@ export class AiRunRepository {
       [scope.orgId, runId],
     );
     return result.rows[0] ? mapRun(result.rows[0]) : null;
+  }
+
+  async terminalStreamReference(
+    tx: TenantSession,
+    runId: string,
+  ): Promise<TerminalStreamReference | undefined> {
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId || !idSchema.safeParse(runId).success) return undefined;
+    const result = await client.query<{
+      org_id: string;
+      run_id: string;
+      user_id: string;
+      step_id: string | null;
+      sequence: number | null;
+      expected_version: number | null;
+      fence: number | null;
+    }>(
+      `SELECT r.org_id,r.id AS run_id,r.initiating_user_id AS user_id,
+              s.id AS step_id,s.sequence,s.expected_version,s.fence
+       FROM app.ai_runs r
+       LEFT JOIN LATERAL (
+         SELECT id,sequence,expected_version,fence FROM app.ai_steps
+         WHERE org_id=r.org_id AND run_id=r.id
+           AND state IN ('committed','awaiting_approval')
+         ORDER BY sequence DESC,updated_at DESC LIMIT 1
+       ) s ON true
+       WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+         AND r.status IN ('completed','failed','cancelled')`,
+      [ctx.orgId, runId, ctx.userId],
+    );
+    const row = result.rows[0];
+    if (
+      !row ||
+      !row.step_id ||
+      row.sequence === null ||
+      row.expected_version === null ||
+      row.fence === null
+    )
+      return undefined;
+    return {
+      orgId: row.org_id,
+      userId: row.user_id,
+      runId: row.run_id,
+      stepId: row.step_id,
+      sequence: Number(row.sequence),
+      expectedVersion: Number(row.expected_version),
+      fence: Number(row.fence),
+    };
   }
 
   /** Marks a queued run active under its unchanged step precondition. */

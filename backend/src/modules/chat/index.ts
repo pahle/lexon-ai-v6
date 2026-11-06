@@ -4,6 +4,7 @@ export {
 } from './run-registry.js';
 export { canTransition } from './run-state.js';
 export { RunService } from './run.service.js';
+export { ApprovalService } from './approval.service.js';
 export { StepCoordinator } from './step-coordinator.js';
 export { StepExecutor } from './step-executor.js';
 export {

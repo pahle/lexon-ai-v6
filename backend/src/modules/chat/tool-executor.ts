@@ -124,7 +124,11 @@ export class ToolExecutor {
     );
     if (!decision.allowed) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
 
-    if (operation.status === 'succeeded' || operation.status === 'failed')
+    if (
+      operation.status === 'succeeded' ||
+      operation.status === 'failed' ||
+      operation.status === 'rejected'
+    )
       return toToolResult(operation);
     if (operation.status === 'awaiting_approval')
       return toToolResult(operation);
@@ -152,7 +156,8 @@ export class ToolExecutor {
       )
     )
       throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
-    if (tool.requiresApproval) throw new ToolApprovalRequiredOutcome();
+    if (tool.requiresApproval && operation.decision !== 'approve')
+      throw new ToolApprovalRequiredOutcome();
     const actorScope = this.authorization.workerActorScope(tx, actorFacts);
     const rawResult = await actorScope.run((actor) => {
       const context = {
@@ -220,7 +225,9 @@ export function toolResultsAsMessages(
 ): ModelMessage[] {
   const completed = operations.filter(
     (operation) =>
-      operation.status === 'succeeded' || operation.status === 'failed',
+      operation.status === 'succeeded' ||
+      operation.status === 'failed' ||
+      operation.status === 'rejected',
   );
   const messages: ModelMessage[] = [];
   for (const operation of completed) {

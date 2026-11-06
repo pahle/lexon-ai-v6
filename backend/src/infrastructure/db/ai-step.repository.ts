@@ -6,6 +6,7 @@ import type {
   StepCommit,
   StepRecord,
   StepState,
+  TerminalStreamReference,
 } from './ai-records.js';
 
 const uuid = z.uuid();
@@ -126,7 +127,7 @@ export class AiStepRepository {
 
   async streamTerminalProof(
     tx: TenantSession,
-    claim: StepClaim,
+    claim: TerminalStreamReference,
   ): Promise<
     | {
         status: 'completed' | 'failed' | 'cancelled';
@@ -139,7 +140,7 @@ export class AiStepRepository {
       }
     | undefined
   > {
-    if (!validClaim(tx, claim)) return undefined;
+    if (!validTerminalReference(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query<{
@@ -478,4 +479,25 @@ export class AiStepRepository {
     );
     return result.rowCount === 1;
   }
+}
+
+function validTerminalReference(
+  tx: TenantSession,
+  reference: TerminalStreamReference,
+): boolean {
+  const { ctx } = requireSession(tx);
+  return (
+    uuid.safeParse(reference.runId).success &&
+    uuid.safeParse(reference.orgId).success &&
+    uuid.safeParse(reference.userId).success &&
+    uuid.safeParse(reference.stepId).success &&
+    reference.orgId === ctx.orgId &&
+    reference.userId === ctx.userId &&
+    Number.isSafeInteger(reference.sequence) &&
+    reference.sequence > 0 &&
+    Number.isSafeInteger(reference.expectedVersion) &&
+    reference.expectedVersion > 0 &&
+    Number.isSafeInteger(reference.fence) &&
+    reference.fence > 0
+  );
 }

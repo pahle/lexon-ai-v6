@@ -7,6 +7,7 @@ import {
   AiRunRepository,
   AiStepRepository,
   TenantDatabase,
+  type TerminalStreamReference,
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
 import { RunStreams } from '../../src/infrastructure/queue/index.js';
@@ -18,7 +19,7 @@ function claimAuthority(database: TenantDatabase, steps: AiStepRepository) {
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
         steps.streamActiveProof(tx, claim),
       ),
-    authorizeTerminal: (claim: StepClaim) =>
+    authorizeTerminal: (claim: TerminalStreamReference) =>
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
         steps.streamTerminalProof(tx, claim),
       ),

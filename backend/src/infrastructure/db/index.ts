@@ -45,6 +45,7 @@ export type {
   StepRecord,
   StepState,
   StepClaim,
+  TerminalStreamReference,
   StepCommit,
   AttemptRecord,
   AttemptInsert,

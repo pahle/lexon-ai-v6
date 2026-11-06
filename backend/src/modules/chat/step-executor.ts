@@ -6,7 +6,9 @@ import type {
   AiRunRepository,
   AiStepRepository,
   RunActorFactsRepository,
+  RunRecord,
   StepClaim,
+  TenantSession,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import {
@@ -115,7 +117,24 @@ export class StepExecutor {
         sequence: claim.sequence,
       });
       heartbeat.throwIfAborted();
-      const initial = await this.#loadAndAuthorize(claim);
+      let initial: {
+        run: RunRecord;
+        profile: RunProfile;
+        actorScope: ReturnType<RunAuthorizationService['workerActorScope']>;
+        activeCapabilities: readonly string[];
+        provider: string;
+      } | null;
+      try {
+        initial = await this.#loadAndAuthorize(claim);
+      } catch (error) {
+        if (
+          !(error instanceof ToolPolicyOutcome) ||
+          error.code !== 'AI_ACCESS_REVOKED'
+        )
+          throw error;
+        await this.#failRevokedResume(job, claim, heartbeat);
+        return { kind: 'done' };
+      }
       if (!initial) return { kind: 'done' };
       const { run, profile, actorScope, activeCapabilities } = initial;
       if (this.options.operations && this.#toolExecutor && claim.sequence > 1) {
@@ -152,7 +171,26 @@ export class StepExecutor {
               advancement: 'continuation',
               terminal: true,
               outcome: 'failed',
-              errorCode: 'AI_TOOL_OUTCOME_UNKNOWN',
+              errorCode: 'AI_INVALID_TOOL',
+              ...(operation.status === 'approved'
+                ? {
+                    transactionTimeoutMs: 5_000,
+                    transactionWork: async (tx: TenantSession) => {
+                      if (
+                        !(await this.options.operations!.complete(
+                          tx,
+                          operation.id,
+                          {
+                            status: 'failed',
+                            result: { errorCode: 'AI_INVALID_TOOL' },
+                            errorCode: 'AI_INVALID_TOOL',
+                          },
+                        ))
+                      )
+                        throw new Error('AI operation failure receipt failed');
+                    },
+                  }
+                : {}),
             });
             if (failed === 'committed') {
               await heartbeat.stop();
@@ -177,7 +215,10 @@ export class StepExecutor {
                   operation.id,
                   signal ?? heartbeat.signal,
                 );
-                if (result.status !== 'succeeded')
+                if (
+                  result.status !== 'succeeded' &&
+                  result.status !== 'rejected'
+                )
                   throw new Error('AI tool operation was not successful');
               },
             });
@@ -213,6 +254,32 @@ export class StepExecutor {
                 terminal: true,
                 outcome: 'failed',
                 errorCode: error.code,
+                ...(operation.status === 'approved'
+                  ? { transactionTimeoutMs: 5_000 }
+                  : {}),
+                ...(operation.status === 'approved'
+                  ? {
+                      transactionWork: async (tx: TenantSession) => {
+                        if (
+                          error.code === 'AI_ACCESS_REVOKED'
+                            ? !(await this.options.operations!.rejectApprovedForAccessLoss(
+                                tx,
+                                operation.id,
+                              ))
+                            : !(await this.options.operations!.complete(
+                                tx,
+                                operation.id,
+                                {
+                                  status: 'failed',
+                                  result: { errorCode: error.code },
+                                  errorCode: error.code,
+                                },
+                              ))
+                        )
+                          throw new Error('AI operation rejection failed');
+                      },
+                    }
+                  : {}),
               });
               if (failed === 'committed') {
                 await heartbeat.stop();
@@ -704,10 +771,9 @@ export class StepExecutor {
           userId: claim.userId,
           runId: run.id,
         });
-        if (!facts) throw new Error('AI run authorization denied');
+        if (!facts) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
         const currentProfile = this.options.registry.profile(run.profileId);
-        if (!currentProfile)
-          throw new Error('Current AI run profile is unavailable');
+        if (!currentProfile) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
         const currentProfileCapabilities = profile.capabilities.filter(
           (capability) => currentProfile.capabilities.includes(capability),
         );
@@ -720,7 +786,7 @@ export class StepExecutor {
           },
           'resume',
         );
-        if (!decision.allowed) throw new Error('AI run authorization denied');
+        if (!decision.allowed) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
         const actorScope = this.options.authorization.workerActorScope(
           tx,
           facts,
@@ -735,6 +801,60 @@ export class StepExecutor {
         };
       },
     );
+  }
+
+  async #failRevokedResume(
+    job: JobEnvelope,
+    claim: StepClaim,
+    heartbeat: ReturnType<typeof claimHeartbeat>,
+  ): Promise<void> {
+    const operation = this.options.operations
+      ? (
+          await this.options.database.withTenant(
+            { orgId: claim.orgId, userId: claim.userId },
+            (tx) => this.options.operations!.pendingFromPreviousStep(tx, claim),
+          )
+        )[0]
+      : undefined;
+    const committed = await this.options.coordinator.commit(job, claim, {
+      state: 'committed',
+      text: '',
+      data: {
+        ...(operation ? { operationId: operation.id } : {}),
+        errorCode: 'AI_ACCESS_REVOKED',
+      },
+      advancement: 'continuation',
+      terminal: true,
+      outcome: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+      ...(operation
+        ? {
+            transactionTimeoutMs: 5_000,
+            transactionWork: async (tx: TenantSession) => {
+              const updated =
+                operation.status === 'approved'
+                  ? await this.options.operations!.rejectApprovedForAccessLoss(
+                      tx,
+                      operation.id,
+                    )
+                  : await this.options.operations!.rejectApprovalForAccessLoss(
+                      tx,
+                      {
+                        runId: operation.runId,
+                        operationId: operation.id,
+                        snapshotHash: operation.snapshotHash,
+                        initiatorUserId: claim.userId,
+                      },
+                    );
+              if (!updated) throw new Error('AI operation rejection failed');
+            },
+          }
+        : {}),
+    });
+    if (committed === 'committed') {
+      await heartbeat.stop();
+      await this.#finishIfTerminal(claim);
+    }
   }
 
   async #publish(claim: StepClaim, event: RunStreamEvent): Promise<void> {
