@@ -78,6 +78,29 @@ test('coordinator returns busy to a second delivery and performs no tenant disco
   }
 });
 
+test('coordinator defers, not drops, a pending step refused by the organization claim cap', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const runs = await Promise.all([ai.start(0), ai.start(0), ai.start(0)]);
+    await Promise.all(runs.map((run) => ai.seedPendingStep(0, run.id)));
+    expect(await ai.claim(0, runs[0]!.id, 1, 1, 30_000)).not.toBeNull();
+    expect(await ai.claim(0, runs[1]!.id, 1, 1, 30_000)).not.toBeNull();
+    const service = coordinator(ai);
+    const before = Date.now();
+    const deferred = await service.claim(job(runs[2]!.id, ai.tenants[0]!));
+    expect(deferred.kind).toBe('busy');
+    if (deferred.kind !== 'busy') throw new Error('expected busy');
+    expect(deferred.retryAtMs).toBeGreaterThan(before);
+    expect(deferred.retryAtMs).toBeLessThanOrEqual(Date.now() + 1000);
+    expect(await ai.runVersion(0, runs[2]!.id)).toBe(1);
+    expect(await ai.claim(0, runs[2]!.id, 1, 1, 30_000)).toBeNull();
+  } finally {
+    await ai.close();
+  }
+});
+
 test('coordinator rejects a copied outer outbox job identity before claim', async ({
   services,
 }) => {

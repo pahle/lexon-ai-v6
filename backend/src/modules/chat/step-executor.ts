@@ -15,7 +15,7 @@ import type {
   ReportedUsage,
 } from '../../infrastructure/ai/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
-import type { JobEnvelope, TenantSession } from '../../infrastructure/db/index.js';
+import type { JobEnvelope } from '../../infrastructure/db/index.js';
 import { AttemptService, UsagePolicyError } from '../usage/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunRegistry } from './run-registry.js';
@@ -90,7 +90,10 @@ export class StepExecutor {
       for (let ordinal = 1; ordinal <= maxAttempts; ordinal++) {
         if (durable.signal.aborted) throw durable.signal.reason;
         let attemptText = '';
-        let attemptProposals: Extract<ModelEvent, { type: 'tool-proposal' }>[] = [];
+        const attemptProposals: Extract<
+          ModelEvent,
+          { type: 'tool-proposal' }
+        >[] = [];
         checkpointBytes = 0;
         const modelInput: ModelInput = {
           model: run.modelId,
@@ -112,40 +115,44 @@ export class StepExecutor {
           await this.options.database.withTenant(
             { orgId: claim.orgId, userId: claim.userId },
             async (tx) => {
-            if (
-              !(await this.options.steps.lockClaim(tx, claim)) ||
-              !(await this.options.runs.markRunningForClaim(tx, {
-                runId: claim.runId,
-                stepId: claim.stepId,
-                expectedVersion: claim.expectedVersion,
-                sequence: claim.sequence,
-                fence: claim.fence,
-              }))
-            )
-              throw new Error('AI step claim lost');
-            const facts = await this.options.facts.read(tx, {
-              orgId: claim.orgId,
-              userId: claim.userId,
-              runId: run.id,
-            });
-            if (!facts) throw new Error('AI run authorization denied');
-            const decision = await this.options.authorization.authorize(
-              tx,
-              facts,
-              { profileId: run.profileId, capabilities: profile.capabilities },
-              'resume',
-            );
-            if (!decision.allowed) throw new Error('AI run authorization denied');
-            return this.options.attempts.reserve(tx, claim, {
-              attemptId,
-              modelInput,
-              limits: {
-                maxAttemptsPerStep: maxAttempts,
-                tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
-                maxOutputTokens: profile.maxOutputTokens,
-              },
-            });
-          },
+              if (
+                !(await this.options.steps.lockClaim(tx, claim)) ||
+                !(await this.options.runs.markRunningForClaim(tx, {
+                  runId: claim.runId,
+                  stepId: claim.stepId,
+                  expectedVersion: claim.expectedVersion,
+                  sequence: claim.sequence,
+                  fence: claim.fence,
+                }))
+              )
+                throw new Error('AI step claim lost');
+              const facts = await this.options.facts.read(tx, {
+                orgId: claim.orgId,
+                userId: claim.userId,
+                runId: run.id,
+              });
+              if (!facts) throw new Error('AI run authorization denied');
+              const decision = await this.options.authorization.authorize(
+                tx,
+                facts,
+                {
+                  profileId: run.profileId,
+                  capabilities: profile.capabilities,
+                },
+                'resume',
+              );
+              if (!decision.allowed)
+                throw new Error('AI run authorization denied');
+              return this.options.attempts.reserve(tx, claim, {
+                attemptId,
+                modelInput,
+                limits: {
+                  maxAttemptsPerStep: maxAttempts,
+                  tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
+                  maxOutputTokens: profile.maxOutputTokens,
+                },
+              });
+            },
           );
         } catch (error) {
           if (
@@ -171,7 +178,9 @@ export class StepExecutor {
         let outcome: ModelOutcome | undefined;
         try {
           await actorScope.run(async (actor) => {
-            for await (const event of this.options.gateway.generate(modelInput)) {
+            for await (const event of this.options.gateway.generate(
+              modelInput,
+            )) {
               if (durable.signal.aborted) throw durable.signal.reason;
               if (event.type === 'metadata' && event.generationId) {
                 await this.options.database.withTenant(
@@ -192,7 +201,11 @@ export class StepExecutor {
                 ) {
                   const accepted = await this.options.database.withTenant(
                     { orgId: claim.orgId, userId: claim.userId },
-                    (tx) => this.options.steps.checkpoint(tx, claim, { attemptId, text: attemptText }),
+                    (tx) =>
+                      this.options.steps.checkpoint(tx, claim, {
+                        attemptId,
+                        text: attemptText,
+                      }),
                   );
                   if (!accepted) throw new Error('AI step claim lost');
                   lastCheckpoint = Date.now();
@@ -266,7 +279,8 @@ export class StepExecutor {
       }
       if (!finalOutcome) throw new Error('AI model outcome unavailable');
       const succeeded = finalOutcome.attemptOutcome === 'succeeded';
-      const iterationLimit = run.modelIterations + 1 >= initial.profile.maxIterations;
+      const iterationLimit =
+        run.modelIterations + 1 >= initial.profile.maxIterations;
       const continueLength =
         succeeded &&
         finalOutcome.finishReason === 'length' &&
@@ -283,7 +297,11 @@ export class StepExecutor {
       if (unknown)
         await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => this.options.attempts.settle(tx, claim, { attemptId, outcome: 'unknown' }),
+          (tx) =>
+            this.options.attempts.settle(tx, claim, {
+              attemptId,
+              outcome: 'unknown',
+            }),
         );
       const terminal = !continueLength;
       const committed = await this.options.coordinator.commit(job, claim, {
@@ -315,7 +333,10 @@ export class StepExecutor {
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => this.options.runs.find(tx, claim.runId),
         );
-        if (durableRun?.status === 'completed' || durableRun?.status === 'failed')
+        if (
+          durableRun?.status === 'completed' ||
+          durableRun?.status === 'failed'
+        )
           await this.options.streams?.finish(claim, {
             version: 1,
             runId: claim.runId,
@@ -336,9 +357,12 @@ export class StepExecutor {
       { orgId: claim.orgId, userId: claim.userId },
       async (tx) => {
         const run = await this.options.runs.find(tx, claim.runId);
-        if (!run || !(await this.options.steps.lockClaim(tx, claim))) return null;
+        if (!run || !(await this.options.steps.lockClaim(tx, claim)))
+          return null;
         const snapshot = record(run.resolvedConfig);
-        const profile = record(snapshot.profileSnapshot) as unknown as RunProfile;
+        const profile = record(
+          snapshot.profileSnapshot,
+        ) as unknown as RunProfile;
         validateSnapshot(profile, run.modelId);
         const facts = await this.options.facts.read(tx, {
           orgId: claim.orgId,
@@ -353,12 +377,16 @@ export class StepExecutor {
           'resume',
         );
         if (!decision.allowed) throw new Error('AI run authorization denied');
-        const actorScope = this.options.authorization.workerActorScope(tx, facts);
+        const actorScope = this.options.authorization.workerActorScope(
+          tx,
+          facts,
+        );
         return {
           run,
           profile,
           actorScope,
-          provider: typeof snapshot.provider === 'string' ? snapshot.provider : '',
+          provider:
+            typeof snapshot.provider === 'string' ? snapshot.provider : '',
         };
       },
     );
@@ -370,7 +398,10 @@ export class StepExecutor {
   }
 }
 
-function validateContextPieces(pieces: unknown, budget: number): asserts pieces is ContextPiece[] {
+function validateContextPieces(
+  pieces: unknown,
+  budget: number,
+): asserts pieces is ContextPiece[] {
   if (!Array.isArray(pieces)) throw new Error('Invalid AI context result');
   let bytes = 0;
   for (const piece of pieces) {
@@ -424,4 +455,3 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
     else signal.addEventListener('abort', abort, { once: true });
   });
 }
-

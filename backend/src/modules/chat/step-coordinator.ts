@@ -12,6 +12,9 @@ import { AttemptService, UsageClaimLostError } from '../usage/index.js';
 import { stepJobId } from './step-job-id.js';
 import { randomUUID } from 'node:crypto';
 
+/** Backoff for a step refused by the per-organization live-claim cap. */
+const CAPACITY_RETRY_MS = 500;
+
 export interface StepCoordinatorCommit extends StepCommit {
   readonly advancement: 'generation' | 'continuation';
   readonly terminal?: boolean;
@@ -88,6 +91,11 @@ export class StepCoordinator {
         step.leaseUntil > new Date()
       )
         return { kind: 'busy', retryAtMs: step.leaseUntil.getTime() };
+      // The run still expects this pending step, so the claim was refused by
+      // the per-organization live-claim cap. Defer it; acknowledging it as a
+      // no-op would strand the run with no further delivery.
+      if (step?.state === 'pending')
+        return { kind: 'busy', retryAtMs: Date.now() + CAPACITY_RETRY_MS };
       return { kind: 'noop' };
     });
   }
@@ -184,15 +192,16 @@ export class StepCoordinator {
                 commit.errorCode !== undefined ||
                 commit.terminal ||
                 commit.outcome === 'failed';
-              const nextStatus = budgetExceeded || commit.errorCode
-                ? 'failed'
-                : terminal
-                  ? commit.outcome === 'failed'
-                    ? 'failed'
-                    : 'completed'
-                  : commit.state === 'awaiting_approval'
-                    ? 'awaiting_approval'
-                    : 'running';
+              const nextStatus =
+                budgetExceeded || commit.errorCode
+                  ? 'failed'
+                  : terminal
+                    ? commit.outcome === 'failed'
+                      ? 'failed'
+                      : 'completed'
+                    : commit.state === 'awaiting_approval'
+                      ? 'awaiting_approval'
+                      : 'running';
               if (
                 !(await this.runs.transition(tx, {
                   runId: claim.runId,

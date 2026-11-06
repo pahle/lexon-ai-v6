@@ -57,10 +57,15 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
           handle: async () => undefined,
         });
         if (this.stepExecutor) {
-          for (const type of ['run.start.v1', 'run.advance.v1', 'run.resume.v1'])
+          for (const type of [
+            'run.start.v1',
+            'run.advance.v1',
+            'run.resume.v1',
+          ])
             registry.register(type, {
               strategy: 'durable-step',
-              handle: (job, context) => this.stepExecutor!.execute(job, context),
+              handle: (job, context) =>
+                this.stepExecutor!.execute(job, context),
             });
         }
         await this.consumer.start(registry);
