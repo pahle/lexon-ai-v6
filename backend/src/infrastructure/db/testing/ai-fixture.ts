@@ -187,7 +187,10 @@ export async function createAiFixture(services: Services) {
         initiatingUserId: tenant.userId,
         profileId: 'test-profile',
         profileVersion: 1,
-        resolvedConfig: { model: 'synthetic/test' },
+        resolvedConfig: {
+          model: 'synthetic/test',
+          provider: 'synthetic-provider',
+        },
         modelId: 'synthetic/test',
         inputText: 'test input',
         inputBudgetTokens: budgets.inputBudgetTokens ?? 1000,

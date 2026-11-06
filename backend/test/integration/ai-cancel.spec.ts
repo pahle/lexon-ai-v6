@@ -1,4 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { trace } from '@opentelemetry/api';
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { expect } from 'vitest';
 import { Redis } from 'ioredis';
 import { test } from '../setup/file-services.js';
@@ -13,6 +19,7 @@ import {
   type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import { aiTestBackendPid } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   CancelSignals,
@@ -35,6 +42,12 @@ import type { ModelGateway } from '../../src/infrastructure/ai/index.js';
 import type { RunProfile } from '../../src/modules/chat/run-contracts.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
+
+const spanExporter = new InMemorySpanExporter();
+const tracerProvider = new BasicTracerProvider({
+  spanProcessors: [new SimpleSpanProcessor(spanExporter)],
+});
+trace.setGlobalTracerProvider(tracerProvider);
 
 async function asActor<T>(
   tenant: { orgId: string; userId: string },
@@ -97,8 +110,10 @@ async function asActor<T>(
 test('cancel persists terminal state for queued run and is idempotent', async ({
   services,
 }) => {
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   try {
+    const before = await audit.count('chat.run_finished.v1');
     const run = await ai.start(0);
     await ai.seedPendingStep(0, run.id);
     const runs = new AiRunRepository();
@@ -119,7 +134,9 @@ test('cancel persists terminal state for queued run and is idempotent', async ({
     );
     const terminal = await ai.withTenant(0, (tx) => runs.find(tx, run.id));
     expect(terminal?.status).toBe('cancelled');
+    expect(await audit.count('chat.run_finished.v1')).toBe(before + 1);
   } finally {
+    await audit.close();
     await ai.close();
   }
 });
@@ -197,6 +214,7 @@ test('live step claim remains valid only for cancellation cleanup', async ({
 test('cancelling a streaming model aborts it and commits partial output once', async ({
   services,
 }) => {
+  spanExporter.reset();
   const ai = await createAiFixture(services);
   const authorization = new RunAuthorizationService();
   const tenant = ai.tenants[0]!;
@@ -365,6 +383,27 @@ test('cancelling a streaming model aborts it and commits partial output once', a
     ).toBe('stale');
     expect(await redis.xlen(streamKey)).toBe(beforeStalePublish);
     expect(await redis.exists(guardKey)).toBe(0);
+    await tracerProvider.forceFlush();
+    const spans = spanExporter.getFinishedSpans();
+    expect(
+      spans.some(
+        (span) =>
+          span.name === 'ai.model' &&
+          span.attributes.runId === started.runId &&
+          span.attributes.status === 'failed',
+      ),
+    ).toBe(true);
+    expect(
+      spans.some(
+        (span) =>
+          span.name === 'ai.step' &&
+          span.attributes.runId === started.runId &&
+          span.attributes.status === 'cancelled',
+      ),
+    ).toBe(true);
+    expect(
+      JSON.stringify(spans.map(({ attributes }) => attributes)),
+    ).not.toContain('partial answer');
   } finally {
     redis.disconnect();
     await streams.close();
@@ -376,6 +415,7 @@ test('cancelling a streaming model aborts it and commits partial output once', a
 test('exhausted delivery fails only its current expired step and stale delivery is a no-op', async ({
   services,
 }) => {
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   const authorization = new RunAuthorizationService();
   const tenant = ai.tenants[0]!;
@@ -426,7 +466,11 @@ test('exhausted delivery fails only its current expired step and stale delivery 
       ctx: tenant,
       payload: { runId: run.runId, sequence: 1, expectedVersion: 1 },
     };
+    const before = await audit.count('chat.run_finished.v1');
     expect(await harness.coordinator.finalizeExhausted(job)).toBe('done');
+    expect(await audit.count('chat.run_finished.v1')).toBe(before + 1);
+    expect(await harness.coordinator.finalizeExhausted(job)).toBe('done');
+    expect(await audit.count('chat.run_finished.v1')).toBe(before + 1);
     expect(await harness.inspect(tenant, run.runId)).toMatchObject({
       status: 'failed',
       errorCode: 'AI_INTERNAL',
@@ -503,6 +547,7 @@ test('exhausted delivery fails only its current expired step and stale delivery 
       ),
     ).toMatchObject({ state: 'pending' });
   } finally {
+    await audit.close();
     await harness.close();
   }
 });

@@ -11,8 +11,11 @@ import type { RunAuthorizationService } from '../identity-access/index.js';
 import { stepJobId } from './step-job-id.js';
 import type { RunRegistry } from './run-registry.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
+import { AuditService } from '../audit/index.js';
+import { randomUUID } from 'node:crypto';
 
 export class ApprovalService {
+  private readonly audit = new AuditService();
   constructor(
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
@@ -93,6 +96,25 @@ export class ApprovalService {
             }))
           )
             throw new Error('AI approval decision refused');
+          const provider = asRecord(run.resolvedConfig).provider;
+          if (typeof provider !== 'string')
+            throw new Error('AI approval decision refused');
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            type: 'chat.run_finished.v1',
+            occurredAt: new Date().toISOString(),
+            outcome: 'failure',
+            orgId: actor.orgId,
+            actorUserId: actor.userId,
+            metadata: {
+              runId: run.id,
+              model: run.modelId,
+              provider,
+              status: 'failed',
+              safeCode: 'AI_ACCESS_REVOKED',
+            },
+          });
           const reference = await this.runs.terminalStreamReference(tx, run.id);
           if (!reference) throw new Error('AI approval decision refused');
           return reference;
@@ -102,6 +124,26 @@ export class ApprovalService {
           userId: actor.userId,
         });
         if (!operation) throw new Error('AI approval decision refused');
+        const provider = asRecord(run.resolvedConfig).provider;
+        if (
+          typeof provider !== 'string' ||
+          !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+        )
+          throw new Error('AI approval decision refused');
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          type: 'chat.approval_decided.v1',
+          occurredAt: new Date().toISOString(),
+          outcome: 'success',
+          orgId: actor.orgId,
+          actorUserId: actor.userId,
+          metadata: {
+            runId: run.id,
+            operationId: input.operationId,
+            status: input.decision === 'approve' ? 'approved' : 'rejected',
+          },
+        });
         const sequence = run.nextSequence;
         const expectedVersion = run.runVersion + 1;
         if (
@@ -166,4 +208,3 @@ function isRouting(value: unknown): value is Record<string, unknown> & {
     typeof record.priority === 'number'
   );
 }
-import { randomUUID } from 'node:crypto';

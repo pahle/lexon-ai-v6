@@ -33,6 +33,9 @@ export type ModelMessage =
   | { readonly role: 'tool'; readonly content: readonly ModelToolResultPart[] };
 
 export interface ModelInput {
+  readonly runId?: string;
+  readonly stepId?: string;
+  readonly attemptId?: string;
   readonly model: string;
   readonly provider: string;
   readonly messages: readonly ModelMessage[];

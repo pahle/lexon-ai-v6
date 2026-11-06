@@ -466,5 +466,29 @@
     "importer": "backend/src/wrapper.ts",
     "code": "export * from './infrastructure/db/index.js';",
     "rule": "database-named"
+  },
+  {
+    "name": "chat cannot import AI SDK telemetry integration",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import { OpenTelemetry } from '@ai-sdk/otel';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "generic telemetry cannot import AI SDK integration",
+    "importer": "backend/src/infrastructure/telemetry/ai-telemetry.ts",
+    "code": "import { registerTelemetry } from 'ai';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "AI adapter owns AI SDK telemetry integration",
+    "importer": "backend/src/infrastructure/ai/ai-telemetry.ts",
+    "code": "import { OpenTelemetry } from '@ai-sdk/otel';",
+    "rule": null
+  },
+  {
+    "name": "AI telemetry canary tests observe actual SDK spans",
+    "importer": "backend/test/unit/ai-telemetry.spec.ts",
+    "code": "import { registerTelemetry } from 'ai';",
+    "rule": null
   }
 ]

@@ -177,7 +177,7 @@ export function classifyImport({
   )
     return deny('auth-runtime-owner');
   if (databasePackage(specifier) && !inDb) return deny('database-owner');
-  if (aiPackage(specifier) && !inAi) {
+  if (aiPackage(specifier) && !inAi && !testSource) {
     const client =
       owner === 'frontend' &&
       specifier === 'ai' &&

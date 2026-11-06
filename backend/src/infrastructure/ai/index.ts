@@ -21,4 +21,5 @@ export {
   type ModelScript,
 } from './testing/scripted-model.js';
 export { validateRealModelPrerequisites } from './real-model-prerequisites.js';
+export { registerAiSdkTelemetry } from './ai-telemetry.js';
 export { ModelAllowlistSchema } from './model-allowlist.js';

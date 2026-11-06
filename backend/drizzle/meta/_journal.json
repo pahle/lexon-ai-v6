@@ -148,6 +148,13 @@
       "when": 1793404800020,
       "tag": "0020_ai_approvals",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793404800021,
+      "tag": "0021_ai_audit",
+      "breakpoints": true
     }
   ]
 }

@@ -142,9 +142,20 @@ async function* generate(
         },
       },
       telemetry: {
-        isEnabled: false,
+        isEnabled: true,
         recordInputs: false,
         recordOutputs: false,
+        functionId: 'ai-run-engine',
+        includeRuntimeContext: {
+          runId: true,
+          stepId: true,
+          attemptId: true,
+        },
+      },
+      runtimeContext: {
+        ...(input.runId ? { runId: input.runId } : {}),
+        ...(input.stepId ? { stepId: input.stepId } : {}),
+        ...(input.attemptId ? { attemptId: input.attemptId } : {}),
       },
     });
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   AiRunRepository,
   AiStepRepository,
@@ -8,12 +9,14 @@ import type {
 import type { RunStreams } from '../../infrastructure/queue/index.js';
 import type { RunActor } from '../identity-access/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
+import { AuditService } from '../audit/index.js';
 
 export interface CancelSignalPublisher {
   publish(runId: string): Promise<void>;
 }
 
 export class CancelService {
+  private readonly audit = new AuditService();
   constructor(
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
@@ -90,6 +93,27 @@ export class CancelService {
           }))
         )
           throw new Error('AI run cancellation refused');
+        const provider =
+          run.resolvedConfig && typeof run.resolvedConfig === 'object'
+            ? (run.resolvedConfig as Record<string, unknown>).provider
+            : undefined;
+        if (typeof provider !== 'string')
+          throw new Error('AI run cancellation refused');
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          type: 'chat.run_finished.v1',
+          occurredAt: new Date().toISOString(),
+          outcome: 'failure',
+          orgId: actor.orgId,
+          actorUserId: actor.userId,
+          metadata: {
+            runId,
+            model: run.modelId,
+            provider,
+            status: 'cancelled',
+          },
+        });
         terminalReference = await this.runs.terminalStreamReference(tx, runId);
       },
     );

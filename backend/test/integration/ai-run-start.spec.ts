@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import {
   AiRunRepository,
   AiStepRepository,
@@ -128,8 +129,10 @@ function runService(
 test('live actor start atomically stores provenance, initial step and deterministic outbox', async ({
   services,
 }) => {
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   try {
+    const auditBefore = await audit.count('chat.run_started.v1');
     const tenant = ai.tenants[0]!;
     const { authorization, service } = runService(ai);
     const result = (await identityScope(tenant, authorization, (actor) =>
@@ -189,8 +192,9 @@ test('live actor start atomically stores provenance, initial step and determinis
       outbox: 1,
       slots: 1,
     });
+    expect(await audit.count('chat.run_started.v1')).toBe(auditBefore + 1);
   } finally {
-    await ai.close();
+    await Promise.all([ai.close(), audit.close()]);
   }
 });
 

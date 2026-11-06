@@ -18,6 +18,7 @@ import type { JobExecutor } from '../platform/index.js';
 import { AttemptService, UsageClaimLostError } from '../usage/index.js';
 import { stepJobId } from './step-job-id.js';
 import { randomUUID } from 'node:crypto';
+import { AuditService } from '../audit/index.js';
 
 /** Backoff for a step refused by the per-organization live-claim cap. */
 const CAPACITY_RETRY_MS = 500;
@@ -66,6 +67,7 @@ class StaleCommit extends Error {}
 class RetryFinalization extends Error {}
 
 export class StepCoordinator {
+  private readonly audit = new AuditService();
   constructor(
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
@@ -205,13 +207,38 @@ export class StepCoordinator {
                 throw new StaleCommit();
               if (commit.transactionWork)
                 await commit.transactionWork(session, signal);
+              const currentRun = await this.runs.find(session, claim.runId);
+              if (!currentRun) throw new StaleCommit();
               const persistedOperations = [];
               for (const proposal of commit.operationProposals ?? []) {
                 if (!this.operations)
                   throw new Error('AI operation persistence unavailable');
-                persistedOperations.push(
-                  await this.operations.persist(session, claim, proposal),
+                const operation = await this.operations.persist(
+                  session,
+                  claim,
+                  proposal,
                 );
+                persistedOperations.push(operation);
+                await this.audit.append(session, {
+                  version: 1,
+                  eventId: randomUUID(),
+                  type: 'chat.tool_operation.v1',
+                  occurredAt: new Date().toISOString(),
+                  outcome: 'success',
+                  orgId: claim.orgId,
+                  actorUserId: claim.userId,
+                  metadata: {
+                    runId: claim.runId,
+                    stepId: claim.stepId,
+                    operationId: operation.id,
+                    model: currentRun.modelId,
+                    provider: routingProvider(currentRun.resolvedConfig),
+                    status:
+                      operation.status === 'awaiting_approval'
+                        ? 'proposed'
+                        : 'pending',
+                  },
+                });
               }
               const data =
                 commit.operationProposals || commit.outcome
@@ -235,8 +262,6 @@ export class StepCoordinator {
                 }))
               )
                 throw new StaleCommit();
-              const currentRun = await this.runs.find(tx, claim.runId);
-              if (!currentRun) throw new StaleCommit();
               const terminal =
                 budgetExceeded ||
                 commit.errorCode !== undefined ||
@@ -273,6 +298,27 @@ export class StepCoordinator {
                 }))
               )
                 throw new StaleCommit();
+              if (terminal) {
+                const safeCode = budgetExceeded
+                  ? 'AI_BUDGET_EXCEEDED'
+                  : commit.errorCode;
+                await this.audit.append(session, {
+                  version: 1,
+                  eventId: randomUUID(),
+                  type: 'chat.run_finished.v1',
+                  occurredAt: new Date().toISOString(),
+                  outcome: nextStatus === 'completed' ? 'success' : 'failure',
+                  orgId: claim.orgId,
+                  actorUserId: claim.userId,
+                  metadata: {
+                    runId: claim.runId,
+                    model: currentRun.modelId,
+                    provider: routingProvider(currentRun.resolvedConfig),
+                    status: nextStatus === 'completed' ? 'completed' : 'failed',
+                    ...(safeCode ? { safeCode } : {}),
+                  },
+                });
+              }
               if (!terminal && commit.state !== 'awaiting_approval') {
                 const nextSequence = claim.sequence + 1;
                 const nextJobId = stepJobId(claim.runId, nextSequence);
@@ -445,6 +491,15 @@ export class StepCoordinator {
                   }))
                 )
                   throw new StaleCommit();
+                await appendRunFinishedAudit(
+                  this.audit,
+                  session,
+                  run,
+                  claim.orgId,
+                  claim.userId,
+                  budgetExceeded ? 'failed' : 'cancelled',
+                  budgetExceeded ? 'AI_BUDGET_EXCEEDED' : undefined,
+                );
               },
             );
             void result;
@@ -481,6 +536,14 @@ export class StepCoordinator {
                 }))
               )
                 throw new StaleCommit();
+              await appendRunFinishedAudit(
+                this.audit,
+                session,
+                current,
+                claim.orgId,
+                claim.userId,
+                'cancelled',
+              );
             },
           );
           void result;
@@ -636,6 +699,15 @@ export class StepCoordinator {
               }))
             )
               throw new StaleCommit();
+            await appendRunFinishedAudit(
+              this.audit,
+              session,
+              run,
+              run.orgId,
+              run.initiatingUserId,
+              'failed',
+              'AI_INTERNAL',
+            );
           });
           return 'done';
         },
@@ -658,4 +730,44 @@ function isRouting(
     Number(config.priority) >= 1 &&
     Number(config.priority) <= 10
   );
+}
+
+function routingProvider(value: unknown): string {
+  if (!value || typeof value !== 'object')
+    throw new Error('AI route audit metadata unavailable');
+  const provider = (value as Record<string, unknown>).provider;
+  if (typeof provider !== 'string' || !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider))
+    throw new Error('AI route audit metadata unavailable');
+  return provider;
+}
+
+async function appendRunFinishedAudit(
+  audit: AuditService,
+  tx: TenantSession,
+  run: {
+    readonly id: string;
+    readonly modelId: string;
+    readonly resolvedConfig: unknown;
+  },
+  orgId: string,
+  actorUserId: string,
+  status: 'completed' | 'failed' | 'cancelled',
+  safeCode?: 'AI_BUDGET_EXCEEDED' | 'AI_INTERNAL',
+): Promise<void> {
+  await audit.append(tx, {
+    version: 1,
+    eventId: randomUUID(),
+    type: 'chat.run_finished.v1',
+    occurredAt: new Date().toISOString(),
+    outcome: status === 'completed' ? 'success' : 'failure',
+    orgId,
+    actorUserId,
+    metadata: {
+      runId: run.id,
+      model: run.modelId,
+      provider: routingProvider(run.resolvedConfig),
+      status,
+      ...(safeCode ? { safeCode } : {}),
+    },
+  });
 }

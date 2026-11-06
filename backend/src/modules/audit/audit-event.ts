@@ -207,6 +207,86 @@ const adminActivated = z.strictObject({
   sessionId: UuidSchema,
   metadata: z.strictObject({ additional: z.boolean() }),
 });
+const aiRoute = {
+  runId: UuidSchema,
+  model: z.string().regex(/^[a-zA-Z0-9._/-]{1,160}$/),
+  provider: z.string().regex(/^[a-zA-Z0-9._/-]{1,80}$/),
+};
+const aiRunStarted = z.strictObject({
+  ...base,
+  type: z.literal('chat.run_started.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ ...aiRoute, status: z.literal('started') }),
+});
+const aiRunFinished = z
+  .strictObject({
+    ...base,
+    type: z.literal('chat.run_finished.v1'),
+    outcome: z.enum(['success', 'failure']),
+    orgId: UuidSchema,
+    actorUserId: UuidSchema,
+    metadata: z.strictObject({
+      ...aiRoute,
+      status: z.enum(['completed', 'failed', 'cancelled']),
+      safeCode: z
+        .enum([
+          'AI_BUDGET_EXCEEDED',
+          'AI_ATTEMPT_LIMIT',
+          'AI_ITERATION_LIMIT',
+          'AI_ACCESS_REVOKED',
+          'AI_MODEL_FORBIDDEN',
+          'AI_PROVIDER_UNAVAILABLE',
+          'AI_PROVIDER_AUTH',
+          'AI_INVALID_TOOL',
+          'AI_TOOL_TIMEOUT',
+          'AI_TOOL_OUTCOME_UNKNOWN',
+          'AI_CAPACITY_EXCEEDED',
+          'AI_INTERNAL',
+        ])
+        .optional(),
+    }),
+  })
+  .refine(
+    (event) =>
+      (event.metadata.status === 'completed') === (event.outcome === 'success'),
+    { message: 'AI run audit status and outcome must agree' },
+  );
+const aiToolOperation = z
+  .strictObject({
+    ...base,
+    type: z.literal('chat.tool_operation.v1'),
+    outcome: z.enum(['success', 'failure']),
+    orgId: UuidSchema,
+    actorUserId: UuidSchema,
+    metadata: z.strictObject({
+      runId: UuidSchema,
+      stepId: UuidSchema,
+      operationId: UuidSchema,
+      model: aiRoute.model,
+      provider: aiRoute.provider,
+      status: z.enum(['proposed', 'pending', 'completed', 'failed', 'unknown']),
+    }),
+  })
+  .refine(
+    (event) =>
+      ['proposed', 'pending', 'completed'].includes(event.metadata.status) ===
+      (event.outcome === 'success'),
+    { message: 'AI tool audit status and outcome must agree' },
+  );
+const aiApprovalDecided = z.strictObject({
+  ...base,
+  type: z.literal('chat.approval_decided.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({
+    runId: UuidSchema,
+    operationId: UuidSchema,
+    status: z.enum(['approved', 'rejected']),
+  }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -222,6 +302,10 @@ export const AuditEventSchema = z.union([
   provisioning,
   disabledUser,
   adminActivated,
+  aiRunStarted,
+  aiRunFinished,
+  aiToolOperation,
+  aiApprovalDecided,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

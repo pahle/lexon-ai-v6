@@ -30,6 +30,11 @@ import type {
   OperationProposal,
 } from '../../infrastructure/db/index.js';
 import { AttemptService, UsagePolicyError } from '../usage/index.js';
+import { AuditService } from '../audit/index.js';
+import {
+  getSafeAiTracer,
+  type SafeAiTracer,
+} from '../../infrastructure/telemetry/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunRegistry } from './run-registry.js';
 import type { ContextPiece, RunProfile } from './run-contracts.js';
@@ -64,6 +69,8 @@ export interface StepExecutorOptions {
 }
 
 export class StepExecutor {
+  readonly #audit = new AuditService();
+  readonly #aiTracer: SafeAiTracer = getSafeAiTracer();
   readonly #modelCallTimeoutMs: number;
   readonly #toolExecutor?: ToolExecutor;
 
@@ -128,6 +135,8 @@ export class StepExecutor {
       return { kind: 'done' };
     }
     const claim = claimed.claim;
+    let runSpan: ReturnType<SafeAiTracer['startSpan']> | undefined;
+    let stepSpan: ReturnType<SafeAiTracer['startSpan']> | undefined;
     const unbindCancelContext = this.options.cancelSignals?.bind(claim.runId, {
       orgId: claim.orgId,
       userId: claim.userId,
@@ -196,6 +205,19 @@ export class StepExecutor {
       }
       if (!initial) return { kind: 'done' };
       const { run, profile, actorScope, activeCapabilities } = initial;
+      runSpan = this.#aiTracer.startSpan('ai.run', {
+        runId: run.id,
+        model: run.modelId,
+        provider: initial.provider,
+        status: 'started',
+      });
+      stepSpan = this.#aiTracer.startSpan('ai.step', {
+        runId: claim.runId,
+        stepId: claim.stepId,
+        model: run.modelId,
+        provider: initial.provider,
+        status: 'started',
+      });
       text = await this.options.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
         (tx) =>
@@ -273,17 +295,48 @@ export class StepExecutor {
               outcome: 'succeeded',
               transactionTimeoutMs: tool.timeoutMs,
               transactionWork: async (tx, signal) => {
-                const result = await this.#toolExecutor!.execute(
-                  tx,
-                  claim,
-                  operation.id,
-                  signal ?? heartbeat.signal,
+                const result = await this.#aiTracer.withSpan(
+                  'ai.tool',
+                  {
+                    runId: claim.runId,
+                    stepId: claim.stepId,
+                    operationId: operation.id,
+                    model: run.modelId,
+                    provider: initial.provider,
+                    status: 'started',
+                  },
+                  async (span) => {
+                    try {
+                      const result = await this.#toolExecutor!.execute(
+                        tx,
+                        claim,
+                        operation.id,
+                        signal ?? heartbeat.signal,
+                      );
+                      span.setAttribute(
+                        'status',
+                        result.status === 'succeeded' ? 'succeeded' : 'failed',
+                      );
+                      return result;
+                    } catch (error: unknown) {
+                      span.setAttribute('status', 'failed');
+                      if (error instanceof ToolPolicyOutcome)
+                        span.setAttribute('safeCode', error.code);
+                      throw error;
+                    }
+                  },
                 );
                 if (
                   result.status !== 'succeeded' &&
                   result.status !== 'rejected'
                 )
                   throw new Error('AI tool operation was not successful');
+                await this.#appendToolAudit(
+                  tx,
+                  claim,
+                  operation.id,
+                  result.status === 'succeeded' ? 'completed' : 'failed',
+                );
               },
             });
           } catch (error) {
@@ -324,23 +377,31 @@ export class StepExecutor {
                 ...(operation.status === 'approved'
                   ? {
                       transactionWork: async (tx: TenantSession) => {
-                        if (
-                          error.code === 'AI_ACCESS_REVOKED'
-                            ? !(await this.options.operations!.rejectApprovedForAccessLoss(
-                                tx,
-                                operation.id,
-                              ))
-                            : !(await this.options.operations!.complete(
-                                tx,
-                                operation.id,
-                                {
-                                  status: 'failed',
-                                  result: { errorCode: error.code },
-                                  errorCode: error.code,
-                                },
-                              ))
-                        )
-                          throw new Error('AI operation rejection failed');
+                        if (operation.status === 'approved') {
+                          if (
+                            error.code === 'AI_ACCESS_REVOKED'
+                              ? !(await this.options.operations!.rejectApprovedForAccessLoss(
+                                  tx,
+                                  operation.id,
+                                ))
+                              : !(await this.options.operations!.complete(
+                                  tx,
+                                  operation.id,
+                                  {
+                                    status: 'failed',
+                                    result: { errorCode: error.code },
+                                    errorCode: error.code,
+                                  },
+                                ))
+                          )
+                            throw new Error('AI operation rejection failed');
+                        }
+                        await this.#appendToolAudit(
+                          tx,
+                          claim,
+                          operation.id,
+                          'failed',
+                        );
                       },
                     }
                   : {}),
@@ -379,6 +440,12 @@ export class StepExecutor {
                       ))
                     )
                       throw new Error('AI operation timeout receipt failed');
+                    await this.#appendToolAudit(
+                      tx,
+                      claim,
+                      operation.id,
+                      'failed',
+                    );
                   },
                 },
               );
@@ -445,7 +512,11 @@ export class StepExecutor {
         >[] = [];
         checkpointBytes = 0;
         heartbeat.throwIfAborted();
+        attemptId = randomUUID();
         const modelInput: ModelInput = {
+          runId: claim.runId,
+          stepId: claim.stepId,
+          attemptId,
           model: run.modelId,
           provider: initial.provider,
           messages: [
@@ -465,7 +536,6 @@ export class StepExecutor {
             activeCapabilities,
           ),
         };
-        attemptId = randomUUID();
         try {
           await this.options.database.withTenant(
             { orgId: claim.orgId, userId: claim.userId },
@@ -591,6 +661,14 @@ export class StepExecutor {
           heartbeat.signal,
           this.#modelCallTimeoutMs,
         );
+        const modelSpan = this.#aiTracer.startSpan('ai.model', {
+          runId: claim.runId,
+          stepId: claim.stepId,
+          attemptId,
+          model: run.modelId,
+          provider: initial.provider,
+          status: 'started',
+        });
         let iterator: AsyncIterator<ModelEvent> | undefined;
         let engineError: unknown;
         let engineFailed = false;
@@ -710,6 +788,13 @@ export class StepExecutor {
               cleanupError = checkpointCleanupError;
             }
           }
+          modelSpan.setAttribute(
+            'status',
+            outcome?.attemptOutcome === 'succeeded' ? 'succeeded' : 'failed',
+          );
+          if (outcome?.safeCode)
+            modelSpan.setAttribute('safeCode', outcome.safeCode);
+          modelSpan.end();
         }
         if (cleanupFailed) throw cleanupError;
         finalOutcome = outcome;
@@ -818,9 +903,17 @@ export class StepExecutor {
         await heartbeat.stop();
         await this.#finishIfTerminal(claim);
       }
+      stepSpan?.setAttribute('status', succeeded ? 'succeeded' : 'failed');
+      runSpan?.setAttribute('status', succeeded ? 'succeeded' : 'failed');
       return { kind: 'done' };
     } catch (error) {
-      if (!cancelRequested) throw error;
+      if (!cancelRequested) {
+        stepSpan?.setAttribute('status', 'failed');
+        runSpan?.setAttribute('status', 'failed');
+        throw error;
+      }
+      stepSpan?.setAttribute('status', 'cancelled');
+      runSpan?.setAttribute('status', 'cancelled');
       const result = await this.options.coordinator.commitCancellation(
         job,
         claim,
@@ -835,6 +928,12 @@ export class StepExecutor {
       }
       return { kind: 'done' };
     } finally {
+      if (stepSpan) {
+        stepSpan.end();
+      }
+      if (runSpan) {
+        runSpan.end();
+      }
       await heartbeat.stop();
       await unsubscribeCancel?.();
       unbindCancelContext?.();
@@ -959,6 +1058,38 @@ export class StepExecutor {
   async #publish(claim: StepClaim, event: RunStreamEvent): Promise<void> {
     const result = await this.options.streams?.publish(claim, event);
     if (result === 'stale') throw new Error('AI step claim lost');
+  }
+
+  async #appendToolAudit(
+    tx: TenantSession,
+    claim: StepClaim,
+    operationId: string,
+    status: 'completed' | 'failed',
+  ): Promise<void> {
+    const run = await this.options.runs.find(tx, claim.runId);
+    const provider =
+      run?.resolvedConfig && typeof run.resolvedConfig === 'object'
+        ? (run.resolvedConfig as Record<string, unknown>).provider
+        : undefined;
+    if (!run || typeof provider !== 'string')
+      throw new Error('AI tool audit metadata unavailable');
+    await this.#audit.append(tx, {
+      version: 1,
+      eventId: randomUUID(),
+      type: 'chat.tool_operation.v1',
+      occurredAt: new Date().toISOString(),
+      outcome: status === 'completed' ? 'success' : 'failure',
+      orgId: claim.orgId,
+      actorUserId: claim.userId,
+      metadata: {
+        runId: claim.runId,
+        stepId: claim.stepId,
+        operationId,
+        model: run.modelId,
+        provider,
+        status,
+      },
+    });
   }
 
   async #finishIfTerminal(claim: StepClaim): Promise<void> {

@@ -3,9 +3,16 @@ import { readFileSync } from 'node:fs';
 import { Redis } from 'ioredis';
 import { expect, vi } from 'vitest';
 import { z } from 'zod';
+import { trace } from '@opentelemetry/api';
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { test } from '../setup/file-services.js';
 import { identityApiHarness } from '../setup/identity-api-harness.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
+import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import {
   createAiFixture,
   recordAiTestToolEffect,
@@ -54,6 +61,11 @@ import { AttemptService } from '../../src/modules/usage/index.js';
 import { spawnToolOperationWorker } from '../process/tool-operation-harness.js';
 
 const model = 'openai/gpt-6-luna';
+const spanExporter = new InMemorySpanExporter();
+const tracerProvider = new BasicTracerProvider({
+  spanProcessors: [new SimpleSpanProcessor(spanExporter)],
+});
+trace.setGlobalTracerProvider(tracerProvider);
 const profile: RunProfile = {
   id: 'executor-test-profile',
   version: 1,
@@ -346,8 +358,12 @@ const success = {
 test('one generation persists metadata, checkpoint, usage, output and terminal state', async ({
   services,
 }) => {
+  spanExporter.reset();
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   try {
+    const startedBefore = await audit.count('chat.run_started.v1');
+    const finishedBefore = await audit.count('chat.run_finished.v1');
     const h = await setup(ai, [
       {
         events: [
@@ -383,8 +399,30 @@ test('one generation persists metadata, checkpoint, usage, output and terminal s
       reportedInputTokens: 20,
       reportedOutputTokens: 3,
     });
+    expect(await audit.count('chat.run_started.v1')).toBe(startedBefore + 1);
+    expect(await audit.count('chat.run_finished.v1')).toBe(finishedBefore + 1);
+    await tracerProvider.forceFlush();
+    const spans = spanExporter.getFinishedSpans();
+    for (const name of ['ai.run', 'ai.step', 'ai.model'])
+      expect(spans.some((span) => span.name === name)).toBe(true);
+    for (const span of spans.filter((candidate) =>
+      ['ai.run', 'ai.step', 'ai.model'].includes(candidate.name),
+    )) {
+      expect(span.attributes.runId).toBe(h.runId);
+      expect(span.attributes.status).toMatch(/succeeded|failed|started/);
+      expect(span.duration[0]).toBeGreaterThanOrEqual(0);
+    }
+    expect(
+      spans.some(
+        (span) => span.name === 'ai.model' && span.attributes.attemptId,
+      ),
+    ).toBe(true);
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(await audit.count('chat.run_finished.v1')).toBe(finishedBefore + 1);
   } finally {
-    await ai.close();
+    await Promise.all([ai.close(), audit.close()]);
   }
 });
 
@@ -577,8 +615,11 @@ test('transactional tool effect commits before later cancellation', async ({
 test('proposal commits before each transactional effect and all results enter fenced model history', async ({
   services,
 }) => {
+  spanExporter.reset();
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   try {
+    const toolAuditBefore = await audit.count('chat.tool_operation.v1');
     const tool: TransactionalWriteToolDefinition = {
       id: 'fixture-write',
       version: 1,
@@ -658,6 +699,9 @@ test('proposal commits before each transactional effect and all results enter fe
       toolName: tool.id,
       args: { value: 'transactional effect' },
     });
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 2,
+    );
 
     await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
       signal: new AbortController().signal,
@@ -673,12 +717,38 @@ test('proposal commits before each transactional effect and all results enter fe
     expect(firstStoredOperation.status).toBe('succeeded');
     expect(await ai.toolEffectCount(0)).toBe(1);
     expect(await ai.receiptCount(stepJobId(h.runId, 2))).toBe(1);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 3,
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 3,
+    );
 
     await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
       signal: new AbortController().signal,
     });
     expect(await ai.toolEffectCount(0)).toBe(2);
     expect(await ai.receiptCount(stepJobId(h.runId, 3))).toBe(1);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 4,
+    );
+    await tracerProvider.forceFlush();
+    const toolSpans = spanExporter
+      .getFinishedSpans()
+      .filter((span) => span.name === 'ai.tool');
+    expect(toolSpans.length).toBeGreaterThanOrEqual(2);
+    expect(toolSpans.every((span) => span.attributes.runId === h.runId)).toBe(
+      true,
+    );
+    expect(toolSpans.every((span) => span.attributes.stepId)).toBe(true);
+    expect(toolSpans.every((span) => span.attributes.operationId)).toBe(true);
+    expect(
+      toolSpans.some((span) => span.attributes.status === 'succeeded'),
+    ).toBe(true);
+    expect(toolSpans.every((span) => span.duration[0] >= 0)).toBe(true);
     const completedOperations = await ai.withTenant(0, (tx) =>
       h.operations.forRun(tx, { runId: h.runId, throughSequence: 4 }),
     );
@@ -708,7 +778,7 @@ test('proposal commits before each transactional effect and all results enter fe
     );
     expect(JSON.stringify(toolResults)).toContain('transactional effect');
   } finally {
-    await ai.close();
+    await Promise.all([ai.close(), audit.close()]);
   }
 });
 
@@ -1531,8 +1601,10 @@ test('approval-required transactional operations remain staged and produce no ef
 test('approved operation resumes from a fresh sequence and executes one transaction', async ({
   services,
 }) => {
+  const audit = createAuditInspector(services);
   const ai = await createAiFixture(services);
   try {
+    const decisionAuditBefore = await audit.count('chat.approval_decided.v1');
     const tool: TransactionalWriteToolDefinition = {
       id: 'approval-resume-write',
       version: 1,
@@ -1689,8 +1761,11 @@ test('approved operation resumes from a fresh sequence and executes one transact
       finalOutput: 'Done',
     });
     expect(await ai.orgSlotCount(0)).toBe(0);
+    expect(await audit.count('chat.approval_decided.v1')).toBe(
+      decisionAuditBefore + 1,
+    );
   } finally {
-    await ai.close();
+    await Promise.all([ai.close(), audit.close()]);
   }
 });
 
@@ -2890,6 +2965,7 @@ test('late transactional tool callback sees an expired tenant session and cannot
 test('active PostgreSQL tool timeout is durably reported to the next model input', async ({
   services,
 }) => {
+  spanExporter.reset();
   const ai = await createAiFixture(services);
   try {
     const tool: TransactionalWriteToolDefinition = {
@@ -2955,6 +3031,17 @@ test('active PostgreSQL tool timeout is durably reported to the next model input
       status: 'failed',
       errorCode: 'AI_TOOL_TIMEOUT',
       result: { errorCode: 'AI_TOOL_TIMEOUT' },
+    });
+    await tracerProvider.forceFlush();
+    const timeoutSpans = spanExporter
+      .getFinishedSpans()
+      .filter((span) => span.name === 'ai.tool');
+    expect(timeoutSpans).toHaveLength(1);
+    expect(timeoutSpans[0]?.attributes).toMatchObject({
+      runId: h.runId,
+      stepId: expect.any(String),
+      operationId: operation.id,
+      status: 'failed',
     });
     await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
       signal: new AbortController().signal,
@@ -3705,6 +3792,7 @@ test('checkpoint ownership loss escapes and leaves no stale completion', async (
 test('a genuine gateway iteration error becomes a safe provider outcome', async ({
   services,
 }) => {
+  spanExporter.reset();
   const ai = await createAiFixture(services);
   try {
     const gateway: ModelGateway = {
@@ -3723,6 +3811,18 @@ test('a genuine gateway iteration error becomes a safe provider outcome', async 
     ).resolves.toEqual({ kind: 'done' });
     const rows = await ai.withTenant(0, (tx) => h.attempts.list(tx, h.runId));
     expect(rows[0]).toMatchObject({ active: false, outcome: 'unknown' });
+    await tracerProvider.forceFlush();
+    const modelSpan = spanExporter
+      .getFinishedSpans()
+      .find((span) => span.name === 'ai.model');
+    expect(modelSpan?.attributes).toMatchObject({
+      runId: h.runId,
+      status: 'failed',
+      safeCode: 'AI_PROVIDER_UNAVAILABLE',
+    });
+    expect(JSON.stringify(modelSpan?.attributes)).not.toContain(
+      'raw provider payload',
+    );
   } finally {
     await ai.close();
   }

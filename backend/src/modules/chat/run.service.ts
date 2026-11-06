@@ -18,6 +18,7 @@ import {
   RUN_REGISTRATION_LIMITS,
 } from './run-contracts.js';
 import { stepJobId } from './step-job-id.js';
+import { AuditService } from '../audit/index.js';
 
 type Allowlist = typeof ModelAllowlistSchema extends {
   parse(value: unknown): infer T;
@@ -26,6 +27,7 @@ type Allowlist = typeof ModelAllowlistSchema extends {
   : never;
 
 export class RunService {
+  private readonly audit = new AuditService();
   constructor(
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
@@ -115,6 +117,21 @@ export class RunService {
           priority: profile.priority,
         },
       );
+      await this.audit.append(tx, {
+        version: 1,
+        eventId: randomUUID(),
+        type: 'chat.run_started.v1',
+        occurredAt: new Date().toISOString(),
+        outcome: 'success',
+        orgId: actor.orgId,
+        actorUserId: actor.userId,
+        metadata: {
+          runId,
+          model: modelId,
+          provider: route.provider,
+          status: 'started',
+        },
+      });
     });
     return { runId };
   }
