@@ -29,6 +29,10 @@ export class TenantTransactionTimeoutError extends Error {
   }
 }
 
+function isTransactionTimeoutError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === '25P04';
+}
+
 export class TenantDatabase {
   readonly #pool: Pool;
 
@@ -104,8 +108,24 @@ export class TenantDatabase {
         releaseError = error;
         if (session) endSession(session);
         controller.abort(new Error('Tenant transaction timed out'));
+        let cleanup = Promise.resolve();
+        if (!connectionError) {
+          try {
+            // Enqueue a public pg query before releasing with an error. With
+            // no active SQL this keeps pg.Client.end() on its force-close
+            // path instead of waiting for a graceful Terminate handshake.
+            cleanup = client.query('ROLLBACK').then(
+              () => undefined,
+              () => undefined,
+            );
+          } catch {
+            cleanup = Promise.resolve();
+          }
+        }
         releaseClient(error);
-        void clientClosed.then(() => rejectDeadline(error));
+        void Promise.all([clientClosed, cleanup]).then(() =>
+          rejectDeadline(error),
+        );
       }, timeoutMs);
     }
     try {
@@ -136,7 +156,7 @@ export class TenantDatabase {
         result = await operation;
       } else {
         const transactionFailure = connectionEnded.then(() => {
-          if (connectionError?.message.includes('transaction timeout')) {
+          if (isTransactionTimeoutError(connectionError)) {
             timedOut = true;
             if (session) endSession(session);
             controller.abort(new Error('Tenant transaction timed out'));
@@ -154,6 +174,13 @@ export class TenantDatabase {
       await waitForDeadline(client.query('COMMIT'));
       return result;
     } catch (error) {
+      if (
+        isTransactionTimeoutError(error) ||
+        isTransactionTimeoutError(connectionError)
+      ) {
+        timedOut = true;
+        controller.abort(new Error('Tenant transaction timed out'));
+      }
       if (session) endSession(session);
       if (timedOut) {
         releaseClient(releaseError ?? new TenantTransactionTimeoutError());

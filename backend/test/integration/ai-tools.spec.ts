@@ -323,6 +323,60 @@ test('wall-clock transaction timeout destroys a blackholed established connectio
   }
 });
 
+test('wall-clock timeout destroys blackholed idle transaction during a paused callback', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const proxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: proxy.url,
+    poolMax: 1,
+    statementTimeoutMs: 20000,
+  });
+  let setReady!: (pid: number) => void;
+  const ready = new Promise<number>((resolve) => {
+    setReady = resolve;
+  });
+  let releaseCallback!: () => void;
+  const callbackGate = new Promise<void>((resolve) => {
+    releaseCallback = resolve;
+  });
+  const operation = database
+    .withTenant(
+      ai.tenants[0]!,
+      async (tx) => {
+        await queryAiTestSession(tx);
+        setReady(await aiTestBackendPid(tx));
+        await callbackGate;
+      },
+      { timeoutMs: 1500 },
+    )
+    .then(
+      () => 'completed' as const,
+      () => 'timed-out' as const,
+    );
+  try {
+    const pid = await ready;
+    proxy.hang();
+    const result = await Promise.race([
+      operation,
+      new Promise<'still-blocked'>((resolve) =>
+        setTimeout(() => resolve('still-blocked'), 2500),
+      ),
+    ]);
+    expect(result).toBe('timed-out');
+    proxy.restore();
+    expect(await ai.waitForBackendExit(pid)).toBe(true);
+  } finally {
+    proxy.restore();
+    releaseCallback();
+    await operation;
+    await database.close();
+    await proxy.close();
+    await ai.close();
+  }
+});
+
 test('wall-clock deadline destroys a reused pool connection blocked before the next BEGIN', async ({
   services,
 }) => {

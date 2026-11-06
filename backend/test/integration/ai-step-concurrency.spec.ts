@@ -197,6 +197,95 @@ test('persisted cancellation prevents ordinary commit callbacks before they run'
   }
 });
 
+test('cancellation finalization preserves known usage overrun and fails the run budget', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    const queuedJob = job(run.id, tenant);
+    const usage = new AttemptService();
+    const service = coordinator(ai, usage);
+    const claimed = await service.claim(queuedJob);
+    expect(claimed.kind).toBe('claimed');
+    if (claimed.kind !== 'claimed') return;
+    const modelInput = {
+      model: 'synthetic/test',
+      provider: 'synthetic',
+      messages: [{ role: 'user' as const, content: 'small reserved input' }],
+      maxOutputTokens: 16,
+      signal: new AbortController().signal,
+    };
+    const attempt = await ai.withTenant(0, (tx) =>
+      usage.reserve(tx, claimed.claim, {
+        attemptId: randomUUID(),
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
+          maxOutputTokens: 16,
+        },
+      }),
+    );
+    expect(3 + 3000).toBeGreaterThan(
+      attempt.reservedInputTokens + attempt.reservedOutputTokens,
+    );
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiRunRepository().transition(tx, {
+          runId: run.id,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'cancelling',
+        }),
+      ),
+    ).toBe(true);
+    await expect(
+      service.commit(queuedJob, claimed.claim, {
+        state: 'committed',
+        text: 'known over-budget partial',
+        data: {},
+        advancement: 'generation',
+        attemptSettlement: {
+          attemptId: attempt.attemptId,
+          outcome: 'succeeded',
+          usage: { inputTokens: 3, outputTokens: 3000 },
+          costUsd: '0.02',
+        },
+      }),
+    ).resolves.toBe('committed');
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_BUDGET_EXCEEDED',
+      partialOutput: 'known over-budget partial',
+      finalOutput: null,
+      nextSequence: 2,
+    });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiAttemptRepository().list(tx, run.id),
+      ),
+    ).toMatchObject([
+      {
+        active: false,
+        outcome: 'succeeded',
+        reportedInputTokens: 3,
+        reportedOutputTokens: 3000,
+        costUsd: '0.02',
+      },
+    ]);
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(1);
+    expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    expect(await ai.orgSlotCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
 test('redelivered cancellation recovers an expired owner instead of acknowledging a stranded run', async ({
   services,
 }) => {

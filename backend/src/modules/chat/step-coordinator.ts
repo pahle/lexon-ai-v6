@@ -366,6 +366,7 @@ export class StepCoordinator {
         StepCoordinatorCommit['attemptSettlement']
       >;
     },
+    options: { readonly deferLiveOwner?: boolean } = {},
   ): Promise<'committed' | 'stale' | 'retry'> {
     if (
       job.type === 'platform.noop.v1' ||
@@ -404,6 +405,7 @@ export class StepCoordinator {
           )
             throw new StaleCommit();
           if (step.leaseUntil && step.leaseUntil > new Date()) {
+            if (options.deferLiveOwner) throw new RetryFinalization();
             // A current owner may still complete its iterator and checkpoint cleanup.
             const result = await this.executor.executeWithin(
               tx,
@@ -411,8 +413,11 @@ export class StepCoordinator {
               async (session) => {
                 if (!(await this.steps.lockClaim(session, claim)))
                   throw new StaleCommit();
+                let budgetExceeded = false;
                 if (input.settlement)
-                  await this.usage.settle(session, claim, input.settlement);
+                  budgetExceeded = (
+                    await this.usage.settle(session, claim, input.settlement)
+                  ).budgetExceeded;
                 else if (input.attemptId)
                   await this.usage.settle(session, claim, {
                     attemptId: input.attemptId,
@@ -431,7 +436,10 @@ export class StepCoordinator {
                     runId: claim.runId,
                     expectedVersion: run.runVersion,
                     from: 'cancelling',
-                    to: 'cancelled',
+                    to: budgetExceeded ? 'failed' : 'cancelled',
+                    ...(budgetExceeded
+                      ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
+                      : {}),
                     nextSequence: claim.sequence + 1,
                     outputAppend: input.text,
                   }))
@@ -489,11 +497,14 @@ export class StepCoordinator {
 
   async #recoverCancellation(job: JobEnvelope): Promise<ClaimResult> {
     if (job.type === 'platform.noop.v1') return { kind: 'noop' };
-    const step = await this.database.withTenant(job.ctx, (tx) =>
-      this.steps.find(tx, {
-        runId: job.payload.runId,
-        sequence: job.payload.sequence,
-      }),
+    const step = await this.database.withTenant(
+      job.ctx,
+      (tx) =>
+        this.steps.find(tx, {
+          runId: job.payload.runId,
+          sequence: job.payload.sequence,
+        }),
+      { timeoutMs: CANCELLATION_TRANSACTION_TIMEOUT_MS },
     );
     if (
       !step ||
@@ -513,16 +524,25 @@ export class StepCoordinator {
     };
     if (claim.leaseUntil > new Date())
       return { kind: 'busy', retryAtMs: claim.leaseUntil.getTime() };
-    const text = await this.database.withTenant(job.ctx, (tx) =>
-      this.runs.latestCheckpointText(tx, step.runId, step.sequence),
+    const text = await this.database.withTenant(
+      job.ctx,
+      (tx) => this.runs.latestCheckpointText(tx, step.runId, step.sequence),
+      { timeoutMs: CANCELLATION_TRANSACTION_TIMEOUT_MS },
     );
-    const result = await this.finalizeCancellation(job, claim, { text });
+    const result = await this.finalizeCancellation(
+      job,
+      claim,
+      { text },
+      { deferLiveOwner: true },
+    );
     if (result === 'retry')
       return { kind: 'busy', retryAtMs: Date.now() + CAPACITY_RETRY_MS };
     if (result !== 'committed')
       return { kind: 'busy', retryAtMs: Date.now() + CAPACITY_RETRY_MS };
-    const reference = await this.database.withTenant(job.ctx, (tx) =>
-      this.runs.terminalStreamReference(tx, step.runId),
+    const reference = await this.database.withTenant(
+      job.ctx,
+      (tx) => this.runs.terminalStreamReference(tx, step.runId),
+      { timeoutMs: CANCELLATION_TRANSACTION_TIMEOUT_MS },
     );
     return reference ? { kind: 'cancelled', reference } : { kind: 'noop' };
   }
@@ -535,39 +555,60 @@ export class StepCoordinator {
     )
       return 'done';
     try {
+      const observedRun = await this.database.withTenant(
+        job.ctx,
+        (tx) => this.runs.find(tx, job.payload.runId),
+        { timeoutMs: EXHAUSTED_TRANSACTION_TIMEOUT_MS },
+      );
+      if (
+        observedRun?.status === 'cancelling' &&
+        observedRun.initiatingUserId === job.ctx.userId &&
+        observedRun.runVersion === job.payload.expectedVersion + 1 &&
+        observedRun.nextSequence === job.payload.sequence
+      ) {
+        const recovery = await this.#recoverCancellation(job);
+        if (recovery.kind === 'busy') return 'retry';
+        const terminalRun = await this.database.withTenant(
+          job.ctx,
+          (tx) => this.runs.find(tx, job.payload.runId),
+          { timeoutMs: EXHAUSTED_TRANSACTION_TIMEOUT_MS },
+        );
+        return terminalRun &&
+          ['cancelled', 'failed'].includes(terminalRun.status) &&
+          terminalRun.runVersion >= job.payload.expectedVersion + 2
+          ? 'done'
+          : 'retry';
+      }
       return await this.database.withTenant<'done' | 'retry'>(
         job.ctx,
         async (tx) => {
           await this.steps.lockTenantClaimGuard(tx);
+          const run = await this.runs.lockForLifecycle(tx, job.payload.runId);
+          if (!run || run.initiatingUserId !== job.ctx.userId) return 'done';
+          if (run.status === 'cancelling') throw new RetryFinalization();
+          if (
+            run.runVersion !== job.payload.expectedVersion ||
+            run.nextSequence !== job.payload.sequence ||
+            !['queued', 'running', 'awaiting_approval'].includes(run.status)
+          )
+            return 'done';
+          const step = await this.steps.lockCurrent(tx, {
+            runId: run.id,
+            sequence: job.payload.sequence,
+          });
+          if (
+            !step ||
+            step.expectedVersion !== job.payload.expectedVersion ||
+            !['pending', 'claimed'].includes(step.state)
+          )
+            return 'done';
+          if (
+            step.state === 'claimed' &&
+            step.leaseUntil &&
+            step.leaseUntil > new Date()
+          )
+            throw new RetryFinalization();
           await this.executor.executeWithin(tx, job, async (session) => {
-            const run = await this.runs.lockForLifecycle(
-              session,
-              job.payload.runId,
-            );
-            if (
-              !run ||
-              run.initiatingUserId !== job.ctx.userId ||
-              run.runVersion !== job.payload.expectedVersion ||
-              run.nextSequence !== job.payload.sequence ||
-              !['queued', 'running', 'awaiting_approval'].includes(run.status)
-            )
-              return;
-            const step = await this.steps.lockCurrent(session, {
-              runId: run.id,
-              sequence: job.payload.sequence,
-            });
-            if (
-              !step ||
-              step.expectedVersion !== job.payload.expectedVersion ||
-              !['pending', 'claimed'].includes(step.state)
-            )
-              return;
-            if (
-              step.state === 'claimed' &&
-              step.leaseUntil &&
-              step.leaseUntil > new Date()
-            )
-              throw new RetryFinalization();
             const checkpoint = await this.runs.latestCheckpointText(
               session,
               run.id,

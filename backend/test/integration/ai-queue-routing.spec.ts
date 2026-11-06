@@ -3,6 +3,7 @@ import { Queue } from 'bullmq';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
+  AiAttemptRepository,
   AiRunRepository,
   AiStepRepository,
   DispatcherSession,
@@ -189,6 +190,256 @@ test('retained exhausted delivery finalizes the PostgreSQL run after database re
     await queue.close();
     await database.close();
     await databaseProxy.close();
+    await fixture.close();
+  }
+});
+
+test('cancelled delivery survives exhaustion and finalizes after database recovery', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const options = {
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix,
+  };
+  const databaseProxy = await FaultProxy.start(services.appUrl);
+  const database = new TenantDatabase({
+    appUrl: databaseProxy.url,
+    poolMax: 3,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const run = await fixture.start(0);
+  await fixture.seedPendingStep(0, run.id);
+  const tenant = fixture.tenants[0]!;
+  const job: JobEnvelope = {
+    outboxId: stepJobId(run.id, 1),
+    type: 'run.advance.v1',
+    ctx: tenant,
+    payload: { runId: run.id, sequence: 1, expectedVersion: 1 },
+  };
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const attempts = new AiAttemptRepository();
+  const claim = await fixture.claim(0, run.id, 1, 1, 30000);
+  if (!claim) throw new Error('Cancellation exhaustion claim unavailable');
+  const attemptId = randomUUID();
+  await fixture.withTenant(0, async (tx) => {
+    await attempts.insert(tx, claim, {
+      attemptId,
+      orgId: tenant.orgId,
+      runId: run.id,
+      stepId: claim.stepId,
+      ordinal: 1,
+      modelId: 'synthetic/test',
+      estimatorVersion: 'test-v1',
+      estimatedInputTokens: 20,
+      reservedInputTokens: 21,
+      reservedOutputTokens: 10,
+      generationId: null,
+      provider: null,
+      reportedInputTokens: null,
+      reportedOutputTokens: null,
+      cachedInputTokens: null,
+      reasoningOutputTokens: null,
+      costUsd: null,
+      active: true,
+      outcome: null,
+      createdAt: new Date(),
+      settledAt: null,
+    });
+    expect(
+      await attempts.updateMetadata(tx, claim, {
+        attemptId,
+        generationId: 'generation-cancel-exhausted',
+        provider: 'synthetic-provider',
+      }),
+    ).toBe(true);
+    expect(
+      await steps.checkpoint(tx, claim, {
+        attemptId,
+        text: 'checkpoint before cancellation exhaustion',
+      }),
+    ).toBe(true);
+    expect(
+      await runs.transition(tx, {
+        runId: run.id,
+        expectedVersion: 1,
+        from: 'queued',
+        to: 'cancelling',
+      }),
+    ).toBe(true);
+    await fixture.expireClaimLeaseInSession(tx, claim);
+  });
+  const coordinator = new StepCoordinator(
+    database,
+    runs,
+    steps,
+    new AttemptService(),
+    new OutboxRepository(),
+    new JobExecutor(database),
+  );
+  const registry = new JobRegistry();
+  registry.register('run.advance.v1', {
+    strategy: 'durable-step',
+    handle: async () => {
+      throw new Error('synthetic exhausted cancellation delivery');
+    },
+    exhausted: (delivery) => coordinator.finalizeExhausted(delivery),
+  });
+  const first = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  const second = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 300,
+    busyRetryMs: 100,
+  });
+  try {
+    databaseProxy.disconnect();
+    await first.start(registry);
+    await producer.enqueue(job, {
+      queue: 'ai-batch',
+      priority: 4,
+      timeoutMs: 1000,
+    });
+    await expect
+      .poll(
+        () => queue.getJob(job.outboxId).then((value) => value?.getState()),
+        { timeout: 15000 },
+      )
+      .toBe('failed');
+    expect(
+      await fixture.withTenant(0, (tx) => runs.find(tx, run.id)),
+    ).toMatchObject({
+      status: 'cancelling',
+      runVersion: 2,
+      partialOutput: '',
+    });
+    expect(await fixture.orgSlotCount(0)).toBe(1);
+    await first.close();
+    databaseProxy.restore();
+    await second.start(registry);
+    await expect
+      .poll(
+        async () =>
+          (await fixture.withTenant(0, (tx) => runs.find(tx, run.id)))?.status,
+        { timeout: 15000 },
+      )
+      .toBe('cancelled');
+    expect(
+      await fixture.withTenant(0, (tx) => runs.find(tx, run.id)),
+    ).toMatchObject({
+      status: 'cancelled',
+      runVersion: 3,
+      nextSequence: 2,
+      partialOutput: 'checkpoint before cancellation exhaustion',
+      finalOutput: null,
+    });
+    expect(
+      await fixture.withTenant(0, (tx) => attempts.list(tx, run.id)),
+    ).toMatchObject([
+      {
+        active: false,
+        outcome: 'unknown',
+        generationId: 'generation-cancel-exhausted',
+      },
+    ]);
+    expect(await fixture.receiptCount(job.outboxId)).toBe(1);
+    expect(await fixture.orgSlotCount(0)).toBe(0);
+    await expect.poll(() => queue.getJob(job.outboxId)).toBeUndefined();
+  } finally {
+    await first.close();
+    await second.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+    await databaseProxy.close();
+    await fixture.close();
+  }
+});
+
+test('exhausted delivery does not receipt missing or foreign run context', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  try {
+    const first = await fixture.start(0);
+    const second = await fixture.start(0);
+    await fixture.seedPendingStep(0, first.id);
+    await fixture.seedPendingStep(0, second.id);
+    const runs = new AiRunRepository();
+    const coordinator = new StepCoordinator(
+      fixture.database,
+      runs,
+      new AiStepRepository(),
+      new AttemptService(),
+      new OutboxRepository(),
+      new JobExecutor(fixture.database),
+    );
+    const firstJob: JobEnvelope = {
+      outboxId: stepJobId(first.id, 1),
+      type: 'run.advance.v1',
+      ctx: fixture.tenants[0]!,
+      payload: { runId: first.id, sequence: 1, expectedVersion: 1 },
+    };
+    const secondJob: JobEnvelope = {
+      outboxId: stepJobId(second.id, 1),
+      type: 'run.advance.v1',
+      ctx: fixture.tenants[0]!,
+      payload: { runId: second.id, sequence: 1, expectedVersion: 1 },
+    };
+    const missingRunId = randomUUID();
+    const deliveries = [
+      {
+        ...firstJob,
+        ctx: fixture.tenants[1]!,
+      },
+      {
+        ...secondJob,
+        ctx: { ...fixture.tenants[0]!, userId: randomUUID() },
+      },
+      {
+        outboxId: stepJobId(missingRunId, 1),
+        type: 'run.advance.v1' as const,
+        ctx: fixture.tenants[0]!,
+        payload: {
+          runId: missingRunId,
+          sequence: 1,
+          expectedVersion: 1,
+        },
+      },
+    ];
+
+    for (const delivery of deliveries) {
+      await expect(coordinator.finalizeExhausted(delivery)).resolves.toBe(
+        'done',
+      );
+      expect(await fixture.receiptCount(delivery.outboxId)).toBe(0);
+    }
+    expect(
+      await fixture.withTenant(0, async (tx) => ({
+        first: await runs.find(tx, first.id),
+        second: await runs.find(tx, second.id),
+      })),
+    ).toMatchObject({
+      first: { status: 'queued', runVersion: 1, partialOutput: '' },
+      second: { status: 'queued', runVersion: 1, partialOutput: '' },
+    });
+    expect(await fixture.orgSlotCount(0)).toBe(2);
+  } finally {
     await fixture.close();
   }
 });
