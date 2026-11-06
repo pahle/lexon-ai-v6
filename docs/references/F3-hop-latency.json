@@ -1,32 +1,101 @@
 {
-  "status": "owner-gate-triggered",
+  "status": "owner-gate-evidence",
   "measuredAt": "2026-11-06",
-  "environment": {
-    "node": "v24.22.1",
-    "platform": "darwin",
-    "arch": "arm64",
-    "services": "shared Testcontainers PostgreSQL and Valkey; per-file database and Valkey prefix",
-    "pollFallbackMs": 1000,
-    "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim",
-    "modelTimeIncluded": false
+  "thresholdMs": 500,
+  "pr25Baseline": {
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "services": "shared Testcontainers PostgreSQL and Valkey; per-file database and Valkey prefix",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim",
+      "modelTimeIncluded": false,
+      "contentionCheck": "Each measured run waited for its durable step handler to finish; zero busy deferrals asserted."
+    },
+    "coldMs": 6.908334000000082,
+    "medianMs": 2.826603999999975,
+    "p95Ms": 4.634999999999991,
+    "maxMs": 14.98395800000003,
+    "samplesMs": [
+      4.634999999999991, 2.8838329999999814, 3.380958000000078,
+      2.7957920000001195, 2.8072500000000673, 2.6819580000001224,
+      2.8459579999998823, 2.915749999999889, 2.8705830000001242,
+      14.98395800000003, 2.911583000000064, 3.0287920000000668,
+      2.4361249999999472, 2.3960839999999735, 2.6001249999999345,
+      2.466625000000022, 3.0229170000000067, 2.4350420000000668,
+      2.3553340000000844, 2.3774580000001606
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false,
+      "reason": "All twenty uncontended warm samples are below the owner stop threshold."
+    },
+    "label": "PR25 corrected uncontended baseline",
+    "source": "Owner-provided corrected post-PR25 hop run at /tmp/lexon-f3-pr25-hop.log"
   },
-  "coldMs": 5.229666999999949,
-  "medianMs": 264.67254200000025,
-  "p95Ms": 621.8691670000007,
-  "maxMs": 624.9970000000003,
-  "samplesMs": [
-    5.767791000000102, 556.8961659999999, 10.217083000000002, 591.0014590000001,
-    12.077374999999847, 595.1456659999999, 12.384666999999808,
-    585.9528750000004, 5.013542000000143, 516.6834590000003, 12.661625000000186,
-    606.8204580000001, 10.683500000000095, 621.8691670000007,
-    10.107582999999977, 614.1990420000002, 11.820832999999766,
-    612.7655420000001, 9.757916999999907, 624.9970000000003
-  ],
-  "gate": {
-    "thresholdMs": 500,
-    "triggered": true,
-    "reason": "Representative warm samples exceeded the owner stop threshold. Do not average away the slow samples.",
-    "nextAction": "Stop Task 9 latency work and report for owner review before workarounds or Task 10."
+  "currentPostFixValidation": {
+    "label": "current-source post-fix validation",
+    "source": "Task 9 focused integration command after lease-heartbeat and timed-checkpoint changes",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_3593b0c1d81e9d8b62aa69d1_d735cb92eb8baf056a51889a:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured run waited for its durable step handler to finish; zero busy deferrals asserted."
+    },
+    "coldMs": 7.826916000000097,
+    "medianMs": 2.797145999999998,
+    "p95Ms": 3.4767910000000484,
+    "maxMs": 3.692957999999976,
+    "samplesMs": [
+      3.284750000000031, 3.1436250000000427, 2.917707000000048,
+      3.692957999999976, 2.879624999999919, 2.717041999999992,
+      2.6884580000000824, 3.0760830000000396, 2.8784580000000233,
+      2.5966250000000173, 2.697499999999991, 2.313417000000072,
+      2.225332999999978, 2.2372500000000173, 2.690249999999992,
+      2.39220899999998, 2.43745899999999, 3.3022909999999683,
+      3.4767910000000484, 2.8772500000000036
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    }
+  },
+  "historicalContendedSample": {
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "services": "shared Testcontainers PostgreSQL and Valkey; per-file database and Valkey prefix",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim",
+      "modelTimeIncluded": false
+    },
+    "coldMs": 5.229666999999949,
+    "medianMs": 264.67254200000025,
+    "p95Ms": 621.8691670000007,
+    "maxMs": 624.9970000000003,
+    "samplesMs": [
+      5.767791000000102, 556.8961659999999, 10.217083000000002,
+      591.0014590000001, 12.077374999999847, 595.1456659999999,
+      12.384666999999808, 585.9528750000004, 5.013542000000143,
+      516.6834590000003, 12.661625000000186, 606.8204580000001,
+      10.683500000000095, 621.8691670000007, 10.107582999999977,
+      614.1990420000002, 11.820832999999766, 612.7655420000001,
+      9.757916999999907, 624.9970000000003
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": true,
+      "reason": "Representative warm samples exceeded the owner stop threshold. Do not average away the slow samples.",
+      "nextAction": "Stop Task 9 latency work and report for owner review before workarounds or Task 10."
+    },
+    "label": "contended, invalid as gate evidence",
+    "status": "historical-contended-sample",
+    "reason": "Measured samples included same-organization permit backpressure; retained for traceability and excluded from gate evaluation."
   },
   "diagnosticNoopOnly": {
     "gateEvidence": false,

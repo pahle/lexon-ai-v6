@@ -107,6 +107,10 @@ export class StepCoordinator {
     );
   }
 
+  get leaseDurationMs(): number {
+    return this.leaseMs;
+  }
+
   async commit(
     job: JobEnvelope,
     claim: StepClaim,

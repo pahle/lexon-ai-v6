@@ -162,7 +162,7 @@ export class StepExecutor {
           ) {
             await this.options.coordinator.commit(job, claim, {
               state: 'committed',
-              text: '',
+              text,
               data: { error: error.code },
               advancement: 'continuation',
               terminal: true,
@@ -176,12 +176,73 @@ export class StepExecutor {
         let usage: Partial<ReportedUsage> | undefined;
         let attemptCost: string | undefined;
         let outcome: ModelOutcome | undefined;
+        const heartbeat = claimHeartbeat(
+          this.options.coordinator,
+          claim,
+          durable.signal,
+        );
+        let checkpointTask: Promise<void> | undefined;
+        let checkpointError: unknown;
+        const flushCheckpoint = async () => {
+          if (checkpointTask) await checkpointTask;
+          if (checkpointBytes === 0) return;
+          const checkpointText = attemptText;
+          checkpointTask = this.options.database
+            .withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
+              this.options.steps.checkpoint(tx, claim, {
+                attemptId,
+                text: checkpointText,
+              }),
+            )
+            .then((accepted) => {
+              if (!accepted) throw new Error('AI step claim lost');
+              lastCheckpoint = Date.now();
+              checkpointBytes = 0;
+            })
+            .catch((error: unknown) => {
+              checkpointError = error;
+              heartbeat.abort(error);
+              throw error;
+            });
+          try {
+            await checkpointTask;
+          } finally {
+            checkpointTask = undefined;
+          }
+        };
+        const checkpointTimer = setInterval(() => {
+          if (
+            checkpointBytes > 0 &&
+            Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
+          )
+            void flushCheckpoint().catch(() => undefined);
+        }, CHECKPOINT_INTERVAL_MS);
         try {
           await actorScope.run(async (actor) => {
-            for await (const event of this.options.gateway.generate(
-              modelInput,
-            )) {
-              if (durable.signal.aborted) throw durable.signal.reason;
+            const iterator = this.options.gateway
+              .generate({
+                ...modelInput,
+                signal: heartbeat.signal,
+              })
+              [Symbol.asyncIterator]();
+            while (true) {
+              let next: IteratorResult<ModelEvent>;
+              try {
+                next = await iterator.next();
+              } catch {
+                if (checkpointError !== undefined) throw checkpointError;
+                if (heartbeat.signal.aborted) throw heartbeat.signal.reason;
+                outcome = {
+                  finishReason: 'error',
+                  attemptOutcome: 'unknown',
+                  retryable: false,
+                  safeCode: 'AI_PROVIDER_UNAVAILABLE',
+                };
+                break;
+              }
+              if (next.done) break;
+              const event = next.value;
+              if (heartbeat.signal.aborted) throw heartbeat.signal.reason;
               if (event.type === 'metadata' && event.generationId) {
                 await this.options.database.withTenant(
                   { orgId: claim.orgId, userId: claim.userId },
@@ -199,17 +260,7 @@ export class StepExecutor {
                   checkpointBytes >= CHECKPOINT_BYTES ||
                   Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
                 ) {
-                  const accepted = await this.options.database.withTenant(
-                    { orgId: claim.orgId, userId: claim.userId },
-                    (tx) =>
-                      this.options.steps.checkpoint(tx, claim, {
-                        attemptId,
-                        text: attemptText,
-                      }),
-                  );
-                  if (!accepted) throw new Error('AI step claim lost');
-                  lastCheckpoint = Date.now();
-                  checkpointBytes = 0;
+                  await flushCheckpoint();
                 }
                 await this.#publish(claim, {
                   version: 1,
@@ -229,15 +280,10 @@ export class StepExecutor {
             }
             void actor;
           });
-        } catch (error) {
-          if (durable.signal.aborted && error === durable.signal.reason)
-            throw error;
-          outcome = {
-            finishReason: 'error',
-            attemptOutcome: 'unknown',
-            retryable: false,
-            safeCode: 'AI_PROVIDER_UNAVAILABLE',
-          };
+        } finally {
+          clearInterval(checkpointTimer);
+          if (checkpointTask) await checkpointTask;
+          await heartbeat.stop();
         }
         finalOutcome = outcome;
         text = attemptText;
@@ -454,4 +500,48 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
     if (signal.aborted) abort();
     else signal.addEventListener('abort', abort, { once: true });
   });
+}
+
+function claimHeartbeat(
+  coordinator: StepCoordinator,
+  claim: StepClaim,
+  parentSignal: AbortSignal,
+): {
+  signal: AbortSignal;
+  abort: (reason: unknown) => void;
+  stop: () => Promise<void>;
+} {
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort(parentSignal.reason);
+  if (parentSignal.aborted) relayAbort();
+  else parentSignal.addEventListener('abort', relayAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let renewal: Promise<void> | undefined;
+  let stopped = false;
+  const interval = Math.max(10, Math.floor(coordinator.leaseDurationMs / 3));
+  const schedule = () => {
+    if (stopped) return;
+    timer = setTimeout(() => {
+      renewal = (async () => {
+        try {
+          if (!(await coordinator.renew(claim)))
+            controller.abort(new Error('AI step claim lost'));
+        } catch (error) {
+          controller.abort(error);
+        }
+        if (!controller.signal.aborted) schedule();
+      })();
+    }, interval);
+  };
+  schedule();
+  return {
+    signal: controller.signal,
+    abort: (reason: unknown) => controller.abort(reason),
+    async stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      parentSignal.removeEventListener('abort', relayAbort);
+      await renewal;
+    },
+  };
 }
