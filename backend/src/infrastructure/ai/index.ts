@@ -1,4 +1,4 @@
-export { AiInfrastructureModule } from './ai.module.js';
+export { AiInfrastructureModule, MODEL_GATEWAY } from './ai.module.js';
 export type {
   DecimalUsdString,
   JsonValue,

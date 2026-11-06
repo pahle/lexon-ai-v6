@@ -94,14 +94,7 @@ export async function createAiHarness(
         instrumentation?.onStepClaim(job.outboxId, performance.now());
       return result;
     }
-  })(
-    services.database,
-    runs,
-    steps,
-    new AttemptService(),
-    outbox,
-    executor,
-  );
+  })(services.database, runs, steps, new AttemptService(), outbox, executor);
   const stepExecutor = new StepExecutor({
     database: services.database,
     runs,

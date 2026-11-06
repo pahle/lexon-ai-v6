@@ -18,10 +18,16 @@ import {
 import { StoragePort } from '../infrastructure/storage/index.js';
 import { HealthIndicators } from '../infrastructure/telemetry/index.js';
 import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
-import { MODEL_GATEWAY } from '../infrastructure/ai/ai.module.js';
-import type { ModelGateway } from '../infrastructure/ai/index.js';
+import {
+  MODEL_GATEWAY,
+  type ModelGateway,
+} from '../infrastructure/ai/index.js';
 import { RunAuthorizationService } from '../modules/identity-access/index.js';
-import { RunRegistry, StepCoordinator, StepExecutor } from '../modules/chat/index.js';
+import {
+  RunRegistry,
+  StepCoordinator,
+  StepExecutor,
+} from '../modules/chat/index.js';
 import { AttemptService } from '../modules/usage/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
@@ -79,10 +85,15 @@ export function runtimeProviders(
                   entries.map(async (entry) => {
                     const result = await db.withTenant(
                       { orgId: entry.orgId, userId: entry.userId },
-                      (tx) => runs.streamRegistryState(tx, entry.runId, entry.userId),
+                      (tx) =>
+                        runs.streamRegistryState(tx, entry.runId, entry.userId),
                     );
                     return result.state === 'terminal'
-                      ? { runId: entry.runId, state: 'terminal' as const, claim: result.claim }
+                      ? {
+                          runId: entry.runId,
+                          state: 'terminal' as const,
+                          claim: result.claim,
+                        }
                       : { runId: entry.runId, state: result.state };
                   }),
                 ),

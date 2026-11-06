@@ -92,7 +92,9 @@ describe('run registry', () => {
     expect(() =>
       registry.register(
         registrations({
-          contexts: [{ id: 'context', version: 1, collect: undefined } as never],
+          contexts: [
+            { id: 'context', version: 1, collect: undefined } as never,
+          ],
         }),
       ),
     ).toThrow();
