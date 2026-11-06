@@ -1,5 +1,5 @@
 {
-  "status": "owner-gate-evidence",
+  "status": "owner-gate-passed",
   "measuredAt": "2026-11-06",
   "thresholdMs": 500,
   "pr25Baseline": {
@@ -32,7 +32,7 @@
       "reason": "All twenty uncontended warm samples are below the owner stop threshold."
     },
     "label": "PR25 corrected uncontended baseline",
-    "source": "Owner-provided corrected post-PR25 hop run at /tmp/lexon-f3-pr25-hop.log"
+    "source": "Controller-observed corrected post-PR25 hop run at /tmp/lexon-f3-pr25-hop.log"
   },
   "currentPostFixValidation": {
     "label": "current-source post-fix validation",
@@ -62,7 +62,8 @@
     "gate": {
       "thresholdMs": 500,
       "triggered": false
-    }
+    },
+    "sourceRevision": "dfa0627d28eee4313cddd6cb5b799925be9e4108"
   },
   "historicalContendedSample": {
     "environment": {
@@ -113,5 +114,36 @@
       1.6262909999999238, 1.5925829999999905, 1.5360000000000582,
       1.5191670000000386, 1.6183750000000146
     ]
+  },
+  "finalReviewedSourceValidation": {
+    "label": "final reviewed source, uncontended",
+    "sourceRevision": "d9451f2cfc3d7dc80da0e9bf6a0162f1c50203a0",
+    "source": "Controller run: pnpm exec vitest run --project backend-integration ai-hop-latency.spec --silent=false; exit 0; /tmp/lexon-f3-task9-final-hop.log",
+    "measuredAt": "2026-11-06",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_54e41f8a52a3c698d47a77e8_cc0b21f8f53ad9fedccd2362:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)"
+    },
+    "coldMs": 25.537541000000147,
+    "medianMs": 4.650812499999802,
+    "p95Ms": 6.462541000000101,
+    "maxMs": 6.811374999999998,
+    "samplesMs": [
+      6.811374999999998, 6.462541000000101, 6.010000000000218,
+      6.242250000000013, 5.944042000000081, 4.867957999999817,
+      4.999833000000081, 5.9212089999998625, 5.792625000000044,
+      4.153541000000132, 4.426042000000052, 4.237292000000252,
+      3.960125000000062, 4.39837499999976, 4.17083300000013, 6.051332999999886,
+      4.151499999999942, 4.113917000000129, 4.433666999999787, 3.91274999999996
+    ],
+    "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted.",
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    }
   }
 }
