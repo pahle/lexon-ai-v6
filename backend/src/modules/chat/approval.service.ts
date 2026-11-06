@@ -76,6 +76,13 @@ export class ApprovalService {
               )
             : null;
         if (!decision?.mayDecide) {
+          const operation = (
+            await this.operations.forRun(tx, {
+              runId: input.runId,
+              throughSequence: run.nextSequence,
+            })
+          ).find((candidate) => candidate.id === input.operationId);
+          if (!operation) throw new Error('AI approval decision refused');
           const rejected = await this.operations.rejectApprovalForAccessLoss(
             tx,
             {
@@ -97,8 +104,28 @@ export class ApprovalService {
           )
             throw new Error('AI approval decision refused');
           const provider = asRecord(run.resolvedConfig).provider;
-          if (typeof provider !== 'string')
+          if (
+            typeof provider !== 'string' ||
+            !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+          )
             throw new Error('AI approval decision refused');
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            type: 'chat.tool_operation.v1',
+            occurredAt: new Date().toISOString(),
+            outcome: 'failure',
+            orgId: actor.orgId,
+            actorUserId: actor.userId,
+            metadata: {
+              runId: run.id,
+              stepId: operation.stepId,
+              operationId: operation.id,
+              model: run.modelId,
+              provider,
+              status: 'failed',
+            },
+          });
           await this.audit.append(tx, {
             version: 1,
             eventId: randomUUID(),

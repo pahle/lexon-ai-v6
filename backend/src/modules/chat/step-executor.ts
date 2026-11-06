@@ -1046,6 +1046,7 @@ export class StepExecutor {
             default:
               throw new Error('AI operation access-loss state is invalid');
           }
+          await this.#appendToolAudit(tx, claim, operation.id, 'failed');
         }
       },
     });

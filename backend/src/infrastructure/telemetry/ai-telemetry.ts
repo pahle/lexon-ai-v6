@@ -3,6 +3,7 @@ import {
   SpanStatusCode,
   trace,
   type Span,
+  type SpanContext,
   type TextMapPropagator,
   type Tracer,
 } from '@opentelemetry/api';
@@ -25,7 +26,10 @@ const attributeAliases: Readonly<Record<string, string>> = {
   'gen_ai.request.model': 'model',
   'gen_ai.provider.name': 'provider',
 };
-const identifier = /^[a-zA-Z0-9._:-]{1,128}$/;
+const uuid =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const modelName = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/;
+const providerName = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,79}$/;
 const statuses = new Set(['started', 'succeeded', 'failed', 'cancelled']);
 const safeCodes = new Set([
   'AI_INTERNAL',
@@ -100,7 +104,7 @@ function safeSpanPort(span: Span): SafeAiSpan {
           span.setAttribute(key, value);
         return;
       }
-      if (typeof value !== 'string' || identifier.test(value))
+      if (typeof value === 'string' && isSafeAttribute(key, value))
         span.setAttribute(key, value);
     },
     setStatus(status) {
@@ -185,26 +189,71 @@ function sanitizeSpan(
   for (const [sourceKey, value] of Object.entries(span.attributes)) {
     const key = attributeAliases[sourceKey] ?? sourceKey;
     if (!allowedAttributes.has(key)) continue;
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      if (key === 'status' && !statuses.has(String(value))) continue;
-      if (key === 'safeCode' && !safeCodes.has(String(value))) continue;
-      if (typeof value === 'string' && !identifier.test(value)) continue;
+    if (typeof value === 'string' && isSafeAttribute(key, value))
       attributes[key] = value;
-    }
   }
+  const spanContext = sanitizeSpanContext(span.spanContext());
   return {
-    ...span,
+    name: safeSpanName(span.name),
+    kind: span.kind,
+    spanContext: () => spanContext,
+    ...(span.parentSpanContext
+      ? { parentSpanContext: sanitizeSpanContext(span.parentSpanContext) }
+      : {}),
+    startTime: span.startTime,
+    endTime: span.endTime,
+    duration: span.duration,
+    ended: span.ended,
     attributes,
     events: [],
     links: [],
     status: { code: span.status.code, message: '' },
     resource: {
-      ...span.resource,
       attributes: { 'service.name': serviceName },
-    },
+    } as unknown as import('@opentelemetry/sdk-trace-base').ReadableSpan['resource'],
+    instrumentationScope: {
+      name: 'lexon.ai',
+      version: '1.0.0',
+      attributes: {},
+    } as import('@opentelemetry/sdk-trace-base').ReadableSpan['instrumentationScope'],
+    droppedAttributesCount: span.droppedAttributesCount,
+    droppedEventsCount: 0,
+    droppedLinksCount: 0,
+  };
+}
+
+function isSafeAttribute(key: string, value: string): boolean {
+  if (
+    key === 'runId' ||
+    key === 'stepId' ||
+    key === 'operationId' ||
+    key === 'attemptId'
+  )
+    return uuid.test(value);
+  if (key === 'model') return modelName.test(value);
+  if (key === 'provider') return providerName.test(value);
+  if (key === 'status') return statuses.has(value);
+  if (key === 'safeCode') return safeCodes.has(value);
+  return false;
+}
+
+function safeSpanName(name: string): string {
+  if (safeNames.has(name)) return name;
+  if (name.startsWith('execute_tool ')) return 'ai.tool';
+  if (name.startsWith('invoke_agent ')) return 'ai.run';
+  if (/^step [0-9]+$/.test(name)) return 'ai.step';
+  return 'ai.model';
+}
+
+function sanitizeSpanContext(spanContext: SpanContext): SpanContext {
+  return {
+    traceId: /^[0-9a-f]{32}$/i.test(spanContext.traceId)
+      ? spanContext.traceId
+      : '00000000000000000000000000000000',
+    spanId: /^[0-9a-f]{16}$/i.test(spanContext.spanId)
+      ? spanContext.spanId
+      : '0000000000000000',
+    traceFlags: spanContext.traceFlags & 0xff,
+    isRemote: false,
   };
 }

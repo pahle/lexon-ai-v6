@@ -60,18 +60,34 @@ test('AI audit stores safe metadata transactionally and rejects prompt fields', 
         } as never),
       ),
     ).rejects.toThrow('Invalid audit event');
-    await expect(
-      inspect.appendDirect({
-        eventId: randomUUID(),
-        version: 1,
-        type: 'chat.tool_operation.v1',
-        occurredAt: new Date().toISOString(),
-        outcome: 'success',
-        orgId,
-        actorUserId,
-        metadata: { runId, status: 'proposed' },
-      }),
-    ).rejects.toThrow('Invalid AI audit event');
+    const validToolMetadata = {
+      runId,
+      stepId: randomUUID(),
+      operationId: randomUUID(),
+      model: 'openai/gpt-6-luna',
+      provider: 'azure/us',
+      status: 'proposed',
+    };
+    for (const metadata of [
+      { ...validToolMetadata, stepId: null },
+      { ...validToolMetadata, operationId: null },
+      { ...validToolMetadata, model: null },
+      { ...validToolMetadata, provider: null },
+      { ...validToolMetadata, model: 123 },
+      { ...validToolMetadata, provider: true },
+    ])
+      await expect(
+        inspect.appendDirect({
+          eventId: randomUUID(),
+          version: 1,
+          type: 'chat.tool_operation.v1',
+          occurredAt: new Date().toISOString(),
+          outcome: 'success',
+          orgId,
+          actorUserId,
+          metadata,
+        }),
+      ).rejects.toThrow('Invalid AI audit event');
   } finally {
     await Promise.all([inspect.close(), db.close()]);
   }

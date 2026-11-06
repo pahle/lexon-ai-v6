@@ -143,6 +143,8 @@ export function classifyImport({
     target === 'backend/src/infrastructure/db/index.js';
   const authTarget = target?.replace(/\.js$/, '.ts');
   const testSource = source.startsWith('backend/test/');
+  if (target?.startsWith('backend/test/') && !testSource)
+    return deny('test-private');
   if (dbPublic && owner === 'backend' && !inDb && !testSource && !typeOnly) {
     if (
       names.includes('*') ||

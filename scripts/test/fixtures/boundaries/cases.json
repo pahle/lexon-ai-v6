@@ -490,5 +490,11 @@
     "importer": "backend/test/unit/ai-telemetry.spec.ts",
     "code": "import { registerTelemetry } from 'ai';",
     "rule": null
+  },
+  {
+    "name": "chat cannot import an AI SDK test bridge",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import {runCanary} from '../../../test/unit/ai-telemetry.spec.js';",
+    "rule": "test-private"
   }
 ]

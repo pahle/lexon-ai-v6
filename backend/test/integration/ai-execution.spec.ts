@@ -1916,6 +1916,7 @@ test('initiator access loss before a decision finishes the stream from the actua
   services,
 }) => {
   const ai = await createAiFixture(services);
+  const audit = createAuditInspector(services);
   const api = await identityApiHarness(services);
   const organizations = createOrganizationInspector({
     migratorUrl: services.migratorUrl,
@@ -2027,6 +2028,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
       )
     )[0]!;
+    const toolAuditBeforeForeign = await audit.count('chat.tool_operation.v1');
     await expect(
       actorScope(
         { orgId: foreignTeam.id, userId: foreignUser.profile.id },
@@ -2040,6 +2042,9 @@ test('initiator access loss before a decision finishes the stream from the actua
           }),
       ),
     ).rejects.toThrow('AI approval decision refused');
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBeforeForeign,
+    );
     expect(
       await ai.database.withTenant(tenant, (tx) => h.runs.find(tx, h.runId)),
     ).toMatchObject({ status: 'awaiting_approval' });
@@ -2107,6 +2112,22 @@ test('initiator access loss before a decision finishes the stream from the actua
       status: 'rejected',
       errorCode: 'AI_ACCESS_REVOKED',
     });
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBeforeForeign + 1,
+    );
+    await expect(
+      actorScope(tenant, h.authorization, (actor) =>
+        approvals.decide(actor, {
+          runId: h.runId,
+          operationId: operation.id,
+          snapshotHash: operation.snapshotHash,
+          decision: 'approve',
+        }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBeforeForeign + 1,
+    );
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
@@ -2150,6 +2171,7 @@ test('initiator access loss before a decision finishes the stream from the actua
     redis.disconnect();
     await streams.close();
     await organizations.close();
+    await audit.close();
     await api.close();
     await ai.close();
   }
@@ -2463,6 +2485,8 @@ test('decision uses the current organization two-factor requirement', async ({
 }) => {
   const ai = await createAiFixture(services);
   const api = await identityApiHarness(services);
+  let audit = createAuditInspector(services);
+  let auditClosed = false;
   const organizations = createOrganizationInspector({
     migratorUrl: services.migratorUrl,
   });
@@ -2494,7 +2518,39 @@ test('decision uses the current organization two-factor requirement', async ({
       profile,
       tenant,
     );
+    const toolAuditBefore = await audit.count('chat.tool_operation.v1');
+    const finishAuditBefore = await audit.count('chat.run_finished.v1');
     await organizations.setRequire2fa(team.id, true);
+    await audit.rejectInserts();
+    await expect(
+      actorScope(tenant, h.authorization, (actor) =>
+        approvals.decide(actor, {
+          runId: h.runId,
+          operationId: operation.id,
+          snapshotHash: operation.snapshotHash,
+          decision: 'approve',
+        }),
+      ),
+    ).rejects.toThrow('injected-audit-failure');
+    expect(
+      await ai.database.withTenant(tenant, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'awaiting_approval' });
+    expect(
+      await ai.database.withTenant(tenant, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: operation.id,
+        status: 'awaiting_approval',
+      }),
+    ]);
+    expect(await ai.orgSlotCountFor(tenant)).toBe(1);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(toolAuditBefore);
+    expect(await audit.count('chat.run_finished.v1')).toBe(finishAuditBefore);
+    await audit.close();
+    auditClosed = true;
+    audit = createAuditInspector(services);
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
         approvals.decide(actor, {
@@ -2523,7 +2579,28 @@ test('decision uses the current organization two-factor requirement', async ({
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 2)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 1,
+    );
+    expect(await audit.count('chat.run_finished.v1')).toBe(
+      finishAuditBefore + 1,
+    );
+    await expect(
+      actorScope(tenant, h.authorization, (actor) =>
+        approvals.decide(actor, {
+          runId: h.runId,
+          operationId: operation.id,
+          snapshotHash: operation.snapshotHash,
+          decision: 'approve',
+        }),
+      ),
+    ).rejects.toThrow('AI approval decision refused');
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 1,
+    );
   } finally {
+    if (!auditClosed) await audit.close();
+    else await audit.close();
     await organizations.close();
     await api.close();
     await ai.close();
@@ -2669,11 +2746,13 @@ test('mixed pending and approved operations terminate on membership loss before 
   services,
 }) => {
   const ai = await createAiFixture(services);
+  const audit = createAuditInspector(services);
   const api = await identityApiHarness(services);
   const organizations = createOrganizationInspector({
     migratorUrl: services.migratorUrl,
   });
   try {
+    const toolAuditBefore = await audit.count('chat.tool_operation.v1');
     const initiator = await api.user('Mixed operation initiator');
     const remainingOwner = await api.user('Mixed operation remaining owner');
     const team = await organizations.seedTeam([
@@ -2760,6 +2839,9 @@ test('mixed pending and approved operations terminate on membership loss before 
       'awaiting_approval',
       'awaiting_approval',
     ]);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 3,
+    );
     const approved = operations[1]!;
     await actorScope(tenant, h.authorization, (actor) =>
       approvals.decide(actor, {
@@ -2815,6 +2897,22 @@ test('mixed pending and approved operations terminate on membership loss before 
         errorCode: 'AI_ACCESS_REVOKED',
       }),
     ]);
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 6,
+    );
+    await h.executor.execute(
+      job(
+        h.runId,
+        tenant,
+        payload.sequence,
+        payload.expectedVersion,
+        'run.resume.v1',
+      ),
+      { signal: new AbortController().signal },
+    );
+    expect(await audit.count('chat.tool_operation.v1')).toBe(
+      toolAuditBefore + 6,
+    );
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
@@ -2824,6 +2922,7 @@ test('mixed pending and approved operations terminate on membership loss before 
       ),
     ).toMatchObject({ state: 'committed', leaseUntil: null });
   } finally {
+    await audit.close();
     await organizations.close();
     await api.close();
     await ai.close();
