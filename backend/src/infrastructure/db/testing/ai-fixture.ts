@@ -21,6 +21,30 @@ interface TenantFixture {
   readonly orgId: string;
   readonly userId: string;
 }
+
+export async function recordAiTestToolEffect(
+  tx: TenantSession,
+  operationId: string,
+  value: string,
+): Promise<void> {
+  const { client, ctx } = requireSession(tx);
+  await client.query(
+    'INSERT INTO app.ai_test_tool_effects(org_id,operation_id,value) VALUES($1,$2,$3)',
+    [ctx.orgId, operationId, value],
+  );
+}
+
+export async function queryAiTestSession(tx: TenantSession): Promise<void> {
+  await requireSession(tx).client.query('SELECT 1');
+}
+
+export async function sleepInAiTestSession(
+  tx: TenantSession,
+  seconds: number,
+): Promise<void> {
+  await requireSession(tx).client.query('SELECT pg_sleep($1)', [seconds]);
+}
+
 const knownTenants: TenantFixture[] = [];
 
 function deferred<T>() {
@@ -85,6 +109,24 @@ export async function createAiFixture(services: Services) {
     await migrator.end();
     throw error;
   }
+
+  // Test-only transactional effect target. It is deliberately absent from
+  // production migrations and can only be written under the tenant RLS scope.
+  await migrator.query(`
+    CREATE TABLE IF NOT EXISTS app.ai_test_tool_effects (
+      org_id uuid NOT NULL,
+      operation_id uuid NOT NULL,
+      value text NOT NULL,
+      PRIMARY KEY (org_id,operation_id)
+    );
+    ALTER TABLE app.ai_test_tool_effects ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE app.ai_test_tool_effects FORCE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS tenant_boundary ON app.ai_test_tool_effects;
+    CREATE POLICY tenant_boundary ON app.ai_test_tool_effects FOR ALL TO lexon_app
+      USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid)
+      WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);
+    GRANT SELECT,INSERT,UPDATE,DELETE ON app.ai_test_tool_effects TO lexon_app;
+  `);
 
   const database = new TenantDatabase({
     appUrl: services.appUrl,
@@ -262,6 +304,14 @@ export async function createAiFixture(services: Services) {
         index,
         'SELECT count(*)::text AS count FROM ops.outbox WHERE org_id=$1 AND type=$2',
         [type],
+      );
+    },
+    async toolEffectCount(index: number): Promise<number> {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return countScoped(
+        index,
+        'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
       );
     },
     async outboxForRun(index: number, runId: string) {

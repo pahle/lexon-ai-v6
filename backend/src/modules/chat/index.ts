@@ -6,6 +6,13 @@ export { canTransition } from './run-state.js';
 export { RunService } from './run.service.js';
 export { StepCoordinator } from './step-coordinator.js';
 export { StepExecutor } from './step-executor.js';
+export {
+  boundToolResult,
+  chooseToolRecovery,
+  ToolExecutor,
+  toolResultsAsMessages,
+  type ToolResult,
+} from './tool-executor.js';
 export { ChatModule } from './chat.module.js';
 export type {
   ContextPiece,

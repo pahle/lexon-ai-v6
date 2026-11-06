@@ -1,11 +1,17 @@
 import type { JobEnvelope } from '../../infrastructure/db/index.js';
 import {
   AiRunRepository,
+  AiOperationRepository,
   AiStepRepository,
   OutboxRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
-import type { StepClaim, StepCommit } from '../../infrastructure/db/index.js';
+import type {
+  OperationProposal,
+  StepClaim,
+  StepCommit,
+  TenantSession,
+} from '../../infrastructure/db/index.js';
 import type { ReportedUsage } from '../../infrastructure/db/index.js';
 import type { JobExecutor } from '../platform/index.js';
 import { AttemptService, UsageClaimLostError } from '../usage/index.js';
@@ -39,7 +45,12 @@ export interface StepCoordinatorCommit extends StepCommit {
     usage?: Partial<ReportedUsage>;
     costUsd?: string;
   }>;
-  readonly operationProposals?: readonly unknown[];
+  readonly operationProposals?: readonly OperationProposal[];
+  readonly transactionWork?: (
+    tx: TenantSession,
+    signal?: AbortSignal,
+  ) => Promise<void>;
+  readonly transactionTimeoutMs?: number;
 }
 
 export type ClaimResult =
@@ -58,6 +69,7 @@ export class StepCoordinator {
     private readonly outbox: OutboxRepository,
     private readonly executor: JobExecutor,
     private readonly leaseMs = 30_000,
+    private readonly operations?: AiOperationRepository,
   ) {}
 
   async claim(job: JobEnvelope): Promise<ClaimResult> {
@@ -130,13 +142,16 @@ export class StepCoordinator {
       commit.attemptSettlement?.outcome === 'unknown' ||
       (commit.outcome !== undefined &&
         commit.attemptSettlement !== undefined &&
-        commit.outcome !== commit.attemptSettlement.outcome)
+        commit.outcome !== commit.attemptSettlement.outcome) ||
+      (commit.transactionWork !== undefined &&
+        (!Number.isSafeInteger(commit.transactionTimeoutMs) ||
+          commit.transactionTimeoutMs! < 1))
     )
       return 'stale';
     try {
       const outcome = await this.database.withTenant<'committed' | 'stale'>(
         job.ctx,
-        async (tx) => {
+        async (tx, signal) => {
           await this.steps.lockTenantClaimGuard(tx);
           const result = await this.executor.executeWithin(
             tx,
@@ -171,13 +186,27 @@ export class StepCoordinator {
                 }))
               )
                 throw new StaleCommit();
+              if (commit.transactionWork)
+                await commit.transactionWork(session, signal);
+              const persistedOperations = [];
+              for (const proposal of commit.operationProposals ?? []) {
+                if (!this.operations)
+                  throw new Error('AI operation persistence unavailable');
+                persistedOperations.push(
+                  await this.operations.persist(session, claim, proposal),
+                );
+              }
               const data =
                 commit.operationProposals || commit.outcome
                   ? {
                       value: commit.data,
                       ...(commit.outcome ? { outcome: commit.outcome } : {}),
                       ...(commit.operationProposals
-                        ? { operationProposals: commit.operationProposals }
+                        ? {
+                            operationIds: persistedOperations.map(
+                              (operation) => operation.id,
+                            ),
+                          }
                         : {}),
                     }
                   : commit.data;
@@ -266,6 +295,9 @@ export class StepCoordinator {
           void result;
           return 'committed';
         },
+        commit.transactionTimeoutMs !== undefined
+          ? { timeoutMs: commit.transactionTimeoutMs }
+          : {},
       );
       return outcome;
     } catch (error) {

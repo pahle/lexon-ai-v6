@@ -6,6 +6,7 @@ import { AiRunRepository } from './ai-run.repository.js';
 import { AiStepRepository } from './ai-step.repository.js';
 import { AiAttemptRepository } from './ai-attempt.repository.js';
 import { AiCapacityRepository } from './ai-capacity.repository.js';
+import { AiOperationRepository } from './ai-operation.repository.js';
 
 @Module({})
 export class DbModule {
@@ -23,6 +24,7 @@ export class DbModule {
         AiRunRepository,
         AiStepRepository,
         AiAttemptRepository,
+        AiOperationRepository,
         {
           provide: AiCapacityRepository,
           inject: [TenantDatabase],
@@ -41,6 +43,7 @@ export class DbModule {
         AiRunRepository,
         AiStepRepository,
         AiAttemptRepository,
+        AiOperationRepository,
         AiCapacityRepository,
       ],
     };

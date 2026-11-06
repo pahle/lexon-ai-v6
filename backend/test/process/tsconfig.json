@@ -7,6 +7,6 @@
     "sourceMap": false,
     "noEmit": false
   },
-  "include": ["worker-main.ts", "runtime-trace.ts"],
+  "include": ["worker-main.ts", "runtime-trace.ts", "tool-operation-worker.ts"],
   "exclude": []
 }

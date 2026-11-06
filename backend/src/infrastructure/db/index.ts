@@ -20,6 +20,8 @@ export {
 } from './run-actor-facts.js';
 export { AiStepRepository } from './ai-step.repository.js';
 export { AiAttemptRepository } from './ai-attempt.repository.js';
+export { AiOperationRepository } from './ai-operation.repository.js';
+export { canonicalJson, hashOperationArgs } from './ai-operation.repository.js';
 export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {
@@ -41,6 +43,10 @@ export type {
   AttemptRecord,
   AttemptInsert,
   ReportedUsage,
+  OperationProposal,
+  OperationRecord,
+  AiOperationMode,
+  AiOperationStatus,
 } from './ai-records.js';
 export type {
   AdminSetupOperator,

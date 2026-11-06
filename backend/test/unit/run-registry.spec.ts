@@ -143,6 +143,23 @@ describe('run registry', () => {
     ).toThrow();
   });
 
+  it('F3 rejects correctly shaped external write adapters at registration', () => {
+    const registry = new RunRegistry();
+    expect(() =>
+      registry.register(
+        registrations({
+          tools: [
+            {
+              ...transactionalWriteTool,
+              idempotency: { mode: 'idempotency-key' },
+              executeExternal: async () => ({ ok: true }),
+            } as never,
+          ],
+        }),
+      ),
+    ).toThrow(/unsupported.*F3|F3.*unsupported/i);
+  });
+
   it('empty production registry', () => {
     expect(PRODUCTION_ENGINE_REGISTRATIONS).toEqual({
       profiles: [],

@@ -64,6 +64,10 @@ export class RunRegistry {
   context(id: string): ContextProvider | undefined {
     return this.#contexts.get(id);
   }
+
+  tool(id: string): ToolDefinition | undefined {
+    return this.#tools.get(id);
+  }
 }
 
 function validateProfile(profile: RunProfile): void {
@@ -187,7 +191,7 @@ function validateTool(
           throw new Error(
             'Idempotency-key mode requires an external execution callback',
           );
-        break;
+        throw new Error('Unsupported external write adapter in F3');
       case 'reconcile':
         if (
           !('executeExternal' in tool) ||
@@ -198,7 +202,7 @@ function validateTool(
           throw new Error(
             'Reconcile mode requires execution and reconciliation callbacks',
           );
-        break;
+        throw new Error('Unsupported external write adapter in F3');
       default:
         throw new Error('Unsupported write idempotency mode');
     }

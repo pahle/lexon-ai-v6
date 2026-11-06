@@ -75,6 +75,34 @@ export interface StepClaim {
   readonly leaseUntil: Date;
 }
 
+export type AiOperationMode =
+  'read' | 'transactional' | 'idempotency-key' | 'reconcile';
+export type AiOperationStatus =
+  'pending' | 'awaiting_approval' | 'succeeded' | 'failed' | 'outcome_unknown';
+
+export interface OperationProposal {
+  readonly callOccurrence: number;
+  readonly toolName: string;
+  readonly toolVersion: number;
+  readonly mode: AiOperationMode;
+  readonly args: unknown;
+  readonly argsHash: string;
+  readonly snapshotHash: string;
+  readonly approvalRequired: boolean;
+}
+
+export interface OperationRecord extends OperationProposal {
+  readonly id: string;
+  readonly orgId: string;
+  readonly runId: string;
+  readonly stepId: string;
+  readonly status: AiOperationStatus;
+  readonly result: unknown | null;
+  readonly errorCode: string | null;
+  readonly createdAt: Date;
+  readonly completedAt: Date | null;
+}
+
 export interface StepCommit {
   readonly state: 'committed' | 'awaiting_approval';
   readonly text: string;

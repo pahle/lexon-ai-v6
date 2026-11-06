@@ -1,6 +1,7 @@
 import type { Provider } from '@nestjs/common';
 import type { RuntimeConfig } from '../config/runtime-config.js';
 import {
+  AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
   OutboxRepository,
@@ -89,6 +90,7 @@ export function aiWorkerProviders(
         gateway: ModelGateway,
         streams: RunStreams,
       ) => {
+        const operations = new AiOperationRepository();
         const coordinator = new StepCoordinator(
           db,
           runs,
@@ -96,11 +98,14 @@ export function aiWorkerProviders(
           new AttemptService(),
           outbox,
           new JobExecutor(db),
+          undefined,
+          operations,
         );
         return new StepExecutor({
           database: db,
           runs,
           steps,
+          operations,
           facts: new RunActorFactsRepository(),
           authorization,
           coordinator,

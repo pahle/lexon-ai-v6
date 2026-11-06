@@ -127,6 +127,59 @@ export const aiSteps = app.table(
   ],
 );
 
+export const aiOperations = app.table(
+  'ai_operations',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    stepId: uuid('step_id').notNull(),
+    callOccurrence: integer('call_occurrence').notNull(),
+    toolName: text('tool_name').notNull(),
+    toolVersion: integer('tool_version').notNull(),
+    idempotencyMode: text('idempotency_mode').notNull(),
+    args: jsonb().notNull(),
+    argsHash: text('args_hash').notNull(),
+    snapshotHash: text('snapshot_hash').notNull(),
+    approvalRequired: boolean('approval_required').notNull(),
+    status: text().notNull(),
+    result: jsonb(),
+    errorCode: text('error_code'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('ai_operations_step_occurrence').on(
+      table.orgId,
+      table.runId,
+      table.stepId,
+      table.callOccurrence,
+    ),
+    uniqueIndex('ai_operations_org_run_id').on(
+      table.orgId,
+      table.runId,
+      table.id,
+    ),
+    index('ai_operations_run_status').on(
+      table.orgId,
+      table.runId,
+      table.status,
+      table.stepId,
+      table.callOccurrence,
+    ),
+    foreignKey({
+      name: 'ai_operations_run_fk',
+      columns: [table.orgId, table.runId],
+      foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'ai_operations_step_fk',
+      columns: [table.orgId, table.runId, table.stepId],
+      foreignColumns: [aiSteps.orgId, aiSteps.runId, aiSteps.id],
+    }).onDelete('cascade'),
+  ],
+);
+
 export const aiAttempts = app.table(
   'ai_attempts',
   {

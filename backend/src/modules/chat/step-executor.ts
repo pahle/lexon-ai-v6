@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { RunStreamEvent } from '@lexon/contracts';
 import type {
+  AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
   RunActorFactsRepository,
   StepClaim,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
+import { hashOperationArgs } from '../../infrastructure/db/index.js';
 import type {
   ModelEvent,
   ModelGateway,
@@ -15,13 +17,18 @@ import type {
   ReportedUsage,
 } from '../../infrastructure/ai/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
-import type { JobEnvelope } from '../../infrastructure/db/index.js';
+import type {
+  JobEnvelope,
+  OperationProposal,
+} from '../../infrastructure/db/index.js';
 import { AttemptService, UsagePolicyError } from '../usage/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunRegistry } from './run-registry.js';
 import type { ContextPiece, RunProfile } from './run-contracts.js';
 import { StepCoordinator } from './step-coordinator.js';
 import { fenceUntrusted } from './untrusted-context.js';
+import { canonicalOperationHash } from './canonical-operation.js';
+import { ToolExecutor, toolResultsAsMessages } from './tool-executor.js';
 
 const CHECKPOINT_INTERVAL_MS = 1000;
 const CHECKPOINT_BYTES = 8192;
@@ -31,6 +38,7 @@ export interface StepExecutorOptions {
   readonly database: TenantDatabase;
   readonly runs: AiRunRepository;
   readonly steps: AiStepRepository;
+  readonly operations?: AiOperationRepository;
   readonly facts: RunActorFactsRepository;
   readonly authorization: RunAuthorizationService;
   readonly coordinator: StepCoordinator;
@@ -43,10 +51,20 @@ export interface StepExecutorOptions {
 
 export class StepExecutor {
   readonly #modelCallTimeoutMs: number;
+  readonly #toolExecutor?: ToolExecutor;
 
   constructor(private readonly options: StepExecutorOptions) {
     this.#modelCallTimeoutMs =
       options.modelCallTimeoutMs ?? DEFAULT_MODEL_CALL_TIMEOUT_MS;
+    if (options.operations)
+      this.#toolExecutor = new ToolExecutor(
+        options.operations,
+        options.runs,
+        options.steps,
+        options.facts,
+        options.authorization,
+        options.registry,
+      );
     if (
       !Number.isSafeInteger(this.#modelCallTimeoutMs) ||
       this.#modelCallTimeoutMs < 1
@@ -90,6 +108,106 @@ export class StepExecutor {
       const initial = await this.#loadAndAuthorize(claim);
       if (!initial) return { kind: 'done' };
       const { run, profile, actorScope } = initial;
+      if (this.options.operations && this.#toolExecutor && claim.sequence > 1) {
+        const previousOperations = await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => this.options.operations!.pendingFromPreviousStep(tx, claim),
+        );
+        if (previousOperations.length) {
+          const operation = previousOperations[0]!;
+          if (operation.status === 'awaiting_approval') {
+            const paused = await this.options.coordinator.commit(job, claim, {
+              state: 'awaiting_approval',
+              text: '',
+              data: { operationId: operation.id },
+              advancement: 'continuation',
+              terminal: false,
+              outcome: 'succeeded',
+            });
+            if (paused === 'committed') await heartbeat.stop();
+            return { kind: 'done' };
+          }
+          const tool = this.options.registry.tool(operation.toolName);
+          if (
+            !tool ||
+            (tool.kind === 'read' && operation.mode !== 'read') ||
+            (tool.kind === 'write' &&
+              (tool.idempotency.mode !== 'transactional' ||
+                operation.mode !== 'transactional'))
+          ) {
+            const failed = await this.options.coordinator.commit(job, claim, {
+              state: 'committed',
+              text: '',
+              data: { operationId: operation.id },
+              advancement: 'continuation',
+              terminal: true,
+              outcome: 'failed',
+              errorCode: 'AI_TOOL_OUTCOME_UNKNOWN',
+            });
+            if (failed === 'committed') {
+              await heartbeat.stop();
+              await this.#finishIfTerminal(claim);
+            }
+            return { kind: 'done' };
+          }
+          let operationFailure = false;
+          let committed: 'committed' | 'stale';
+          try {
+            committed = await this.options.coordinator.commit(job, claim, {
+              state: 'committed',
+              text: '',
+              data: { operationId: operation.id },
+              advancement: 'continuation',
+              terminal: false,
+              outcome: 'succeeded',
+              transactionTimeoutMs: tool.timeoutMs,
+              transactionWork: async (tx, signal) => {
+                try {
+                  const result = await this.#toolExecutor!.execute(
+                    tx,
+                    claim,
+                    operation.id,
+                    signal ?? heartbeat.signal,
+                  );
+                  if (result.status !== 'succeeded')
+                    throw new Error('AI tool operation was not successful');
+                } catch (error) {
+                  operationFailure = true;
+                  throw error;
+                }
+              },
+            });
+          } catch (error) {
+            if (
+              !operationFailure &&
+              !(error instanceof Error && error.message.includes('timed out'))
+            )
+              throw error;
+            const message = error instanceof Error ? error.message : '';
+            const errorCode = message.includes('timed out')
+              ? 'AI_TOOL_TIMEOUT'
+              : message.includes('authorization denied')
+                ? 'AI_ACCESS_REVOKED'
+                : 'AI_INTERNAL';
+            const failed = await this.options.coordinator.commit(job, claim, {
+              state: 'committed',
+              text: '',
+              data: { operationId: operation.id },
+              advancement: 'continuation',
+              terminal: true,
+              outcome: 'failed',
+              errorCode,
+            });
+            if (failed === 'committed') {
+              await heartbeat.stop();
+              await this.#finishIfTerminal(claim);
+            }
+            return { kind: 'done' };
+          }
+          if (committed === 'committed') await heartbeat.stop();
+          return { kind: 'done' };
+        }
+      }
       const maxAttempts = profile.maxAttemptsPerStep ?? 2;
       const contexts = await actorScope.run(async (actor) => {
         const pieces: ContextPiece[] = [];
@@ -108,6 +226,16 @@ export class StepExecutor {
         }
         return pieces;
       });
+      const operationHistory = this.options.operations
+        ? await this.options.database.withTenant(
+            { orgId: claim.orgId, userId: claim.userId },
+            (tx) =>
+              this.options.operations!.forRun(tx, {
+                runId: claim.runId,
+                throughSequence: claim.sequence,
+              }),
+          )
+        : [];
       for (let ordinal = 1; ordinal <= maxAttempts; ordinal++) {
         heartbeat.throwIfAborted();
         let attemptText = '';
@@ -128,6 +256,7 @@ export class StepExecutor {
             ...(run.partialOutput
               ? [{ role: 'assistant' as const, content: run.partialOutput }]
               : []),
+            ...toolResultsAsMessages(operationHistory),
           ],
           maxOutputTokens: profile.maxOutputTokens,
           signal: durable.signal,
@@ -417,6 +546,15 @@ export class StepExecutor {
       }
       if (!finalOutcome) throw new Error('AI model outcome unavailable');
       const succeeded = finalOutcome.attemptOutcome === 'succeeded';
+      const prepared =
+        succeeded && proposals.length
+          ? prepareOperationProposals(proposals, this.options.registry, profile)
+          : [];
+      const invalidProposals = prepared === null;
+      const operationProposals = prepared ?? [];
+      const requiresApproval = operationProposals.some(
+        (operation) => operation.approvalRequired,
+      );
       const iterationLimit =
         run.modelIterations + 1 >= initial.profile.maxIterations;
       const continueLength =
@@ -436,20 +574,26 @@ export class StepExecutor {
               outcome: 'unknown',
             }),
         );
-      const terminal = !continueLength;
+      const terminal =
+        invalidProposals ||
+        (!continueLength && operationProposals.length === 0);
       const committed = await this.options.coordinator.commit(job, claim, {
-        state: 'committed',
+        state: requiresApproval ? 'awaiting_approval' : 'committed',
         text,
         data: { outcome: finalOutcome.finishReason },
         advancement: 'generation',
         terminal,
         outcome: succeeded ? 'succeeded' : 'failed',
-        ...(iterationLimit && finalOutcome.finishReason === 'length'
-          ? { errorCode: 'AI_ITERATION_LIMIT' as const }
-          : unknown
-            ? { errorCode: finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE' }
-            : {}),
-        ...(proposals.length ? { operationProposals: proposals } : {}),
+        ...(invalidProposals
+          ? { errorCode: 'AI_INVALID_TOOL' as const }
+          : iterationLimit && finalOutcome.finishReason === 'length'
+            ? { errorCode: 'AI_ITERATION_LIMIT' as const }
+            : unknown
+              ? {
+                  errorCode: finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
+                }
+              : {}),
+        ...(operationProposals.length ? { operationProposals } : {}),
         ...(!unknown
           ? {
               attemptSettlement: {
@@ -532,6 +676,51 @@ export class StepExecutor {
         type: 'finish',
       });
   }
+}
+
+function prepareOperationProposals(
+  proposals: readonly Extract<ModelEvent, { type: 'tool-proposal' }>[],
+  registry: RunRegistry,
+  profile: RunProfile,
+): OperationProposal[] | null {
+  const operations: OperationProposal[] = [];
+  for (const [callOccurrence, proposal] of proposals.entries()) {
+    const tool = registry.tool(proposal.toolName);
+    if (
+      !tool ||
+      (tool.kind === 'write' && tool.idempotency.mode !== 'transactional') ||
+      tool.capabilities.some(
+        (capability) => !profile.capabilities.includes(capability),
+      )
+    )
+      return null;
+    const inputBytes = Buffer.byteLength(
+      JSON.stringify(proposal.input),
+      'utf8',
+    );
+    if (inputBytes > (tool.maxInputBytes ?? 16_384)) return null;
+    const parsed = tool.inputSchema.safeParse(proposal.input);
+    if (!parsed.success) return null;
+    try {
+      operations.push({
+        callOccurrence,
+        toolName: tool.id,
+        toolVersion: tool.version,
+        mode: tool.kind === 'read' ? 'read' : 'transactional',
+        args: parsed.data,
+        argsHash: hashOperationArgs(parsed.data),
+        snapshotHash: canonicalOperationHash({
+          toolId: tool.id,
+          toolVersion: tool.version,
+          args: parsed.data,
+        }),
+        approvalRequired: tool.requiresApproval,
+      });
+    } catch {
+      return null;
+    }
+  }
+  return operations;
 }
 
 function validateContextPieces(
