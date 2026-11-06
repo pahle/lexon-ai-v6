@@ -1,6 +1,6 @@
 # Task 9 continuation report
 
-**Status:** implementation and evidence are ready for controller review; Task 9 is not self-accepted. Work is local on `f3-ai-run-engine`; no push or commit was made during this implementation pass.
+**Status:** implementation and evidence are ready for controller review; Task 9 is not self-accepted. The earlier implementation is committed at `dfa0627`; this review-fix round is local on `f3-ai-run-engine` and will be committed without pushing.
 
 ## Owner latency evidence
 
@@ -40,3 +40,37 @@ The previous twenty values remain in that JSON under the exact label **`contende
 The earlier implementation stage added the worker composition, identity-owned actor scope, metadata persistence, provisional checkpointing, retry/usage handling, durable settlement, `length` continuation, inert tool-proposal persistence, and actual queue-job harness. Earlier focused checks passed 18 tests/3 integration files, 9 unit tests for registry behavior, and backend typecheck. That earlier hop set is now explicitly historical and invalid for the owner gate due to measured busy deferrals.
 
 Earlier setup REDs were: missing executor module in the prescribed three-file integration command; callable context registration assertion; estimator fixture below the fixed 1024-token overhead; and hop harness timeout from using a transaction-only outbox repository instead of one bound to the tenant database. Those were corrected in the prior implementation stage and are not acceptance evidence by themselves.
+
+## Review-fix round 1/5 (base `dfa0627`)
+
+The owner review identified five lifecycle gaps. The new named integration regressions were first run against the `dfa0627` implementation and reproduced these REDs: short-lease context and retry runs lost the claim; the deadline test timed out waiting on an unresponsive gateway; hostile context reached the gateway without a data-only preamble/fence; engine metadata/publication errors left iterator cleanup incomplete; a gated checkpoint never persisted the later text revision; and retry-refusal/over-reserved terminal commits did not finish streams. These cases are included by name in the final GREEN commands below.
+
+- **R1 — claim renewal scope:** heartbeat now starts synchronously after successful claim and before stream recovery or any subsequent await. One serialized renewal chain covers context collection, reservation, generation, checkpoints, retry settlement and backoff, and receipt settlement; all returns await renewal teardown. The production lease and renewal defaults remain 30,000 ms and 5,000 ms. The model call deadline defaults to 60,000 ms, and its test override accepts only positive safe integers. Retry backoff listens to the heartbeat signal.
+- **R2 — iterator cleanup:** engine failures abort the model signal, await iterator `return()`, and preserve the original engine/permit reason if cleanup also errors. Provider-error handling remains scoped to iterator acquisition and `next()`.
+- **R3 — checkpoint ownership:** checkpoint writes serialize around a captured attempt, revision, and byte prefix. Success acknowledges only that captured prefix, leaving text appended during the write dirty for the next flush. The timed flush runs while a stream is paused; teardown clears the timer and awaits checkpoint ownership before settlement or retry.
+- **R4 — untrusted context:** every context piece uses the existing `fenceUntrusted(text, label)` nonce fence and the system message explicitly treats enclosed content as data. The regression inspects the actual gateway input.
+- **R5 — durable terminal finalization:** after each successful terminal-capable commit, the executor reads durable run status and emits one finish only for a terminal row. Retry-reservation refusal and over-reserved `length` completion assert one finish, no successor outbox, and no later event.
+
+Final covering GREEN command and output:
+
+```text
+pnpm exec vitest run --project backend-integration ai-execution.spec ai-step-concurrency.spec ai-attempts.spec
+```
+
+Exit **0**; **3 test files passed, 60 tests passed**. The focused review-regression run also passed:
+
+```text
+pnpm exec vitest run --project backend-integration ai-execution.spec -t 'stops claim renewal after an early context error|checkpoint ownership loss|caller cancellation reaches|model-call deadline|renews a short-lived claim while the context|renews through the bounded retry|serializes timed checkpoints|context labels and text|metadata persistence failure aborts|stale stream publication aborts|retry reservation failure|over-reserved length completion'
+```
+
+Exit **0**; **12 passed, 15 skipped**. The final covering run was repeated after the lint correction and final heartbeat checks.
+
+Final-source gates:
+
+- `pnpm typecheck` — exit **0** for shared, backend, frontend, and evals.
+- `pnpm build` — exit **0** for shared, backend, frontend, and evals.
+- `pnpm lint` — exit **0**; **86/86 boundary checks passed**. The first lint run found an unsafe throw in `finally` and a redundant catch. Cleanup now records its error through teardown and throws afterward, preserving any primary engine failure.
+- `pnpm format:check` — exit **0**; all matched files use Prettier style.
+- `git diff --check` — exit **0**.
+
+The deadline composes `AbortController` signals and preserves `AbortSignal.reason`, following the official [Node.js v24.22.1 globals documentation](https://nodejs.org/download/release/v24.22.1/docs/api/globals.html#class-abortcontroller), checked 2026-11-06. No real model calls were made; no model or Valkey I/O runs in a SQL transaction.
