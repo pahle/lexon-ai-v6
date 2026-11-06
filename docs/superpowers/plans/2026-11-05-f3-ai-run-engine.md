@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node 24.22.1, pnpm 10.33.1, TypeScript 6.0.3, Zod 4.6.7, Nest 12.3.2, ai 7.0.159, OpenRouter provider 3.1.0, BullMQ 6.5.3 / Nest adapter 12.0.0, Valkey 9.0.7, PostgreSQL 17.11, Drizzle 0.45.4 / Kit 0.31.11, Vitest 5.0.5; exact existing image manifest.
 
-**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–11 accepted after review; Tasks12–17 remain pending. Task11 retains a disclosed historical TDD process deviation for its initial hash/concurrency assertions.
+**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–12 accepted after functional review; Tasks13–17 remain pending. Tasks11–12 retain disclosed historical TDD process deviations for initial hash/concurrency assertions and the corrected overrun regression, respectively. The pinned-driver cleanup warning is tracked for final review.
 
 ## Execution amendment — owner, 2026-11-06
 
@@ -422,7 +422,7 @@ expect(resumedAfterAccessLoss.errorCode).toBe('AI_ACCESS_REVOKED');
 
 **Research:** AI SDK abort/stream cleanup, BullMQ stalled recovery6.5.3, PostgreSQL fencing, Valkey final script ordering; read existing F0 process harness and outage proxy.
 
-- [ ] **Step 1: Write the failing tests.** Actual child SIGKILL after model responded/before commit: old unknown+newattempt, generation ID retained if exposed, one committed output/effect and usage per attempt. Kill after final receipt commit/beforeack: no regeneration/effect. Pause old worker, let lease expire and replacement complete, release old: no writes/events. Cancel queued/paused/running; repeat cancel terminal no-op; while streaming abort reaches model, save partial once, no event after finalmarker; Valkey outage still cancels via DB; stale producer reconnect after cancelled cannot append/recreate. Cancel/tool commit order tested in both directions.
+- [x] **Step 1: Write the failing tests.** Actual child SIGKILL after model responded/before commit: old unknown+newattempt, generation ID retained if exposed, one committed output/effect and usage per attempt. Kill after final receipt commit/beforeack: no regeneration/effect. Pause old worker, let lease expire and replacement complete, release old: no writes/events. Cancel queued/paused/running; repeat cancel terminal no-op; while streaming abort reaches model, save partial once, no event after finalmarker; Valkey outage still cancels via DB; stale producer reconnect after cancelled cannot append/recreate. Cancel/tool commit order tested in both directions.
 
 Representative assertions in those named tests (locals come from their specified test setup):
 
@@ -432,13 +432,13 @@ expect(committedOutputs).toHaveLength(1);
 expect(toolEffects).toHaveLength(1);
 ```
 
-- [ ] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-cancel.spec ai-worker-crash.spec worker-crash.spec ai-approval.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
+- [x] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-cancel.spec ai-worker-crash.spec worker-crash.spec ai-approval.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
 
-- [ ] **Step 3: Implement the deliverable.** Persist cancel first, use best-effort prompt signal and durable fallback; never depend solely on Pub/Sub. For no active owner cancel immediately, for in-flight owner fence/version ensure one terminal partial commit. Queue cancellation and model abort do not substitute for run state authority. On exhausted transport/queue recovery mark run failed and release slot through durable finalization; abandoned running rows cannot silently occupy capacity forever. Shutdown awaits bounded abort/transaction cleanup, not raw error logging.
+- [x] **Step 3: Implement the deliverable.** Persist cancel first, use best-effort prompt signal and durable fallback; never depend solely on Pub/Sub. For no active owner cancel immediately, for in-flight owner fence/version ensure one terminal partial commit. Queue cancellation and model abort do not substitute for run state authority. On exhausted transport/queue recovery mark run failed and release slot through durable finalization; abandoned running rows cannot silently occupy capacity forever. Shutdown awaits bounded abort/transaction cleanup, not raw error logging.
 
-- [ ] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-cancel.spec ai-worker-crash.spec worker-crash.spec ai-approval.spec`; expect all selected tests PASS. Use real replacement processes and per-file private proxies; do not kill shared Testcontainers services. Confirm no leaked workers/sessions/claims.
+- [x] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-cancel.spec ai-worker-crash.spec worker-crash.spec ai-approval.spec`; expect all selected tests PASS. Use real replacement processes and per-file private proxies; do not kill shared Testcontainers services. Confirm no leaked workers/sessions/claims.
 
-- [ ] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): cancel in-flight work and prove crash recovery`, then `git push -u origin f3-ai-run-engine`.
+- [x] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): cancel in-flight work and prove crash recovery`, then `git push -u origin f3-ai-run-engine`.
 
 ### Task 13: Add safe AI telemetry and transactional audit
 
