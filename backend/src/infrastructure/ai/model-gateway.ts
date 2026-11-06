@@ -7,7 +7,7 @@ import { validateRealModelPrerequisites } from './real-model-prerequisites.js';
 import {
   mapProviderPart,
   readProviderUsage,
-  toModelMessages,
+  toSdkPrompt,
 } from './provider-stream.js';
 import type {
   ModelAttemptOutcome,
@@ -55,7 +55,7 @@ async function* generate(
       candidate.id === input.model && candidate.provider === input.provider,
   );
   if (!route) throw new Error('Requested model is not allowlisted');
-  const messages = toModelMessages(input);
+  const prompt = toSdkPrompt(input);
 
   const provider = createOpenRouterProvider({
     apiKey: options.key,
@@ -122,7 +122,7 @@ async function* generate(
     ) as ToolSet;
     const result = streamText({
       model,
-      messages,
+      ...prompt,
       tools,
       stopWhen: stepCountIs(1),
       maxOutputTokens: input.maxOutputTokens,

@@ -87,6 +87,39 @@ it('applies fixed route and privacy options to every request and preserves detai
   });
 });
 
+it('passes collected system context through the current SDK instructions option', async () => {
+  const requests: Request[] = [];
+  const fetchSpy = vi.fn<typeof fetch>(async (input, init) => {
+    requests.push(input instanceof Request ? input : new Request(input, init));
+    return streamResponse(0);
+  });
+  const gateway = createRealModelGateway({
+    allowlist,
+    key: 'test-only-key',
+    attestation: '2026-11-05',
+    fetch: fetchSpy,
+  });
+  await collect(
+    gateway.generate({
+      ...input(),
+      messages: [
+        { role: 'system', content: 'Fenced synthetic context.' },
+        { role: 'user', content: 'Use the context.' },
+      ],
+    }),
+  );
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  const request = await requests[0]!.clone().json();
+  expect(request.messages).toContainEqual({
+    role: 'system',
+    content: [{ type: 'text', text: 'Fenced synthetic context.' }],
+  });
+  expect(request.messages).toContainEqual({
+    role: 'user',
+    content: 'Use the context.',
+  });
+});
+
 it('rejects an unallowlisted model or missing real prerequisites before fetch', async () => {
   const fetchSpy = vi.fn<typeof fetch>();
   const gateway = createRealModelGateway({

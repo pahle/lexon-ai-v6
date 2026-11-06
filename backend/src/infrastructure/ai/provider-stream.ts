@@ -96,6 +96,21 @@ export function toModelMessages(input: ModelInput) {
   return converted;
 }
 
+export function toSdkPrompt(input: ModelInput) {
+  const converted = toModelMessages(input);
+  const instructionMessages = converted.filter(
+    (message) => message.role === 'system',
+  );
+  const messages = converted.filter((message) => message.role !== 'system');
+  const instructions = instructionMessages
+    .map((message) => message.content)
+    .join('\n\n');
+  return {
+    ...(instructions ? { instructions } : {}),
+    messages,
+  };
+}
+
 export function mapProviderPart(part: unknown): ModelEvent[] {
   if (!isRecord(part)) return [];
   if (part.type === 'text-delta' && typeof part.text === 'string') {

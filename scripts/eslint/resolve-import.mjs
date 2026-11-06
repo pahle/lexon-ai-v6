@@ -221,7 +221,27 @@ export function classifyImport({
     const testHelper =
       source.startsWith('backend/test/') &&
       target.startsWith('backend/src/infrastructure/db/testing/');
-    if (!publicEntry && !testHelper) return deny('database-public');
+    const evaluationFixture =
+      source === 'backend/src/evaluation/evaluation-harness.ts' &&
+      [
+        'backend/src/infrastructure/db/testing/ai-fixture.ts',
+        'backend/src/infrastructure/db/testing/ai-fixture.js',
+        'backend/src/infrastructure/db/testing/provision.ts',
+        'backend/src/infrastructure/db/testing/provision.js',
+      ].includes(target);
+    const evaluationCoordinator =
+      source === 'backend/src/evaluation/index.ts' &&
+      [
+        'backend/src/infrastructure/db/testing/test-infrastructure.ts',
+        'backend/src/infrastructure/db/testing/test-infrastructure.js',
+      ].includes(target);
+    if (
+      !publicEntry &&
+      !testHelper &&
+      !evaluationFixture &&
+      !evaluationCoordinator
+    )
+      return deny('database-public');
   }
   if (
     target?.startsWith('backend/src/infrastructure/ai/') &&

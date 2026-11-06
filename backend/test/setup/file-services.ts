@@ -22,12 +22,23 @@ export const test = base.extend(
   // eslint-disable-next-line no-empty-pattern -- Vitest requires an explicit fixture dependency pattern.
   async ({}, { onCleanup }): Promise<FileServices> => {
     const descriptor = inject('infrastructure');
+    const templateUrl = new URL(descriptor.postgresUrl);
+    const password = decodeURIComponent(templateUrl.password);
+    const template = templateUrl.pathname.slice(1);
+    const runId = template.replace(/^lexon_test_/, '');
+    const adminUrl = new URL(descriptor.postgresUrl);
+    adminUrl.pathname = '/postgres';
+    const postgresAdminUrl = adminUrl.toString();
     const id = randomBytes(12).toString('hex');
     const dbName = `lexon_test_${id}`;
-    const queuePrefix = `lexon_${descriptor.runId}_${id}`;
-    const bucket = `lexon-${descriptor.runId}-${id}`;
+    const queuePrefix = `lexon_${runId}_${id}`;
+    const bucket = `lexon-${runId}-${id}`;
     const s3 = new S3Client({
-      ...descriptor.s3,
+      endpoint: descriptor.seaweedS3Url,
+      credentials: {
+        accessKeyId: 'lexon-local-test',
+        secretAccessKey: password,
+      },
       region: 'us-east-1',
       forcePathStyle: true,
     });
@@ -68,32 +79,22 @@ export const test = base.extend(
           }
         } finally {
           redis.disconnect();
-          await dropDatabase(descriptor.adminUrl, dbName);
+          await dropDatabase(postgresAdminUrl, dbName);
         }
       }
     });
-    await cloneDatabase(descriptor.adminUrl, descriptor.template, dbName);
+    await cloneDatabase(postgresAdminUrl, template, dbName);
     await s3.send(new CreateBucketCommand({ Bucket: bucket }));
     return {
-      runId: descriptor.runId,
+      runId,
       dbName,
       queuePrefix,
-      appUrl: roleUrl(
-        descriptor.adminUrl,
-        'lexon_app',
-        descriptor.passwords.app,
-        dbName,
-      ),
-      authUrl: roleUrl(
-        descriptor.adminUrl,
-        'lexon_auth',
-        descriptor.passwords.auth,
-        dbName,
-      ),
+      appUrl: roleUrl(postgresAdminUrl, 'lexon_app', password, dbName),
+      authUrl: roleUrl(postgresAdminUrl, 'lexon_auth', password, dbName),
       migratorUrl: roleUrl(
-        descriptor.adminUrl,
+        postgresAdminUrl,
         'lexon_migrator',
-        descriptor.passwords.migrator,
+        password,
         dbName,
       ),
       valkey: {
@@ -101,7 +102,14 @@ export const test = base.extend(
         streamsUrl: descriptor.valkeyUrl,
         limiterUrl: descriptor.valkeyUrl,
       },
-      s3: { ...descriptor.s3, bucket },
+      s3: {
+        endpoint: descriptor.seaweedS3Url,
+        credentials: {
+          accessKeyId: 'lexon-local-test',
+          secretAccessKey: password,
+        },
+        bucket,
+      },
     };
   },
 );

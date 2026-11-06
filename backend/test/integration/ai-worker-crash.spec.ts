@@ -330,9 +330,9 @@ test('SIGKILL after cancellation persists recovers the exact old fence and final
       },
     ]);
     expect(await ai.orgSlotCount(0)).toBe(0);
-    expect(await (await queue.getJob(job.outboxId))?.getState()).toBe(
-      'completed',
-    );
+    await expect
+      .poll(async () => (await queue.getJob(job.outboxId))?.getState())
+      .toBe('completed');
   } finally {
     releaseSignal?.();
     if (crashed) await crashed.close();

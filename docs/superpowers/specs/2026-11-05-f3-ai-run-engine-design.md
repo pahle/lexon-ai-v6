@@ -619,6 +619,19 @@ upgrade/fallback was used. `lexon_auth` remains limited to its existing generic
 audit writer; the app audit validator accepts only four narrow AI audit event
 types through the existing tenant transaction.
 
+### Task 14 deterministic mock evaluations (2026-11-07)
+
+| Official source / package evidence                                                                                                                                                               | Exact version and date read                                                                 | Decision                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Nest standalone applications](https://docs.nestjs.com/standalone-applications), installed `@nestjs/core` API and package metadata                                                               | `@nestjs/core@12.3.2`; official docs and installed declarations checked 2026-11-07          | Build an application context for explicit evaluation composition and close it through Nest lifecycle; do not create an HTTP listener or mount auth routes.                                                                                           |
+| [Vitest global setup](https://vitest.dev/config/globalsetup.html), [Vitest lifecycle](https://vitest.dev/guide/lifecycle.html), installed setup/provider declarations                            | `vitest@5.0.5`; official docs and installed declarations checked 2026-11-07                 | Use global setup `provide`/test `inject` for generated connection descriptors. Keep orchestration in infrastructure testing and share one process-global coordinator across separately loaded source and built module graphs.                        |
+| [AI SDK mock models](https://ai-sdk.dev/docs/ai-sdk-core/testing), installed `ai/test` declarations and [AI SDK 7 migration guide](https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0) | `ai@7.0.159`; official docs, installed declarations, and migration guide checked 2026-11-07 | Use `MockLanguageModelV4` only in backend infrastructure testing. SDK 7 places system context in top-level `instructions`; preserve all nonce-delimited system content and ordering while converting the neutral backend prompt before `streamText`. |
+
+Task14 adds no runtime or test dependency. Evaluations enter through the single
+public backend evaluation entry; deterministic providers are explicit
+backend-owned fixtures and exercise the durable database, queue, receipts,
+authorization, and approval services. Safe reports remain allowlisted.
+
 ## Task1 owner review corrections, implemented first in Task2
 
 Run start/advance/resume jobs carry ctx={orgId:uuid,userId:uuid}, K3 only, like

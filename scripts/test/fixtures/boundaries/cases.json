@@ -300,6 +300,24 @@
     "rule": null
   },
   {
+    "name": "evaluation composition database fixture allowed",
+    "importer": "backend/src/evaluation/evaluation-harness.ts",
+    "code": "import '../infrastructure/db/testing/ai-fixture.js';",
+    "rule": null
+  },
+  {
+    "name": "evaluation entry infrastructure coordinator allowed",
+    "importer": "backend/src/evaluation/index.ts",
+    "code": "import('../infrastructure/db/testing/test-infrastructure.js');",
+    "rule": null
+  },
+  {
+    "name": "other domain cannot import evaluation database fixture",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/testing/ai-fixture.js';",
+    "rule": "database-public"
+  },
+  {
     "name": "domain raw provider wrapper bypass",
     "importer": "backend/src/modules/platform/engine.ts",
     "code": "import '../../infrastructure/ai/openrouter-provider.js';",
