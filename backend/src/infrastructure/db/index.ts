@@ -1,5 +1,10 @@
 export { DbModule } from './db.module.js';
-export { TenantDatabase, type DatabaseOptions } from './tenant-database.js';
+export {
+  TenantDatabase,
+  TenantTransactionTimeoutError,
+  type DatabaseOptions,
+  type TenantTransactionOptions,
+} from './tenant-database.js';
 export {
   buildAuthorizationPredicate,
   type TenantContext,
@@ -21,7 +26,8 @@ export {
 export { AiStepRepository } from './ai-step.repository.js';
 export { AiAttemptRepository } from './ai-attempt.repository.js';
 export { AiOperationRepository } from './ai-operation.repository.js';
-export { canonicalJson, hashOperationArgs } from './ai-operation.repository.js';
+export { canonicalJson, jsonbTextBytes } from './canonical-json.js';
+export { hashOperationArgs } from './ai-operation.repository.js';
 export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {

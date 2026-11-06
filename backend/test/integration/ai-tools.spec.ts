@@ -9,6 +9,7 @@ import {
 import {
   AiOperationRepository,
   hashOperationArgs,
+  jsonbTextBytes,
 } from '../../src/infrastructure/db/index.js';
 import { canonicalOperationHash } from '../../src/modules/chat/canonical-operation.js';
 
@@ -82,6 +83,65 @@ test('proposal persistence deduplicates replay but keeps identical intentional c
     expect(persisted.second.id).not.toBe(persisted.first.id);
     expect(persisted.second.args).toEqual(persisted.first.args);
     expect(persisted.identityConflict).toBe('AI operation occurrence conflict');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('operation arguments exceeding JSONB text storage bounds fail before insert', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 5000);
+    expect(claim).not.toBeNull();
+    const args = Array.from({ length: 6000 }, () => 0);
+    const repository = new AiOperationRepository();
+
+    await expect(
+      ai.withTenant(0, (tx) =>
+        repository.persist(tx, claim!, {
+          callOccurrence: 0,
+          toolName: 'fixture-write',
+          toolVersion: 1,
+          mode: 'transactional',
+          args,
+          argsHash: hashOperationArgs(args),
+          snapshotHash: canonicalOperationHash({
+            toolId: 'fixture-write',
+            toolVersion: 1,
+            args,
+          }),
+          approvalRequired: false,
+        }),
+      ),
+    ).rejects.toThrow('Invalid AI operation proposal');
+    expect(
+      await ai.withTenant(0, (tx) =>
+        repository.forRun(tx, { runId: run.id, throughSequence: 2 }),
+      ),
+    ).toEqual([]);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('JSONB storage byte estimator matches PostgreSQL text for arrays and exponent numbers', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const values = [
+      Array.from({ length: 6000 }, () => 0),
+      { nested: ['legal 🧾', { value: 1e100, tiny: 1e-100 }] },
+      { negativeZero: -0, decimal: 1.25, unicode: 'é' },
+    ];
+    for (const value of values) {
+      const actual = await ai.jsonbStorageBytes(0, value);
+      expect(jsonbTextBytes(value)).toBe(actual);
+    }
   } finally {
     await ai.close();
   }

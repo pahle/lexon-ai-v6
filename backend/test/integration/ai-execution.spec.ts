@@ -215,6 +215,44 @@ async function setup(
   };
 }
 
+async function proposeToolOnce(
+  ai: Awaited<ReturnType<typeof createAiFixture>>,
+  tool: ToolDefinition,
+  input: unknown,
+  runProfile: RunProfile,
+) {
+  const h = await setup(
+    ai,
+    [
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'policy-change-proposal',
+            toolName: tool.id,
+            input: input as never,
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+    ],
+    { tools: [tool], profile: runProfile },
+  );
+  await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+    signal: new AbortController().signal,
+  });
+  return h;
+}
+
 function job(
   runId: string,
   tenant: { orgId: string; userId: string },
@@ -525,6 +563,477 @@ test('read tool proposal commits a durable result before the next model request'
   }
 });
 
+test('tool execution rechecks current tool capabilities before its effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'fixture-policy-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: ['case:write'],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'policy-proposal',
+              toolName: tool.id,
+              input: { value: 'must not execute' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      {
+        profile: { ...profile, capabilities: ['case:write'] },
+        tools: [tool],
+      },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    Object.assign(tool, { capabilities: ['case:write:revoked'] });
+
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.status).toBe('failed');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('tool execution intersects saved capabilities with the current profile floor', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'fixture-profile-floor',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: ['case:write'],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await proposeToolOnce(
+      ai,
+      tool,
+      { value: 'must be denied' },
+      {
+        ...profile,
+        capabilities: ['case:write'],
+      },
+    );
+    Object.assign(h.registry.profile(profile.id)!, { capabilities: [] });
+
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'failed', errorCode: 'AI_ACCESS_REVOKED' });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('new approval requirement stages the pending operation without an effect', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'fixture-approval-tightened',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await proposeToolOnce(
+      ai,
+      tool,
+      { value: 'await approval' },
+      profile,
+    );
+    Object.assign(tool, { requiresApproval: true });
+
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'awaiting_approval' });
+    const operations = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+    );
+    expect(operations[0]).toMatchObject({
+      status: 'awaiting_approval',
+      approvalRequired: true,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('model input advertises permitted tool schemas and excludes denied tools', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const readTool = (id: string, capability: string): ToolDefinition => ({
+      id,
+      version: 1,
+      kind: 'read',
+      inputSchema: z.strictObject({ key: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [capability],
+      async execute() {
+        return { found: true };
+      },
+    });
+    const allowed = readTool('allowed-read', 'case:read');
+    const denied = readTool('denied-read', 'case:admin');
+    let captured: ModelInput | undefined;
+    const gateway: ModelGateway = {
+      generate(input) {
+        captured = input;
+        return createScriptedModelGateway([{ events: [success] }]).generate(
+          input,
+        );
+      },
+    };
+    const h = await setup(ai, [], {
+      tools: [allowed, denied],
+      profile: { ...profile, capabilities: ['case:read'] },
+      gateway,
+    });
+
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    expect(captured?.schemas).toMatchObject({
+      'allowed-read': {
+        type: 'object',
+        properties: { key: { type: 'string' } },
+        required: ['key'],
+      },
+    });
+    expect(captured?.schemas).not.toHaveProperty('denied-read');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('tool continuation does not admit a generation past the iteration ceiling', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const readTool: ToolDefinition = {
+      id: 'one-iteration-read',
+      version: 1,
+      kind: 'read',
+      inputSchema: z.strictObject({ key: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      async execute(input) {
+        return { found: (input as { key: string }).key };
+      },
+    };
+    let calls = 0;
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'first-call',
+            toolName: readTool.id,
+            input: { key: 'once' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+      { events: [{ type: 'text', text: 'must not generate' }, success] },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        calls++;
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], {
+      tools: [readTool],
+      profile: { ...profile, maxIterations: 1 },
+      gateway,
+    });
+
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(calls).toBe(1);
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ITERATION_LIMIT',
+      modelIterations: 1,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('large structured tool results truncate before JSONB storage completion', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const readTool: ToolDefinition = {
+      id: 'large-json-read',
+      version: 1,
+      kind: 'read',
+      inputSchema: z.strictObject({ key: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 16_384,
+      capabilities: [],
+      async execute() {
+        return Array.from({ length: 6000 }, () => 0);
+      },
+    };
+    const h = await proposeToolOnce(ai, readTool, { key: 'large' }, profile);
+
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+
+    const operations = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+    );
+    expect(operations[0]).toMatchObject({
+      status: 'succeeded',
+      result: { _lexon_truncated: true, marker: '[TRUNCATED]' },
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('tool result persistence failure propagates without acknowledging the job', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'fixture-result-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'persist-result',
+              toolName: tool.id,
+              input: { value: 'rollback effect' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool] },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const storageFailure = new Error('operation result storage unavailable');
+    vi.spyOn(h.operations, 'complete').mockRejectedValueOnce(storageFailure);
+
+    await expect(
+      h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toBe(storageFailure);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    expect(await ai.receiptCount(stepJobId(h.runId, 2))).toBe(0);
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.status).toBe('running');
+  } finally {
+    await ai.close();
+  }
+});
+
+test('tool claim loss propagates unchanged without terminally acknowledging the step', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: ToolDefinition = {
+      id: 'fixture-read-claim',
+      version: 1,
+      kind: 'read',
+      inputSchema: z.strictObject({ key: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      async execute() {
+        return { found: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'claim-loss',
+              toolName: tool.id,
+              input: { key: 'case' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'tool_calls',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool] },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const originalLockClaim = h.steps.lockClaim.bind(h.steps);
+    let lockCalls = 0;
+    vi.spyOn(h.steps, 'lockClaim').mockImplementation((tx, claim) => {
+      if (++lockCalls === 4) return Promise.resolve(false);
+      return originalLockClaim(tx, claim);
+    });
+
+    await expect(
+      h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow('AI step claim lost');
+    expect(await ai.receiptCount(stepJobId(h.runId, 2))).toBe(0);
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.status).toBe('running');
+  } finally {
+    await ai.close();
+  }
+});
+
 test('SIGKILL after operation effect and result commit replays the stored result with one effect', async ({
   services,
 }) => {
@@ -731,32 +1240,37 @@ test('late transactional tool callback sees an expired tenant session and cannot
         }
       },
     };
-    const h = await setup(
-      ai,
-      [
-        {
-          events: [
-            {
-              type: 'tool-proposal',
-              toolCallId: 'provider-call-id',
-              toolName: tool.id,
-              input: { value: 'must roll back' },
+    const capturedInputs: ModelInput[] = [];
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          {
+            type: 'tool-proposal',
+            toolCallId: 'provider-call-id',
+            toolName: tool.id,
+            input: { value: 'must roll back' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
             },
-            { type: 'usage', usage },
-            {
-              type: 'outcome',
-              outcome: {
-                finishReason: 'tool_calls',
-                attemptOutcome: 'succeeded',
-                retryable: false,
-                usage,
-              },
-            },
-          ],
-        },
-      ],
-      { tools: [tool] },
-    );
+          },
+        ],
+      },
+      { events: [{ type: 'text', text: 'Timeout was handled' }, success] },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        capturedInputs.push(input);
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], { tools: [tool], gateway });
     await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
       signal: new AbortController().signal,
     });
@@ -766,10 +1280,58 @@ test('late transactional tool callback sees an expired tenant session and cannot
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(lateWriteRejected).toBe(true);
     expect(await ai.toolEffectCount(0)).toBe(0);
-    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
-    expect(run).toMatchObject({
+    const failedOperation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+      )
+    )[0]!;
+    expect(failedOperation).toMatchObject({
       status: 'failed',
       errorCode: 'AI_TOOL_TIMEOUT',
+      result: { errorCode: 'AI_TOOL_TIMEOUT' },
+    });
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.status).toBe('running');
+    await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    const history = JSON.parse(
+      JSON.stringify(capturedInputs.at(-1)?.messages),
+    ) as unknown[];
+    expect(history).toContainEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        content: [
+          expect.objectContaining({
+            type: 'tool-call',
+            toolCallId: failedOperation.id,
+            toolName: 'slow-fixture-write',
+          }),
+        ],
+      }),
+    );
+    expect(history).toContainEqual(
+      expect.objectContaining({
+        role: 'tool',
+        content: [
+          expect.objectContaining({
+            type: 'tool-result',
+            toolCallId: failedOperation.id,
+            toolName: 'slow-fixture-write',
+            result: expect.objectContaining({
+              untrusted: expect.stringContaining('AI_TOOL_TIMEOUT'),
+            }),
+          }),
+        ],
+      }),
+    );
+    expect(JSON.stringify(history)).toContain('BEGIN UNTRUSTED CONTEXT nonce=');
+    const completedRun = await ai.withTenant(0, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    expect(completedRun).toMatchObject({
+      status: 'completed',
+      modelIterations: 2,
     });
     expect(await ai.database.check()).toBe('up');
   } finally {

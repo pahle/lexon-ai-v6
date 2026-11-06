@@ -68,6 +68,10 @@ export class RunRegistry {
   tool(id: string): ToolDefinition | undefined {
     return this.#tools.get(id);
   }
+
+  tools(): readonly ToolDefinition[] {
+    return [...this.#tools.values()];
+  }
 }
 
 function validateProfile(profile: RunProfile): void {

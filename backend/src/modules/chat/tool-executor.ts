@@ -11,6 +11,7 @@ import {
 import {
   canonicalJson,
   hashOperationArgs,
+  jsonbTextBytes,
 } from '../../infrastructure/db/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunProfile } from './run-contracts.js';
@@ -51,6 +52,20 @@ export interface ToolResult {
   readonly status: OperationRecord['status'];
   readonly result: JsonValue | null;
   readonly errorCode: string | null;
+}
+
+export class ToolPolicyOutcome extends Error {
+  constructor(readonly code: 'AI_ACCESS_REVOKED' | 'AI_INVALID_TOOL') {
+    super(code);
+    this.name = 'ToolPolicyOutcome';
+  }
+}
+
+export class ToolApprovalRequiredOutcome extends Error {
+  constructor() {
+    super('AI_TOOL_APPROVAL_REQUIRED');
+    this.name = 'ToolApprovalRequiredOutcome';
+  }
 }
 
 export class ToolExecutor {
@@ -95,18 +110,23 @@ export class ToolExecutor {
       userId: claim.userId,
       runId: run.id,
     });
-    if (!actorFacts) throw new Error('AI run authorization denied');
+    if (!actorFacts) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
+    const currentProfile = this.registry.profile(run.profileId);
+    if (!currentProfile) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
+    const currentCapabilities = profile.capabilities.filter((capability) =>
+      currentProfile.capabilities.includes(capability),
+    );
     const decision = await this.authorization.authorize(
       tx,
       actorFacts,
-      { profileId: run.profileId, capabilities: profile.capabilities },
+      { profileId: run.profileId, capabilities: currentCapabilities },
       'resume',
     );
-    if (!decision.allowed) throw new Error('AI run authorization denied');
+    if (!decision.allowed) throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
 
     if (operation.status === 'succeeded' || operation.status === 'failed')
       return toToolResult(operation);
-    if (operation.status === 'awaiting_approval' || operation.approvalRequired)
+    if (operation.status === 'awaiting_approval')
       return toToolResult(operation);
     if (operation.status === 'outcome_unknown') return toToolResult(operation);
 
@@ -125,9 +145,16 @@ export class ToolExecutor {
         (tool.idempotency.mode !== 'transactional' ||
           operation.mode !== 'transactional'))
     )
-      throw new Error('AI tool is not executable');
+      throw new ToolPolicyOutcome('AI_INVALID_TOOL');
+    if (
+      tool.capabilities.some(
+        (capability) => !decision.capabilities.includes(capability),
+      )
+    )
+      throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
+    if (tool.requiresApproval) throw new ToolApprovalRequiredOutcome();
     const parsed = tool.inputSchema.safeParse(operation.args);
-    if (!parsed.success) throw new Error('AI tool arguments are invalid');
+    if (!parsed.success) throw new ToolPolicyOutcome('AI_INVALID_TOOL');
 
     const actorScope = this.authorization.workerActorScope(tx, actorFacts);
     const rawResult = await actorScope.run((actor) => {
@@ -165,7 +192,7 @@ export function boundToolResult(value: unknown, maxBytes: number): JsonValue {
   if (Buffer.byteLength(encoded, 'utf8') <= maxBytes) {
     const parsed: unknown = JSON.parse(encoded);
     if (!isJsonValue(parsed)) throw new Error('Invalid AI tool result');
-    return parsed;
+    if (jsonbTextBytes(parsed) <= maxBytes) return parsed;
   }
   const codePoints = [...encoded];
   const marker = '[TRUNCATED]';
@@ -178,8 +205,7 @@ export function boundToolResult(value: unknown, maxBytes: number): JsonValue {
       marker,
       preview: codePoints.slice(0, middle).join(''),
     };
-    if (Buffer.byteLength(JSON.stringify(candidate), 'utf8') <= maxBytes)
-      low = middle;
+    if (jsonbTextBytes(candidate) <= maxBytes) low = middle;
     else high = middle - 1;
   }
   const truncated = {
@@ -187,7 +213,7 @@ export function boundToolResult(value: unknown, maxBytes: number): JsonValue {
     marker,
     preview: codePoints.slice(0, low).join(''),
   };
-  if (Buffer.byteLength(JSON.stringify(truncated), 'utf8') > maxBytes)
+  if (jsonbTextBytes(truncated) > maxBytes)
     throw new Error('AI tool result limit is too small');
   return truncated;
 }
@@ -196,7 +222,8 @@ export function toolResultsAsMessages(
   operations: readonly OperationRecord[],
 ): ModelMessage[] {
   const completed = operations.filter(
-    (operation) => operation.status === 'succeeded',
+    (operation) =>
+      operation.status === 'succeeded' || operation.status === 'failed',
   );
   const messages: ModelMessage[] = [];
   for (const operation of completed) {
@@ -221,7 +248,11 @@ export function toolResultsAsMessages(
           toolName: operation.toolName,
           result: {
             untrusted: fenceUntrusted(
-              canonicalJson(operation.result),
+              canonicalJson(
+                operation.result ?? {
+                  errorCode: operation.errorCode ?? 'AI_INTERNAL',
+                },
+              ),
               `Tool result ${operation.id}`,
             ),
           },

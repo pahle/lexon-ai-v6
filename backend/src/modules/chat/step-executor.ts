@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type { RunStreamEvent } from '@lexon/contracts';
 import type {
   AiOperationRepository,
@@ -8,7 +9,11 @@ import type {
   StepClaim,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
-import { hashOperationArgs } from '../../infrastructure/db/index.js';
+import {
+  hashOperationArgs,
+  jsonbTextBytes,
+  TenantTransactionTimeoutError,
+} from '../../infrastructure/db/index.js';
 import type {
   ModelEvent,
   ModelGateway,
@@ -28,7 +33,12 @@ import type { ContextPiece, RunProfile } from './run-contracts.js';
 import { StepCoordinator } from './step-coordinator.js';
 import { fenceUntrusted } from './untrusted-context.js';
 import { canonicalOperationHash } from './canonical-operation.js';
-import { ToolExecutor, toolResultsAsMessages } from './tool-executor.js';
+import {
+  ToolApprovalRequiredOutcome,
+  ToolExecutor,
+  ToolPolicyOutcome,
+  toolResultsAsMessages,
+} from './tool-executor.js';
 
 const CHECKPOINT_INTERVAL_MS = 1000;
 const CHECKPOINT_BYTES = 8192;
@@ -107,7 +117,7 @@ export class StepExecutor {
       heartbeat.throwIfAborted();
       const initial = await this.#loadAndAuthorize(claim);
       if (!initial) return { kind: 'done' };
-      const { run, profile, actorScope } = initial;
+      const { run, profile, actorScope, activeCapabilities } = initial;
       if (this.options.operations && this.#toolExecutor && claim.sequence > 1) {
         const previousOperations = await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
@@ -150,7 +160,6 @@ export class StepExecutor {
             }
             return { kind: 'done' };
           }
-          let operationFailure = false;
           let committed: 'committed' | 'stale';
           try {
             committed = await this.options.coordinator.commit(job, claim, {
@@ -162,51 +171,110 @@ export class StepExecutor {
               outcome: 'succeeded',
               transactionTimeoutMs: tool.timeoutMs,
               transactionWork: async (tx, signal) => {
-                try {
-                  const result = await this.#toolExecutor!.execute(
-                    tx,
-                    claim,
-                    operation.id,
-                    signal ?? heartbeat.signal,
-                  );
-                  if (result.status !== 'succeeded')
-                    throw new Error('AI tool operation was not successful');
-                } catch (error) {
-                  operationFailure = true;
-                  throw error;
-                }
+                const result = await this.#toolExecutor!.execute(
+                  tx,
+                  claim,
+                  operation.id,
+                  signal ?? heartbeat.signal,
+                );
+                if (result.status !== 'succeeded')
+                  throw new Error('AI tool operation was not successful');
               },
             });
           } catch (error) {
-            if (
-              !operationFailure &&
-              !(error instanceof Error && error.message.includes('timed out'))
-            )
-              throw error;
-            const message = error instanceof Error ? error.message : '';
-            const errorCode = message.includes('timed out')
-              ? 'AI_TOOL_TIMEOUT'
-              : message.includes('authorization denied')
-                ? 'AI_ACCESS_REVOKED'
-                : 'AI_INTERNAL';
-            const failed = await this.options.coordinator.commit(job, claim, {
-              state: 'committed',
-              text: '',
-              data: { operationId: operation.id },
-              advancement: 'continuation',
-              terminal: true,
-              outcome: 'failed',
-              errorCode,
-            });
-            if (failed === 'committed') {
-              await heartbeat.stop();
-              await this.#finishIfTerminal(claim);
+            if (error instanceof ToolApprovalRequiredOutcome) {
+              const paused = await this.options.coordinator.commit(job, claim, {
+                state: 'awaiting_approval',
+                text: '',
+                data: { operationId: operation.id },
+                advancement: 'continuation',
+                terminal: false,
+                outcome: 'succeeded',
+                transactionTimeoutMs: 5_000,
+                transactionWork: async (tx) => {
+                  if (
+                    !(await this.options.operations!.stageApproval(
+                      tx,
+                      operation.id,
+                    ))
+                  )
+                    throw new Error('AI operation approval staging failed');
+                },
+              });
+              if (paused === 'committed') await heartbeat.stop();
+              return { kind: 'done' };
             }
-            return { kind: 'done' };
+            if (error instanceof ToolPolicyOutcome) {
+              const failed = await this.options.coordinator.commit(job, claim, {
+                state: 'committed',
+                text: '',
+                data: { operationId: operation.id },
+                advancement: 'continuation',
+                terminal: true,
+                outcome: 'failed',
+                errorCode: error.code,
+              });
+              if (failed === 'committed') {
+                await heartbeat.stop();
+                await this.#finishIfTerminal(claim);
+              }
+              return { kind: 'done' };
+            }
+            if (error instanceof TenantTransactionTimeoutError) {
+              const recorded = await this.options.coordinator.commit(
+                job,
+                claim,
+                {
+                  state: 'committed',
+                  text: '',
+                  data: {
+                    operationId: operation.id,
+                    errorCode: 'AI_TOOL_TIMEOUT',
+                  },
+                  advancement: 'continuation',
+                  terminal: false,
+                  outcome: 'succeeded',
+                  transactionTimeoutMs: 5_000,
+                  transactionWork: async (tx) => {
+                    if (
+                      !(await this.options.operations!.complete(
+                        tx,
+                        operation.id,
+                        {
+                          status: 'failed',
+                          result: { errorCode: 'AI_TOOL_TIMEOUT' },
+                          errorCode: 'AI_TOOL_TIMEOUT',
+                        },
+                      ))
+                    )
+                      throw new Error('AI operation timeout receipt failed');
+                  },
+                },
+              );
+              if (recorded === 'committed') await heartbeat.stop();
+              return { kind: 'done' };
+            }
+            throw error;
           }
           if (committed === 'committed') await heartbeat.stop();
           return { kind: 'done' };
         }
+      }
+      if (run.modelIterations >= profile.maxIterations) {
+        const limited = await this.options.coordinator.commit(job, claim, {
+          state: 'committed',
+          text: '',
+          data: { outcome: 'iteration-limit' },
+          advancement: 'continuation',
+          terminal: true,
+          outcome: 'failed',
+          errorCode: 'AI_ITERATION_LIMIT',
+        });
+        if (limited === 'committed') {
+          await heartbeat.stop();
+          await this.#finishIfTerminal(claim);
+        }
+        return { kind: 'done' };
       }
       const maxAttempts = profile.maxAttemptsPerStep ?? 2;
       const contexts = await actorScope.run(async (actor) => {
@@ -260,6 +328,10 @@ export class StepExecutor {
           ],
           maxOutputTokens: profile.maxOutputTokens,
           signal: durable.signal,
+          schemas: permittedToolSchemas(
+            this.options.registry,
+            activeCapabilities,
+          ),
         };
         attemptId = randomUUID();
         try {
@@ -633,10 +705,19 @@ export class StepExecutor {
           runId: run.id,
         });
         if (!facts) throw new Error('AI run authorization denied');
+        const currentProfile = this.options.registry.profile(run.profileId);
+        if (!currentProfile)
+          throw new Error('Current AI run profile is unavailable');
+        const currentProfileCapabilities = profile.capabilities.filter(
+          (capability) => currentProfile.capabilities.includes(capability),
+        );
         const decision = await this.options.authorization.authorize(
           tx,
           facts,
-          { profileId: run.profileId, capabilities: profile.capabilities },
+          {
+            profileId: run.profileId,
+            capabilities: currentProfileCapabilities,
+          },
           'resume',
         );
         if (!decision.allowed) throw new Error('AI run authorization denied');
@@ -648,6 +729,7 @@ export class StepExecutor {
           run,
           profile,
           actorScope,
+          activeCapabilities: decision.capabilities,
           provider:
             typeof snapshot.provider === 'string' ? snapshot.provider : '',
         };
@@ -694,10 +776,12 @@ function prepareOperationProposals(
       )
     )
       return null;
-    const inputBytes = Buffer.byteLength(
-      JSON.stringify(proposal.input),
-      'utf8',
-    );
+    let inputBytes: number;
+    try {
+      inputBytes = jsonbTextBytes(proposal.input);
+    } catch {
+      return null;
+    }
     if (inputBytes > (tool.maxInputBytes ?? 16_384)) return null;
     const parsed = tool.inputSchema.safeParse(proposal.input);
     if (!parsed.success) return null;
@@ -721,6 +805,28 @@ function prepareOperationProposals(
     }
   }
   return operations;
+}
+
+function permittedToolSchemas(
+  registry: RunRegistry,
+  capabilities: readonly string[],
+): Record<string, import('../../infrastructure/ai/index.js').JsonValue> {
+  const allowed = new Set(capabilities);
+  const schemas: Record<
+    string,
+    import('../../infrastructure/ai/index.js').JsonValue
+  > = {};
+  for (const tool of registry.tools()) {
+    if (
+      tool.capabilities.some((capability) => !allowed.has(capability)) ||
+      (tool.kind === 'write' && tool.idempotency.mode !== 'transactional')
+    )
+      continue;
+    schemas[tool.id] = z.toJSONSchema(
+      tool.inputSchema,
+    ) as import('../../infrastructure/ai/index.js').JsonValue;
+  }
+  return schemas;
 }
 
 function validateContextPieces(

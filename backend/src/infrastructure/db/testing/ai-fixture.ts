@@ -314,6 +314,18 @@ export async function createAiFixture(services: Services) {
         'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
       );
     },
+    async jsonbStorageBytes(index: number, value: unknown): Promise<number> {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      return database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        const result = await client.query<{ bytes: number }>(
+          'SELECT octet_length($1::jsonb::text)::int AS bytes',
+          [JSON.stringify(value)],
+        );
+        return Number(result.rows[0]?.bytes);
+      });
+    },
     async outboxForRun(index: number, runId: string) {
       const tenant = tenants[index];
       if (!tenant) throw new Error('Invalid AI fixture tenant');

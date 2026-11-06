@@ -22,6 +22,13 @@ export interface TenantTransactionOptions {
   readonly timeoutMs?: number;
 }
 
+export class TenantTransactionTimeoutError extends Error {
+  constructor(options?: ErrorOptions) {
+    super('Tenant transaction timed out', options);
+    this.name = 'TenantTransactionTimeoutError';
+  }
+}
+
 export class TenantDatabase {
   readonly #pool: Pool;
 
@@ -96,7 +103,7 @@ export class TenantDatabase {
             timedOut = true;
             if (session) endSession(session);
             controller.abort(new Error('Tenant transaction timed out'));
-            throw new Error('Tenant transaction timed out');
+            throw new TenantTransactionTimeoutError();
           }
           throw connectionError ?? new Error('Database connection failed');
         });
@@ -116,7 +123,7 @@ export class TenantDatabase {
           deadlineFailure,
         ]);
       }
-      if (timedOut) throw new Error('Tenant transaction timed out');
+      if (timedOut) throw new TenantTransactionTimeoutError();
       endSession(session);
       await client.query('COMMIT');
       return result;
@@ -126,7 +133,7 @@ export class TenantDatabase {
         releaseError = new Error('Rollback failed');
       });
       if (timedOut) {
-        throw new Error('Tenant transaction timed out', { cause: error });
+        throw new TenantTransactionTimeoutError({ cause: error });
       }
       throw error;
     } finally {

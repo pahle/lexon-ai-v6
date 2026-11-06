@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
+import { canonicalJson, jsonbTextBytes } from './canonical-json.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 import type {
   OperationProposal,
@@ -70,25 +71,6 @@ function validClaim(tx: TenantSession, claim: StepClaim): boolean {
   );
 }
 
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean')
-    return JSON.stringify(value);
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('Invalid operation arguments');
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value))
-    return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
-  if (!value || typeof value !== 'object')
-    throw new Error('Invalid operation arguments');
-  const entries = Object.entries(value as Record<string, unknown>).sort(
-    ([left], [right]) => left.localeCompare(right),
-  );
-  return `{${entries
-    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
-    .join(',')}}`;
-}
-
 export function hashOperationArgs(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
@@ -107,7 +89,8 @@ export class AiOperationRepository {
       !Number.isSafeInteger(proposal.toolVersion) ||
       proposal.toolVersion < 1 ||
       !/^[0-9a-f]{64}$/.test(proposal.snapshotHash) ||
-      hashOperationArgs(proposal.args) !== proposal.argsHash
+      hashOperationArgs(proposal.args) !== proposal.argsHash ||
+      jsonbTextBytes(proposal.args) > 16_384
     )
       throw new Error('Invalid AI operation proposal');
     const { client, ctx } = requireSession(tx);
@@ -230,6 +213,8 @@ export class AiOperationRepository {
       errorCode?: string;
     },
   ): Promise<boolean> {
+    if (jsonbTextBytes(input.result) > 16_384)
+      throw new Error('AI operation result exceeds storage limit');
     const { client, ctx } = requireSession(tx);
     const result = await client.query(
       `UPDATE app.ai_operations
@@ -242,6 +227,20 @@ export class AiOperationRepository {
         JSON.stringify(input.result),
         input.errorCode ?? null,
       ],
+    );
+    return result.rowCount === 1;
+  }
+
+  async stageApproval(
+    tx: TenantSession,
+    operationId: string,
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query(
+      `UPDATE app.ai_operations
+       SET status='awaiting_approval',approval_required=true
+       WHERE org_id=$1 AND id=$2 AND status='pending'`,
+      [ctx.orgId, operationId],
     );
     return result.rowCount === 1;
   }

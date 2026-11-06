@@ -63,6 +63,18 @@ describe('chooseToolRecovery', () => {
     ).toBeLessThanOrEqual(128);
   });
 
+  test('large zero arrays truncate against JSONB storage bytes, not compact JSON bytes', () => {
+    const result = boundToolResult(
+      Array.from({ length: 6000 }, () => 0),
+      16_384,
+    );
+    expect(result).toMatchObject({
+      _lexon_truncated: true,
+      marker: '[TRUNCATED]',
+    });
+    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+  });
+
   test('tool result history is fenced and uses the durable operation id', () => {
     const messages = toolResultsAsMessages([
       {
