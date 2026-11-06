@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node 24.22.1, pnpm 10.33.1, TypeScript 6.0.3, Zod 4.6.7, Nest 12.3.2, ai 7.0.159, OpenRouter provider 3.1.0, BullMQ 6.5.3 / Nest adapter 12.0.0, Valkey 9.0.7, PostgreSQL 17.11, Drizzle 0.45.4 / Kit 0.31.11, Vitest 5.0.5; exact existing image manifest.
 
-**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–7 accepted after review; Tasks8–17 remain pending.
+**Spec:** [Approved design](../specs/2026-11-05-f3-ai-run-engine-design.md), [brief](../../briefs/F3-ai-run-engine.md), controlling LEX-TS-001 v1.11 and LEX-ARC-001. Owner conversation corrections in the design replace erroneous per-step usage wording. Status: approved by the product owner on 2026-11-05, including revised stream capacity, early terminal eviction, azure/us, and manual USD0.10/16-request eval envelope; Tasks1–11 accepted after review; Tasks12–17 remain pending. Task11 retains a disclosed historical TDD process deviation for its initial hash/concurrency assertions.
 
 ## Execution amendment — owner, 2026-11-06
 
@@ -73,7 +73,7 @@ Configuration validates all coupled values at boot: actual declared Valkey maxme
 
 ## File structure and interfaces
 
-Paths below are exact planned ownership, not scaffolding permission. Export domain services only through module `index.ts`; private repositories stay in db. Add migrations 0015 (engine/attempt/admission), 0016 (capacity privilege correction), 0017 (worker actor facts), 0018 (operations), 0019 (AI audit types/permissions if needed), with append-only journal entries; never edit applied migrations. Test-only effect tables belong to testing helpers.
+Paths below are exact planned ownership, not scaffolding permission. Export domain services only through module `index.ts`; private repositories stay in db. Add migrations 0015 (engine/attempt/admission), 0016 (capacity privilege correction), 0017 (worker actor facts), 0018 (actor-facts lock/cost correction), 0019 (operations), 0020 (approval decisions), 0021 (AI audit types/permissions if needed), with append-only journal entries; never edit applied migrations. Test-only effect tables belong to testing helpers.
 
 | Area                | Files / responsibility                                                                                                                                                                                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -394,7 +394,7 @@ expect(
 
 **Research:** Design initiator-only authority and once-only decision; F1 lock ordering and current member facts; approved job sequence versus model iteration distinction.
 
-- [ ] **Step 1: Write the failing tests.** Test pause frees worker/transaction; exact snapshot hash approval enqueues one resume; reject returned to model; simultaneous decisions yield1accepted; repeat and stale hash refused; another org owner/platformadmin cannot decide and does NOT change legitimate run. Remove initiator membership before decision and separately after decision/before resume: operation rejected,run failed,noeffect/noresume continuation. Tool/capability removed from server registry/profile cannot execute on resume.
+- [x] **Step 1: Write the failing tests.** Test pause frees worker/transaction; exact snapshot hash approval enqueues one resume; reject returned to model; simultaneous decisions yield1accepted; repeat and stale hash refused; another org owner/platformadmin cannot decide and does NOT change legitimate run. Remove initiator membership before decision and separately after decision/before resume: operation rejected,run failed,noeffect/noresume continuation. Tool/capability removed from server registry/profile cannot execute on resume.
 
 Representative assertions in those named tests (locals come from their specified test setup):
 
@@ -404,13 +404,13 @@ expect(resumedAfterAccessLoss.status).toBe('failed');
 expect(resumedAfterAccessLoss.errorCode).toBe('AI_ACCESS_REVOKED');
 ```
 
-- [ ] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-approval.spec ai-approval-concurrency.spec ai-tools.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
+- [x] **Step 2: Observe RED.** Run `pnpm exec vitest run --project backend-integration ai-approval.spec ai-approval-concurrency.spec ai-tools.spec`. Expect the named assertions to fail because the new behavior is missing; configuration/import failure alone is acceptable only for the initial new exported symbol.
 
-- [ ] **Step 3: Implement the deliverable.** Decision+outbox atomic with expected pending state. Distinguish a foreign caller refusal from actual initiator access loss. On true access loss atomically reject operation and fail/release active slot; no indefinite awaiting_approval. Resume does not reuse consumed step receipt; recheck hash/tool version/current capabilities/approval before execution. A rejected decision produces durable denial tool result and next model generation if budget permits. Unanswered expiry, UI and approval HTTP remain absent.
+- [x] **Step 3: Implement the deliverable.** Decision+outbox atomic with expected pending state. Distinguish a foreign caller refusal from actual initiator access loss. On true access loss atomically reject operation and fail/release active slot; no indefinite awaiting_approval. Resume does not reuse consumed step receipt; recheck hash/tool version/current capabilities/approval before execution. A rejected decision produces durable denial tool result and next model generation if budget permits. Unanswered expiry, UI and approval HTTP remain absent.
 
-- [ ] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-approval.spec ai-approval-concurrency.spec ai-tools.spec`; expect all selected tests PASS. Cross-tenant approval tests and worker auth-composition test; no new auth-role outbox function.
+- [x] **Step 4: Verify GREEN.** Run `pnpm exec vitest run --project backend-integration ai-approval.spec ai-approval-concurrency.spec ai-tools.spec`; expect all selected tests PASS. Cross-tenant approval tests and worker auth-composition test; no new auth-role outbox function.
 
-- [ ] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): pause for approval and resume under current policy`, then `git push -u origin f3-ai-run-engine`.
+- [x] **Step 5: Review, record, commit and push.** Main session reviews spec compliance, then code quality; resolve findings and record commands/results in `docs/references/F3-acceptance.md`. Stage only this task's files and evidence, commit `feat(f3): pause for approval and resume under current policy`, then `git push -u origin f3-ai-run-engine`.
 
 ### Task 12: Cancel in-flight work and prove crash recovery
 
