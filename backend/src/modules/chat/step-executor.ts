@@ -192,6 +192,7 @@ export class StepExecutor {
     let uiStepStarted = false;
     let textPartOpen = false;
     let streamFramingAvailable = true;
+    let streamSnapshotRequired = false;
 
     try {
       heartbeat.throwIfAborted();
@@ -879,13 +880,17 @@ export class StepExecutor {
           ordinal < maxAttempts
         ) {
           if (textPartOpen) {
-            await this.#publish(claim, {
+            const closed = await this.#publish(claim, {
               version: 1,
               runId: claim.runId,
               type: 'text-end',
               id: attemptId,
             });
             textPartOpen = false;
+            if (closed === 'unavailable') {
+              streamFramingAvailable = false;
+              streamSnapshotRequired = true;
+            }
           }
           await this.options.database.withTenant(
             { orgId: claim.orgId, userId: claim.userId },
@@ -899,12 +904,19 @@ export class StepExecutor {
           );
           attemptReserved = false;
           heartbeat.throwIfAborted();
-          await this.#publish(claim, {
+          const reset = await this.#publish(claim, {
             version: 1,
             runId: claim.runId,
             type: 'reset-step',
           });
           uiStepStarted = false;
+          if (reset === 'written') {
+            streamFramingAvailable = true;
+            streamSnapshotRequired = false;
+          } else {
+            streamFramingAvailable = false;
+            streamSnapshotRequired = true;
+          }
           await delay(250, heartbeat.signal);
           continue;
         }
@@ -1002,7 +1014,7 @@ export class StepExecutor {
       });
       if (committed === 'committed') {
         await heartbeat.stop();
-        await this.#finishIfTerminal(claim);
+        await this.#finishIfTerminal(claim, streamSnapshotRequired);
       }
       setStepSpanStatus(succeeded ? 'succeeded' : 'failed');
       setRunSpanStatus(
@@ -1202,7 +1214,10 @@ export class StepExecutor {
     });
   }
 
-  async #finishIfTerminal(claim: StepClaim): Promise<void> {
+  async #finishIfTerminal(
+    claim: StepClaim,
+    resetToSnapshot = false,
+  ): Promise<void> {
     const durableRun = await this.options.database.withTenant(
       { orgId: claim.orgId, userId: claim.userId },
       (tx) => this.options.runs.find(tx, claim.runId),
@@ -1212,11 +1227,15 @@ export class StepExecutor {
       durableRun?.status === 'failed' ||
       durableRun?.status === 'cancelled'
     )
-      await this.options.streams?.finish(claim, {
-        version: 1,
-        runId: claim.runId,
-        type: 'finish',
-      });
+      await this.options.streams?.finish(
+        claim,
+        {
+          version: 1,
+          runId: claim.runId,
+          type: 'finish',
+        },
+        resetToSnapshot ? { resetToSnapshot: true } : undefined,
+      );
   }
 }
 

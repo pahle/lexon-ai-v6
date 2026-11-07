@@ -146,6 +146,95 @@ test('coordinator returns busy to a second delivery and performs no tenant disco
   }
 });
 
+test('a live-refused claim that expires before inspection is deferred for fenced recovery', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let releaseInspection!: () => void;
+  let reportInspection!: () => void;
+  const inspectionReached = new Promise<void>((resolve) => {
+    reportInspection = resolve;
+  });
+  const inspectionBarrier = new Promise<void>((resolve) => {
+    releaseInspection = resolve;
+  });
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const steps = new AiStepRepository();
+    const service = new StepCoordinator(
+      ai.database as TenantDatabase,
+      new AiRunRepository(),
+      steps,
+      new AttemptService(),
+      new OutboxRepository(),
+      new JobExecutor(ai.database),
+      150,
+    );
+    const queuedJob = job(run.id, ai.tenants[0]!);
+    const originalFind = steps.find.bind(steps);
+    vi.spyOn(steps, 'find').mockImplementation(async (tx, input) => {
+      reportInspection();
+      await inspectionBarrier;
+      return originalFind(tx, input);
+    });
+
+    const originalClaim = await service.claim(queuedJob);
+    expect(originalClaim.kind).toBe('claimed');
+    if (originalClaim.kind !== 'claimed') return;
+
+    const redelivery = service.claim(queuedJob);
+    await inspectionReached;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    releaseInspection();
+    const refused = await redelivery;
+    expect(refused.kind).toBe('busy');
+    if (refused.kind !== 'busy') return;
+
+    const recovered = await service.claim(queuedJob);
+    expect(recovered.kind).toBe('claimed');
+    if (recovered.kind !== 'claimed') return;
+    expect(recovered.claim.fence).toBe(originalClaim.claim.fence + 1);
+    expect(
+      await service.commit(queuedJob, recovered.claim, {
+        state: 'committed',
+        text: 'replacement completed',
+        data: {},
+        advancement: 'generation',
+      }),
+    ).toBe('committed');
+    expect(await ai.receiptCount(queuedJob.outboxId)).toBe(1);
+  } finally {
+    releaseInspection();
+    await ai.close();
+  }
+});
+
+test('an expired claimed step refused by organization capacity stays retryable', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const runs = await Promise.all([ai.start(0), ai.start(0), ai.start(0)]);
+    await Promise.all(runs.map((run) => ai.seedPendingStep(0, run.id)));
+    const expired = await ai.claim(0, runs[0]!.id, 1, 1, 120);
+    expect(expired).not.toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    expect(await ai.claim(0, runs[1]!.id, 1, 1, 30_000)).not.toBeNull();
+    expect(await ai.claim(0, runs[2]!.id, 1, 1, 30_000)).not.toBeNull();
+
+    const deferred = await coordinator(ai).claim(
+      job(runs[0]!.id, ai.tenants[0]!),
+    );
+    expect(deferred.kind).toBe('busy');
+    if (deferred.kind !== 'busy') return;
+    expect(deferred.retryAtMs).toBeGreaterThan(Date.now());
+    expect(await ai.runVersion(0, runs[0]!.id)).toBe(1);
+  } finally {
+    await ai.close();
+  }
+});
+
 test('persisted cancellation prevents ordinary commit callbacks before they run', async ({
   services,
 }) => {

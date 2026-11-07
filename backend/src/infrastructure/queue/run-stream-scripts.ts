@@ -54,7 +54,9 @@ local guard = redis.call('GET', KEYS[3])
 local stepOpen = '0'
 local textPartId = ''
 if guard then
-  local state, version, sequence, fence, oldStepOpen, oldTextPartId = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)|(%d)|([^|]*)')
+  local state, version, sequence, fence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
+  local framing = string.match(guard, '^%w+|%d+|%d+|%d+|(.*)$')
+  local oldStepOpen, oldTextPartId = string.match(framing or '', '^(%d)|(.*)$')
   if state == 'closed' then return -1 end
   if version and (tonumber(incoming) < tonumber(version) or
     (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) < tonumber(sequence)) or
@@ -89,7 +91,9 @@ local guard = redis.call('GET', KEYS[4])
 local stepOpen = '0'
 local textPartId = ''
 if guard then
-  local state, oldVersion, oldSequence, oldFence, oldStepOpen, oldTextPartId = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)|(%d)|([^|]*)')
+  local state, oldVersion, oldSequence, oldFence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
+  local framing = string.match(guard, '^%w+|%d+|%d+|%d+|(.*)$')
+  local oldStepOpen, oldTextPartId = string.match(framing or '', '^(%d)|(.*)$')
   if state == 'closed' or (oldVersion and (version < tonumber(oldVersion) or
     (version == tonumber(oldVersion) and sequence < tonumber(oldSequence)) or
     (version == tonumber(oldVersion) and sequence == tonumber(oldSequence) and fence < tonumber(oldFence)))) then return 0 end
@@ -128,6 +132,14 @@ if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCOR
   end
 end
 if redis.call('ZCARD', KEYS[2]) >= 6 then return -1 end
+if ARGV[14] == '1' then
+  local reset = cjson.encode({version = 1, runId = runId, type = 'reset', sequence = sequence})
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', reset)
+  local start = cjson.encode({version = 1, runId = runId, type = 'start', messageId = runId})
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', start)
+  stepOpen = '0'
+  textPartId = ''
+end
 if textPartId ~= '' then
   local textEnd = cjson.encode({version = 1, runId = runId, type = 'text-end', id = textPartId})
   redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', textEnd)

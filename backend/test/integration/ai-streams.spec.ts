@@ -367,6 +367,153 @@ test('a separate terminal writer closes a text part left open by a dead publishe
   }
 });
 
+test('terminal guard preserves opaque text part IDs with leading or embedded pipes', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const authority = claimAuthority(ai.database as TenantDatabase, steps);
+  const oldPublisher = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const terminalWriter = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const replayResults: {
+    id: string;
+    state?: string;
+    terminalId: unknown;
+    terminalTypes: unknown[];
+    error?: string;
+  }[] = [];
+  try {
+    for (const textPartId of ['part|tail', '|leading'] as const) {
+      const run = await ai.start(0);
+      await ai.seedPendingStep(0, run.id);
+      const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+      if (!claim) throw new Error('Opaque text part ID claim unavailable');
+      await oldPublisher.recover(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'reset',
+        sequence: claim.sequence,
+      });
+      for (const event of [
+        { version: 1, runId: run.id, type: 'start', messageId: run.id },
+        { version: 1, runId: run.id, type: 'start-step' },
+        { version: 1, runId: run.id, type: 'text-start', id: textPartId },
+        {
+          version: 1,
+          runId: run.id,
+          type: 'text-delta',
+          id: textPartId,
+          delta: 'opaque id text',
+        },
+      ] as const)
+        expect(await oldPublisher.publish(claim, event as never)).toBe(
+          'written',
+        );
+
+      await ai.withTenant(0, async (tx) => {
+        expect(await steps.lockClaim(tx, claim)).toBe(true);
+        expect(
+          await steps.commit(tx, claim, {
+            state: 'committed',
+            text: 'opaque id text',
+            data: {},
+          }),
+        ).toBe(true);
+        expect(
+          await runs.transition(tx, {
+            runId: run.id,
+            expectedVersion: claim.expectedVersion,
+            from: 'queued',
+            to: 'completed',
+            nextSequence: claim.sequence + 1,
+            outputAppend: 'opaque id text',
+            finalizeOutput: true,
+          }),
+        ).toBe(true);
+      });
+      await terminalWriter.finish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'finish',
+      });
+
+      const rows = await redis.xrange(
+        `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+        '-',
+        '+',
+      );
+      const chunks = rows
+        .map(([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>)
+        .filter((event) =>
+          [
+            'start',
+            'start-step',
+            'text-start',
+            'text-delta',
+            'text-end',
+            'finish-step',
+            'finish',
+          ].includes(String(event.type)),
+        ) as UIMessageChunk[];
+      const terminalId = JSON.parse(rows.at(-3)![1][1]!).id;
+      const terminalTypes = rows
+        .map(([, fields]) => JSON.parse(fields[1]!).type)
+        .slice(-3);
+      try {
+        const messages = await consumeUiMessageChunks(chunks);
+        const parts = (
+          messages.at(-1) as {
+            parts: { type: string; id?: string; state?: string }[];
+          }
+        ).parts;
+        const part = parts.find((value) => value.type === 'text');
+        replayResults.push({
+          id: textPartId,
+          ...(part?.state === undefined ? {} : { state: part.state }),
+          terminalId,
+          terminalTypes,
+        });
+      } catch (error) {
+        replayResults.push({
+          id: textPartId,
+          terminalId,
+          terminalTypes,
+          error:
+            error instanceof Error ? error.message : 'unknown replay error',
+        });
+      }
+    }
+    expect(replayResults).toEqual([
+      {
+        id: 'part|tail',
+        state: 'done',
+        terminalId: 'part|tail',
+        terminalTypes: ['text-end', 'finish-step', 'finish'],
+      },
+      {
+        id: '|leading',
+        state: 'done',
+        terminalId: '|leading',
+        terminalTypes: ['text-end', 'finish-step', 'finish'],
+      },
+    ]);
+  } finally {
+    redis.disconnect();
+    await Promise.all([oldPublisher.close(), terminalWriter.close()]);
+    await ai.close();
+  }
+});
+
 test('worker recovery resets old framing state before the next UI replay', async ({
   services,
 }) => {

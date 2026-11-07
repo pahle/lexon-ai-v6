@@ -171,6 +171,7 @@ export class RunStreams {
   async finish(
     claim: TerminalStreamReference,
     event: RunStreamEvent,
+    options: { readonly resetToSnapshot?: boolean } = {},
   ): Promise<void> {
     if (
       !validTerminalReference(claim) ||
@@ -224,6 +225,7 @@ export class RunStreams {
                 candidate?.guard ?? '',
                 epoch,
                 `${claim.orgId}|${claim.userId}`,
+                options.resetToSnapshot === true ? '1' : '0',
               ),
             );
             if (result === 1) return;

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Queue } from 'bullmq';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
   AiAttemptRepository,
@@ -88,6 +88,157 @@ test('durable busy claims are delayed without consuming BullMQ failure attempts'
     await producer.close();
     await queue.close();
     await database.close();
+  }
+});
+
+test('expired live-refused recovery delivery stays delayed until a new fence commits', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: services.valkey.limiterUrl,
+    prefix: services.queuePrefix,
+  };
+  const database = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 3,
+    statementTimeoutMs: 10000,
+  });
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const run = await fixture.start(0);
+  await fixture.seedPendingStep(0, run.id);
+  const tenant = fixture.tenants[0]!;
+  const queuedJob: JobEnvelope = {
+    outboxId: stepJobId(run.id, 1),
+    type: 'run.advance.v1',
+    ctx: tenant,
+    payload: { runId: run.id, sequence: 1, expectedVersion: 1 },
+  };
+  const steps = new AiStepRepository();
+  const coordinator = new StepCoordinator(
+    fixture.database as TenantDatabase,
+    new AiRunRepository(),
+    steps,
+    new AttemptService(),
+    new OutboxRepository(),
+    new JobExecutor(fixture.database),
+    1000,
+  );
+  const usage = new AttemptService();
+  let reportInspection!: () => void;
+  let releaseInspection!: () => void;
+  const inspectionReached = new Promise<void>((resolve) => {
+    reportInspection = resolve;
+  });
+  const inspectionBarrier = new Promise<void>((resolve) => {
+    releaseInspection = resolve;
+  });
+  const originalFind = steps.find.bind(steps);
+  vi.spyOn(steps, 'find').mockImplementation(async (tx, input) => {
+    reportInspection();
+    await inspectionBarrier;
+    return originalFind(tx, input);
+  });
+  const registry = new JobRegistry();
+  let replacementFence = 0;
+  let replacementAttemptId: string | undefined;
+  registry.register('run.advance.v1', {
+    strategy: 'durable-step',
+    handle: async (delivery) => {
+      const claim = await coordinator.claim(delivery);
+      if (claim.kind === 'busy') return claim;
+      if (claim.kind !== 'claimed') return { kind: 'done' };
+      replacementFence = claim.claim.fence;
+      const attempt = await fixture.withTenant(0, (tx) =>
+        usage.reserve(tx, claim.claim, {
+          attemptId: randomUUID(),
+          modelInput: {
+            model: 'synthetic/test',
+            provider: 'synthetic',
+            messages: [{ role: 'user' as const, content: 'recovery' }],
+            maxOutputTokens: 16,
+            signal: new AbortController().signal,
+          },
+          limits: {
+            maxAttemptsPerStep: 2,
+            tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
+            maxOutputTokens: 16,
+          },
+        }),
+      );
+      replacementAttemptId = attempt.attemptId;
+      await coordinator.commit(delivery, claim.claim, {
+        state: 'committed',
+        text: 'recovered output',
+        data: {},
+        terminal: true,
+        advancement: 'generation',
+        outcome: 'succeeded',
+        attemptSettlement: {
+          attemptId: attempt.attemptId,
+          outcome: 'succeeded',
+          usage: { inputTokens: 2, outputTokens: 2 },
+        },
+      });
+      return { kind: 'done' };
+    },
+  });
+  const consumer = new QueueConsumer(options, new JobExecutor(database), {
+    lockDuration: 1000,
+    stalledInterval: 1000,
+    interactiveConcurrency: 1,
+    batchConcurrency: 1,
+    stepLeaseMs: 1000,
+    busyRetryMs: 100,
+  });
+  try {
+    await consumer.start(registry);
+    const original = await coordinator.claim(queuedJob);
+    expect(original.kind).toBe('claimed');
+    if (original.kind !== 'claimed') return;
+    await producer.enqueue(queuedJob, {
+      queue: 'ai-batch',
+      priority: 4,
+      timeoutMs: 1000,
+    });
+    await inspectionReached;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    releaseInspection();
+    await expect
+      .poll(async () => (await queue.getJob(queuedJob.outboxId))?.getState())
+      .toBe('delayed');
+    expect((await queue.getJob(queuedJob.outboxId))?.attemptsMade).toBe(0);
+    await expect
+      .poll(async () => (await queue.getJob(queuedJob.outboxId))?.getState(), {
+        timeout: 6000,
+      })
+      .toBe('completed');
+    expect(replacementFence).toBe(original.claim.fence + 1);
+    expect(replacementAttemptId).toBeDefined();
+    expect(await fixture.receiptCount(queuedJob.outboxId)).toBe(1);
+    expect(
+      await fixture.withTenant(0, (tx) =>
+        new AiAttemptRepository().list(tx, run.id),
+      ),
+    ).toMatchObject([
+      expect.objectContaining({
+        attemptId: replacementAttemptId,
+        active: false,
+        outcome: 'succeeded',
+      }),
+    ]);
+  } finally {
+    releaseInspection();
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await database.close();
+    await fixture.close();
   }
 });
 

@@ -113,12 +113,14 @@ export class StepCoordinator {
         runId: run.id,
         sequence: job.payload.sequence,
       });
-      if (
-        step?.state === 'claimed' &&
-        step.leaseUntil &&
-        step.leaseUntil > new Date()
-      )
-        return { kind: 'busy', retryAtMs: step.leaseUntil.getTime() };
+      if (step?.state === 'claimed') {
+        if (step.leaseUntil && step.leaseUntil > new Date())
+          return { kind: 'busy', retryAtMs: step.leaseUntil.getTime() };
+        // A live claim can expire after the repository refuses takeover but
+        // before this read. Keep its deterministic delivery retryable so the
+        // next claim can advance the fence instead of acknowledging a no-op.
+        return { kind: 'busy', retryAtMs: Date.now() + CAPACITY_RETRY_MS };
+      }
       // The run still expects this pending step, so the claim was refused by
       // the per-organization live-claim cap. Defer it; acknowledging it as a
       // no-op would strand the run with no further delivery.
