@@ -45,7 +45,10 @@ import type {
   ModelGateway,
   ModelInput,
 } from '../../src/infrastructure/ai/index.js';
-import { RunStreams } from '../../src/infrastructure/queue/index.js';
+import {
+  CancelSignals,
+  RunStreams,
+} from '../../src/infrastructure/queue/index.js';
 import type { ContextProvider } from '../../src/modules/chat/run-contracts.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
 import { RequestIdentity } from '../../src/modules/identity-access/request-identity.js';
@@ -155,6 +158,7 @@ async function setup(
     tools?: readonly ToolDefinition[];
     modelCallTimeoutMs?: number;
     tenant?: { orgId: string; userId: string };
+    cancelSignals?: CancelSignals;
   } = {},
 ) {
   const authorization = new RunAuthorizationService();
@@ -214,6 +218,7 @@ async function setup(
       ? { modelCallTimeoutMs: options.modelCallTimeoutMs }
       : {}),
     ...(options.streams ? { streams: options.streams } : {}),
+    ...(options.cancelSignals ? { cancelSignals: options.cancelSignals } : {}),
   });
   const tenant = options.tenant ?? ai.tenants[0]!;
   const created = (await actorScope(tenant, authorization, (actor) =>
@@ -4217,8 +4222,16 @@ test('actual engine events persisted in Valkey replay to durable multi-step text
 
 async function assertRetryStreamOutage(
   services: FileServices,
-  resetStepAcknowledgementLost: boolean,
+  options: {
+    resetStepAcknowledgementLost?: boolean;
+    initialHeaderUnavailable?: boolean;
+    rejectRetryClosure?: boolean;
+  } = {},
 ) {
+  const resetStepAcknowledgementLost =
+    options.resetStepAcknowledgementLost ?? false;
+  const initialHeaderUnavailable = options.initialHeaderUnavailable ?? false;
+  const rejectRetryClosure = options.rejectRetryClosure ?? true;
   const ai = await createAiFixture(services);
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
@@ -4259,15 +4272,25 @@ async function assertRetryStreamOutage(
   let firstTextId: string | undefined;
   const rejectedEvents: string[] = [];
   let resetStepAcknowledgementLostObserved = false;
+  let initialHeaderRejected = false;
   let terminalAcknowledgementLost = false;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     if (args[0] === APPEND_RUN_STREAM) {
       const eventType = String(args.at(-2));
       const eventId = String(args.at(-1));
+      if (
+        initialHeaderUnavailable &&
+        !initialHeaderRejected &&
+        eventType === 'start'
+      ) {
+        initialHeaderRejected = true;
+        return -3;
+      }
       if (eventType === 'text-start' && firstTextId === undefined)
         firstTextId = eventId;
       if (
+        rejectRetryClosure &&
         eventType === 'text-end' &&
         eventId === firstTextId &&
         !rejectedEvents.includes('text-end')
@@ -4276,6 +4299,7 @@ async function assertRetryStreamOutage(
         return -3;
       }
       if (
+        rejectRetryClosure &&
         eventType === 'reset-step' &&
         rejectedEvents.includes('text-end') &&
         !rejectedEvents.includes('reset-step')
@@ -4325,7 +4349,10 @@ async function assertRetryStreamOutage(
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual({ kind: 'done' });
-    expect(rejectedEvents).toEqual(['text-end', 'reset-step']);
+    expect(rejectedEvents).toEqual(
+      rejectRetryClosure ? ['text-end', 'reset-step'] : [],
+    );
+    expect(initialHeaderRejected).toBe(initialHeaderUnavailable);
     expect(resetStepAcknowledgementLostObserved).toBe(
       resetStepAcknowledgementLost,
     );
@@ -4351,18 +4378,6 @@ async function assertRetryStreamOutage(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
     expect(terminalAcknowledgementLost).toBe(true);
-    expect(events.at(-3)).toMatchObject({
-      type: 'reset',
-      sequence: 1,
-    });
-    expect(events.at(-2)).toMatchObject({
-      type: 'start',
-      messageId: h.runId,
-    });
-    expect(events.at(-1)).toMatchObject({ type: 'finish' });
-    expect(events.filter((event) => event.type === 'text-start')).toHaveLength(
-      1,
-    );
     const resetIndex = events.findLastIndex((event) => event.type === 'reset');
     const sdkTypes = new Set([
       'start',
@@ -4373,8 +4388,17 @@ async function assertRetryStreamOutage(
       'text-end',
       'finish',
     ]);
+    expect(events.at(-3)).toMatchObject({ type: 'reset', sequence: 1 });
+    expect(events.at(-2)).toMatchObject({
+      type: 'start',
+      messageId: h.runId,
+    });
+    expect(events.at(-1)).toMatchObject({ type: 'finish' });
+    expect(events.filter((event) => event.type === 'text-start')).toHaveLength(
+      initialHeaderUnavailable ? 0 : 1,
+    );
     const chunks = events
-      .slice(resetIndex + 1)
+      .slice(initialHeaderUnavailable ? -2 : resetIndex + 1)
       .filter((event) => sdkTypes.has(String(event.type))) as UIMessageChunk[];
     const initialMessage: UIMessage = {
       id: h.runId,
@@ -4389,8 +4413,10 @@ async function assertRetryStreamOutage(
     };
     const messages = await consumeUiMessageChunks(chunks, initialMessage);
     const message = messages.at(-1) as {
+      id?: string;
       parts: { type: string; text?: string; state?: string }[];
     };
+    expect(message.id).toBe(h.runId);
     const textParts = message.parts.filter((part) => part.type === 'text');
     expect(textParts.map((part) => part.text).join('')).toBe(
       durableRun?.finalOutput,
@@ -4407,13 +4433,402 @@ async function assertRetryStreamOutage(
 test('retry stream outage resets from the terminal snapshot after rejected closure/reset', async ({
   services,
 }) => {
-  await assertRetryStreamOutage(services, false);
+  await assertRetryStreamOutage(services);
 });
 
 test('retry stream does not resume after reset-step is applied but its acknowledgement is lost', async ({
   services,
 }) => {
-  await assertRetryStreamOutage(services, true);
+  await assertRetryStreamOutage(services, {
+    resetStepAcknowledgementLost: true,
+  });
+});
+
+async function createExecutionStreamFixture(
+  ai: Awaited<ReturnType<typeof createAiFixture>>,
+  services: FileServices,
+) {
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const authority = {
+    authorizeActive: (claim: StepClaim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (
+      claim: Parameters<typeof steps.streamTerminalProof>[1],
+    ) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    reconcile: async (
+      entries: readonly { runId: string; orgId: string; userId: string }[],
+    ) =>
+      Promise.all(
+        entries.map(async ({ runId, orgId, userId }) => {
+          const result = await ai.database.withTenant({ orgId, userId }, (tx) =>
+            runs.streamRegistryState(tx, runId, userId),
+          );
+          return result.state === 'terminal'
+            ? { runId, state: 'terminal' as const, claim: result.claim }
+            : { runId, state: result.state };
+        }),
+      ),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  return {
+    runs,
+    steps,
+    streams,
+    redis,
+    close: async () => {
+      redis.disconnect();
+      await streams.close();
+    },
+  };
+}
+
+test('retry stream outage terminal cancellation refreshes the second attempt snapshot', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const stream = await createExecutionStreamFixture(ai, services);
+  const cancelSignals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    database: ai.database,
+    runs: stream.runs,
+  });
+  const secondAttemptText = 'distinct cancellation snapshot';
+  let attemptCount = 0;
+  let announceSecondText!: () => void;
+  const secondTextPublished = new Promise<void>((resolve) => {
+    announceSecondText = resolve;
+  });
+  const gateway: ModelGateway = {
+    generate(input) {
+      attemptCount++;
+      return (async function* () {
+        yield {
+          type: 'metadata' as const,
+          generationId: `retry-cancel-${attemptCount}`,
+          provider: 'openai',
+        };
+        if (attemptCount === 1) {
+          yield { type: 'text' as const, text: 'failed attempt sentinel' };
+          yield {
+            type: 'outcome' as const,
+            outcome: {
+              finishReason: 'error',
+              attemptOutcome: 'failed',
+              retryable: true,
+              safeCode: 'AI_PROVIDER_UNAVAILABLE',
+            },
+          };
+          return;
+        }
+        yield { type: 'text' as const, text: secondAttemptText };
+        announceSecondText();
+        await new Promise<void>((resolve, reject) => {
+          const aborted = () => reject(input.signal.reason);
+          if (input.signal.aborted) aborted();
+          else input.signal.addEventListener('abort', aborted, { once: true });
+        });
+      })();
+    },
+  };
+  const originalEval = Redis.prototype.eval;
+  let textEndRejected = false;
+  let resetRejected = false;
+  let runStatusAtFinish: string | undefined;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (args[0] === APPEND_RUN_STREAM) {
+      const type = String(args.at(-2));
+      if (type === 'text-end' && !textEndRejected) {
+        textEndRejected = true;
+        return -3;
+      }
+      if (type === 'reset-step' && !resetRejected) {
+        resetRejected = true;
+        return -3;
+      }
+    }
+    if (args[0] === FINISH_RUN_STREAM) {
+      const runId = String(args[11]);
+      runStatusAtFinish = (
+        await ai.withTenant(0, (tx) => stream.runs.find(tx, runId))
+      )?.status;
+    }
+    return originalEval.apply(this, args as never);
+  } as never);
+  try {
+    const h = await setup(ai, [], {
+      gateway,
+      streams: stream.streams,
+      cancelSignals,
+    });
+    const execution = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    await secondTextPublished;
+    const cancel = new CancelService(
+      ai.database,
+      h.runs,
+      h.steps,
+      new RunActorFactsRepository(),
+      h.authorization,
+      stream.streams,
+      cancelSignals,
+    );
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      cancel.cancel(actor, h.runId),
+    );
+    await execution;
+
+    const durable = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(durable).toMatchObject({
+      status: 'cancelled',
+      partialOutput: secondAttemptText,
+      finalOutput: null,
+    });
+    expect(textEndRejected && resetRejected).toBe(true);
+    expect(runStatusAtFinish).toBe('cancelled');
+    const rows = await stream.redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(events.slice(-3).map((event) => event.type)).toEqual([
+      'reset',
+      'start',
+      'finish',
+    ]);
+    expect(events.at(-2)).toMatchObject({ messageId: h.runId });
+    const sdkTypes = new Set(['start', 'finish']);
+    const chunks = events
+      .slice(-2)
+      .filter((event) => sdkTypes.has(String(event.type))) as UIMessageChunk[];
+    const snapshot: UIMessage = {
+      id: h.runId,
+      role: 'assistant',
+      parts: [{ type: 'text', text: durable!.partialOutput, state: 'done' }],
+    };
+    const replay = await consumeUiMessageChunks(chunks, snapshot);
+    const message = replay.at(-1) as UIMessage;
+    expect(message.id).toBe(h.runId);
+    expect(message.parts).toEqual([
+      { type: 'text', text: secondAttemptText, state: 'done' },
+    ]);
+  } finally {
+    evalSpy.mockRestore();
+    await cancelSignals.close();
+    await stream.close();
+    await ai.close();
+  }
+});
+
+test('retry stream outage budget refusal refreshes the durable terminal snapshot', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const stream = await createExecutionStreamFixture(ai, services);
+  const originalEval = Redis.prototype.eval;
+  let textEndRejected = false;
+  let resetRejected = false;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (args[0] === APPEND_RUN_STREAM) {
+      const type = String(args.at(-2));
+      if (type === 'text-end' && !textEndRejected) {
+        textEndRejected = true;
+        return -3;
+      }
+      if (type === 'reset-step' && !resetRejected) {
+        resetRejected = true;
+        return -3;
+      }
+    }
+    return originalEval.apply(this, args as never);
+  } as never);
+  let modelCalls = 0;
+  const gateway: ModelGateway = {
+    generate(input) {
+      modelCalls++;
+      return createScriptedModelGateway([
+        {
+          events: [
+            { type: 'text', text: 'budget terminal snapshot' },
+            { type: 'usage', usage: { inputTokens: 3000, outputTokens: 3 } },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'error',
+                attemptOutcome: 'failed',
+                retryable: true,
+                safeCode: 'AI_PROVIDER_UNAVAILABLE',
+                usage: { inputTokens: 3000, outputTokens: 3 },
+              },
+            },
+          ],
+        },
+      ]).generate(input);
+    },
+  };
+  try {
+    const h = await setup(ai, [], { gateway, streams: stream.streams });
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const durable = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(durable).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_BUDGET_EXCEEDED',
+      partialOutput: 'budget terminal snapshot',
+    });
+    expect(modelCalls).toBe(1);
+    expect(textEndRejected && resetRejected).toBe(true);
+    const rows = await stream.redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(events.slice(-3).map((event) => event.type)).toEqual([
+      'reset',
+      'start',
+      'finish',
+    ]);
+    const chunks = events
+      .slice(-2)
+      .filter((event) =>
+        ['start', 'finish'].includes(String(event.type)),
+      ) as UIMessageChunk[];
+    const snapshot: UIMessage = {
+      id: h.runId,
+      role: 'assistant',
+      parts: [{ type: 'text', text: durable!.partialOutput, state: 'done' }],
+    };
+    const replay = await consumeUiMessageChunks(chunks, snapshot);
+    const message = replay.at(-1) as UIMessage;
+    expect(message.id).toBe(h.runId);
+    expect(message.parts).toEqual([
+      { type: 'text', text: 'budget terminal snapshot', state: 'done' },
+    ]);
+  } finally {
+    evalSpy.mockRestore();
+    await stream.close();
+    await ai.close();
+  }
+});
+
+test('retry reset does not invent a message header after the initial start is unavailable', async ({
+  services,
+}) => {
+  await assertRetryStreamOutage(services, {
+    initialHeaderUnavailable: true,
+    rejectRetryClosure: false,
+  });
+});
+
+test('revoked resume after an unavailable header finishes from a snapshot boundary', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const api = await identityApiHarness(services);
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  const user = await api.user('Revoked run initiator');
+  const remainingOwner = await api.user('Remaining run owner');
+  const team = await organizations.seedTeam([
+    user.profile.id,
+    remainingOwner.profile.id,
+  ]);
+  const tenant = { orgId: team.id, userId: user.profile.id };
+  const stream = await createExecutionStreamFixture(ai, services);
+  const originalEval = Redis.prototype.eval;
+  let headerRejected = false;
+  let runStatusAtFinish: string | undefined;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (
+      args[0] === APPEND_RUN_STREAM &&
+      args.at(-2) === 'start' &&
+      !headerRejected
+    ) {
+      headerRejected = true;
+      return -3;
+    }
+    if (args[0] === FINISH_RUN_STREAM) {
+      const runId = String(args[11]);
+      runStatusAtFinish = (
+        await ai.database.withTenant(tenant, (tx) =>
+          stream.runs.find(tx, runId),
+        )
+      )?.status;
+    }
+    return originalEval.apply(this, args as never);
+  } as never);
+  try {
+    const h = await setup(ai, [{ events: [success] }], {
+      streams: stream.streams,
+      tenant,
+    });
+    await organizations.mutateMember(team.members[0]!.id, 'delete');
+    await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const durable = await ai.database.withTenant(tenant, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    expect(headerRejected).toBe(true);
+    expect(durable).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(runStatusAtFinish).toBe('failed');
+    const rows = await stream.redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(events.slice(-3).map((event) => event.type)).toEqual([
+      'reset',
+      'start',
+      'finish',
+    ]);
+    expect(events.at(-2)).toMatchObject({ messageId: h.runId });
+    const chunks = events
+      .slice(-2)
+      .filter((event) =>
+        ['start', 'finish'].includes(String(event.type)),
+      ) as UIMessageChunk[];
+    const replay = await consumeUiMessageChunks(chunks);
+    expect((replay.at(-1) as UIMessage).id).toBe(h.runId);
+  } finally {
+    evalSpy.mockRestore();
+    await stream.close();
+    await organizations.close();
+    await api.close();
+    await ai.close();
+  }
 });
 
 async function assertTextStartFailure(

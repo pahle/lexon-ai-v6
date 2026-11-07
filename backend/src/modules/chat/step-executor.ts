@@ -191,6 +191,7 @@ export class StepExecutor {
     let activeAttemptText = '';
     let uiStepStarted = false;
     let textPartOpen = false;
+    let streamMessageStarted: boolean;
     let streamFramingAvailable = true;
     let streamSnapshotRequired = false;
 
@@ -202,13 +203,15 @@ export class StepExecutor {
         type: 'reset',
         sequence: claim.sequence,
       });
-      streamFramingAvailable =
+      streamMessageStarted =
         (await this.#publish(claim, {
           version: 1,
           runId: claim.runId,
           type: 'start',
           messageId: claim.runId,
         })) === 'written';
+      streamFramingAvailable = streamMessageStarted;
+      streamSnapshotRequired = !streamMessageStarted;
       heartbeat.throwIfAborted();
       let initial: {
         run: RunRecord;
@@ -225,7 +228,12 @@ export class StepExecutor {
           error.code !== 'AI_ACCESS_REVOKED'
         )
           throw error;
-        await this.#failRevokedResume(job, claim, heartbeat);
+        await this.#failRevokedResume(
+          job,
+          claim,
+          heartbeat,
+          streamSnapshotRequired,
+        );
         return { kind: 'done' };
       }
       if (!initial) return { kind: 'done' };
@@ -307,7 +315,7 @@ export class StepExecutor {
             });
             if (failed === 'committed') {
               await heartbeat.stop();
-              await this.#finishIfTerminal(claim);
+              await this.#finishIfTerminal(claim, streamSnapshotRequired);
             }
             setRunSpanStatus('failed');
             setStepSpanStatus('failed');
@@ -439,7 +447,7 @@ export class StepExecutor {
               });
               if (failed === 'committed') {
                 await heartbeat.stop();
-                await this.#finishIfTerminal(claim);
+                await this.#finishIfTerminal(claim, streamSnapshotRequired);
               }
               setRunSpanStatus('failed');
               setStepSpanStatus('failed');
@@ -507,7 +515,7 @@ export class StepExecutor {
         });
         if (limited === 'committed') {
           await heartbeat.stop();
-          await this.#finishIfTerminal(claim);
+          await this.#finishIfTerminal(claim, streamSnapshotRequired);
         }
         setRunSpanStatus('failed');
         setStepSpanStatus('failed');
@@ -637,7 +645,7 @@ export class StepExecutor {
             });
             if (refusal === 'committed') {
               await heartbeat.stop();
-              await this.#finishIfTerminal(claim);
+              await this.#finishIfTerminal(claim, streamSnapshotRequired);
             }
             setRunSpanStatus('failed');
             setStepSpanStatus('failed');
@@ -910,7 +918,7 @@ export class StepExecutor {
             type: 'reset-step',
           });
           uiStepStarted = false;
-          if (reset === 'written') {
+          if (reset === 'written' && streamMessageStarted) {
             streamFramingAvailable = true;
             streamSnapshotRequired = false;
           } else {
@@ -1039,7 +1047,7 @@ export class StepExecutor {
       );
       if (result === 'committed') {
         await heartbeat.stop();
-        await this.#finishIfTerminal(claim);
+        await this.#finishIfTerminal(claim, streamSnapshotRequired);
       }
       return { kind: 'done' };
     } finally {
@@ -1110,6 +1118,7 @@ export class StepExecutor {
     job: JobEnvelope,
     claim: StepClaim,
     heartbeat: ReturnType<typeof claimHeartbeat>,
+    streamSnapshotRequired: boolean,
   ): Promise<void> {
     const committed = await this.options.coordinator.commit(job, claim, {
       state: 'committed',
@@ -1169,7 +1178,7 @@ export class StepExecutor {
     });
     if (committed === 'committed') {
       await heartbeat.stop();
-      await this.#finishIfTerminal(claim);
+      await this.#finishIfTerminal(claim, streamSnapshotRequired);
     }
   }
 
