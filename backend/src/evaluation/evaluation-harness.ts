@@ -629,7 +629,9 @@ export async function createEvaluationHarness(
           },
         } satisfies EvaluationScoreReport;
       },
-      async drain() {
+      async drain(timeoutMs = 20_000) {
+        if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1)
+          throw new Error('Evaluation run drain deadline is invalid');
         if (!consumer || !producer)
           throw new Error('Evaluation queue is unavailable');
         for (const id of activeRuns) {
@@ -650,7 +652,7 @@ export async function createEvaluationHarness(
           dispatcherAbort = new AbortController();
           dispatcherTask = dispatcher.start(dispatcherAbort.signal);
         }
-        const deadline = Date.now() + 20000;
+        const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
           const states = await Promise.all(
             [...activeRuns].map(async (id) => {

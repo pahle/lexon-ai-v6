@@ -61,6 +61,29 @@ export class TenantDatabase {
       throw new Error('Invalid tenant transaction timeout');
     const context = validateTenantContext(ctx);
     const client = await this.#pool.connect();
+    const originalQuery = client.query;
+    let inFlightQueries = 0;
+    client.query = ((...args: unknown[]) => {
+      inFlightQueries += 1;
+      let result: unknown;
+      try {
+        result = Reflect.apply(originalQuery, client, args);
+      } catch (error) {
+        inFlightQueries -= 1;
+        throw error;
+      }
+      if (
+        typeof result === 'object' &&
+        result !== null &&
+        'then' in result &&
+        typeof result.then === 'function'
+      )
+        return Promise.resolve(result).finally(() => {
+          inFlightQueries -= 1;
+        });
+      inFlightQueries -= 1;
+      return result;
+    }) as typeof client.query;
     let session: TenantSession | undefined;
     // A connection whose ROLLBACK failed may still hold an open transaction
     // and this tenant's context, so it is destroyed instead of reused.
@@ -78,6 +101,7 @@ export class TenantDatabase {
     const releaseClient = (error?: Error) => {
       if (released) return;
       released = true;
+      client.query = originalQuery;
       client.release(error);
     };
     const handleConnectionEnd = () => {
@@ -109,11 +133,10 @@ export class TenantDatabase {
         if (session) endSession(session);
         controller.abort(new Error('Tenant transaction timed out'));
         let cleanup = Promise.resolve();
-        if (!connectionError) {
+        if (!connectionError && inFlightQueries === 0) {
           try {
-            // Enqueue a public pg query before releasing with an error. With
-            // no active SQL this keeps pg.Client.end() on its force-close
-            // path instead of waiting for a graceful Terminate handshake.
+            // Activate public Client.end() while the callback is paused; pg
+            // then force-closes the checked-out socket on error release.
             cleanup = client.query('ROLLBACK').then(
               () => undefined,
               () => undefined,

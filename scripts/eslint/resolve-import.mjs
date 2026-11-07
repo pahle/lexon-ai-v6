@@ -243,15 +243,19 @@ export function classifyImport({
     )
       return deny('database-public');
   }
-  if (
-    target?.startsWith('backend/src/infrastructure/ai/') &&
-    !inAi &&
-    ![
+  if (target?.startsWith('backend/src/infrastructure/ai/') && !inAi) {
+    const publicEntry = [
       'backend/src/infrastructure/ai/index.ts',
       'backend/src/infrastructure/ai/index.js',
-    ].includes(target)
-  )
-    return deny('ai-public');
+    ].includes(target);
+    const testOnlyUiConsumer =
+      source.startsWith('backend/test/') &&
+      [
+        'backend/src/infrastructure/ai/testing/ui-message-consumer.ts',
+        'backend/src/infrastructure/ai/testing/ui-message-consumer.js',
+      ].includes(target);
+    if (!publicEntry && !testOnlyUiConsumer) return deny('ai-public');
+  }
   // Infrastructure adapters never depend on domain modules (dependencies point
   // from domain to infrastructure, LEX-ARC-001 §3.1).
   if (

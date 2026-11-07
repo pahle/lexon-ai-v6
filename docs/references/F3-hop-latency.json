@@ -145,5 +145,37 @@
       "thresholdMs": 500,
       "triggered": false
     }
+  },
+  "task17FinalSourceLocalValidation": {
+    "label": "Task 17 resumed dirty source, uncontended local measurement",
+    "sourceRevision": "b51d373 (Task 17 working-tree changes present; local commit follows gates)",
+    "source": "pnpm exec vitest run --project backend-integration ai-hop-latency.spec --silent=false --reporter=verbose; exit 0; measured 2026-11-07",
+    "measuredAt": "2026-11-07",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_340e3ece6910173283103ca6_3186d1d69225a9789e5dfd6f:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted."
+    },
+    "coldMs": 6.0834579999999505,
+    "medianMs": 2.3832499999999754,
+    "p95Ms": 2.9496669999999767,
+    "maxMs": 3.552500000000009,
+    "samplesMs": [
+      3.552500000000009, 2.9496669999999767, 2.9210420000000568,
+      2.776083000000085, 2.657791000000088, 2.6991250000000946,
+      2.705832999999984, 2.7627500000000964, 2.649833999999828,
+      2.256417000000056, 2.3928339999999935, 2.1300840000001244,
+      2.3736659999999574, 2.3592499999999745, 2.113708000000088,
+      2.2382920000000013, 2.084999999999809, 2.197791000000052,
+      1.99287500000014, 2.0488330000000587
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    }
   }
 }

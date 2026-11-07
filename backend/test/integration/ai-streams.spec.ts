@@ -1,6 +1,10 @@
 import { expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
+import {
+  consumeUiMessageChunks,
+  type UIMessageChunk,
+} from '../../src/infrastructure/ai/testing/ui-message-consumer.js';
 import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
@@ -11,6 +15,7 @@ import {
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
 import { RunStreams } from '../../src/infrastructure/queue/index.js';
+import { APPEND_RUN_STREAM } from '../../src/infrastructure/queue/run-stream-scripts.js';
 
 function claimAuthority(database: TenantDatabase, steps: AiStepRepository) {
   const runs = new AiRunRepository();
@@ -134,6 +139,327 @@ test('one run stream remains open across events and closes only after terminal D
       }),
     ).toBe('stale');
     expect(await redis.exists(guardKey)).toBe(0);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('an owned stream connection stall bounds queued publications without late writes', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const originalSet = Redis.prototype.set;
+  let stallEpochSet = false;
+  const setSpy = vi.spyOn(Redis.prototype, 'set');
+  setSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (
+      stallEpochSet &&
+      typeof args[0] === 'string' &&
+      args[0] === `${services.queuePrefix}:{run-streams}:epoch`
+    ) {
+      stallEpochSet = false;
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+    return originalSet.apply(this, args as never);
+  } as never);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Deadline stream claim unavailable');
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    stallEpochSet = true;
+    const started = performance.now();
+    const first = streams.publish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: 'deadline-test',
+      delta: 'must not arrive late',
+    });
+    const queued = streams.publish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: 'queued-deadline-test',
+      delta: 'queued event must not arrive late',
+    });
+    const [result, queuedResult] = await Promise.all([first, queued]);
+    const elapsedMs = performance.now() - started;
+    expect(result).toBe('unavailable');
+    expect(queuedResult).toBe('unavailable');
+    expect(elapsedMs).toBeLessThan(450);
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    const entries = await inspector.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    expect(
+      entries.some(([, fields]) => fields[1]?.includes('must not arrive late')),
+    ).toBe(false);
+    setSpy.mockRestore();
+    const originalEval = Redis.prototype.eval;
+    let delayAppend = true;
+    const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+    evalSpy.mockImplementation(async function (
+      this: Redis,
+      ...args: unknown[]
+    ) {
+      if (
+        delayAppend &&
+        args[0] === APPEND_RUN_STREAM &&
+        args.at(-2) === 'text-delta'
+      ) {
+        delayAppend = false;
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+      return originalEval.apply(this, args as never);
+    } as never);
+    const appendStarted = performance.now();
+    const appendResult = await streams.publish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: 'late-eval-test',
+      delta: 'late EVAL must be refused',
+    });
+    expect(appendResult).toBe('unavailable');
+    expect(performance.now() - appendStarted).toBeLessThan(450);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const afterLateEval = await inspector.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    expect(
+      afterLateEval.some(([, fields]) =>
+        fields[1]?.includes('late EVAL must be refused'),
+      ),
+    ).toBe(false);
+    evalSpy.mockRestore();
+  } finally {
+    setSpy.mockRestore();
+    redis.disconnect();
+    inspector.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a separate terminal writer closes a text part left open by a dead publisher', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const authority = claimAuthority(ai.database as TenantDatabase, steps);
+  const oldPublisher = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const terminalWriter = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Protocol closure claim unavailable');
+    await oldPublisher.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    for (const event of [
+      { version: 1, runId: run.id, type: 'start', messageId: run.id },
+      { version: 1, runId: run.id, type: 'start-step' },
+      { version: 1, runId: run.id, type: 'text-start', id: 'open-part' },
+      {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'open-part',
+        delta: 'persisted partial',
+      },
+    ] as const)
+      expect(await oldPublisher.publish(claim, event as never)).toBe('written');
+
+    await ai.withTenant(0, async (tx) => {
+      expect(await steps.lockClaim(tx, claim)).toBe(true);
+      expect(
+        await steps.commit(tx, claim, {
+          state: 'committed',
+          text: 'persisted partial',
+          data: {},
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: claim.expectedVersion,
+          from: 'queued',
+          to: 'completed',
+          nextSequence: claim.sequence + 1,
+          outputAppend: 'persisted partial',
+          finalizeOutput: true,
+        }),
+      ).toBe(true);
+    });
+    await terminalWriter.finish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    const rows = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    const chunks = rows
+      .map(([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>)
+      .filter((event) =>
+        [
+          'start',
+          'start-step',
+          'text-start',
+          'text-delta',
+          'text-end',
+          'finish-step',
+          'finish',
+        ].includes(String(event.type)),
+      ) as UIMessageChunk[];
+    const messages = await consumeUiMessageChunks(chunks);
+    const parts = (
+      messages.at(-1) as { parts: { type: string; state?: string }[] }
+    ).parts;
+    expect(parts.find((part) => part.type === 'text')).toMatchObject({
+      type: 'text',
+      state: 'done',
+    });
+    expect(
+      rows.map(([, fields]) => JSON.parse(fields[1]!).type).slice(-3),
+    ).toEqual(['text-end', 'finish-step', 'finish']);
+  } finally {
+    redis.disconnect();
+    await Promise.all([oldPublisher.close(), terminalWriter.close()]);
+    await ai.close();
+  }
+});
+
+test('worker recovery resets old framing state before the next UI replay', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Recovery framing claim unavailable');
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    for (const event of [
+      { version: 1, runId: run.id, type: 'start', messageId: run.id },
+      { version: 1, runId: run.id, type: 'start-step' },
+      { version: 1, runId: run.id, type: 'text-start', id: 'old-part' },
+      {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'old-part',
+        delta: 'discarded provisional text',
+      },
+    ] as const)
+      expect(await streams.publish(claim, event as never)).toBe('written');
+
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'start',
+        messageId: run.id,
+      }),
+    ).toBe('written');
+    await ai.withTenant(0, async (tx) => {
+      expect(await steps.lockClaim(tx, claim)).toBe(true);
+      expect(
+        await steps.commit(tx, claim, {
+          state: 'committed',
+          text: '',
+          data: {},
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: claim.expectedVersion,
+          from: 'queued',
+          to: 'completed',
+          nextSequence: claim.sequence + 1,
+          outputAppend: '',
+          finalizeOutput: true,
+        }),
+      ).toBe(true);
+    });
+    await streams.finish(claim, { version: 1, runId: run.id, type: 'finish' });
+    const rows = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    const lastReset = events.findLastIndex((event) => event.type === 'reset');
+    const replay = events.slice(lastReset + 1);
+    expect(replay.map((event) => event.type)).toEqual(['start', 'finish']);
+    const chunks = replay.filter((event) =>
+      ['start', 'finish'].includes(String(event.type)),
+    ) as UIMessageChunk[];
+    const messages = await consumeUiMessageChunks(chunks);
+    expect(messages.at(-1)).toMatchObject({
+      id: run.id,
+      role: 'assistant',
+      parts: [],
+    });
   } finally {
     redis.disconnect();
     await streams.close();
@@ -330,7 +656,7 @@ test('an expired proof cannot mutate after a replacement fence is claimed', asyn
   try {
     const run = await ai.start(0);
     await ai.seedPendingStep(0, run.id);
-    const oldClaim = await ai.claim(0, run.id, 1, 1, 1_200);
+    const oldClaim = await ai.claim(0, run.id, 1, 1, 100);
     if (!oldClaim) throw new Error('Lease race claim unavailable');
     const originalEval = Redis.prototype.eval;
     const evalSpy = vi
@@ -356,7 +682,7 @@ test('an expired proof cannot mutate after a replacement fence is claimed', asyn
       await ready;
       const remaining = oldClaim.leaseUntil.getTime() - Date.now();
       if (remaining > 0)
-        await new Promise((resolve) => setTimeout(resolve, remaining + 30));
+        await new Promise((resolve) => setTimeout(resolve, remaining + 5));
       const replacement = await ai.claim(0, run.id, 1, 1, 30_000);
       if (!replacement) throw new Error('Replacement lease claim unavailable');
       expect(replacement.fence).toBeGreaterThan(oldClaim.fence);
@@ -762,12 +1088,7 @@ test('recovery bounds queued publication and resets before fresh deltas', async 
     releaseProof();
     await expect(first).resolves.toBe('stale');
     const queuedResults = await Promise.all(queued);
-    expect(
-      queuedResults.filter((result) => result === 'unavailable').length,
-    ).toBeGreaterThanOrEqual(5);
-    expect(queuedResults.filter((result) => result === 'stale')).toHaveLength(
-      3,
-    );
+    expect(queuedResults).toEqual(Array(8).fill('unavailable'));
     await recovery;
     await expect(fresh).resolves.toBe('written');
     const entries = await redis.xrange(

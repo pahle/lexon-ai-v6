@@ -108,6 +108,22 @@ test('active and retained terminal stream slots fit 6 MiB with full registries',
     ...globalKeys,
   ];
   try {
+    const maxPartId = 'p'.repeat(256);
+    expect(
+      await streams.publish(primary, {
+        version: 1,
+        runId: primary.runId,
+        type: 'start-step',
+      }),
+    ).toBe('written');
+    expect(
+      await streams.publish(primary, {
+        version: 1,
+        runId: primary.runId,
+        type: 'text-start',
+        id: maxPartId,
+      }),
+    ).toBe('written');
     const empty = {
       version: 1 as const,
       runId: primary.runId,
@@ -157,6 +173,9 @@ test('active and retained terminal stream slots fit 6 MiB with full registries',
     expect(await redis.zcard(`${prefix}:terminal`)).toBe(6);
     expect(await redis.hlen(`${prefix}:contexts`)).toBe(30);
     expect(await redis.hlen(`${prefix}:terminal-members`)).toBe(6);
+    expect(await redis.get(`${prefix}:${primary.runId}:guard`)).toBe(
+      `open|1|1|1|1|${maxPartId}`,
+    );
 
     const activeMeasurement = await measureKeys(redis, memoryKeys);
     process.stdout.write(

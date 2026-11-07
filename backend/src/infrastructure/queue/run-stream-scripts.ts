@@ -8,6 +8,7 @@ if redis.call('GET', KEYS[7]) ~= ARGV[6] then return -1 end
 local serverTime = redis.call('TIME')
 local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
 if tonumber(ARGV[7]) <= nowMs then return -2 end
+if tonumber(ARGV[9]) <= nowMs then return -3 end
 if redis.call('ZSCORE', KEYS[1], runId) then redis.call('ZADD', KEYS[1], ARGV[7], runId) end
 if redis.call('ZSCORE', KEYS[1], runId) then
   if not redis.call('GET', KEYS[4]) then redis.call('SET', KEYS[4], activeGuard) end
@@ -48,15 +49,27 @@ if not redis.call('ZSCORE', KEYS[1], runId) then return -1 end
 local serverTime = redis.call('TIME')
 local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
 if tonumber(ARGV[8]) <= nowMs then return -2 end
+if tonumber(ARGV[9]) <= nowMs then return -3 end
 local guard = redis.call('GET', KEYS[3])
+local stepOpen = '0'
+local textPartId = ''
 if guard then
-  local state, version, sequence, fence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
+  local state, version, sequence, fence, oldStepOpen, oldTextPartId = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)|(%d)|([^|]*)')
   if state == 'closed' then return -1 end
   if version and (tonumber(incoming) < tonumber(version) or
     (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) < tonumber(sequence)) or
     (tonumber(incoming) == tonumber(version) and tonumber(ARGV[5]) == tonumber(sequence) and tonumber(ARGV[6]) < tonumber(fence))) then return -1 end
+  stepOpen = oldStepOpen or '0'
+  textPartId = oldTextPartId or ''
 end
-redis.call('SET', KEYS[3], 'open|' .. incoming .. '|' .. ARGV[5] .. '|' .. ARGV[6])
+if ARGV[10] == 'start-step' then stepOpen = '1' end
+if ARGV[10] == 'finish-step' or ARGV[10] == 'reset-step' or ARGV[10] == 'reset' then
+  stepOpen = '0'
+  textPartId = ''
+end
+if ARGV[10] == 'text-start' then textPartId = ARGV[11] end
+if ARGV[10] == 'text-end' and textPartId == ARGV[11] then textPartId = '' end
+redis.call('SET', KEYS[3], 'open|' .. incoming .. '|' .. ARGV[5] .. '|' .. ARGV[6] .. '|' .. stepOpen .. '|' .. textPartId)
 redis.call('XADD', KEYS[2], 'MAXLEN', '=', maxLen, '*', 'event', event)
 return 1
 `;
@@ -73,11 +86,15 @@ local now = ARGV[8]
 local generation = ARGV[9]
 if redis.call('GET', KEYS[7]) ~= ARGV[12] then return -1 end
 local guard = redis.call('GET', KEYS[4])
+local stepOpen = '0'
+local textPartId = ''
 if guard then
-  local state, oldVersion, oldSequence, oldFence = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)')
+  local state, oldVersion, oldSequence, oldFence, oldStepOpen, oldTextPartId = string.match(guard, '^(%w+)|(%d+)|(%d+)|(%d+)|(%d)|([^|]*)')
   if state == 'closed' or (oldVersion and (version < tonumber(oldVersion) or
     (version == tonumber(oldVersion) and sequence < tonumber(oldSequence)) or
     (version == tonumber(oldVersion) and sequence == tonumber(oldSequence) and fence < tonumber(oldFence)))) then return 0 end
+  stepOpen = oldStepOpen or '0'
+  textPartId = oldTextPartId or ''
 end
 local candidateId = ARGV[10]
 local candidateGuard = ARGV[11]
@@ -111,6 +128,14 @@ if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCOR
   end
 end
 if redis.call('ZCARD', KEYS[2]) >= 6 then return -1 end
+if textPartId ~= '' then
+  local textEnd = cjson.encode({version = 1, runId = runId, type = 'text-end', id = textPartId})
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', textEnd)
+end
+if stepOpen == '1' then
+  local finishStep = cjson.encode({version = 1, runId = runId, type = 'finish-step'})
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', finishStep)
+end
 redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', event)
 redis.call('SET', KEYS[4], 'closed|' .. version .. '|' .. sequence .. '|' .. fence .. '|' .. generation, 'EX', ttl)
 redis.call('EXPIRE', KEYS[3], ttl)

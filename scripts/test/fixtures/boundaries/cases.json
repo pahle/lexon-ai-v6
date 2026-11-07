@@ -330,6 +330,18 @@
     "rule": null
   },
   {
+    "name": "backend test can use the pinned SDK stream consumer adapter",
+    "importer": "backend/test/integration/ai-execution.spec.ts",
+    "code": "import '../../src/infrastructure/ai/testing/ui-message-consumer.js';",
+    "rule": null
+  },
+  {
+    "name": "production cannot import the test-only SDK stream consumer adapter",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import '../../infrastructure/ai/testing/ui-message-consumer.js';",
+    "rule": "ai-public"
+  },
+  {
     "name": "infrastructure imports domain module",
     "importer": "backend/src/infrastructure/queue/queue-consumer.ts",
     "code": "import '../../modules/platform/index.js';",

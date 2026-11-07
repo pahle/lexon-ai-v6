@@ -83,6 +83,40 @@ describe('invocation-wide real evaluation budget', () => {
     expect(budget.knownCostUsd).toBe('0');
   });
 
+  it('keeps an unknown attempt reservation when its reported cost is below the reserve', async () => {
+    const budget = new InvocationBudget({ budgetUsd: '0.10', maxRequests: 16 });
+    const reservation = await budget.reserve('0.04');
+    const overrun = budget.settle(reservation, '0.01', true);
+
+    expect(overrun).toBe(false);
+    expect(budget.reservedUsd).toBe('0.04');
+    expect(budget.knownCostUsd).toBe('0.01');
+    await expect(budget.reserve('0.07')).rejects.toThrow(
+      'evaluation budget exceeded',
+    );
+  });
+
+  it('retains a failed attempt reservation when its cost is unreported', async () => {
+    const budget = new InvocationBudget({ budgetUsd: '0.10', maxRequests: 16 });
+    const reservation = await budget.reserve('0.04');
+    budget.settle(reservation, null, false);
+
+    expect(budget.reservedUsd).toBe('0.04');
+    await expect(budget.reserve('0.07')).rejects.toThrow(
+      'evaluation budget exceeded',
+    );
+  });
+
+  it('stops when an unknown attempt reports cost above its retained reservation', async () => {
+    const budget = new InvocationBudget({ budgetUsd: '0.10', maxRequests: 16 });
+    const reservation = await budget.reserve('0.04');
+
+    expect(budget.settle(reservation, '0.05', true)).toBe(true);
+    expect(budget.reservedUsd).toBe('0.04');
+    expect(budget.knownCostUsd).toBe('0.05');
+    expect(budget.stopped).toBe(true);
+  });
+
   it('settles provider costs with more than eighteen decimal places exactly', async () => {
     const budget = new InvocationBudget({ budgetUsd: '0.10', maxRequests: 16 });
     const reservation = await budget.reserve('0.01');
@@ -121,6 +155,49 @@ describe('invocation-wide real evaluation budget', () => {
     expect(budget.stopped).toBe(true);
     expect(budget.knownCostUsd).toBe('0.04');
   });
+
+  it('real evaluation drain accepts a slow but in-deadline mocked generation', async () => {
+    const context = await createEvaluationContext({
+      services: inject('evaluationServices'),
+      fixtureSet: 'real',
+      key: 'test-only-key',
+      attestation: new Date().toISOString().slice(0, 10),
+      priceCeiling: { prompt: 0.25, completion: 1.0 },
+      requestPolicy: {
+        async reserve() {
+          return { id: 'slow-mock', allowed: true };
+        },
+        async settle() {
+          return { budgetExceeded: false };
+        },
+      },
+      fetch: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20_200));
+        return new Response(
+          [
+            'data: {"id":"slow-generation","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"slow synthetic answer"},"finish_reason":null}]}\n\n',
+            'data: {"id":"slow-generation","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.00001}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+    });
+    try {
+      const actor = context.actors[0]!;
+      const run = await context.start(actor, {
+        scenarioId: 'complete',
+        prompt: 'Synthetic slow stream verification.',
+      });
+      await (context.drain as (timeoutMs?: number) => Promise<void>)(21_000);
+      expect(await context.read(actor, run.runId)).toMatchObject({
+        status: 'completed',
+        score: 1,
+      });
+    } finally {
+      await context.close();
+    }
+  }, 30_000);
 
   it('runs three durable real-gateway cases under one request ceiling with exact price routing', async () => {
     const requests: Request[] = [];

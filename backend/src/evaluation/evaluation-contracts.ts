@@ -30,7 +30,7 @@ export interface EvaluationEngine {
     input: { runId: string; approved: boolean },
   ): Promise<void>;
   read(actor: EvaluationActor, runId: string): Promise<EvaluationScoreReport>;
-  drain(): Promise<void>;
+  drain(timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -89,7 +89,7 @@ export interface EvaluationContext {
     input: { runId: string; approved: boolean },
   ): Promise<void>;
   read(actor: EvaluationActor, runId: string): Promise<EvaluationScoreReport>;
-  drain(): Promise<void>;
+  drain(timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
 }
 

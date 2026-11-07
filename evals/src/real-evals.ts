@@ -72,6 +72,7 @@ export class InvocationBudget {
   private readonly reservations = new Set<Reservation>();
   private reserved = 0n;
   private known = 0n;
+  private unknownReportedOverlap = 0n;
   private requests = 0;
   private unknowns = 0;
   private isStopped = false;
@@ -118,7 +119,10 @@ export class InvocationBudget {
       this.isStopped = true;
       throw new Error('request limit');
     }
-    if (this.known + this.reserved + amount > this.limit) {
+    if (
+      this.known + this.reserved - this.unknownReportedOverlap + amount >
+      this.limit
+    ) {
       this.isStopped = true;
       throw new Error('evaluation budget exceeded');
     }
@@ -147,10 +151,14 @@ export class InvocationBudget {
     let overrun = false;
     if (actualUsd !== null) {
       const actual = parseUsd(actualUsd);
-      this.reserved -= reservation.amount;
       this.known += actual;
-      overrun =
-        actual > reservation.amount || this.known + this.reserved > this.limit;
+      if (unknownAttempt) {
+        this.unknownReportedOverlap +=
+          actual < reservation.amount ? actual : reservation.amount;
+      } else {
+        this.reserved -= reservation.amount;
+      }
+      overrun = actual > reservation.amount || this.exposure() > this.limit;
       if (overrun) this.isStopped = true;
     }
     if (unknownAttempt) this.unknowns += 1;
@@ -159,7 +167,11 @@ export class InvocationBudget {
 
   recordKnownCost(amountUsd: string): void {
     this.known += parseUsd(amountUsd);
-    if (this.known + this.reserved > this.limit) this.isStopped = true;
+    if (this.exposure() > this.limit) this.isStopped = true;
+  }
+
+  private exposure(): bigint {
+    return this.known + this.reserved - this.unknownReportedOverlap;
   }
 }
 
@@ -206,10 +218,8 @@ export async function runRealEvaluations(
   >();
   let timedOut = false;
   const timeoutController = new AbortController();
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    timeoutController.abort();
-  }, configured.timeoutMs);
+  let invocationStartedAt: number | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   const baseFetch = configured.fetch ?? globalThis.fetch;
   const boundedFetch: typeof fetch = (input, init) => {
     const signal =
@@ -283,6 +293,11 @@ export async function runRealEvaluations(
     });
     const actor = context.actors[0];
     if (!actor) throw new Error('Real evaluation fixture unavailable');
+    invocationStartedAt = Date.now();
+    timeout = setTimeout(() => {
+      timedOut = true;
+      timeoutController.abort();
+    }, configured.timeoutMs);
     const results: { caseId: string; score: number }[] = [];
     for (const testCase of CASES) {
       if (budget.stopped || timedOut) break;
@@ -290,7 +305,14 @@ export async function runRealEvaluations(
         scenarioId: testCase.caseId,
         prompt: testCase.prompt,
       });
-      await context.drain();
+      const remainingMs =
+        configured.timeoutMs - (Date.now() - invocationStartedAt);
+      if (remainingMs <= 0) {
+        timedOut = true;
+        timeoutController.abort();
+        break;
+      }
+      await context.drain(remainingMs);
       const score = await context.read(actor, run.runId);
       results.push({ caseId: testCase.caseId, score: score.score });
     }
@@ -300,7 +322,7 @@ export async function runRealEvaluations(
       unknownAttemptCount: budget.unknownAttemptCount,
     };
   } finally {
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
     await context?.close().catch(() => undefined);
     await lease?.release().catch(() => undefined);
   }

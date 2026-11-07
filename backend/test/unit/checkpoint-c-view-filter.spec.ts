@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { parseCheckpointCViewFilter } from '../e2e/visual-support.js';
 
 const index = JSON.parse(
-  readFileSync(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
+  readFileSync(
+    new URL('../../../docs/references/F2.1-visual/index.json', import.meta.url),
+    'utf8',
+  ),
 ) as { checkpointC: { views: { id: string }[] } };
 const indexedViews = index.checkpointC.views.map(({ id }) => id);
 

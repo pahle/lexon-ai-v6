@@ -85,6 +85,7 @@ interface SerializedQueue {
 
 const MAX_PENDING_PUBLICATIONS = 4;
 const MAX_PARTS_PER_PUBLICATION = 32;
+const PUBLICATION_DEADLINE_MS = 250;
 
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -120,6 +121,7 @@ export class RunStreams {
     claim: StepClaim,
     event: RunStreamEvent,
   ): Promise<'written' | 'unavailable' | 'stale'> {
+    const deadlineAt = Date.now() + PUBLICATION_DEADLINE_MS;
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
@@ -149,15 +151,20 @@ export class RunStreams {
       reservation,
       async (generation) => {
         for (const part of parts) {
+          if (Date.now() >= deadlineAt) return 'unavailable';
           if (!this.#isCurrent(claim, generation)) return 'stale';
-          const result = await this.#publishPart(claim, part, () =>
-            this.#isCurrent(claim, generation),
+          const result = await this.#publishPart(
+            claim,
+            part,
+            () => this.#isCurrent(claim, generation),
+            deadlineAt,
           );
           if (result !== 'written') return result;
         }
         return 'written';
       },
-      'stale',
+      'unavailable',
+      deadlineAt,
     );
   }
 
@@ -271,8 +278,11 @@ export class RunStreams {
     claim: StepClaim,
     event: RunStreamEvent,
     isCurrent: () => boolean,
+    deadlineAt?: number,
   ): Promise<'written' | 'unavailable' | 'stale'> {
     for (let attempt = 0; attempt < 3; attempt++) {
+      if (deadlineAt !== undefined && Date.now() >= deadlineAt)
+        return 'unavailable';
       try {
         const epoch = await this.#readEpoch();
         if (epoch === undefined) return 'unavailable';
@@ -300,11 +310,15 @@ export class RunStreams {
           guard,
           epoch,
           latestProof.leaseUntil.getTime(),
+          deadlineAt,
         );
         if (prepared === -2) return 'stale';
+        if (prepared === -3) return 'unavailable';
         if (prepared === 0) return 'unavailable';
         if (prepared < 0) continue;
         if (!isCurrent()) return 'stale';
+        if (deadlineAt !== undefined && Date.now() >= deadlineAt)
+          return 'unavailable';
         const serialized = JSON.stringify(event);
         if (
           Buffer.byteLength(serialized, 'utf8') >
@@ -327,10 +341,16 @@ export class RunStreams {
             String(claim.fence),
             epoch,
             String(latestProof.leaseUntil.getTime()),
+            String(deadlineAt ?? Number.MAX_SAFE_INTEGER),
+            event.type,
+            event.type === 'text-start' || event.type === 'text-end'
+              ? event.id
+              : '',
           ),
         );
         if (result === 1) return 'written';
         if (result === -1 || result === -2) return 'stale';
+        if (result === -3) return 'unavailable';
       } catch {
         return 'unavailable';
       }
@@ -343,6 +363,7 @@ export class RunStreams {
     guard: string,
     epoch: string,
     leaseUntilMs: number,
+    deadlineAt?: number,
   ): Promise<number> {
     const keys = [
       this.#activeKey(),
@@ -367,6 +388,7 @@ export class RunStreams {
         epoch,
         String(leaseUntilMs),
         `${claim.orgId}|${claim.userId}`,
+        String(deadlineAt ?? Number.MAX_SAFE_INTEGER),
       ),
     );
   }
@@ -592,6 +614,7 @@ export class RunStreams {
     reservation: { queue: SerializedQueue; generation: number },
     task: (generation: number) => Promise<T>,
     discard: T,
+    deadlineAt?: number,
   ): Promise<T> {
     reservation.queue.reserved--;
     return this.#enqueueTask(
@@ -600,6 +623,7 @@ export class RunStreams {
       reservation.generation,
       task,
       discard,
+      deadlineAt,
     );
   }
 
@@ -609,6 +633,7 @@ export class RunStreams {
     generation: number,
     task: (generation: number) => Promise<T>,
     discard: T,
+    deadlineAt?: number,
   ): Promise<T> {
     const current = new Promise<T>((resolve, reject) => {
       queue.pending.push({
@@ -620,7 +645,27 @@ export class RunStreams {
       });
     });
     void this.#drain(claim, queue);
-    return current;
+    if (deadlineAt === undefined) return current;
+    return new Promise<T>((resolve, reject) => {
+      let settled = false;
+      const settle = (work: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        work();
+      };
+      const timer = setTimeout(
+        () => {
+          this.#invalidate(queue);
+          settle(() => resolve(discard));
+        },
+        Math.max(0, deadlineAt - Date.now()),
+      );
+      current.then(
+        (value) => settle(() => resolve(value)),
+        (error: unknown) => settle(() => reject(error)),
+      );
+    });
   }
 
   #releaseReservation(

@@ -137,6 +137,20 @@ export class StepExecutor {
     const claim = claimed.claim;
     let runSpan: ReturnType<SafeAiTracer['startSpan']> | undefined;
     let stepSpan: ReturnType<SafeAiTracer['startSpan']> | undefined;
+    let runSpanStatus:
+      'started' | 'succeeded' | 'failed' | 'cancelled' | 'continued' =
+      'started';
+    let stepSpanStatus:
+      'started' | 'succeeded' | 'failed' | 'cancelled' | 'continued' =
+      'started';
+    const setRunSpanStatus = (status: typeof runSpanStatus) => {
+      runSpanStatus = status;
+      runSpan?.setAttribute('status', status);
+    };
+    const setStepSpanStatus = (status: typeof stepSpanStatus) => {
+      stepSpanStatus = status;
+      stepSpan?.setAttribute('status', status);
+    };
     const unbindCancelContext = this.options.cancelSignals?.bind(claim.runId, {
       orgId: claim.orgId,
       userId: claim.userId,
@@ -175,6 +189,9 @@ export class StepExecutor {
     let attemptId = '';
     let attemptReserved = false;
     let activeAttemptText = '';
+    let uiStepStarted = false;
+    let textPartOpen = false;
+    let streamFramingAvailable = true;
 
     try {
       heartbeat.throwIfAborted();
@@ -184,6 +201,13 @@ export class StepExecutor {
         type: 'reset',
         sequence: claim.sequence,
       });
+      streamFramingAvailable =
+        (await this.#publish(claim, {
+          version: 1,
+          runId: claim.runId,
+          type: 'start',
+          messageId: claim.runId,
+        })) === 'written';
       heartbeat.throwIfAborted();
       let initial: {
         run: RunRecord;
@@ -240,6 +264,8 @@ export class StepExecutor {
               outcome: 'succeeded',
             });
             if (paused === 'committed') await heartbeat.stop();
+            setRunSpanStatus('continued');
+            setStepSpanStatus('continued');
             return { kind: 'done' };
           }
           const tool = this.options.registry.tool(operation.toolName);
@@ -282,6 +308,8 @@ export class StepExecutor {
               await heartbeat.stop();
               await this.#finishIfTerminal(claim);
             }
+            setRunSpanStatus('failed');
+            setStepSpanStatus('failed');
             return { kind: 'done' };
           }
           let committed: 'committed' | 'stale';
@@ -360,6 +388,8 @@ export class StepExecutor {
                 },
               });
               if (paused === 'committed') await heartbeat.stop();
+              setRunSpanStatus('continued');
+              setStepSpanStatus('continued');
               return { kind: 'done' };
             }
             if (error instanceof ToolPolicyOutcome) {
@@ -410,6 +440,8 @@ export class StepExecutor {
                 await heartbeat.stop();
                 await this.#finishIfTerminal(claim);
               }
+              setRunSpanStatus('failed');
+              setStepSpanStatus('failed');
               return { kind: 'done' };
             }
             if (error instanceof TenantTransactionTimeoutError) {
@@ -450,11 +482,15 @@ export class StepExecutor {
                 },
               );
               if (recorded === 'committed') await heartbeat.stop();
+              setRunSpanStatus('continued');
+              setStepSpanStatus('failed');
               return { kind: 'done' };
             }
             throw error;
           }
           if (committed === 'committed') await heartbeat.stop();
+          setRunSpanStatus('continued');
+          setStepSpanStatus('succeeded');
           return { kind: 'done' };
         }
       }
@@ -472,6 +508,8 @@ export class StepExecutor {
           await heartbeat.stop();
           await this.#finishIfTerminal(claim);
         }
+        setRunSpanStatus('failed');
+        setStepSpanStatus('failed');
         return { kind: 'done' };
       }
       const maxAttempts = profile.maxAttemptsPerStep ?? 2;
@@ -600,6 +638,8 @@ export class StepExecutor {
               await heartbeat.stop();
               await this.#finishIfTerminal(claim);
             }
+            setRunSpanStatus('failed');
+            setStepSpanStatus('failed');
             return { kind: 'done' };
           }
           throw error;
@@ -740,13 +780,36 @@ export class StepExecutor {
                 ) {
                   await flushCheckpoint();
                 }
-                await this.#publish(claim, {
-                  version: 1,
-                  runId: claim.runId,
-                  type: 'text-delta',
-                  id: claim.stepId,
-                  delta: event.text,
-                });
+                if (streamFramingAvailable && !uiStepStarted) {
+                  uiStepStarted =
+                    (await this.#publish(claim, {
+                      version: 1,
+                      runId: claim.runId,
+                      type: 'start-step',
+                    })) === 'written';
+                  if (!uiStepStarted) streamFramingAvailable = false;
+                }
+                if (streamFramingAvailable && !textPartOpen) {
+                  textPartOpen =
+                    (await this.#publish(claim, {
+                      version: 1,
+                      runId: claim.runId,
+                      type: 'text-start',
+                      id: attemptId,
+                    })) === 'written';
+                  if (!textPartOpen) streamFramingAvailable = false;
+                }
+                if (streamFramingAvailable && textPartOpen)
+                  await this.#publish(claim, {
+                    version: 1,
+                    runId: claim.runId,
+                    type: 'text-delta',
+                    id: attemptId,
+                    delta: event.text,
+                  }).then((result) => {
+                    if (result === 'unavailable')
+                      streamFramingAvailable = false;
+                  });
               } else if (event.type === 'tool-proposal') {
                 attemptProposals.push(event);
               } else if (event.type === 'usage') {
@@ -815,6 +878,15 @@ export class StepExecutor {
           finalOutcome.retryable &&
           ordinal < maxAttempts
         ) {
+          if (textPartOpen) {
+            await this.#publish(claim, {
+              version: 1,
+              runId: claim.runId,
+              type: 'text-end',
+              id: attemptId,
+            });
+            textPartOpen = false;
+          }
           await this.options.database.withTenant(
             { orgId: claim.orgId, userId: claim.userId },
             (tx) =>
@@ -832,8 +904,28 @@ export class StepExecutor {
             runId: claim.runId,
             type: 'reset-step',
           });
+          uiStepStarted = false;
           await delay(250, heartbeat.signal);
           continue;
+        }
+        if (uiStepStarted) {
+          if (textPartOpen) {
+            const closed = await this.#publish(claim, {
+              version: 1,
+              runId: claim.runId,
+              type: 'text-end',
+              id: attemptId,
+            });
+            textPartOpen = false;
+            if (closed === 'unavailable') streamFramingAvailable = false;
+          }
+          if (streamFramingAvailable)
+            await this.#publish(claim, {
+              version: 1,
+              runId: claim.runId,
+              type: 'finish-step',
+            });
+          uiStepStarted = false;
         }
         break;
       }
@@ -912,17 +1004,19 @@ export class StepExecutor {
         await heartbeat.stop();
         await this.#finishIfTerminal(claim);
       }
-      stepSpan?.setAttribute('status', succeeded ? 'succeeded' : 'failed');
-      runSpan?.setAttribute('status', succeeded ? 'succeeded' : 'failed');
+      setStepSpanStatus(succeeded ? 'succeeded' : 'failed');
+      setRunSpanStatus(
+        terminal ? (succeeded ? 'succeeded' : 'failed') : 'continued',
+      );
       return { kind: 'done' };
     } catch (error) {
       if (!cancelRequested) {
-        stepSpan?.setAttribute('status', 'failed');
-        runSpan?.setAttribute('status', 'failed');
+        setStepSpanStatus('failed');
+        setRunSpanStatus('failed');
         throw error;
       }
-      stepSpan?.setAttribute('status', 'cancelled');
-      runSpan?.setAttribute('status', 'cancelled');
+      setStepSpanStatus('cancelled');
+      setRunSpanStatus('cancelled');
       const result = await this.options.coordinator.commitCancellation(
         job,
         claim,
@@ -938,9 +1032,11 @@ export class StepExecutor {
       return { kind: 'done' };
     } finally {
       if (stepSpan) {
+        if (stepSpanStatus === 'started') setStepSpanStatus('failed');
         stepSpan.end();
       }
       if (runSpan) {
+        if (runSpanStatus === 'started') setRunSpanStatus('failed');
         runSpan.end();
       }
       await heartbeat.stop();
@@ -1065,9 +1161,13 @@ export class StepExecutor {
     }
   }
 
-  async #publish(claim: StepClaim, event: RunStreamEvent): Promise<void> {
+  async #publish(
+    claim: StepClaim,
+    event: RunStreamEvent,
+  ): Promise<'written' | 'unavailable'> {
     const result = await this.options.streams?.publish(claim, event);
     if (result === 'stale') throw new Error('AI step claim lost');
+    return result ?? 'unavailable';
   }
 
   async #appendToolAudit(

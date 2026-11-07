@@ -11,6 +11,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 
 FROM dependencies AS build
 COPY tsconfig.base.json ./
+COPY scripts/container-images.mjs scripts/container-images.d.mts scripts/
 COPY shared shared
 COPY backend backend
 RUN pnpm --filter @lexon/contracts build && pnpm --filter @lexon/backend build

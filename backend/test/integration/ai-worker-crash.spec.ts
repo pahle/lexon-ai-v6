@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
@@ -175,26 +175,83 @@ test('SIGKILL before final receipt recovers unknown attempt under a new fence', 
     const attempts = await ai.withTenant(0, (tx) =>
       new AiAttemptRepository().list(tx, run.runId),
     );
-    expect(attempts.map((attempt) => attempt.outcome)).toEqual([
-      'unknown',
-      'succeeded',
-    ]);
-    expect(attempts.map((attempt) => attempt.generationId)).toEqual([
-      'generation-before-kill',
-      'generation-after-recovery',
-    ]);
-    expect(terminal).toMatchObject({
-      status: 'completed',
-      partialOutput: 'recovered answer',
-      finalOutput: 'recovered answer',
-    });
     const step = await ai.withTenant(0, (tx) =>
       new AiStepRepository().find(tx, { runId: run.runId, sequence: 1 }),
     );
-    expect(step?.committedText).toBe('recovered answer');
-    expect(
-      attempts.filter((attempt) => attempt.outcome === 'succeeded'),
-    ).toHaveLength(1);
+    const queueJob = await queue.getJob(job.outboxId);
+    const receiptCount = await ai.receiptCount(job.outboxId);
+    const summarizeText = (value: string | null | undefined) =>
+      value === null || value === undefined
+        ? null
+        : {
+            length: value.length,
+            sha256: createHash('sha256').update(value).digest('hex'),
+            matchesRecovered: value === 'recovered answer',
+          };
+    const diagnostic = {
+      runId: run.runId,
+      terminal: terminal && {
+        status: terminal.status,
+        partialOutput: summarizeText(terminal.partialOutput),
+        finalOutput: summarizeText(terminal.finalOutput),
+      },
+      attempts: attempts.map((attempt) => ({
+        attemptId: attempt.attemptId,
+        ordinal: attempt.ordinal,
+        generationId: attempt.generationId,
+        active: attempt.active,
+        outcome: attempt.outcome,
+      })),
+      step: step && {
+        state: step.state,
+        sequence: step.sequence,
+        expectedVersion: step.expectedVersion,
+        fence: step.fence,
+        leaseUntil: step.leaseUntil?.toISOString() ?? null,
+        committedText: summarizeText(step.committedText),
+      },
+      receiptCount,
+      queue: queueJob && {
+        state: await queueJob.getState(),
+        attemptsMade: queueJob.attemptsMade,
+        processedOn: queueJob.processedOn ?? null,
+        finishedOn: queueJob.finishedOn ?? null,
+      },
+      crashedWorker: {
+        exited: crashed?.exited(),
+        exitInfo: crashed?.exitInfo(),
+        events: crashed?.events(),
+      },
+      replacementWorker: {
+        exited: replacement?.exited(),
+        exitInfo: replacement?.exitInfo(),
+        events: replacement?.events(),
+      },
+    };
+    try {
+      expect(attempts.map((attempt) => attempt.outcome)).toEqual([
+        'unknown',
+        'succeeded',
+      ]);
+      expect(attempts.map((attempt) => attempt.generationId)).toEqual([
+        'generation-before-kill',
+        'generation-after-recovery',
+      ]);
+      expect(terminal).toMatchObject({
+        status: 'completed',
+        partialOutput: 'recovered answer',
+        finalOutput: 'recovered answer',
+      });
+      expect(step?.committedText).toBe('recovered answer');
+      expect(receiptCount).toBe(1);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown recovery assertion';
+      throw new Error(
+        `${message}\nSafe recovery diagnosis: ${JSON.stringify(diagnostic)}`,
+        { cause: error },
+      );
+    }
   } finally {
     await crashed?.close();
     await replacement?.close();

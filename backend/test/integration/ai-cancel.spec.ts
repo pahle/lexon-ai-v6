@@ -7,6 +7,10 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { expect } from 'vitest';
 import { Redis } from 'ioredis';
+import {
+  consumeUiMessageChunks,
+  type UIMessageChunk,
+} from '../../src/infrastructure/ai/testing/ui-message-consumer.js';
 import { test } from '../setup/file-services.js';
 import {
   AiAttemptRepository,
@@ -351,10 +355,41 @@ test('cancelling a streaming model aborts it and commits partial output once', a
     });
     const streamKey = `${services.queuePrefix}:{run-streams}:${started.runId}:events`;
     const entries = await redis.xrange(streamKey, '-', '+');
-    expect(JSON.parse(String(entries.at(-1)?.[1]?.[1]))).toMatchObject({
+    const persistedEvents = entries.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(persistedEvents.slice(-3).map((event) => event.type)).toEqual([
+      'text-end',
+      'finish-step',
+      'finish',
+    ]);
+    expect(persistedEvents.at(-1)).toMatchObject({
       type: 'finish',
       runId: started.runId,
     });
+    const sdkTypes = new Set([
+      'start',
+      'start-step',
+      'finish-step',
+      'text-start',
+      'text-delta',
+      'text-end',
+      'finish',
+    ]);
+    const sdkChunks = persistedEvents.filter((event) =>
+      sdkTypes.has(String(event.type)),
+    ) as UIMessageChunk[];
+    const sdkMessages = await consumeUiMessageChunks(sdkChunks);
+    const sdkMessage = sdkMessages.at(-1) as {
+      id?: string;
+      parts?: Array<{ type?: string; text?: string; state?: string }>;
+    };
+    expect(sdkMessage.id).toBe(started.runId);
+    expect(
+      sdkMessage.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => ({ text: part.text, state: part.state })),
+    ).toEqual([{ text: 'partial answer', state: 'done' }]);
     const step = await ai.withTenant(0, (tx) =>
       streamSteps.find(tx, { runId: started.runId, sequence: 1 }),
     );

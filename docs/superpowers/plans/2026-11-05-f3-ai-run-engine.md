@@ -554,6 +554,8 @@ expect(workflowEvents).toEqual(['workflow_dispatch']);
 
 **Research:** Re-read brief/design/source-of-truth referenced sections and check task coverage; verification-before-completion and finishing-branch skills apply at execution, not during plan writing.
 
+**Local implementer status (2026-11-07): DONE_WITH_CONCERNS.** Local report and public evidence are prepared. Do not mark Task17 accepted or complete: two full-suite SIGKILL recovery failures remain unexplained despite later passing full runs, and five local Compose visual comparisons failed on the Darwin/arm64 runner against Linux/x64 baselines. Root-owned whole-branch review and actual Linux/x64 CI remain required.
+
 - [ ] **Step 1: Write the failing tests.** Add any genuinely missing adverse-path test discovered by review before modifying production logic. Coverage checklist maps every brief criterion and owner correction to an actual test/evidence record; verify no unexecuted command or quota/precondition skip is labeled green. Confirm fixed maxoutput, budgetunknown reservations, runactivecapacity, retainedstreamcapacity,24/30 defaults, routed provider, smoke calibration and500ms gate all have evidence.
 
 Representative assertions in those named tests (locals come from their specified test setup):

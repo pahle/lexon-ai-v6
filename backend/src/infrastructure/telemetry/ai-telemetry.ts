@@ -30,7 +30,13 @@ const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const modelName = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/;
 const providerName = /^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,79}$/;
-const statuses = new Set(['started', 'succeeded', 'failed', 'cancelled']);
+const statuses = new Set([
+  'started',
+  'succeeded',
+  'failed',
+  'cancelled',
+  'continued',
+]);
 const safeCodes = new Set([
   'AI_INTERNAL',
   'AI_PROVIDER_UNAVAILABLE',
@@ -95,8 +101,14 @@ function safeSpanPort(span: Span): SafeAiSpan {
     setAttribute(key, value) {
       if (!allowedAttributes.has(key)) return;
       if (key === 'status') {
-        if (typeof value === 'string' && statuses.has(value))
+        if (typeof value === 'string' && statuses.has(value)) {
           span.setAttribute(key, value);
+          if (value === 'succeeded')
+            span.setStatus({ code: SpanStatusCode.OK });
+          else if (value === 'failed')
+            span.setStatus({ code: SpanStatusCode.ERROR });
+          else span.setStatus({ code: SpanStatusCode.UNSET });
+        }
         return;
       }
       if (key === 'safeCode') {

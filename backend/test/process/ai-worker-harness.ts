@@ -20,16 +20,23 @@ export async function spawnAiWorker(input: {
     { stdio: ['ignore', 'ignore', 'ignore', 'ipc'], execArgv: [] },
   );
   const seen = new Set<string>();
+  const events = new Set<string>();
   const waiting = new Map<string, () => void>();
   let exited = false;
-  child.on('message', (message: { checkpoint?: string }) => {
+  let exitCode: number | null | undefined;
+  let exitSignal: NodeJS.Signals | null | undefined;
+  child.on('message', (message: { checkpoint?: string; event?: string }) => {
+    const name = message.checkpoint ?? message.event;
+    if (name) events.add(name);
     if (!message.checkpoint) return;
     seen.add(message.checkpoint);
     waiting.get(message.checkpoint)?.();
   });
   const exit = new Promise<void>((resolve) =>
-    child.once('exit', () => {
+    child.once('exit', (code, signal) => {
       exited = true;
+      exitCode = code;
+      exitSignal = signal;
       resolve();
     }),
   );
@@ -93,6 +100,8 @@ export async function spawnAiWorker(input: {
       if (!exited && child.pid) process.kill(child.pid, 'SIGCONT');
     },
     exited: () => exited,
+    exitInfo: () => ({ code: exitCode ?? null, signal: exitSignal ?? null }),
+    events: () => [...events].sort(),
     close: kill,
   };
 }

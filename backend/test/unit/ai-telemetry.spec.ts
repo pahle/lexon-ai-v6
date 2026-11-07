@@ -23,6 +23,29 @@ import {
 } from '../../src/infrastructure/telemetry/index.js';
 
 describe('AI telemetry privacy', () => {
+  it('sets OTel status consistently with safe succeeded, failed, and continued outcomes', async () => {
+    const exporter = new InMemorySpanExporter();
+    const provider = new BasicTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(exporter)],
+    });
+    const tracer = createSafeAiTracer(provider.getTracer('status-test'));
+
+    for (const status of ['succeeded', 'failed', 'continued'] as const) {
+      const span = tracer.startSpan('ai.run', { status });
+      span.end();
+    }
+    await provider.forceFlush();
+
+    const spans = exporter.getFinishedSpans();
+    expect(spans.map((span) => span.attributes.status)).toEqual([
+      'succeeded',
+      'failed',
+      'continued',
+    ]);
+    expect(spans.map((span) => span.status.code)).toEqual([1, 2, 0]);
+    await provider.shutdown();
+  });
+
   it('records only allowlisted run metadata from real spans', async () => {
     const exporter = new InMemorySpanExporter();
     const provider = new BasicTracerProvider({

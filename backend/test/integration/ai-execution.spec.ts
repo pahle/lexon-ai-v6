@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Redis } from 'ioredis';
+import { APPEND_RUN_STREAM } from '../../src/infrastructure/queue/run-stream-scripts.js';
+import {
+  consumeUiMessageChunks,
+  type UIMessage,
+  type UIMessageChunk,
+} from '../../src/infrastructure/ai/testing/ui-message-consumer.js';
 import { expect, vi } from 'vitest';
 import { z } from 'zod';
 import { trace } from '@opentelemetry/api';
@@ -10,6 +16,7 @@ import {
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { test } from '../setup/file-services.js';
+import type { FileServices } from '../setup/provided-context.js';
 import { identityApiHarness } from '../setup/identity-api-harness.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
@@ -409,7 +416,8 @@ test('one generation persists metadata, checkpoint, usage, output and terminal s
       ['ai.run', 'ai.step', 'ai.model'].includes(candidate.name),
     )) {
       expect(span.attributes.runId).toBe(h.runId);
-      expect(span.attributes.status).toMatch(/succeeded|failed|started/);
+      expect(span.attributes.status).toBe('succeeded');
+      expect(span.status.code).toBe(1);
       expect(span.duration[0]).toBeGreaterThanOrEqual(0);
     }
     expect(
@@ -3338,7 +3346,8 @@ test('stale stream publication aborts and awaits the current gateway iterator', 
     };
     const streams = {
       recover: async () => undefined,
-      publish: async () => 'stale' as const,
+      publish: async (_claim: unknown, event: { type: string }) =>
+        event.type === 'text-delta' ? ('stale' as const) : ('written' as const),
     } as unknown as RunStreams;
     const h = await setup(ai, [], { gateway, streams });
     await expect(
@@ -3824,7 +3833,8 @@ test('stream ownership loss escapes without becoming a provider outcome', async 
   try {
     const streams = {
       recover: async () => undefined,
-      publish: async () => 'stale' as const,
+      publish: async (_claim: unknown, event: { type: string }) =>
+        event.type === 'text-delta' ? ('stale' as const) : ('written' as const),
     } as unknown as RunStreams;
     const h = await setup(
       ai,
@@ -4036,24 +4046,322 @@ test('terminal job redelivery performs no third generation or event publication'
         });
       },
     };
+    const publish = vi.fn(async () => 'written' as const);
     const streams = {
       recover: vi.fn(async () => undefined),
-      publish: vi.fn(async () => 'written' as const),
+      publish,
       finish: vi.fn(async () => undefined),
     } as unknown as RunStreams;
     const h = await setup(ai, [], { gateway, streams });
     const runJob = job(h.runId, h.tenant, 1, 1, 'run.start.v1');
     await h.executor.execute(runJob, { signal: new AbortController().signal });
+    publish.mockClear();
     await h.executor.execute(runJob, { signal: new AbortController().signal });
     const rows = await ai.withTenant(0, (tx) => h.attempts.list(tx, h.runId));
     expect(generations).toBe(1);
     expect(rows).toHaveLength(1);
     expect(streams.recover).toHaveBeenCalledTimes(1);
     expect(streams.finish).toHaveBeenCalledTimes(1);
-    expect(streams.publish).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
   } finally {
     await ai.close();
   }
+});
+
+test('actual engine events persisted in Valkey replay to durable multi-step text', async ({
+  services,
+}) => {
+  spanExporter.reset();
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const authority = {
+    authorizeActive: (claim: StepClaim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (
+      claim: Parameters<typeof steps.streamTerminalProof>[1],
+    ) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    reconcile: async (
+      entries: readonly { runId: string; orgId: string; userId: string }[],
+    ) =>
+      Promise.all(
+        entries.map(async ({ runId, orgId, userId }) => {
+          const result = await ai.database.withTenant({ orgId, userId }, (tx) =>
+            runs.streamRegistryState(tx, runId, userId),
+          );
+          return result.state === 'terminal'
+            ? { runId, state: 'terminal' as const, claim: result.claim }
+            : { runId, state: result.state };
+        }),
+      ),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            { type: 'text', text: 'First step. ' },
+            { type: 'usage', usage },
+            {
+              ...success,
+              outcome: { ...success.outcome, finishReason: 'length' },
+            },
+          ],
+        },
+        {
+          events: [
+            { type: 'text', text: 'Second step.' },
+            { type: 'usage', usage },
+            success,
+          ],
+        },
+      ],
+      { streams },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    await tracerProvider.forceFlush();
+    const firstStepSpans = spanExporter.getFinishedSpans();
+    const firstRunSpan = firstStepSpans.find((span) => span.name === 'ai.run');
+    const firstStepSpan = firstStepSpans.find(
+      (span) => span.name === 'ai.step',
+    );
+    expect(firstRunSpan?.attributes.status).toBe('continued');
+    expect(firstRunSpan?.status.code).toBe(0);
+    expect(firstStepSpan?.attributes.status).toBe('succeeded');
+    expect(firstStepSpan?.status.code).toBe(1);
+    const beforeSecondStep = await ai.withTenant(0, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    expect(beforeSecondStep?.partialOutput).toBe('First step. ');
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    const durableRun = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(durableRun?.finalOutput).toBe('First step. Second step.');
+    const rows = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const parsedRows = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    const replayStart = parsedRows.findLastIndex(
+      (event) => event.type === 'reset',
+    );
+    expect(replayStart).toBeGreaterThanOrEqual(0);
+    const sdkTypes = new Set([
+      'start',
+      'start-step',
+      'finish-step',
+      'text-start',
+      'text-delta',
+      'text-end',
+      'finish',
+    ]);
+    const chunks = parsedRows
+      .slice(replayStart + 1)
+      .filter((event) => sdkTypes.has(String(event.type))) as UIMessageChunk[];
+    const initialMessage: UIMessage = {
+      id: h.runId,
+      role: 'assistant',
+      parts: [
+        {
+          type: 'text',
+          text: beforeSecondStep?.partialOutput ?? '',
+          state: 'done',
+        },
+      ],
+    };
+    const messages = await consumeUiMessageChunks(chunks, initialMessage);
+    const message = messages.at(-1) as { role?: string; parts?: unknown[] };
+    expect(message.role).toBe('assistant');
+    const textParts = (message.parts ?? []).filter(
+      (part): part is { type: string; text: string; state?: string } =>
+        typeof part === 'object' &&
+        part !== null &&
+        'type' in part &&
+        part.type === 'text' &&
+        'text' in part &&
+        typeof part.text === 'string',
+    );
+    expect(textParts.map((part) => part.text).join('')).toBe(
+      durableRun?.finalOutput,
+    );
+    expect(textParts.every((part) => part.state === 'done')).toBe(true);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+async function assertTextStartFailure(
+  services: FileServices,
+  failureMode: 'missing-header' | 'lost-acknowledgement',
+) {
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const authority = {
+    authorizeActive: (claim: StepClaim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (
+      claim: Parameters<typeof steps.streamTerminalProof>[1],
+    ) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    reconcile: async (
+      entries: readonly { runId: string; orgId: string; userId: string }[],
+    ) =>
+      Promise.all(
+        entries.map(async ({ runId, orgId, userId }) => {
+          const result = await ai.database.withTenant({ orgId, userId }, (tx) =>
+            runs.streamRegistryState(tx, runId, userId),
+          );
+          return result.state === 'terminal'
+            ? { runId, state: 'terminal' as const, claim: result.claim }
+            : { runId, state: result.state };
+        }),
+      ),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const originalEval = Redis.prototype.eval;
+  let publicationInterrupted = false;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (
+      failureMode === 'missing-header' &&
+      args[0] === APPEND_RUN_STREAM &&
+      args.at(-2) === 'text-start'
+    ) {
+      publicationInterrupted = true;
+      return -3;
+    }
+    const result = await originalEval.apply(this, args as never);
+    if (
+      failureMode === 'lost-acknowledgement' &&
+      !publicationInterrupted &&
+      args[0] === APPEND_RUN_STREAM &&
+      args.at(-2) === 'text-start'
+    ) {
+      publicationInterrupted = true;
+      throw new Error('Simulated lost Valkey acknowledgement');
+    }
+    return result;
+  } as never);
+  try {
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            { type: 'text', text: 'durable after ack loss' },
+            { type: 'usage', usage },
+            success,
+          ],
+        },
+      ],
+      { streams },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(publicationInterrupted).toBe(true);
+    const durableRun = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(durableRun?.finalOutput).toBe('durable after ack loss');
+    const rows = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(events.some((event) => event.type === 'text-delta')).toBe(false);
+    expect(events.some((event) => event.type === 'text-start')).toBe(
+      failureMode === 'lost-acknowledgement',
+    );
+    expect(
+      events
+        .slice(failureMode === 'lost-acknowledgement' ? -3 : -2)
+        .map((event) => event.type),
+    ).toEqual(
+      failureMode === 'lost-acknowledgement'
+        ? ['text-end', 'finish-step', 'finish']
+        : ['finish-step', 'finish'],
+    );
+    const sdkChunks = events.filter((event) =>
+      [
+        'start',
+        'start-step',
+        'text-start',
+        'text-delta',
+        'text-end',
+        'finish-step',
+        'finish',
+      ].includes(String(event.type)),
+    ) as UIMessageChunk[];
+    const initialMessage: UIMessage = {
+      id: h.runId,
+      role: 'assistant',
+      parts: [
+        { type: 'text', text: durableRun?.finalOutput ?? '', state: 'done' },
+      ],
+    };
+    const messages = await consumeUiMessageChunks(sdkChunks, initialMessage);
+    const latest = messages.at(-1) as {
+      parts: { type: string; text?: string; state?: string }[];
+    };
+    const text = latest.parts.filter((part) => part.type === 'text');
+    expect(text.map((part) => part.text).join('')).toBe(
+      durableRun?.finalOutput,
+    );
+    expect(text.every((part) => part.state === 'done')).toBe(true);
+  } finally {
+    evalSpy.mockRestore();
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+}
+
+test('engine suppresses deltas when text-start is unavailable', async ({
+  services,
+}) => {
+  await assertTextStartFailure(services, 'missing-header');
+});
+
+test('engine suppresses deltas when text-start acknowledgement is lost', async ({
+  services,
+}) => {
+  await assertTextStartFailure(services, 'lost-acknowledgement');
 });
 
 test('model generation starts only after the tenant SQL transaction closes', async ({

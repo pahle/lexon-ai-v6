@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import net from 'node:net';
 import tls from 'node:tls';
+import { isForbiddenAuthorizationImport } from './authorization-import-policy.mjs';
 
 const imports = [];
 const networkCalls = [];
@@ -44,11 +45,7 @@ const application = await NestFactory.createApplicationContext(
 assert.ok(application.get(RunAuthorizationService));
 await application.close();
 
-const forbiddenImports = imports.filter((specifier) =>
-  /^(?:better-auth|@better-auth\/|@thallesp\/nestjs-better-auth|nodemailer)(?:\/|$)/.test(
-    specifier,
-  ),
-);
+const forbiddenImports = imports.filter(isForbiddenAuthorizationImport);
 assert.deepEqual(forbiddenImports, []);
 assert.deepEqual(networkCalls, []);
 process.stdout.write(
