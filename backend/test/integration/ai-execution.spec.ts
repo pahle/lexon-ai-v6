@@ -4747,43 +4747,56 @@ test('retry reset does not invent a message header after the initial start is un
 test('revoked resume after an unavailable header finishes from a snapshot boundary', async ({
   services,
 }) => {
-  const ai = await createAiFixture(services);
-  const api = await identityApiHarness(services);
-  const organizations = createOrganizationInspector({
-    migratorUrl: services.migratorUrl,
-  });
-  const user = await api.user('Revoked run initiator');
-  const remainingOwner = await api.user('Remaining run owner');
-  const team = await organizations.seedTeam([
-    user.profile.id,
-    remainingOwner.profile.id,
-  ]);
-  const tenant = { orgId: team.id, userId: user.profile.id };
-  const stream = await createExecutionStreamFixture(ai, services);
-  const originalEval = Redis.prototype.eval;
+  const cleanup: Array<() => Promise<void>> = [];
+  let evalSpy: ReturnType<typeof vi.spyOn> | undefined;
   let headerRejected = false;
   let runStatusAtFinish: string | undefined;
-  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
-  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
-    if (
-      args[0] === APPEND_RUN_STREAM &&
-      args.at(-2) === 'start' &&
-      !headerRejected
-    ) {
-      headerRejected = true;
-      return -3;
-    }
-    if (args[0] === FINISH_RUN_STREAM) {
-      const runId = String(args[11]);
-      runStatusAtFinish = (
-        await ai.database.withTenant(tenant, (tx) =>
-          stream.runs.find(tx, runId),
-        )
-      )?.status;
-    }
-    return originalEval.apply(this, args as never);
-  } as never);
   try {
+    const ai = await createAiFixture(services);
+    cleanup.push(() => ai.close());
+    const authServices = {
+      ...services,
+      queuePrefix: `${services.queuePrefix}:revoked-header:${randomUUID().slice(0, 8)}`,
+    };
+    const api = await identityApiHarness(authServices);
+    cleanup.push(() => api.close());
+    const organizations = createOrganizationInspector({
+      migratorUrl: services.migratorUrl,
+    });
+    cleanup.push(() => organizations.close());
+    const user = await api.user('Revoked run initiator');
+    const remainingOwner = await api.user('Remaining run owner');
+    const team = await organizations.seedTeam([
+      user.profile.id,
+      remainingOwner.profile.id,
+    ]);
+    const tenant = { orgId: team.id, userId: user.profile.id };
+    const stream = await createExecutionStreamFixture(ai, services);
+    cleanup.push(() => stream.close());
+    const originalEval = Redis.prototype.eval;
+    evalSpy = vi.spyOn(Redis.prototype, 'eval');
+    evalSpy.mockImplementation(async function (
+      this: Redis,
+      ...args: unknown[]
+    ) {
+      if (
+        args[0] === APPEND_RUN_STREAM &&
+        args.at(-2) === 'start' &&
+        !headerRejected
+      ) {
+        headerRejected = true;
+        return -3;
+      }
+      if (args[0] === FINISH_RUN_STREAM) {
+        const runId = String(args[11]);
+        runStatusAtFinish = (
+          await ai.database.withTenant(tenant, (tx) =>
+            stream.runs.find(tx, runId),
+          )
+        )?.status;
+      }
+      return originalEval.apply(this, args as never);
+    } as never);
     const h = await setup(ai, [{ events: [success] }], {
       streams: stream.streams,
       tenant,
@@ -4823,11 +4836,8 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
     const replay = await consumeUiMessageChunks(chunks);
     expect((replay.at(-1) as UIMessage).id).toBe(h.runId);
   } finally {
-    evalSpy.mockRestore();
-    await stream.close();
-    await organizations.close();
-    await api.close();
-    await ai.close();
+    evalSpy?.mockRestore();
+    await Promise.allSettled(cleanup.reverse().map((release) => release()));
   }
 });
 

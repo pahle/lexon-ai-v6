@@ -120,7 +120,8 @@ export async function identityApiHarness(
       email,
       password,
     });
-    if (signed.status !== 200) throw new Error('Test signup failed');
+    if (signed.status !== 200)
+      throw new Error(`Test signup failed with HTTP ${signed.status}`);
     const message = mail.findLast(
       (item) => item.to === email && item.kind === 'verification',
     );
