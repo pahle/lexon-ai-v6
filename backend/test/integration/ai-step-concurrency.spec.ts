@@ -146,6 +146,30 @@ test('coordinator returns busy to a second delivery and performs no tenant disco
   }
 });
 
+test('same-organization delivery from a different user cannot claim the initiator run', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const service = coordinator(ai);
+    const owner = ai.tenants[0]!;
+    const before = await ai.runVersion(0, run.id);
+    expect(
+      await service.claim(
+        job(run.id, { orgId: owner.orgId, userId: randomUUID() }),
+      ),
+    ).toEqual({ kind: 'noop' });
+    expect(await ai.runVersion(0, run.id)).toBe(before);
+    expect(await service.claim(job(run.id, owner))).toMatchObject({
+      kind: 'claimed',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
 test('a live-refused claim that expires before inspection is deferred for fenced recovery', async ({
   services,
 }) => {

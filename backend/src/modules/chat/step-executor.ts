@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { RunStreamEvent } from '@lexon/contracts';
+import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import type {
   AiOperationRepository,
   AiRunRepository,
@@ -197,12 +197,13 @@ export class StepExecutor {
 
     try {
       heartbeat.throwIfAborted();
-      await this.options.streams?.recover(claim, {
+      const recovery = await this.options.streams?.recover(claim, {
         version: 1,
         runId: claim.runId,
         type: 'reset',
         sequence: claim.sequence,
       });
+      streamSnapshotRequired = recovery !== undefined && recovery !== 'written';
       streamMessageStarted =
         (await this.#publish(claim, {
           version: 1,
@@ -211,7 +212,7 @@ export class StepExecutor {
           messageId: claim.runId,
         })) === 'written';
       streamFramingAvailable = streamMessageStarted;
-      streamSnapshotRequired = !streamMessageStarted;
+      streamSnapshotRequired ||= !streamMessageStarted;
       heartbeat.throwIfAborted();
       let initial: {
         run: RunRecord;
@@ -251,6 +252,12 @@ export class StepExecutor {
         provider: initial.provider,
         status: 'started',
       });
+      await this.#publish(claim, {
+        version: 1,
+        runId: claim.runId,
+        type: 'status',
+        status: 'running',
+      });
       text = await this.options.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
         (tx) =>
@@ -272,7 +279,17 @@ export class StepExecutor {
               terminal: false,
               outcome: 'succeeded',
             });
-            if (paused === 'committed') await heartbeat.stop();
+            if (paused === 'committed') {
+              await heartbeat.stop();
+              const pausedRun = await this.options.database.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) => this.options.runs.find(tx, claim.runId),
+              );
+              if (pausedRun)
+                await this.#publishCommittedLifecycle(claim, pausedRun, [
+                  operation.id,
+                ]);
+            }
             setRunSpanStatus('continued');
             setStepSpanStatus('continued');
             return { kind: 'done' };
@@ -315,6 +332,14 @@ export class StepExecutor {
             });
             if (failed === 'committed') {
               await heartbeat.stop();
+              const failedRun = await this.options.database.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) => this.options.runs.find(tx, claim.runId),
+              );
+              if (failedRun)
+                await this.#publishCommittedLifecycle(claim, failedRun, [
+                  operation.id,
+                ]);
               await this.#finishIfTerminal(claim, streamSnapshotRequired);
             }
             setRunSpanStatus('failed');
@@ -396,7 +421,17 @@ export class StepExecutor {
                     throw new Error('AI operation approval staging failed');
                 },
               });
-              if (paused === 'committed') await heartbeat.stop();
+              if (paused === 'committed') {
+                await heartbeat.stop();
+                const pausedRun = await this.options.database.withTenant(
+                  { orgId: claim.orgId, userId: claim.userId },
+                  (tx) => this.options.runs.find(tx, claim.runId),
+                );
+                if (pausedRun)
+                  await this.#publishCommittedLifecycle(claim, pausedRun, [
+                    operation.id,
+                  ]);
+              }
               setRunSpanStatus('continued');
               setStepSpanStatus('continued');
               return { kind: 'done' };
@@ -447,6 +482,14 @@ export class StepExecutor {
               });
               if (failed === 'committed') {
                 await heartbeat.stop();
+                const failedRun = await this.options.database.withTenant(
+                  { orgId: claim.orgId, userId: claim.userId },
+                  (tx) => this.options.runs.find(tx, claim.runId),
+                );
+                if (failedRun)
+                  await this.#publishCommittedLifecycle(claim, failedRun, [
+                    operation.id,
+                  ]);
                 await this.#finishIfTerminal(claim, streamSnapshotRequired);
               }
               setRunSpanStatus('failed');
@@ -490,14 +533,34 @@ export class StepExecutor {
                   },
                 },
               );
-              if (recorded === 'committed') await heartbeat.stop();
+              if (recorded === 'committed') {
+                await heartbeat.stop();
+                const recordedRun = await this.options.database.withTenant(
+                  { orgId: claim.orgId, userId: claim.userId },
+                  (tx) => this.options.runs.find(tx, claim.runId),
+                );
+                if (recordedRun)
+                  await this.#publishCommittedLifecycle(claim, recordedRun, [
+                    operation.id,
+                  ]);
+              }
               setRunSpanStatus('continued');
               setStepSpanStatus('failed');
               return { kind: 'done' };
             }
             throw error;
           }
-          if (committed === 'committed') await heartbeat.stop();
+          if (committed === 'committed') {
+            await heartbeat.stop();
+            const committedRun = await this.options.database.withTenant(
+              { orgId: claim.orgId, userId: claim.userId },
+              (tx) => this.options.runs.find(tx, claim.runId),
+            );
+            if (committedRun)
+              await this.#publishCommittedLifecycle(claim, committedRun, [
+                operation.id,
+              ]);
+          }
           setRunSpanStatus('continued');
           setStepSpanStatus('succeeded');
           return { kind: 'done' };
@@ -539,16 +602,30 @@ export class StepExecutor {
         }
         return pieces;
       });
-      const operationHistory = this.options.operations
-        ? await this.options.database.withTenant(
-            { orgId: claim.orgId, userId: claim.userId },
-            (tx) =>
-              this.options.operations!.forRun(tx, {
+      const committedHistory = await this.options.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        async (tx) => ({
+          steps: await this.options.steps.committedHistory(tx, {
+            runId: claim.runId,
+            beforeSequence: claim.sequence,
+          }),
+          operations: this.options.operations
+            ? await this.options.operations.forRun(tx, {
                 runId: claim.runId,
                 throughSequence: claim.sequence,
-              }),
-          )
-        : [];
+              })
+            : [],
+        }),
+      );
+      const operationHistory = committedHistory.operations;
+      const historyMessages = committedHistory.steps.flatMap((step) => [
+        ...(step.committedText
+          ? [{ role: 'assistant' as const, content: step.committedText }]
+          : []),
+        ...toolResultsAsMessages(
+          operationHistory.filter((operation) => operation.stepId === step.id),
+        ),
+      ]);
       for (let ordinal = 1; ordinal <= maxAttempts; ordinal++) {
         heartbeat.throwIfAborted();
         let attemptText = '';
@@ -571,10 +648,7 @@ export class StepExecutor {
               ? [{ role: 'system' as const, content: renderContexts(contexts) }]
               : []),
             { role: 'user', content: run.inputText },
-            ...(run.partialOutput
-              ? [{ role: 'assistant' as const, content: run.partialOutput }]
-              : []),
-            ...toolResultsAsMessages(operationHistory),
+            ...historyMessages,
           ],
           maxOutputTokens: profile.maxOutputTokens,
           signal: heartbeat.signal,
@@ -796,7 +870,10 @@ export class StepExecutor {
                       runId: claim.runId,
                       type: 'start-step',
                     })) === 'written';
-                  if (!uiStepStarted) streamFramingAvailable = false;
+                  if (!uiStepStarted) {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
                 }
                 if (streamFramingAvailable && !textPartOpen) {
                   textPartOpen =
@@ -806,7 +883,10 @@ export class StepExecutor {
                       type: 'text-start',
                       id: attemptId,
                     })) === 'written';
-                  if (!textPartOpen) streamFramingAvailable = false;
+                  if (!textPartOpen) {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
                 }
                 if (streamFramingAvailable && textPartOpen)
                   await this.#publish(claim, {
@@ -816,8 +896,10 @@ export class StepExecutor {
                     id: attemptId,
                     delta: event.text,
                   }).then((result) => {
-                    if (result === 'unavailable')
+                    if (result !== 'written') {
                       streamFramingAvailable = false;
+                      streamSnapshotRequired = true;
+                    }
                   });
               } else if (event.type === 'tool-proposal') {
                 attemptProposals.push(event);
@@ -882,9 +964,12 @@ export class StepExecutor {
             safeCode: 'AI_INTERNAL',
           };
         }
+        const currentOutcome = finalOutcome;
+        if (!currentOutcome) throw new Error('AI model outcome unavailable');
         if (
-          finalOutcome?.attemptOutcome === 'failed' &&
-          finalOutcome.retryable &&
+          (currentOutcome.attemptOutcome === 'failed' ||
+            currentOutcome.attemptOutcome === 'unknown') &&
+          currentOutcome.retryable &&
           ordinal < maxAttempts
         ) {
           if (textPartOpen) {
@@ -905,9 +990,12 @@ export class StepExecutor {
             (tx) =>
               this.options.attempts.settle(tx, claim, {
                 attemptId,
-                outcome: 'failed',
+                outcome:
+                  currentOutcome.attemptOutcome === 'unknown'
+                    ? 'unknown'
+                    : 'failed',
                 ...(settledUsage ? { usage: settledUsage } : {}),
-                ...(costUsd ? { costUsd } : {}),
+                ...(costUsd !== undefined ? { costUsd } : {}),
               }),
           );
           attemptReserved = false;
@@ -937,25 +1025,34 @@ export class StepExecutor {
               id: attemptId,
             });
             textPartOpen = false;
-            if (closed === 'unavailable') streamFramingAvailable = false;
+            if (closed !== 'written') {
+              streamFramingAvailable = false;
+              streamSnapshotRequired = true;
+            }
           }
-          if (streamFramingAvailable)
-            await this.#publish(claim, {
+          if (streamFramingAvailable) {
+            const finished = await this.#publish(claim, {
               version: 1,
               runId: claim.runId,
               type: 'finish-step',
             });
+            if (finished !== 'written') streamSnapshotRequired = true;
+          }
           uiStepStarted = false;
         }
         break;
       }
       if (!finalOutcome) throw new Error('AI model outcome unavailable');
-      const budgetExceeded = finalOutcome.safeCode === 'AI_BUDGET_EXCEEDED';
+      let budgetExceeded = finalOutcome.safeCode === 'AI_BUDGET_EXCEEDED';
       const succeeded =
         finalOutcome.attemptOutcome === 'succeeded' && !budgetExceeded;
       const prepared =
         succeeded && proposals.length
-          ? prepareOperationProposals(proposals, this.options.registry, profile)
+          ? prepareOperationProposals(
+              proposals,
+              this.options.registry,
+              activeCapabilities,
+            )
           : [];
       const invalidProposals = prepared === null;
       const operationProposals = prepared ?? [];
@@ -972,15 +1069,19 @@ export class StepExecutor {
       heartbeat.throwIfAborted();
       const unknown = finalOutcome.attemptOutcome === 'unknown';
       heartbeat.throwIfAborted();
-      if (unknown)
-        await this.options.database.withTenant(
+      if (unknown) {
+        const settlement = await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
           (tx) =>
             this.options.attempts.settle(tx, claim, {
               attemptId,
               outcome: 'unknown',
+              ...(settledUsage ? { usage: settledUsage } : {}),
+              ...(costUsd !== undefined ? { costUsd } : {}),
             }),
         );
+        budgetExceeded ||= settlement.budgetExceeded;
+      }
       if (unknown) attemptReserved = false;
       const terminal =
         invalidProposals ||
@@ -1020,13 +1121,39 @@ export class StepExecutor {
             }
           : {}),
       });
+      let committedRun:
+        Awaited<ReturnType<AiRunRepository['find']>> | undefined;
       if (committed === 'committed') {
         await heartbeat.stop();
+        committedRun = await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => this.options.runs.find(tx, claim.runId),
+        );
+        if (committedRun)
+          await this.#publishCommittedLifecycle(claim, committedRun);
         await this.#finishIfTerminal(claim, streamSnapshotRequired);
       }
-      setStepSpanStatus(succeeded ? 'succeeded' : 'failed');
+      if (committedRun?.errorCode) {
+        runSpan?.setAttribute('safeCode', committedRun.errorCode);
+        stepSpan?.setAttribute('safeCode', committedRun.errorCode);
+      }
+      setStepSpanStatus(
+        committed !== 'committed' || committedRun?.status === 'failed'
+          ? 'failed'
+          : committedRun?.status === 'cancelled'
+            ? 'cancelled'
+            : 'succeeded',
+      );
       setRunSpanStatus(
-        terminal ? (succeeded ? 'succeeded' : 'failed') : 'continued',
+        committed !== 'committed'
+          ? 'failed'
+          : committedRun?.status === 'completed'
+            ? 'succeeded'
+            : committedRun?.status === 'failed'
+              ? 'failed'
+              : committedRun?.status === 'cancelled'
+                ? 'cancelled'
+                : 'continued',
       );
       return { kind: 'done' };
     } catch (error) {
@@ -1191,6 +1318,77 @@ export class StepExecutor {
     return result ?? 'unavailable';
   }
 
+  async #publishCommittedLifecycle(
+    claim: StepClaim,
+    run: RunRecord,
+    operationIds: readonly string[] = [],
+  ): Promise<void> {
+    if (!this.options.streams) return;
+    if (run.status === 'queued' || run.status === 'cancelling') return;
+    const operations = this.options.operations
+      ? await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) =>
+            this.options.operations!.forRun(tx, {
+              runId: claim.runId,
+              throughSequence: claim.sequence + 1,
+            }),
+        )
+      : [];
+    const reference = {
+      runId: claim.runId,
+      orgId: claim.orgId,
+      userId: claim.userId,
+      stepId: claim.stepId,
+      sequence: claim.sequence,
+      expectedVersion: claim.expectedVersion,
+      fence: claim.fence,
+      committedRunVersion: run.runVersion,
+      committedStatus: run.status,
+    };
+    const terminal = ['completed', 'failed', 'cancelled'].includes(run.status);
+    const events: RunStreamEvent[] = terminal
+      ? []
+      : [
+          {
+            version: 1,
+            runId: claim.runId,
+            type: 'status',
+            status: run.status,
+          },
+        ];
+    for (const operation of operations.filter(
+      (entry) =>
+        entry.stepId === claim.stepId || operationIds.includes(entry.id),
+    )) {
+      events.push({
+        version: 1,
+        runId: claim.runId,
+        type: 'operation-status',
+        operationId: operation.id,
+        status:
+          operation.status === 'succeeded' ? 'completed' : operation.status,
+      });
+      if (operation.status === 'awaiting_approval')
+        events.push({
+          version: 1,
+          runId: claim.runId,
+          type: 'approval-required',
+          operationId: operation.id,
+        });
+    }
+    const safeCode = RunErrorCodeSchema.safeParse(run.errorCode);
+    if (!terminal && safeCode.success)
+      events.push({
+        version: 1,
+        runId: claim.runId,
+        type: 'error',
+        code: safeCode.data,
+      });
+    if (events.length)
+      await this.options.streams.publishCommitted(reference, events);
+  }
+
   async #appendToolAudit(
     tx: TenantSession,
     claim: StepClaim,
@@ -1251,7 +1449,7 @@ export class StepExecutor {
 function prepareOperationProposals(
   proposals: readonly Extract<ModelEvent, { type: 'tool-proposal' }>[],
   registry: RunRegistry,
-  profile: RunProfile,
+  capabilities: readonly string[],
 ): OperationProposal[] | null {
   const operations: OperationProposal[] = [];
   for (const [callOccurrence, proposal] of proposals.entries()) {
@@ -1259,9 +1457,7 @@ function prepareOperationProposals(
     if (
       !tool ||
       (tool.kind === 'write' && tool.idempotency.mode !== 'transactional') ||
-      tool.capabilities.some(
-        (capability) => !profile.capabilities.includes(capability),
-      )
+      tool.capabilities.some((capability) => !capabilities.includes(capability))
     )
       return null;
     let inputBytes: number;

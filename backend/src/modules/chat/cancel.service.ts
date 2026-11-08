@@ -4,6 +4,7 @@ import type {
   AiStepRepository,
   RunActorFactsRepository,
   TenantDatabase,
+  StepClaim,
   TerminalStreamReference,
 } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
@@ -58,11 +59,6 @@ export class CancelService {
           runId: run.id,
           sequence: run.nextSequence,
         });
-        const activeOwner = Boolean(
-          current?.state === 'claimed' &&
-          current.leaseUntil &&
-          current.leaseUntil.getTime() > Date.now(),
-        );
         let version = run.runVersion;
         if (run.status !== 'cancelling') {
           if (
@@ -77,12 +73,31 @@ export class CancelService {
           version++;
         }
         shouldSignal = true;
-        if (activeOwner) return;
         const partial = await this.runs.latestCheckpointText(
           tx,
           run.id,
           run.nextSequence,
         );
+        if (current?.state === 'claimed') {
+          const expiredClaim: StepClaim = {
+            runId: run.id,
+            orgId: actor.orgId,
+            userId: actor.userId,
+            stepId: current.id,
+            sequence: current.sequence,
+            expectedVersion: current.expectedVersion,
+            fence: current.fence,
+            leaseUntil: current.leaseUntil ?? new Date(0),
+          };
+          if (
+            !(await this.steps.commitExpiredCancellation(
+              tx,
+              expiredClaim,
+              partial,
+            ))
+          )
+            return;
+        }
         if (
           !(await this.runs.transition(tx, {
             runId,

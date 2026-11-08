@@ -1005,7 +1005,9 @@ export async function createAiFixture(services: Services) {
       });
     },
     async configureMismatchedCapacity() {
-      await independentCapacity.configure(readAiConfig({ AI_MAXLEN: '1000' }));
+      await independentCapacity.configure(
+        readAiConfig({ AI_MAX_ACTIVE_PER_ORG: '5' }),
+      );
     },
     async configureCapacityFromIndependentRepository() {
       await independentCapacity.configure(config);

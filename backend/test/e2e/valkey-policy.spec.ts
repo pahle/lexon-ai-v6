@@ -8,7 +8,7 @@ test('normal startup has noeviction and AOF everysec', async () => {
     await containerId('valkey'),
     'sh',
     '-c',
-    'VALKEYCLI_AUTH="$VALKEY_PASSWORD" valkey-cli --raw CONFIG GET maxmemory-policy appendonly appendfsync',
+    'VALKEYCLI_AUTH="$VALKEY_PASSWORD" valkey-cli --raw CONFIG GET maxmemory-policy appendonly appendfsync maxmemory',
   ]);
   expect(result.split('\n')).toEqual([
     'appendfsync',
@@ -17,6 +17,8 @@ test('normal startup has noeviction and AOF everysec', async () => {
     'yes',
     'maxmemory-policy',
     'noeviction',
+    'maxmemory',
+    '805306368',
   ]);
 });
 test('isolated wrong eviction/AOF/fsync configurations reject startup and correct policy recovers', async () => {

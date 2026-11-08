@@ -157,6 +157,8 @@ async function startInfrastructure(): Promise<{
         'valkey-server',
         '--requirepass',
         password,
+        '--maxmemory',
+        '768mb',
         '--maxmemory-policy',
         'noeviction',
         '--appendonly',

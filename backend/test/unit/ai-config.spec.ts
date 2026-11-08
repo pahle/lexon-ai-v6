@@ -29,6 +29,31 @@ describe('AI capacity configuration', () => {
       expect(() => readAiConfig(env)).toThrow();
   });
 
+  it('rejects stream settings that cannot match the fixed writer pool', () => {
+    for (const env of [
+      { AI_TERMINAL_SLOTS: '1' },
+      { AI_MAX_ACTIVE: '23' },
+      { AI_MAXLEN: '512' },
+      { AI_EVENT_BYTES: '2048' },
+      { AI_MEMORY_BUDGET_BYTES: '201326592' },
+    ])
+      expect(() => readAiConfig(env)).toThrow();
+  });
+
+  it('requires declared Streams maxmemory to fund the fixed pool plus 20 percent headroom', () => {
+    expect(readAiConfig({})).toMatchObject({
+      streamsValkeyMaxMemoryBytes: 805_306_368,
+      memoryBudgetBytes: 188_743_680,
+    });
+    expect(() =>
+      readAiConfig({ AI_STREAMS_VALKEY_MAXMEMORY_BYTES: '734003200' }),
+    ).toThrow();
+    expect(
+      readAiConfig({ AI_STREAMS_VALKEY_MAXMEMORY_BYTES: '786432000' })
+        .streamsValkeyMaxMemoryBytes,
+    ).toBe(786_432_000);
+  });
+
   it('attaches AI capacity settings only to the AI worker runtime', () => {
     const env = {
       DATABASE_APP_URL: 'postgresql://lexon_app:secret@localhost/test',

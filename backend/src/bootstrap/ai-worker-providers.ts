@@ -59,6 +59,11 @@ export function aiWorkerProviders(
                 { orgId: claim.orgId, userId: claim.userId },
                 (tx) => steps.streamTerminalProof(tx, claim),
               ),
+            authorizeCommitted: (claim, event) =>
+              db.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) => steps.streamCommittedProof(tx, claim, event),
+              ),
             reconcile: (entries) =>
               Promise.all(
                 entries.map(async (entry) => {

@@ -88,6 +88,12 @@ export interface TerminalStreamReference {
   readonly neutral?: boolean;
 }
 
+export interface CommittedStreamReference extends TerminalStreamReference {
+  readonly committedRunVersion: number;
+  readonly committedStatus:
+    'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
+}
+
 export type AiOperationMode =
   'read' | 'transactional' | 'idempotency-key' | 'reconcile';
 export type AiOperationStatus =

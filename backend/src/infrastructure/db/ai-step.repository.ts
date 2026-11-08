@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 import type {
@@ -6,6 +7,7 @@ import type {
   StepCommit,
   StepRecord,
   StepState,
+  CommittedStreamReference,
   TerminalStreamReference,
 } from './ai-records.js';
 
@@ -65,6 +67,95 @@ function validLease(leaseMs: number): boolean {
 }
 
 export class AiStepRepository {
+  async streamCommittedProof(
+    tx: TenantSession,
+    claim: CommittedStreamReference,
+    event: RunStreamEvent,
+  ): Promise<
+    | {
+        status:
+          | 'running'
+          | 'awaiting_approval'
+          | 'completed'
+          | 'failed'
+          | 'cancelled';
+        runVersion: number;
+        nextSequence: number;
+        stepId: string;
+        sequence: number;
+        expectedVersion: number;
+        fence: number;
+      }
+    | undefined
+  > {
+    if (!validTerminalReference(tx, claim)) return undefined;
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<{
+      status:
+        'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
+      run_version: number;
+      next_sequence: number;
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number;
+    }>(
+      `SELECT r.status,r.run_version,r.next_sequence,s.id AS step_id,
+              s.sequence,s.expected_version,s.fence
+       FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
+       WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+         AND r.status=$9 AND r.run_version=$8
+         AND r.next_sequence >= $4 + 1
+         AND s.id=$6 AND s.sequence=$4 AND s.expected_version=$5 AND s.fence=$7
+         AND s.state IN ('committed','awaiting_approval')
+         AND ($10::uuid IS NULL OR EXISTS (
+           SELECT 1 FROM app.ai_operations o
+           JOIN app.ai_steps operation_step
+             ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
+            AND operation_step.id=o.step_id
+           WHERE o.org_id=s.org_id AND o.run_id=s.run_id
+             AND operation_step.sequence<=s.sequence
+             AND o.id=$10 AND (
+               ($11='approval-required' AND o.status='awaiting_approval') OR
+               ($11='operation-status' AND
+                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=$12)
+             )
+         ))
+         AND NOT EXISTS (
+           SELECT 1 FROM app.ai_steps newer
+           WHERE newer.org_id=s.org_id AND newer.run_id=s.run_id
+             AND newer.sequence>s.sequence AND newer.state IN ('committed','awaiting_approval')
+         )`,
+      [
+        scope.orgId,
+        claim.runId,
+        claim.userId,
+        claim.sequence,
+        claim.expectedVersion,
+        claim.stepId,
+        claim.fence,
+        claim.committedRunVersion,
+        claim.committedStatus,
+        'operationId' in event ? event.operationId : null,
+        event.type,
+        event.type === 'operation-status' ? event.status : '',
+      ],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          status: row.status,
+          runVersion: Number(row.run_version),
+          nextSequence: Number(row.next_sequence),
+          stepId: row.step_id,
+          sequence: Number(row.sequence),
+          expectedVersion: Number(row.expected_version),
+          fence: Number(row.fence),
+        }
+      : undefined;
+  }
+
   async streamActiveProof(
     tx: TenantSession,
     claim: StepClaim,
@@ -131,6 +222,7 @@ export class AiStepRepository {
   ): Promise<
     | {
         status: 'completed' | 'failed' | 'cancelled';
+        errorCode?: string;
         runVersion: number;
         nextSequence: number;
         latestCommittedStepId: string;
@@ -145,6 +237,7 @@ export class AiStepRepository {
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query<{
       status: 'completed' | 'failed' | 'cancelled';
+      error_code: string | null;
       run_version: number;
       next_sequence: number;
       latest_step_id: string | null;
@@ -154,7 +247,8 @@ export class AiStepRepository {
     }>(
       `SELECT r.status,r.run_version,r.next_sequence,
               s.id AS latest_step_id,s.sequence AS latest_sequence,
-              s.expected_version AS latest_expected_version,s.fence AS latest_fence
+              s.expected_version AS latest_expected_version,s.fence AS latest_fence,
+              r.error_code
        FROM app.ai_runs r
        LEFT JOIN LATERAL (
          SELECT id,sequence,expected_version,fence FROM app.ai_steps s
@@ -190,8 +284,10 @@ export class AiStepRepository {
       Number(row.latest_fence) !== claim.fence
     )
       return undefined;
+    const safeCode = RunErrorCodeSchema.safeParse(row.error_code);
     return {
       status: row.status,
+      ...(safeCode.success ? { errorCode: safeCode.data } : {}),
       runVersion: Number(row.run_version),
       nextSequence: Number(row.next_sequence),
       latestCommittedStepId: row.latest_step_id!,
@@ -246,6 +342,28 @@ export class AiStepRepository {
       [scope.orgId, input.runId, input.sequence],
     );
     return result.rows[0] ? mapStep(result.rows[0]) : null;
+  }
+
+  async committedHistory(
+    tx: TenantSession,
+    input: { runId: string; beforeSequence: number },
+  ): Promise<StepRecord[]> {
+    if (
+      !uuid.safeParse(input.runId).success ||
+      !Number.isSafeInteger(input.beforeSequence) ||
+      input.beforeSequence < 1
+    )
+      throw new Error('Invalid AI step history lookup');
+    const { client, ctx } = requireSession(tx);
+    const scope = buildAuthorizationPredicate(ctx);
+    const result = await client.query<StepRow>(
+      `SELECT * FROM app.ai_steps
+       WHERE org_id=$1 AND run_id=$2 AND sequence<$3
+         AND state IN ('committed','awaiting_approval')
+       ORDER BY sequence`,
+      [scope.orgId, input.runId, input.beforeSequence],
+    );
+    return result.rows.map(mapStep);
   }
 
   async lockCurrent(
@@ -555,11 +673,6 @@ export class AiStepRepository {
       return false;
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
-    await client.query(
-      `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
-      [scope.orgId, claim.stepId, claim.fence],
-    );
     const result = await client.query(
       `UPDATE app.ai_steps s SET state='committed',committed_text=$7,
        commit_data='{"outcome":"cancelled"}'::jsonb,lease_until=NULL,updated_at=clock_timestamp()
@@ -578,7 +691,13 @@ export class AiStepRepository {
         text,
       ],
     );
-    return result.rowCount === 1;
+    if (result.rowCount !== 1) return false;
+    await client.query(
+      `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+      [scope.orgId, claim.stepId, claim.fence],
+    );
+    return true;
   }
 
   async commit(

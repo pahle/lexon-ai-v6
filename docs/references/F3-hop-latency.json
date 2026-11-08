@@ -177,5 +177,35 @@
       "thresholdMs": 500,
       "triggered": false
     }
+  },
+  "f3FinalFixWaveValidation": {
+    "label": "F3 aggregate final-fix working-tree validation, uncontended local measurement",
+    "sourceRevision": "d4cbea0 (aggregate final-fix working tree; local commit pending gates)",
+    "source": "pnpm --filter @lexon/backend exec vitest run --config ../vitest.config.ts --project backend-integration --silent=false test/integration/ai-hop-latency.spec.ts; exit 0; /tmp/lexon-f3-finalfix-hop.log",
+    "measuredAt": "2026-11-08",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_1650c2325e73d5b3f2ee9ffe_85c970eed0afea90e7b97dd2:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted."
+    },
+    "coldMs": 7.991709000000014,
+    "medianMs": 2.5417084999999133,
+    "p95Ms": 4.13416600000005,
+    "maxMs": 4.250291999999945,
+    "samplesMs": [
+      4.250291000000014, 3.6936249999999973, 4.13416600000005,
+      3.2835000000000036, 2.801208000000088, 2.79362500000002,
+      2.5545419999998558, 2.558749999999918, 2.503500000000031,
+      2.6026670000001104, 2.465125000000171, 2.528874999999971,
+      2.374083000000155, 2.3554169999999885, 2.603582999999844,
+      2.451958000000104, 2.3508750000000873, 2.380625000000009,
+      2.1887919999999212, 2.3198329999997895
+    ],
+    "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted.",
+    "gate": { "thresholdMs": 500, "triggered": false }
   }
 }

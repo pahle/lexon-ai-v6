@@ -88,6 +88,8 @@ export class StepCoordinator {
       ClaimResult | { kind: 'recover-cancellation' }
     >(job.ctx, async (tx) => {
       const run = await this.runs.find(tx, job.payload.runId);
+      if (run && run.initiatingUserId !== job.ctx.userId)
+        return { kind: 'noop' };
       if (
         run?.status === 'cancelling' &&
         run.runVersion === job.payload.expectedVersion + 1 &&

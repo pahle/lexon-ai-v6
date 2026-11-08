@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { Redis } from 'ioredis';
-import { RunStreamEventSchema, type RunStreamEvent } from '@lexon/contracts';
-import type { StepClaim, TerminalStreamReference } from '../db/index.js';
+import {
+  RunErrorCodeSchema,
+  RunStreamEventSchema,
+  type RunStreamEvent,
+} from '@lexon/contracts';
+import type {
+  CommittedStreamReference,
+  StepClaim,
+  TerminalStreamReference,
+} from '../db/index.js';
 import {
   encodeStreamParts,
   encodeStreamPartsBounded,
@@ -10,6 +19,7 @@ import {
   FINISH_RUN_STREAM,
   PREPARE_RUN_STREAM,
   APPEND_RUN_STREAM,
+  APPEND_COMMITTED_RUN_STREAM,
   RECONCILE_RUN_STREAMS,
 } from './run-stream-scripts.js';
 import { StreamCapacity } from './stream-capacity.js';
@@ -27,12 +37,24 @@ export interface ActiveStreamProof {
 
 export interface TerminalStreamProof {
   readonly status: 'completed' | 'failed' | 'cancelled';
+  readonly errorCode?: string;
   readonly runVersion: number;
   readonly nextSequence: number;
   readonly latestCommittedStepId: string;
   readonly latestCommittedSequence: number;
   readonly latestCommittedExpectedVersion: number;
   readonly latestCommittedFence: number;
+}
+
+export interface CommittedStreamProof {
+  readonly status:
+    'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
+  readonly runVersion: number;
+  readonly nextSequence: number;
+  readonly stepId: string;
+  readonly sequence: number;
+  readonly expectedVersion: number;
+  readonly fence: number;
 }
 
 export interface RunStreamAuthority {
@@ -42,6 +64,11 @@ export interface RunStreamAuthority {
   authorizeTerminal(
     claim: TerminalStreamReference,
   ): Promise<TerminalStreamProof | undefined>;
+  /** Return fresh lineage proof for a committed operation/approval/status event. */
+  authorizeCommitted?(
+    claim: CommittedStreamReference,
+    event: RunStreamEvent,
+  ): Promise<CommittedStreamProof | undefined>;
   /** Inspect at most 24 registered runs using each stored K3 tenant context. */
   reconcile(
     entries: readonly RunStreamRegistryEntry[],
@@ -121,7 +148,7 @@ export class RunStreams {
     claim: StepClaim,
     event: RunStreamEvent,
   ): Promise<'written' | 'unavailable' | 'stale'> {
-    const deadlineAt = Date.now() + PUBLICATION_DEADLINE_MS;
+    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
@@ -150,14 +177,17 @@ export class RunStreams {
       claim,
       reservation,
       async (generation) => {
+        const serverDeadlineAt = await this.#serverDeadline(deadlineAt);
+        if (serverDeadlineAt === undefined) return 'unavailable';
         for (const part of parts) {
-          if (Date.now() >= deadlineAt) return 'unavailable';
+          if (performance.now() >= deadlineAt) return 'unavailable';
           if (!this.#isCurrent(claim, generation)) return 'stale';
           const result = await this.#publishPart(
             claim,
             part,
             () => this.#isCurrent(claim, generation),
             deadlineAt,
+            serverDeadlineAt,
           );
           if (result !== 'written') return result;
         }
@@ -173,6 +203,18 @@ export class RunStreams {
     event: RunStreamEvent,
     options: { readonly resetToSnapshot?: boolean } = {},
   ): Promise<void> {
+    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    await this.#finishWithinDeadline(claim, event, options, deadlineAt);
+  }
+
+  async #finishWithinDeadline(
+    claim: TerminalStreamReference,
+    event: RunStreamEvent,
+    options: { readonly resetToSnapshot?: boolean },
+    deadlineAt: number,
+    serverDeadlineAt?: number,
+    alreadyQueued = false,
+  ): Promise<void> {
     if (
       !validTerminalReference(claim) ||
       event.runId !== claim.runId ||
@@ -183,92 +225,177 @@ export class RunStreams {
     const parts = encodeStreamParts(event, this.#capacity.limits.maxEventBytes);
     if (parts.length !== 1)
       throw new Error('Terminal stream event must be one bounded part');
+    if (performance.now() >= deadlineAt) return;
     const queue = this.#queue(claim);
-    this.#invalidate(queue);
-    await this.#enqueue(
-      claim,
-      async () => {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const epoch = await this.#readEpoch();
-            if (epoch === undefined) return;
-            const proof = await this.#terminalProof(claim);
-            if (!proof) return;
-            const candidate = await this.#terminalCandidate();
-            const result = Number(
-              await this.#client.eval(
-                FINISH_RUN_STREAM,
-                9,
-                this.#activeKey(),
-                this.#terminalKey(),
-                this.#streamKey(claim.runId),
-                this.#guardKey(claim.runId),
-                candidate
-                  ? this.#streamKey(candidate.runId)
-                  : this.#streamKey(claim.runId),
-                candidate
-                  ? this.#guardKey(candidate.runId)
-                  : this.#guardKey(claim.runId),
-                this.#epochKey(),
-                this.#contextKey(),
-                this.#terminalMembersKey(),
-                claim.runId,
-                String(claim.expectedVersion),
-                String(claim.sequence),
-                String(claim.fence),
-                JSON.stringify(parts[0]),
-                String(this.#capacity.limits.maxEntries),
-                String(this.#capacity.limits.terminalTtlSeconds),
-                String(Date.now()),
-                randomUUID(),
-                candidate?.member ?? '',
-                candidate?.guard ?? '',
-                epoch,
-                `${claim.orgId}|${claim.userId}`,
-                options.resetToSnapshot === true ? '1' : '0',
-              ),
-            );
-            if (result === 1) return;
-            if (result === 0) return;
-          } catch {
-            return;
-          }
+    const write = async () => {
+      const writeDeadlineAt =
+        serverDeadlineAt ?? (await this.#serverDeadline(deadlineAt));
+      if (writeDeadlineAt === undefined) return;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (performance.now() >= deadlineAt) return;
+        try {
+          const epoch = await this.#readEpoch();
+          if (epoch === undefined) return;
+          const proof = await this.#terminalProof(claim);
+          if (!proof) return;
+          const candidate = await this.#terminalCandidate();
+          if (performance.now() >= deadlineAt) return;
+          const statusEvent: RunStreamEvent = {
+            version: 1,
+            runId: claim.runId,
+            type: 'status',
+            status: proof.status,
+          };
+          const safeCode = RunErrorCodeSchema.safeParse(proof.errorCode);
+          const errorEvent: RunStreamEvent | undefined = safeCode.success
+            ? {
+                version: 1,
+                runId: claim.runId,
+                type: 'error',
+                code: safeCode.data,
+              }
+            : undefined;
+          const result = Number(
+            await this.#client.eval(
+              FINISH_RUN_STREAM,
+              9,
+              this.#activeKey(),
+              this.#terminalKey(),
+              this.#streamKey(claim.runId),
+              this.#guardKey(claim.runId),
+              candidate
+                ? this.#streamKey(candidate.runId)
+                : this.#streamKey(claim.runId),
+              candidate
+                ? this.#guardKey(candidate.runId)
+                : this.#guardKey(claim.runId),
+              this.#epochKey(),
+              this.#contextKey(),
+              this.#terminalMembersKey(),
+              claim.runId,
+              String(proof.runVersion),
+              String(claim.sequence),
+              String(claim.fence),
+              JSON.stringify(parts[0]),
+              String(this.#capacity.limits.maxEntries),
+              String(this.#capacity.limits.terminalTtlSeconds),
+              String(Date.now()),
+              randomUUID(),
+              candidate?.member ?? '',
+              candidate?.guard ?? '',
+              epoch,
+              `${claim.orgId}|${claim.userId}`,
+              options.resetToSnapshot === true ? '1' : '0',
+              JSON.stringify(statusEvent),
+              errorEvent ? JSON.stringify(errorEvent) : '',
+              String(writeDeadlineAt),
+            ),
+          );
+          if (result === 1) return;
+          if (result === 0) return;
+        } catch {
+          return;
         }
+      }
+    };
+    this.#invalidate(queue);
+    if (alreadyQueued) {
+      await write();
+      return;
+    }
+    await this.#enqueue(claim, write, true, undefined, deadlineAt);
+  }
+
+  async publishCommitted(
+    claim: CommittedStreamReference,
+    events: readonly RunStreamEvent[],
+  ): Promise<'written' | 'unavailable' | 'stale'> {
+    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    if (
+      !validCommittedReference(claim) ||
+      events.length < 1 ||
+      events.length > 32
+    )
+      return 'stale';
+    let parts: RunStreamEvent[];
+    try {
+      parts = events.flatMap((event) => {
+        if (event.runId !== claim.runId || event.type === 'finish')
+          throw new Error('Invalid committed stream event');
+        return encodeStreamPartsBounded(
+          event,
+          this.#capacity.limits.maxEventBytes,
+          MAX_PARTS_PER_PUBLICATION,
+        );
+      });
+    } catch {
+      return 'stale';
+    }
+    const result = await this.#enqueue(
+      claim,
+      async (generation) => {
+        const serverDeadlineAt = await this.#serverDeadline(deadlineAt);
+        if (serverDeadlineAt === undefined) return 'unavailable';
+        for (const part of parts) {
+          if (performance.now() >= deadlineAt) return 'unavailable';
+          if (!this.#isCurrent(claim, generation)) return 'stale';
+          const written = await this.#publishCommittedPart(
+            claim,
+            part,
+            deadlineAt,
+            serverDeadlineAt,
+          );
+          if (written !== 'written') return written;
+        }
+        return 'written';
       },
-      true,
-      undefined,
+      false,
+      'unavailable',
+      deadlineAt,
     );
+    return result ?? 'unavailable';
   }
 
   async recover(
     claim: StepClaim,
     durableSnapshot: RunStreamEvent,
-  ): Promise<void> {
+  ): Promise<'written' | 'unavailable' | 'stale'> {
     if (
       durableSnapshot.runId !== claim.runId ||
       durableSnapshot.type !== 'reset'
     )
       throw new Error('Invalid run stream recovery snapshot');
-    if (!validClaim(claim)) return;
+    if (!validClaim(claim)) return 'stale';
+    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
     const parts = encodeStreamParts(
       durableSnapshot,
       this.#capacity.limits.maxEventBytes,
     );
     const queue = this.#queue(claim);
     this.#invalidate(queue);
-    await this.#enqueue(
-      claim,
-      async (generation) => {
-        for (const part of parts) {
-          if (!this.#isCurrent(claim, generation)) return;
-          const result = await this.#publishPart(claim, part, () =>
-            this.#isCurrent(claim, generation),
-          );
-          if (result !== 'written') return;
-        }
-      },
-      true,
-      undefined,
+    return (
+      (await this.#enqueue(
+        claim,
+        async (generation) => {
+          const serverDeadlineAt = await this.#serverDeadline(deadlineAt);
+          if (serverDeadlineAt === undefined) return 'unavailable';
+          for (const part of parts) {
+            if (!this.#isCurrent(claim, generation)) return 'stale';
+            const result = await this.#publishPart(
+              claim,
+              part,
+              () => this.#isCurrent(claim, generation),
+              deadlineAt,
+              serverDeadlineAt,
+            );
+            if (result !== 'written') return result;
+          }
+          return 'written';
+        },
+        true,
+        'unavailable',
+        deadlineAt,
+      )) ?? 'unavailable'
     );
   }
 
@@ -280,14 +407,15 @@ export class RunStreams {
     claim: StepClaim,
     event: RunStreamEvent,
     isCurrent: () => boolean,
-    deadlineAt?: number,
+    deadlineAt: number,
+    serverDeadlineAt: number,
   ): Promise<'written' | 'unavailable' | 'stale'> {
     for (let attempt = 0; attempt < 3; attempt++) {
-      if (deadlineAt !== undefined && Date.now() >= deadlineAt)
-        return 'unavailable';
+      if (performance.now() >= deadlineAt) return 'unavailable';
       try {
         const epoch = await this.#readEpoch();
         if (epoch === undefined) return 'unavailable';
+        if (performance.now() >= deadlineAt) return 'unavailable';
         if (!isCurrent()) return 'stale';
         const proof = await this.#activeProof(claim);
         if (!proof) return 'stale';
@@ -298,7 +426,11 @@ export class RunStreams {
           claim.runId,
         );
         if (existing === null) {
-          const reconciled = await this.#reconcileRegistry(epoch);
+          const reconciled = await this.#reconcileRegistry(
+            epoch,
+            deadlineAt,
+            serverDeadlineAt,
+          );
           if (reconciled === 'unavailable') return 'unavailable';
           if (reconciled === 'changed') continue;
         }
@@ -312,15 +444,14 @@ export class RunStreams {
           guard,
           epoch,
           latestProof.leaseUntil.getTime(),
-          deadlineAt,
+          serverDeadlineAt,
         );
         if (prepared === -2) return 'stale';
         if (prepared === -3) return 'unavailable';
         if (prepared === 0) return 'unavailable';
         if (prepared < 0) continue;
         if (!isCurrent()) return 'stale';
-        if (deadlineAt !== undefined && Date.now() >= deadlineAt)
-          return 'unavailable';
+        if (performance.now() >= deadlineAt) return 'unavailable';
         const serialized = JSON.stringify(event);
         if (
           Buffer.byteLength(serialized, 'utf8') >
@@ -343,7 +474,7 @@ export class RunStreams {
             String(claim.fence),
             epoch,
             String(latestProof.leaseUntil.getTime()),
-            String(deadlineAt ?? Number.MAX_SAFE_INTEGER),
+            String(serverDeadlineAt),
             event.type,
             event.type === 'text-start' || event.type === 'text-end'
               ? event.id
@@ -360,12 +491,69 @@ export class RunStreams {
     return 'unavailable';
   }
 
+  async #publishCommittedPart(
+    claim: CommittedStreamReference,
+    event: RunStreamEvent,
+    deadlineAt: number,
+    serverDeadlineAt: number,
+  ): Promise<'written' | 'unavailable' | 'stale'> {
+    if (performance.now() >= deadlineAt) return 'unavailable';
+    try {
+      const epoch = await this.#readEpoch();
+      if (!epoch) return 'unavailable';
+      if (performance.now() >= deadlineAt) return 'unavailable';
+      const proof = await this.#authority.authorizeCommitted?.(claim, event);
+      if (
+        !proof ||
+        proof.stepId !== claim.stepId ||
+        proof.sequence !== claim.sequence ||
+        proof.expectedVersion !== claim.expectedVersion ||
+        proof.fence !== claim.fence ||
+        proof.runVersion !== claim.committedRunVersion ||
+        proof.status !== claim.committedStatus ||
+        proof.nextSequence < claim.sequence + 1
+      )
+        return 'stale';
+      if (performance.now() >= deadlineAt) return 'unavailable';
+      const serialized = JSON.stringify(event);
+      if (
+        Buffer.byteLength(serialized, 'utf8') >
+        this.#capacity.limits.maxEventBytes
+      )
+        return 'stale';
+      const result = Number(
+        await this.#client.eval(
+          APPEND_COMMITTED_RUN_STREAM,
+          4,
+          this.#streamKey(claim.runId),
+          this.#guardKey(claim.runId),
+          this.#epochKey(),
+          this.#contextKey(),
+          claim.runId,
+          String(claim.committedRunVersion),
+          serialized,
+          String(this.#capacity.limits.maxEntries),
+          epoch,
+          `${claim.orgId}|${claim.userId}`,
+          String(serverDeadlineAt),
+          String(claim.sequence),
+          String(claim.fence),
+        ),
+      );
+      if (result === 1) return 'written';
+      if (result === -3) return 'unavailable';
+      return 'stale';
+    } catch {
+      return 'unavailable';
+    }
+  }
+
   async #prepare(
     claim: StepClaim,
     guard: string,
     epoch: string,
     leaseUntilMs: number,
-    deadlineAt?: number,
+    serverDeadlineAt: number,
   ): Promise<number> {
     const keys = [
       this.#activeKey(),
@@ -390,18 +578,23 @@ export class RunStreams {
         epoch,
         String(leaseUntilMs),
         `${claim.orgId}|${claim.userId}`,
-        String(deadlineAt ?? Number.MAX_SAFE_INTEGER),
+        String(serverDeadlineAt),
       ),
     );
   }
 
   async #reconcileRegistry(
     epoch: string,
+    clientDeadlineAt: number,
+    serverDeadlineAt: number,
   ): Promise<'unchanged' | 'changed' | 'unavailable'> {
     try {
+      if (performance.now() >= clientDeadlineAt) return 'unavailable';
       const runIds = await this.#client.zrange(this.#activeKey(), '0', '23');
+      if (performance.now() >= clientDeadlineAt) return 'unavailable';
       if (!runIds.length) return 'unchanged';
       const contexts = await this.#client.hmget(this.#contextKey(), ...runIds);
+      if (performance.now() >= clientDeadlineAt) return 'unavailable';
       const entries: RunStreamRegistryEntry[] = [];
       const contextByRun = new Map<string, string>();
       for (let index = 0; index < runIds.length; index++) {
@@ -420,6 +613,7 @@ export class RunStreams {
         entries.push({ runId, orgId, userId });
       }
       const results = await this.#authority.reconcile(entries);
+      if (performance.now() >= clientDeadlineAt) return 'unavailable';
       if (results.length !== entries.length) return 'unavailable';
       const byRun = new Map(results.map((result) => [result.runId, result]));
       if (
@@ -446,11 +640,14 @@ export class RunStreams {
       for (const entry of entries) {
         const result = byRun.get(entry.runId);
         if (result?.state === 'terminal') {
-          await this.finish(result.claim, {
-            version: 1,
-            runId: entry.runId,
-            type: 'finish',
-          });
+          await this.#finishWithinDeadline(
+            result.claim,
+            { version: 1, runId: entry.runId, type: 'finish' },
+            {},
+            clientDeadlineAt,
+            serverDeadlineAt,
+            true,
+          );
           if (await this.#client.zscore(this.#activeKey(), entry.runId))
             return 'unavailable';
           changed = true;
@@ -469,6 +666,7 @@ export class RunStreams {
       const args = [
         epoch,
         String(stale.length),
+        String(serverDeadlineAt),
         ...stale.flatMap(({ runId }) => [runId, contextByRun.get(runId)!]),
       ];
       const removed = Number(
@@ -477,6 +675,7 @@ export class RunStreams {
           keys.length,
           ...keys,
           ...args,
+          String(serverDeadlineAt),
         ),
       );
       return removed === 1 ? 'changed' : 'changed';
@@ -488,11 +687,61 @@ export class RunStreams {
   async #readEpoch(): Promise<string | undefined> {
     try {
       if (!(await this.#connect())) return undefined;
-      await this.#client.set(this.#epochKey(), '0', 'NX');
-      return (await this.#client.get(this.#epochKey())) ?? undefined;
+      return (await this.#client.get(this.#epochKey())) ?? '0';
     } catch {
       return undefined;
     }
+  }
+
+  #serverDeadline(clientDeadlineAt: number): Promise<number | undefined> {
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout>;
+      const settle = (value: number | undefined) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const expire = () => {
+        const remaining = clientDeadlineAt - performance.now();
+        if (remaining > 0) {
+          timer = setTimeout(expire, remaining);
+          return;
+        }
+        settle(undefined);
+      };
+      timer = setTimeout(
+        expire,
+        Math.max(0, clientDeadlineAt - performance.now()),
+      );
+      void Promise.resolve()
+        .then(async () => {
+          if (!(await this.#connect()) || performance.now() >= clientDeadlineAt)
+            throw new Error(
+              'Stream writer deadline expired before Valkey TIME',
+            );
+          return await this.#client.time();
+        })
+        .then(
+          ([seconds, micros]) => {
+            const remaining = clientDeadlineAt - performance.now();
+            if (remaining <= 0) {
+              settle(undefined);
+              return;
+            }
+            const serverNowMs =
+              Number(seconds) * 1000 + Math.floor(Number(micros) / 1000);
+            const serverDeadlineAt = Math.floor(serverNowMs + remaining);
+            settle(
+              Number.isSafeInteger(serverDeadlineAt)
+                ? serverDeadlineAt
+                : undefined,
+            );
+          },
+          () => settle(undefined),
+        );
+    });
   }
 
   async #connect(): Promise<boolean> {
@@ -547,15 +796,16 @@ export class RunStreams {
       : undefined;
   }
 
-  async #terminalProof(claim: TerminalStreamReference): Promise<boolean> {
+  async #terminalProof(
+    claim: TerminalStreamReference,
+  ): Promise<TerminalStreamProof | undefined> {
     let proof: TerminalStreamProof | undefined;
     try {
       proof = await this.#authority.authorizeTerminal(claim);
     } catch {
-      return false;
+      return undefined;
     }
-    return Boolean(
-      proof &&
+    return proof &&
       terminalStatuses.has(proof.status) &&
       proof.latestCommittedStepId === claim.stepId &&
       proof.latestCommittedSequence === claim.sequence &&
@@ -564,8 +814,9 @@ export class RunStreams {
       proof.runVersion >= claim.expectedVersion + 1 &&
       (claim.neutral === true
         ? proof.nextSequence >= claim.sequence
-        : proof.nextSequence >= claim.sequence + 1),
-    );
+        : proof.nextSequence >= claim.sequence + 1)
+      ? proof
+      : undefined;
   }
 
   #queue(claim: TerminalStreamReference): SerializedQueue {
@@ -587,6 +838,7 @@ export class RunStreams {
     task: (generation: number) => Promise<T>,
     allowSaturated = false,
     discard: T,
+    deadlineAt?: number,
   ): Promise<T> | undefined {
     const queue = this.#queue(claim);
     if (
@@ -595,7 +847,14 @@ export class RunStreams {
         MAX_PENDING_PUBLICATIONS
     )
       return undefined;
-    return this.#enqueueTask(claim, queue, queue.generation, task, discard);
+    return this.#enqueueTask(
+      claim,
+      queue,
+      queue.generation,
+      task,
+      discard,
+      deadlineAt,
+    );
   }
 
   #reserve(
@@ -650,19 +909,23 @@ export class RunStreams {
     if (deadlineAt === undefined) return current;
     return new Promise<T>((resolve, reject) => {
       let settled = false;
+      let timer: ReturnType<typeof setTimeout>;
       const settle = (work: () => void) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         work();
       };
-      const timer = setTimeout(
-        () => {
-          this.#invalidate(queue);
-          settle(() => resolve(discard));
-        },
-        Math.max(0, deadlineAt - Date.now()),
-      );
+      const expire = () => {
+        const remaining = deadlineAt - performance.now();
+        if (remaining > 0) {
+          timer = setTimeout(expire, remaining);
+          return;
+        }
+        this.#invalidate(queue);
+        settle(() => resolve(discard));
+      };
+      timer = setTimeout(expire, Math.max(0, deadlineAt - performance.now()));
       current.then(
         (value) => settle(() => resolve(value)),
         (error: unknown) => settle(() => reject(error)),
@@ -767,5 +1030,20 @@ function validTerminalReference(reference: TerminalStreamReference): boolean {
     Number.isSafeInteger(reference.fence) &&
     (reference.fence > 0 ||
       (reference.neutral === true && reference.fence === 0))
+  );
+}
+
+function validCommittedReference(reference: CommittedStreamReference): boolean {
+  return (
+    validTerminalReference(reference) &&
+    Number.isSafeInteger(reference.committedRunVersion) &&
+    reference.committedRunVersion >= reference.expectedVersion + 1 &&
+    [
+      'running',
+      'awaiting_approval',
+      'completed',
+      'failed',
+      'cancelled',
+    ].includes(reference.committedStatus)
   );
 }

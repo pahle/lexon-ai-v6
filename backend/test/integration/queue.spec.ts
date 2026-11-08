@@ -153,7 +153,9 @@ test('failed jobs are retained after all three attempts, with sanitized reasons'
 test('validates real Valkey policy and bounds a stream with TTL', async ({
   services,
 }) => {
-  expect(await checkValkeyPolicy(services.valkey)).toEqual({
+  expect(
+    await checkValkeyPolicy(services.valkey, undefined, 805_306_368),
+  ).toEqual({
     queue: 'up',
     streams: 'up',
     limiter: 'up',

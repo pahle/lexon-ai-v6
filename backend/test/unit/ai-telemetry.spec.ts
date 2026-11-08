@@ -23,6 +23,24 @@ import {
 } from '../../src/infrastructure/telemetry/index.js';
 
 describe('AI telemetry privacy', () => {
+  it('retains finite run error codes from the shared contract', async () => {
+    const exporter = new InMemorySpanExporter();
+    const provider = new BasicTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(exporter)],
+    });
+    const tracer = createSafeAiTracer(provider.getTracer('safe-code-test'));
+    const span = tracer.startSpan('ai.run', {
+      status: 'failed',
+      safeCode: 'AI_BUDGET_EXCEEDED',
+    });
+    span.end();
+    await provider.forceFlush();
+    expect(exporter.getFinishedSpans()[0]?.attributes.safeCode).toBe(
+      'AI_BUDGET_EXCEEDED',
+    );
+    await provider.shutdown();
+  });
+
   it('sets OTel status consistently with safe succeeded, failed, and continued outcomes', async () => {
     const exporter = new InMemorySpanExporter();
     const provider = new BasicTracerProvider({

@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import type { RunStreamEvent } from '@lexon/contracts';
 import { Redis } from 'ioredis';
 import {
   APPEND_RUN_STREAM,
+  APPEND_COMMITTED_RUN_STREAM,
   FINISH_RUN_STREAM,
 } from '../../src/infrastructure/queue/run-stream-scripts.js';
 import {
@@ -39,6 +41,7 @@ import {
 } from '../../src/infrastructure/db/index.js';
 import {
   createScriptedModelGateway,
+  createRealModelGateway,
   ModelAllowlistSchema,
 } from '../../src/infrastructure/ai/index.js';
 import type {
@@ -48,6 +51,7 @@ import type {
 import {
   CancelSignals,
   RunStreams,
+  type RunStreamAuthority,
 } from '../../src/infrastructure/queue/index.js';
 import type { ContextProvider } from '../../src/modules/chat/run-contracts.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
@@ -256,6 +260,7 @@ async function proposeToolOnce(
   tool: ToolDefinition,
   input: unknown,
   runProfile: RunProfile,
+  streams?: RunStreams,
 ) {
   const h = await setup(
     ai,
@@ -281,7 +286,7 @@ async function proposeToolOnce(
         ],
       },
     ],
-    { tools: [tool], profile: runProfile },
+    { tools: [tool], profile: runProfile, ...(streams ? { streams } : {}) },
   );
   await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
     signal: new AbortController().signal,
@@ -798,6 +803,165 @@ test('proposal commits before each transactional effect and all results enter fe
   }
 });
 
+test('model history preserves text and tool-result chronology across generations', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'chronology-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        const value = (input as { value: string }).value;
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          value,
+        );
+        return { stored: value };
+      },
+    };
+    const captured: ModelInput[] = [];
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          { type: 'text', text: 'ABANDONED_PROVISIONAL' },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'error',
+              attemptOutcome: 'failed',
+              retryable: true,
+              safeCode: 'AI_PROVIDER_UNAVAILABLE',
+            },
+          },
+        ],
+      },
+      {
+        events: [
+          { type: 'text', text: 'T1-before-tool-A ' },
+          {
+            type: 'tool-proposal',
+            toolCallId: 'chronology-call-A',
+            toolName: tool.id,
+            input: { value: 'A' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+      {
+        events: [
+          { type: 'text', text: 'T2-after-tool-A ' },
+          {
+            type: 'tool-proposal',
+            toolCallId: 'chronology-call-B',
+            toolName: tool.id,
+            input: { value: 'B' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
+            },
+          },
+        ],
+      },
+      { events: [{ type: 'text', text: 'T3-final' }, success] },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        captured.push(input);
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], {
+      tools: [tool],
+      gateway,
+      profile: { ...profile, tokenBudget: 10_000 },
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    for (const [sequence, expectedVersion] of [
+      [2, 2],
+      [3, 3],
+      [4, 4],
+    ] as const)
+      await h.executor.execute(
+        job(h.runId, h.tenant, sequence, expectedVersion, 'run.advance.v1'),
+        { signal: new AbortController().signal },
+      );
+    const replacementExecutor = new StepExecutor({
+      database: ai.database,
+      runs: h.runs,
+      steps: h.steps,
+      operations: h.operations,
+      facts: new RunActorFactsRepository(),
+      authorization: h.authorization,
+      coordinator: h.coordinator,
+      attempts: h.attemptService,
+      registry: h.registry,
+      gateway,
+    });
+    await replacementExecutor.execute(
+      job(h.runId, h.tenant, 5, 5, 'run.advance.v1'),
+      { signal: new AbortController().signal },
+    );
+    expect(captured).toHaveLength(4);
+    const history = JSON.stringify(captured[3]?.messages);
+    const operations = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 5 }),
+    );
+    const operationA = operations.find((operation) =>
+      JSON.stringify(operation.args).includes('"A"'),
+    );
+    const operationB = operations.find((operation) =>
+      JSON.stringify(operation.args).includes('"B"'),
+    );
+    if (!operationA || !operationB)
+      throw new Error('History fixture operations missing');
+    const ordered = [
+      'T1-before-tool-A',
+      operationA.id,
+      `Tool result ${operationA.id}`,
+      'T2-after-tool-A',
+      operationB.id,
+      `Tool result ${operationB.id}`,
+    ].map((marker) => history.indexOf(marker));
+    expect(ordered.every((index) => index >= 0)).toBe(true);
+    expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
+    expect(history).not.toContain('ABANDONED_PROVISIONAL');
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'completed',
+      finalOutput: 'T1-before-tool-A T2-after-tool-A T3-final',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
 test('read tool proposal commits a durable result before the next model request', async ({
   services,
 }) => {
@@ -1019,6 +1183,59 @@ test('new approval requirement stages the pending operation without an effect', 
   services,
 }) => {
   const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: {
+      authorizeActive: (claim) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamActiveProof(tx, claim),
+        ),
+      authorizeTerminal: (claim) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamTerminalProof(tx, claim),
+        ),
+      authorizeCommitted: (claim, event) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamCommittedProof(tx, claim, event),
+        ),
+      reconcile: async (entries) =>
+        Promise.all(
+          entries.map(async ({ runId, orgId, userId }) => {
+            const result = await ai.database.withTenant(
+              { orgId, userId },
+              (tx) =>
+                new AiRunRepository().streamRegistryState(tx, runId, userId),
+            );
+            return result.state === 'terminal'
+              ? { runId, state: 'terminal' as const, claim: result.claim }
+              : { runId, state: result.state };
+          }),
+        ),
+    },
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const originalEval = Redis.prototype.eval;
+  let rejectApprovalNotification = true;
+  const evalSpy = vi
+    .spyOn(Redis.prototype, 'eval')
+    .mockImplementation(async function (this: Redis, ...args: unknown[]) {
+      if (
+        rejectApprovalNotification &&
+        args[0] === APPEND_COMMITTED_RUN_STREAM
+      ) {
+        const event = typeof args[8] === 'string' ? JSON.parse(args[8]) : null;
+        if (event?.type === 'approval-required') {
+          rejectApprovalNotification = false;
+          return -3;
+        }
+      }
+      return originalEval.apply(this, args as never);
+    } as never);
   try {
     const tool: TransactionalWriteToolDefinition = {
       id: 'fixture-approval-tightened',
@@ -1044,6 +1261,7 @@ test('new approval requirement stages the pending operation without an effect', 
       tool,
       { value: 'await approval' },
       profile,
+      streams,
     );
     Object.assign(tool, { requiresApproval: true });
 
@@ -1062,7 +1280,51 @@ test('new approval requirement stages the pending operation without an effect', 
       status: 'awaiting_approval',
       approvalRequired: true,
     });
+    expect(rejectApprovalNotification).toBe(false);
+    const pausedStep = await ai.withTenant(0, (tx) =>
+      steps.find(tx, { runId: h.runId, sequence: 2 }),
+    );
+    const pausedRun = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    if (!pausedStep || !pausedRun) throw new Error('Paused lineage missing');
+    const reference = {
+      runId: h.runId,
+      orgId: h.tenant.orgId,
+      userId: h.tenant.userId,
+      stepId: pausedStep.id,
+      sequence: pausedStep.sequence,
+      expectedVersion: pausedStep.expectedVersion,
+      fence: pausedStep.fence,
+      committedRunVersion: pausedRun.runVersion,
+      committedStatus: 'awaiting_approval' as const,
+    };
+    const notification: RunStreamEvent = {
+      version: 1,
+      runId: h.runId,
+      type: 'approval-required',
+      operationId: operations[0]!.id,
+    };
+    await expect(
+      streams.publishCommitted(reference, [notification]),
+    ).resolves.toBe('written');
+    await expect(
+      streams.publishCommitted(reference, [notification]),
+    ).resolves.toBe('written');
+    const events = (
+      await inspector.xrange(
+        `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+        '-',
+        '+',
+      )
+    ).map(([, fields]) => JSON.parse(fields[1]!));
+    expect(
+      events.filter((event) => event.type === 'approval-required'),
+    ).toEqual([notification, notification]);
+    expect(events.some((event) => event.type === 'finish')).toBe(false);
+    expect(await ai.toolEffectCount(0)).toBe(0);
   } finally {
+    evalSpy.mockRestore();
+    inspector.disconnect();
+    await streams.close();
     await ai.close();
   }
 });
@@ -1550,6 +1812,72 @@ test('approval-required transactional operations remain staged and produce no ef
   services,
 }) => {
   const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const authority: RunStreamAuthority = {
+    authorizeActive: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    authorizeCommitted: (claim, event) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamCommittedProof(tx, claim, event),
+      ),
+    reconcile: async (entries) =>
+      entries.map((entry) => ({
+        runId: entry.runId,
+        state: 'active' as const,
+      })),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const approvalStreams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const originalEval = Redis.prototype.eval;
+  let holdApprovalEvent = true;
+  let releaseApprovalEvent!: () => void;
+  let resolveApprovalEvalHeld!: () => void;
+  let resolveApprovalEvalSettled!: () => void;
+  const approvalEventBarrier = new Promise<void>((resolve) => {
+    releaseApprovalEvent = resolve;
+  });
+  const approvalEvalHeld = new Promise<void>((resolve) => {
+    resolveApprovalEvalHeld = resolve;
+  });
+  const approvalEvalSettled = new Promise<void>((resolve) => {
+    resolveApprovalEvalSettled = resolve;
+  });
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    let heldCall = false;
+    if (holdApprovalEvent && args[0] === APPEND_COMMITTED_RUN_STREAM) {
+      const event = typeof args[8] === 'string' ? JSON.parse(args[8]) : null;
+      if (event?.type === 'approval-required') {
+        holdApprovalEvent = false;
+        heldCall = true;
+        resolveApprovalEvalHeld();
+        await approvalEventBarrier;
+      }
+    }
+    try {
+      return await originalEval.apply(this, args as never);
+    } finally {
+      if (heldCall) resolveApprovalEvalSettled();
+    }
+  } as never);
+  const inspector = new Redis(services.valkey.streamsUrl);
   try {
     const tool: TransactionalWriteToolDefinition = {
       id: 'approval-write',
@@ -1589,12 +1917,13 @@ test('approval-required transactional operations remain staged and produce no ef
           ],
         },
       ],
-      { tools: [tool] },
+      { tools: [tool], streams },
     );
     await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
       signal: new AbortController().signal,
     });
     const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    if (!run) throw new Error('Committed approval pause run missing');
     const operations = await ai.withTenant(0, (tx) =>
       h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
     );
@@ -1609,7 +1938,100 @@ test('approval-required transactional operations remain staged and produce no ef
     });
     expect(await ai.toolEffectCount(0)).toBe(0);
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
+    await approvalEvalHeld;
+    const events = await inspector.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    expect(events.map(([, fields]) => JSON.parse(fields[1]!))).toEqual(
+      expect.arrayContaining([
+        { version: 1, runId: h.runId, type: 'status', status: 'running' },
+        {
+          version: 1,
+          runId: h.runId,
+          type: 'status',
+          status: 'awaiting_approval',
+        },
+        {
+          version: 1,
+          runId: h.runId,
+          type: 'operation-status',
+          operationId: operations[0]!.id,
+          status: 'awaiting_approval',
+        },
+      ]),
+    );
+    const approvalStep = await ai.withTenant(0, (tx) =>
+      steps.find(tx, { runId: h.runId, sequence: 1 }),
+    );
+    if (!approvalStep) throw new Error('Committed approval step missing');
+    const lateApproval = {
+      runId: h.runId,
+      orgId: h.tenant.orgId,
+      userId: h.tenant.userId,
+      stepId: approvalStep.id,
+      sequence: approvalStep.sequence,
+      expectedVersion: approvalStep.expectedVersion,
+      fence: approvalStep.fence,
+      committedRunVersion: run.runVersion,
+      committedStatus: 'awaiting_approval' as const,
+    };
+    const approvals = new ApprovalService(
+      ai.database,
+      h.runs,
+      h.steps,
+      h.operations,
+      new RunActorFactsRepository(),
+      h.authorization,
+      new OutboxRepository(),
+      h.registry,
+      approvalStreams,
+    );
+    await actorScope(h.tenant, h.authorization, (actor) =>
+      approvals.decide(actor, {
+        runId: h.runId,
+        operationId: operations[0]!.id,
+        snapshotHash: operations[0]!.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    releaseApprovalEvent();
+    await approvalEvalSettled;
+    await expect(
+      streams.publishCommitted(lateApproval, [
+        {
+          version: 1,
+          runId: h.runId,
+          type: 'approval-required',
+          operationId: operations[0]!.id,
+        },
+      ]),
+    ).resolves.toBe('stale');
+    const afterDecision = await inspector.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const durableEvents = afterDecision.map(([, fields]) =>
+      JSON.parse(fields[1]!),
+    );
+    expect(
+      durableEvents.filter((event) => event.type === 'approval-required'),
+    ).toHaveLength(0);
+    expect(durableEvents).toContainEqual({
+      version: 1,
+      runId: h.runId,
+      type: 'status',
+      status: 'running',
+    });
+    expect(await ai.toolEffectCount(0)).toBe(0);
   } finally {
+    releaseApprovalEvent();
+    evalSpy.mockRestore();
+    inspector.disconnect();
+    await approvalStreams.close();
+    await streams.close();
     await ai.close();
   }
 });
@@ -1640,39 +2062,44 @@ test('approved operation resumes from a fresh sequence and executes one transact
         return { stored: true };
       },
     };
-    const h = await setup(
-      ai,
-      [
-        {
-          events: [
-            {
-              type: 'tool-proposal',
-              toolCallId: 'approval-provider-call',
-              toolName: tool.id,
-              input: { value: 'approved effect' },
+    const captured: ModelInput[] = [];
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          { type: 'text', text: 'BEFORE_APPROVAL' },
+          {
+            type: 'tool-proposal',
+            toolCallId: 'approval-provider-call',
+            toolName: tool.id,
+            input: { value: 'approved effect' },
+          },
+          { type: 'usage', usage },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'tool_calls',
+              attemptOutcome: 'succeeded',
+              retryable: false,
+              usage,
             },
-            { type: 'usage', usage },
-            {
-              type: 'outcome',
-              outcome: {
-                finishReason: 'tool_calls',
-                attemptOutcome: 'succeeded',
-                retryable: false,
-                usage,
-              },
-            },
-          ],
-        },
-        {
-          events: [
-            { type: 'text', text: 'Done' },
-            { type: 'usage', usage },
-            success,
-          ],
-        },
-      ],
-      { tools: [tool] },
-    );
+          },
+        ],
+      },
+      {
+        events: [
+          { type: 'text', text: 'Done' },
+          { type: 'usage', usage },
+          success,
+        ],
+      },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        captured.push(input);
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], { tools: [tool], gateway });
     const approvals = new ApprovalService(
       ai.database,
       h.runs,
@@ -1774,8 +2201,16 @@ test('approved operation resumes from a fresh sequence and executes one transact
     const completed = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
     expect(completed).toMatchObject({
       status: 'completed',
-      finalOutput: 'Done',
+      finalOutput: 'BEFORE_APPROVALDone',
     });
+    const history = JSON.stringify(captured[1]?.messages);
+    expect(history.indexOf('BEFORE_APPROVAL')).toBeGreaterThanOrEqual(0);
+    expect(history.indexOf(operation.id)).toBeGreaterThan(
+      history.indexOf('BEFORE_APPROVAL'),
+    );
+    expect(history.indexOf(`Tool result ${operation.id}`)).toBeGreaterThan(
+      history.indexOf(operation.id),
+    );
     expect(await ai.orgSlotCount(0)).toBe(0);
     expect(await audit.count('chat.approval_decided.v1')).toBe(
       decisionAuditBefore + 1,
@@ -2023,7 +2458,7 @@ test('initiator access loss before a decision finishes the stream from the actua
     const recover = streams.recover.bind(streams);
     vi.spyOn(streams, 'recover').mockImplementation(async (claim, snapshot) => {
       activeClaim = claim;
-      await recover(claim, snapshot);
+      return await recover(claim, snapshot);
     });
     const approvals = new ApprovalService(
       ai.database,
@@ -2409,6 +2844,87 @@ test('resume refuses a registered tool version change after approval', async ({
       }),
     ]);
     expect(await ai.toolEffectCount(0)).toBe(0);
+  } finally {
+    await ai.close();
+  }
+});
+
+test('proposal is refused when the current profile removed its capability', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  spanExporter.reset();
+  try {
+    const writeProfile = { ...profile, capabilities: ['fixture.write'] };
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'capability-floor-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: true,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: ['fixture.write'],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(ai, [], { tools: [tool], profile: writeProfile });
+    const currentRegistry = new RunRegistry();
+    currentRegistry.register({
+      profiles: [{ ...writeProfile, capabilities: [] }],
+      contexts: [],
+      tools: [tool],
+    });
+    const currentExecutor = new StepExecutor({
+      database: ai.database,
+      runs: h.runs,
+      steps: h.steps,
+      operations: h.operations,
+      facts: new RunActorFactsRepository(),
+      authorization: h.authorization,
+      coordinator: h.coordinator,
+      attempts: h.attemptService,
+      registry: currentRegistry,
+      gateway: createScriptedModelGateway([
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'removed-capability-call',
+              toolName: tool.id,
+              input: { value: 'must not stage' },
+            },
+            { type: 'usage', usage },
+            { type: 'outcome', outcome: success.outcome },
+          ],
+        },
+      ]),
+    });
+    await currentExecutor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'failed', errorCode: 'AI_INVALID_TOOL' });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      ),
+    ).toEqual([]);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    await tracerProvider.forceFlush();
+    expect(
+      spanExporter.getFinishedSpans().find((span) => span.name === 'ai.run')
+        ?.attributes.status,
+    ).toBe('failed');
   } finally {
     await ai.close();
   }
@@ -3945,6 +4461,142 @@ test('a genuine gateway iteration error becomes a safe provider outcome', async 
   }
 });
 
+test('unknown attempts retain reported partial usage and exact zero cost', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const h = await setup(ai, [
+      {
+        events: [
+          { type: 'text', text: 'partial unknown response' },
+          {
+            type: 'usage',
+            usage: { inputTokens: 17 },
+            costUsd: '0',
+          },
+          {
+            type: 'outcome',
+            outcome: {
+              finishReason: 'error',
+              attemptOutcome: 'unknown',
+              retryable: false,
+              safeCode: 'AI_PROVIDER_UNAVAILABLE',
+              usage: { inputTokens: 17 },
+              costUsd: '0',
+            },
+          },
+        ],
+      },
+    ]);
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const attempt = (
+      await ai.withTenant(0, (tx) => h.attempts.list(tx, h.runId))
+    )[0];
+    expect(attempt).toMatchObject({
+      active: false,
+      outcome: 'unknown',
+      reportedInputTokens: 17,
+      reportedOutputTokens: null,
+      costUsd: '0',
+      reservedInputTokens: expect.any(Number),
+      reservedOutputTokens: 100,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('unknown over-reservation fails the run and drops staged proposals', async ({
+  services,
+}) => {
+  spanExporter.reset();
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'unknown-overrun-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'unknown-overrun-proposal',
+              toolName: tool.id,
+              input: { value: 'must not stage' },
+            },
+            { type: 'usage', usage: { inputTokens: 50_000 }, costUsd: '0.02' },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'error',
+                attemptOutcome: 'unknown',
+                retryable: false,
+                usage: { inputTokens: 50_000 },
+                costUsd: '0.02',
+              },
+            },
+          ],
+        },
+      ],
+      { tools: [tool] },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    const attempts = await ai.withTenant(0, (tx) =>
+      h.attempts.list(tx, h.runId),
+    );
+    const operations = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+    );
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_BUDGET_EXCEEDED',
+    });
+    expect(attempts[0]).toMatchObject({
+      active: false,
+      outcome: 'unknown',
+      reportedInputTokens: 50_000,
+      costUsd: '0.02',
+    });
+    expect(operations).toEqual([]);
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    await tracerProvider.forceFlush();
+    const runSpan = spanExporter
+      .getFinishedSpans()
+      .filter((span) => span.name === 'ai.run')
+      .at(-1);
+    expect(runSpan?.attributes).toMatchObject({
+      status: 'failed',
+      safeCode: 'AI_BUDGET_EXCEEDED',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
 test('retries only the second allowed physical attempt and commits its output', async ({
   services,
 }) => {
@@ -3977,6 +4629,72 @@ test('retries only the second allowed physical attempt and commits its output', 
     expect(run).toMatchObject({
       status: 'completed',
       finalOutput: 'committed answer',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('retries a classified unknown network outcome as a new persisted attempt', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    let physicalRequests = 0;
+    const allowlist = ModelAllowlistSchema.parse({
+      version: 1,
+      models: [
+        {
+          id: model,
+          provider: 'azure/us',
+          region: 'us',
+          zeroDataRetention: true,
+          reviewedAt: '2026-11-05T00:00:00.000Z',
+        },
+      ],
+    });
+    const gateway = createRealModelGateway({
+      allowlist,
+      key: 'synthetic-test-key',
+      attestation: '2026-11-05',
+      fetch: async () => {
+        physicalRequests++;
+        if (physicalRequests === 1) {
+          const cause = Object.assign(new Error('socket reset'), {
+            code: 'ECONNRESET',
+          });
+          throw new TypeError('fetch failed', { cause });
+        }
+        return new Response(
+          [
+            'data: {"id":"retry-success","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"second attempt answer"},"finish_reason":null}]}\n\n',
+            'data: {"id":"retry-success","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.00001}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+    });
+    const h = await setup(ai, [], { gateway });
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const attempts = await ai.withTenant(0, (tx) =>
+      h.attempts.list(tx, h.runId),
+    );
+    expect(physicalRequests).toBe(2);
+    expect(attempts).toHaveLength(2);
+    expect(attempts.map((attempt) => attempt.outcome)).toEqual([
+      'unknown',
+      'succeeded',
+    ]);
+    expect(new Set(attempts.map((attempt) => attempt.attemptId)).size).toBe(2);
+    expect(attempts[0]).toMatchObject({ active: false, outcome: 'unknown' });
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'completed',
+      finalOutput: 'second attempt answer',
     });
   } finally {
     await ai.close();
@@ -4083,7 +4801,7 @@ test('actual engine events persisted in Valkey replay to durable multi-step text
   const ai = await createAiFixture(services);
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
-  const authority = {
+  const authority: RunStreamAuthority = {
     authorizeActive: (claim: StepClaim) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
@@ -4235,7 +4953,7 @@ async function assertRetryStreamOutage(
   const ai = await createAiFixture(services);
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
-  const authority = {
+  const authority: RunStreamAuthority = {
     authorizeActive: (claim: StepClaim) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
@@ -4388,17 +5106,18 @@ async function assertRetryStreamOutage(
       'text-end',
       'finish',
     ]);
-    expect(events.at(-3)).toMatchObject({ type: 'reset', sequence: 1 });
-    expect(events.at(-2)).toMatchObject({
+    expect(events.at(-4)).toMatchObject({ type: 'reset', sequence: 1 });
+    expect(events.at(-3)).toMatchObject({
       type: 'start',
       messageId: h.runId,
     });
+    expect(events.at(-2)).toMatchObject({ type: 'status' });
     expect(events.at(-1)).toMatchObject({ type: 'finish' });
     expect(events.filter((event) => event.type === 'text-start')).toHaveLength(
       initialHeaderUnavailable ? 0 : 1,
     );
     const chunks = events
-      .slice(initialHeaderUnavailable ? -2 : resetIndex + 1)
+      .slice(initialHeaderUnavailable ? -3 : resetIndex + 1)
       .filter((event) => sdkTypes.has(String(event.type))) as UIMessageChunk[];
     const initialMessage: UIMessage = {
       id: h.runId,
@@ -4610,16 +5329,21 @@ test('retry stream outage terminal cancellation refreshes the second attempt sna
     const events = rows.map(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
-    expect(events.slice(-3).map((event) => event.type)).toEqual([
-      'reset',
-      'start',
-      'finish',
-    ]);
-    expect(events.at(-2)).toMatchObject({ messageId: h.runId });
-    const sdkTypes = new Set(['start', 'finish']);
-    const chunks = events
-      .slice(-2)
-      .filter((event) => sdkTypes.has(String(event.type))) as UIMessageChunk[];
+    const types = events.map((event) => event.type);
+    const terminalReset = types.lastIndexOf('reset');
+    const terminalStart = types.lastIndexOf('start');
+    const terminalStatus = types.lastIndexOf('status');
+    const finishIndex = types.lastIndexOf('finish');
+    expect(terminalReset).toBeGreaterThanOrEqual(0);
+    expect(terminalReset).toBeLessThan(terminalStart);
+    expect(terminalStart).toBeLessThan(terminalStatus);
+    expect(terminalStatus).toBeLessThan(finishIndex);
+    expect(events[terminalStart]).toMatchObject({ messageId: h.runId });
+    expect(events[terminalStatus]).toMatchObject({ status: 'cancelled' });
+    const chunks = [
+      events[terminalStart],
+      events[finishIndex],
+    ] as UIMessageChunk[];
     const snapshot: UIMessage = {
       id: h.runId,
       role: 'assistant',
@@ -4707,16 +5431,24 @@ test('retry stream outage budget refusal refreshes the durable terminal snapshot
     const events = rows.map(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
-    expect(events.slice(-3).map((event) => event.type)).toEqual([
-      'reset',
-      'start',
-      'finish',
-    ]);
-    const chunks = events
-      .slice(-2)
-      .filter((event) =>
-        ['start', 'finish'].includes(String(event.type)),
-      ) as UIMessageChunk[];
+    const types = events.map((event) => event.type);
+    const terminalReset = types.lastIndexOf('reset');
+    const terminalStart = types.lastIndexOf('start');
+    const terminalStatus = types.lastIndexOf('status');
+    const terminalError = types.lastIndexOf('error');
+    const finishIndex = types.lastIndexOf('finish');
+    expect(terminalReset).toBeGreaterThanOrEqual(0);
+    expect(terminalReset).toBeLessThan(terminalStart);
+    expect(terminalStart).toBeLessThan(terminalStatus);
+    expect(terminalStatus).toBeLessThan(terminalError);
+    expect(terminalError).toBeLessThan(finishIndex);
+    expect(events[terminalStart]).toMatchObject({ messageId: h.runId });
+    expect(events[terminalStatus]).toMatchObject({ status: 'failed' });
+    expect(events[terminalError]).toMatchObject({ code: 'AI_BUDGET_EXCEEDED' });
+    const chunks = [
+      events[terminalStart],
+      events[finishIndex],
+    ] as UIMessageChunk[];
     const snapshot: UIMessage = {
       id: h.runId,
       role: 'assistant',
@@ -4822,14 +5554,18 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
     const events = rows.map(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
-    expect(events.slice(-3).map((event) => event.type)).toEqual([
+    expect(events.slice(-5).map((event) => event.type)).toEqual([
       'reset',
       'start',
+      'status',
+      'error',
       'finish',
     ]);
-    expect(events.at(-2)).toMatchObject({ messageId: h.runId });
+    expect(events.at(-3)).toMatchObject({ status: 'failed' });
+    expect(events.at(-2)).toMatchObject({ code: 'AI_ACCESS_REVOKED' });
+    expect(events.at(-4)).toMatchObject({ messageId: h.runId });
     const chunks = events
-      .slice(-2)
+      .slice(-4)
       .filter((event) =>
         ['start', 'finish'].includes(String(event.type)),
       ) as UIMessageChunk[];
@@ -4843,7 +5579,11 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
 
 async function assertTextStartFailure(
   services: FileServices,
-  failureMode: 'missing-header' | 'lost-acknowledgement',
+  failureMode:
+    | 'missing-header'
+    | 'lost-acknowledgement'
+    | 'lost-middle-delta'
+    | 'failed-text-closure',
 ) {
   const ai = await createAiFixture(services);
   const runs = new AiRunRepository();
@@ -4883,12 +5623,21 @@ async function assertTextStartFailure(
   const redis = new Redis(services.valkey.streamsUrl);
   const originalEval = Redis.prototype.eval;
   let publicationInterrupted = false;
+  let deltaPublications = 0;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     if (
       failureMode === 'missing-header' &&
       args[0] === APPEND_RUN_STREAM &&
       args.at(-2) === 'text-start'
+    ) {
+      publicationInterrupted = true;
+      return -3;
+    }
+    if (
+      failureMode === 'failed-text-closure' &&
+      args[0] === APPEND_RUN_STREAM &&
+      args.at(-2) === 'text-end'
     ) {
       publicationInterrupted = true;
       return -3;
@@ -4903,6 +5652,18 @@ async function assertTextStartFailure(
       publicationInterrupted = true;
       throw new Error('Simulated lost Valkey acknowledgement');
     }
+    if (
+      failureMode === 'lost-middle-delta' &&
+      !publicationInterrupted &&
+      args[0] === APPEND_RUN_STREAM &&
+      args.at(-2) === 'text-delta'
+    ) {
+      deltaPublications++;
+      if (deltaPublications === 2) {
+        publicationInterrupted = true;
+        throw new Error('Simulated lost Valkey acknowledgement');
+      }
+    }
     return result;
   } as never);
   try {
@@ -4911,7 +5672,8 @@ async function assertTextStartFailure(
       [
         {
           events: [
-            { type: 'text', text: 'durable after ack loss' },
+            { type: 'text', text: 'durable after ' },
+            { type: 'text', text: 'ack loss' },
             { type: 'usage', usage },
             success,
           ],
@@ -4933,39 +5695,59 @@ async function assertTextStartFailure(
     const events = rows.map(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
-    expect(events.some((event) => event.type === 'text-delta')).toBe(false);
-    expect(events.some((event) => event.type === 'text-start')).toBe(
-      failureMode === 'lost-acknowledgement',
+    expect(events.some((event) => event.type === 'text-delta')).toBe(
+      failureMode === 'lost-middle-delta' ||
+        failureMode === 'failed-text-closure',
     );
-    expect(
-      events
-        .slice(failureMode === 'lost-acknowledgement' ? -3 : -2)
-        .map((event) => event.type),
-    ).toEqual(
-      failureMode === 'lost-acknowledgement'
-        ? ['text-end', 'finish-step', 'finish']
-        : ['finish-step', 'finish'],
-    );
-    const sdkChunks = events.filter((event) =>
-      [
-        'start',
-        'start-step',
-        'text-start',
-        'text-delta',
-        'text-end',
-        'finish-step',
-        'finish',
-      ].includes(String(event.type)),
-    ) as UIMessageChunk[];
-    const initialMessage: UIMessage = {
-      id: h.runId,
-      role: 'assistant',
-      parts: [
-        { type: 'text', text: durableRun?.finalOutput ?? '', state: 'done' },
-      ],
-    };
-    const messages = await consumeUiMessageChunks(sdkChunks, initialMessage);
-    const latest = messages.at(-1) as {
+    expect(events.some((event) => event.type === 'reset')).toBe(true);
+    expect(events.slice(-4).map((event) => event.type)).toEqual([
+      'reset',
+      'start',
+      'status',
+      'finish',
+    ]);
+    expect(events.at(-2)).toMatchObject({ status: 'completed' });
+    let current: UIMessage = { id: h.runId, role: 'assistant', parts: [] };
+    let snapshotReloaded = false;
+    let sdkChunks: UIMessageChunk[] = [];
+    for (const event of events) {
+      if (event.type === 'reset') {
+        const snapshot = await ai.withTenant(0, (tx) =>
+          h.runs.find(tx, h.runId),
+        );
+        current = {
+          id: h.runId,
+          role: 'assistant',
+          parts: [
+            {
+              type: 'text',
+              text: snapshot?.finalOutput ?? '',
+              state: 'done',
+            },
+          ],
+        };
+        snapshotReloaded = true;
+        sdkChunks = [];
+        continue;
+      }
+      if (
+        [
+          'start',
+          'start-step',
+          'text-start',
+          'text-delta',
+          'text-end',
+          'finish-step',
+          'finish',
+        ].includes(String(event.type))
+      ) {
+        sdkChunks.push(event as UIMessageChunk);
+      }
+    }
+    expect(snapshotReloaded).toBe(true);
+    const messages = await consumeUiMessageChunks(sdkChunks, current);
+    current = messages.at(-1) as UIMessage;
+    const latest = current as {
       parts: { type: string; text?: string; state?: string }[];
     };
     const text = latest.parts.filter((part) => part.type === 'text');
@@ -4991,6 +5773,174 @@ test('engine suppresses deltas when text-start acknowledgement is lost', async (
   services,
 }) => {
   await assertTextStartFailure(services, 'lost-acknowledgement');
+});
+
+test('engine resets after a lost middle text delta acknowledgement', async ({
+  services,
+}) => {
+  await assertTextStartFailure(services, 'lost-middle-delta');
+});
+
+test('engine resets after final text closure is unavailable', async ({
+  services,
+}) => {
+  await assertTextStartFailure(services, 'failed-text-closure');
+});
+
+test('terminal reset recovers committed text across an unconfirmed next-step recovery', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const authority: RunStreamAuthority = {
+    authorizeActive: (claim: StepClaim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (
+      claim: Parameters<typeof steps.streamTerminalProof>[1],
+    ) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    authorizeCommitted: (claim, event) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamCommittedProof(tx, claim, event),
+      ),
+    reconcile: async (
+      entries: readonly { runId: string; orgId: string; userId: string }[],
+    ) =>
+      Promise.all(
+        entries.map(async ({ runId, orgId, userId }) => {
+          const result = await ai.database.withTenant({ orgId, userId }, (tx) =>
+            runs.streamRegistryState(tx, runId, userId),
+          );
+          return result.state === 'terminal'
+            ? { runId, state: 'terminal' as const, claim: result.claim }
+            : { runId, state: result.state };
+        }),
+      ),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const originalEval = Redis.prototype.eval;
+  let resetPublications = 0;
+  let rejectedStepTwoRecovery = false;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (args[0] === APPEND_RUN_STREAM && args.at(-2) === 'reset') {
+      resetPublications++;
+      if (resetPublications === 2) {
+        rejectedStepTwoRecovery = true;
+        return -3;
+      }
+    }
+    return originalEval.apply(this, args as never);
+  } as never);
+  try {
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            { type: 'text', text: 'FIRST' },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'length',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+                usage,
+              },
+            },
+          ],
+        },
+        {
+          events: [
+            { type: 'text', text: ' SECOND' },
+            { type: 'usage', usage },
+            success,
+          ],
+        },
+      ],
+      { streams },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'running',
+      nextSequence: 2,
+      partialOutput: 'FIRST',
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(rejectedStepTwoRecovery).toBe(true);
+    const durableRun = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(durableRun).toMatchObject({
+      status: 'completed',
+      finalOutput: 'FIRST SECOND',
+    });
+    const rows = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      '-',
+      '+',
+    );
+    const events = rows.map(
+      ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
+    );
+    expect(events.filter((event) => event.type === 'reset')).toEqual([
+      { version: 1, runId: h.runId, type: 'reset', sequence: 1 },
+      { version: 1, runId: h.runId, type: 'reset', sequence: 2 },
+    ]);
+    expect(events.slice(-4).map((event) => event.type)).toEqual([
+      'reset',
+      'start',
+      'status',
+      'finish',
+    ]);
+    const finalReset = events.findLastIndex((event) => event.type === 'reset');
+    expect(finalReset).toBeGreaterThan(0);
+    const snapshot = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    const current: UIMessage = {
+      id: h.runId,
+      role: 'assistant',
+      parts: [
+        { type: 'text', text: snapshot?.finalOutput ?? '', state: 'done' },
+      ],
+    };
+    const replay = await consumeUiMessageChunks(
+      events
+        .slice(finalReset + 1)
+        .filter((event) =>
+          ['start', 'finish'].includes(String(event.type)),
+        ) as UIMessageChunk[],
+      current,
+    );
+    const latest = replay.at(-1) as UIMessage;
+    const text = latest.parts.filter((part) => part.type === 'text');
+    expect(text.map((part) => (part as { text: string }).text).join('')).toBe(
+      durableRun?.finalOutput,
+    );
+    expect(text).toHaveLength(1);
+  } finally {
+    evalSpy.mockRestore();
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
 });
 
 test('model generation starts only after the tenant SQL transaction closes', async ({
@@ -5070,6 +6020,7 @@ test('Valkey stream unavailability does not stop durable completion', async ({
 test('iteration exhaustion fails after preserving partial output', async ({
   services,
 }) => {
+  spanExporter.reset();
   const ai = await createAiFixture(services);
   try {
     const h = await setup(ai, [
@@ -5118,6 +6069,15 @@ test('iteration exhaustion fails after preserving partial output', async ({
       status: 'failed',
       errorCode: 'AI_ITERATION_LIMIT',
       partialOutput: 'one two three',
+    });
+    await tracerProvider.forceFlush();
+    const runSpan = spanExporter
+      .getFinishedSpans()
+      .filter((span) => span.name === 'ai.run')
+      .at(-1);
+    expect(runSpan?.attributes).toMatchObject({
+      status: 'failed',
+      safeCode: 'AI_ITERATION_LIMIT',
     });
   } finally {
     await ai.close();

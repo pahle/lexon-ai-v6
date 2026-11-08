@@ -36,6 +36,7 @@ import { RunAuthorizationService } from '../../src/modules/identity-access/run-a
 import { RequestIdentity } from '../../src/modules/identity-access/request-identity.js';
 import { currentVerifiedIdentity } from '../../src/modules/identity-access/identity.types.js';
 import { CancelService } from '../../src/modules/chat/cancel.service.js';
+import { AttemptService } from '../../src/modules/usage/index.js';
 import { createAiHarness } from '../setup/ai-harness.js';
 import { readFileSync } from 'node:fs';
 import {
@@ -141,6 +142,92 @@ test('cancel persists terminal state for queued run and is idempotent', async ({
     expect(await audit.count('chat.run_finished.v1')).toBe(before + 1);
   } finally {
     await audit.close();
+    await ai.close();
+  }
+});
+
+test('public cancel after lease expiry settles the active attempt before terminalizing', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const authorization = new RunAuthorizationService();
+  const attempts = new AttemptService();
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Cancellation test claim unavailable');
+    const attemptId = randomUUID();
+    await ai.withTenant(0, async (tx) => {
+      const runRecord = await new AiRunRepository().find(tx, run.id);
+      if (!runRecord) throw new Error('Cancellation test run unavailable');
+      await attempts.reserve(tx, claim, {
+        attemptId,
+        modelInput: {
+          model: 'synthetic/test',
+          provider: 'synthetic',
+          messages: [{ role: 'user', content: 'Synthetic prompt' }],
+          maxOutputTokens: 100,
+          signal: new AbortController().signal,
+        },
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget:
+            runRecord.inputBudgetTokens + runRecord.outputBudgetTokens,
+          maxOutputTokens: 100,
+        },
+      });
+      await attempts.metadata(tx, claim, {
+        attemptId,
+        generationId: 'expired-cancel-generation',
+        provider: 'synthetic',
+      });
+      expect(
+        await new AiStepRepository().checkpoint(tx, claim, {
+          attemptId,
+          text: 'durable partial text',
+        }),
+      ).toBe(true);
+      await ai.expireClaimLeaseInSession(tx, claim);
+    });
+    const cancel = new CancelService(
+      ai.database,
+      new AiRunRepository(),
+      new AiStepRepository(),
+      new RunActorFactsRepository(),
+      authorization,
+    );
+    await asActor(ai.tenants[0]!, authorization, (actor) =>
+      cancel.cancel(actor, run.id),
+    );
+    await asActor(ai.tenants[0]!, authorization, (actor) =>
+      cancel.cancel(actor, run.id),
+    );
+    const ledger = await ai.withTenant(0, (tx) =>
+      new AiAttemptRepository().list(tx, run.id),
+    );
+    expect(ledger).toMatchObject([
+      {
+        attemptId,
+        active: false,
+        outcome: 'unknown',
+        generationId: 'expired-cancel-generation',
+        reservedInputTokens: expect.any(Number),
+        reservedOutputTokens: 100,
+      },
+    ]);
+    expect(
+      await ai.withTenant(0, (tx) =>
+        new AiStepRepository().find(tx, { runId: run.id, sequence: 1 }),
+      ),
+    ).toMatchObject({ state: 'committed' });
+    expect(
+      await ai.withTenant(0, (tx) => new AiRunRepository().find(tx, run.id)),
+    ).toMatchObject({
+      status: 'cancelled',
+      partialOutput: 'durable partial text',
+    });
+  } finally {
     await ai.close();
   }
 });
@@ -358,9 +445,10 @@ test('cancelling a streaming model aborts it and commits partial output once', a
     const persistedEvents = entries.map(
       ([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>,
     );
-    expect(persistedEvents.slice(-3).map((event) => event.type)).toEqual([
+    expect(persistedEvents.slice(-4).map((event) => event.type)).toEqual([
       'text-end',
       'finish-step',
+      'status',
       'finish',
     ]);
     expect(persistedEvents.at(-1)).toMatchObject({
@@ -975,7 +1063,7 @@ test('queued cancellation writes its terminal marker from the pending lineage', 
       await redis.xlen(
         `${services.queuePrefix}:{run-streams}:${run.id}:events`,
       ),
-    ).toBe(1);
+    ).toBe(2);
   } finally {
     redis.disconnect();
     await streams.close();

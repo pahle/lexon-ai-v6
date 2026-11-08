@@ -14,10 +14,20 @@ import {
   type TerminalStreamReference,
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
-import { RunStreams } from '../../src/infrastructure/queue/index.js';
-import { APPEND_RUN_STREAM } from '../../src/infrastructure/queue/run-stream-scripts.js';
+import {
+  RunStreams,
+  type RunStreamAuthority,
+} from '../../src/infrastructure/queue/index.js';
+import {
+  APPEND_RUN_STREAM,
+  FINISH_RUN_STREAM,
+  PREPARE_RUN_STREAM,
+} from '../../src/infrastructure/queue/run-stream-scripts.js';
 
-function claimAuthority(database: TenantDatabase, steps: AiStepRepository) {
+function claimAuthority(
+  database: TenantDatabase,
+  steps: AiStepRepository,
+): RunStreamAuthority {
   const runs = new AiRunRepository();
   return {
     authorizeActive: (claim: StepClaim) =>
@@ -27,6 +37,10 @@ function claimAuthority(database: TenantDatabase, steps: AiStepRepository) {
     authorizeTerminal: (claim: TerminalStreamReference) =>
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
         steps.streamTerminalProof(tx, claim),
+      ),
+    authorizeCommitted: (claim, event) =>
+      database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
+        steps.streamCommittedProof(tx, claim, event),
       ),
     reconcile: (
       entries: readonly { runId: string; orgId: string; userId: string }[],
@@ -114,7 +128,15 @@ test('one run stream remains open across events and closes only after terminal D
     });
 
     await streams.finish(claim, { version: 1, runId: run.id, type: 'finish' });
-    expect(await redis.xlen(streamKey)).toBe(3);
+    expect(await redis.xlen(streamKey)).toBe(4);
+    expect(
+      (await redis.xrange(streamKey, '-', '+'))
+        .map(([, fields]) => JSON.parse(fields[1]! as string))
+        .slice(-2),
+    ).toEqual([
+      { version: 1, runId: run.id, type: 'status', status: 'completed' },
+      { version: 1, runId: run.id, type: 'finish' },
+    ]);
     expect(await redis.ttl(streamKey)).toBeGreaterThan(0);
     expect(await redis.ttl(streamKey)).toBeLessThanOrEqual(3600);
     expect(
@@ -126,7 +148,7 @@ test('one run stream remains open across events and closes only after terminal D
         delta: 'late',
       }),
     ).toBe('stale');
-    expect(await redis.xlen(streamKey)).toBe(3);
+    expect(await redis.xlen(streamKey)).toBe(4);
     const guardKey = `${services.queuePrefix}:{run-streams}:${run.id}:guard`;
     await redis.del(guardKey);
     expect(
@@ -146,6 +168,127 @@ test('one run stream remains open across events and closes only after terminal D
   }
 });
 
+test('terminal finish uses fresh committed run version after a pause notification', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Terminal version claim unavailable');
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    await ai.withTenant(0, async (tx) => {
+      expect(await steps.lockClaim(tx, claim)).toBe(true);
+      expect(
+        await runs.markRunningForClaim(tx, {
+          runId: claim.runId,
+          stepId: claim.stepId,
+          expectedVersion: claim.expectedVersion,
+          sequence: claim.sequence,
+          fence: claim.fence,
+        }),
+      ).toBe(true);
+      expect(
+        await steps.commit(tx, claim, {
+          state: 'awaiting_approval',
+          text: 'paused output',
+          data: {},
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: claim.expectedVersion,
+          from: 'running',
+          to: 'awaiting_approval',
+          nextSequence: claim.sequence + 1,
+          outputAppend: 'paused output',
+        }),
+      ).toBe(true);
+    });
+    const committed = {
+      runId: claim.runId,
+      orgId: claim.orgId,
+      userId: claim.userId,
+      stepId: claim.stepId,
+      sequence: claim.sequence,
+      expectedVersion: claim.expectedVersion,
+      fence: claim.fence,
+      committedRunVersion: 2,
+      committedStatus: 'awaiting_approval' as const,
+    };
+    await expect(
+      streams.publishCommitted(committed, [
+        {
+          version: 1,
+          runId: run.id,
+          type: 'status',
+          status: 'awaiting_approval',
+        },
+      ]),
+    ).resolves.toBe('written');
+    await ai.withTenant(0, async (tx) => {
+      const current = await runs.find(tx, run.id);
+      expect(current?.status).toBe('awaiting_approval');
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: current!.runVersion,
+          from: 'awaiting_approval',
+          to: 'cancelling',
+        }),
+      ).toBe(true);
+      const cancelling = await runs.find(tx, run.id);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: cancelling!.runVersion,
+          from: 'cancelling',
+          to: 'cancelled',
+        }),
+      ).toBe(true);
+    });
+    const terminal = await ai.withTenant(0, (tx) =>
+      runs.terminalStreamReference(tx, run.id),
+    );
+    if (!terminal) throw new Error('Terminal stream reference unavailable');
+    await streams.finish(terminal, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    const events = (
+      await redis.xrange(
+        `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+        '-',
+        '+',
+      )
+    ).map(([, fields]) => JSON.parse(fields[1]! as string));
+    expect(events.slice(-2)).toEqual([
+      { version: 1, runId: run.id, type: 'status', status: 'cancelled' },
+      { version: 1, runId: run.id, type: 'finish' },
+    ]);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
 test('an owned stream connection stall bounds queued publications without late writes', async ({
   services,
 }) => {
@@ -158,20 +301,52 @@ test('an owned stream connection stall bounds queued publications without late w
   });
   const redis = new Redis(services.valkey.streamsUrl);
   const inspector = new Redis(services.valkey.streamsUrl);
-  const originalSet = Redis.prototype.set;
-  let stallEpochSet = false;
-  const setSpy = vi.spyOn(Redis.prototype, 'set');
-  setSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
-    if (
-      stallEpochSet &&
-      typeof args[0] === 'string' &&
-      args[0] === `${services.queuePrefix}:{run-streams}:epoch`
-    ) {
-      stallEpochSet = false;
-      await new Promise((resolve) => setTimeout(resolve, 350));
-    }
-    return originalSet.apply(this, args as never);
-  } as never);
+  const originalTime = Redis.prototype.time;
+  let stallTime = false;
+  let heldTimeCalls = 0;
+  let releaseTime!: () => void;
+  let resolveTimeHeld!: () => void;
+  let resolveTimeSettled!: () => void;
+  const timeBarrier = new Promise<void>((resolve) => {
+    releaseTime = resolve;
+  });
+  const timeHeld = new Promise<void>((resolve) => {
+    resolveTimeHeld = resolve;
+  });
+  const timeSettled = new Promise<void>((resolve) => {
+    resolveTimeSettled = resolve;
+  });
+  const timeSpy = vi
+    .spyOn(Redis.prototype, 'time')
+    .mockImplementation(async function (this: Redis) {
+      let heldCall = false;
+      if (stallTime) {
+        stallTime = false;
+        heldCall = true;
+        heldTimeCalls++;
+        resolveTimeHeld();
+        await timeBarrier;
+      }
+      try {
+        return await originalTime.call(this);
+      } finally {
+        if (heldCall) resolveTimeSettled();
+      }
+    });
+  let evalSpy: ReturnType<typeof vi.spyOn> | undefined;
+  let releaseAppend!: () => void;
+  let resolveAppendHeld!: () => void;
+  let resolveAppendSettled!: () => void;
+  const appendBarrier = new Promise<void>((resolve) => {
+    releaseAppend = resolve;
+  });
+  const appendHeld = new Promise<void>((resolve) => {
+    resolveAppendHeld = resolve;
+  });
+  const appendSettled = new Promise<void>((resolve) => {
+    resolveAppendSettled = resolve;
+  });
+  let heldAppendCalls = 0;
   try {
     const run = await ai.start(0);
     await ai.seedPendingStep(0, run.id);
@@ -183,7 +358,8 @@ test('an owned stream connection stall bounds queued publications without late w
       type: 'reset',
       sequence: claim.sequence,
     });
-    stallEpochSet = true;
+    stallTime = true;
+    const timeCallsBeforeStall = heldTimeCalls;
     const started = performance.now();
     const first = streams.publish(claim, {
       version: 1,
@@ -199,12 +375,16 @@ test('an owned stream connection stall bounds queued publications without late w
       id: 'queued-deadline-test',
       delta: 'queued event must not arrive late',
     });
+    await timeHeld;
     const [result, queuedResult] = await Promise.all([first, queued]);
     const elapsedMs = performance.now() - started;
     expect(result).toBe('unavailable');
     expect(queuedResult).toBe('unavailable');
     expect(elapsedMs).toBeLessThan(450);
-    await new Promise((resolve) => setTimeout(resolve, 450));
+    releaseTime();
+    await timeSettled;
+    expect(heldTimeCalls - timeCallsBeforeStall).toBe(1);
+    await new Promise<void>((resolve) => setImmediate(resolve));
     const entries = await inspector.xrange(
       `${services.queuePrefix}:{run-streams}:${run.id}:events`,
       '-',
@@ -213,10 +393,9 @@ test('an owned stream connection stall bounds queued publications without late w
     expect(
       entries.some(([, fields]) => fields[1]?.includes('must not arrive late')),
     ).toBe(false);
-    setSpy.mockRestore();
     const originalEval = Redis.prototype.eval;
     let delayAppend = true;
-    const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+    evalSpy = vi.spyOn(Redis.prototype, 'eval');
     evalSpy.mockImplementation(async function (
       this: Redis,
       ...args: unknown[]
@@ -227,9 +406,15 @@ test('an owned stream connection stall bounds queued publications without late w
         args.at(-2) === 'text-delta'
       ) {
         delayAppend = false;
-        await new Promise((resolve) => setTimeout(resolve, 350));
+        heldAppendCalls++;
+        resolveAppendHeld();
+        await appendBarrier;
       }
-      return originalEval.apply(this, args as never);
+      try {
+        return await originalEval.apply(this, args as never);
+      } finally {
+        if (heldAppendCalls > 0) resolveAppendSettled();
+      }
     } as never);
     const appendStarted = performance.now();
     const appendResult = await streams.publish(claim, {
@@ -239,9 +424,11 @@ test('an owned stream connection stall bounds queued publications without late w
       id: 'late-eval-test',
       delta: 'late EVAL must be refused',
     });
+    await appendHeld;
     expect(appendResult).toBe('unavailable');
     expect(performance.now() - appendStarted).toBeLessThan(450);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    releaseAppend();
+    await appendSettled;
     const afterLateEval = await inspector.xrange(
       `${services.queuePrefix}:{run-streams}:${run.id}:events`,
       '-',
@@ -252,10 +439,432 @@ test('an owned stream connection stall bounds queued publications without late w
         fields[1]?.includes('late EVAL must be refused'),
       ),
     ).toBe(false);
-    evalSpy.mockRestore();
   } finally {
-    setSpy.mockRestore();
+    releaseTime();
+    releaseAppend();
+    if (heldAppendCalls > 0) await appendSettled;
+    timeSpy.mockRestore();
+    evalSpy?.mockRestore();
     redis.disconnect();
+    inspector.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('timed out recovery EVAL cannot append a late reset before a newer publication', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const originalEval = Redis.prototype.eval;
+  let holdNextAppend = false;
+  let recoveryDeadlineAt = 0;
+  let recoveryEvalCalls = 0;
+  let recoveryObservedEvals = 0;
+  let recoveryReleaseServerMs: number;
+  const realDateNow = () => new Date().getTime();
+  let clientClockOffsetMs = 0;
+  const clientClockSpy = vi
+    .spyOn(Date, 'now')
+    .mockImplementation(() => realDateNow() + clientClockOffsetMs);
+  let releaseAppend!: () => void;
+  let resolveEvalHeld!: () => void;
+  let resolveEvalSettled!: () => void;
+  const evalHeld = new Promise<void>((resolve) => {
+    resolveEvalHeld = resolve;
+  });
+  const evalSettled = new Promise<void>((resolve) => {
+    resolveEvalSettled = resolve;
+  });
+  const appendBarrier = new Promise<void>((resolve) => {
+    releaseAppend = resolve;
+  });
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    recoveryObservedEvals++;
+    const source = args[0];
+    let heldCall = false;
+    if (
+      holdNextAppend &&
+      typeof source === 'string' &&
+      source.includes('local runId = ARGV[1]') &&
+      args.at(-2) === 'reset'
+    ) {
+      holdNextAppend = false;
+      heldCall = true;
+      recoveryEvalCalls++;
+      recoveryDeadlineAt = Number(args.at(-3));
+      resolveEvalHeld();
+      await appendBarrier;
+    }
+    try {
+      return await originalEval.apply(this, args as never);
+    } finally {
+      if (heldCall) resolveEvalSettled();
+    }
+  } as never);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Recovery deadline claim unavailable');
+    const snapshot = {
+      version: 1 as const,
+      runId: run.id,
+      type: 'reset' as const,
+      sequence: claim.sequence,
+    };
+    await streams.recover(claim, snapshot);
+    clientClockOffsetMs = 100;
+    holdNextAppend = true;
+    const recoveryStarted = performance.now();
+    const recovery = streams.recover(claim, snapshot);
+    const heldResult = await Promise.race([
+      evalHeld.then(() => 'held' as const),
+      new Promise<'not-held'>((resolve) =>
+        setTimeout(() => resolve('not-held'), 2_000),
+      ),
+    ]);
+    if (heldResult !== 'held') {
+      process.stderr.write(
+        JSON.stringify({
+          evidence: 'recovery-eval-not-intercepted',
+          observedEvals: recoveryObservedEvals,
+          heldEvals: recoveryEvalCalls,
+        }) + '\n',
+      );
+      throw new Error(
+        'Recovery APPEND EVAL was not observed at the writer boundary',
+      );
+    }
+    const recoveryResult = await Promise.race([
+      recovery.then((result) => result),
+      new Promise<'still-pending'>((resolve) =>
+        setTimeout(() => resolve('still-pending'), 300),
+      ),
+    ]);
+    const recoveryElapsedMs = performance.now() - recoveryStarted;
+    const [recoveryServerSeconds, recoveryServerMicros] =
+      await inspector.time();
+    recoveryReleaseServerMs =
+      Number(recoveryServerSeconds) * 1000 +
+      Math.floor(Number(recoveryServerMicros) / 1000);
+    process.stderr.write(
+      JSON.stringify({
+        evidence: 'recovery-clock-skew',
+        heldEvals: recoveryEvalCalls,
+        clientDeadline: recoveryDeadlineAt,
+        clientNowAtTimeout: Date.now(),
+        valkeyNowBeforeRelease: recoveryReleaseServerMs,
+        offsetMs: clientClockOffsetMs,
+      }) + '\n',
+    );
+    expect(recoveryReleaseServerMs).toBeGreaterThanOrEqual(recoveryDeadlineAt);
+    clientClockOffsetMs = 0;
+    releaseAppend();
+    const fresh = streams.publish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: 'after-timeout',
+      delta: 'fresh publication',
+    });
+    await evalSettled;
+    await expect(fresh).resolves.toBe('written');
+    const entries = await inspector.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    process.stderr.write(
+      JSON.stringify({
+        evidence: 'recovery-events',
+        types: entries.map(
+          ([, fields]) => (JSON.parse(fields[1]!) as { type: string }).type,
+        ),
+        recoveryResult,
+      }) + '\n',
+    );
+    expect(recoveryResult).toBe('unavailable');
+    expect(recoveryElapsedMs).toBeLessThan(300);
+    expect(entries.map(([, fields]) => JSON.parse(fields[1]!))).toEqual([
+      snapshot,
+      {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'after-timeout',
+        delta: 'fresh publication',
+      },
+    ]);
+  } finally {
+    releaseAppend();
+    if (recoveryEvalCalls > 0) await evalSettled;
+    clientClockSpy.mockRestore();
+    evalSpy.mockRestore();
+    inspector.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('timed out terminal EVAL cannot append or recreate a stream after its deadline', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const originalEval = Redis.prototype.eval;
+  let holdFinish = false;
+  let finishDeadlineAt = 0;
+  let finishEvalCalls = 0;
+  let finishReleaseServerMs: number;
+  const realFinishDateNow = () => new Date().getTime();
+  let finishClockOffsetMs = 0;
+  const finishClockSpy = vi
+    .spyOn(Date, 'now')
+    .mockImplementation(() => realFinishDateNow() + finishClockOffsetMs);
+  let releaseFinish!: () => void;
+  let resolveFinishEvalHeld!: () => void;
+  let resolveFinishEvalSettled!: () => void;
+  const finishBarrier = new Promise<void>((resolve) => {
+    releaseFinish = resolve;
+  });
+  const finishEvalHeld = new Promise<void>((resolve) => {
+    resolveFinishEvalHeld = resolve;
+  });
+  const finishEvalSettled = new Promise<void>((resolve) => {
+    resolveFinishEvalSettled = resolve;
+  });
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    let heldCall = false;
+    if (holdFinish && args[0] === FINISH_RUN_STREAM) {
+      holdFinish = false;
+      heldCall = true;
+      finishEvalCalls++;
+      finishDeadlineAt = Number(args.at(-1));
+      resolveFinishEvalHeld();
+      await finishBarrier;
+    }
+    try {
+      return await originalEval.apply(this, args as never);
+    } finally {
+      if (heldCall) resolveFinishEvalSettled();
+    }
+  } as never);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Terminal deadline claim unavailable');
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    await ai.withTenant(0, async (tx) => {
+      expect(await steps.lockClaim(tx, claim)).toBe(true);
+      expect(
+        await steps.commit(tx, claim, {
+          state: 'committed',
+          text: 'terminal',
+          data: {},
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: claim.expectedVersion,
+          from: 'queued',
+          to: 'completed',
+          nextSequence: claim.sequence + 1,
+          outputAppend: 'terminal',
+          finalizeOutput: true,
+        }),
+      ).toBe(true);
+    });
+    const streamKey = `${services.queuePrefix}:{run-streams}:${run.id}:events`;
+    const initialLength = await redis.xlen(streamKey);
+    finishClockOffsetMs = 100;
+    holdFinish = true;
+    const started = performance.now();
+    const finishing = streams.finish(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    await finishEvalHeld;
+    const publicResult = await Promise.race([
+      finishing.then(() => 'settled' as const),
+      new Promise<'still-pending'>((resolve) =>
+        setTimeout(() => resolve('still-pending'), 300),
+      ),
+    ]);
+    const elapsedMs = performance.now() - started;
+    const [finishServerSeconds, finishServerMicros] = await redis.time();
+    finishReleaseServerMs =
+      Number(finishServerSeconds) * 1000 +
+      Math.floor(Number(finishServerMicros) / 1000);
+    process.stderr.write(
+      JSON.stringify({
+        evidence: 'finish-clock-skew',
+        heldEvals: finishEvalCalls,
+        clientDeadline: finishDeadlineAt,
+        clientNowAtTimeout: Date.now(),
+        valkeyNowBeforeRelease: finishReleaseServerMs,
+        offsetMs: finishClockOffsetMs,
+      }) + '\n',
+    );
+    expect(finishReleaseServerMs).toBeGreaterThanOrEqual(finishDeadlineAt);
+    finishClockOffsetMs = 0;
+    releaseFinish();
+    await finishEvalSettled;
+    expect(publicResult).toBe('settled');
+    expect(elapsedMs).toBeLessThan(300);
+    const terminalEntries = await redis.xrange(streamKey, '-', '+');
+    const terminalTypes = terminalEntries.map(
+      ([, fields]) => (JSON.parse(fields[1]!) as { type: string }).type,
+    );
+    process.stderr.write(
+      JSON.stringify({
+        evidence: 'finish-events',
+        initialLength,
+        finalLength: terminalEntries.length,
+        addedTypes: terminalTypes.slice(initialLength),
+        heldEvals: finishEvalCalls,
+      }) + '\n',
+    );
+    expect(terminalEntries.length).toBe(initialLength);
+    expect(
+      (
+        await redis.zrange(
+          `${services.queuePrefix}:{run-streams}:terminal`,
+          '0',
+          '-1',
+        )
+      ).some((member) => member.startsWith(`${run.id}|`)),
+    ).toBe(false);
+    expect(
+      await redis.zscore(
+        `${services.queuePrefix}:{run-streams}:active`,
+        run.id,
+      ),
+    ).not.toBeNull();
+  } finally {
+    releaseFinish();
+    if (finishEvalCalls > 0) await finishEvalSettled;
+    finishClockSpy.mockRestore();
+    evalSpy.mockRestore();
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a stalled TIME sample settles on the local budget and dispatches no late write', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const originalTime = Redis.prototype.time;
+  const originalEval = Redis.prototype.eval;
+  let holdTime = true;
+  let heldTime = false;
+  let releaseTime!: () => void;
+  let resolveTimeHeld!: () => void;
+  let resolveTimeSettled!: () => void;
+  let evalCalls = 0;
+  const timeBarrier = new Promise<void>((resolve) => {
+    releaseTime = resolve;
+  });
+  const timeHeld = new Promise<void>((resolve) => {
+    resolveTimeHeld = resolve;
+  });
+  const timeSettled = new Promise<void>((resolve) => {
+    resolveTimeSettled = resolve;
+  });
+  const timeSpy = vi
+    .spyOn(Redis.prototype, 'time')
+    .mockImplementation(async function (this: Redis) {
+      let heldCall = false;
+      if (holdTime) {
+        holdTime = false;
+        heldCall = true;
+        heldTime = true;
+        resolveTimeHeld();
+        await timeBarrier;
+      }
+      try {
+        return await originalTime.call(this);
+      } finally {
+        if (heldCall) resolveTimeSettled();
+      }
+    });
+  const evalSpy = vi
+    .spyOn(Redis.prototype, 'eval')
+    .mockImplementation(async function (this: Redis, ...args: unknown[]) {
+      evalCalls++;
+      return originalEval.apply(this, args as never);
+    });
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Stalled TIME claim unavailable');
+    const started = performance.now();
+    const recovery = streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    await timeHeld;
+    const result = await Promise.race([
+      recovery,
+      new Promise<'still-pending'>((resolve) =>
+        setTimeout(() => resolve('still-pending'), 300),
+      ),
+    ]);
+    expect(result).toBe('unavailable');
+    expect(performance.now() - started).toBeLessThan(300);
+    releaseTime();
+    await timeSettled;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(evalCalls).toBe(0);
+    const prefix = `${services.queuePrefix}:{run-streams}`;
+    expect(
+      await inspector.exists(
+        `${prefix}:${run.id}:events`,
+        `${prefix}:${run.id}:guard`,
+      ),
+    ).toBe(0);
+    expect(await inspector.zscore(`${prefix}:active`, run.id)).toBeNull();
+  } finally {
+    releaseTime();
+    if (heldTime) await timeSettled;
+    timeSpy.mockRestore();
+    evalSpy.mockRestore();
     inspector.disconnect();
     await streams.close();
     await ai.close();
@@ -358,8 +967,8 @@ test('a separate terminal writer closes a text part left open by a dead publishe
       state: 'done',
     });
     expect(
-      rows.map(([, fields]) => JSON.parse(fields[1]!).type).slice(-3),
-    ).toEqual(['text-end', 'finish-step', 'finish']);
+      rows.map(([, fields]) => JSON.parse(fields[1]!).type).slice(-4),
+    ).toEqual(['text-end', 'finish-step', 'status', 'finish']);
   } finally {
     redis.disconnect();
     await Promise.all([oldPublisher.close(), terminalWriter.close()]);
@@ -465,10 +1074,10 @@ test('terminal guard preserves opaque text part IDs with leading or embedded pip
             'finish',
           ].includes(String(event.type)),
         ) as UIMessageChunk[];
-      const terminalId = JSON.parse(rows.at(-3)![1][1]!).id;
+      const terminalId = JSON.parse(rows.at(-4)![1][1]!).id;
       const terminalTypes = rows
         .map(([, fields]) => JSON.parse(fields[1]!).type)
-        .slice(-3);
+        .slice(-4);
       try {
         const messages = await consumeUiMessageChunks(chunks);
         const parts = (
@@ -498,13 +1107,13 @@ test('terminal guard preserves opaque text part IDs with leading or embedded pip
         id: 'part|tail',
         state: 'done',
         terminalId: 'part|tail',
-        terminalTypes: ['text-end', 'finish-step', 'finish'],
+        terminalTypes: ['text-end', 'finish-step', 'status', 'finish'],
       },
       {
         id: '|leading',
         state: 'done',
         terminalId: '|leading',
-        terminalTypes: ['text-end', 'finish-step', 'finish'],
+        terminalTypes: ['text-end', 'finish-step', 'status', 'finish'],
       },
     ]);
   } finally {
@@ -597,7 +1206,11 @@ test('worker recovery resets old framing state before the next UI replay', async
     );
     const lastReset = events.findLastIndex((event) => event.type === 'reset');
     const replay = events.slice(lastReset + 1);
-    expect(replay.map((event) => event.type)).toEqual(['start', 'finish']);
+    expect(replay.map((event) => event.type)).toEqual([
+      'start',
+      'status',
+      'finish',
+    ]);
     const chunks = replay.filter((event) =>
       ['start', 'finish'].includes(String(event.type)),
     ) as UIMessageChunk[];
@@ -707,8 +1320,14 @@ test('failed first step terminal finish is recovered from the real registry refe
       }),
     ).toBe('written');
     const events = await redis.xrange(firstStream, '-', '+');
-    expect(events).toHaveLength(2);
-    expect(JSON.parse(events[1]![1][1]!).type).toBe('finish');
+    expect(events).toHaveLength(4);
+    expect(
+      events.map(([, fields]) => JSON.parse(fields[1]! as string)).slice(-3),
+    ).toEqual([
+      { version: 1, runId: firstRun.id, type: 'status', status: 'failed' },
+      { version: 1, runId: firstRun.id, type: 'error', code: 'AI_INTERNAL' },
+      { version: 1, runId: firstRun.id, type: 'finish' },
+    ]);
     expect(
       await redis.zscore(
         `${services.queuePrefix}:{run-streams}:active`,
@@ -1513,12 +2132,11 @@ test('active admission and terminal retention stay bounded without evicting acti
   }
 });
 
-test('an authorization paused before Valkey cannot recreate an evicted terminal stream', async ({
+test('a timed-out authorization cannot recreate a stream after it is released', async ({
   services,
 }) => {
   const ai = await createAiFixture(services);
   const steps = new AiStepRepository();
-  const runs = new AiRunRepository();
   const baseAuthority = claimAuthority(ai.database as TenantDatabase, steps);
   let release!: () => void;
   let proofReady!: () => void;
@@ -1551,29 +2169,6 @@ test('an authorization paused before Valkey cannot recreate an evicted terminal 
     authority: baseAuthority,
   });
   const redis = new Redis(services.valkey.streamsUrl);
-  const finishRun = async (runId: string, claim: StepClaim) => {
-    await ai.withTenant(0, async (tx) => {
-      expect(await steps.lockClaim(tx, claim)).toBe(true);
-      expect(
-        await steps.commit(tx, claim, {
-          state: 'committed',
-          text: '',
-          data: {},
-        }),
-      ).toBe(true);
-      expect(
-        await runs.transition(tx, {
-          runId,
-          expectedVersion: claim.expectedVersion,
-          from: 'queued',
-          to: 'completed',
-          nextSequence: claim.sequence + 1,
-          finalizeOutput: true,
-        }),
-      ).toBe(true);
-    });
-    await streams.finish(claim, { version: 1, runId, type: 'finish' });
-  };
   try {
     const original = await ai.start(0);
     await ai.seedPendingStep(0, original.id);
@@ -1587,34 +2182,163 @@ test('an authorization paused before Valkey cannot recreate an evicted terminal 
       delta: 'late',
     });
     await ready;
-    await finishRun(original.id, oldClaim);
-    for (let index = 0; index < 6; index++) {
-      const run = await ai.start(0);
-      await ai.seedPendingStep(0, run.id);
-      const claim = await ai.claim(0, run.id, 1, 1, 30_000);
-      if (!claim) throw new Error('Stream eviction claim unavailable');
-      expect(
-        await streams.publish(claim, {
-          version: 1,
-          runId: run.id,
-          type: 'status',
-          status: 'running',
-        }),
-      ).toBe('written');
-      await finishRun(run.id, claim);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await expect(pendingPublish).resolves.toBe('unavailable');
     release();
-    expect(await pendingPublish).toBe('stale');
+    await staleWriter.close();
+    await expect(pendingPublish).resolves.toBe('unavailable');
     const prefix = `${services.queuePrefix}:{run-streams}`;
     expect(await redis.exists(`${prefix}:${original.id}:events`)).toBe(0);
     expect(await redis.exists(`${prefix}:${original.id}:guard`)).toBe(0);
-    expect(await redis.zcard(`${prefix}:terminal`)).toBe(6);
+    expect(await redis.zscore(`${prefix}:terminal`, original.id)).toBeNull();
   } finally {
     release();
     redis.disconnect();
     await staleWriter.close();
     await streams.close();
     await ai.close();
+  }
+});
+
+test('a stale authorization cannot recreate a stream evicted from the terminal pool', async ({
+  services,
+}) => {
+  const prefix = `${services.queuePrefix}_stale_${randomUUID().slice(0, 6)}`;
+  const makeClaim = (): StepClaim => ({
+    runId: randomUUID(),
+    orgId: randomUUID(),
+    userId: randomUUID(),
+    stepId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    fence: 1,
+    leaseUntil: new Date(Date.now() + 30_000),
+  });
+  const proof = (claim: StepClaim) => ({
+    runVersion: claim.expectedVersion,
+    nextSequence: claim.sequence,
+    status: 'running' as const,
+    stepId: claim.stepId,
+    sequence: claim.sequence,
+    expectedVersion: claim.expectedVersion,
+    fence: claim.fence,
+    leaseUntil: new Date(Date.now() + 30_000),
+  });
+  const terminalRuns = new Set<string>();
+  const authority = {
+    authorizeActive: async (claim: StepClaim) =>
+      terminalRuns.has(claim.runId) ? undefined : proof(claim),
+    authorizeTerminal: async (claim: StepClaim) => ({
+      status: 'completed' as const,
+      runVersion: claim.expectedVersion + 1,
+      nextSequence: claim.sequence + 1,
+      latestCommittedStepId: claim.stepId,
+      latestCommittedSequence: claim.sequence,
+      latestCommittedExpectedVersion: claim.expectedVersion,
+      latestCommittedFence: claim.fence,
+    }),
+    reconcile: async (entries: readonly { runId: string }[]) =>
+      entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix,
+    authority,
+  });
+  let capturedProof: ReturnType<typeof proof> | undefined;
+  let proofReads = 0;
+  const staleWriter = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix,
+    authority: {
+      ...authority,
+      authorizeActive: async (claim) => {
+        proofReads++;
+        if (proofReads <= 2) return capturedProof;
+        return authority.authorizeActive(claim);
+      },
+    },
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const oldClaim = makeClaim();
+  const epochKey = `${prefix}:{run-streams}:epoch`;
+  const originalGet = Redis.prototype.get;
+  const originalEval = Redis.prototype.eval;
+  let capturedEpoch: string | null = null;
+  let injectCapturedEpoch = false;
+  let capturePrepare = false;
+  const prepareResults: number[] = [];
+  const epochSpy = vi
+    .spyOn(Redis.prototype, 'get')
+    .mockImplementation(function (this: Redis, key) {
+      if (injectCapturedEpoch && key === epochKey) {
+        injectCapturedEpoch = false;
+        return Promise.resolve(capturedEpoch);
+      }
+      return originalGet.call(this, key);
+    });
+  const evalSpy = vi
+    .spyOn(Redis.prototype, 'eval')
+    .mockImplementation(async function (this: Redis, ...args: unknown[]) {
+      const result = await originalEval.apply(this, args as never);
+      if (capturePrepare && args[0] === PREPARE_RUN_STREAM)
+        prepareResults.push(Number(result));
+      return result;
+    } as never);
+  const running = (claim: StepClaim) =>
+    streams.publish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'status',
+      status: 'running',
+    });
+  const finish = async (claim: StepClaim) => {
+    await streams.finish(claim, {
+      version: 1,
+      runId: claim.runId,
+      type: 'finish',
+    });
+    terminalRuns.add(claim.runId);
+  };
+  try {
+    await expect(running(oldClaim)).resolves.toBe('written');
+    capturedEpoch = await redis.get(epochKey);
+    capturedProof = await authority.authorizeActive(oldClaim);
+    expect(capturedEpoch).not.toBeNull();
+    expect(capturedProof).toBeDefined();
+    await finish(oldClaim);
+    for (let index = 0; index < 6; index++) {
+      const claim = makeClaim();
+      await expect(running(claim)).resolves.toBe('written');
+      await finish(claim);
+    }
+    expect(await redis.get(epochKey)).not.toBe(capturedEpoch);
+    injectCapturedEpoch = true;
+    capturePrepare = true;
+    const stalePublish = staleWriter.publish(oldClaim, {
+      version: 1,
+      runId: oldClaim.runId,
+      type: 'text-delta',
+      id: 'late',
+      delta: 'late after eviction',
+    });
+    await expect(stalePublish).resolves.toBe('stale');
+    expect(proofReads).toBe(3);
+    expect(injectCapturedEpoch).toBe(false);
+    expect(prepareResults).toEqual([-1]);
+    const streamPrefix = `${prefix}:{run-streams}`;
+    expect(await redis.exists(`${streamPrefix}:${oldClaim.runId}:events`)).toBe(
+      0,
+    );
+    expect(await redis.exists(`${streamPrefix}:${oldClaim.runId}:guard`)).toBe(
+      0,
+    );
+  } finally {
+    evalSpy.mockRestore();
+    epochSpy.mockRestore();
+    redis.disconnect();
+    await staleWriter.close();
+    await streams.close();
   }
 });
 

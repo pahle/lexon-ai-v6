@@ -2,6 +2,7 @@ import type {
   AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
+  CommittedStreamReference,
   OutboxRepository,
   RunActorFactsRepository,
   TenantDatabase,
@@ -38,7 +39,7 @@ export class ApprovalService {
     },
   ): Promise<void> {
     this.authorization.assertLiveActor(actor);
-    const terminalReference = await this.database.withTenant(
+    const publication = await this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         const run = await this.runs.find(tx, input.runId);
@@ -144,7 +145,7 @@ export class ApprovalService {
           });
           const reference = await this.runs.terminalStreamReference(tx, run.id);
           if (!reference) throw new Error('AI approval decision refused');
-          return reference;
+          return { kind: 'terminal' as const, reference };
         }
         const operation = await this.operations.decideApproval(tx, {
           ...input,
@@ -205,17 +206,57 @@ export class ApprovalService {
               : {}),
           },
         );
-        return null;
+        const priorStep = await this.steps.find(tx, {
+          runId: run.id,
+          sequence: run.nextSequence - 1,
+        });
+        if (!priorStep || priorStep.state !== 'awaiting_approval')
+          throw new Error('AI approval decision refused');
+        const reference: CommittedStreamReference = {
+          runId: run.id,
+          orgId: actor.orgId,
+          userId: actor.userId,
+          stepId: priorStep.id,
+          sequence: priorStep.sequence,
+          expectedVersion: priorStep.expectedVersion,
+          fence: priorStep.fence,
+          committedRunVersion: expectedVersion,
+          committedStatus: 'running',
+        };
+        return {
+          kind: 'resume' as const,
+          reference,
+          operationId: operation.id,
+          operationStatus: operation.status,
+        };
       },
     );
-    if (terminalReference) {
-      await this.streams?.finish(terminalReference, {
+    if (publication.kind === 'terminal') {
+      await this.streams?.finish(publication.reference, {
         version: 1,
         runId: input.runId,
         type: 'finish',
       });
       throw new Error('AI approval decision refused');
     }
+    await this.streams?.publishCommitted(publication.reference, [
+      {
+        version: 1,
+        runId: input.runId,
+        type: 'status',
+        status: 'running',
+      },
+      {
+        version: 1,
+        runId: input.runId,
+        type: 'operation-status',
+        operationId: publication.operationId,
+        status:
+          publication.operationStatus === 'succeeded'
+            ? 'completed'
+            : publication.operationStatus,
+      },
+    ]);
   }
 }
 

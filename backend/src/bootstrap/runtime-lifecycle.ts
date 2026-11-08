@@ -41,6 +41,15 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   ) {}
   async onModuleInit(): Promise<void> {
     try {
+      const policy = await checkValkeyPolicy(
+        this.config.valkey,
+        undefined,
+        this.config.runtime === 'api' || this.config.runtime === 'ai-worker'
+          ? this.config.ai.streamsValkeyMaxMemoryBytes
+          : undefined,
+      );
+      if (Object.values(policy).some((status) => status !== 'up'))
+        throw new Error('Valkey startup policy unavailable');
       if (
         this.config.runtime === 'api' ||
         this.config.runtime === 'ai-worker'
@@ -49,9 +58,6 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
           throw new Error('AI capacity repository unavailable');
         await this.capacity.configure(this.config.ai);
       }
-      const policy = await checkValkeyPolicy(this.config.valkey);
-      if (Object.values(policy).some((status) => status !== 'up'))
-        throw new Error('Valkey startup policy unavailable');
       if (this.consumer) {
         const registry = new JobRegistry();
         registry.register('platform.noop.v1', {

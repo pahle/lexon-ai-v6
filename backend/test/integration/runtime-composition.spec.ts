@@ -76,7 +76,7 @@ test('API module boot refuses a persisted AI capacity mismatch before startup ga
   const directory = await mkdtemp(join(tmpdir(), 'lexon-api-capacity-'));
   try {
     const env = createAuthEnvironment(services, join(directory, 'health.json'));
-    env.AI_MAXLEN = '1000';
+    env.AI_MAX_ACTIVE_PER_ORG = '5';
     await expect(createApi(loadRuntimeConfig('api', env))).rejects.toThrow(
       'API startup failed',
     );

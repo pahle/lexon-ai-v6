@@ -37,7 +37,14 @@ export function runtimeProviders(
           {
             database: db,
             ...(auth ? { auth } : {}),
-            valkey: () => checkValkeyPolicy(config.valkey),
+            valkey: () =>
+              checkValkeyPolicy(
+                config.valkey,
+                undefined,
+                config.runtime === 'api' || config.runtime === 'ai-worker'
+                  ? config.ai.streamsValkeyMaxMemoryBytes
+                  : undefined,
+              ),
             ...(storage ? { storage } : {}),
           },
           config.health.dependencyTimeoutMs,

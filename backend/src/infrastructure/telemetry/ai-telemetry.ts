@@ -7,6 +7,7 @@ import {
   type TextMapPropagator,
   type Tracer,
 } from '@opentelemetry/api';
+import { RunErrorCodeSchema } from '@lexon/contracts';
 
 const safeNames = new Set(['ai.run', 'ai.step', 'ai.model', 'ai.tool']);
 const allowedAttributes = new Set([
@@ -37,11 +38,7 @@ const statuses = new Set([
   'cancelled',
   'continued',
 ]);
-const safeCodes = new Set([
-  'AI_INTERNAL',
-  'AI_PROVIDER_UNAVAILABLE',
-  'AI_PROVIDER_REJECTED',
-]);
+const safeCodes = new Set<string>(RunErrorCodeSchema.options);
 
 export interface SafeAiSpan {
   setAttribute(key: string, value: string | number | boolean): void;
