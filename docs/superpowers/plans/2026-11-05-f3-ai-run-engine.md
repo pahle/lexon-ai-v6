@@ -548,6 +548,8 @@ expect(workflowEvents).toEqual(['workflow_dispatch']);
 
 ### Task 17: Verify the complete branch and publish review evidence
 
+**Current candidate (2026-11-08): `612bdb4`, not accepted.** The aggregate correction passes the local suite of 891 tests and build/type/lint/format/tooling gates, but its single scoped final re-review leaves two Important and two Minor findings open; see [public review](../../references/F3-final-review.md). The final-review single-wave limit is reached. Retain the workspace and seek an explicit owner override before a focused follow-up; do not mark Task 17 complete, open a final PR, or treat prior/green CI as resolution. Corrected-head Linux CI and owner-deferred real evidence remain pending. Historical results below remain qualified by their revisions.
+
 **Files:** Update F3-acceptance.md, approved design research notes with actual verified API details, plan checkboxes, and public package/runtime documentation; no new product scope. PR body includes final behavior, validation, paid-run evidence and F17/P8/external-mode limitations.
 
 **Interfaces:** Consumes all tasks; produces reviewable feature branch and PR f3-ai-run-engine→main. Preserve whole-branch review report and unresolved operator/postmerge evidence explicitly. No merge to main.

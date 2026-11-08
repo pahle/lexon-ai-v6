@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "runs": [
+    {
+      "runId": 42371175795,
+      "url": "https://github.com/pahle/lexon-ai-v6/actions/runs/42371175795",
+      "head": "d4cbea01b9f8f0e67fe0a9264c0f63f5499fb3b7",
+      "event": "workflow_dispatch",
+      "visualMode": "compare",
+      "conclusion": "failure",
+      "unitIntegration": {
+        "jobId": 128399443688,
+        "conclusion": "failure",
+        "testsPassed": 868,
+        "testsFailed": 1,
+        "filesPassed": 147,
+        "filesFailed": 1,
+        "failure": {
+          "file": "backend/test/integration/ai-streams.spec.ts",
+          "test": "an authorization paused before Valkey cannot recreate an evicted terminal stream",
+          "expected": "stale",
+          "received": "unavailable"
+        },
+        "subsequentMutationAndToolingSteps": "not run after test failure"
+      },
+      "composeE2e": {
+        "jobId": 128399443890,
+        "conclusion": "success",
+        "testsPassed": 55,
+        "testsFailed": 0,
+        "approvedBaselineImagesVerified": 82,
+        "platformBothThemeAxe": "passed",
+        "fourRuntimeHealth": "passed",
+        "documentWorkerNoEgress": "passed",
+        "valkeyStartupPolicy": "passed"
+      },
+      "streamMemory": {
+        "activeBytes": 5303136,
+        "terminalBytes": 5291568,
+        "slotLimitBytes": 6291456,
+        "environment": "Linux/x64 pinned Testcontainers"
+      },
+      "hop": {
+        "event": "f3_run_step_hop_latency",
+        "environment": {
+          "node": "v24.22.1",
+          "platform": "linux",
+          "arch": "x64",
+          "pollFallbackMs": 1000,
+          "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)"
+        },
+        "coldMs": 15.434437000000116,
+        "medianMs": 5.30579200000011,
+        "p95Ms": 30.661749999999984,
+        "maxMs": 260.4599149999999,
+        "samplesMs": [
+          11.610182000000123, 5.182684000000108, 6.859717000000046,
+          6.6920390000000225, 5.318588000000091, 7.246797999999899,
+          5.426482000000078, 7.290420999999924, 30.661749999999984,
+          260.4599149999999, 4.92535399999997, 5.143145000000004,
+          4.546866000000136, 5.204905999999937, 4.7871000000000095,
+          5.013343999999961, 5.401185999999598, 4.547907000000123,
+          4.825937000000067, 5.29299600000013
+        ]
+      },
+      "limitations": [
+        "This run is not a passing full CI gate.",
+        "Measurements and results apply to the recorded head; later changes require reviewed-head validation.",
+        "No paid model, provider account, or admin API was called."
+      ]
+    }
+  ]
+}
