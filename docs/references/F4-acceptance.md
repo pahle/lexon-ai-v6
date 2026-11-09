@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Task 1 accepted locally after review;
-Tasks 2–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–2 accepted after review;
+Tasks 3–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -78,6 +78,64 @@ its first read contains frame A (carry to actual stream parser work in Task 8),
 and successful logs contain pre-existing Docker/color warnings. Output is not
 described as pristine. Raw logs remain private because test infrastructure can
 contain ephemeral credentials.
+
+### Task 1 — Linux CI follow-up
+
+Linux run [42621679384](https://github.com/pahle/lexon-ai-v6/actions/runs/42621679384)
+at `81897c5` passed unit/integration but failed Compose E2E: the new port
+validator rejected diagnostic port `0`, which the existing isolated Valkey
+policy harness uses for Docker allocation. This was a regression, not a flaky
+policy check.
+
+Correction `e0f4f33` (based on `a67f603`) restores zero-valued API/frontend
+diagnostic ports, excludes them from fixed-port collision checks, and
+canonicalizes fixed numeric ports so `03000` cannot evade a collision with
+`3000`. The public Caddy port remains nonzero. No local environment file was
+read or changed.
+
+- Genuine RED: two focused loader regressions failed before the fix.
+- GREEN: focused loader 9/9; full Node tooling 136/136; real Compose topology
+  and Caddy routing 7/7, including Valkey normal policy and wrong-policy
+  rejection/recovery with both diagnostic ports set to zero.
+- Covering ESLint, Prettier and diff checks passed. The existing color warning
+  remains documented. No redundant full Vitest run was made for this JS-only
+  correction.
+- Main spec/quality checks and fresh scoped re-review accepted the fix with no
+  new breakage. A new Linux CI result is still pending publication.
+
+## Task 2 — shared chat and reasoning contracts
+
+Source `a67f603`, review correction `2c8d68c`. Shared strict schemas cover
+UTF-8 prompt limits, parent-linked full trees and viewed leaves (including root
+edit siblings), effort, safe errors, mutation results, snapshots with replay
+identity and nullable measured duration, search and feedback. V1 engine events
+still decode; new V2 reasoning events exclude generic provider metadata.
+Title/cleanup jobs carry IDs with required UUID tenant context; run-only
+consumers explicitly narrow the expanded envelope union.
+
+Review corrected two missing mutation contracts: creation now accepts the
+first message plus client chat/message/request UUIDs; regeneration has its own
+request UUID, reused on retries and refreshed on deliberate regeneration.
+Root-edit regression was also caught and corrected before the initial review.
+
+- Genuine RED covered byte limits (ASCII and emoji), strict-field refusal,
+  tree/reference validation, V2 events and job envelopes. Initial missing-module
+  fixture failures are excluded from RED evidence. Root siblings and both
+  mutation corrections each had failing regressions before their fixes.
+- Initial implementation: 52 contract tests, 255 backend unit tests and 13
+  queue-routing integration tests passed; contract/backend typechecks and lint,
+  formatting and diff checks passed.
+- After the mutation fix: 53 contract tests and both package typechecks passed,
+  with contract lint and changed-file formatting clean.
+- Main spec/quality review and fresh task/scoped reviews accepted the source
+  after both Important findings were addressed. A nonblocking cursor
+  consistency observation remains for final review.
+
+Contracts do not prove endpoint authorization, raw reasoning classification or
+real snapshot/replay pairing; their later implementation tasks retain those
+tests. `AI_OUTPUT_LIMIT` persistence needs a new migration in Task 4; applied
+migrations were preserved. Shared chat audit types need backend/SQL integration
+before Task 6 writes events. No UI packages or real model calls were added.
 
 ## Pending evidence
 
