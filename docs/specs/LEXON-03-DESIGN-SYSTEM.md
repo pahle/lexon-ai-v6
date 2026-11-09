@@ -64,8 +64,8 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 2.1 |
-| **Date** | 3 November 2026 |
+| **Version** | 2.2 |
+| **Date** | 9 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026/`](../brand/lexon-2026/README.md) (logo, guidelines, tokens, icons) |
 
@@ -190,7 +190,10 @@ Follow the brand guidelines (`docs/brand/lexon-2026/06_GUIDELINES/BRAND-GUIDELIN
   organization switcher, navigation, user menu; page header with sidebar
   trigger, separator, and breadcrumb), main content, optional right panel.
 - **Chat:** assistant-ui defaults. Assistant answers render as full-width
-  reading blocks; citations (F8) render as compact inline markers.
+  reading blocks; citations (F8) render as compact inline markers. Visual
+  target: `docs/design/f4-prototype/`. Workspace navigation: **New chat**
+  (the workspace home), **Chats** (history and search), and a **Recent**
+  group of the six latest chats with a per-chat menu (Rename, Delete).
 - New layouts with no published block use the Tailwind spacing scale.
 - **Visual target:** a slice that changes UI starts from a prototype the
   product owner approves (for F2.1: `docs/design/f2.1-prototype/`). Layout,
@@ -259,6 +262,7 @@ Built from shadcn `base-nova` components; examples in
 
 | Version | Change |
 |---|---|
+| 2.2 | **Added (product owner, F4 prototype approval):** chat visual target and workspace navigation (New chat, Chats, Recent) in §5 |
 | 2.1 | **Added (product owner, prototype approval):** UI patterns (§5.1: fields and errors, password visibility toggle, pending buttons, form alerts, toasts, empty and loading states, destructive confirmation); one Settings dialog (§5.2, shadcn `sidebar-13`) for personal and organization settings; visual-target rule. **Changed:** logo placement (§4): tile mark in the organization switcher instead of a sidebar wordmark; sign-in pages use the compact wordmark at 128px; brand package v1.1 (more space around the L in marks and icons) |
 | 2.0 | **Replaced (product owner, brand package v1.0):** the measured gray palette by the Lexon "Royal Seal" brand (Parchment, Vellum, Mist, Ink, Muted, Seal, Seal Deep, Sage, Midnight, Slate) with a full light/dark mapping onto shadcn variables and measured contrast; status colors re-measured on the new surfaces. **Added:** brand package in `docs/brand/lexon-2026/`; logo usage in the interface (§4); Inter (self-hosted) for the interface and Georgia for headlines (§3). **Changed:** radius token 5px → 10px (shadcn default, matches the brand scale) |
 | 1.3 | **Changed (product owner, after F2 visual review):** component structure, sizes, spacing, and type scale come from shadcn/ui `base-nova` blocks/components and assistant-ui examples as published; this document keeps color tokens, fonts, the radius token, themes, and accessibility. Removed: the 8px-grid and 400ms motion rules, 40px/44px control sizes (target size is WCAG 2.2 AA 2.5.8), Lexon type scale for UI, the single-shadow rule, and the rectangular-only radius rule |
