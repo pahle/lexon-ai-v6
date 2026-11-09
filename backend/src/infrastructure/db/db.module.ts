@@ -7,6 +7,7 @@ import { AiStepRepository } from './ai-step.repository.js';
 import { AiAttemptRepository } from './ai-attempt.repository.js';
 import { AiCapacityRepository } from './ai-capacity.repository.js';
 import { AiOperationRepository } from './ai-operation.repository.js';
+import { UsageEventRepository } from './usage-event.repository.js';
 
 @Module({})
 export class DbModule {
@@ -24,6 +25,7 @@ export class DbModule {
         AiRunRepository,
         AiStepRepository,
         AiAttemptRepository,
+        UsageEventRepository,
         AiOperationRepository,
         {
           provide: AiCapacityRepository,
@@ -43,6 +45,7 @@ export class DbModule {
         AiRunRepository,
         AiStepRepository,
         AiAttemptRepository,
+        UsageEventRepository,
         AiOperationRepository,
         AiCapacityRepository,
       ],

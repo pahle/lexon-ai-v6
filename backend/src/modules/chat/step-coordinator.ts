@@ -105,13 +105,17 @@ export class StepCoordinator {
         run.nextSequence !== job.payload.sequence
       )
         return { kind: 'noop' };
-      const claim = await this.steps.claim(tx, {
+      const recovered = await this.steps.claim(tx, {
         runId: run.id,
         sequence: job.payload.sequence,
         expectedVersion: job.payload.expectedVersion,
         leaseMs: this.leaseMs,
       });
-      if (claim) return { kind: 'claimed', claim };
+      if (recovered) {
+        for (const attemptId of recovered.unknownAttemptIds)
+          await this.usage.markUnknown(tx, attemptId);
+        return { kind: 'claimed', claim: recovered.claim };
+      }
       const step = await this.steps.find(tx, {
         runId: run.id,
         sequence: job.payload.sequence,
@@ -522,14 +526,14 @@ export class StepCoordinator {
                 current.nextSequence !== claim.sequence
               )
                 throw new StaleCommit();
-              if (
-                !(await this.steps.commitExpiredCancellation(
-                  session,
-                  claim,
-                  input.text,
-                ))
-              )
-                throw new StaleCommit();
+              const recovered = await this.steps.commitExpiredCancellation(
+                session,
+                claim,
+                input.text,
+              );
+              if (!recovered.changed) throw new StaleCommit();
+              for (const attemptId of recovered.unknownAttemptIds)
+                await this.usage.markUnknown(session, attemptId);
               if (
                 !(await this.runs.transition(session, {
                   runId: claim.runId,
@@ -682,16 +686,16 @@ export class StepCoordinator {
               run.id,
               step.sequence,
             );
-            if (
-              !(await this.steps.failExpiredCurrent(session, {
-                runId: run.id,
-                sequence: step.sequence,
-                expectedVersion: step.expectedVersion,
-                stepId: step.id,
-                fence: step.fence,
-              }))
-            )
-              throw new RetryFinalization();
+            const recovered = await this.steps.failExpiredCurrent(session, {
+              runId: run.id,
+              sequence: step.sequence,
+              expectedVersion: step.expectedVersion,
+              stepId: step.id,
+              fence: step.fence,
+            });
+            if (!recovered.changed) throw new RetryFinalization();
+            for (const attemptId of recovered.unknownAttemptIds)
+              await this.usage.markUnknown(session, attemptId);
             if (
               !(await this.runs.transition(session, {
                 runId: run.id,

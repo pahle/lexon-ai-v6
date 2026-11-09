@@ -1130,6 +1130,31 @@ export class StepExecutor {
             }
           : {}),
       });
+      const completedOutcome = finalOutcome;
+      if (committed === 'stale' && !unknown && completedOutcome)
+        await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) =>
+            this.options.attempts.settleDetached(tx, attemptId, {
+              outcome:
+                completedOutcome.attemptOutcome === 'succeeded'
+                  ? 'succeeded'
+                  : 'failed',
+              ...(settledUsage?.inputTokens !== undefined
+                ? { inputTokens: settledUsage.inputTokens }
+                : {}),
+              ...(settledUsage?.outputTokens !== undefined
+                ? { outputTokens: settledUsage.outputTokens }
+                : {}),
+              ...(settledUsage?.cachedInputTokens !== undefined
+                ? { cachedInputTokens: settledUsage.cachedInputTokens }
+                : {}),
+              ...(settledUsage?.reasoningOutputTokens !== undefined
+                ? { reasoningOutputTokens: settledUsage.reasoningOutputTokens }
+                : {}),
+              ...(costUsd !== undefined ? { costUsd } : {}),
+            }),
+        );
       let committedRun:
         Awaited<ReturnType<AiRunRepository['find']>> | undefined;
       if (committed === 'committed') {

@@ -237,6 +237,33 @@ export const aiAttempts = app.table(
   ],
 );
 
+export const usageEvents = app.table('usage_events', {
+  attemptId: uuid('attempt_id').primaryKey(),
+  orgId: uuid('org_id').notNull(),
+  actorUserId: uuid('actor_user_id').notNull(),
+  runId: uuid('run_id').notNull(),
+  stepId: uuid('step_id').notNull(),
+  modelId: text('model_id').notNull(),
+  requestedProvider: text('requested_provider').notNull(),
+  observedProvider: text('observed_provider'),
+  profileId: text('profile_id').notNull(),
+  resolvedEffort: text('resolved_effort'),
+  estimatedInputTokens: integer('estimated_input_tokens').notNull(),
+  reservedInputTokens: integer('reserved_input_tokens').notNull(),
+  reservedOutputTokens: integer('reserved_output_tokens').notNull(),
+  estimatorVersion: text('estimator_version').notNull(),
+  instructionVersion: text('instruction_version'),
+  reportedInputTokens: integer('reported_input_tokens'),
+  reportedOutputTokens: integer('reported_output_tokens'),
+  cachedInputTokens: integer('cached_input_tokens'),
+  reasoningOutputTokens: integer('reasoning_output_tokens'),
+  costUsd: numeric('cost_usd'),
+  generationId: text('generation_id'),
+  outcome: text().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+});
+
 export const aiCheckpoints = app.table(
   'ai_checkpoints',
   {

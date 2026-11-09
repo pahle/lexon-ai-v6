@@ -260,6 +260,14 @@ test('public cancel after lease expiry settles the active attempt before termina
         reservedOutputTokens: 100,
       },
     ]);
+    const usageEvents = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{ outcome: string }>(
+        'SELECT outcome FROM app.usage_events WHERE attempt_id=$1',
+        [attemptId],
+      );
+      return result.rows;
+    });
+    expect(usageEvents).toEqual([{ outcome: 'unknown' }]);
     expect(
       await ai.withTenant(0, (tx) =>
         new AiStepRepository().find(tx, { runId: run.id, sequence: 1 }),

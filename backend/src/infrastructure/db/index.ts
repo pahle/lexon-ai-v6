@@ -25,6 +25,11 @@ export {
 } from './run-actor-facts.js';
 export { AiStepRepository } from './ai-step.repository.js';
 export { AiAttemptRepository } from './ai-attempt.repository.js';
+export { UsageEventRepository } from './usage-event.repository.js';
+export type {
+  UsageEventDescriptor,
+  UsageEventSettlement,
+} from './usage-event.repository.js';
 export { AiOperationRepository } from './ai-operation.repository.js';
 export { canonicalJson, jsonbTextBytes } from './canonical-json.js';
 export { hashOperationArgs } from './ai-operation.repository.js';

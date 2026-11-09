@@ -1268,15 +1268,14 @@ test('failed first step terminal finish is recovered from the real registry refe
     await ai.withTenant(0, async (tx) => {
       await ai.expireClaimLeaseInSession(tx, oldClaim);
       await steps.lockTenantClaimGuard(tx);
-      expect(
-        await steps.failExpiredCurrent(tx, {
-          runId: oldClaim.runId,
-          sequence: oldClaim.sequence,
-          expectedVersion: oldClaim.expectedVersion,
-          stepId: oldClaim.stepId,
-          fence: oldClaim.fence,
-        }),
-      ).toBe(true);
+      const recovery = await steps.failExpiredCurrent(tx, {
+        runId: oldClaim.runId,
+        sequence: oldClaim.sequence,
+        expectedVersion: oldClaim.expectedVersion,
+        stepId: oldClaim.stepId,
+        fence: oldClaim.fence,
+      });
+      expect(recovery.changed).toBe(true);
       expect(
         await runs.transition(tx, {
           runId: oldClaim.runId,

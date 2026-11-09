@@ -11,6 +11,7 @@ import type { RunStreams } from '../../infrastructure/queue/index.js';
 import type { RunActor } from '../identity-access/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
+import { AttemptService } from '../usage/index.js';
 
 export interface CancelSignalPublisher {
   publish(runId: string): Promise<void>;
@@ -26,6 +27,7 @@ export class CancelService {
     private readonly authorization: RunAuthorizationService,
     private readonly streams?: RunStreams,
     private readonly signals?: CancelSignalPublisher,
+    private readonly usage = new AttemptService(),
   ) {}
 
   async cancel(actor: RunActor, runId: string): Promise<void> {
@@ -90,14 +92,14 @@ export class CancelService {
             fence: current.fence,
             leaseUntil: current.leaseUntil ?? new Date(0),
           };
-          if (
-            !(await this.steps.commitExpiredCancellation(
-              tx,
-              expiredClaim,
-              partial,
-            ))
-          )
-            return;
+          const recovered = await this.steps.commitExpiredCancellation(
+            tx,
+            expiredClaim,
+            partial,
+          );
+          if (!recovered.changed) return;
+          for (const attemptId of recovered.unknownAttemptIds)
+            await this.usage.markUnknown(tx, attemptId);
           nextSequence = run.nextSequence + 1;
         }
         if (

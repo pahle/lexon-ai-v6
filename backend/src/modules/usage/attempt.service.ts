@@ -17,6 +17,8 @@ import {
   reservationTokens,
 } from './attempt-budget.js';
 import { estimateInputTokens } from './token-estimator.js';
+import { UsageEventsService } from './usage-events.service.js';
+import type { UsageEventSettlement } from '../../infrastructure/db/index.js';
 
 export interface AttemptLimits {
   readonly maxAttemptsPerStep: number;
@@ -51,6 +53,7 @@ export class UsageClaimLostError extends UsagePolicyError {
 
 @Injectable()
 export class AttemptService {
+  private readonly usageEvents = new UsageEventsService();
   private readonly repositories = {
     runs: new AiRunRepository(),
     steps: new AiStepRepository(),
@@ -133,6 +136,27 @@ export class AttemptService {
       settledAt: null,
     };
     await this.repositories.attempts.insert(tx, claim, record);
+    const config =
+      run.resolvedConfig && typeof run.resolvedConfig === 'object'
+        ? (run.resolvedConfig as Record<string, unknown>)
+        : {};
+    const profileSnapshot =
+      config.profileSnapshot && typeof config.profileSnapshot === 'object'
+        ? (config.profileSnapshot as Record<string, unknown>)
+        : {};
+    const effort = config.resolvedEffort ?? profileSnapshot.resolvedEffort;
+    const instructionVersion = config.instructionVersion;
+    await this.usageEvents.reserve(tx, claim, record, {
+      profileId: run.profileId,
+      requestedProvider: modelInput.provider,
+      resolvedEffort:
+        typeof effort === 'string' &&
+        ['none', 'low', 'medium', 'high', 'xhigh', 'max'].includes(effort)
+          ? effort
+          : null,
+      instructionVersion:
+        typeof instructionVersion === 'string' ? instructionVersion : null,
+    });
     return record;
   }
 
@@ -146,8 +170,12 @@ export class AttemptService {
       claim,
       input,
     );
-    if (!updated)
+    try {
+      await this.usageEvents.metadata(tx, input.attemptId, input);
+    } catch (error) {
+      if (updated) throw error;
       throw new UsagePolicyError('AI_INTERNAL', 'AI metadata rejected');
+    }
   }
 
   async settle(
@@ -197,7 +225,35 @@ export class AttemptService {
         throw new UsageClaimLostError();
       throw new UsagePolicyError('AI_INTERNAL', 'AI settlement rejected');
     }
+    await this.usageEvents.settle(tx, input.attemptId, {
+      outcome: input.outcome,
+      ...(input.usage?.inputTokens !== undefined
+        ? { inputTokens: input.usage.inputTokens }
+        : {}),
+      ...(input.usage?.outputTokens !== undefined
+        ? { outputTokens: input.usage.outputTokens }
+        : {}),
+      ...(input.usage?.cachedInputTokens !== undefined
+        ? { cachedInputTokens: input.usage.cachedInputTokens }
+        : {}),
+      ...(input.usage?.reasoningOutputTokens !== undefined
+        ? { reasoningOutputTokens: input.usage.reasoningOutputTokens }
+        : {}),
+      ...(input.costUsd !== undefined ? { costUsd: input.costUsd } : {}),
+    });
     return { budgetExceeded };
+  }
+
+  async markUnknown(tx: TenantSession, attemptId: string): Promise<void> {
+    await this.usageEvents.markUnknown(tx, attemptId);
+  }
+
+  settleDetached(
+    tx: TenantSession,
+    attemptId: string,
+    input: UsageEventSettlement,
+  ): Promise<'recorded' | 'duplicate'> {
+    return this.usageEvents.settle(tx, attemptId, input);
   }
 
   async remaining(tx: TenantSession, runId: string): Promise<number> {

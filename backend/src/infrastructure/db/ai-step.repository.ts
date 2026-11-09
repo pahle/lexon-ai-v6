@@ -395,7 +395,7 @@ export class AiStepRepository {
       stepId: string;
       fence: number;
     },
-  ): Promise<boolean> {
+  ): Promise<{ changed: boolean; unknownAttemptIds: string[] }> {
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
@@ -412,13 +412,16 @@ export class AiStepRepository {
         input.fence,
       ],
     );
-    if (result.rowCount !== 1) return false;
-    await client.query(
+    if (result.rowCount !== 1) return { changed: false, unknownAttemptIds: [] };
+    const attempts = await client.query<{ id: string }>(
       `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
       [scope.orgId, input.stepId, input.fence],
     );
-    return true;
+    return {
+      changed: true,
+      unknownAttemptIds: attempts.rows.map((row) => row.id),
+    };
   }
 
   /** Lock and revalidate the run before the step; locks remain held by the caller's transaction. */
@@ -461,7 +464,7 @@ export class AiStepRepository {
       expectedVersion: number;
       leaseMs: number;
     },
-  ): Promise<StepClaim | null> {
+  ): Promise<{ claim: StepClaim; unknownAttemptIds: string[] } | null> {
     const { client, ctx } = requireSession(tx);
     if (
       !ctx.userId ||
@@ -500,12 +503,14 @@ export class AiStepRepository {
     );
     if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
 
+    const unknownAttemptIds: string[] = [];
     if (current.state === 'claimed') {
-      await client.query(
+      const attempts = await client.query<{ id: string }>(
         `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-         WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+         WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
         [scope.orgId, current.id, current.fence],
       );
+      unknownAttemptIds.push(...attempts.rows.map((row) => row.id));
     }
     const claimed = await client.query<StepRow>(
       `UPDATE app.ai_steps SET state='claimed',fence=fence+1,
@@ -523,14 +528,17 @@ export class AiStepRepository {
     const row = claimed.rows[0];
     if (!row) return null;
     return {
-      runId: row.run_id,
-      orgId: row.org_id,
-      userId: ctx.userId,
-      stepId: row.id,
-      sequence: row.sequence,
-      expectedVersion: row.expected_version,
-      fence: Number(row.fence),
-      leaseUntil: row.lease_until!,
+      claim: {
+        runId: row.run_id,
+        orgId: row.org_id,
+        userId: ctx.userId,
+        stepId: row.id,
+        sequence: row.sequence,
+        expectedVersion: row.expected_version,
+        fence: Number(row.fence),
+        leaseUntil: row.lease_until!,
+      },
+      unknownAttemptIds,
     };
   }
 
@@ -668,9 +676,9 @@ export class AiStepRepository {
     tx: TenantSession,
     claim: StepClaim,
     text: string,
-  ): Promise<boolean> {
+  ): Promise<{ changed: boolean; unknownAttemptIds: string[] }> {
     if (!validClaim(tx, claim) || Buffer.byteLength(text, 'utf8') > 262144)
-      return false;
+      return { changed: false, unknownAttemptIds: [] };
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
@@ -691,13 +699,16 @@ export class AiStepRepository {
         text,
       ],
     );
-    if (result.rowCount !== 1) return false;
-    await client.query(
+    if (result.rowCount !== 1) return { changed: false, unknownAttemptIds: [] };
+    const attempts = await client.query<{ id: string }>(
       `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
       [scope.orgId, claim.stepId, claim.fence],
     );
-    return true;
+    return {
+      changed: true,
+      unknownAttemptIds: attempts.rows.map((row) => row.id),
+    };
   }
 
   async commit(

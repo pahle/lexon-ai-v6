@@ -6,6 +6,7 @@ export {
   type AttemptOutcome,
   type AttemptReserveInput,
 } from './attempt.service.js';
+export { UsageEventsService } from './usage-events.service.js';
 export {
   isOverReservation,
   remainingBudgetTokens,
