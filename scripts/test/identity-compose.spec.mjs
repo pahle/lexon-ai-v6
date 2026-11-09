@@ -146,14 +146,14 @@ test('package E2E filters include their identity projects and credential project
     config.projects.some((project) => project.name === 'visual-review'),
   );
 });
-test('CI includes F1, F2 and F2.1 pushes independent layers and the identity mutation gate', async () => {
+test('CI pushes only on main and retains independent layers and the identity mutation gate', async () => {
   const { readFile } = await import('node:fs/promises');
   const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
-  const normalizedWorkflow = workflow.replace(/\s+/g, ' ');
-  assert.match(
-    normalizedWorkflow,
-    /branches:.*f1-identity-organizations.*f2-app-shell-design-system.*f2\.1-visual-rework/,
-  );
+  const pushSection = workflow
+    .split('push:')[1]
+    ?.split('workflow_dispatch:')[0];
+  assert.ok(pushSection);
+  assert.match(pushSection, /branches:\s+- main/);
   assert.match(workflow, /unit-integration:/);
   assert.match(workflow, /compose-e2e:/);
   assert.match(

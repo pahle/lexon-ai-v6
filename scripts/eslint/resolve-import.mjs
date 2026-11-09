@@ -143,6 +143,8 @@ export function classifyImport({
     target === 'backend/src/infrastructure/db/index.js';
   const authTarget = target?.replace(/\.js$/, '.ts');
   const testSource = source.startsWith('backend/test/');
+  if (target?.startsWith('backend/test/') && !testSource)
+    return deny('test-private');
   if (dbPublic && owner === 'backend' && !inDb && !testSource && !typeOnly) {
     if (
       names.includes('*') ||
@@ -177,7 +179,7 @@ export function classifyImport({
   )
     return deny('auth-runtime-owner');
   if (databasePackage(specifier) && !inDb) return deny('database-owner');
-  if (aiPackage(specifier) && !inAi) {
+  if (aiPackage(specifier) && !inAi && !testSource) {
     const client =
       owner === 'frontend' &&
       specifier === 'ai' &&
@@ -219,17 +221,41 @@ export function classifyImport({
     const testHelper =
       source.startsWith('backend/test/') &&
       target.startsWith('backend/src/infrastructure/db/testing/');
-    if (!publicEntry && !testHelper) return deny('database-public');
+    const evaluationFixture =
+      source === 'backend/src/evaluation/evaluation-harness.ts' &&
+      [
+        'backend/src/infrastructure/db/testing/ai-fixture.ts',
+        'backend/src/infrastructure/db/testing/ai-fixture.js',
+        'backend/src/infrastructure/db/testing/provision.ts',
+        'backend/src/infrastructure/db/testing/provision.js',
+      ].includes(target);
+    const evaluationCoordinator =
+      source === 'backend/src/evaluation/index.ts' &&
+      [
+        'backend/src/infrastructure/db/testing/test-infrastructure.ts',
+        'backend/src/infrastructure/db/testing/test-infrastructure.js',
+      ].includes(target);
+    if (
+      !publicEntry &&
+      !testHelper &&
+      !evaluationFixture &&
+      !evaluationCoordinator
+    )
+      return deny('database-public');
   }
-  if (
-    target?.startsWith('backend/src/infrastructure/ai/') &&
-    !inAi &&
-    ![
+  if (target?.startsWith('backend/src/infrastructure/ai/') && !inAi) {
+    const publicEntry = [
       'backend/src/infrastructure/ai/index.ts',
       'backend/src/infrastructure/ai/index.js',
-    ].includes(target)
-  )
-    return deny('ai-public');
+    ].includes(target);
+    const testOnlyUiConsumer =
+      source.startsWith('backend/test/') &&
+      [
+        'backend/src/infrastructure/ai/testing/ui-message-consumer.ts',
+        'backend/src/infrastructure/ai/testing/ui-message-consumer.js',
+      ].includes(target);
+    if (!publicEntry && !testOnlyUiConsumer) return deny('ai-public');
+  }
   // Infrastructure adapters never depend on domain modules (dependencies point
   // from domain to infrastructure, LEX-ARC-001 §3.1).
   if (

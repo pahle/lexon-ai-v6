@@ -1,0 +1,211 @@
+{
+  "status": "owner-gate-passed",
+  "measuredAt": "2026-11-06",
+  "thresholdMs": 500,
+  "pr25Baseline": {
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "services": "shared Testcontainers PostgreSQL and Valkey; per-file database and Valkey prefix",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim",
+      "modelTimeIncluded": false,
+      "contentionCheck": "Each measured run waited for its durable step handler to finish; zero busy deferrals asserted."
+    },
+    "coldMs": 6.908334000000082,
+    "medianMs": 2.826603999999975,
+    "p95Ms": 4.634999999999991,
+    "maxMs": 14.98395800000003,
+    "samplesMs": [
+      4.634999999999991, 2.8838329999999814, 3.380958000000078,
+      2.7957920000001195, 2.8072500000000673, 2.6819580000001224,
+      2.8459579999998823, 2.915749999999889, 2.8705830000001242,
+      14.98395800000003, 2.911583000000064, 3.0287920000000668,
+      2.4361249999999472, 2.3960839999999735, 2.6001249999999345,
+      2.466625000000022, 3.0229170000000067, 2.4350420000000668,
+      2.3553340000000844, 2.3774580000001606
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false,
+      "reason": "All twenty uncontended warm samples are below the owner stop threshold."
+    },
+    "label": "PR25 corrected uncontended baseline",
+    "source": "Controller-observed corrected post-PR25 hop run at /tmp/lexon-f3-pr25-hop.log"
+  },
+  "currentPostFixValidation": {
+    "label": "current-source post-fix validation",
+    "source": "Task 9 focused integration command after lease-heartbeat and timed-checkpoint changes",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_3593b0c1d81e9d8b62aa69d1_d735cb92eb8baf056a51889a:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured run waited for its durable step handler to finish; zero busy deferrals asserted."
+    },
+    "coldMs": 7.826916000000097,
+    "medianMs": 2.797145999999998,
+    "p95Ms": 3.4767910000000484,
+    "maxMs": 3.692957999999976,
+    "samplesMs": [
+      3.284750000000031, 3.1436250000000427, 2.917707000000048,
+      3.692957999999976, 2.879624999999919, 2.717041999999992,
+      2.6884580000000824, 3.0760830000000396, 2.8784580000000233,
+      2.5966250000000173, 2.697499999999991, 2.313417000000072,
+      2.225332999999978, 2.2372500000000173, 2.690249999999992,
+      2.39220899999998, 2.43745899999999, 3.3022909999999683,
+      3.4767910000000484, 2.8772500000000036
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    },
+    "sourceRevision": "dfa0627d28eee4313cddd6cb5b799925be9e4108"
+  },
+  "historicalContendedSample": {
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "services": "shared Testcontainers PostgreSQL and Valkey; per-file database and Valkey prefix",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim",
+      "modelTimeIncluded": false
+    },
+    "coldMs": 5.229666999999949,
+    "medianMs": 264.67254200000025,
+    "p95Ms": 621.8691670000007,
+    "maxMs": 624.9970000000003,
+    "samplesMs": [
+      5.767791000000102, 556.8961659999999, 10.217083000000002,
+      591.0014590000001, 12.077374999999847, 595.1456659999999,
+      12.384666999999808, 585.9528750000004, 5.013542000000143,
+      516.6834590000003, 12.661625000000186, 606.8204580000001,
+      10.683500000000095, 621.8691670000007, 10.107582999999977,
+      614.1990420000002, 11.820832999999766, 612.7655420000001,
+      9.757916999999907, 624.9970000000003
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": true,
+      "reason": "Representative warm samples exceeded the owner stop threshold. Do not average away the slow samples.",
+      "nextAction": "Stop Task 9 latency work and report for owner review before workarounds or Task 10."
+    },
+    "label": "contended, invalid as gate evidence",
+    "status": "historical-contended-sample",
+    "reason": "Measured samples included same-organization permit backpressure; retained for traceability and excluded from gate evaluation."
+  },
+  "diagnosticNoopOnly": {
+    "gateEvidence": false,
+    "path": "platform.noop outbox -> OutboxDispatcher -> BullMQ QueueConsumer -> JobExecutor",
+    "coldMs": 6.519917000000078,
+    "medianMs": 1.6523124999999368,
+    "p95Ms": 2.035374999999931,
+    "maxMs": 2.8987500000000637,
+    "samplesMs": [
+      2.8987500000000637, 2.020582999999988, 1.9627089999999043,
+      2.035374999999931, 1.8684580000000324, 1.7191660000000866,
+      1.7452919999999494, 1.6163330000000542, 1.8335419999999658,
+      1.6783339999999498, 1.9045830000000024, 1.588292000000024,
+      1.5485410000000002, 1.572791000000052, 1.5917090000000371,
+      1.6262909999999238, 1.5925829999999905, 1.5360000000000582,
+      1.5191670000000386, 1.6183750000000146
+    ]
+  },
+  "finalReviewedSourceValidation": {
+    "label": "final reviewed source, uncontended",
+    "sourceRevision": "d9451f2cfc3d7dc80da0e9bf6a0162f1c50203a0",
+    "source": "Controller run: pnpm exec vitest run --project backend-integration ai-hop-latency.spec --silent=false; exit 0; /tmp/lexon-f3-task9-final-hop.log",
+    "measuredAt": "2026-11-06",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_54e41f8a52a3c698d47a77e8_cc0b21f8f53ad9fedccd2362:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)"
+    },
+    "coldMs": 25.537541000000147,
+    "medianMs": 4.650812499999802,
+    "p95Ms": 6.462541000000101,
+    "maxMs": 6.811374999999998,
+    "samplesMs": [
+      6.811374999999998, 6.462541000000101, 6.010000000000218,
+      6.242250000000013, 5.944042000000081, 4.867957999999817,
+      4.999833000000081, 5.9212089999998625, 5.792625000000044,
+      4.153541000000132, 4.426042000000052, 4.237292000000252,
+      3.960125000000062, 4.39837499999976, 4.17083300000013, 6.051332999999886,
+      4.151499999999942, 4.113917000000129, 4.433666999999787, 3.91274999999996
+    ],
+    "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted.",
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    }
+  },
+  "task17FinalSourceLocalValidation": {
+    "label": "Task 17 resumed dirty source, uncontended local measurement",
+    "sourceRevision": "b51d373 (Task 17 working-tree changes present; local commit follows gates)",
+    "source": "pnpm exec vitest run --project backend-integration ai-hop-latency.spec --silent=false --reporter=verbose; exit 0; measured 2026-11-07",
+    "measuredAt": "2026-11-07",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_340e3ece6910173283103ca6_3186d1d69225a9789e5dfd6f:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted."
+    },
+    "coldMs": 6.0834579999999505,
+    "medianMs": 2.3832499999999754,
+    "p95Ms": 2.9496669999999767,
+    "maxMs": 3.552500000000009,
+    "samplesMs": [
+      3.552500000000009, 2.9496669999999767, 2.9210420000000568,
+      2.776083000000085, 2.657791000000088, 2.6991250000000946,
+      2.705832999999984, 2.7627500000000964, 2.649833999999828,
+      2.256417000000056, 2.3928339999999935, 2.1300840000001244,
+      2.3736659999999574, 2.3592499999999745, 2.113708000000088,
+      2.2382920000000013, 2.084999999999809, 2.197791000000052,
+      1.99287500000014, 2.0488330000000587
+    ],
+    "gate": {
+      "thresholdMs": 500,
+      "triggered": false
+    }
+  },
+  "f3FinalFixWaveValidation": {
+    "label": "F3 aggregate final-fix working-tree validation, uncontended local measurement",
+    "sourceRevision": "d4cbea0 (aggregate final-fix working tree; local commit pending gates)",
+    "source": "pnpm --filter @lexon/backend exec vitest run --config ../vitest.config.ts --project backend-integration --silent=false test/integration/ai-hop-latency.spec.ts; exit 0; /tmp/lexon-f3-finalfix-hop.log",
+    "measuredAt": "2026-11-08",
+    "environment": {
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "valkeyPrefix": "lexon_1650c2325e73d5b3f2ee9ffe_85c970eed0afea90e7b97dd2:run-hop",
+      "pollFallbackMs": 1000,
+      "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)",
+      "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted."
+    },
+    "coldMs": 7.991709000000014,
+    "medianMs": 2.5417084999999133,
+    "p95Ms": 4.13416600000005,
+    "maxMs": 4.250291999999945,
+    "samplesMs": [
+      4.250291000000014, 3.6936249999999973, 4.13416600000005,
+      3.2835000000000036, 2.801208000000088, 2.79362500000002,
+      2.5545419999998558, 2.558749999999918, 2.503500000000031,
+      2.6026670000001104, 2.465125000000171, 2.528874999999971,
+      2.374083000000155, 2.3554169999999885, 2.603582999999844,
+      2.451958000000104, 2.3508750000000873, 2.380625000000009,
+      2.1887919999999212, 2.3198329999997895
+    ],
+    "contentionCheck": "Each measured handler finished before the next run; zero busy deferrals asserted.",
+    "gate": { "thresholdMs": 500, "triggered": false }
+  }
+}

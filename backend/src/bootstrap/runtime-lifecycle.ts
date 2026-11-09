@@ -1,10 +1,15 @@
 import type { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import type { RuntimeConfig } from '../config/runtime-config.js';
-import { TenantDatabase } from '../infrastructure/db/index.js';
+import {
+  AiCapacityRepository,
+  TenantDatabase,
+} from '../infrastructure/db/index.js';
 import {
   QueueProducer,
   QueueConsumer,
+  CancelSignals,
   checkValkeyPolicy,
+  RunStreams,
 } from '../infrastructure/queue/index.js';
 import { StoragePort } from '../infrastructure/storage/index.js';
 import {
@@ -12,7 +17,8 @@ import {
   HealthWriter,
   type HealthSnapshot,
 } from '../infrastructure/telemetry/index.js';
-import { OutboxDispatcher } from '../modules/platform/index.js';
+import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
+import { StepExecutor } from '../modules/chat/index.js';
 import type { PinoLogger } from 'nestjs-pino';
 export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   #closed = false;
@@ -28,13 +34,51 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly storage?: StoragePort,
     private readonly consumer?: QueueConsumer,
     private readonly dispatcher?: OutboxDispatcher,
+    private readonly capacity?: AiCapacityRepository,
+    private readonly stepExecutor?: StepExecutor,
+    private readonly runStreams?: RunStreams,
+    private readonly cancelSignals?: CancelSignals,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
-      const policy = await checkValkeyPolicy(this.config.valkey);
+      const policy = await checkValkeyPolicy(
+        this.config.valkey,
+        undefined,
+        this.config.runtime === 'api' || this.config.runtime === 'ai-worker'
+          ? this.config.ai.streamsValkeyMaxMemoryBytes
+          : undefined,
+      );
       if (Object.values(policy).some((status) => status !== 'up'))
         throw new Error('Valkey startup policy unavailable');
-      await this.consumer?.start(async () => undefined);
+      if (
+        this.config.runtime === 'api' ||
+        this.config.runtime === 'ai-worker'
+      ) {
+        if (!this.capacity)
+          throw new Error('AI capacity repository unavailable');
+        await this.capacity.configure(this.config.ai);
+      }
+      if (this.consumer) {
+        const registry = new JobRegistry();
+        registry.register('platform.noop.v1', {
+          strategy: 'short-transaction',
+          handle: async () => undefined,
+        });
+        if (this.stepExecutor) {
+          for (const type of [
+            'run.start.v1',
+            'run.advance.v1',
+            'run.resume.v1',
+          ])
+            registry.register(type, {
+              strategy: 'durable-step',
+              handle: (job, context) =>
+                this.stepExecutor!.execute(job, context),
+              exhausted: (job) => this.stepExecutor!.exhausted(job),
+            });
+        }
+        await this.consumer.start(registry);
+      }
       if (this.dispatcher)
         this.#dispatchTask = this.dispatcher.start(this.#abort.signal);
       if (this.config.runtime !== 'api') {
@@ -82,6 +126,8 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     await this.#writer?.stop();
     await this.#dispatchTask;
     await this.consumer?.close();
+    await this.cancelSignals?.close();
+    await this.runStreams?.close();
     await this.producer?.close();
     await this.storage?.close();
     await this.db.close();

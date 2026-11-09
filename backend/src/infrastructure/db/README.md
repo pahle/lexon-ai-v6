@@ -23,8 +23,10 @@ Jobs use at-least-once delivery with effectively-once PostgreSQL effects.
 receipt with `ON CONFLICT DO NOTHING RETURNING` before invoking the handler in
 the same tenant transaction. A concurrent delivery waits for that transaction:
 commit skips the handler; rollback allows the waiting delivery to execute.
-Handlers must perform database effects through their supplied `TenantSession`.
-This guarantee does not cover external API effects.
+Short-transaction handlers must perform database effects through their supplied
+`TenantSession`. Durable-step handlers use their own short tenant transactions
+around claims and committed effects; this receipt guarantee does not cover them
+or external API effects.
 
 `JOB_RECEIPT_RETENTION_SECONDS` defaults to 2592000 (30 days) and must be a
 positive integer. It is retention metadata only: F0 never deletes receipts.

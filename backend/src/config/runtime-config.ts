@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { RuntimeConfigurationError } from './configuration-error.js';
 import { readAuthConfig, type AuthConfig } from './auth-config.js';
+import { readAiConfig, type AiConfig } from './ai-config.js';
 export { RuntimeConfigurationError } from './configuration-error.js';
 export type RuntimeName =
   'api' | 'ai-worker' | 'document-worker' | 'dispatcher';
@@ -135,6 +136,7 @@ export type RuntimeConfig =
       storage: ReturnType<typeof readStorage>;
       port: number;
       auth: AuthConfig;
+      ai: AiConfig;
     })
   | (CommonConfig & {
       runtime: 'document-worker';
@@ -144,7 +146,7 @@ export type RuntimeConfig =
       runtime: 'dispatcher';
       dispatcher: ReturnType<typeof readDispatcher>;
     })
-  | (CommonConfig & { runtime: 'ai-worker' });
+  | (CommonConfig & { runtime: 'ai-worker'; ai: AiConfig });
 export type ApiConfig = Extract<RuntimeConfig, { runtime: 'api' }>;
 export function loadRuntimeConfig<R extends RuntimeName>(
   runtime: R,
@@ -163,12 +165,13 @@ export function loadRuntimeConfig(
         storage: readStorage(env),
         port: read(apiSchema, env).PORT,
         auth: readAuthConfig(env),
+        ai: readAiConfig(env),
       };
     case 'document-worker':
       return { ...config, runtime, storage: readStorage(env) };
     case 'dispatcher':
       return { ...config, runtime, dispatcher: readDispatcher(env) };
     case 'ai-worker':
-      return { ...config, runtime };
+      return { ...config, runtime, ai: readAiConfig(env) };
   }
 }

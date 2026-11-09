@@ -22,6 +22,8 @@ export async function installEffectFixture(services: Services): Promise<void> {
 }
 export function createEffectHandler(): TenantJobHandler {
   return async (tx, job) => {
+    if (job.type !== 'platform.noop.v1')
+      throw new Error('Effect fixture received unsupported job');
     await requireSession(tx).client.query(
       `INSERT INTO app.job_effect_fixture VALUES ($1,NULLIF(current_setting('app.org_id',true),'')::uuid,NULLIF(current_setting('app.user_id',true),'')::uuid,$2)`,
       [job.outboxId, job.payload.probeId],

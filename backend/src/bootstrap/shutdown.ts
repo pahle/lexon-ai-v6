@@ -6,7 +6,10 @@ import {
   type RuntimeName,
 } from '../config/runtime-config.js';
 import { createLoggingOptions } from '../infrastructure/telemetry/index.js';
-export function installShutdown(app: INestApplicationContext): void {
+export function installShutdown(
+  app: INestApplicationContext,
+  cleanup: () => Promise<void> = async () => undefined,
+): void {
   let stopping = false;
   const shutdown = () => {
     if (stopping) return;
@@ -15,6 +18,7 @@ export function installShutdown(app: INestApplicationContext): void {
     deadline.unref();
     void app
       .close()
+      .then(cleanup)
       .then(() => {
         clearTimeout(deadline);
         process.off('SIGINT', shutdown);

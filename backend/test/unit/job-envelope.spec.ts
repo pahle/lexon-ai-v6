@@ -51,3 +51,29 @@ it('rejects every invalid ID/type/payload/context without echoing values', () =>
   for (const value of invalid)
     expect(() => parseJobEnvelope(value)).toThrow(/^Invalid job envelope$/);
 });
+
+it('validates versioned run step envelopes with K3 tenant context only', () => {
+  const step = parseJobEnvelope({
+    outboxId: 'aaaaaaaa-aaaa-4aaa-8aaa-000000000003',
+    type: 'run.advance.v1',
+    ctx: { orgId: valid.ctx.orgId, userId: valid.ctx.userId },
+    payload: {
+      runId: 'aaaaaaaa-aaaa-4aaa-8aaa-000000000004',
+      sequence: 2,
+      expectedVersion: 3,
+    },
+  });
+  expect(step.type).toBe('run.advance.v1');
+  expect(() =>
+    parseJobEnvelope({
+      ...step,
+      payload: { ...step.payload, modelId: 'caller-selected' },
+    }),
+  ).toThrow('Invalid job envelope');
+  expect(() =>
+    parseJobEnvelope({
+      ...step,
+      payload: { ...step.payload, sequence: Number.MAX_SAFE_INTEGER + 1 },
+    }),
+  ).toThrow('Invalid job envelope');
+});

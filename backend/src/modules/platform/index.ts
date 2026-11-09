@@ -3,6 +3,7 @@ export {
   type JobEnvelope,
 } from '../../infrastructure/db/index.js';
 export { JobExecutor, type TenantJobHandler } from './job-executor.js';
+export { JobRegistry } from './job-registry.js';
 export {
   OutboxDispatcher,
   type DispatcherOptions,

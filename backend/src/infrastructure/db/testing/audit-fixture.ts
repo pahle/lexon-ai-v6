@@ -42,9 +42,11 @@ export function createAuditInspector(options: {
       occurredAt: string;
       outcome: string;
       metadata: unknown;
+      orgId?: string;
+      actorUserId?: string;
     }) {
       await app.query(
-        `INSERT INTO ops.audit_events (event_id,version,type,occurred_at,outcome,metadata) VALUES ($1,$2,$3,$4,$5,$6)`,
+        `INSERT INTO ops.audit_events (event_id,version,type,occurred_at,outcome,metadata,org_id,actor_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           event.eventId,
           event.version,
@@ -52,6 +54,8 @@ export function createAuditInspector(options: {
           event.occurredAt,
           event.outcome,
           JSON.stringify(event.metadata),
+          event.orgId ?? null,
+          event.actorUserId ?? null,
         ],
       );
     },

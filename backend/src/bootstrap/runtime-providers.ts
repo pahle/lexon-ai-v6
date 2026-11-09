@@ -1,19 +1,23 @@
-import type { Provider } from '@nestjs/common';
+import type { InjectionToken, Provider } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import type { RuntimeConfig } from '../config/runtime-config.js';
 import {
   TenantDatabase,
   OutboxRepository,
   DispatcherSession,
+  AiCapacityRepository,
 } from '../infrastructure/db/index.js';
 import {
   QueueProducer,
   QueueConsumer,
+  CancelSignals,
   checkValkeyPolicy,
 } from '../infrastructure/queue/index.js';
 import { StoragePort } from '../infrastructure/storage/index.js';
 import { HealthIndicators } from '../infrastructure/telemetry/index.js';
 import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
+import { StepExecutor } from '../modules/chat/index.js';
+import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
 export function runtimeProviders(
   config: RuntimeConfig,
@@ -33,7 +37,14 @@ export function runtimeProviders(
           {
             database: db,
             ...(auth ? { auth } : {}),
-            valkey: () => checkValkeyPolicy(config.valkey),
+            valkey: () =>
+              checkValkeyPolicy(
+                config.valkey,
+                undefined,
+                config.runtime === 'api' || config.runtime === 'ai-worker'
+                  ? config.ai.streamsValkeyMaxMemoryBytes
+                  : undefined,
+              ),
             ...(storage ? { storage } : {}),
           },
           config.health.dependencyTimeoutMs,
@@ -46,7 +57,11 @@ export function runtimeProviders(
       inject: [TenantDatabase],
       useFactory: (db: TenantDatabase) =>
         new QueueConsumer(
-          { url: config.valkey.queueUrl, prefix: config.queuePrefix },
+          {
+            url: config.valkey.queueUrl,
+            limiterUrl: config.valkey.limiterUrl,
+            prefix: config.queuePrefix,
+          },
           new JobExecutor(db),
         ),
     });
@@ -62,14 +77,16 @@ export function runtimeProviders(
           config.dispatcher,
         ),
     });
-  const tokens =
+  const capacity = config.runtime === 'api' || config.runtime === 'ai-worker';
+  const tokens: InjectionToken[] =
     config.runtime === 'api'
       ? [QueueProducer, StoragePort]
       : config.runtime === 'document-worker'
         ? [StoragePort]
         : config.runtime === 'ai-worker'
-          ? [QueueConsumer]
+          ? [QueueConsumer, StepExecutor, RunStreams, CancelSignals]
           : [QueueProducer, OutboxDispatcher];
+  if (capacity) tokens.push(AiCapacityRepository);
   providers.push({
     provide: RuntimeLifecycle,
     inject: [TenantDatabase, HealthIndicators, PinoLogger, ...tokens],
@@ -78,7 +95,14 @@ export function runtimeProviders(
       indicators: HealthIndicators,
       logger: PinoLogger,
       ...dependencies: (
-        QueueProducer | QueueConsumer | StoragePort | OutboxDispatcher
+        | QueueProducer
+        | QueueConsumer
+        | StoragePort
+        | OutboxDispatcher
+        | AiCapacityRepository
+        | StepExecutor
+        | RunStreams
+        | CancelSignals
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -95,6 +119,14 @@ export function runtimeProviders(
         ),
         dependencies.find(
           (x): x is OutboxDispatcher => x instanceof OutboxDispatcher,
+        ),
+        dependencies.find(
+          (x): x is AiCapacityRepository => x instanceof AiCapacityRepository,
+        ),
+        dependencies.find((x): x is StepExecutor => x instanceof StepExecutor),
+        dependencies.find((x): x is RunStreams => x instanceof RunStreams),
+        dependencies.find(
+          (x): x is CancelSignals => x instanceof CancelSignals,
         ),
       ),
   });

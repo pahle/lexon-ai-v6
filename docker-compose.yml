@@ -99,11 +99,11 @@ services:
       [
         sh,
         -c,
-        'exec valkey-server --requirepass "$$VALKEY_PASSWORD" --maxmemory 96mb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec',
+        'exec valkey-server --requirepass "$$VALKEY_PASSWORD" --maxmemory 768mb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec',
       ]
     volumes: [valkey-data:/data]
     networks: [core]
-    mem_limit: 128m
+    mem_limit: 1g
     cpus: 0.25
     healthcheck:
       test:

@@ -22,14 +22,16 @@ const connect = (url: string): PolicyClient => {
 export async function checkValkeyPolicy(
   targets: Targets,
   factory: (url: string) => PolicyClient = connect,
+  streamsMaxMemoryBytes?: number,
 ): Promise<{
   queue: 'up' | 'down';
   streams: 'up' | 'down';
   limiter: 'up' | 'down';
 }> {
   const results = new Map<string, Promise<'up' | 'down'>>();
-  const check = (url: string) => {
-    let pending = results.get(url);
+  const check = (url: string, streamsTarget = false) => {
+    const key = `${url}|${streamsTarget && streamsMaxMemoryBytes !== undefined}`;
+    let pending = results.get(key);
     if (!pending) {
       pending = (async () => {
         let client: PolicyClient | undefined;
@@ -41,6 +43,9 @@ export async function checkValkeyPolicy(
             'maxmemory-policy',
             'appendonly',
             'appendfsync',
+            ...(streamsTarget && streamsMaxMemoryBytes !== undefined
+              ? ['maxmemory']
+              : []),
           );
           if (!Array.isArray(values)) return 'down';
           const settings = new Map<string, string>();
@@ -48,7 +53,12 @@ export async function checkValkeyPolicy(
             settings.set(String(values[i]), String(values[i + 1]));
           return settings.get('maxmemory-policy') === 'noeviction' &&
             settings.get('appendonly') === 'yes' &&
-            settings.get('appendfsync') === 'everysec'
+            settings.get('appendfsync') === 'everysec' &&
+            (!streamsTarget ||
+              streamsMaxMemoryBytes === undefined ||
+              (Number.isSafeInteger(streamsMaxMemoryBytes) &&
+                streamsMaxMemoryBytes > 0 &&
+                settings.get('maxmemory') === String(streamsMaxMemoryBytes)))
             ? 'up'
             : 'down';
         } catch {
@@ -57,13 +67,13 @@ export async function checkValkeyPolicy(
           client?.disconnect();
         }
       })();
-      results.set(url, pending);
+      results.set(key, pending);
     }
     return pending;
   };
   const [queue, streams, limiter] = await Promise.all([
     check(targets.queueUrl),
-    check(targets.streamsUrl),
+    check(targets.streamsUrl, true),
     check(targets.limiterUrl),
   ]);
   return { queue, streams, limiter };

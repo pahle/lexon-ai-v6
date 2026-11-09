@@ -300,6 +300,24 @@
     "rule": null
   },
   {
+    "name": "evaluation composition database fixture allowed",
+    "importer": "backend/src/evaluation/evaluation-harness.ts",
+    "code": "import '../infrastructure/db/testing/ai-fixture.js';",
+    "rule": null
+  },
+  {
+    "name": "evaluation entry infrastructure coordinator allowed",
+    "importer": "backend/src/evaluation/index.ts",
+    "code": "import('../infrastructure/db/testing/test-infrastructure.js');",
+    "rule": null
+  },
+  {
+    "name": "other domain cannot import evaluation database fixture",
+    "importer": "backend/src/modules/platform/jobs.ts",
+    "code": "import '../../infrastructure/db/testing/ai-fixture.js';",
+    "rule": "database-public"
+  },
+  {
     "name": "domain raw provider wrapper bypass",
     "importer": "backend/src/modules/platform/engine.ts",
     "code": "import '../../infrastructure/ai/openrouter-provider.js';",
@@ -312,6 +330,18 @@
     "rule": null
   },
   {
+    "name": "backend test can use the pinned SDK stream consumer adapter",
+    "importer": "backend/test/integration/ai-execution.spec.ts",
+    "code": "import '../../src/infrastructure/ai/testing/ui-message-consumer.js';",
+    "rule": null
+  },
+  {
+    "name": "production cannot import the test-only SDK stream consumer adapter",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import '../../infrastructure/ai/testing/ui-message-consumer.js';",
+    "rule": "ai-public"
+  },
+  {
     "name": "infrastructure imports domain module",
     "importer": "backend/src/infrastructure/queue/queue-consumer.ts",
     "code": "import '../../modules/platform/index.js';",
@@ -321,6 +351,12 @@
     "name": "infrastructure imports domain module internals",
     "importer": "backend/src/infrastructure/db/outbox.repository.ts",
     "code": "import '../../modules/platform/job-envelope.js';",
+    "rule": "infrastructure-domain"
+  },
+  {
+    "name": "infrastructure cannot import run authorization policy",
+    "importer": "backend/src/infrastructure/db/run-actor-facts.ts",
+    "code": "import '../../modules/identity-access/run-capability-policy.js';",
     "rule": "infrastructure-domain"
   },
   {
@@ -460,5 +496,35 @@
     "importer": "backend/src/wrapper.ts",
     "code": "export * from './infrastructure/db/index.js';",
     "rule": "database-named"
+  },
+  {
+    "name": "chat cannot import AI SDK telemetry integration",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import { OpenTelemetry } from '@ai-sdk/otel';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "generic telemetry cannot import AI SDK integration",
+    "importer": "backend/src/infrastructure/telemetry/ai-telemetry.ts",
+    "code": "import { registerTelemetry } from 'ai';",
+    "rule": "ai-owner"
+  },
+  {
+    "name": "AI adapter owns AI SDK telemetry integration",
+    "importer": "backend/src/infrastructure/ai/ai-telemetry.ts",
+    "code": "import { OpenTelemetry } from '@ai-sdk/otel';",
+    "rule": null
+  },
+  {
+    "name": "AI telemetry canary tests observe actual SDK spans",
+    "importer": "backend/test/unit/ai-telemetry.spec.ts",
+    "code": "import { registerTelemetry } from 'ai';",
+    "rule": null
+  },
+  {
+    "name": "chat cannot import an AI SDK test bridge",
+    "importer": "backend/src/modules/chat/step-executor.ts",
+    "code": "import {runCanary} from '../../../test/unit/ai-telemetry.spec.js';",
+    "rule": "test-private"
   }
 ]

@@ -77,6 +77,54 @@ test('receipt and effect commit together; duplicates never invoke the handler an
   }
 });
 
+test('caller-session execution rolls back a receipt when later step commit fails', async ({
+  services,
+}) => {
+  const db = database(services.appUrl);
+  const executor = new JobExecutor(db);
+  const input = job();
+  try {
+    await expect(
+      db.withTenant(ctx, async (tx) => {
+        await executor.executeWithin(tx, input, async (inner, current) => {
+          await createEffectHandler()(inner, current);
+        });
+        throw new Error('stale step');
+      }),
+    ).rejects.toThrow('stale step');
+    expect(await inspectJob(services, input.outboxId)).toMatchObject({
+      effects: 0,
+      receipts: 0,
+    });
+    expect(await executor.execute(input, createEffectHandler())).toBe(
+      'processed',
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test('caller-session execution rejects a job whose tenant differs from the live session', async ({
+  services,
+}) => {
+  const db = database(services.appUrl);
+  const executor = new JobExecutor(db);
+  const input = job();
+  try {
+    await expect(
+      db.withTenant({ orgId: randomUUID(), userId: randomUUID() }, (tx) =>
+        executor.executeWithin(tx, input, async () => undefined),
+      ),
+    ).rejects.toThrow('Tenant session context mismatch');
+    expect(await inspectJob(services, input.outboxId)).toMatchObject({
+      effects: 0,
+      receipts: 0,
+    });
+  } finally {
+    await db.close();
+  }
+});
+
 test('throwing handler rolls back receipt and effect, permitting a later attempt', async ({
   services,
 }) => {

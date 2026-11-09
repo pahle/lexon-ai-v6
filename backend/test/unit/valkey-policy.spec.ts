@@ -58,3 +58,28 @@ it('returns down on unavailable connections', async () => {
     limiter: 'down',
   });
 });
+
+it.each(['0', '734003200', '805306367'])(
+  'rejects Streams maxmemory %s against the declared 768 MiB target',
+  async (maxmemory) => {
+    const factory = (url: string) => ({
+      ping: async () => 'PONG',
+      config: async (_command: 'GET', ...keys: string[]) => {
+        const settings = new Map<string, string>();
+        for (let i = 0; i < valid.length; i += 2)
+          settings.set(valid[i]!, valid[i + 1]!);
+        settings.set(
+          'maxmemory',
+          url === urls.streamsUrl ? maxmemory : '805306368',
+        );
+        return keys.flatMap((key) => [key, settings.get(key)!]);
+      },
+      disconnect: vi.fn(),
+    });
+    expect(await checkValkeyPolicy(urls, factory, 805_306_368)).toMatchObject({
+      queue: 'up',
+      streams: 'down',
+      limiter: 'up',
+    });
+  },
+);

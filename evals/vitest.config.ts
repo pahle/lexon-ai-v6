@@ -1,4 +1,8 @@
 import { defineProject } from 'vitest/config';
 export default defineProject({
-  test: { name: 'evals', include: ['test/**/*.spec.ts'] },
+  test: {
+    name: 'evals',
+    include: ['test/**/*.spec.ts'],
+    globalSetup: ['./global-setup.ts'],
+  },
 });

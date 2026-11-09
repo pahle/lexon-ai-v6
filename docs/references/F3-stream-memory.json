@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-05",
+  "image": "valkey/valkey:9.0.7-alpine3.24@sha256:2d04268dfa26ab31cfa3fdc538866e76438b2d00e41db41b8cb86d780ac5a416",
+  "architecture": "aarch64",
+  "measurements": [
+    {
+      "date": "2026-11-06",
+      "entries": 1024,
+      "serializedEventBytes": 4096,
+      "slotMemoryBytes": 5302616,
+      "slotMemoryBudgetBytes": 6291456,
+      "platform": "linux/aarch64",
+      "evidence": "backend/test/integration/ai-stream-memory.spec.ts",
+      "ci": false,
+      "state": "active",
+      "payloadMix": "1024 varying noncompressible 4096-byte events",
+      "sharedRegistryState": "24 active + 6 terminal; 30 context entries",
+      "includes": [
+        "stream",
+        "guard",
+        "active registry",
+        "terminal registry",
+        "terminal membership registry",
+        "epoch",
+        "context registry"
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "entries": 1024,
+      "maxEventBytes": 4096,
+      "maximumSizeEntries": 1023,
+      "finishEvents": 1,
+      "slotMemoryBytes": 5301648,
+      "slotMemoryBudgetBytes": 6291456,
+      "platform": "linux/aarch64",
+      "evidence": "backend/test/integration/ai-stream-memory.spec.ts",
+      "ci": false,
+      "state": "terminal",
+      "payloadMix": "1023 varying noncompressible 4096-byte events + one small finish event",
+      "sharedRegistryState": "24 active + 6 terminal; 30 context entries",
+      "includes": [
+        "stream",
+        "guard",
+        "active registry",
+        "terminal registry",
+        "terminal membership registry",
+        "epoch",
+        "context registry"
+      ]
+    },
+    {
+      "entries": 10000,
+      "serializedEventBytes": 1024,
+      "streamMemoryBytes": 12038488
+    },
+    {
+      "entries": 10000,
+      "serializedEventBytes": 4096,
+      "streamMemoryBytes": 51460568
+    },
+    {
+      "entries": 1024,
+      "serializedEventBytes": 1024,
+      "streamMemoryBytes": 1235520
+    },
+    {
+      "entries": 1024,
+      "serializedEventBytes": 4096,
+      "streamMemoryBytes": 5269728
+    },
+    {
+      "date": "2026-11-08",
+      "entries": 1024,
+      "maxEventBytes": 4096,
+      "maximumSizeEntries": 1023,
+      "finishEvents": 1,
+      "slotMemoryBytes": 5303320,
+      "slotMemoryBudgetBytes": 6291456,
+      "platform": "darwin/arm64",
+      "evidence": "backend/test/integration/ai-stream-memory.spec.ts",
+      "ci": false,
+      "state": "active",
+      "payloadMix": "1023 varying noncompressible 4096-byte events + one small finish event",
+      "sharedRegistryState": "24 active + 6 terminal; 30 context entries",
+      "includes": [
+        "stream",
+        "guard",
+        "active registry",
+        "terminal registry",
+        "terminal membership registry",
+        "epoch",
+        "context registry"
+      ],
+      "keyMemoryBytes": [5293992, 480, 1392, 1792, 1024, 96, 4544],
+      "sourceRevision": "d4cbea0 (aggregate final-fix working tree; local commit pending gates)"
+    },
+    {
+      "date": "2026-11-08",
+      "entries": 1024,
+      "maxEventBytes": 4096,
+      "maximumSizeEntries": 1023,
+      "finishEvents": 1,
+      "slotMemoryBytes": 5286448,
+      "slotMemoryBudgetBytes": 6291456,
+      "platform": "darwin/arm64",
+      "evidence": "backend/test/integration/ai-stream-memory.spec.ts",
+      "ci": false,
+      "state": "terminal",
+      "payloadMix": "1023 varying noncompressible 4096-byte events + one small finish event",
+      "sharedRegistryState": "24 active + 6 terminal; 30 context entries",
+      "includes": [
+        "stream",
+        "guard",
+        "active registry",
+        "terminal registry",
+        "terminal membership registry",
+        "epoch",
+        "context registry"
+      ],
+      "keyMemoryBytes": [5277504, 216, 1392, 1672, 1024, 96, 4544],
+      "sourceRevision": "d4cbea0 (aggregate final-fix working tree; local commit pending gates)"
+    }
+  ],
+  "method": {
+    "network": "none",
+    "operation": "XADD exact MAXLEN, one event field",
+    "measurement": "MEMORY USAGE key SAMPLES 0",
+    "event": "versioned text-delta JSON with UUID envelope padded to serializedEventBytes",
+    "consumerGroups": false,
+    "containerRemoved": true
+  }
+}

@@ -41,6 +41,8 @@ test('rendered Compose shares image pins, preserves topology and scopes secrets'
     const services = config.services;
     for (const key of ['postgres', 'valkey', 'seaweedfs'])
       assert.equal(services[key].image, images[key]);
+    assert.equal(services.valkey.mem_limit, String(1024 * 1024 * 1024));
+    assert.match(services.valkey.command.join(' '), /--maxmemory 768mb/);
     assert.notEqual(config.networks.edge.internal, true);
     assert.equal(config.networks.core.internal, true);
     assert.equal(config.networks.sandbox.internal, true);

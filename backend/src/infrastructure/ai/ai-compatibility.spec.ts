@@ -57,7 +57,7 @@ const entry = {
   zeroDataRetention: true,
   reviewedAt: '2026-10-31T00:00:00Z',
 };
-it('keeps F0 empty and accepts a reviewed model-provider-region entry', async () => {
+it('loads the F3 reviewed dev allowlist and accepts a second reviewed provider route', async () => {
   const config = ModelAllowlistSchema.parse(
     JSON.parse(
       await readFile(
@@ -66,7 +66,18 @@ it('keeps F0 empty and accepts a reviewed model-provider-region entry', async ()
       ),
     ),
   );
-  expect(config).toEqual({ version: 1, models: [] });
+  expect(config).toMatchObject({
+    version: 1,
+    models: [
+      {
+        id: 'openai/gpt-6-luna',
+        provider: 'azure/us',
+        region: 'us',
+        zeroDataRetention: true,
+      },
+    ],
+  });
+  expect(config.models[0]!.reviewedAt).toBe('2026-11-05T00:00:00.000Z');
   expect(
     ModelAllowlistSchema.safeParse({ version: 1, models: [entry] }).success,
   ).toBe(true);
