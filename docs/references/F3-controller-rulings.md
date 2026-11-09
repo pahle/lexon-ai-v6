@@ -109,3 +109,7 @@ These decisions are listed in the order they were made. Each records the cost of
 53. Stale transactional-tool commit telemetry is a real Minor residual. Keep it open for the focused follow-up and derive tool-path span status from the actual commit result. Cost if wrong: Telemetry consumer expectations and a deterministic stale-commit span test need adjustment; durable effect fencing already remains intact.
 
 54. The timeout test settlement and terminal-member checks are real Minor residuals. Keep the connection usable, await released work deterministically and inspect the actual run-associated terminal member rather than a plain run ID. Cost if wrong: Test synchronization needs correction; accepting the current assertion would overstate no-late-write verification.
+
+55. Name the profile field `maxToolProposalsPerGeneration` and use positive integers 1–15 with omitted values resolved to 8. Cost if wrong: a small contract/fixture revision if zero must later disable tools; capability filtering already controls availability.
+
+Owner amendment (2026-11-09): the owner authorized one focused R1–R4 follow-up and one scoped re-review, with an explicit stop if an Important finding remains. The owner selected the profile cap (default 8, hard maximum 15) and safe pre-staging refusal for R2; this supersedes ruling 52’s earlier implementation preference. The historical decision remains above.

@@ -57,3 +57,7 @@ Paths below identify assertions to inspect, rather than substitutes for executio
 ## Final correction review status
 
 The aggregate candidate `612bdb4` passes the local suite of 891 tests, but [scoped final review](F3-final-review.md) leaves I2/I6 Important and M1/I11 Minor findings open. In particular, the existing ledger-only expired-cancel test does not prove terminal stream closure, and single-operation approval tests do not prove notifications for a batch with 16 operations and 33 events. These gaps block final acceptance. The reviewed candidate needs an authorized focused follow-up; no green CI result alone closes these source paths.
+
+### Owner-authorized follow-up (2026-11-09)
+
+The focused source `f924374` closes all four residual findings: real terminal-stream cancellation/reconciliation, profile proposal caps (8 default/15 maximum), unexpired stale-version EVAL, stale tool-commit spans, and actual writer-settlement proof. The [single scoped review](F3-owner-followup-review.md) reports no findings; local full tests passed 895/895. The earlier open-finding paragraph describes the previous candidate, not the current source. Corrected-head Linux CI remains required; deferred real-provider evidence is unchanged.

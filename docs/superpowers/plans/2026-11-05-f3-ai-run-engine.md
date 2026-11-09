@@ -548,7 +548,16 @@ expect(workflowEvents).toEqual(['workflow_dispatch']);
 
 ### Task 17: Verify the complete branch and publish review evidence
 
-**Current candidate (2026-11-08): `612bdb4`, not accepted.** The aggregate correction passes the local suite of 891 tests and build/type/lint/format/tooling gates, but its single scoped final re-review leaves two Important and two Minor findings open; see [public review](../../references/F3-final-review.md). The final-review single-wave limit is reached. Retain the workspace and seek an explicit owner override before a focused follow-up; do not mark Task 17 complete, open a final PR, or treat prior/green CI as resolution. Corrected-head Linux CI and owner-deferred real evidence remain pending. Historical results below remain qualified by their revisions.
+**Owner override (2026-11-09), base `e23f777`:** one focused Luna/high + TDD follow-up limited to R1–R4 in [F3-final-review.md](../../references/F3-final-review.md), followed by one scoped re-review of only that diff. No other implementation scope.
+
+1. Advance `nextSequence` atomically when public cancellation commits the expired current step, preserving strict terminal proof. Prove actual open-stream closure, TTL, pool release, repeated-cancel and reconciliation no-ops.
+2. Add the server-profile proposal limit: default **8**, hard maximum **15**, so `1 + 2 × n <= 32`. Refuse larger generations with a safe error before any operation staging, pause or effect. Test the cap and one above through the executor/actual Valkey. Keep the 32-event and 250 ms bounds. Also prove stale-version Lua rejection while the command is unexpired.
+3. Derive transactional-tool continuation span statuses from commit outcome, with a deterministic stale-commit regression.
+4. Keep the timeout-test writer open, deterministically await released work, and check actual `runId|generation` terminal members.
+
+If the scoped re-review retains an Important issue, stop and report to the owner; do not start another wave. Otherwise push the feature branch, run Linux CI on the new head, and report. Existing real-model/account/paid/region deferrals remain in force.
+
+**Reviewed baseline (2026-11-08): `612bdb4`, not accepted.** The aggregate correction passes the local suite of 891 tests and build/type/lint/format/tooling gates, but its single scoped final re-review leaves two Important and two Minor findings open; see [public review](../../references/F3-final-review.md). The original final-review single-wave limit was reached. The limited owner override below is now authorized; do not mark Task 17 complete or treat prior/green CI as resolution. Corrected-head Linux CI and owner-deferred real evidence remain pending. Historical results below remain qualified by their revisions.
 
 **Files:** Update F3-acceptance.md, approved design research notes with actual verified API details, plan checkboxes, and public package/runtime documentation; no new product scope. PR body includes final behavior, validation, paid-run evidence and F17/P8/external-mode limitations.
 
@@ -585,3 +594,7 @@ expect(changedF21GoldenPaths).toEqual([]);
 - [x] Proportion: grouped setup with the feature that needs it; one independently reviewable deliverable per task, exact test commands and RED/GREEN gates; no full implementation bodies embedded.
 
 Owner approved azure/us, manual-only USD0.10/16-call real-eval envelope, revised MAXLEN1024 / active24 / terminal6 stream capacity, and early terminal eviction. Added per-org active admission cap6 in Task2 and first-install/exporter-opt-in instructions in Task13. Execute in preserved SDD Luna/high mode. This turn is authorized to start Task1.
+
+### Owner-authorized R1–R4 execution result (2026-11-09)
+
+One verified Luna/high implementation produced `f924374`; its one scoped spec-compliance/code-quality review passes with no findings. Local full suite: 895 tests / 148 files, exit 0; focused seven-case matrix and 13 registry tests pass, as do build/typecheck/lint/format checks. See [public scoped review](../../references/F3-owner-followup-review.md) and [acceptance](../../references/F3-acceptance.md) for the RED/covering-test distinctions. No further implementation wave is authorized or needed by that review. Push and corrected-head Linux CI remain the controller's next gates; operator-deferred real checks remain deferred.

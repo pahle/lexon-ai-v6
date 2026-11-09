@@ -34,3 +34,7 @@ This raises the dev Valkey container ceiling by 896 MiB. Smaller environments re
 ## Clock-independent stream expiry decision
 
 A controlled test with the client clock 100 ms ahead reproduced reset and terminal writes after the public 250 ms timeout: the client-derived absolute expiry was still in Valkey’s future. The correction wave will retain one monotonic local 250 ms budget and derive conservative server-clock expiry using Valkey TIME plus the remaining original budget measured after the response. Queue wait, metadata/clock sampling and retries consume that same budget; retries do not receive a new interval. This adds bounded clock-sampling I/O and propagation code, with no new keys or capacity increase. The earlier intermittent matrix failure remains recorded; this controlled reproduction does not prove its historical cause.
+
+## Owner override (2026-11-09)
+
+The owner authorized exactly one focused R1–R4 follow-up and one scoped re-review of its diff. For R2 the owner chose a proposal limit in the server profile, default 8 and hard maximum 15, with safe refusal before staging or pause. This supersedes the earlier controller preference to process every previously accepted batch. The 32-event and 250 ms bounds remain unchanged. If an Important issue remains after the authorized review, stop and report. No other implementation scope or real-model/account execution is authorized.

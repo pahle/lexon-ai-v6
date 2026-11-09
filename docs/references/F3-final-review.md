@@ -1,3 +1,5 @@
+> Historical review of `612bdb4`. All four residual findings are addressed by `f924374`; see the [owner-authorized scoped follow-up review](F3-owner-followup-review.md). Linux CI is a separate gate.
+
 # F3 aggregate correction — final scoped re-review
 
 Archived review of source commit `612bdb4`. The report below records the state at review time; its temporary input artifacts are preserved here through the findings and evidence. Later dispositions are in [controller decisions](F3-controller-rulings.md). The candidate is not approved for merge.
