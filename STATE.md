@@ -4,8 +4,8 @@ Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3
 
 ## Next action
 
-**F4 Chat brief in draft PR #28** (prototype approved 2026-11-09, `docs/design/f4-prototype/`).
-Next: PO merges #28, then Codex brainstorms F4 (open the feature-branch
+**F4 Chat brief merged (PR #28)** (prototype approved 2026-11-09, `docs/design/f4-prototype/`).
+Next: Codex brainstorms F4 (open the feature-branch
 draft PR early so CI runs every task).
 
 ## Slice status
@@ -19,7 +19,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F2.1 Visual rework | **Done** — merged to `main` (PR #23); prototype, brand v1.1, DS v2.1 via PR #22 | Screenshot gate; PO approves before merge |
 | F3 AI Run Engine | **Done** — merged to `main` (PR #27; fixes PR #25, #26) | Review: `reviews/F3-review.md` |
-| F4–F20 | Not started | — |
+| F4 Chat | Brief merged (PR #28); awaiting Codex brainstorming | Prototype `docs/design/f4-prototype/` |
+| F5–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
 
