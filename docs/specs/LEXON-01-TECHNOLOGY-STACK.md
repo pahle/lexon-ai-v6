@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.11 |
+| **Version** | 1.12 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
-| **Date** | 3 November 2026 |
-| **Supersedes** | v1.10 (2 November 2026) |
+| **Date** | 9 November 2026 |
+| **Supersedes** | v1.11 (3 November 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -156,7 +156,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 
 *Version policy:* dependencies are pinned exactly with a lockfile. Updates are scheduled through Renovate; updates to the AI SDK, provider, and models must pass the evaluation subset (`evals/`) before merging.
 
-**Version baseline (v1.11).** Exact patches are pinned at scaffold time and raised by Renovate.
+**Version baseline (v1.12).** Exact patches are pinned at scaffold time and raised by Renovate.
 
 | Component | Baseline | Notes |
 |---|---|---|
@@ -164,7 +164,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | TypeScript | 6.x | TS 7 (native) is only evaluated for CI typechecking |
 | NestJS | 12.x (Express adapter, ESM project) | Integration library compatibility verified in S6 |
 | Next.js and React | Next.js 16.x, React 19 | `proxy.ts` replaces `middleware.ts` |
-| assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style |
+| assistant-ui | `@assistant-ui/react` 0.15.x, `@assistant-ui/ai-sdk` | Components from the `base-nova` registry style; exact F4 pins below |
 | UI primitives | `@base-ui/react` 1.x, shadcn/ui CLI | No direct Radix UI imports; assistant-ui's internal `radix-ui` dependency is allowed |
 | Theme switching | `next-themes` 0.4.x | React 19 support verified when pinned (F2) |
 | Toasts | `sonner` 2.0.x | Peer range includes React 19 (checked 2026-11-03) |
@@ -179,6 +179,46 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Logging and health | `nestjs-pino`, `@nestjs/terminus` | Verified in S6 |
 | Spreadsheet | ExcelJS 4.4.0 | Maintenance risk, see §10 |
 | Object storage | SeaweedFS 4.x | Exact tag set at S5 |
+| Reverse proxy | Caddy 2.11.9 | Official digest-pinned image; development and browser E2E from F4, production TLS/hardening in F20 |
+| Load testing | k6 2.3.0 | Official digest-pinned standalone load-test container; no SSE extension or custom build in F4 |
+
+### F4 exact dependency and tool pins (v1.12)
+
+Product-owner-approved revision, 9 November 2026. These entries authorize the
+F4 installation/update; recording them does not claim installation or runtime
+verification is complete. The implementation plan verifies the entries before
+installing any new package. Keep exact direct versions, notable transitive
+workspace overrides, and the complete lockfile. Any further direct dependency
+or changed notable pin must be recorded here before installation.
+
+| Package or tool | Exact version / image | Purpose |
+|---|---|---|
+| Caddy | `caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee` | Official image on `edge`; plain HTTP published on host loopback for development/E2E. `/api/*` goes straight to NestJS, other paths to Next.js; immediate SSE flushing and heartbeat-compatible upstream timeout. Shared `infra/Caddyfile` is extended by F20 for TLS/hardening/add-in domain |
+| k6 | `grafana/k6:2.3.0@sha256:2dd4756ec6e14e62778916e1eb850108e4b499304c02df56760fa0bdb0fba0b8` | Separate load-test tool/container, never linked into production application code. Native HTTP holds SSE connections; frame delivery/replay is separately verified through Caddy |
+| `@assistant-ui/react` | `0.15.33` | Explicit patch update from 0.15.32 required by the inspected base-nova registry |
+| `@assistant-ui/react-markdown` | `0.14.25` | Assistant answer Markdown rendering; no raw HTML or remote images |
+| `remark-gfm` | `4.0.1` | GitHub-flavored Markdown tables/lists |
+| `react-markdown` | `10.1.0` | Notable renderer transitive; retain safe URL handling |
+| `unified` | `11.0.5` | Notable parsing pipeline transitive |
+| `remark-parse` / `remark-rehype` / `remark-stringify` | `11.0.0` / `11.1.2` / `11.0.0` | Notable Markdown/AST pipeline transitives |
+| `micromark` / `mdast-util-gfm` / `micromark-extension-gfm` | `4.0.2` / `3.1.0` / `3.0.0` | Notable Markdown/GFM parser transitives |
+| `mdast-util-to-hast` / `hast-util-to-jsx-runtime` / `vfile` | `13.2.0` / `2.3.6` / `6.0.3` | Notable AST/rendering transitives |
+| `classnames` / `@types/hast` / `micromark-util-html-tag-name` | `2.5.1` / `3.0.5` / `2.0.1` | Renderer support transitives |
+| `@radix-ui/react-primitive` | `2.2.0` | Vendor renderer internal transitive only; no direct Lexon-owned imports |
+| `@assistant-ui/core` / `@assistant-ui/store` / `@assistant-ui/tap` | `0.3.33` / `0.3.23` / `0.9.25` | Matching assistant-ui runtime transitives |
+| `assistant-stream` / `assistant-cloud` / `safe-content-frame` | `0.3.56` / `0.2.10` / `0.0.34` | Vendor internals; no hosted persistence or Assistant Cloud service is enabled |
+| `zustand` / `radix-ui` / `react-textarea-autosize` | `5.0.16` / `1.8.1` / `8.5.9` | Vendor internals, not new Lexon-owned state or primitive-library choices |
+
+`@assistant-ui/ai-sdk` stays `0.0.16`; `ai` stays `7.0.159`;
+`@ai-sdk/react` stays `4.0.163`; React stays `19.3.1`; shadcn CLI stays
+`4.23.0`. Existing one-TypeScript / one-Zod rules are unchanged. No new syntax
+highlighter, raw-HTML plugin, SSE dependency, proxy package, or k6 extension is
+part of F4. Lexon-owned code continues to forbid direct `radix-ui` and
+`@radix-ui/*` imports; the assistant-ui renderer's internal primitive dependency
+has the same transitive-only allowance as the existing assistant-ui runtime.
+Record the remaining new lockfile dependency closure and licenses in F4
+acceptance evidence. Exact npm metadata, registry and image provenance is in
+[F4 Research notes](../superpowers/specs/2026-11-09-f4-chat-design.md#planning-research-supplement-2026-11-09).
 
 ## 8. Integration Principles
 
@@ -265,3 +305,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.9 | **Clarified (F2 research):** "Radix UI is not used" applies to Lexon-owned code. `@assistant-ui/react` 0.15.x depends on `radix-ui` internally; that transitive dependency is allowed, while direct imports of `radix-ui` / `@radix-ui/*` in Lexon code are forbidden and checked by lint |
 | 1.10 | **Added (product owner, brand package):** Inter self-hosted through `next/font` and Georgia as a system serif; Lexon brand assets served from `frontend/public/` (Design System v2.0). No new npm dependency |
 | 1.11 | **Added (product owner, F2.1 prototype):** `sonner` for toast notifications through the shadcn/ui `Sonner` component (Design System v2.1 §5.1) |
+| 1.12 | **Added (product owner, F4):** Caddy 2.11.9 for loopback HTTP development/E2E routing and immediate SSE flushing, sharing `infra/Caddyfile` with future production work; official digest-pinned k6 2.3.0 load-test tool. **Recorded:** exact F4 Markdown/GFM dependencies and notable transitives, plus the explicit assistant-ui 0.15.33 registry-compatible patch and matching internal pins. No new dependency is installed before being listed. Production TLS/hardening/add-in domain remain F20 |

@@ -12,8 +12,7 @@ endpoints and the existing workspace shell. The approved visual target is
 [the F4 prototype](../../design/f4-prototype/README.md), including all 23
 screens inspected during design, supplemented by mobile and dark captures.
 
-The controlling documents are LEX-TS-001 v1.11 with the owner-approved v1.12
-revision specified below, LEX-ARC-001 v1.7, and LEX-DS-001 v2.2 (the document
+The controlling documents are LEX-TS-001 v1.12, LEX-ARC-001 v1.7, and LEX-DS-001 v2.2 (the document
 control table and change history on main identify v2.2; its YAML frontmatter
 still says v2.1). The F4 brief and the owner's clarifications below govern
 slice details. Record every new exact dependency pin in stack v1.12 before
@@ -748,3 +747,60 @@ replaces that user's oldest; stack v1.12 includes every exact new dependency
 and notable Markdown transitive/k6 pin before installation. All other listed
 builder calls, including the four-request/USD 0.10 smoke allocation, are approved.
 Proceed to writing-plans; implementation still requires plan approval.
+
+## Planning research supplement (2026-11-09)
+
+- R19: Pinned shadcn CLI `4.23.0` read-only `view` inspected the current
+  base-nova thread, thread-list, markdown-text, reasoning and elements-reasoning
+  registry entries; `docs` resolved Base UI/shadcn references for AlertDialog,
+  Toggle, Tooltip, Input, Skeleton and Empty. Current registry requires
+  `@assistant-ui/react ^0.15.33` and renderer `^0.14.25`. The plan explicitly
+  proposes `@assistant-ui/react 0.15.33` (patch upgrade) and
+  `@assistant-ui/react-markdown 0.14.25`, keeping AI SDK adapter `0.0.16`.
+  Official npm metadata and published tarballs for those exact patches were
+  read without installation; React 19 / assistant-ui 0.15 peers are compatible
+  by declaration, and the public useScrollLock export exists. Runtime proof and
+  render tests still establish actual compatibility. Remove registry attachment,
+  tool, export and image features outside F4 rather than installing their deps.
+- R20: Official npm metadata verified renderer dependencies and selected
+  notable transitive pins: react-markdown 10.1.0, remark-gfm 4.0.1, unified
+  11.0.5, remark-parse 11.0.0, remark-rehype 11.1.2, remark-stringify 11.0.0,
+  micromark 4.0.2, mdast-util-gfm 3.1.0, micromark-extension-gfm 3.0.0,
+  mdast-util-to-hast 13.2.0, hast-util-to-jsx-runtime 2.3.6, vfile 6.0.3,
+  classnames 2.5.1, @types/hast 3.0.5, micromark-util-html-tag-name 2.0.1,
+  and @radix-ui/react-primitive 2.2.0. Sources are the version-specific
+  `https://registry.npmjs.org/<package>/<version>` endpoints and published
+  package tarballs. The last dependency is internal to the vendor renderer;
+  Lexon-owned code still never imports Radix. The plan must put these pins in
+  stack v1.12 and workspace overrides before installation, recording the entire
+  resulting locked new dependency closure in acceptance evidence. Read the
+  [react-markdown security documentation](https://github.com/remarkjs/react-markdown#security)
+  and [remark-gfm documentation](https://github.com/remarkjs/remark-gfm): keep
+  raw HTML disabled, safe URL handling, and no remote images in F4 answers.
+- R21: [k6 v2.3.0 release](https://github.com/grafana/k6/releases/tag/v2.3.0),
+  [constant VUs](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/constant-vus/),
+  [HTTP params](https://grafana.com/docs/k6/latest/javascript-api/k6-http/params/)
+  and official Docker Hub tag metadata were read. Proposed tool pin is
+  `grafana/k6:2.3.0@sha256:2dd4756ec6e14e62778916e1eb850108e4b499304c02df56760fa0bdb0fba0b8`.
+  It runs only as a separate load-test tool/container; no AGPL runtime code is
+  linked into Lexon. Native k6 HTTP can hold concurrent streaming responses
+  with response bodies discarded; it does not prove per-frame arrival. Combine
+  that connection/memory load with separate actual frame/replay tests through
+  Caddy; no SSE extension or custom k6 build is needed. At the default 6 streams
+  per user and 24 active owner-private runs, 500 sustained active subscriptions
+  cannot be exercised simultaneously. Proposed isolated load configuration:
+  two owners, one real active run each, 250 subscribers each, SSE per-user limit
+  256 for this measured run only. Record that configuration prominently; separate
+  tests prove the production default 6 and oldest-connection eviction. Do not
+  raise F3 run capacity or waive owner authorization to manufacture load evidence.
+- R22: F3's actual estimator was executed without a model request. The full
+  ordinary-history illustration estimates 157,247 input tokens. A 163,840
+  estimated-input bound and two-attempt formulas yield high 360,448 and max
+  393,216 run budgets. Serialization-sensitive truncation/refusal tests and real
+  calibration remain required; no new tokenizer dependency is introduced.
+
+The approved stack revision is now recorded in LEX-TS-001 v1.12, including
+Caddy, k6, Markdown/GFM and notable transitive pins, before any installation.
+The implementation plan verifies that gate; no package/lockfile was changed
+during planning. The plan proposes the isolated S2 configuration in R21 for
+owner review and preserves default-six eviction tests.
