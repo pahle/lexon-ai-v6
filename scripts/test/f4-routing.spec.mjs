@@ -86,6 +86,67 @@ test('legacy frontend port 3000 colliding with Caddy fails before Compose starts
   }
 });
 
+test('diagnostic zero ports stay ephemeral without changing the public Caddy URL', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-f4-ephemeral-ports-'));
+  try {
+    const env = await composeEnvironment(
+      {
+        ...Object.fromEntries(
+          [
+            'POSTGRES_ADMIN_PASSWORD',
+            'DATABASE_MIGRATOR_PASSWORD',
+            'DATABASE_APP_PASSWORD',
+            'DATABASE_AUTH_PASSWORD',
+            'DATABASE_SETUP_PASSWORD',
+            'AUTH_SECRET',
+            'AUTH_AUDIT_HMAC_SECRET',
+            'SMTP_URL',
+            'SMTP_FROM',
+            'VALKEY_PASSWORD',
+            'S3_ACCESS_KEY',
+            'S3_SECRET_KEY',
+            'S3_BUCKET',
+          ].map((key) => [key, 'test-only-' + key]),
+        ),
+        API_HOST_PORT: '0',
+        FRONTEND_HOST_PORT: '0',
+      },
+      directory,
+    );
+    assert.equal(env.API_HOST_PORT, '0');
+    assert.equal(env.FRONTEND_HOST_PORT, '0');
+    assert.equal(env.PUBLIC_HOST_PORT, '3000');
+    assert.equal(env.PUBLIC_URL, 'http://localhost:3000');
+    assert.equal(env.AUTH_PUBLIC_ORIGIN, 'http://localhost:3000');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('numeric port aliases are canonicalized before collision checks', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-f4-port-alias-'));
+  try {
+    await assert.rejects(
+      composeEnvironment({ FRONTEND_HOST_PORT: '03000' }, directory),
+      /FRONTEND_HOST_PORT and PUBLIC_HOST_PORT both use 3000/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('public Caddy cannot use an ephemeral host port', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-f4-public-port-'));
+  try {
+    await assert.rejects(
+      composeEnvironment({ PUBLIC_HOST_PORT: '0' }, directory),
+      /Invalid PUBLIC_HOST_PORT/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('development Caddy public URL remains plain HTTP', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lexon-f4-http-origin-'));
   try {

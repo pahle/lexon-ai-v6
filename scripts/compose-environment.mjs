@@ -23,10 +23,16 @@ export async function composeEnvironment(input, directory) {
   ];
   const seenHostPorts = new Map();
   for (const [name, rawValue] of hostPorts) {
-    const value = String(rawValue);
-    if (!/^\d{1,5}$/.test(value) || Number(value) < 1 || Number(value) > 65535)
+    const rawPort = String(rawValue);
+    const numericPort = Number(rawPort);
+    if (
+      !/^\d{1,5}$/.test(rawPort) ||
+      numericPort > 65535 ||
+      (name === 'PUBLIC_HOST_PORT' && numericPort < 1)
+    )
       throw new Error(`Invalid ${name}`);
-    const previous = seenHostPorts.get(value);
+    const value = String(numericPort);
+    const previous = value === '0' ? undefined : seenHostPorts.get(value);
     if (previous) {
       const remediation =
         previous === 'FRONTEND_HOST_PORT' &&
@@ -38,7 +44,7 @@ export async function composeEnvironment(input, directory) {
         `Host port collision: ${previous} and ${name} both use ${value}.${remediation}`,
       );
     }
-    seenHostPorts.set(value, name);
+    if (value !== '0') seenHostPorts.set(value, name);
     env[name] = value;
   }
   const publicHostPort = env.PUBLIC_HOST_PORT;
