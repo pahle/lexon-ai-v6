@@ -33,8 +33,10 @@ export { DispatcherSession } from './dispatcher-session.js';
 export {
   isJobQueue,
   parseJobEnvelope,
+  isRunStepJob,
   type JobQueue,
   type JobEnvelope,
+  type RunStepJobEnvelope,
   type TenantJobHandler,
 } from './job-envelope.js';
 export type { ClaimedOutbox } from './outbox.repository.js';

@@ -243,6 +243,7 @@ const aiRunFinished = z
           'AI_TOOL_TIMEOUT',
           'AI_TOOL_OUTCOME_UNKNOWN',
           'AI_CAPACITY_EXCEEDED',
+          'AI_OUTPUT_LIMIT',
           'AI_INTERNAL',
         ])
         .optional(),

@@ -1,5 +1,6 @@
 import type { JobEnvelope } from '../../infrastructure/db/index.js';
 import {
+  isRunStepJob,
   AiRunRepository,
   AiOperationRepository,
   AiStepRepository,
@@ -42,6 +43,7 @@ export interface StepCoordinatorCommit extends StepCommit {
     | 'AI_TOOL_TIMEOUT'
     | 'AI_TOOL_OUTCOME_UNKNOWN'
     | 'AI_CAPACITY_EXCEEDED'
+    | 'AI_OUTPUT_LIMIT'
     | 'AI_INTERNAL';
   readonly attemptSettlement?: Readonly<{
     attemptId: string;
@@ -80,8 +82,7 @@ export class StepCoordinator {
   ) {}
 
   async claim(job: JobEnvelope): Promise<ClaimResult> {
-    if (job.type === 'platform.noop.v1')
-      throw new Error('Invalid run job identity');
+    if (!isRunStepJob(job)) throw new Error('Invalid run job identity');
     if (job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence))
       throw new Error('Invalid run job identity');
     const result = await this.database.withTenant<
@@ -152,7 +153,7 @@ export class StepCoordinator {
     commit: StepCoordinatorCommit,
   ): Promise<'committed' | 'stale'> {
     if (
-      job.type === 'platform.noop.v1' ||
+      !isRunStepJob(job) ||
       job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence) ||
       job.payload.runId !== claim.runId ||
       job.payload.sequence !== claim.sequence ||
@@ -392,7 +393,7 @@ export class StepCoordinator {
     input: { readonly text: string; readonly attemptId?: string },
   ): Promise<'committed' | 'stale' | 'retry'> {
     if (
-      job.type === 'platform.noop.v1' ||
+      !isRunStepJob(job) ||
       job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence) ||
       job.payload.runId !== claim.runId ||
       job.payload.sequence !== claim.sequence ||
@@ -419,7 +420,7 @@ export class StepCoordinator {
     options: { readonly deferLiveOwner?: boolean } = {},
   ): Promise<'committed' | 'stale' | 'retry'> {
     if (
-      job.type === 'platform.noop.v1' ||
+      !isRunStepJob(job) ||
       job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence) ||
       job.payload.runId !== claim.runId ||
       job.payload.sequence !== claim.sequence ||
@@ -563,7 +564,7 @@ export class StepCoordinator {
   }
 
   async #recoverCancellation(job: JobEnvelope): Promise<ClaimResult> {
-    if (job.type === 'platform.noop.v1') return { kind: 'noop' };
+    if (!isRunStepJob(job)) return { kind: 'noop' };
     const step = await this.database.withTenant(
       job.ctx,
       (tx) =>
@@ -617,7 +618,7 @@ export class StepCoordinator {
   /** Terminalizes only the exact expired current delivery after BullMQ exhaustion. */
   async finalizeExhausted(job: JobEnvelope): Promise<'done' | 'retry'> {
     if (
-      job.type === 'platform.noop.v1' ||
+      !isRunStepJob(job) ||
       job.outboxId !== stepJobId(job.payload.runId, job.payload.sequence)
     )
       return 'done';

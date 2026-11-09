@@ -23,6 +23,7 @@ export const RunErrorCodeSchema = z.enum([
   'AI_TOOL_TIMEOUT',
   'AI_TOOL_OUTCOME_UNKNOWN',
   'AI_CAPACITY_EXCEEDED',
+  'AI_OUTPUT_LIMIT',
   'AI_INTERNAL',
 ]);
 export type RunErrorCode = z.infer<typeof RunErrorCodeSchema>;
@@ -63,11 +64,23 @@ export const RunJobSchema = z.discriminatedUnion('type', [
     ctx: z.strictObject({ orgId: z.uuid(), userId: z.uuid().optional() }),
     payload: z.strictObject({ probeId: z.uuid() }),
   }),
+  z.strictObject({
+    outboxId: z.uuid(),
+    type: z.literal('chat.title.v1'),
+    ctx: tenantContext,
+    payload: z.strictObject({ chatId: z.uuid(), runId: z.uuid() }),
+  }),
+  z.strictObject({
+    outboxId: z.uuid(),
+    type: z.literal('chat.cleanup.v1'),
+    ctx: tenantContext,
+    payload: z.strictObject({ chatId: z.uuid() }),
+  }),
 ]);
 export type RunJob = z.infer<typeof RunJobSchema>;
 
 const eventBase = { version: z.literal(1), runId: z.uuid() };
-export const RunStreamEventSchema = z.discriminatedUnion('type', [
+const RunStreamEventV1Schema = z.discriminatedUnion('type', [
   z.strictObject({
     ...eventBase,
     type: z.literal('start'),
@@ -156,5 +169,30 @@ export const RunStreamEventSchema = z.discriminatedUnion('type', [
     type: z.literal('tool-output-denied'),
     toolCallId: sdkPartId,
   }),
+]);
+const runStreamEventV2Schema = z.discriminatedUnion('type', [
+  z.strictObject({
+    version: z.literal(2),
+    type: z.literal('reasoning-start'),
+    runId: z.uuid(),
+    id: sdkPartId,
+  }),
+  z.strictObject({
+    version: z.literal(2),
+    type: z.literal('reasoning-delta'),
+    runId: z.uuid(),
+    id: sdkPartId,
+    delta: z.string(),
+  }),
+  z.strictObject({
+    version: z.literal(2),
+    type: z.literal('reasoning-end'),
+    runId: z.uuid(),
+    id: sdkPartId,
+  }),
+]);
+export const RunStreamEventSchema = z.union([
+  RunStreamEventV1Schema,
+  runStreamEventV2Schema,
 ]);
 export type RunStreamEvent = z.infer<typeof RunStreamEventSchema>;

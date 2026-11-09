@@ -21,6 +21,7 @@ const errorCodes = new Set([
   'AI_TOOL_TIMEOUT',
   'AI_TOOL_OUTCOME_UNKNOWN',
   'AI_CAPACITY_EXCEEDED',
+  'AI_OUTPUT_LIMIT',
   'AI_INTERNAL',
 ]);
 const transitions: Readonly<Record<AiRunStatus, readonly AiRunStatus[]>> = {

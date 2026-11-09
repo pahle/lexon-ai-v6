@@ -13,6 +13,7 @@ import type {
 } from '../../infrastructure/db/index.js';
 import {
   hashOperationArgs,
+  isRunStepJob,
   jsonbTextBytes,
   TenantTransactionTimeoutError,
 } from '../../infrastructure/db/index.js';
@@ -102,7 +103,7 @@ export class StepExecutor {
   }
 
   async #finalizeExhausted(job: JobEnvelope): Promise<'done' | 'retry'> {
-    if (job.type === 'platform.noop.v1') return 'done';
+    if (!isRunStepJob(job)) return 'done';
     const result = await this.options.coordinator.finalizeExhausted(job);
     if (result !== 'done' || !this.options.streams) return result;
     try {
@@ -125,7 +126,7 @@ export class StepExecutor {
     job: JobEnvelope,
     durable: { signal: AbortSignal },
   ): Promise<{ kind: 'done' } | { kind: 'busy'; retryAtMs: number }> {
-    if (job.type === 'platform.noop.v1') return { kind: 'done' };
+    if (!isRunStepJob(job)) return { kind: 'done' };
     const claimed = await this.options.coordinator.claim(job);
     if (claimed.kind === 'noop') return { kind: 'done' };
     if (claimed.kind === 'busy')

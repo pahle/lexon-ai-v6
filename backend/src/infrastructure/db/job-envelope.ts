@@ -42,6 +42,18 @@ const schema = z.discriminatedUnion('type', [
     ctx: runContextSchema,
     payload: stepPayloadSchema,
   }),
+  z.strictObject({
+    outboxId: z.uuid(),
+    type: z.literal('chat.title.v1'),
+    ctx: runContextSchema,
+    payload: z.strictObject({ chatId: z.uuid(), runId: z.uuid() }),
+  }),
+  z.strictObject({
+    outboxId: z.uuid(),
+    type: z.literal('chat.cleanup.v1'),
+    ctx: runContextSchema,
+    payload: z.strictObject({ chatId: z.uuid() }),
+  }),
 ]);
 export type JobEnvelope = Readonly<
   | {
@@ -60,7 +72,32 @@ export type JobEnvelope = Readonly<
         expectedVersion: number;
       }>;
     }
+  | {
+      outboxId: string;
+      type: 'chat.title.v1';
+      ctx: Readonly<{ orgId: string; userId: string }>;
+      payload: Readonly<{ chatId: string; runId: string }>;
+    }
+  | {
+      outboxId: string;
+      type: 'chat.cleanup.v1';
+      ctx: Readonly<{ orgId: string; userId: string }>;
+      payload: Readonly<{ chatId: string }>;
+    }
 >;
+
+export type RunStepJobEnvelope = Extract<
+  JobEnvelope,
+  { type: 'run.start.v1' | 'run.advance.v1' | 'run.resume.v1' }
+>;
+
+export function isRunStepJob(job: JobEnvelope): job is RunStepJobEnvelope {
+  return (
+    job.type === 'run.start.v1' ||
+    job.type === 'run.advance.v1' ||
+    job.type === 'run.resume.v1'
+  );
+}
 
 export function parseJobEnvelope(input: unknown): JobEnvelope {
   const result = schema.safeParse(input);

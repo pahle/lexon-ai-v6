@@ -7,6 +7,7 @@ import {
   AiRunRepository,
   AiStepRepository,
   DispatcherSession,
+  isRunStepJob,
   OutboxRepository,
   TenantDatabase,
   type JobEnvelope,
@@ -884,8 +885,7 @@ test('two held permits defer a third job for one organization while another orga
       resolveOrgB();
       return { kind: 'done' as const };
     }
-    if (job.type === 'platform.noop.v1')
-      throw new Error('Unexpected short transaction job');
+    if (!isRunStepJob(job)) throw new Error('Unexpected short transaction job');
     if (job.payload.sequence === 3) {
       thirdA++;
       return { kind: 'done' as const };
