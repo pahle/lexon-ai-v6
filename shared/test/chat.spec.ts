@@ -10,6 +10,7 @@ import {
   ChatSearchRequestSchema,
   ChatSnapshotSchema,
   ChatTreeSchema,
+  CreateChatInputSchema,
   EditMessageInputSchema,
   RegenerateInputSchema,
   SendMessageInputSchema,
@@ -78,6 +79,32 @@ describe('chat contracts', () => {
     ).toBe(false);
     expect(ChatEffortSchema.safeParse('max').success).toBe(true);
     expect(ChatEffortSchema.safeParse('medium').success).toBe(false);
+  });
+
+  it('defines a strict create-chat request with client retry identities', () => {
+    const validCreate = {
+      chatId,
+      userMessageId,
+      requestId: runId,
+      text: 'First question',
+      effort: 'high',
+    };
+    expect(CreateChatInputSchema.safeParse(validCreate).success).toBe(true);
+    for (const forged of [
+      { role: 'assistant' },
+      { transcript: [] },
+      { tool: { name: 'search' } },
+      { provider: 'openrouter' },
+      { orgId: chatId, userId: userMessageId },
+    ])
+      expect(
+        CreateChatInputSchema.safeParse({ ...validCreate, ...forged }).success,
+      ).toBe(false);
+    for (const field of ['chatId', 'userMessageId', 'requestId'] as const)
+      expect(
+        CreateChatInputSchema.safeParse({ ...validCreate, [field]: 'bad-id' })
+          .success,
+      ).toBe(false);
   });
 
   it('validates a parent-linked message tree and a leaf within that tree', () => {
@@ -158,10 +185,18 @@ describe('chat contracts', () => {
       effort: 'max',
     };
     expect(EditMessageInputSchema.safeParse(edit).success).toBe(true);
+    const regenerate = { messageId: assistantMessageId, requestId: runId };
+    expect(RegenerateInputSchema.safeParse(regenerate).success).toBe(true);
+    expect(
+      RegenerateInputSchema.safeParse({
+        ...regenerate,
+        requestId: parentMessageId,
+      }).success,
+    ).toBe(true);
     expect(
       RegenerateInputSchema.safeParse({ messageId: assistantMessageId })
         .success,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       ViewedLeafInputSchema.safeParse({ leafId: assistantMessageId }).success,
     ).toBe(true);

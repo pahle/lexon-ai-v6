@@ -131,6 +131,15 @@ export const ChatSearchPageSchema = z.strictObject({
 });
 export type ChatSearchPage = z.infer<typeof ChatSearchPageSchema>;
 
+export const CreateChatInputSchema = z.strictObject({
+  chatId: uuid,
+  userMessageId: uuid,
+  requestId: uuid,
+  text: chatText,
+  effort: ChatEffortSchema,
+});
+export type CreateChatInput = z.infer<typeof CreateChatInputSchema>;
+
 export const SendMessageInputSchema = z.strictObject({
   userMessageId: uuid,
   parentMessageId: uuid.nullable(),
@@ -147,7 +156,11 @@ export const EditMessageInputSchema = z.strictObject({
 });
 export type EditMessageInput = z.infer<typeof EditMessageInputSchema>;
 
-export const RegenerateInputSchema = z.strictObject({ messageId: uuid });
+export const RegenerateInputSchema = z.strictObject({
+  messageId: uuid,
+  // Keep one ID stable across retries; create a new ID for each deliberate regeneration.
+  requestId: uuid,
+});
 export type RegenerateInput = z.infer<typeof RegenerateInputSchema>;
 
 export const ViewedLeafInputSchema = z.strictObject({ leafId: uuid });
@@ -197,7 +210,7 @@ export const ChatAuditEventSchema = z.discriminatedUnion('type', [
 export type ChatAuditEvent = z.infer<typeof ChatAuditEventSchema>;
 
 export interface ChatApi {
-  create(): Promise<ChatMutationResult>;
+  create(input: CreateChatInput): Promise<ChatMutationResult>;
   get(chatId: string): Promise<ChatTree>;
   list(input?: { cursor?: string; limit?: number }): Promise<ChatPage>;
   search(input: ChatSearchRequest): Promise<ChatSearchPage>;
