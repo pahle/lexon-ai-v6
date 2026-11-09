@@ -87,6 +87,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   creator (sharing in F6); delete is permanent after confirmation (retention
   and legal hold in F18).
 
+- OpenRouter setup confirmed by PO (2026-11-09): ZDR only, no Safety Retention, training/discount off, workspace "Lexon" I/O logging off; dedicated CI key US$0.10 as Actions secret; attestation variables set; dev key in local .env (a dev key was exposed in a chat screenshot and revoked the same day; new key with a credit limit). Regional routing (EU/US) needs OpenRouter Business: input for P8.
+
 ## Lessons learned (apply to every brief)
 
 - **Design before implementation.** Copying shadcn blocks 1:1 gives demo
