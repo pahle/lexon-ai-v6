@@ -68,6 +68,101 @@
         "Measurements and results apply to the recorded head; later changes require reviewed-head validation.",
         "No paid model, provider account, or admin API was called."
       ]
+    },
+    {
+      "runId": 42578518930,
+      "url": "https://github.com/pahle/lexon-ai-v6/actions/runs/42578518930",
+      "head": "fcb92d942b1f9864860e0487faeca97934674db2",
+      "event": "workflow_dispatch",
+      "visualMode": "compare",
+      "conclusion": "failure",
+      "unitIntegration": {
+        "jobId": 129031565160,
+        "conclusion": "success",
+        "testsPassed": 895,
+        "filesPassed": 148,
+        "identityMutantsKilled": 218,
+        "toolingTestsPassed": 127
+      },
+      "composeE2e": {
+        "jobId": 129031565007,
+        "conclusion": "failure",
+        "testsPassed": 54,
+        "testsFailed": 1,
+        "failure": "Valkey CONFIG GET returned correct key/value pairs in a different order from the test's ordered-array expectation."
+      },
+      "limitations": [
+        "Failed gate preserved; corrected test and later passing CI are recorded separately."
+      ]
+    },
+    {
+      "runId": 42579654412,
+      "url": "https://github.com/pahle/lexon-ai-v6/actions/runs/42579654412",
+      "head": "d42fe42c7df9a1319cfe27303247c3730107e4fa",
+      "event": "pull_request",
+      "pullRequest": 26,
+      "conclusion": "success",
+      "unitIntegration": {
+        "jobId": 129035126697,
+        "conclusion": "success",
+        "testsPassed": 895,
+        "testsFailed": 0,
+        "filesPassed": 148,
+        "identityMutantsKilled": 218,
+        "mutationScorePercent": 100,
+        "toolingTestsPassed": 127
+      },
+      "composeE2e": {
+        "jobId": 129035126953,
+        "conclusion": "success",
+        "testsPassed": 55,
+        "testsFailed": 0,
+        "baselineManifestStep": "skipped by workflow_dispatch-only condition; not relabeled as executed",
+        "platformBothThemeAxe": "passed",
+        "fourRuntimeHealth": "passed",
+        "documentWorkerNoEgress": "passed",
+        "valkeyStartupPolicy": "passed"
+      },
+      "streamMemory": {
+        "activeBytes": 5303784,
+        "terminalBytes": 5286944,
+        "slotLimitBytes": 6291456,
+        "environment": "Linux/x64 pinned Testcontainers"
+      },
+      "hop": {
+        "event": "f3_run_step_hop_latency",
+        "environment": {
+          "node": "v24.22.1",
+          "platform": "linux",
+          "arch": "x64",
+          "pollFallbackMs": 1000,
+          "path": "RunService outbox commit -> OutboxDispatcher -> BullMQ QueueConsumer -> StepCoordinator.claim (model time excluded)"
+        },
+        "coldMs": 15.861891000000014,
+        "medianMs": 7.339412000000152,
+        "p95Ms": 11.51833600000009,
+        "maxMs": 12.313723999999638,
+        "samplesMs": [
+          9.455529999999953, 7.724150000000009, 7.553981999999905,
+          8.242117999999891, 7.385117000000037, 8.561463000000003,
+          7.626679999999851, 7.293707000000268, 6.382590000000164,
+          12.313723999999638, 6.625698999999713, 8.903452000000016,
+          6.246915000000172, 11.51833600000009, 6.449061999999685,
+          6.479670999999598, 6.348504000000048, 6.261563000000024,
+          6.434584000000086, 6.397334999999657
+        ]
+      },
+      "limitations": [
+        "PR #26 CI evidence; not a claim that later documentation commits were tested by this run.",
+        "No real smoke, calibration, paid eval, account setting, or admin endpoint execution.",
+        "P8 production region and F17 unknown-attempt cost reconciliation remain deferred."
+      ],
+      "subsequentMerge": {
+        "commit": "4408b53f5a36b306f0409b0d50988c8b6906722b",
+        "pullRequest": 26,
+        "mergedAt": "2026-11-09T07:44:50Z",
+        "treeMatchesCiHead": "40142f3b300b008e2ed942954ecd476f457ba89b"
+      }
     }
   ]
 }

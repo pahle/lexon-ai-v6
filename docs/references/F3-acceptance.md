@@ -631,3 +631,22 @@ Local verification on that source: **895/895 tests, 148/148 files, 130.63s**, sa
 The public-cancel regression uses an already-open real stream and actual reconciliation; terminal TTL/membership and repeat no-ops are asserted. Executor/Valkey tests cover 8/9 and 15/16 proposals, complete accepted lifecycle IDs, no refused operations/effects/pause, and the legacy default. The stale-version EVAL is released while unexpired and returns -1. The timeout regression keeps its writer connected and awaits a subsequent serialized non-mutating probe before absence assertions. No deadline, event bound, dependency, migration, golden or provider setting changed.
 
 Corrected-head Linux CI remains a separate required gate. Real-provider/account/calibration/region and hosted-workflow deferrals are unchanged.
+
+### PR #26 and final F3 publication evidence (2026-11-09)
+
+[PR #26](https://github.com/pahle/lexon-ai-v6/pull/26) changes only the Valkey startup-policy test to compare CONFIG GET key/value pairs independently of their returned order. All required values remain asserted: `noeviction`, `appendonly=yes`, `appendfsync=everysec`, and `maxmemory=805306368`. No runtime policy, deadline, event limit, dependency, or approved visual baseline changes. The owner merged it as `4408b53f5a36b306f0409b0d50988c8b6906722b` on 2026-11-09; the branch was pulled with `--ff-only` before this documentation update.
+
+The previous [run 42578518930](https://github.com/pahle/lexon-ai-v6/actions/runs/42578518930), on `fcb92d942b1f9864860e0487faeca97934674db2`, passed package tests but failed Compose 54/55 solely on CONFIG GET array ordering. It remains a failed gate in the [CI evidence](F3-ci-evidence.json).
+
+The replacement [Linux/x64 run 42579654412](https://github.com/pahle/lexon-ai-v6/actions/runs/42579654412), for PR #26 head `d42fe42c7df9a1319cfe27303247c3730107e4fa`, passed **both jobs**. Package checks passed build/typecheck/lint/format, **895/895 tests across 148 files**, **218/218 identity mutants killed (100%)**, and **127/127 tooling tests**. Compose passed **55/55**, including browser/visual comparisons, both-theme platform axe, four-runtime health, document-worker no-egress and Valkey startup rejection/recovery. The separate baseline-manifest step is workflow-dispatch-only and was skipped on this PR run; it is not claimed as executed. Existing baseline bytes remain unchanged.
+
+This Linux run measured step-hop cold **15.861891 ms**, warm median **7.339412 ms**, p95 **11.518336 ms**, max **12.313724 ms**, with all 20 samples retained in the CI evidence. Active/terminal stream slots measured **5,303,784 / 5,286,944 bytes**, below the fixed **6,291,456-byte** slot. The CI head and merged commit have the identical Git tree `40142f3b300b008e2ed942954ecd476f457ba89b`; this was checked through Git and GitHub before publication. The final owner-authorized scoped review has **no Critical, Important or Minor findings**; its scope and historical process qualifications remain in the [review](F3-owner-followup-review.md).
+
+**Deferred, explicitly not established by this PR:**
+
+- **Real smoke and estimator calibration:** owner account/key setup, dated ZDR-only/no-logging/credit-limit attestation, actual smoke provider observations, and estimated/reported token ratio remain pending. Calibrate before F8 sends large document context.
+- **Paid real evals:** operator execution and hosted manual-workflow activation after default-branch availability remain pending; retain the approved manual-only USD 0.10 / 16-request envelope. Mock evals are included in the passing suite.
+- **P8 region:** development `azure/us` is approved for synthetic data only and is not proof of production processing region. Production K1/provider-region acceptance awaits P8.
+- **F17 cost reconciliation:** unknown attempts keep their full persisted reservation for the run; later reconciliation of actual charges, including unknown attempts with stored generation IDs, belongs to F17. No admin endpoint is called in F3.
+
+No real-model request, paid eval, account-setting change, administrative API call, or merge to main was performed for this publication. Evidence applies to the recorded source revisions; subsequent documentation commits are not retroactively described as the CI-tested head.
