@@ -4,8 +4,9 @@ Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3
 
 ## Next action
 
-**F3 merged (PR #27); F0–F3 holistic check done** (`reviews/F3-review.md`):
-no defects. Next: write the F4 Chat brief once the PO agrees.
+**F4 Chat brief in preparation.** PO decisions 2026-11-09 recorded in the
+decision log. Step 1: chat prototype (Design canvas) for PO approval; step 2:
+brief PR with the approved PNGs as the visual target.
 
 ## Slice status
 
@@ -71,6 +72,18 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F2 execution (2026-11-02): product owner wants subagent-driven execution with implementer model fixed (gpt-6 luna, high); main session reviews.
 - F4: replace F2's inert assistant-ui runtime with the ChatTransport; sidebar conversation group gets real history.
 - F18: org list pagination filters non-active orgs after the lookahead (see reviews/F2-review.md).
+
+- F4 (2026-11-09): Claude builds the chat prototype first; no model picker
+  (one model): default `openai/gpt-6-luna` reasoning effort `high`, a
+  per-message "Deep thinking" toggle sends `max` (OpenRouter
+  `reasoning.effort`; Luna supports none/low/medium/high/xhigh/max, default
+  medium, verified via /api/v1/models 2026-11-09); show a Thinking indicator
+  plus the reasoning summary when the provider returns one (never store
+  encrypted reasoning); AI-generated titles (first-message excerpt until
+  ready); regenerate last answer, edit user message with branches, full-text
+  search of message content, copy + thumbs feedback; chats private to their
+  creator (sharing in F6); delete is permanent after confirmation (retention
+  and legal hold in F18).
 
 ## Lessons learned (apply to every brief)
 
