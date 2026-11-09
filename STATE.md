@@ -4,9 +4,9 @@ Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3
 
 ## Next action
 
-**F4 Chat brief in preparation.** PO decisions 2026-11-09 recorded in the
-decision log. Step 1: chat prototype (Design canvas) for PO approval; step 2:
-brief PR with the approved PNGs as the visual target.
+**F4 Chat brief in draft PR #28** (prototype approved 2026-11-09, `docs/design/f4-prototype/`).
+Next: PO merges #28, then Codex brainstorms F4 (open the feature-branch
+draft PR early so CI runs every task).
 
 ## Slice status
 
