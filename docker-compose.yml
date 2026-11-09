@@ -266,7 +266,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       BACKEND_INTERNAL_URL: http://api:3001
-    ports: ['127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000']
+    ports: ['127.0.0.1:${FRONTEND_HOST_PORT:-3002}:3000']
     networks: [edge]
     mem_limit: 256m
     cpus: 0.5

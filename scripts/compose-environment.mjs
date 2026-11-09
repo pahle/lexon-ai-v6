@@ -16,14 +16,32 @@ export async function composeEnvironment(input, directory) {
     CADDY_IMAGE: images.caddy,
     K6_IMAGE: images.k6,
   };
-  const publicHostPort = env.PUBLIC_HOST_PORT ?? '3000';
-  if (
-    !/^\d{1,5}$/.test(publicHostPort) ||
-    Number(publicHostPort) < 1 ||
-    Number(publicHostPort) > 65535
-  )
-    throw new Error('Invalid public host port');
-  env.PUBLIC_HOST_PORT = publicHostPort;
+  const hostPorts = [
+    ['API_HOST_PORT', env.API_HOST_PORT ?? '3001'],
+    ['FRONTEND_HOST_PORT', env.FRONTEND_HOST_PORT ?? '3002'],
+    ['PUBLIC_HOST_PORT', env.PUBLIC_HOST_PORT ?? '3000'],
+  ];
+  const seenHostPorts = new Map();
+  for (const [name, rawValue] of hostPorts) {
+    const value = String(rawValue);
+    if (!/^\d{1,5}$/.test(value) || Number(value) < 1 || Number(value) > 65535)
+      throw new Error(`Invalid ${name}`);
+    const previous = seenHostPorts.get(value);
+    if (previous) {
+      const remediation =
+        previous === 'FRONTEND_HOST_PORT' &&
+        name === 'PUBLIC_HOST_PORT' &&
+        value === '3000'
+          ? ' Set FRONTEND_HOST_PORT=3002 or choose another diagnostic port.'
+          : ` Set ${name} to an unused loopback port.`;
+      throw new Error(
+        `Host port collision: ${previous} and ${name} both use ${value}.${remediation}`,
+      );
+    }
+    seenHostPorts.set(value, name);
+    env[name] = value;
+  }
+  const publicHostPort = env.PUBLIC_HOST_PORT;
   env.PUBLIC_URL = env.PUBLIC_URL ?? `http://localhost:${publicHostPort}`;
   const publicOrigin = new URL(env.PUBLIC_URL);
   if (

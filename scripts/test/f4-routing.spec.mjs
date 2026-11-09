@@ -65,8 +65,22 @@ test('Compose environment exports approved images and the public Caddy origin', 
     );
     assert.equal(env.CADDY_IMAGE, caddyImage);
     assert.equal(env.K6_IMAGE, k6Image);
+    assert.equal(env.API_HOST_PORT, '3001');
+    assert.equal(env.FRONTEND_HOST_PORT, '3002');
     assert.equal(env.PUBLIC_URL, 'http://localhost:3000');
     assert.equal(env.AUTH_PUBLIC_ORIGIN, env.PUBLIC_URL);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('legacy frontend port 3000 colliding with Caddy fails before Compose starts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-f4-legacy-port-'));
+  try {
+    await assert.rejects(
+      composeEnvironment({ FRONTEND_HOST_PORT: '3000' }, directory),
+      /FRONTEND_HOST_PORT and PUBLIC_HOST_PORT both use 3000\. Set FRONTEND_HOST_PORT=3002/,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -94,6 +108,7 @@ test('Caddy owns browser routing and Next.js has no API rewrite', async () => {
   assert.match(compose, /caddy:/);
   assert.match(compose, /\$\{CADDY_IMAGE:/);
   assert.match(compose, /127\.0\.0\.1:\$\{PUBLIC_HOST_PORT/);
+  assert.match(compose, /127\.0\.0\.1:\$\{FRONTEND_HOST_PORT:-3002\}/);
   assert.match(caddy, /@api path \/api\/\*/);
   assert.match(caddy, /handle @api\s*\{\s*reverse_proxy api:3001/);
   assert.match(caddy, /reverse_proxy frontend:3000/);

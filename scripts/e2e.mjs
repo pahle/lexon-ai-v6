@@ -12,10 +12,13 @@ async function port() {
   const server = createServer();
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  const value = server.address().port;
+  const value = String(server.address().port);
   await new Promise((resolve) => server.close(resolve));
-  return String(value);
+  if (allocatedPorts.has(value)) return port();
+  allocatedPorts.add(value);
+  return value;
 }
+const allocatedPorts = new Set();
 const args = process.argv.slice(2).filter((arg) => arg !== '--');
 const packageIndex = args.indexOf('--package');
 const selected = packageIndex < 0 ? undefined : args.splice(packageIndex, 2)[1];
