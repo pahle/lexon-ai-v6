@@ -143,6 +143,39 @@ describe('run registry', () => {
     }
   });
 
+  it('accepts the default and hard maximum tool proposal limits', () => {
+    for (const maxToolProposalsPerGeneration of [undefined, 15]) {
+      const registry = new RunRegistry();
+      expect(() =>
+        registry.register(
+          registrations({
+            profiles: [
+              {
+                ...profile,
+                ...(maxToolProposalsPerGeneration === undefined
+                  ? {}
+                  : { maxToolProposalsPerGeneration }),
+              },
+            ],
+          }),
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  it('rejects tool proposal limits outside the supported integer range', () => {
+    for (const maxToolProposalsPerGeneration of [0, 1.5, 16]) {
+      const registry = new RunRegistry();
+      expect(() =>
+        registry.register(
+          registrations({
+            profiles: [{ ...profile, maxToolProposalsPerGeneration }],
+          }),
+        ),
+      ).toThrow();
+    }
+  });
+
   it('external mode requires its declared callback', () => {
     const registry = new RunRegistry();
     expect(() =>

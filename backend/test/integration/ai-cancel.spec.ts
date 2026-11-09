@@ -30,6 +30,7 @@ import {
   QueueConsumer,
   QueueProducer,
   RunStreams,
+  type RunStreamAuthority,
 } from '../../src/infrastructure/queue/index.js';
 import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
@@ -152,11 +153,52 @@ test('public cancel after lease expiry settles the active attempt before termina
   const ai = await createAiFixture(services);
   const authorization = new RunAuthorizationService();
   const attempts = new AttemptService();
+  const audit = createAuditInspector(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const redis = new Redis(services.valkey.streamsUrl);
+  const authority: RunStreamAuthority = {
+    authorizeActive: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    reconcile: async (entries) =>
+      Promise.all(
+        entries.map(async ({ runId, orgId, userId }) => {
+          const result = await ai.database.withTenant({ orgId, userId }, (tx) =>
+            runs.streamRegistryState(tx, runId, userId),
+          );
+          return result.state === 'terminal'
+            ? { runId, state: 'terminal' as const, claim: result.claim }
+            : { runId, state: result.state };
+        }),
+      ),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
   try {
+    const auditBefore = await audit.count('chat.run_finished.v1');
     const run = await ai.start(0);
     await ai.seedPendingStep(0, run.id);
     const claim = await ai.claim(0, run.id, 1, 1, 30_000);
     if (!claim) throw new Error('Cancellation test claim unavailable');
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'start',
+        messageId: randomUUID(),
+      }),
+    ).toBe('written');
     const attemptId = randomUUID();
     await ai.withTenant(0, async (tx) => {
       const runRecord = await new AiRunRepository().find(tx, run.id);
@@ -192,14 +234,16 @@ test('public cancel after lease expiry settles the active attempt before termina
     });
     const cancel = new CancelService(
       ai.database,
-      new AiRunRepository(),
-      new AiStepRepository(),
+      runs,
+      steps,
       new RunActorFactsRepository(),
       authorization,
+      streams,
     );
     await asActor(ai.tenants[0]!, authorization, (actor) =>
       cancel.cancel(actor, run.id),
     );
+    expect(await audit.count('chat.run_finished.v1')).toBe(auditBefore + 1);
     await asActor(ai.tenants[0]!, authorization, (actor) =>
       cancel.cancel(actor, run.id),
     );
@@ -226,8 +270,82 @@ test('public cancel after lease expiry settles the active attempt before termina
     ).toMatchObject({
       status: 'cancelled',
       partialOutput: 'durable partial text',
+      nextSequence: 2,
     });
+    const streamKey = `${services.queuePrefix}:{run-streams}:${run.id}:events`;
+    const events = await redis.xrange(streamKey, '-', '+');
+    expect(
+      events.map(([, fields]) => JSON.parse(fields[1]! as string)),
+    ).toEqual([
+      {
+        version: 1,
+        runId: run.id,
+        type: 'start',
+        messageId: expect.any(String),
+      },
+      { version: 1, runId: run.id, type: 'status', status: 'cancelled' },
+      { version: 1, runId: run.id, type: 'finish' },
+    ]);
+    expect(
+      await redis.zscore(
+        `${services.queuePrefix}:{run-streams}:active`,
+        run.id,
+      ),
+    ).toBeNull();
+    expect(
+      (
+        await redis.zrange(
+          `${services.queuePrefix}:{run-streams}:terminal`,
+          '0',
+          '-1',
+        )
+      ).some((member) => member.startsWith(`${run.id}|`)),
+    ).toBe(true);
+    expect(await redis.ttl(streamKey)).toBeGreaterThan(0);
+    expect(await redis.ttl(streamKey)).toBeLessThanOrEqual(3600);
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'late',
+        delta: 'ignored',
+      }),
+    ).toBe('stale');
+    await asActor(ai.tenants[0]!, authorization, (actor) =>
+      cancel.cancel(actor, run.id),
+    );
+    expect((await redis.xrange(streamKey, '-', '+')).length).toBe(3);
+    expect(await audit.count('chat.run_finished.v1')).toBe(auditBefore + 1);
+    const [reconciled] = await authority.reconcile([
+      { runId: run.id, ...ai.tenants[0]! },
+    ]);
+    if (reconciled?.state !== 'terminal')
+      throw new Error('Cancelled stream terminal reference missing');
+    await streams.finish(reconciled.claim, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    expect((await redis.xrange(streamKey, '-', '+')).length).toBe(3);
+    expect(await audit.count('chat.run_finished.v1')).toBe(auditBefore + 1);
+    expect(
+      await redis.zscore(
+        `${services.queuePrefix}:{run-streams}:active`,
+        run.id,
+      ),
+    ).toBeNull();
+    expect(await ai.withTenant(0, (tx) => runs.find(tx, run.id))).toMatchObject(
+      {
+        status: 'cancelled',
+        nextSequence: 2,
+        partialOutput: 'durable partial text',
+      },
+    );
   } finally {
+    await audit.close();
+    redis.disconnect();
+    await streams.close();
     await ai.close();
   }
 });

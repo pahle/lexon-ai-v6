@@ -7,6 +7,8 @@ import type {
 } from './run-contracts.js';
 import {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
+  DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
+  MAX_TOOL_PROPOSALS_PER_GENERATION,
   RUN_REGISTRATION_LIMITS,
 } from './run-contracts.js';
 
@@ -98,12 +100,20 @@ function validateProfile(profile: RunProfile): void {
     profile.tokenBudget,
     profile.maxOutputTokens,
     profile.maxAttemptsPerStep ?? DEFAULT_MAX_ATTEMPTS_PER_STEP,
+    profile.maxToolProposalsPerGeneration ??
+      DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
   ]) {
     if (!Number.isSafeInteger(value) || value < 1)
       throw new Error('Invalid run profile limit');
   }
   if (profile.maxOutputTokens > profile.tokenBudget)
     throw new Error('Output exceeds token budget');
+  if (
+    (profile.maxToolProposalsPerGeneration ??
+      DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION) >
+    MAX_TOOL_PROPOSALS_PER_GENERATION
+  )
+    throw new Error('Run profile exceeds configured tool proposal limit');
   for (const budget of Object.values(profile.contextBudgets)) {
     if (!Number.isSafeInteger(budget) || budget < 0)
       throw new Error('Invalid context budget');

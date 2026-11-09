@@ -38,6 +38,10 @@ import {
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import type { RunRegistry } from './run-registry.js';
 import type { ContextPiece, RunProfile } from './run-contracts.js';
+import {
+  DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
+  MAX_TOOL_PROPOSALS_PER_GENERATION,
+} from './run-contracts.js';
 import { StepCoordinator } from './step-coordinator.js';
 import { fenceUntrusted } from './untrusted-context.js';
 import { canonicalOperationHash } from './canonical-operation.js';
@@ -561,8 +565,8 @@ export class StepExecutor {
                 operation.id,
               ]);
           }
-          setRunSpanStatus('continued');
-          setStepSpanStatus('succeeded');
+          setRunSpanStatus(committed === 'committed' ? 'continued' : 'failed');
+          setStepSpanStatus(committed === 'committed' ? 'succeeded' : 'failed');
           return { kind: 'done' };
         }
       }
@@ -1048,11 +1052,15 @@ export class StepExecutor {
         finalOutcome.attemptOutcome === 'succeeded' && !budgetExceeded;
       const prepared =
         succeeded && proposals.length
-          ? prepareOperationProposals(
-              proposals,
-              this.options.registry,
-              activeCapabilities,
-            )
+          ? proposals.length >
+            (initial.profile.maxToolProposalsPerGeneration ??
+              DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION)
+            ? null
+            : prepareOperationProposals(
+                proposals,
+                this.options.registry,
+                activeCapabilities,
+              )
           : [];
       const invalidProposals = prepared === null;
       const operationProposals = prepared ?? [];
@@ -1204,6 +1212,12 @@ export class StepExecutor {
           snapshot.profileSnapshot,
         ) as unknown as RunProfile;
         validateSnapshot(profile, run.modelId);
+        const resolvedProfile = {
+          ...profile,
+          maxToolProposalsPerGeneration:
+            profile.maxToolProposalsPerGeneration ??
+            DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
+        };
         const facts = await this.options.facts.read(tx, {
           orgId: claim.orgId,
           userId: claim.userId,
@@ -1231,7 +1245,7 @@ export class StepExecutor {
         );
         return {
           run,
-          profile,
+          profile: resolvedProfile,
           actorScope,
           activeCapabilities: decision.capabilities,
           provider:
@@ -1544,6 +1558,11 @@ function validateSnapshot(profile: RunProfile, modelId: string): void {
     !Number.isSafeInteger(profile.maxIterations) ||
     !Number.isSafeInteger(profile.tokenBudget) ||
     !Number.isSafeInteger(profile.maxOutputTokens) ||
+    (profile.maxToolProposalsPerGeneration !== undefined &&
+      (!Number.isSafeInteger(profile.maxToolProposalsPerGeneration) ||
+        profile.maxToolProposalsPerGeneration < 1 ||
+        profile.maxToolProposalsPerGeneration >
+          MAX_TOOL_PROPOSALS_PER_GENERATION)) ||
     !profile.contextBudgets ||
     typeof profile.contextBudgets !== 'object' ||
     !Array.isArray(profile.capabilities)

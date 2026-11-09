@@ -60,6 +60,7 @@ export class CancelService {
           sequence: run.nextSequence,
         });
         let version = run.runVersion;
+        let nextSequence: number | undefined;
         if (run.status !== 'cancelling') {
           if (
             !(await this.runs.transition(tx, {
@@ -97,6 +98,7 @@ export class CancelService {
             ))
           )
             return;
+          nextSequence = run.nextSequence + 1;
         }
         if (
           !(await this.runs.transition(tx, {
@@ -104,6 +106,7 @@ export class CancelService {
             expectedVersion: version,
             from: 'cancelling',
             to: 'cancelled',
+            ...(nextSequence === undefined ? {} : { nextSequence }),
             outputAppend: partial,
           }))
         )

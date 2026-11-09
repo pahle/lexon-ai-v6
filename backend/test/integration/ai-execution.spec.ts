@@ -633,6 +633,95 @@ test('transactional tool effect commits before later cancellation', async ({
   }
 });
 
+test('stale transactional-tool commit ends run and step spans as failed without effect', async ({
+  services,
+}) => {
+  spanExporter.reset();
+  const ai = await createAiFixture(services);
+  try {
+    const tool: TransactionalWriteToolDefinition = {
+      id: 'stale-commit-write',
+      version: 1,
+      kind: 'write',
+      inputSchema: z.strictObject({ value: z.string() }),
+      requiresApproval: false,
+      timeoutMs: 1000,
+      maxResultBytes: 512,
+      capabilities: [],
+      idempotency: { mode: 'transactional' },
+      async execute(input, context) {
+        await recordAiTestToolEffect(
+          context.tenant,
+          context.operationId,
+          (input as { value: string }).value,
+        );
+        return { stored: true };
+      },
+    };
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            {
+              type: 'tool-proposal',
+              toolCallId: 'stale-commit-provider-call',
+              toolName: tool.id,
+              input: { value: 'must roll back' },
+            },
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: { ...success.outcome, finishReason: 'tool_calls' },
+            },
+          ],
+        },
+      ],
+      { tools: [tool] },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const originalCommit = h.coordinator.commit.bind(h.coordinator);
+    let continuationResult: string | undefined;
+    vi.spyOn(h.coordinator, 'commit').mockImplementation(
+      async (candidateJob, claim, input) => {
+        await ai.withTenant(0, (tx) => ai.expireClaimLeaseInSession(tx, claim));
+        const result = await originalCommit(candidateJob, claim, input);
+        continuationResult = result;
+        return result;
+      },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(continuationResult).toBe('stale');
+    expect(await ai.toolEffectCount(0)).toBe(0);
+    const operation = (
+      await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      )
+    )[0];
+    expect(operation?.status).toBe('pending');
+    await tracerProvider.forceFlush();
+    const spans = spanExporter.getFinishedSpans();
+    const actualRunSpan = spans
+      .filter(
+        (span) => span.name === 'ai.run' && span.attributes.runId === h.runId,
+      )
+      .at(-1);
+    const actualStepSpan = spans
+      .filter(
+        (span) => span.name === 'ai.step' && span.attributes.runId === h.runId,
+      )
+      .at(-1);
+    expect(actualRunSpan?.attributes.status).toBe('failed');
+    expect(actualStepSpan?.attributes.status).toBe('failed');
+  } finally {
+    await ai.close();
+  }
+});
+
 test('proposal commits before each transactional effect and all results enter fenced model history', async ({
   services,
 }) => {
@@ -1850,6 +1939,10 @@ test('approval-required transactional operations remain staged and produce no ef
   let releaseApprovalEvent!: () => void;
   let resolveApprovalEvalHeld!: () => void;
   let resolveApprovalEvalSettled!: () => void;
+  let heldServerDeadlineAt = 0;
+  let heldIncomingVersion = 0;
+  let heldGuardResult: number | undefined;
+  let execution: Promise<unknown> | undefined;
   const approvalEventBarrier = new Promise<void>((resolve) => {
     releaseApprovalEvent = resolve;
   });
@@ -1867,12 +1960,16 @@ test('approval-required transactional operations remain staged and produce no ef
       if (event?.type === 'approval-required') {
         holdApprovalEvent = false;
         heldCall = true;
+        heldIncomingVersion = Number(args[7]);
+        heldServerDeadlineAt = Number(args[12]);
         resolveApprovalEvalHeld();
         await approvalEventBarrier;
       }
     }
     try {
-      return await originalEval.apply(this, args as never);
+      const result = await originalEval.apply(this, args as never);
+      if (heldCall) heldGuardResult = Number(result);
+      return result;
     } finally {
       if (heldCall) resolveApprovalEvalSettled();
     }
@@ -1919,9 +2016,13 @@ test('approval-required transactional operations remain staged and produce no ef
       ],
       { tools: [tool], streams },
     );
-    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
-      signal: new AbortController().signal,
-    });
+    execution = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      {
+        signal: new AbortController().signal,
+      },
+    );
+    await approvalEvalHeld;
     const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
     if (!run) throw new Error('Committed approval pause run missing');
     const operations = await ai.withTenant(0, (tx) =>
@@ -1938,7 +2039,10 @@ test('approval-required transactional operations remain staged and produce no ef
     });
     expect(await ai.toolEffectCount(0)).toBe(0);
     expect(await ai.outboxCount(0, 'run.advance.v1')).toBe(0);
-    await approvalEvalHeld;
+    const [serverSeconds, serverMicros] = await inspector.time();
+    const serverNowMs =
+      Number(serverSeconds) * 1000 + Math.floor(Number(serverMicros) / 1000);
+    expect(heldServerDeadlineAt).toBeGreaterThan(serverNowMs);
     const events = await inspector.xrange(
       `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
       '-',
@@ -1996,8 +2100,25 @@ test('approval-required transactional operations remain staged and produce no ef
         decision: 'approve',
       }),
     );
+    const approvedRun = await ai.withTenant(0, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    if (!approvedRun) throw new Error('Approved run missing');
+    expect(approvedRun.runVersion).toBeGreaterThan(run.runVersion);
+    const guard = await inspector.get(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:guard`,
+    );
+    const guardVersion = Number(guard?.split('|')[1]);
+    expect(guardVersion).toBe(approvedRun.runVersion);
+    expect(guardVersion).toBeGreaterThan(heldIncomingVersion);
+    const [releaseSeconds, releaseMicros] = await inspector.time();
+    const releaseNowMs =
+      Number(releaseSeconds) * 1000 + Math.floor(Number(releaseMicros) / 1000);
+    expect(heldServerDeadlineAt).toBeGreaterThan(releaseNowMs);
     releaseApprovalEvent();
     await approvalEvalSettled;
+    expect(heldGuardResult).toBe(-1);
+    await execution;
     await expect(
       streams.publishCommitted(lateApproval, [
         {
@@ -2028,9 +2149,183 @@ test('approval-required transactional operations remain staged and produce no ef
     expect(await ai.toolEffectCount(0)).toBe(0);
   } finally {
     releaseApprovalEvent();
+    await execution?.catch(() => undefined);
     evalSpy.mockRestore();
     inspector.disconnect();
     await approvalStreams.close();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('proposal limits preserve every accepted approval event and refuse excess before staging', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const redis = new Redis(services.valkey.streamsUrl);
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: {
+      authorizeActive: (claim) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamActiveProof(tx, claim),
+        ),
+      authorizeTerminal: (claim) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamTerminalProof(tx, claim),
+        ),
+      authorizeCommitted: (claim, event) =>
+        ai.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamCommittedProof(tx, claim, event),
+        ),
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+    },
+  });
+  const tool: TransactionalWriteToolDefinition = {
+    id: 'bounded-approval-write',
+    version: 1,
+    kind: 'write',
+    inputSchema: z.strictObject({ value: z.string() }),
+    requiresApproval: true,
+    timeoutMs: 1000,
+    maxResultBytes: 512,
+    capabilities: [],
+    idempotency: { mode: 'transactional' },
+    async execute() {
+      throw new Error('Approval-gated proposal executed before approval');
+    },
+  };
+  const cases = [
+    {
+      cap: undefined,
+      count: 8,
+      accepted: true,
+      resolvedCap: 8,
+      legacySnapshot: false,
+    },
+    {
+      cap: undefined,
+      count: 9,
+      accepted: false,
+      resolvedCap: 8,
+      legacySnapshot: false,
+    },
+    {
+      cap: 15,
+      count: 15,
+      accepted: true,
+      resolvedCap: 15,
+      legacySnapshot: false,
+    },
+    {
+      cap: 15,
+      count: 16,
+      accepted: false,
+      resolvedCap: 15,
+      legacySnapshot: false,
+    },
+    {
+      cap: undefined,
+      count: 9,
+      accepted: false,
+      resolvedCap: 8,
+      legacySnapshot: true,
+    },
+  ] as const;
+  const resolvedCaps: number[] = [];
+  try {
+    for (const scenario of cases) {
+      const runProfile: RunProfile = {
+        ...profile,
+        id: `proposal-cap-${scenario.cap ?? 'default'}-${scenario.count}`,
+        ...(scenario.cap === undefined
+          ? {}
+          : { maxToolProposalsPerGeneration: scenario.cap }),
+      };
+      const h = await setup(
+        ai,
+        [
+          {
+            events: [
+              ...Array.from({ length: scenario.count }, (_, index) => ({
+                type: 'tool-proposal' as const,
+                toolCallId: `provider-call-${index + 1}`,
+                toolName: tool.id,
+                input: { value: `proposal ${index + 1}` },
+              })),
+              { type: 'usage', usage },
+              {
+                type: 'outcome',
+                outcome: { ...success.outcome, finishReason: 'tool_calls' },
+              },
+            ],
+          },
+        ],
+        { tools: [tool], profile: runProfile, streams },
+      );
+      if (scenario.legacySnapshot)
+        await ai.withTenantSession(0, async (_tx, client) => {
+          await client.query(
+            `UPDATE app.ai_runs
+             SET resolved_config = resolved_config #- '{profileSnapshot,maxToolProposalsPerGeneration}'::text[]
+             WHERE org_id = $1 AND id = $2`,
+            [h.tenant.orgId, h.runId],
+          );
+        });
+      await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+        signal: new AbortController().signal,
+      });
+      const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+      if (!run) throw new Error('Proposal cap run missing');
+      const snapshot = (run.resolvedConfig as Record<string, unknown>)
+        .profileSnapshot as Record<string, unknown>;
+      expect(snapshot.maxToolProposalsPerGeneration).toBe(
+        scenario.legacySnapshot ? undefined : scenario.resolvedCap,
+      );
+      if (!scenario.legacySnapshot)
+        resolvedCaps.push(snapshot.maxToolProposalsPerGeneration as number);
+      const operations = await ai.withTenant(0, (tx) =>
+        h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+      );
+      const events = (
+        await redis.xrange(
+          `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+          '-',
+          '+',
+        )
+      ).map(([, fields]) => JSON.parse(fields[1]!));
+      const operationIds = operations.map((operation) => operation.id);
+      const publishedApprovalIds = events
+        .filter((event) => event.type === 'approval-required')
+        .map((event) => event.operationId);
+      if (scenario.accepted) {
+        expect(run.status).toBe('awaiting_approval');
+        expect(operations).toHaveLength(scenario.count);
+        expect(publishedApprovalIds).toEqual(operationIds);
+        expect(
+          events
+            .filter((event) => event.type === 'operation-status')
+            .map((event) => event.operationId),
+        ).toEqual(operationIds);
+      } else {
+        expect(run).toMatchObject({
+          status: 'failed',
+          errorCode: 'AI_INVALID_TOOL',
+        });
+        expect(operations).toHaveLength(0);
+        expect(publishedApprovalIds).toEqual([]);
+      }
+      expect(await ai.toolEffectCount(0)).toBe(0);
+    }
+    expect(resolvedCaps).toEqual([8, 8, 15, 15]);
+  } finally {
+    redis.disconnect();
     await streams.close();
     await ai.close();
   }
@@ -3674,6 +3969,23 @@ test('active PostgreSQL tool timeout is durably reported to the next model input
       operationId: operation.id,
       status: 'failed',
     });
+    await tracerProvider.forceFlush();
+    const endedSpans = spanExporter.getFinishedSpans();
+    expect(
+      endedSpans
+        .filter(
+          (span) => span.name === 'ai.run' && span.attributes.runId === h.runId,
+        )
+        .at(-1)?.attributes.status,
+    ).toBe('continued');
+    expect(
+      endedSpans
+        .filter(
+          (span) =>
+            span.name === 'ai.step' && span.attributes.runId === h.runId,
+        )
+        .at(-1)?.attributes.status,
+    ).toBe('failed');
     await h.executor.execute(job(h.runId, h.tenant, 3, 3, 'run.advance.v1'), {
       signal: new AbortController().signal,
     });

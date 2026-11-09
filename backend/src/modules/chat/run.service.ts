@@ -15,6 +15,7 @@ import type { RunRegistry } from './run-registry.js';
 import type { RunProfile } from './run-contracts.js';
 import {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
+  DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
   RUN_REGISTRATION_LIMITS,
 } from './run-contracts.js';
 import { stepJobId } from './step-job-id.js';
@@ -145,6 +146,9 @@ function snapshotProfile(profile: RunProfile) {
     capabilities: Object.freeze([...profile.capabilities]),
     maxAttemptsPerStep:
       profile.maxAttemptsPerStep ?? DEFAULT_MAX_ATTEMPTS_PER_STEP,
+    maxToolProposalsPerGeneration:
+      profile.maxToolProposalsPerGeneration ??
+      DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
     childBounds: profile.childBounds
       ? Object.freeze({ ...profile.childBounds })
       : null,

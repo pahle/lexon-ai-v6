@@ -2169,6 +2169,22 @@ test('a timed-out authorization cannot recreate a stream after it is released', 
     authority: baseAuthority,
   });
   const redis = new Redis(services.valkey.streamsUrl);
+  const originalTime = Redis.prototype.time;
+  let rejectProbeTime = false;
+  let probeReachedTime!: () => void;
+  const probeTimeReached = new Promise<void>((resolve) => {
+    probeReachedTime = resolve;
+  });
+  const timeSpy = vi
+    .spyOn(Redis.prototype, 'time')
+    .mockImplementation(function (this: Redis) {
+      if (rejectProbeTime) {
+        rejectProbeTime = false;
+        probeReachedTime();
+        return Promise.reject(new Error('Reject only the drain probe TIME'));
+      }
+      return originalTime.call(this);
+    });
   try {
     const original = await ai.start(0);
     await ai.seedPendingStep(0, original.id);
@@ -2182,17 +2198,29 @@ test('a timed-out authorization cannot recreate a stream after it is released', 
       delta: 'late',
     });
     await ready;
-    await new Promise((resolve) => setTimeout(resolve, 300));
     await expect(pendingPublish).resolves.toBe('unavailable');
     release();
-    await staleWriter.close();
-    await expect(pendingPublish).resolves.toBe('unavailable');
+    rejectProbeTime = true;
+    const drainProbe = staleWriter.publish(oldClaim, {
+      version: 1,
+      runId: original.id,
+      type: 'status',
+      status: 'running',
+    });
+    await probeTimeReached;
+    await expect(drainProbe).resolves.toBe('unavailable');
     const prefix = `${services.queuePrefix}:{run-streams}`;
     expect(await redis.exists(`${prefix}:${original.id}:events`)).toBe(0);
     expect(await redis.exists(`${prefix}:${original.id}:guard`)).toBe(0);
-    expect(await redis.zscore(`${prefix}:terminal`, original.id)).toBeNull();
+    expect(await redis.zscore(`${prefix}:active`, original.id)).toBeNull();
+    expect(
+      (await redis.zrange(`${prefix}:terminal`, '0', '-1')).some((member) =>
+        member.startsWith(`${original.id}|`),
+      ),
+    ).toBe(false);
   } finally {
     release();
+    timeSpy.mockRestore();
     redis.disconnect();
     await staleWriter.close();
     await streams.close();
