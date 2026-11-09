@@ -798,6 +798,7 @@ Proceed to writing-plans; implementation still requires plan approval.
   estimated-input bound and two-attempt formulas yield high 360,448 and max
   393,216 run budgets. Serialization-sensitive truncation/refusal tests and real
   calibration remain required; no new tokenizer dependency is introduced.
+- R23: PostgreSQL 17's current official [row security](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), [explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html), and [numeric types](https://www.postgresql.org/docs/17/datatype-numeric.html) documentation was read on 2026-11-09 against the pinned PostgreSQL 17.11 deployment. RLS defaults to deny when enabled without a matching policy and table owners bypass it unless `FORCE ROW LEVEL SECURITY` is set; `SELECT ... FOR UPDATE` locks selected rows until transaction end and blocks concurrent writers/lockers; unconstrained `numeric` is exact and does not coerce values to a declared scale, but accepts special values including Infinity and NaN. This supports the approved tenant policies with forced RLS, row-locked idempotent settlement, and explicit finite/nonnegative cost checks. No schema or behavior change was made from this documentation check.
 
 The approved stack revision is now recorded in LEX-TS-001 v1.12, including
 Caddy, k6, Markdown/GFM and notable transitive pins, before any installation.

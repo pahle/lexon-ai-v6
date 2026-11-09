@@ -394,7 +394,13 @@ export class StepCoordinator {
   async commitCancellation(
     job: JobEnvelope,
     claim: StepClaim,
-    input: { readonly text: string; readonly attemptId?: string },
+    input: {
+      readonly text: string;
+      readonly attemptId?: string;
+      readonly settlement?: NonNullable<
+        StepCoordinatorCommit['attemptSettlement']
+      >;
+    },
   ): Promise<'committed' | 'stale' | 'retry'> {
     if (
       !isRunStepJob(job) ||
@@ -405,7 +411,8 @@ export class StepCoordinator {
       job.ctx.orgId !== claim.orgId ||
       job.ctx.userId !== claim.userId ||
       Buffer.byteLength(input.text, 'utf8') > 262144 ||
-      (input.attemptId !== undefined && input.attemptId.length === 0)
+      (input.attemptId !== undefined && input.attemptId.length === 0) ||
+      (input.attemptId !== undefined && input.settlement !== undefined)
     )
       return 'stale';
     return this.finalizeCancellation(job, claim, input);
@@ -532,8 +539,39 @@ export class StepCoordinator {
                 input.text,
               );
               if (!recovered.changed) throw new StaleCommit();
-              for (const attemptId of recovered.unknownAttemptIds)
-                await this.usage.markUnknown(session, attemptId);
+              for (const attemptId of recovered.unknownAttemptIds) {
+                if (input.settlement?.attemptId === attemptId) {
+                  await this.usage.settleDetached(session, attemptId, {
+                    outcome: input.settlement.outcome,
+                    ...(input.settlement.usage?.inputTokens !== undefined
+                      ? {
+                          inputTokens: input.settlement.usage.inputTokens,
+                        }
+                      : {}),
+                    ...(input.settlement.usage?.outputTokens !== undefined
+                      ? {
+                          outputTokens: input.settlement.usage.outputTokens,
+                        }
+                      : {}),
+                    ...(input.settlement.usage?.cachedInputTokens !== undefined
+                      ? {
+                          cachedInputTokens:
+                            input.settlement.usage.cachedInputTokens,
+                        }
+                      : {}),
+                    ...(input.settlement.usage?.reasoningOutputTokens !==
+                    undefined
+                      ? {
+                          reasoningOutputTokens:
+                            input.settlement.usage.reasoningOutputTokens,
+                        }
+                      : {}),
+                    ...(input.settlement.costUsd !== undefined
+                      ? { costUsd: input.settlement.costUsd }
+                      : {}),
+                  });
+                } else await this.usage.markUnknown(session, attemptId);
+              }
               if (
                 !(await this.runs.transition(session, {
                   runId: claim.runId,

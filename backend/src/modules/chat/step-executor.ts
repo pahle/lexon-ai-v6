@@ -193,6 +193,14 @@ export class StepExecutor {
     let checkpointBytes = 0;
     let attemptId = '';
     let attemptReserved = false;
+    let lateCancellationSettlement:
+      | {
+          attemptId: string;
+          outcome: 'succeeded' | 'failed';
+          usage?: Partial<ReportedUsage>;
+          costUsd?: string;
+        }
+      | undefined;
     let activeAttemptText = '';
     let uiStepStarted = false;
     let textPartOpen = false;
@@ -844,6 +852,66 @@ export class StepExecutor {
               }
               if (next.done) break;
               const event = next.value;
+              const claimLost =
+                heartbeat.signal.reason instanceof Error &&
+                heartbeat.signal.reason.message === 'AI step claim lost';
+              if (heartbeat.signal.aborted && (cancelRequested || claimLost)) {
+                if (event.type === 'usage') {
+                  usage = event.usage;
+                  attemptCost = event.costUsd;
+                } else if (event.type === 'outcome') {
+                  outcome = event.outcome;
+                  if (
+                    event.outcome.attemptOutcome === 'succeeded' ||
+                    event.outcome.attemptOutcome === 'failed'
+                  ) {
+                    const detachedUsage = event.outcome.usage ?? usage;
+                    const detachedCost = event.outcome.costUsd ?? attemptCost;
+                    if (cancelRequested) {
+                      lateCancellationSettlement = {
+                        attemptId,
+                        outcome: event.outcome.attemptOutcome,
+                        ...(detachedUsage ? { usage: detachedUsage } : {}),
+                        ...(detachedCost !== undefined
+                          ? { costUsd: detachedCost }
+                          : {}),
+                      };
+                    } else {
+                      await this.options.database.withTenant(
+                        { orgId: claim.orgId, userId: claim.userId },
+                        (tx) =>
+                          this.options.attempts.settleDetached(tx, attemptId, {
+                            outcome: event.outcome.attemptOutcome,
+                            ...(detachedUsage?.inputTokens !== undefined
+                              ? { inputTokens: detachedUsage.inputTokens }
+                              : {}),
+                            ...(detachedUsage?.outputTokens !== undefined
+                              ? { outputTokens: detachedUsage.outputTokens }
+                              : {}),
+                            ...(detachedUsage?.cachedInputTokens !== undefined
+                              ? {
+                                  cachedInputTokens:
+                                    detachedUsage.cachedInputTokens,
+                                }
+                              : {}),
+                            ...(detachedUsage?.reasoningOutputTokens !==
+                            undefined
+                              ? {
+                                  reasoningOutputTokens:
+                                    detachedUsage.reasoningOutputTokens,
+                                }
+                              : {}),
+                            ...(detachedCost !== undefined
+                              ? { costUsd: detachedCost }
+                              : {}),
+                          }),
+                      );
+                    }
+                  }
+                  break;
+                }
+                continue;
+              }
               heartbeat.throwIfAborted();
               if (event.type === 'metadata' && event.generationId) {
                 await this.options.database.withTenant(
@@ -1203,9 +1271,46 @@ export class StepExecutor {
         claim,
         {
           text: activeAttemptText || text,
-          ...(attemptReserved && attemptId ? { attemptId } : {}),
+          ...(lateCancellationSettlement
+            ? { settlement: lateCancellationSettlement }
+            : attemptReserved && attemptId
+              ? { attemptId }
+              : {}),
         },
       );
+      const lateSettlement = lateCancellationSettlement;
+      if (result === 'stale' && lateSettlement)
+        await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) =>
+            this.options.attempts.settleDetached(tx, lateSettlement.attemptId, {
+              outcome: lateSettlement.outcome,
+              ...(lateSettlement.usage?.inputTokens !== undefined
+                ? {
+                    inputTokens: lateSettlement.usage.inputTokens,
+                  }
+                : {}),
+              ...(lateSettlement.usage?.outputTokens !== undefined
+                ? {
+                    outputTokens: lateSettlement.usage.outputTokens,
+                  }
+                : {}),
+              ...(lateSettlement.usage?.cachedInputTokens !== undefined
+                ? {
+                    cachedInputTokens: lateSettlement.usage.cachedInputTokens,
+                  }
+                : {}),
+              ...(lateSettlement.usage?.reasoningOutputTokens !== undefined
+                ? {
+                    reasoningOutputTokens:
+                      lateSettlement.usage.reasoningOutputTokens,
+                  }
+                : {}),
+              ...(lateSettlement.costUsd !== undefined
+                ? { costUsd: lateSettlement.costUsd }
+                : {}),
+            }),
+        );
       if (result === 'committed') {
         await heartbeat.stop();
         await this.#finishIfTerminal(claim, streamSnapshotRequired);
