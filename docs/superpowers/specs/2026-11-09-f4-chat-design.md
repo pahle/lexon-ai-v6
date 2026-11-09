@@ -1,6 +1,6 @@
 # F4 — Chat design
 
-Date: 2026-11-09. Status: proposed, awaiting product-owner design approval.
+Date: 2026-11-09. Status: product-owner approved with corrections on 2026-11-09.
 Branch: `f4-chat`; never commit or push to `main`.
 
 ## Intent and scope
@@ -12,10 +12,12 @@ endpoints and the existing workspace shell. The approved visual target is
 [the F4 prototype](../../design/f4-prototype/README.md), including all 23
 screens inspected during design, supplemented by mobile and dark captures.
 
-The controlling documents are LEX-TS-001 v1.11, LEX-ARC-001 v1.7, and
-LEX-DS-001 v2.1. The F4 brief and the owner's clarifications below govern
-slice details. A proposed stack revision is described below; this design
-does not silently edit the locked technology specification.
+The controlling documents are LEX-TS-001 v1.11 with the owner-approved v1.12
+revision specified below, LEX-ARC-001 v1.7, and LEX-DS-001 v2.2 (the document
+control table and change history on main identify v2.2; its YAML frontmatter
+still says v2.1). The F4 brief and the owner's clarifications below govern
+slice details. Record every new exact dependency pin in stack v1.12 before
+installation; no unlisted dependency is authorized by this design.
 
 Goals: durable private chats and message trees; effectively-once send and
 branch creation; authenticated SSE replay and recovery; explicit reasoning
@@ -231,8 +233,8 @@ reviewed calibration, with its version stored in accounting.
 
 | Profile / effort                |       Prior-history byte budget | Max output tokens per attempt | Run token budget | Attempts per step |
 | ------------------------------- | ------------------------------: | ----------------------------: | ---------------: | ----------------: |
-| `chat` / `high` (default)       |                          32,768 |                         8,192 |          131,072 |                 2 |
-| `chat` / `max`                  |                          32,768 |                        16,384 |          163,840 |                 2 |
+| `chat` / `high` (default)       |                         131,072 |                        16,384 |          360,448 |                 2 |
+| `chat` / `max`                  |                         131,072 |                        32,768 |          393,216 |                 2 |
 | `chat-title` / `none` (default) | 4,096 bounded first-turn source |                           512 |           16,384 |                 2 |
 
 `chat` uses `ai-interactive`, priority 1, one generation iteration, no tools.
@@ -244,12 +246,26 @@ a regeneration/Try again uses the original user turn's choice. Deep thinking
 resets after an accepted send; a failed submission preserves the draft choice.
 
 One token per serialized UTF-8 byte plus 64 per message, 256 per tool schema,
-and 1,024 fixed overhead is the existing estimator. A 16,384-byte user turn plus
-32,768 bytes of prior history already estimates around 50k before framing;
-therefore proposed run budgets allow room for two reservations rather than
-assuming typical tokenizer ratios. Actual admission always recomputes the full
-serialized reservation. Unknown attempts retain their full reservation; any
-reported overrun stops further calls with the safe budget error.
+and 1,024 fixed overhead is the existing estimator. Reserve at most **163,840
+estimated input tokens per attempt**, including instructions and framing. The
+history collector retains up to 131,072 UTF-8 bytes, then drops oldest eligible
+messages further if the actual full serialized input would exceed that estimated
+input cap. This matters for JSON escaping; raw byte counts alone are insufficient.
+Never truncate the current user message to make it fit. Bound the versioned
+trusted instructions to 8,192 serialized bytes and keep framing bounded. If the
+mandatory current turn and trusted framing alone cannot fit, refuse safely.
+
+The run budgets are computed as `2 * (163840 + maxOutputTokens)`: **360,448**
+for high and **393,216** for max. Thus two full reservations fit even if the
+first attempt becomes unknown and retains its reservation. This is a general
+profile input-estimate bound, enforced before each model call, not a tokenizer
+change. A design-time calculation using the actual F3 estimator, 131,072 bytes
+of ASCII history, a 16,384-byte current message, 8,192 instruction bytes, and
+F3-style nonce fences produced **157,247 estimated input tokens**, leaving 6,593
+under the cap. Implementation tests must cover full ordinary history as well as
+escape-heavy input and compute the exact assembled prompt, not rely on that
+illustrative fixture. All bounds remain **unverified by real smoke**. Reported
+usage above reservation still stops further calls with the safe budget error.
 
 The owner confirmed account setup on **2026-11-09**: dated ZDR-only attestation,
 no Safety Retention, first-party OpenAI endpoints disabled with Azure enabled,
@@ -359,7 +375,13 @@ of an arbitrary checkpoint and a complete replay is allowed.
 
 Proposed operational defaults, boot validated: heartbeat 15 seconds, 6 SSE
 connections per user, 64 KiB subscriber queue, and 5-second socket-drain deadline.
-A slow client is disconnected and reconnects/reloads; it never grows an unbounded
+At the default per-user limit of 6, atomically evict that user's oldest
+connection and admit the new one instead of refusing it. Ordering and eviction
+are shared across API processes; another user's connection is never displaced.
+Close the evicted socket, discard its queued frames, and invalidate its lease
+so a stale process cannot renew it. Test the seventh connection, reconnects,
+concurrent admissions, and cross-process eviction, including stale Caddy
+upstream connections. A slow client is disconnected and reconnects/reloads; it never grows an unbounded
 buffer or stalls other clients. Enforce the user connection limit across API
 processes with expiring operational leases, not only per process. Keep Valkey
 connection count fixed; avoid high-cardinality metric labels. Close hooks release
@@ -375,9 +397,13 @@ close, and transport abort only disconnect the subscriber and never cancel a run
 
 ### Caddy scope and proposed technology revision
 
-Owner decision brings development/E2E Caddy forward from F20. Propose
-**LEX-TS-001 v1.12** adding Caddy **2.11.9** to the version baseline and naming
-its development/E2E role. Do not change the locked source spec until approved.
+Owner decision brings development/E2E Caddy forward from F20 and explicitly
+approves **LEX-TS-001 v1.12**, adding Caddy **2.11.9** to the version baseline
+and naming its development/E2E role. The same revision must list every new F4
+dependency with its exact version, including the Markdown renderer, its notable
+transitive packages, and the k6 image or binary pin, plus a change-history row.
+Research and record those pins before installing anything new. This approval
+permits the source-spec revision; it does not permit an unlisted dependency.
 Proposed official image, verified 2026-11-09:
 
 `caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee`
@@ -709,6 +735,16 @@ Run output as canonical assistant text; proposed profile budgets/efforts and
 smoke allocation; routes and cursor/search request form; two-second search
 highlight; New chat shortcut replacing the prototype's browser conflict;
 last committed viewed-branch selection across tabs; no invented duration on a
-stop before first answer text; Caddy 2.11.9 / proposed stack v1.12; proposed SSE
+stop before first answer text; Caddy 2.11.9 / approved stack v1.12; proposed SSE
 buffer/heartbeat/connection defaults; early informal UI previews and final
 owner screenshot gate. These are proposals, not prior owner approvals.
+
+## Design approval and corrections (2026-11-09)
+
+The owner approved the design with these changes: LEX-DS-001 v2.2 controls;
+chat history is 131,072 bytes; high/max output limits are 16,384/32,768 with
+recomputed two-attempt budgets, all smoke-unverified; the seventh SSE connection
+replaces that user's oldest; stack v1.12 includes every exact new dependency
+and notable Markdown transitive/k6 pin before installation. All other listed
+builder calls, including the four-request/USD 0.10 smoke allocation, are approved.
+Proceed to writing-plans; implementation still requires plan approval.
