@@ -1,23 +1,11 @@
 # Project state
 
-Last updated: 2026-11-06 by the brief generator (session 2, Claude Code).
+Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3 Task 9 and PR #25).
 
 ## Next action
 
-**F3 execution in progress on `f3-ai-run-engine`** (Codex, SDD: manager
-gpt-6.1 sol medium, subagents gpt-6 luna high). Tasks 1–8 accepted by
-Codex's own reviews; Task 9 partial (`a0097a7`) stopped at the hop-latency gate.
-
-Session 2 review (2026-11-06): the Task 9 gate failure was a measurement
-artifact. The hop test started runs in one org while earlier runs still ran,
-so every other run hit the 2-slot org permit (busyRetryMs 500 + delayed
-promotion). Fix PR #25 into `f3-ai-run-engine`: uncontended hop measurement
-that asserts no busy deferrals, a real bug fix (a claim refused by the DB org
-cap was acked as noop, stranding the run), and lint/format fixes on the WIP.
-Waiting: CI on #25 (first CI run of the whole F3 branch; push triggers do not
-include it), then PO merges #25 and Codex resumes Task 9 with the review
-items given to the PO (missing DB step-lease renewal during long generations;
-broad catch maps lost-claim/DB errors to provider-unknown).
+**F3 merged (PR #27); F0–F3 holistic check done** (`reviews/F3-review.md`):
+no defects. Next: write the F4 Chat brief once the PO agrees.
 
 ## Slice status
 
@@ -29,30 +17,25 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F1 Identity & Organizations | **Done** — merged to `main` (PR #15, review fix PR #16) | Review: `reviews/F1-review.md`; notes: `notes/F1-identity-organizations.md` |
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F2.1 Visual rework | **Done** — merged to `main` (PR #23); prototype, brand v1.1, DS v2.1 via PR #22 | Screenshot gate; PO approves before merge |
-| F3 AI Run Engine | Executing; Tasks 1–8 accepted, Task 9 partial; fix PR #25 | Design/plan on `f3-ai-run-engine` |
+| F3 AI Run Engine | **Done** — merged to `main` (PR #27; fixes PR #25, #26) | Review: `reviews/F3-review.md` |
 | F4–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
 
 - **F6:** TenantGuard rejects bodies containing `userId`/`organizationId`/`orgId` keys on all workspace routes; project-member endpoints need a per-route allowance.
 
-- **F3 (AI Run Engine):** the production `ai-worker` currently starts a
-  consumer on queue `ai-interactive` with a no-op handler, and each consumer
-  creates its own nested Nest application context. F3 must replace this with
-  a job-type → handler registry and the real queues of LEX-ARC-001 §5.3
-  (`ai-interactive`, `ai-batch`, …).
-- **F3:** receipts only protect PostgreSQL effects; model calls, S3 writes,
-  and MCP actions need their own idempotency or reconciliation.
-- **F3:** `evals/` reaches the backend only via `@lexon/backend/evaluation`;
-  F3 extends that entry to expose the real engine.
+- **F4:** SSE hub over the F3 run streams; ChatTransport replaces the inert runtime.
+- **F5:** approval expiry; external tool adapters on the F3 idempotency modes.
+- **Before F8:** calibrate the token estimator with real usage.
+- **F17:** reconcile cost of unknown attempts; customer quotas.
+- **P8:** production region decision.
 - **F17:** `ops.audit_events` has no tenant RLS; org-scoped audit views must filter through the authorization predicate builder.
 - **F20:** frontend no-egress is not enforced in dev Compose (edge must stay
   non-internal for host ports); enforce with Caddy + host firewall and test it.
 - **F18/ops:** processed-job receipts are never deleted in F0; cleanup must
   keep receipts longer than the maximum redelivery window.
 
-- **CI hygiene (urgent for F3):** feature-branch pushes get no CI; F3 Tasks 1–8 ran only on the implementer's Mac until PR #25.
-- **CI hygiene:** `.github/workflows/ci.yml` push triggers still list old feature branches (f0…f2.1); replace with `main` plus a pattern or drop, in the next slice.
+- **CI hygiene:** feature-branch pushes get no CI (push = `main` only); open a draft PR from the feature branch at the start of each slice so every task runs in CI.
 - **Later UI refinement:** full-screen mobile Settings pattern (section list, then content) deferred by PO.
 
 ## Decision log (product owner)
