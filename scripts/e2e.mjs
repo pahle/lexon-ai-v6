@@ -34,6 +34,8 @@ const stop = () => {
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 try {
+  const publicHostPort = await port();
+  const publicUrl = `http://127.0.0.1:${publicHostPort}`;
   env = await composeEnvironment(
     {
       ...process.env,
@@ -58,12 +60,14 @@ try {
       S3_ACCESS_KEY: secret(),
       S3_SECRET_KEY: secret(),
       S3_BUCKET: 'lexon-e2e',
+      PUBLIC_HOST_PORT: publicHostPort,
+      PUBLIC_URL: publicUrl,
       API_HOST_PORT: await port(),
       FRONTEND_HOST_PORT: await port(),
     },
     directory,
   );
-  env.AUTH_PUBLIC_ORIGIN = `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`;
+  env.AUTH_PUBLIC_ORIGIN = publicUrl;
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
   env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
   env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
@@ -109,7 +113,8 @@ try {
         project,
         operatorEnvironmentPath,
         apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
-        frontendUrl: `http://127.0.0.1:${env.FRONTEND_HOST_PORT}`,
+        publicUrl,
+        frontendUrl: publicUrl,
       };
       await run(
         process.execPath,

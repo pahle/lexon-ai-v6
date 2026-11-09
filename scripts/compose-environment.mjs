@@ -13,7 +13,25 @@ export async function composeEnvironment(input, directory) {
     VALKEY_IMAGE: images.valkey,
     SEAWEEDFS_IMAGE: images.seaweedfs,
     MAILPIT_IMAGE: images.mailpit,
+    CADDY_IMAGE: images.caddy,
+    K6_IMAGE: images.k6,
   };
+  const publicHostPort = env.PUBLIC_HOST_PORT ?? '3000';
+  if (
+    !/^\d{1,5}$/.test(publicHostPort) ||
+    Number(publicHostPort) < 1 ||
+    Number(publicHostPort) > 65535
+  )
+    throw new Error('Invalid public host port');
+  env.PUBLIC_HOST_PORT = publicHostPort;
+  env.PUBLIC_URL = env.PUBLIC_URL ?? `http://localhost:${publicHostPort}`;
+  const publicOrigin = new URL(env.PUBLIC_URL);
+  if (
+    publicOrigin.protocol !== 'http:' ||
+    publicOrigin.origin !== env.PUBLIC_URL
+  )
+    throw new Error('Invalid public URL');
+  env.AUTH_PUBLIC_ORIGIN = env.PUBLIC_URL;
   const required = [
     'POSTGRES_ADMIN_PASSWORD',
     'DATABASE_MIGRATOR_PASSWORD',

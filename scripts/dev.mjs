@@ -39,7 +39,7 @@ try {
       ...(useMail ? ['--profile', 'dev-mail'] : []),
       'up',
       '--build',
-      ...(selected ? [services[selected]] : []),
+      ...(selected ? [services[selected], 'caddy'] : []),
       ...args,
     ]),
     { env },

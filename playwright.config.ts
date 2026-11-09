@@ -41,6 +41,10 @@ export default defineConfig({
     },
     { name: 'backend-api', testMatch: 'backend/test/e2e/api.spec.ts' },
     {
+      name: 'chat-routing',
+      testMatch: 'backend/test/e2e/chat-routing.spec.ts',
+    },
+    {
       name: 'frontend-browser',
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },
