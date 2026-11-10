@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–6 accepted after review;
-Tasks 7–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–7 accepted after review;
+Tasks 8–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -388,12 +388,64 @@ fixture concurrent-query warning remains tracked for final verification.
 The preceding Task 5 head `8404334` passed both Linux CI layers in
 [run 42770261033](https://github.com/pahle/lexon-ai-v6/actions/runs/42770261033).
 Fresh scoped re-review closed both Important findings; main accepted spec
-compliance and quality. Task 6 new-head CI is pending publication.
+compliance and quality. Published head `713a197` passed both Linux CI layers in
+[run 42784976444](https://github.com/pahle/lexon-ai-v6/actions/runs/42784976444).
+The first Compose attempt passed 57/58 tests and failed the legacy collapsed
+sidebar keyboard-menu test; its snapshot showed the user menu open instead of
+the organization menu. The unchanged-head rerun passed. This is recorded as a
+non-reproduced focus/transition failure, not a proven root cause or a hidden
+first-attempt pass; final UI verification must check it again.
+
+## Task 7 — reasoning privacy and measured timing
+
+Source `7472e75`, review correction `e72497b`. The bounded raw-fetch observer
+projects the first provider choice and allowed usage/metadata fields before
+provider parsing or SDK accumulation. Only explicitly typed summaries survive;
+raw, encrypted, redacted, unknown and malformed reasoning content is discarded.
+Frames are limited to 1 MiB and summaries to 16,384 UTF-8 bytes. Provider errors
+are sanitized before SDK handling, while safe transport classification remains
+available to the engine's retry policy.
+
+Typed signals start a monotonic clock; first answer text ends it. Both boundaries
+are captured before awaited delivery callbacks. An answer with no prior signal
+closes timing, so a late signal cannot invent a duration. No-signal and
+stopped-before-answer cases retain null. Retry and recovered-attempt resets use
+the durable attempt ordinal. Summary/timing accompany text in checkpoints and
+reload projections; migration 0030 extends deletion fences to the new fields.
+
+Fresh review found three Important defects: passthrough usage fields reaching
+SDK internals, answer-first timing becoming zero, and lease expiry allowing a
+checkpoint to commit without its paired run fields. New failing tests preceded
+the fixes. The observer now projects validated fields and follows only the
+consumed first choice; checkpoint/run writes use a savepoint that rolls back
+the pair on a failed second write. A controlled lease-expiry trigger proves the
+rollback. Fresh scoped re-review and main review accepted spec and quality.
+
+- Final checks: **35 gateway/privacy tests**, **3 reasoning integration tests**,
+  **40 accounting/cancellation/stream-memory tests**, and the complete
+  **84-test executor suite** passed. Workspace typecheck, lint with 96 boundary
+  checks, formatting and diff checks passed. Earlier contracts passed 54/54
+  and stream encoding 9/9; shared code was unchanged in the review fix.
+- Real pinned provider with mocked HTTP → actual executor → Valkey events →
+  PostgreSQL checkpoint/tree tests verify summary/timing equivalence, forbidden
+  canaries, retry reset and deletion fences. No real-model request occurred.
+- Initial fixture/schema failures are excluded from behavior RED evidence.
+  One broad run was stopped prematurely and is indeterminate; an initial empty
+  first-attempt checkpoint caused a timed-write failure cascade and was fixed.
+  These runs are not counted as final passing gates.
+- An earlier proposal-publication test observed 14/15 approvals. Idle paired
+  baseline/current measurements both published all 31 events in 69.82/71.92 ms;
+  this does not prove the failure pre-existing. The later full 84/84 gate passed.
+  Task 8 must still force mid-batch publication unavailability and prove durable
+  snapshot recovery. The 32-event bound and 250 ms deadline remain unchanged.
+
+New-head Linux CI is pending publication. Real effort distributions and estimator
+calibration remain the owner-run Task 17 gate.
 
 ## Pending evidence
 
-The runtime/tree/replay proof, Usage ledger and deletion/capacity races, summary
-filter/timing cases, chat UI, search and evals, owner-run high/max smoke and
+The runtime/tree/replay proof, deletion/capacity races with the Usage ledger,
+chat UI, search and evals, owner-run high/max smoke and
 calibration, S2 load, visual approval and Linux golden evidence remain pending.
 No real model request, paid eval dispatch or account/admin change was made.
 Production TLS/hardening stays F20; P8 physical-region verification and F17
