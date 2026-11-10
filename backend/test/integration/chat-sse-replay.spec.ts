@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
-import { SseStreamReader } from '../../src/infrastructure/queue/sse-stream-reader.js';
+import {
+  SseStreamReader,
+  type StreamEntry,
+} from '../../src/infrastructure/queue/sse-stream-reader.js';
 import {
   StreamHub,
   type SseFrame,
@@ -741,7 +744,7 @@ test('nonresumable snapshots hold unknown entries until PG provides a compatible
   const makeSnapshot = () => ({
     runId,
     messageId: runId,
-    attemptId,
+    attemptId: snapshotCursor ? attemptId : null,
     generation: snapshotCursor ? 1 : null,
     revision: snapshotRevision,
     eventId: snapshotCursor,
@@ -796,8 +799,22 @@ test('nonresumable snapshots hold unknown entries until PG provides a compatible
     expect(frames.some((frame) => frame.id === `1:${checkpointedId}`)).toBe(
       false,
     );
-    snapshotText = 'old committed text checkpointed';
-    snapshotCursor = checkpointedId;
+    const discardedUnknownId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: ' then discarded traffic' }),
+      'generation',
+      '1',
+    );
+    if (!discardedUnknownId)
+      throw new Error('Valkey did not return an XADD cursor');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(frames.some((frame) => frame.id === `1:${discardedUnknownId}`)).toBe(
+      false,
+    );
+    snapshotText = 'old committed text checkpointed then discarded traffic';
+    snapshotCursor = discardedUnknownId;
     snapshotRevision = 1;
     await waitFor(
       () =>
@@ -812,7 +829,7 @@ test('nonresumable snapshots hold unknown entries until PG provides a compatible
       .filter((frame) => frame.data.includes('"type":"snapshot-part"'))
       .map((frame) => JSON.parse(frame.data) as { text: string });
     expect(recoveredParts.map((part) => part.text).join('')).toBe(
-      'old committed text checkpointed',
+      'old committed text checkpointed then discarded traffic',
     );
     const suffixId = await redis.xadd(
       key,
@@ -876,6 +893,275 @@ test('nonresumable snapshots hold unknown entries until PG provides a compatible
     expect(frames.filter((frame) => frame.id === `1:${liveId}`)).toHaveLength(
       1,
     );
+  } finally {
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
+test('a reset received during recovery cannot transition to live with a stale snapshot', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const runId = randomUUID();
+  const frames: SseFrame[] = [];
+  let cursor: string | undefined;
+  let revision = 1;
+  let releaseSnapshot!: (written: boolean) => void;
+  let snapshotDrainStarted!: () => void;
+  const snapshotDrain = new Promise<boolean>((resolve) => {
+    releaseSnapshot = resolve;
+  });
+  const drainStarted = new Promise<void>((resolve) => {
+    snapshotDrainStarted = resolve;
+  });
+  const makeFallback = (generation: number) => ({
+    streamGeneration: generation,
+    snapshot: {
+      runId,
+      messageId: runId,
+      attemptId: runId,
+      generation,
+      revision,
+      eventId: cursor ?? null,
+      parts: [
+        { type: 'text' as const, id: runId, text: `revision ${revision}` },
+      ],
+      operations: [],
+      status: 'running' as const,
+      errorCode: null,
+      reasoningDurationMs: null,
+    },
+    reload: async () => makeFallback(2),
+  });
+  const fallback = makeFallback(1);
+  const originalRange = reader.range.bind(reader);
+  let recoveringRange = false;
+  let releaseRange!: () => void;
+  let rangeEntered!: () => void;
+  const rangeGate = new Promise<void>((resolve) => {
+    releaseRange = resolve;
+  });
+  const enteredRange = new Promise<void>((resolve) => {
+    rangeEntered = resolve;
+  });
+  let resetReceived!: () => void;
+  const receivedReset = new Promise<void>((resolve) => {
+    resetReceived = resolve;
+  });
+  const originalAdd = reader.add.bind(reader);
+  const addSpy = vi.spyOn(reader, 'add').mockImplementation((subscription) => {
+    const originalReceive = subscription.receive;
+    Object.defineProperty(subscription, 'receive', {
+      configurable: true,
+      value: (entry: StreamEntry) => {
+        if (entry.event.includes('"type":"reset"')) resetReceived();
+        originalReceive(entry);
+      },
+    });
+    originalAdd(subscription);
+  });
+  const rangeSpy = vi
+    .spyOn(reader, 'range')
+    .mockImplementation(async (...args) => {
+      const rows = await originalRange(...args);
+      if (recoveringRange) {
+        recoveringRange = false;
+        rangeEntered();
+        await rangeGate;
+      }
+      return rows;
+    });
+  const sink = {
+    write(frame: SseFrame) {
+      frames.push(frame);
+      if (frame.data.includes('"type":"snapshot-start"')) return false;
+      return true;
+    },
+    async drain() {
+      snapshotDrainStarted();
+      return snapshotDrain;
+    },
+    async close() {},
+  };
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const originalId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'status', status: 'running' }),
+      'generation',
+      '1',
+    );
+    if (!originalId) throw new Error('Valkey did not return an XADD cursor');
+    cursor = originalId;
+    subscription = await hub.subscribe(key, `1:${originalId}`, sink, fallback);
+
+    await redis.del(key, generationKey);
+    await redis.set(generationKey, '2');
+    const replacementId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'status', status: 'running' }),
+      'generation',
+      '2',
+    );
+    if (!replacementId) throw new Error('Valkey did not return an XADD cursor');
+    cursor = replacementId;
+    recoveringRange = true;
+    const triggerId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: 'before reset' }),
+      'generation',
+      '2',
+    );
+    if (!triggerId) throw new Error('Valkey did not return an XADD cursor');
+    await enteredRange;
+    releaseRange();
+    await drainStarted;
+
+    revision = 2;
+    const resetId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ version: 1, runId, type: 'reset', sequence: 2 }),
+      'generation',
+      '2',
+    );
+    if (!resetId) throw new Error('Valkey did not return an XADD cursor');
+    cursor = resetId;
+    await receivedReset;
+    releaseSnapshot(true);
+
+    await waitFor(() =>
+      frames.some(
+        (frame) =>
+          frame.data.includes('"type":"snapshot-part"') &&
+          frame.data.includes('revision 2'),
+      ),
+    );
+    expect(frames.some((frame) => frame.id === `2:${resetId}`)).toBe(false);
+    expect(
+      frames.filter((frame) => frame.data.includes('"type":"snapshot-start"')),
+    ).toHaveLength(2);
+  } finally {
+    releaseRange();
+    releaseSnapshot(true);
+    rangeSpy.mockRestore();
+    addSpy.mockRestore();
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
+test('snapshot-only subscribers survive unknown traffic until the PG terminal snapshot', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const runId = randomUUID();
+  const frames: SseFrame[] = [];
+  let status: 'running' | 'completed' = 'running';
+  let text = 'authorized PG text';
+  const snapshot = () => ({
+    runId,
+    messageId: runId,
+    attemptId: null,
+    generation: null,
+    revision: 0,
+    eventId: null,
+    parts: [{ type: 'text' as const, id: runId, text }],
+    operations: [],
+    status,
+    errorCode: null,
+    reasoningDurationMs: null,
+  });
+  const fallback = {
+    streamGeneration: 1,
+    snapshot: snapshot(),
+    reload: async () => ({
+      streamGeneration: 1,
+      snapshot: snapshot(),
+      reload: fallback.reload,
+    }),
+  };
+  let closeReason: string | undefined;
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const seed = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'status', status: 'running' }),
+      'generation',
+      '1',
+    );
+    if (!seed) throw new Error('Valkey did not return an XADD cursor');
+    subscription = await hub.subscribe(
+      key,
+      undefined,
+      {
+        write(frame) {
+          frames.push(frame);
+          return true;
+        },
+        async drain() {
+          return true;
+        },
+        async close(reason) {
+          closeReason = reason;
+        },
+      },
+      fallback,
+    );
+    await waitFor(() =>
+      frames.some((frame) => frame.data.includes('"type":"snapshot-end"')),
+    );
+    const delta = 'unknown traffic '.repeat(600);
+    for (let index = 0; index < 8; index++) {
+      await redis.xadd(
+        key,
+        '*',
+        'event',
+        JSON.stringify({ type: 'text-delta', delta }),
+        'generation',
+        '1',
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(closeReason).toBeUndefined();
+
+    text = 'complete PG terminal text';
+    status = 'completed';
+    await waitFor(() =>
+      frames.some((frame) => frame.data.includes('"type":"finish"')),
+    );
+    const terminalPart = frames.find(
+      (frame) =>
+        frame.data.includes('"type":"snapshot-part"') &&
+        frame.data.includes('complete PG terminal text'),
+    );
+    expect(terminalPart).toBeDefined();
+    expect(frames.some((frame) => frame.data.includes('"type":"finish"'))).toBe(
+      true,
+    );
+    expect(closeReason).toBeUndefined();
   } finally {
     await subscription?.close();
     await hub.close();

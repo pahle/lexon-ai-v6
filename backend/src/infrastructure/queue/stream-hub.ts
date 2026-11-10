@@ -68,6 +68,8 @@ export class StreamHub {
     let lineagePending = false;
     let snapshotOnly = false;
     let forceSnapshot = false;
+    let recoveryEpoch = 0;
+    let replayBarrierHighWater: string | undefined;
     let terminalSnapshotSent = false;
     let activeGeneration = fallback?.streamGeneration;
     const buffered: StreamEntry[] = [];
@@ -112,14 +114,19 @@ export class StreamHub {
       key,
       cursor: '0-0',
       lineageChanged: () => {
+        recoveryEpoch++;
         buffered.length = 0;
         bufferedBytes = 0;
+        replayBarrierHighWater = undefined;
         lineagePending = true;
         startResync(true);
       },
       receive: (entry) => {
         if (isResetEntry(entry) && fallback) {
-          queueEntry(entry);
+          recoveryEpoch++;
+          buffered.length = 0;
+          bufferedBytes = 0;
+          replayBarrierHighWater = undefined;
           startResync(true);
           return;
         }
@@ -127,12 +134,40 @@ export class StreamHub {
           if (activeGeneration === undefined)
             activeGeneration = entry.generation;
           else if (entry.generation !== activeGeneration) {
-            queueEntry(entry);
-            startResync(false);
+            if (snapshotOnly) {
+              recoveryEpoch++;
+              buffered.length = 0;
+              bufferedBytes = 0;
+              replayBarrierHighWater = undefined;
+              if (compareIds(entry.id, live.cursor) > 0) {
+                live.cursor = entry.id;
+                this.reader.advance(live, entry.id);
+              }
+              startResync(true);
+            } else {
+              queueEntry(entry);
+              startResync(false);
+            }
             return;
           }
         }
-        if (replaying || resyncing || snapshotOnly) {
+        if (snapshotOnly && !replaying) {
+          if (
+            replayBarrierHighWater &&
+            entry.generation === activeGeneration &&
+            compareIds(entry.id, replayBarrierHighWater) > 0
+          ) {
+            queueEntry(entry);
+          } else {
+            // This advances only the shared XREAD read position. The client
+            // cursor remains unchanged; a later compatible PG cursor replays
+            // the authoritative suffix directly with XRANGE.
+            if (compareIds(entry.id, live.cursor) > 0) {
+              live.cursor = entry.id;
+              this.reader.advance(live, entry.id);
+            }
+          }
+        } else if (replaying || resyncing) {
           queueEntry(entry);
         } else {
           void deliver(entry, entry.generation);
@@ -355,6 +390,8 @@ export class StreamHub {
 
     resynchronizer.run = async () => {
       if (closed) return;
+      const observedEpoch = recoveryEpoch;
+      const interrupted = (): boolean => recoveryEpoch !== observedEpoch;
       try {
         let current: SnapshotFallback | undefined;
         try {
@@ -363,6 +400,7 @@ export class StreamHub {
           await close('revoked');
           return;
         }
+        if (interrupted()) return;
         if (!current) {
           await close('revoked');
           return;
@@ -370,16 +408,24 @@ export class StreamHub {
         currentFallback = current;
         if (isTerminal(current.snapshot)) {
           await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+          if (interrupted()) return;
           forceSnapshot = false;
           if (!terminalSnapshotSent) await terminalSnapshot(current.snapshot);
           return;
         }
         const currentGeneration = await this.reader.generation(key);
-        const currentHighWater = await this.reader.latest(key);
-        if (closed) return;
-        activeGeneration = currentGeneration;
+        if (interrupted()) return;
         const cursor = current.snapshot.eventId;
         const oldest = await this.reader.oldest(key);
+        if (interrupted()) return;
+        const cursorRetained = Boolean(
+          cursor && (await this.reader.contains(key, cursor)),
+        );
+        if (interrupted()) return;
+        const currentHighWater = await this.reader.latest(key);
+        if (interrupted()) return;
+        if (closed) return;
+        activeGeneration = currentGeneration;
         const compatible = Boolean(
           cursor &&
           currentGeneration !== undefined &&
@@ -389,7 +435,7 @@ export class StreamHub {
           oldest &&
           compareIds(cursor, oldest) >= 0 &&
           compareIds(cursor, currentHighWater) <= 0 &&
-          (await this.reader.contains(key, cursor)),
+          cursorRetained,
         );
 
         if (!compatible) {
@@ -399,38 +445,53 @@ export class StreamHub {
           return;
         }
 
+        // Establish the replay barrier without another await after this
+        // high-water read. Events beyond it are held until XRANGE completes.
+        replayBarrierHighWater = currentHighWater!;
         const rows = await this.reader.range(key, cursor!, currentHighWater!);
+        if (interrupted()) return;
         if (!rows) {
+          replayBarrierHighWater = undefined;
           await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+          if (interrupted()) return;
           forceSnapshot = false;
           snapshotOnly = true;
           return;
         }
         if (rows.some(isResetEntry)) {
+          replayBarrierHighWater = undefined;
           await emitSnapshotIfChanged(current.snapshot, true);
+          if (interrupted()) return;
           forceSnapshot = false;
           snapshotOnly = true;
           return;
         }
 
         await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+        if (interrupted()) return;
         forceSnapshot = false;
         recentIds.clear();
         recentOrder.length = 0;
-        for (const row of rows) await deliver(row, currentGeneration);
+        for (const row of rows) {
+          await deliver(row, currentGeneration);
+          if (interrupted()) return;
+        }
         const highWater = currentHighWater!;
         live.cursor = highWater;
         this.reader.advance(live, highWater);
         for (const entry of buffered
           .splice(0)
           .sort((a, b) => compareIds(a.id, b.id))) {
+          if (interrupted()) return;
           if (
             entry.generation === activeGeneration &&
             compareIds(entry.id, highWater) > 0
           )
             await deliver(entry, entry.generation);
+          if (interrupted()) return;
         }
         bufferedBytes = 0;
+        replayBarrierHighWater = undefined;
         lineagePending = false;
         snapshotOnly = false;
         if (resyncTimer.timer) {
@@ -439,6 +500,11 @@ export class StreamHub {
         }
       } finally {
         resyncing = false;
+        if (snapshotOnly && observedEpoch !== recoveryEpoch && !closed) {
+          forceSnapshot = true;
+          resyncing = true;
+          setImmediate(() => void resynchronizer.run());
+        }
       }
     };
     function ensureResyncTimer(): void {
