@@ -810,3 +810,22 @@ Caddy, k6, Markdown/GFM and notable transitive pins, before any installation.
 The implementation plan verifies that gate; no package/lockfile was changed
 during planning. The plan proposes the isolated S2 configuration in R21 for
 owner review and preserves default-six eviction tests.
+
+R28: Task 6 implementation research was rechecked on 2026-11-10 against the
+installed NestJS `12.3.2`, Zod `4.6.7`, Drizzle `0.45.4`, and PostgreSQL
+`17.11` pins. Official [NestJS controllers](https://docs.nestjs.com/controllers)
+and [guards](https://docs.nestjs.com/guards), [Zod API](https://zod.dev/api),
+[Drizzle transactions](https://orm.drizzle.team/docs/transactions), and
+PostgreSQL 17 [row security](https://www.postgresql.org/docs/17/ddl-rowsecurity.html),
+[explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html),
+and [trigger behavior](https://www.postgresql.org/docs/17/trigger-definition.html)
+were checked. They support the existing Nest controller/verified-identity
+boundary, strict Zod request objects, one tenant transaction for chat rows and
+run start, row/advisory-lock ordering, and a PostgreSQL audit trigger that
+validates the new IDs-only event shapes independently of TypeScript. The
+production history provider uses separate eligible message pieces and the
+same untrusted-context renderer and `assembleModelInput` estimator as the
+worker; no provider SDK API or dependency changed. The actual Task 6 worker
+integration test captures the assembled gateway input at exactly 131,072
+history JSON bytes and with escape-heavy Unicode history; both stay within the
+approved 163,840 estimated input bound. No stack revision.

@@ -24,6 +24,11 @@ export { ChatRepository } from './chat.repository.js';
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
+export { ChatMutationRepository } from './chat-mutation.repository.js';
+export type {
+  ChatCreateRequestRecord,
+  ExistingChatMessageMutation,
+} from './chat-mutation.repository.js';
 export {
   assertRunActorFactsSession,
   RunActorFactsRepository,

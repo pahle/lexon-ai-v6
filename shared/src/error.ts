@@ -33,6 +33,15 @@ export const SafeErrorMessages = {
   CHAT_NOT_FOUND: 'Chat not found.',
 } as const satisfies Record<SafeErrorCode, string>;
 
+export class ChatApiError extends Error {
+  readonly status: 404 | 409;
+
+  constructor(readonly code: ChatErrorCode) {
+    super(SafeErrorMessages[code]);
+    this.status = code === 'CHAT_NOT_FOUND' ? 404 : 409;
+  }
+}
+
 export const ErrorResponseSchema = z.strictObject({
   error: z.strictObject({
     code: z.string().min(1),

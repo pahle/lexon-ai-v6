@@ -88,6 +88,45 @@ export class ChatRepository {
     return result.rows[0] ? mapChat(result.rows[0]) : null;
   }
 
+  async readLive(
+    tx: TenantSession,
+    chatId: string,
+  ): Promise<ChatRecord | null> {
+    if (!uuid.safeParse(chatId).success) return null;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return null;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<ChatRow>(
+      `SELECT * FROM app.chats
+       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL`,
+      [scope.orgId, scope.userId, chatId],
+    );
+    return result.rows[0] ? mapChat(result.rows[0]) : null;
+  }
+
+  async associateAnswer(
+    tx: TenantSession,
+    chatId: string,
+    runId: string,
+  ): Promise<void> {
+    if (!uuid.safeParse(chatId).success || !uuid.safeParse(runId).success)
+      throw new Error('Invalid chat run');
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) throw new Error('Invalid chat owner');
+    const result = await client.query(
+      `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+       SELECT $1,c.id,$3,'answer' FROM app.chats c
+       WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$4 AND c.deleted_at IS NULL`,
+      [ctx.orgId, ctx.userId, runId, chatId],
+    );
+    if (result.rowCount !== 1) throw new Error('Chat unavailable');
+  }
+
   async selectLeaf(
     tx: TenantSession,
     chatId: string,

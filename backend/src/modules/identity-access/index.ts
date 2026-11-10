@@ -23,7 +23,10 @@ export {
 } from './run-capability-policy.js';
 export { OrganizationAuthPort } from './organization-auth.port.js';
 export type { VerifiedIdentity } from './identity.types.js';
-export { currentVerifiedIdentity } from './identity.types.js';
+export {
+  currentVerifiedIdentity,
+  verifiedIdentityHeaders,
+} from './identity.types.js';
 export type { OrganizationSelectionPort } from './identity-session.service.js';
 export { ORGANIZATION_SELECTION } from './identity-session.service.js';
 export { PublicRoute, AccountRoute, PlatformRoute } from './route-access.js';

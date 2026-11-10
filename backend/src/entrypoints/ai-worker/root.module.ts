@@ -9,6 +9,7 @@ import { ChatModule } from '../../modules/chat/index.js';
 import { RunAuthorizationModule } from '../../modules/identity-access/index.js';
 import { runtimeProviders } from '../../bootstrap/runtime-providers.js';
 import { aiWorkerProviders } from '../../bootstrap/ai-worker-providers.js';
+import { chatRuntimeProviders } from '../../modules/chat/chat-runtime.providers.js';
 @Module({})
 export class AiWorkerRootModule {
   static forConfig(
@@ -25,7 +26,11 @@ export class AiWorkerRootModule {
         RunAuthorizationModule,
         ChatModule,
       ],
-      providers: [...runtimeProviders(config), ...aiWorkerProviders(config)],
+      providers: [
+        ...runtimeProviders(config),
+        ...chatRuntimeProviders(),
+        ...aiWorkerProviders(config),
+      ],
     };
   }
 }

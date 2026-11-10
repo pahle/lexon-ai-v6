@@ -698,6 +698,104 @@ export async function createChatFixture(services: Services) {
         );
         return result.rows;
       },
+      async mutationCounts(input: { chatId: string; runId: string }) {
+        const result = await inspector.query<{
+          messages: string;
+          answers: string;
+          create_requests: string;
+          runs: string;
+          start_outbox: string;
+          start_audit: string;
+          chat_audit: string;
+          slots: string;
+        }>(
+          `SELECT
+            (SELECT count(*) FROM app.chat_messages WHERE chat_id=$1) AS messages,
+            (SELECT count(*) FROM app.chat_runs WHERE chat_id=$1 AND kind='answer') AS answers,
+            (SELECT count(*) FROM app.chat_create_requests WHERE chat_id=$1) AS create_requests,
+            (SELECT count(*) FROM app.ai_runs WHERE id=$2) AS runs,
+            (SELECT count(*) FROM ops.outbox WHERE type='run.start.v1' AND payload->>'runId'=$2::text) AS start_outbox,
+            (SELECT count(*) FROM ops.audit_events WHERE type='chat.run_started.v1' AND metadata->>'runId'=$2::text) AS start_audit,
+            (SELECT count(*) FROM ops.audit_events WHERE type IN ('chat.created.v1','chat.message_sent.v1') AND metadata->>'chatId'=$1::text) AS chat_audit,
+            (SELECT count(*) FROM ops.ai_run_slots WHERE run_id=$2) AS slots`,
+          [input.chatId, input.runId],
+        );
+        return result.rows[0]!;
+      },
+      async rollbackCounts(input: { chatId: string; prompt: string }) {
+        const result = await inspector.query<{
+          chats: string;
+          messages: string;
+          runs: string;
+          outbox: string;
+          audit: string;
+          chat_audit: string;
+          slots: string;
+        }>(
+          `WITH run_ids AS (SELECT id FROM app.ai_runs WHERE input_text=$2)
+           SELECT
+             (SELECT count(*) FROM app.chats WHERE id=$1) AS chats,
+             (SELECT count(*) FROM app.chat_messages WHERE chat_id=$1) AS messages,
+             (SELECT count(*) FROM run_ids) AS runs,
+             (SELECT count(*) FROM ops.outbox WHERE payload->>'runId' IN (SELECT id::text FROM run_ids)) AS outbox,
+             (SELECT count(*) FROM ops.audit_events WHERE metadata->>'runId' IN (SELECT id::text FROM run_ids)) AS audit,
+             (SELECT count(*) FROM ops.audit_events WHERE metadata->>'chatId'=$1::text AND type IN ('chat.created.v1','chat.message_sent.v1')) AS chat_audit,
+             (SELECT count(*) FROM ops.ai_run_slots WHERE run_id IN (SELECT id FROM run_ids)) AS slots`,
+          [input.chatId, input.prompt],
+        );
+        return result.rows[0]!;
+      },
+      async chatAudit(chatId: string) {
+        const result = await inspector.query<{
+          type: string;
+          metadata: unknown;
+        }>(
+          `SELECT type,metadata FROM ops.audit_events
+           WHERE type IN ('chat.created.v1','chat.message_sent.v1')
+             AND metadata->>'chatId'=$1::text ORDER BY type`,
+          [chatId],
+        );
+        return result.rows;
+      },
+      async insertRawAudit(input: {
+        eventId: string;
+        actorUserId: string;
+        orgId: string;
+        metadata: Readonly<Record<string, unknown>>;
+      }) {
+        return inspector.query(
+          `INSERT INTO ops.audit_events
+           (event_id,version,type,occurred_at,outcome,actor_user_id,org_id,metadata)
+           VALUES($1,1,'chat.created.v1',clock_timestamp(),'success',$2,$3,$4::jsonb)`,
+          [
+            input.eventId,
+            input.actorUserId,
+            input.orgId,
+            JSON.stringify(input.metadata),
+          ],
+        );
+      },
+      async failChatCreateRequestInsert() {
+        const triggerName = `fail_chat_create_${randomUUID().replaceAll('-', '')}`;
+        await inspector.query(
+          `CREATE FUNCTION public.${triggerName}() RETURNS trigger
+           LANGUAGE plpgsql AS $$ BEGIN
+             RAISE EXCEPTION 'injected transaction failure' USING ERRCODE='23514';
+           END $$`,
+        );
+        await inspector.query(
+          `CREATE TRIGGER ${triggerName} BEFORE INSERT ON app.chat_create_requests
+           FOR EACH ROW EXECUTE FUNCTION public.${triggerName}()`,
+        );
+        return async () => {
+          await inspector.query(
+            `DROP TRIGGER IF EXISTS ${triggerName} ON app.chat_create_requests`,
+          );
+          await inspector.query(
+            `DROP FUNCTION IF EXISTS public.${triggerName}()`,
+          );
+        };
+      },
       async usage(runId: string) {
         const result = await inspector.query(
           'SELECT * FROM app.usage_events WHERE run_id=$1',

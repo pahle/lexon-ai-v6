@@ -20,6 +20,17 @@ export const PRODUCTION_ENGINE_REGISTRATIONS: EngineRegistrations =
     tools: Object.freeze([]),
   });
 
+export function createProductionRunRegistry(
+  contexts: readonly ContextProvider[] = [],
+): RunRegistry {
+  const registry = new RunRegistry();
+  registry.register({
+    ...PRODUCTION_ENGINE_REGISTRATIONS,
+    contexts,
+  });
+  return registry;
+}
+
 export class RunRegistry {
   readonly #profiles = new Map<string, RunProfile>();
   readonly #contexts = new Map<string, ContextProvider>();

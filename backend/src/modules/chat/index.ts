@@ -1,4 +1,5 @@
 export {
+  createProductionRunRegistry,
   PRODUCTION_ENGINE_REGISTRATIONS,
   RunRegistry,
 } from './run-registry.js';
@@ -21,6 +22,7 @@ export {
   type ToolResult,
 } from './tool-executor.js';
 export { ChatModule } from './chat.module.js';
+export { ChatHistoryContextProvider } from './chat-history-context.js';
 export type {
   ContextPiece,
   ContextProvider,

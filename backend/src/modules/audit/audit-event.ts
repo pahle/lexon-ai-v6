@@ -288,6 +288,22 @@ const aiApprovalDecided = z.strictObject({
     status: z.enum(['approved', 'rejected']),
   }),
 });
+const chatCreated = z.strictObject({
+  ...base,
+  type: z.literal('chat.created.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
+const chatMessageSent = z.strictObject({
+  ...base,
+  type: z.literal('chat.message_sent.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema, messageId: UuidSchema }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -307,6 +323,8 @@ export const AuditEventSchema = z.union([
   aiRunFinished,
   aiToolOperation,
   aiApprovalDecided,
+  chatCreated,
+  chatMessageSent,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

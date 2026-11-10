@@ -204,6 +204,13 @@
       "when": 1793404800028,
       "tag": "0028_chat_queued_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793404800029,
+      "tag": "0029_chat_create_requests",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ export interface ChatMessageRecord {
   readonly parentMessageId: string | null;
   readonly role: 'user' | 'assistant';
   readonly userText: string | null;
+  readonly effort: 'high' | 'max' | null;
   readonly assistantText: string | null;
   readonly runId: string | null;
   readonly status: string | null;
@@ -21,11 +22,18 @@ export interface ChatTree {
   readonly messages: readonly ChatMessageRecord[];
 }
 
+export interface ChatHistoryRecord {
+  readonly role: 'user' | 'assistant';
+  readonly text: string | null;
+  readonly status: string | null;
+}
+
 interface TreeRow {
   id: string;
   parent_message_id: string | null;
   role: ChatMessageRecord['role'];
   user_text: string | null;
+  effort: 'high' | 'max' | null;
   run_id: string | null;
   status: string | null;
   assistant_text: string | null;
@@ -33,6 +41,63 @@ interface TreeRow {
 }
 
 export class ChatMessageRepository {
+  async historyForRun(
+    tx: TenantSession,
+    runId: string,
+  ): Promise<readonly ChatHistoryRecord[]> {
+    if (!uuid.safeParse(runId).success) return [];
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return [];
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<{
+      role: 'user' | 'assistant';
+      user_text: string | null;
+      answer_text: string | null;
+      status: string | null;
+    }>(
+      `WITH RECURSIVE target AS (
+         SELECT m.org_id,m.chat_id,m.parent_message_id
+         FROM app.chat_messages m
+         JOIN app.chat_runs cr ON cr.org_id=m.org_id AND cr.chat_id=m.chat_id
+           AND cr.run_id=m.run_id AND cr.kind='answer'
+         JOIN app.chats c ON c.org_id=m.org_id AND c.id=m.chat_id
+         WHERE m.run_id=$1 AND m.role='assistant' AND c.org_id=$2
+           AND c.owner_user_id=$3 AND c.deleted_at IS NULL
+       ), path AS (
+         SELECT ancestor.*,0 AS depth FROM target t
+         JOIN app.chat_messages current_turn
+           ON current_turn.org_id=t.org_id AND current_turn.chat_id=t.chat_id
+          AND current_turn.id=t.parent_message_id AND current_turn.role='user'
+         JOIN app.chat_messages ancestor
+           ON ancestor.org_id=t.org_id AND ancestor.chat_id=t.chat_id
+          AND ancestor.id=current_turn.parent_message_id
+         UNION ALL
+         SELECT parent.*,path.depth+1 FROM path
+         JOIN app.chat_messages parent
+           ON parent.org_id=path.org_id AND parent.chat_id=path.chat_id
+          AND parent.id=path.parent_message_id
+       )
+       SELECT path.role,path.user_text,
+         CASE WHEN run.status='completed' THEN run.final_output
+           ELSE run.partial_output END AS answer_text,run.status
+       FROM path LEFT JOIN app.ai_runs run
+         ON path.role='assistant' AND run.org_id=path.org_id
+        AND run.id=path.run_id
+       ORDER BY path.depth DESC`,
+      [runId, scope.orgId, scope.userId],
+    );
+    return result.rows.map((row) => ({
+      role: row.role,
+      text: row.role === 'user' ? row.user_text : row.answer_text,
+      status: row.status,
+    }));
+  }
+
   async insertUser(
     tx: TenantSession,
     input: {
@@ -132,7 +197,7 @@ export class ChatMessageRepository {
     const result = await client.query<
       TreeRow & { viewed_leaf_id: string | null }
     >(
-      `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.run_id,r.status,
+      `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.effort,m.run_id,r.status,
         CASE WHEN m.role='user' THEN NULL
           WHEN r.final_output IS NOT NULL THEN r.final_output
           WHEN r.status IN ('queued','running','awaiting_approval','cancelling')
@@ -170,6 +235,7 @@ export class ChatMessageRepository {
         parentMessageId: row.parent_message_id,
         role: row.role,
         userText: row.user_text,
+        effort: row.effort,
         assistantText: row.assistant_text,
         runId: row.run_id,
         status: row.status,

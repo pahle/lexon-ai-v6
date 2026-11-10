@@ -9,6 +9,7 @@ import {
 import type { PinoLogger } from 'nestjs-pino';
 import type { Request, Response } from 'express';
 import type { ErrorResponse } from '@lexon/contracts';
+import { ChatApiError, SafeErrorMessages } from '@lexon/contracts';
 
 export class ValidationFailure extends HttpException {
   constructor(readonly issues: { path: string; message: string }[]) {
@@ -30,6 +31,12 @@ export class SafeErrorFilter implements ExceptionFilter {
     if (error instanceof IdentityError) {
       status = error.status;
       detail = { code: error.code, message: error.message };
+    } else if (error instanceof ChatApiError) {
+      status = error.status;
+      detail = {
+        code: error.code,
+        message: SafeErrorMessages[error.code],
+      };
     } else if (error instanceof z.ZodError) {
       status = 400;
       detail = { code: 'VALIDATION_ERROR', message: 'Invalid request' };
