@@ -7,7 +7,7 @@ export interface TenantSession {
 }
 const sessions = new WeakMap<
   TenantSession,
-  { client: PoolClient; ctx: TenantContext }
+  { client: PoolClient; ctx: TenantContext; pool: Pool }
 >();
 const pools = new WeakMap<object, Pool>();
 
@@ -23,9 +23,10 @@ export function inspectPool(owner: object): Pool {
 export function beginSession(
   client: PoolClient,
   ctx: TenantContext,
+  pool: Pool,
 ): TenantSession {
   const session = Object.freeze(Object.create(null)) as TenantSession;
-  sessions.set(session, { client, ctx });
+  sessions.set(session, { client, ctx, pool });
   return session;
 }
 export function endSession(session: TenantSession): void {
@@ -35,4 +36,18 @@ export function requireSession(session: TenantSession) {
   const state = sessions.get(session);
   if (!state) throw new Error('Tenant session expired');
   return state;
+}
+
+export function assertTenantSession(
+  owner: object,
+  session: TenantSession,
+  ctx: TenantContext,
+): void {
+  const state = requireSession(session);
+  if (
+    state.pool !== inspectPool(owner) ||
+    state.ctx.orgId !== ctx.orgId ||
+    state.ctx.userId !== ctx.userId
+  )
+    throw new Error('Tenant session unavailable');
 }

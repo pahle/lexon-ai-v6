@@ -65,6 +65,8 @@ import type {
 import {
   RunRegistry,
   ToolExecutor,
+  CHAT_PROFILES,
+  CHAT_HISTORY_CONTEXT_ID,
   type RunProfile,
   StepCoordinator,
   StepExecutor,
@@ -159,6 +161,7 @@ async function setup(
     streams?: RunStreams;
     contexts?: readonly ContextProvider[];
     profile?: RunProfile;
+    effort?: NonNullable<RunProfile['reasoning']>['allowed'][number];
     tools?: readonly ToolDefinition[];
     modelCallTimeoutMs?: number;
     tenant?: { orgId: string; userId: string };
@@ -229,6 +232,7 @@ async function setup(
     runService.start(actor, {
       profileId: (options.profile ?? profile).id,
       prompt: 'Synthetic prompt',
+      ...(options.effort ? { effort: options.effort } : {}),
     }),
   )) as { runId: string };
   return {
@@ -374,6 +378,106 @@ const success = {
     usage,
   },
 };
+
+test('max effort resolves through start and reaches the executor gateway with its output cap', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const received: ModelInput[] = [];
+    const scripted = createScriptedModelGateway([
+      {
+        events: [
+          { type: 'text', text: 'Maximum effort answer.' },
+          { type: 'usage', usage },
+          success,
+        ],
+      },
+    ]);
+    const gateway: ModelGateway = {
+      generate(input) {
+        received.push(input);
+        return scripted.generate(input);
+      },
+    };
+    const h = await setup(ai, [], {
+      profile: CHAT_PROFILES.chat,
+      effort: 'max',
+      gateway,
+      contexts: [
+        {
+          id: CHAT_HISTORY_CONTEXT_ID,
+          version: 1,
+          collect: async () => [],
+        },
+      ],
+    });
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({
+      effort: 'max',
+      maxOutputTokens: 32_768,
+    });
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.resolvedConfig).toMatchObject({
+      resolvedEffort: 'max',
+      maxOutputTokens: 32_768,
+      tokenBudget: 393_216,
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('chat output exhaustion retains partial text and terminates with AI_OUTPUT_LIMIT', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            { type: 'text', text: 'Partial answer retained.' },
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'length',
+                attemptOutcome: 'succeeded',
+                retryable: false,
+              },
+            },
+          ],
+        },
+      ],
+      {
+        profile: CHAT_PROFILES.chat,
+        contexts: [
+          {
+            id: CHAT_HISTORY_CONTEXT_ID,
+            version: 1,
+            collect: async () => [],
+          },
+        ],
+      },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run).toMatchObject({
+      status: 'failed',
+      errorCode: 'AI_OUTPUT_LIMIT',
+      partialOutput: 'Partial answer retained.',
+    });
+    expect(await ai.outboxForRunSequence(0, h.runId, 2)).toBeNull();
+  } finally {
+    await ai.close();
+  }
+});
 
 test('one generation persists metadata, checkpoint, usage, output and terminal state', async ({
   services,

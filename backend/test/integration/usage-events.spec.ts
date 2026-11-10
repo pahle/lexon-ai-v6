@@ -13,9 +13,127 @@ import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { JobExecutor } from '../../src/modules/platform/job-executor.js';
 import { AttemptService } from '../../src/modules/usage/attempt.service.js';
+import { estimateInputTokens } from '../../src/modules/usage/token-estimator.js';
 import { UsageEventsService } from '../../src/modules/usage/usage-events.service.js';
 import { test } from '../setup/file-services.js';
 import { createAttemptHarness } from '../setup/ai-attempt-fixture.js';
+
+test('unknown first attempt retains the full maximum reservation and blocks a third attempt', async ({
+  services,
+}) => {
+  const harness = await createAttemptHarness(services, {
+    inputBudgetTokens: 360_448,
+    outputBudgetTokens: 32_768,
+  });
+  try {
+    const makeInput = (content: string) => ({
+      model: 'synthetic/model',
+      provider: 'synthetic',
+      effort: 'max' as const,
+      messages: [{ role: 'user' as const, content }],
+      maxOutputTokens: 32_768,
+      signal: new AbortController().signal,
+    });
+    let low = 0;
+    let high = 163_840;
+    let content = '';
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      const candidate = 'x'.repeat(middle);
+      const estimate = estimateInputTokens(makeInput(candidate)).inputTokens;
+      if (estimate === 163_840) {
+        content = candidate;
+        break;
+      }
+      if (estimate < 163_840) low = middle + 1;
+      else high = middle - 1;
+    }
+    const modelInput = makeInput(content);
+    expect(estimateInputTokens(modelInput).inputTokens).toBe(163_840);
+    const service = harness.newService();
+    await harness.withTenant(async (tx) => {
+      const firstId = randomUUID();
+      await service.reserve(tx, harness.claim, {
+        attemptId: firstId,
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 393_216,
+          maxOutputTokens: 32_768,
+        },
+      });
+      await service.settle(tx, harness.claim, {
+        attemptId: firstId,
+        outcome: 'unknown',
+      });
+      await service.reserve(tx, harness.claim, {
+        attemptId: randomUUID(),
+        modelInput,
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 393_216,
+          maxOutputTokens: 32_768,
+        },
+      });
+      await expect(
+        service.reserve(tx, harness.claim, {
+          attemptId: randomUUID(),
+          modelInput,
+          limits: {
+            maxAttemptsPerStep: 2,
+            tokenBudget: 393_216,
+            maxOutputTokens: 32_768,
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'AI_ATTEMPT_LIMIT' });
+      expect(await service.remaining(tx, harness.runId)).toBe(0);
+    });
+  } finally {
+    await harness.close();
+  }
+});
+
+test('runtime role cannot delete or truncate durable usage events', async ({
+  services,
+}) => {
+  const harness = await createAttemptHarness(services);
+  const attempt = await harness.withTenant((tx) =>
+    harness.newService().reserve(tx, harness.claim, {
+      attemptId: randomUUID(),
+      modelInput: {
+        model: 'synthetic/model',
+        provider: 'synthetic',
+        messages: [{ role: 'user' as const, content: 'Synthetic prompt.' }],
+        maxOutputTokens: 256,
+        signal: new AbortController().signal,
+      },
+      limits: {
+        maxAttemptsPerStep: 2,
+        tokenBudget: harness.tokenBudget,
+        maxOutputTokens: 256,
+      },
+    }),
+  );
+  try {
+    await harness.withTenantClient(async (_tx, client) => {
+      await client.query('SAVEPOINT deny_usage_delete');
+      await expect(
+        client.query('DELETE FROM app.usage_events WHERE attempt_id=$1', [
+          attempt.attemptId,
+        ]),
+      ).rejects.toMatchObject({ code: '42501' });
+      await client.query('ROLLBACK TO SAVEPOINT deny_usage_delete');
+
+      await client.query('SAVEPOINT deny_usage_truncate');
+      await expect(
+        client.query('TRUNCATE app.usage_events'),
+      ).rejects.toMatchObject({ code: '42501' });
+      await client.query('ROLLBACK TO SAVEPOINT deny_usage_truncate');
+    });
+  } finally {
+    await harness.close();
+  }
+});
 
 test('reserving a model attempt durably records its content-free identity', async ({
   services,

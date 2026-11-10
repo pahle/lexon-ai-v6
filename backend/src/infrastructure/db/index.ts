@@ -10,6 +10,7 @@ export {
   type TenantContext,
 } from './authorization-predicate.js';
 export type { TenantSession } from './tenant-session.js';
+export { assertTenantSession } from './tenant-session.js';
 export { AuditRepository } from './audit.repository.js';
 export type { AuditWriteRecord } from './audit-write-record.js';
 export type { AuthCommandSession } from './auth/auth-types.js';

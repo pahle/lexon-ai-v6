@@ -136,6 +136,7 @@ async function* generate(
       onError: () => undefined,
       providerOptions: {
         openrouter: {
+          ...(input.effort ? { reasoning: { effort: input.effort } } : {}),
           provider: {
             only: [route.provider],
             order: [route.provider],

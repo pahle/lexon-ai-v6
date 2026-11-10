@@ -45,6 +45,7 @@ import {
 } from './run-contracts.js';
 import { StepCoordinator } from './step-coordinator.js';
 import { fenceUntrusted } from './untrusted-context.js';
+import { fitModelContext } from './model-input.js';
 import { canonicalOperationHash } from './canonical-operation.js';
 import {
   ToolApprovalRequiredOutcome,
@@ -748,25 +749,52 @@ export class StepExecutor {
         attemptId = randomUUID();
         retainedKnownResult = undefined;
         lateCancellationSettlement = undefined;
+        const configSnapshot = record(run.resolvedConfig);
+        const schemas = permittedToolSchemas(
+          this.options.registry,
+          activeCapabilities,
+        );
+        const modelContext = profile.reasoning
+          ? [
+              ...(contexts.length
+                ? [
+                    {
+                      role: 'system' as const,
+                      content: renderContexts(contexts),
+                    },
+                  ]
+                : []),
+              ...historyMessages,
+            ]
+          : {
+              beforePrompt: contexts.length
+                ? [
+                    {
+                      role: 'system' as const,
+                      content: renderContexts(contexts),
+                    },
+                  ]
+                : [],
+              afterPrompt: historyMessages,
+            };
+        const modelInputBase = fitModelContext(
+          profile,
+          modelContext,
+          run.inputText,
+          typeof configSnapshot.resolvedEffort === 'string'
+            ? (configSnapshot.resolvedEffort as NonNullable<
+                RunProfile['reasoning']
+              >['default'])
+            : undefined,
+          heartbeat.signal,
+          schemas,
+        ).input;
         const modelInput: ModelInput = {
+          ...modelInputBase,
           runId: claim.runId,
           stepId: claim.stepId,
           attemptId,
-          model: run.modelId,
           provider: initial.provider,
-          messages: [
-            ...(contexts.length
-              ? [{ role: 'system' as const, content: renderContexts(contexts) }]
-              : []),
-            { role: 'user', content: run.inputText },
-            ...historyMessages,
-          ],
-          maxOutputTokens: profile.maxOutputTokens,
-          signal: heartbeat.signal,
-          schemas: permittedToolSchemas(
-            this.options.registry,
-            activeCapabilities,
-          ),
         };
         try {
           await this.options.database.withTenant(
@@ -1227,6 +1255,7 @@ export class StepExecutor {
         succeeded &&
         finalOutcome.finishReason === 'length' &&
         !proposals.length &&
+        !initial.profile.reasoning &&
         !iterationLimit;
       await accountLateOutcome({
         attemptId,
@@ -1270,16 +1299,23 @@ export class StepExecutor {
           finalOutcome.attemptOutcome === 'succeeded' ? 'succeeded' : 'failed',
         ...(invalidProposals
           ? { errorCode: 'AI_INVALID_TOOL' as const }
-          : iterationLimit && finalOutcome.finishReason === 'length'
-            ? { errorCode: 'AI_ITERATION_LIMIT' as const }
-            : budgetExceeded
-              ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
-              : unknown
-                ? {
-                    errorCode:
-                      finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
-                  }
-                : {}),
+          : initial.profile.reasoning &&
+              finalOutcome.finishReason === 'length' &&
+              budgetExceeded
+            ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
+            : initial.profile.reasoning &&
+                finalOutcome.finishReason === 'length'
+              ? { errorCode: 'AI_OUTPUT_LIMIT' as const }
+              : iterationLimit && finalOutcome.finishReason === 'length'
+                ? { errorCode: 'AI_ITERATION_LIMIT' as const }
+                : budgetExceeded
+                  ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
+                  : unknown
+                    ? {
+                        errorCode:
+                          finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
+                      }
+                    : {}),
         ...(operationProposals.length ? { operationProposals } : {}),
         ...(!unknown
           ? {
@@ -1492,6 +1528,8 @@ export class StepExecutor {
         validateSnapshot(profile, run.modelId);
         const resolvedProfile = {
           ...profile,
+          tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
+          maxOutputTokens: run.outputBudgetTokens,
           maxToolProposalsPerGeneration:
             profile.maxToolProposalsPerGeneration ??
             DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,

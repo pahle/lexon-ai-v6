@@ -101,7 +101,22 @@ export class AttemptService {
     if (existing.some(isOverReservation))
       throw new UsagePolicyError('AI_BUDGET_EXCEEDED', 'AI budget exceeded');
 
+    const config =
+      run.resolvedConfig && typeof run.resolvedConfig === 'object'
+        ? (run.resolvedConfig as Record<string, unknown>)
+        : {};
+    const profileSnapshot =
+      config.profileSnapshot && typeof config.profileSnapshot === 'object'
+        ? (config.profileSnapshot as Record<string, unknown>)
+        : {};
     const estimate = estimateInputTokens(modelInput);
+    const maxEstimatedInputTokens =
+      config.maxEstimatedInputTokens ?? profileSnapshot.maxEstimatedInputTokens;
+    if (
+      typeof maxEstimatedInputTokens === 'number' &&
+      estimate.inputTokens > maxEstimatedInputTokens
+    )
+      throw new UsagePolicyError('AI_BUDGET_EXCEEDED', 'AI budget exceeded');
     const reserveInputTokens = estimate.inputTokens;
     const reserveOutputTokens = limits.maxOutputTokens;
     const reserveTotal = reservationTokens(
@@ -136,14 +151,6 @@ export class AttemptService {
       settledAt: null,
     };
     await this.repositories.attempts.insert(tx, claim, record);
-    const config =
-      run.resolvedConfig && typeof run.resolvedConfig === 'object'
-        ? (run.resolvedConfig as Record<string, unknown>)
-        : {};
-    const profileSnapshot =
-      config.profileSnapshot && typeof config.profileSnapshot === 'object'
-        ? (config.profileSnapshot as Record<string, unknown>)
-        : {};
     const effort = config.resolvedEffort ?? profileSnapshot.resolvedEffort;
     const instructionVersion = config.instructionVersion;
     await this.usageEvents.reserve(tx, claim, record, {

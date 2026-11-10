@@ -38,6 +38,7 @@ export interface ModelInput {
   readonly attemptId?: string;
   readonly model: string;
   readonly provider: string;
+  readonly effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   readonly messages: readonly ModelMessage[];
   readonly schemas?: Readonly<Record<string, JsonValue>>;
   readonly maxOutputTokens: number;

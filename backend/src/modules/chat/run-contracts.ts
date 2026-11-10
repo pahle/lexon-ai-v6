@@ -21,6 +21,20 @@ export interface RunProfile {
   readonly maxIterations: number;
   readonly tokenBudget: number;
   readonly maxOutputTokens: number;
+  readonly instructions?: Readonly<{
+    readonly id: string;
+    readonly version: string;
+    readonly text: string;
+  }>;
+  readonly reasoning?: Readonly<{
+    readonly allowed: readonly (
+      'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    )[];
+    readonly default: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+    readonly outputLimits: Readonly<Record<string, number>>;
+    readonly runBudgets: Readonly<Record<string, number>>;
+  }>;
+  readonly maxEstimatedInputTokens?: number;
   readonly maxAttemptsPerStep?: number;
   readonly maxToolProposalsPerGeneration?: number;
   readonly contextBudgets: Readonly<Record<string, number>>;

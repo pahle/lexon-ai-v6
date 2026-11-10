@@ -169,6 +169,20 @@
       "when": 1793404800023,
       "tag": "0023_usage_events",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793404800024,
+      "tag": "0024_usage_event_privileges",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793404800025,
+      "tag": "0025_run_profiles",
+      "breakpoints": true
     }
   ]
 }
