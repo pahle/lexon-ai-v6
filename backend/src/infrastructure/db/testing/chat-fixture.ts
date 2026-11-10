@@ -243,6 +243,34 @@ export async function createChatFixture(services: Services) {
       await client.end();
     }
   }
+  async function chatRunAssociatedAs(
+    ctx: { orgId: string; userId: string },
+    input: { orgId: string; userId: string; runId: string },
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query<{ associated: boolean }>(
+        'SELECT ops.ai_chat_run_is_associated($1,$2,$3) AS associated',
+        [input.orgId, input.userId, input.runId],
+      );
+    });
+  }
+  async function chatRunAssociatedWithoutTenant(input: {
+    orgId: string;
+    userId: string;
+    runId: string;
+  }) {
+    const client = appClient();
+    await client.connect();
+    try {
+      return await client.query<{ associated: boolean }>(
+        'SELECT ops.ai_chat_run_is_associated($1,$2,$3) AS associated',
+        [input.orgId, input.userId, input.runId],
+      );
+    } finally {
+      await client.end();
+    }
+  }
   async function directRelatedRunContent(
     ctx: { orgId: string; userId: string },
     runId: string,
@@ -482,6 +510,8 @@ export async function createChatFixture(services: Services) {
       runWithoutTenant,
       deletedCancellationFactsAs,
       deletedCancellationFactsWithoutTenant,
+      chatRunAssociatedAs,
+      chatRunAssociatedWithoutTenant,
       directRelatedRunContent,
       deleteAssociationAs,
       expireStepLeaseAs,
@@ -614,6 +644,14 @@ export async function createChatFixture(services: Services) {
                   has_function_privilege('lexon_app','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS app_can_finalize,
                   has_function_privilege('lexon_auth','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS auth_can_finalize,
                   has_function_privilege('public','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_finalize`,
+        );
+        return result.rows[0];
+      },
+      async chatAssociationFunctionPrivileges() {
+        const result = await inspector.query(
+          `SELECT has_function_privilege('lexon_app','ops.ai_chat_run_is_associated(uuid,uuid,uuid)','EXECUTE') AS app_can_execute,
+                  has_function_privilege('lexon_auth','ops.ai_chat_run_is_associated(uuid,uuid,uuid)','EXECUTE') AS auth_can_execute,
+                  has_function_privilege('public','ops.ai_chat_run_is_associated(uuid,uuid,uuid)','EXECUTE') AS public_can_execute`,
         );
         return result.rows[0];
       },

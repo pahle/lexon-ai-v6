@@ -139,6 +139,88 @@ test('same-org peers cannot read guessed chat-bound run content or write it dire
   }
 });
 
+test('owner cannot read a deleted queued chat run before its worker claim', async ({
+  services,
+}) => {
+  const harness = await createChatApiHarness(services);
+  try {
+    const owner = await harness.client.identity.user('Deleted queued owner');
+    const identity = (await (
+      await harness.client.identity.call('/identity', owner.headers)
+    ).json()) as { organization: { id: string } };
+    const ctx = { orgId: identity.organization.id, userId: owner.profile.id };
+    const chat = await harness.client.chat.createFor(ctx);
+    const { runId } = await harness.client.startAnswer(
+      ctx,
+      chat.id,
+      'Queued prompt must become immediately unreadable',
+    );
+    expect(
+      await harness.client.chatRunAssociatedAs(ctx, {
+        orgId: ctx.orgId,
+        userId: ctx.userId,
+        runId,
+      }),
+    ).toMatchObject({ rows: [{ associated: false }] });
+    await harness.associateStartedAnswer(ctx, chat.id, runId);
+    expect(
+      await harness.database.withTenant(ctx, (tx) =>
+        new AiRunRepository().find(tx, runId),
+      ),
+    ).toMatchObject({
+      status: 'queued',
+      inputText: 'Queued prompt must become immediately unreadable',
+    });
+
+    expect(await harness.client.chat.deleteFor(ctx, chat.id)).toBe(true);
+    expect(
+      await harness.client.chatRunAssociatedAs(ctx, {
+        orgId: ctx.orgId,
+        userId: ctx.userId,
+        runId,
+      }),
+    ).toMatchObject({ rows: [{ associated: true }] });
+    expect(
+      await harness.client.chatRunAssociatedAs(ctx, {
+        orgId: ctx.orgId,
+        userId: randomUUID(),
+        runId,
+      }),
+    ).toMatchObject({ rows: [{ associated: true }] });
+    expect(
+      await harness.client.chatRunAssociatedAs(ctx, {
+        orgId: randomUUID(),
+        userId: ctx.userId,
+        runId,
+      }),
+    ).toMatchObject({ rows: [{ associated: true }] });
+    expect(
+      await harness.client.chatRunAssociatedWithoutTenant({
+        orgId: ctx.orgId,
+        userId: ctx.userId,
+        runId,
+      }),
+    ).toMatchObject({ rows: [{ associated: true }] });
+    expect(await harness.inspect.chatAssociationFunctionPrivileges()).toEqual({
+      app_can_execute: true,
+      auth_can_execute: false,
+      public_can_execute: false,
+    });
+    expect(
+      await harness.database.withTenant(ctx, (tx) =>
+        new AiRunRepository().find(tx, runId),
+      ),
+    ).toBeNull();
+    expect(await harness.client.directRelatedRunContent(ctx, runId)).toEqual({
+      steps: [],
+      checkpoints: [],
+      operations: [],
+    });
+  } finally {
+    await harness.close();
+  }
+});
+
 test('runtime cannot delete or truncate a chat run association', async ({
   services,
 }) => {
@@ -524,13 +606,11 @@ test('deleted chats reject checkpoint and run-output writes and block raw status
     expect(await fixture.chat.checkpoint(0, claim, attemptId)).toBe(false);
     expect(await fixture.chat.transitionOutput(0, run.id)).toBe(false);
     expect(await fixture.chat.claim(0, run.id)).toBeNull();
-    await expect(
-      fixture.chat.directCheckpointWrite(0, checkpoint.id),
-    ).rejects.toThrow();
+    expect(
+      await fixture.chat.directCheckpointWrite(0, checkpoint.id),
+    ).toMatchObject({ rowCount: 0 });
     expect(await fixture.chat.delete(0, chat.id)).toBe(false);
-    await expect(fixture.chat.transitionStatus(0, run.id)).rejects.toThrow(
-      /row-level security/i,
-    );
+    expect(await fixture.chat.transitionStatus(0, run.id)).toBe(false);
     expect(await fixture.inspect.runs(run.id)).toMatchObject({
       status: 'queued',
     });

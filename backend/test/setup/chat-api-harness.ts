@@ -158,6 +158,9 @@ export async function createChatApiHarness(services: FileServices) {
       deletedCancellationFactsAs: storage.chat.deletedCancellationFactsAs,
       deletedCancellationFactsWithoutTenant:
         storage.chat.deletedCancellationFactsWithoutTenant,
+      chatRunAssociatedAs: storage.chat.chatRunAssociatedAs,
+      chatRunAssociatedWithoutTenant:
+        storage.chat.chatRunAssociatedWithoutTenant,
       directRelatedRunContent: storage.chat.directRelatedRunContent,
       deleteAssociationAs: storage.chat.deleteAssociationAs,
       expireStepLeaseAs: storage.chat.expireStepLeaseAs,
