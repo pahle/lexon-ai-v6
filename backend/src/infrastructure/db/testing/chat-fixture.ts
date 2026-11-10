@@ -722,6 +722,31 @@ export async function createChatFixture(services: Services) {
         );
         return result.rows[0]!;
       },
+      async chatSendSnapshot(chatId: string) {
+        const result = await inspector.query<{
+          messages: string;
+          answers: string;
+          runs: string;
+          start_outbox: string;
+          start_audit: string;
+          message_audit: string;
+          slots: string;
+        }>(
+          `WITH chat_runs AS (
+             SELECT run_id FROM app.chat_runs WHERE chat_id=$1 AND kind='answer'
+           )
+           SELECT
+             (SELECT count(*) FROM app.chat_messages WHERE chat_id=$1) AS messages,
+             (SELECT count(*) FROM app.chat_runs WHERE chat_id=$1 AND kind='answer') AS answers,
+             (SELECT count(*) FROM app.ai_runs WHERE id IN (SELECT run_id FROM chat_runs)) AS runs,
+             (SELECT count(*) FROM ops.outbox WHERE type='run.start.v1' AND payload->>'runId' IN (SELECT run_id::text FROM chat_runs)) AS start_outbox,
+             (SELECT count(*) FROM ops.audit_events WHERE type='chat.run_started.v1' AND metadata->>'runId' IN (SELECT run_id::text FROM chat_runs)) AS start_audit,
+             (SELECT count(*) FROM ops.audit_events WHERE type='chat.message_sent.v1' AND metadata->>'chatId'=$1::text) AS message_audit,
+             (SELECT count(*) FROM ops.ai_run_slots WHERE run_id IN (SELECT run_id FROM chat_runs)) AS slots`,
+          [chatId],
+        );
+        return result.rows[0]!;
+      },
       async rollbackCounts(input: { chatId: string; prompt: string }) {
         const result = await inspector.query<{
           chats: string;

@@ -32,6 +32,43 @@ const validSend = {
 };
 
 describe('chat contracts', () => {
+  it('rejects blank text without normalizing valid Unicode or surrounding whitespace', () => {
+    const validCreate = {
+      chatId,
+      userMessageId,
+      requestId: runId,
+      text: 'First question',
+      effort: 'high',
+    };
+    const validEdit = {
+      messageId: userMessageId,
+      newMessageId: parentMessageId,
+      text: 'Edited question',
+      effort: 'high',
+    };
+    for (const text of ['', ' ', '\t\n']) {
+      expect(
+        CreateChatInputSchema.safeParse({ ...validCreate, text }).success,
+      ).toBe(false);
+      expect(
+        SendMessageInputSchema.safeParse({ ...validSend, text }).success,
+      ).toBe(false);
+      expect(
+        EditMessageInputSchema.safeParse({ ...validEdit, text }).success,
+      ).toBe(false);
+    }
+    const preserved = '  Pertanyaan hukum 😀\n ';
+    expect(
+      CreateChatInputSchema.parse({ ...validCreate, text: preserved }).text,
+    ).toBe(preserved);
+    expect(
+      SendMessageInputSchema.parse({ ...validSend, text: preserved }).text,
+    ).toBe(preserved);
+    expect(
+      EditMessageInputSchema.parse({ ...validEdit, text: preserved }).text,
+    ).toBe(preserved);
+  });
+
   it('measures message text by UTF-8 bytes, including multibyte characters', () => {
     expect(
       SendMessageInputSchema.safeParse({

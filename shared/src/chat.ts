@@ -6,6 +6,9 @@ const opaqueId = z.string().min(1).max(256);
 const timestamp = z.iso.datetime();
 const chatText = z
   .string()
+  .refine((text) => text.trim().length > 0, {
+    error: 'Text must not be blank',
+  })
   .refine((text) => new TextEncoder().encode(text).byteLength <= 16_384, {
     error: 'Text must be at most 16,384 UTF-8 bytes',
   });
