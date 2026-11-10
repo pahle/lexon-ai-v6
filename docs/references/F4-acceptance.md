@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–3 accepted after review;
-Tasks 4–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–4 accepted after review;
+Tasks 5–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -180,12 +180,71 @@ Privilege follow-up for the first Task 4 migration: the foundation's default
 privileges grant runtime DELETE on new app tables. Migration 0023's narrower
 explicit GRANT does not revoke that inherited permission. There is no Usage
 DELETE API and no content-deletion implementation yet; no database DELETE-denial
-claim is made here. Task 4 adds the privilege regression and a new migration
-before chat cleanup exists. Applied migrations remain unchanged.
+claim is made for Task 3 alone. Task 4 now adds the privilege regression and
+migration 0024; actual runtime DELETE/TRUNCATE denial is verified below. Applied
+migrations remain unchanged.
 
-## Published Linux CI — `192cfbb`
+## Task 4 — transactional start and resolved profiles
 
-[Run 42627034811](https://github.com/pahle/lexon-ai-v6/actions/runs/42627034811)
+Source `ca381a5`, reviewed correction `12c9b76`. `startWithin` uses the caller's
+live tenant transaction after verifying pool, tenant and actor identity; `start`
+delegates through it. Rollback tests cover run, step, attempt, usage, outbox,
+capacity-slot and audit counts. Bootstrap capacity configuration remains outside
+the caller transaction.
+
+The resolved effort, output/run limits and English `chat.instructions.v1` are
+snapshotted per chat run and reach both the worker and usage descriptors. The
+same assembler/estimator fits context oldest first and refuses an oversized
+mandatory prompt. Legacy profiles retain omitted reasoning and their prior
+ordering/iteration behavior.
+
+| Effort | Input estimate ceiling | Output limit | Per-call reservation at ceiling | Two-attempt run budget |
+| ------ | ---------------------: | -----------: | ------------------------------: | ---------------------: |
+| High   |                163,840 |       16,384 |                         180,224 |                360,448 |
+| Max    |                163,840 |       32,768 |                         196,608 |                393,216 |
+
+These remain conservative admission values, **unverified by real smoke**.
+The real two-reservation test retains the first unknown reservation, fits the
+second exactly, and rejects a third. A separate actual start → snapshot → worker
+→ mock gateway case verifies max/32,768. Adapter tests verify high/max effort,
+fixed reviewed provider, ZDR, data-collection deny, no fallback and zero hidden
+retries; legacy requests omit reasoning. No real model request was made.
+
+The chat profile uses interactive priority 1, one iteration and no tools, with
+131,072 history bytes under provider ID `chat-history`. Its real collector is
+Task 6. Title uses none/512/16,384 on batch priority 5; the 4,096-byte source
+bound remains Task 12. A length-limited reasoning profile now fails with
+`AI_OUTPUT_LIMIT`, keeps partial text and schedules no continuation.
+
+Migrations are append-only: 0024 revokes inherited ledger DELETE/TRUNCATE and
+0025 admits `AI_OUTPUT_LIMIT` in run/audit checks. Real-role RED first showed a
+ledger row being deleted; after 0024 both destructive operations are denied.
+SQL and executor REDs separately showed the old code constraint and incorrect
+iteration-limit classification before their corrections. The replacement audit
+validator is the applied 0022 body plus the new safe-code enum entry; its strict
+checks are retained.
+
+Review corrected the resource-reference contract: up to 32 UUIDs, lowercase
+normalization, caller order and a copied snapshot, with invalid/duplicate/
+over-limit lists rejected without effects. These references grant no authority;
+Task 5 implements immutable association, ownership and content fencing.
+
+- Final corrected focused suites: **58/58**, retained private output. Backend
+  typecheck, build, lint including **96 boundary checks**, formatting and diff
+  checks passed.
+- Executor/concurrency verification: **106/106** at the initial task source,
+  including the accepted late-result/retry regressions. The later reference-only
+  fix is covered by the focused run-start suites; no redundant executor rerun.
+- Initial focused 56-test output was returned by the tool, without a separate
+  file; no historical raw log is claimed. Import-only and missing-provider
+  fixture failures are excluded from behavior RED evidence.
+- Main spec/quality review and fresh task/scoped review accepted the source after
+  the Important reference-input finding was corrected. Duplicate capacity
+  configuration in the legacy wrapper remains a nonblocking final-review note.
+
+## Published Linux CI
+
+At `192cfbb`, [run 42627034811](https://github.com/pahle/lexon-ai-v6/actions/runs/42627034811)
 completed successfully on attempt 2. Unit/integration passed on attempt 1;
 Compose E2E passed on its rerun. The Valkey policy recovery test passed in Linux,
 confirming the diagnostic-port correction.
@@ -197,6 +256,11 @@ an effect; an early event is a timing risk. The failure is retained as a capture
 readiness follow-up for Task 16/final review. No approved image or product theme
 behavior was changed, and a passing rerun alone does not prove the fixture is
 reliable.
+
+At `c975df9` (reviewed Task 3 publication),
+[run 42739494062](https://github.com/pahle/lexon-ai-v6/actions/runs/42739494062)
+passed unit/integration and Compose E2E on the first attempt. New Task 4
+publication CI is pending; the earlier run is not evidence for later source.
 
 ## Pending evidence
 
