@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–4 accepted after review;
-Tasks 5–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–5 accepted after review;
+Tasks 6–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -276,9 +276,68 @@ suite passed 260/260 across 57 files, and typecheck, lint with 96 boundary
 checks, formatting and diff checks passed. Main review and fresh scoped review
 accepted the correction with no new breakage. New-head Linux CI is pending.
 
-Task 5 has completed read-only preparation but no implementation: the required
-Luna/high model hit its usage limit. No model or execution-mode fallback was
-made. Resume from Task 5 when that quota is available; owner gates are unchanged.
+Task 5 initially paused before implementation when the required Luna/high model
+hit its usage limit; execution resumed on that same model after quota refresh.
+No implementation model or execution-mode fallback was made.
+
+## Task 5 — private storage and database content fences
+
+Source `0666a7d`, review fixes `b83d13a` and `398c7c3`. Append-only migrations
+0026–0028 add owner-private chat/message/run associations, immutable links,
+active-answer tracking, canonical run/checkpoint projection and database content
+fences. New tenant tables FORCE RLS. Runtime DELETE/TRUNCATE on chat tables is
+explicitly revoked; inherited default privileges are tested, not inferred from
+the explicit GRANT statements. Existing headless engine behavior is preserved.
+
+Main and scoped review found six Important defects in the first implementation:
+owner privacy at the run-table boundary, deletable associations, duplicated
+committed checkpoints, blocked deleted-chat cancellation, missing actual model
+entry in the purported in-flight test, and removed legacy predicate tests.
+Fixes restore the old tests, enforce association-aware run/content policies,
+prevent binding tampering, project only the current active checkpoint, and
+provide content-free cancellation with accounting and existing capacity release.
+A second review caught a queued-run exception that treated hidden associations
+as absent; migration 0028 closes that exception with a fixed-context,
+content-free association predicate while preserving generic run references.
+
+The deletion marker uses a narrow expected-state function because an ordinary
+runtime UPDATE to a newly hidden row failed PostgreSQL RLS. Outbox insertion
+uses the existing runtime repository in the same transaction. Two narrow
+lifecycle primitives return sanitized facts and finalize an exact deleted-chat
+cancellation state; they expose no prompt/output/config, require matching
+transaction context and ownership, and deny PUBLIC/auth execution. Usage policy
+stays in the caller transaction. Actual deletion API/audit/purge remain Task 11.
+
+Evidence includes owner/peer/cross-tenant/no-context reads and direct writes,
+real effective privileges, immutable references, real step commit/advance
+projection, live/expired/repeated deleted cancellation, stale/context/grant
+negatives, and claim/deletion/membership overlap with observed advisory-lock
+waiters. A distinct test awaits model entry, calls real CancelService and
+CancelSignals, marks deletion, releases the original response, and verifies one
+known usage row, no content and no remaining run slot.
+
+- Fix-round regressions failed before their corrections. Initial task TDD was
+  incomplete: much fence code preceded its behavior tests. That historical
+  process violation cannot be repaired by later GREEN and is recorded here.
+- The initial claimed in-flight proof was incorrect: its synthetic 128-token
+  budget failed admission before model entry. The corrected fixture uses 8,192
+  tokens and an explicit model-start barrier; production budgets are unchanged.
+  Earlier fixture timeouts and unknown terminal output are not counted as proof.
+- Final round-1 checks: **121 tests / 11 integration files**, plus **105 tests /
+  3 execution/accounting files**, restored predicate **5/5**, and workspace
+  typecheck/build/lint (96 boundary checks)/format checks passed.
+- Final queued-policy correction: **157 tests / 8 integration files**, plus
+  workspace typecheck/build/lint/format and diff checks passed. Retained logs
+  qualify revisions and fixture-only adjustments; no real model call occurred.
+- Fresh task review and two scoped re-reviews closed all six Important findings;
+  main accepted spec and quality after inspecting the critical SQL/repositories.
+  The original TDD gap remains a process limitation. A PostgreSQL fixture
+  concurrent-query deprecation warning remains a nonblocking tooling note.
+
+`selectLeaf` currently checks chat membership of the message, not absence of
+children. Task 9 must add that leaf invariant before exposing branch selection;
+no current API claim is made for it. Task 7 must extend the content fences to
+its new reasoning/checkpoint fields. New-head Linux CI is pending publication.
 
 ## Pending evidence
 
