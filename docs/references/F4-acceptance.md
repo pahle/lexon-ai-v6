@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–2 accepted after review;
-Tasks 3–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–3 accepted after review;
+Tasks 4–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -101,7 +101,7 @@ read or changed.
   remains documented. No redundant full Vitest run was made for this JS-only
   correction.
 - Main spec/quality checks and fresh scoped re-review accepted the fix with no
-  new breakage. A new Linux CI result is still pending publication.
+  new breakage. Linux CI evidence for the published correction is recorded below.
 
 ## Task 2 — shared chat and reasoning contracts
 
@@ -136,6 +136,67 @@ real snapshot/replay pairing; their later implementation tasks retain those
 tests. `AI_OUTPUT_LIMIT` persistence needs a new migration in Task 4; applied
 migrations were preserved. Shared chat audit types need backend/SQL integration
 before Task 6 writes events. No UI packages or real model calls were added.
+
+## Task 3 — durable per-attempt Usage ledger
+
+Source range `192cfbb..b00ac9a`: initial `1677ecd`, reviewed corrections
+`1822945`, `d0538ea`, `210fc3a` and `b00ac9a`. Migration
+`0023_usage_events.sql` adds a content-free, tenant-FORCE-RLS ledger keyed by
+attempt ID, with plain execution references and no foreign keys into deletable
+records. Usage owns reservation, metadata, settlement and unknown recovery;
+existing attempt accounting dual-writes in the same transactions. Admission
+still uses live attempts; no customer quota or usage-view API was added.
+
+Evidence covers equal duplicate settlement, conflicting terminal-result refusal,
+unreserved-result refusal, deletion-surviving accounting and original-call late
+enrichment, truthful nullable legacy effort, cross-tenant/no-context isolation,
+finite nonnegative usage/cost, and rollback of both accounting writes. All three
+repository recovery primitives return changed attempt IDs; coordinator and
+public cancellation paths apply Usage updates inside the same transaction.
+
+Review found late known usage could be dropped after a heartbeat abort. Executor
+regressions now cover claim loss and cancellation when the result arrives after
+abort, before an aborting iterator wait, and before a final abort guard. The
+retained accounting reaches the confirmed-abort exit without granting content
+or step authority. A further regression fixes cancellation between retries so
+an already-settled attempt is not settled twice.
+
+- Genuine RED was recorded for missing reservation storage, takeover recovery,
+  public expired cancellation, six executor timing cases and retry cancellation.
+  Retained logs corroborate the review corrections. One early RED shell exit
+  status was not captured because of a reserved zsh variable; its actual Vitest
+  failure output remains recorded, and no missing exit code is invented.
+- Final relevant integration set: **169/169 tests, seven files** (Usage,
+  attempts, concurrency, streams, cancellation, execution and worker crash).
+- Backend typecheck, lint including **96 boundary checks**, changed-file
+  formatting and diff checks passed. No full-root or Compose result is claimed
+  for this source before the new-head CI run.
+- Main spec/quality review and fresh scoped reviews closed all Important
+  findings after four fix rounds. The final fix had no new breakage. Luna/high
+  remained the implementation model, including the fresh fourth-round worker;
+  a review-model quota failure was handled by another standard review model.
+
+Privilege follow-up for the first Task 4 migration: the foundation's default
+privileges grant runtime DELETE on new app tables. Migration 0023's narrower
+explicit GRANT does not revoke that inherited permission. There is no Usage
+DELETE API and no content-deletion implementation yet; no database DELETE-denial
+claim is made here. Task 4 adds the privilege regression and a new migration
+before chat cleanup exists. Applied migrations remain unchanged.
+
+## Published Linux CI — `192cfbb`
+
+[Run 42627034811](https://github.com/pahle/lexon-ai-v6/actions/runs/42627034811)
+completed successfully on attempt 2. Unit/integration passed on attempt 1;
+Compose E2E passed on its rerun. The Valkey policy recovery test passed in Linux,
+confirming the diagnostic-port correction.
+
+The first Compose attempt passed 57/58 and failed an existing F2.1 capture:
+`captureCheckpointCView` expected light but retained dark. It writes localStorage
+and dispatches a single storage event while the provider's listener attaches in
+an effect; an early event is a timing risk. The failure is retained as a capture
+readiness follow-up for Task 16/final review. No approved image or product theme
+behavior was changed, and a passing rerun alone does not prove the fixture is
+reliable.
 
 ## Pending evidence
 
