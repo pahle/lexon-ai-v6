@@ -59,6 +59,8 @@ interface RunRow {
   input_budget_tokens: string | number;
   output_budget_tokens: string | number;
   partial_output: string;
+  reasoning_summary: string | null;
+  reasoning_duration_ms: number | null;
   final_output: string | null;
   error_code: string | null;
   created_at: Date;
@@ -85,6 +87,8 @@ function mapRun(row: RunRow): RunRecord {
     inputBudgetTokens: Number(row.input_budget_tokens),
     outputBudgetTokens: Number(row.output_budget_tokens),
     partialOutput: row.partial_output,
+    reasoningSummary: row.reasoning_summary,
+    reasoningDurationMs: row.reasoning_duration_ms,
     finalOutput: row.final_output,
     errorCode: row.error_code,
     createdAt: row.created_at,

@@ -657,20 +657,31 @@ export class AiStepRepository {
   async checkpoint(
     tx: TenantSession,
     claim: StepClaim,
-    input: { attemptId: string; text: string },
+    input: {
+      attemptId: string;
+      text: string;
+      reasoningSummary?: string | null;
+      reasoningDurationMs?: number | null;
+    },
   ): Promise<boolean> {
     if (
       !validClaim(tx, claim) ||
       !uuid.safeParse(input.attemptId).success ||
       Buffer.byteLength(input.text, 'utf8') > 262144 ||
+      Buffer.byteLength(input.reasoningSummary ?? '', 'utf8') > 16384 ||
+      (input.reasoningDurationMs !== undefined &&
+        input.reasoningDurationMs !== null &&
+        (!Number.isSafeInteger(input.reasoningDurationMs) ||
+          input.reasoningDurationMs < 0)) ||
       !(await this.lockResourceForRun(tx, claim.runId))
     )
       return false;
     if (!(await this.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
     const result = await client.query(
-      `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text)
+      `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms)
        SELECT s.org_id,s.run_id,s.id,a.id,s.fence,$7
+         ,$9,$10
        FROM app.ai_steps s JOIN app.ai_attempts a ON a.org_id=s.org_id AND a.step_id=s.id
        JOIN app.ai_runs r ON r.org_id=s.org_id AND r.id=s.run_id
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4 AND s.expected_version=$5
@@ -679,7 +690,8 @@ export class AiStepRepository {
          AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
               (r.run_version=$5+1 AND r.status='cancelling'))
          AND a.id=$8 AND a.fence=s.fence AND a.active=true
-       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,created_at=clock_timestamp()
+       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,
+         reasoning_summary=EXCLUDED.reasoning_summary,reasoning_duration_ms=EXCLUDED.reasoning_duration_ms,created_at=clock_timestamp()
          WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id OR EXISTS (
            SELECT 1 FROM app.ai_attempts prior
            WHERE prior.org_id=app.ai_checkpoints.org_id AND prior.id=app.ai_checkpoints.attempt_id
@@ -695,9 +707,33 @@ export class AiStepRepository {
         claim.fence,
         input.text,
         input.attemptId,
+        input.reasoningSummary ?? null,
+        input.reasoningDurationMs ?? null,
       ],
     );
-    return result.rowCount === 1;
+    if (result.rowCount !== 1) return false;
+    const persisted = await client.query(
+      `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,updated_at=clock_timestamp()
+       WHERE r.org_id=$1 AND r.id=$2 AND EXISTS (
+         SELECT 1 FROM app.ai_steps s JOIN app.ai_attempts a
+           ON a.org_id=s.org_id AND a.step_id=s.id AND a.run_id=s.run_id
+         WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$5 AND s.sequence=$6
+           AND s.expected_version=$7 AND s.fence=$8 AND s.state='claimed'
+           AND s.lease_until>clock_timestamp() AND a.id=$9 AND a.active=true
+       )`,
+      [
+        claim.orgId,
+        claim.runId,
+        input.reasoningSummary ?? null,
+        input.reasoningDurationMs ?? null,
+        claim.stepId,
+        claim.sequence,
+        claim.expectedVersion,
+        claim.fence,
+        input.attemptId,
+      ],
+    );
+    return persisted.rowCount === 1;
   }
 
   async commitCancellation(

@@ -2,6 +2,8 @@ import { jsonSchema, stepCountIs, streamText, tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { ModelAllowlistSchema } from './model-allowlist.js';
 import { createOpenRouterProvider } from './openrouter-provider.js';
+import { createReasoningFilteredFetch } from './reasoning-filter.js';
+import { createProviderSseObserver } from './provider-sse-observer.js';
 import { mapProviderError } from './provider-errors.js';
 import { validateRealModelPrerequisites } from './real-model-prerequisites.js';
 import {
@@ -22,6 +24,7 @@ export interface RealModelGatewayOptions {
   readonly key?: string | undefined;
   readonly attestation?: string | undefined;
   readonly fetch?: typeof fetch | undefined;
+  readonly reasoningClock?: (() => number) | undefined;
   readonly priceCeiling?: {
     readonly prompt: number;
     readonly completion: number;
@@ -61,11 +64,24 @@ async function* generate(
   if (!route) throw new Error('Requested model is not allowlisted');
   const prompt = toSdkPrompt(input);
 
+  const metadataQueue = new MetadataQueue();
+  const observer = createProviderSseObserver({
+    attemptId: input.attemptId ?? 'attempt-unscoped',
+    ...(options.reasoningClock ? { now: options.reasoningClock } : {}),
+    onEvent: (event) => metadataQueue.push({ event }),
+  });
+  let sdkStreamError: ReturnType<typeof mapProviderError> | undefined;
+  const filteredFetch = createReasoningFilteredFetch(
+    options.fetch ?? globalThis.fetch,
+    observer,
+    (error) => {
+      sdkStreamError = mapProviderError(error);
+    },
+  );
   const provider = createOpenRouterProvider({
     apiKey: options.key,
-    ...(options.fetch ? { fetch: options.fetch } : {}),
+    fetch: filteredFetch,
   });
-  const metadataQueue = new MetadataQueue();
   let queuedGenerationId: string | undefined;
   const baseModel = provider(input.model);
   const model = new Proxy(baseModel, {
@@ -133,7 +149,11 @@ async function* generate(
       maxRetries: 0,
       streamRetries: 0,
       abortSignal: requestAbort.signal,
-      onError: () => undefined,
+      onError: ({ error }) => {
+        // AI SDK reports stream body failures here as well as through parts.
+        // Keep only the safe classification; never retain or log raw errors.
+        sdkStreamError ??= mapProviderError(error);
+      },
       providerOptions: {
         openrouter: {
           ...(input.effort ? { reasoning: { effort: input.effort } } : {}),
@@ -194,7 +214,11 @@ async function* generate(
             queued.acknowledge();
           }
         } else {
-          queued.acknowledge();
+          try {
+            yield queued.event;
+          } finally {
+            queued.acknowledge();
+          }
         }
         nextMetadata = metadataQueue.next();
         continue;
@@ -228,6 +252,11 @@ async function* generate(
                 : 'unknown'
               : 'succeeded';
         if (finishReason !== 'error') retryable = false;
+        if (finishReason === 'error' && !definitiveFailure && sdkStreamError) {
+          attemptOutcome = sdkStreamError.attemptOutcome;
+          retryable = sdkStreamError.retryable;
+          safeCode = sdkStreamError.safeCode;
+        }
         if (finishReason === 'error' && !safeCode) safeCode = 'AI_INTERNAL';
         const usageResult = readProviderUsage(await result.providerMetadata);
         providerName = usageResult.provider ?? providerName;

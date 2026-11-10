@@ -81,6 +81,8 @@ export const aiRuns = app.table(
     }).notNull(),
     partialOutput: text('partial_output').notNull(),
     finalOutput: text('final_output'),
+    reasoningSummary: text('reasoning_summary'),
+    reasoningDurationMs: integer('reasoning_duration_ms'),
     errorCode: text('error_code'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
@@ -274,6 +276,8 @@ export const aiCheckpoints = app.table(
     attemptId: uuid('attempt_id').notNull(),
     fence: bigint({ mode: 'number' }).notNull(),
     text: text().notNull(),
+    reasoningSummary: text('reasoning_summary'),
+    reasoningDurationMs: integer('reasoning_duration_ms'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [

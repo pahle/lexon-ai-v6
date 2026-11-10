@@ -11,6 +11,8 @@ export interface ChatMessageRecord {
   readonly userText: string | null;
   readonly effort: 'high' | 'max' | null;
   readonly assistantText: string | null;
+  readonly reasoningSummary: string | null;
+  readonly reasoningDurationMs: number | null;
   readonly runId: string | null;
   readonly status: string | null;
   readonly createdAt: Date;
@@ -37,6 +39,8 @@ interface TreeRow {
   run_id: string | null;
   status: string | null;
   assistant_text: string | null;
+  reasoning_summary: string | null;
+  reasoning_duration_ms: number | null;
   created_at: Date;
 }
 
@@ -203,6 +207,8 @@ export class ChatMessageRepository {
           WHEN r.status IN ('queued','running','awaiting_approval','cancelling')
             THEN COALESCE(r.partial_output,'') || COALESCE(cp.text,'')
           ELSE COALESCE(r.partial_output,'') END AS assistant_text,
+        CASE WHEN m.role='assistant' THEN r.reasoning_summary ELSE NULL END AS reasoning_summary,
+        CASE WHEN m.role='assistant' THEN r.reasoning_duration_ms ELSE NULL END AS reasoning_duration_ms,
         m.created_at,c.viewed_leaf_id
        FROM app.chats c
        LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
@@ -237,6 +243,8 @@ export class ChatMessageRepository {
         userText: row.user_text,
         effort: row.effort,
         assistantText: row.assistant_text,
+        reasoningSummary: row.reasoning_summary,
+        reasoningDurationMs: row.reasoning_duration_ms,
         runId: row.run_id,
         status: row.status,
         createdAt: row.created_at,

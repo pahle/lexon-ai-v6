@@ -189,6 +189,7 @@ const runStreamEventV2Schema = z.discriminatedUnion('type', [
     type: z.literal('reasoning-end'),
     runId: z.uuid(),
     id: sdkPartId,
+    durationMs: z.number().int().nonnegative().safe().nullable(),
   }),
 ]);
 export const RunStreamEventSchema = z.union([

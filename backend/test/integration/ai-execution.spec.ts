@@ -1177,6 +1177,87 @@ test('attempt-limit refusal retains the last checkpoint from a crashed attempt',
   }
 });
 
+test('recovered durable retry clears reasoning before the provider starts', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let notifyGenerationStarted!: () => void;
+  let releaseGeneration!: () => void;
+  const generationStarted = new Promise<void>((resolve) => {
+    notifyGenerationStarted = resolve;
+  });
+  const generationGate = new Promise<void>((resolve) => {
+    releaseGeneration = resolve;
+  });
+  const gateway: ModelGateway = {
+    generate() {
+      notifyGenerationStarted();
+      return (async function* () {
+        await generationGate;
+        yield { type: 'text' as const, text: 'recovered answer' };
+        yield success;
+      })();
+    },
+  };
+  try {
+    const h = await setup(ai, [], { gateway });
+    const envelope = job(h.runId, h.tenant, 1, 1, 'run.start.v1');
+    const first = await h.coordinator.claim(envelope);
+    if (first.kind !== 'claimed')
+      throw new Error('Initial recovery claim unavailable');
+    const priorAttemptId = randomUUID();
+    await ai.withTenant(0, async (tx) => {
+      const run = await h.runs.find(tx, h.runId);
+      if (!run) throw new Error('Recovery run unavailable');
+      await h.attemptService.reserve(tx, first.claim, {
+        attemptId: priorAttemptId,
+        modelInput: {
+          attemptId: priorAttemptId,
+          model,
+          provider: 'openai',
+          messages: [{ role: 'user', content: 'Synthetic prompt' }],
+          maxOutputTokens: profile.maxOutputTokens,
+          signal: new AbortController().signal,
+        },
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: run.inputBudgetTokens + run.outputBudgetTokens,
+          maxOutputTokens: profile.maxOutputTokens,
+        },
+      });
+      expect(
+        await h.steps.checkpoint(tx, first.claim, {
+          attemptId: priorAttemptId,
+          text: 'prior answer',
+          reasoningSummary: 'stale prior summary',
+          reasoningDurationMs: 2500,
+        }),
+      ).toBe(true);
+      await ai.expireClaimLeaseInSession(tx, first.claim);
+    });
+
+    const execution = h.executor.execute(envelope, {
+      signal: new AbortController().signal,
+    });
+    try {
+      await generationStarted;
+      const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+      expect(run).toMatchObject({
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+      });
+      releaseGeneration();
+      await expect(execution).resolves.toEqual({ kind: 'done' });
+    } finally {
+      releaseGeneration();
+      await execution.catch(() => undefined);
+    }
+  } finally {
+    releaseGeneration();
+    await ai.close();
+  }
+});
+
 test('cancellation wins before transactional tool effect commit', async ({
   services,
 }) => {

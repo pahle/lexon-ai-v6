@@ -607,6 +607,20 @@ export async function createChatFixture(services: Services) {
           );
         });
       },
+      directReasoningWrites(index: number, runId: string) {
+        return ai.withTenant(index, async (tx) => {
+          const { client } = requireSession(tx);
+          const run = await client.query(
+            'UPDATE app.ai_runs SET reasoning_summary=$3,reasoning_duration_ms=$4 WHERE org_id=$1 AND id=$2 RETURNING id',
+            [ai.tenants[index]!.orgId, runId, 'must stay fenced', 3000],
+          );
+          const checkpoint = await client.query(
+            'UPDATE app.ai_checkpoints SET reasoning_summary=$3,reasoning_duration_ms=$4 WHERE org_id=$1 AND run_id=$2 RETURNING run_id',
+            [ai.tenants[index]!.orgId, runId, 'must stay fenced', 3000],
+          );
+          return { run: run.rowCount, checkpoint: checkpoint.rowCount };
+        });
+      },
     },
     inspect: {
       chat: inspectChat,
@@ -686,6 +700,16 @@ export async function createChatFixture(services: Services) {
           const { client } = requireSession(tx);
           const result = await client.query(
             'SELECT id,text FROM app.ai_checkpoints WHERE run_id=$1 ORDER BY created_at,id',
+            [runId],
+          );
+          return result.rows;
+        });
+      },
+      async reasoningCheckpoints(index: number, runId: string) {
+        return ai.withTenant(index, async (tx) => {
+          const { client } = requireSession(tx);
+          const result = await client.query(
+            'SELECT text,reasoning_summary,reasoning_duration_ms FROM app.ai_checkpoints WHERE run_id=$1 ORDER BY created_at,id',
             [runId],
           );
           return result.rows;

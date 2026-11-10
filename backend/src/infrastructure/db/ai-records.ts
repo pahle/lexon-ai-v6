@@ -25,6 +25,8 @@ export interface RunRecord {
   readonly inputBudgetTokens: number;
   readonly outputBudgetTokens: number;
   readonly partialOutput: string;
+  readonly reasoningSummary: string | null;
+  readonly reasoningDurationMs: number | null;
   readonly finalOutput: string | null;
   readonly errorCode: string | null;
   readonly createdAt: Date;

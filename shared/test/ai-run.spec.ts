@@ -275,7 +275,13 @@ describe('run contracts', () => {
         id: 'reasoning-1',
         delta: 'summary fragment',
       },
-      { version: 2, type: 'reasoning-end', runId, id: 'reasoning-1' },
+      {
+        version: 2,
+        type: 'reasoning-end',
+        runId,
+        id: 'reasoning-1',
+        durationMs: null,
+      },
     ])
       expect(RunStreamEventSchema.safeParse(event).success).toBe(true);
     expect(

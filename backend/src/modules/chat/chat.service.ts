@@ -239,8 +239,8 @@ export class ChatService {
                   runId: message.runId!,
                   text: message.assistantText ?? '',
                   status: RunStatusSchema.parse(message.status),
-                  reasoningSummary: null,
-                  reasoningDurationMs: null,
+                  reasoningSummary: message.reasoningSummary,
+                  reasoningDurationMs: message.reasoningDurationMs,
                   feedback: null,
                   createdAt: message.createdAt.toISOString(),
                 };

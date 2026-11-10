@@ -739,6 +739,9 @@ export class StepExecutor {
       for (let ordinal = 1; ordinal <= maxAttempts; ordinal++) {
         heartbeat.throwIfAborted();
         let attemptText = '';
+        let attemptReasoningSummary = '';
+        let attemptReasoningDurationMs: number | null = null;
+        let checkpointDirty = false;
         activeAttemptText = '';
         const attemptProposals: Extract<
           ModelEvent,
@@ -838,6 +841,16 @@ export class StepExecutor {
                 },
               });
               attemptReserved = true;
+              if (
+                reserved.ordinal > 1 &&
+                !(await this.options.steps.checkpoint(tx, claim, {
+                  attemptId,
+                  text: '',
+                  reasoningSummary: null,
+                  reasoningDurationMs: null,
+                }))
+              )
+                throw new Error('AI reasoning checkpoint reset failed');
               return reserved;
             },
           );
@@ -900,6 +913,8 @@ export class StepExecutor {
             const revision = checkpointRevision;
             const bytes = dirtyBytes;
             const snapshot = attemptText;
+            const summarySnapshot = attemptReasoningSummary || null;
+            const durationSnapshot = attemptReasoningDurationMs;
             const owner = (async () => {
               const accepted = await this.options.database.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
@@ -907,6 +922,8 @@ export class StepExecutor {
                   this.options.steps.checkpoint(tx, claim, {
                     attemptId,
                     text: snapshot,
+                    reasoningSummary: summarySnapshot,
+                    reasoningDurationMs: durationSnapshot,
                   }),
               );
               if (!accepted) {
@@ -923,6 +940,7 @@ export class StepExecutor {
               }
               persistedRevision = revision;
               dirtyBytes -= bytes;
+              checkpointDirty = false;
               checkpointBytes -= bytes;
               lastCheckpoint = Date.now();
             })();
@@ -940,7 +958,7 @@ export class StepExecutor {
         };
         const checkpointTimer = setInterval(() => {
           if (
-            dirtyBytes > 0 &&
+            checkpointDirty &&
             Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
           )
             void flushCheckpoint().catch(() => undefined);
@@ -1041,9 +1059,85 @@ export class StepExecutor {
                       ...(event.provider ? { provider: event.provider } : {}),
                     }),
                 );
+              } else if (event.type === 'reasoning-start') {
+                if (event.attemptId !== attemptId) continue;
+                if (streamFramingAvailable && !uiStepStarted) {
+                  uiStepStarted =
+                    (await this.#publish(claim, {
+                      version: 1,
+                      runId: claim.runId,
+                      type: 'start-step',
+                    })) === 'written';
+                  if (!uiStepStarted) {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
+                if (streamFramingAvailable) {
+                  const published = await this.#publish(claim, {
+                    version: 2,
+                    runId: claim.runId,
+                    type: 'reasoning-start',
+                    id: attemptId,
+                  });
+                  if (published !== 'written') {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
+              } else if (event.type === 'reasoning-summary-delta') {
+                if (event.attemptId !== attemptId) continue;
+                attemptReasoningSummary += event.text;
+                const deltaBytes = Buffer.byteLength(event.text, 'utf8');
+                checkpointBytes += deltaBytes;
+                dirtyBytes += deltaBytes;
+                checkpointRevision++;
+                checkpointDirty = true;
+                if (
+                  checkpointBytes >= CHECKPOINT_BYTES ||
+                  Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
+                )
+                  await flushCheckpoint();
+                if (streamFramingAvailable) {
+                  const published = await this.#publish(claim, {
+                    version: 2,
+                    runId: claim.runId,
+                    type: 'reasoning-delta',
+                    id: attemptId,
+                    delta: event.text,
+                  });
+                  if (published !== 'written') {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
+              } else if (event.type === 'reasoning-end') {
+                if (event.attemptId !== attemptId) continue;
+                attemptReasoningDurationMs = event.durationMs;
+                checkpointRevision++;
+                checkpointDirty = true;
+                if (
+                  checkpointBytes >= CHECKPOINT_BYTES ||
+                  Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
+                )
+                  await flushCheckpoint();
+                if (streamFramingAvailable) {
+                  const published = await this.#publish(claim, {
+                    version: 2,
+                    runId: claim.runId,
+                    type: 'reasoning-end',
+                    id: attemptId,
+                    durationMs: event.durationMs,
+                  });
+                  if (published !== 'written') {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
               } else if (event.type === 'text') {
                 attemptText += event.text;
                 activeAttemptText = attemptText;
+                checkpointDirty = true;
                 const deltaBytes = Buffer.byteLength(event.text, 'utf8');
                 checkpointBytes += deltaBytes;
                 dirtyBytes += deltaBytes;
