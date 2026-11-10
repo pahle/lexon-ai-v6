@@ -2,6 +2,8 @@ import type { RunActor } from '../identity-access/index.js';
 import type { TenantSession } from '../../infrastructure/db/index.js';
 
 export const DEFAULT_MAX_ATTEMPTS_PER_STEP = 2;
+/** Hard cap on opaque run resource references; references grant no authority. */
+export const MAX_RUN_RESOURCE_REFERENCES = 32;
 export const DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION = 8;
 export const MAX_TOOL_PROPOSALS_PER_GENERATION = 15;
 

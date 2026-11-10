@@ -466,6 +466,105 @@ test('startWithin participates in caller rollback and rejects forged sessions', 
   }
 });
 
+test('startWithin stores a copied valid resource reference list in the run snapshot', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    await ai.capacity.configure(ai.capacityConfig);
+    const tenant = ai.tenants[0]!;
+    const { authorization, service } = runService(ai);
+    const originalIds: string[] = Array.from({ length: 32 }, () =>
+      randomUUID(),
+    );
+    originalIds[1] = originalIds[1]!.toUpperCase();
+    const expectedIds = originalIds.map((id) => id.toLowerCase());
+    await identityScope(tenant, authorization, async (actor) => {
+      await ai.withTenant(0, async (tx) => {
+        const result = await service.startWithin(tx, actor, {
+          profileId: profile.id,
+          prompt: 'Attach resource references to this run.',
+          resourceIds: originalIds,
+        });
+        originalIds[0] = randomUUID();
+        originalIds.push(randomUUID());
+        const run = await new AiRunRepository().find(tx, result.runId);
+        expect(
+          (run?.resolvedConfig as Record<string, unknown>).resourceIds,
+        ).toEqual(expectedIds);
+      });
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('invalid, duplicate, and over-limit resource references create no run effects', async ({
+  services,
+}) => {
+  const audit = createAuditInspector(services);
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const beforeAudit = await audit.count('chat.run_started.v1');
+    const beforeRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    const { authorization, service } = runService(ai);
+    const duplicate = randomUUID();
+    const invalidResourceLists = [
+      ['not-a-uuid'],
+      [duplicate, duplicate.toUpperCase()],
+      Array.from({ length: 33 }, () => randomUUID()),
+    ];
+    await identityScope(tenant, authorization, async (actor) => {
+      for (const resourceIds of invalidResourceLists) {
+        await expect(
+          service.start(actor, {
+            profileId: profile.id,
+            prompt: 'Invalid resource reference list.',
+            resourceIds,
+          }),
+        ).rejects.toThrow('AI run request denied');
+      }
+    });
+    expect(await ai.losingStartCounts(0)).toEqual({
+      runs: 0,
+      outbox: 0,
+      slots: 0,
+    });
+    const afterRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    expect(afterRows).toEqual(beforeRows);
+    expect(await audit.count('chat.run_started.v1')).toBe(beforeAudit);
+  } finally {
+    await Promise.all([ai.close(), audit.close()]);
+  }
+});
+
 test('profile replacement after start cannot alter the persisted execution snapshot', async ({
   services,
 }) => {

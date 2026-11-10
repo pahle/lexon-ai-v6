@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type { AiConfig } from '../../config/ai-config.js';
 import type { ModelAllowlistSchema } from '../../infrastructure/ai/index.js';
 import {
@@ -19,6 +20,7 @@ import {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
   DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
   RUN_REGISTRATION_LIMITS,
+  MAX_RUN_RESOURCE_REFERENCES,
 } from './run-contracts.js';
 import { stepJobId } from './step-job-id.js';
 import { AuditService } from '../audit/index.js';
@@ -33,7 +35,35 @@ export interface StartRunInput {
   readonly profileId: string;
   readonly prompt: string;
   readonly effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  /** Up to 32 UUID references; canonical lowercase, caller order preserved.
+   * Case-insensitive duplicates are rejected. References grant no resource
+   * authority or content access; association and fencing belong to Task 5.
+   */
   readonly resourceIds?: readonly string[];
+}
+
+function normalizeResourceIds(
+  resourceIds: readonly string[] | undefined,
+): readonly string[] {
+  if (resourceIds === undefined) return Object.freeze([]);
+  if (
+    !Array.isArray(resourceIds) ||
+    resourceIds.length > MAX_RUN_RESOURCE_REFERENCES
+  )
+    throw new Error('AI run request denied');
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const resourceId of resourceIds) {
+    if (typeof resourceId !== 'string')
+      throw new Error('AI run request denied');
+    const parsed = z.uuid().safeParse(resourceId);
+    if (!parsed.success) throw new Error('AI run request denied');
+    const canonicalId = parsed.data.toLowerCase();
+    if (seen.has(canonicalId)) throw new Error('AI run request denied');
+    seen.add(canonicalId);
+    normalized.push(canonicalId);
+  }
+  return Object.freeze(normalized);
 }
 
 export class RunService {
@@ -73,14 +103,9 @@ export class RunService {
       orgId: actor.orgId,
       userId: actor.userId,
     });
+    const resourceIds = normalizeResourceIds(input.resourceIds);
     const profile = this.registry.profile(input.profileId);
-    if (
-      !profile ||
-      typeof input.prompt !== 'string' ||
-      !input.prompt.trim() ||
-      (input.resourceIds !== undefined &&
-        (!Array.isArray(input.resourceIds) || input.resourceIds.length > 0))
-    )
+    if (!profile || typeof input.prompt !== 'string' || !input.prompt.trim())
       throw new Error('AI run request denied');
     if (Buffer.byteLength(input.prompt, 'utf8') > 16_384)
       throw new Error('AI run request denied');
@@ -153,7 +178,7 @@ export class RunService {
             }
           : {}),
         maxEstimatedInputTokens: profile.maxEstimatedInputTokens ?? null,
-        resourceIds: input.resourceIds ?? [],
+        resourceIds,
       },
       modelId,
       inputText: input.prompt,
