@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–5 accepted after review;
-Tasks 6–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–6 accepted after review;
+Tasks 7–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -338,6 +338,57 @@ known usage row, no content and no remaining run slot.
 children. Task 9 must add that leaf invariant before exposing branch selection;
 no current API claim is made for it. Task 7 must extend the content fences to
 its new reasoning/checkpoint fields. New-head Linux CI is pending publication.
+
+## Task 6 — atomic send and branch-bound history
+
+Source `59cda14`, review correction `152d99a`. Create and send use the same
+tenant transaction for chat/messages, engine admission, run, outbox, request
+identity and ID-only audit events. Migration 0029 adds create-request identity
+and extends the strict audit event validator. Concurrent identical requests
+return the same result; changed payloads conflict, and deleted chats return the
+same safe not-found response before retry payload comparison.
+
+The production history provider follows the run's immutable parent path,
+independent of the viewed branch. It includes only earlier terminal visible
+answer text with status labels, excludes reasoning and in-flight snapshots,
+and trims oldest whole messages using the shared serialized-input estimator.
+An actual executor with the API's registered provider and recording gateway
+covers exactly 131,072 history bytes and escape-heavy Unicode at the 163,840
+input-estimate cap, with the current prompt included once. Full worker-process
+and browser transport compatibility remain Task 10 evidence.
+
+The first task review found blank prompts reaching a 500 response and missing
+concurrent distinct-send evidence. Shared validation now rejects blank text
+without normalizing valid whitespace or Unicode. Both HTTP routes return a
+fixed 400 validation error. The distinct-send race returns one 201 and one 409,
+with exactly one new run, answer association, start outbox, each expected audit
+and capacity slot, plus two messages.
+
+- Original focused checks: send 3/3, privacy 3/3, context 3/3, execution 83/83,
+  fence 11/11, start/audit regressions 19/19, registry/composition 18/18, and
+  backend build/typecheck/lint with 96 boundary checks passed.
+- Review correction: contracts 54/54, send 4/4, privacy 3/3, contract/backend
+  typecheck and lint, formatting and diff checks passed. Blank-schema and real
+  HTTP 500 regressions failed before the correction. The distinct-send race
+  passed existing production code; its early fixture failures are not product
+  RED evidence.
+- Initial route absence was observed before implementation, but atomicity,
+  duplicate-send and context-stress tests were not all recorded before their
+  production code. This is an incomplete historical TDD record, not a claim
+  that later passing tests repair it.
+- Before publication, the controller caught private test logs mistakenly
+  staged in the first local source commit. The unpublished commit was amended
+  to remove them from Git while preserving local evidence; no private SDD
+  artifact is tracked or pushed.
+
+Task 9 must bind send retries to the original answer before regeneration adds
+siblings and validate leaf selection and the production tree response. The
+fixture concurrent-query warning remains tracked for final verification.
+
+The preceding Task 5 head `8404334` passed both Linux CI layers in
+[run 42770261033](https://github.com/pahle/lexon-ai-v6/actions/runs/42770261033).
+Fresh scoped re-review closed both Important findings; main accepted spec
+compliance and quality. Task 6 new-head CI is pending publication.
 
 ## Pending evidence
 
