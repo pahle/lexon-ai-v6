@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { RunErrorCodeSchema, RunStatusSchema } from './ai-run.js';
+import {
+  OperationStatusSchema,
+  RunErrorCodeSchema,
+  RunStatusSchema,
+} from './ai-run.js';
 
 const uuid = z.uuid();
 const opaqueId = z.string().min(1).max(256);
@@ -178,19 +182,87 @@ export const ChatSnapshotPartSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-export const ChatSnapshotSchema = z.strictObject({
+export const ChatOperationSnapshotSchema = z.strictObject({
+  operationId: uuid,
+  status: OperationStatusSchema,
+  approvalRequired: z.boolean(),
+});
+
+export const ChatSnapshotMetadataSchema = z.strictObject({
   runId: uuid,
   messageId: uuid,
-  attemptId: uuid,
-  generation: z.number().int().positive().safe(),
-  revision: z.number().int().positive().safe(),
+  attemptId: uuid.nullable(),
+  generation: z.number().int().positive().safe().nullable(),
+  revision: z.number().int().nonnegative().safe(),
   eventId: opaqueId.nullable(),
-  parts: z.array(ChatSnapshotPartSchema),
   status: RunStatusSchema,
   errorCode: RunErrorCodeSchema.nullable(),
   reasoningDurationMs: z.number().int().nonnegative().safe().nullable(),
 });
+
+export const ChatSnapshotSchema = z
+  .strictObject({
+    ...ChatSnapshotMetadataSchema.shape,
+    parts: z.array(ChatSnapshotPartSchema),
+    operations: z.array(ChatOperationSnapshotSchema),
+  })
+  .superRefine((snapshot, context) => {
+    if (
+      snapshot.eventId !== null &&
+      (snapshot.generation === null ||
+        snapshot.attemptId === null ||
+        snapshot.revision === 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Snapshot cursor requires a published attempt generation and revision',
+        path: ['eventId'],
+      });
+    }
+  });
 export type ChatSnapshot = z.infer<typeof ChatSnapshotSchema>;
+
+export const ChatSnapshotFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('snapshot-reset'),
+    reason: z.enum(['cursor-gap', 'stream-unavailable']),
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('snapshot-start'),
+    reset: z.literal(true),
+    snapshot: ChatSnapshotMetadataSchema,
+    partCount: z.number().int().nonnegative().safe(),
+    operationCount: z.number().int().nonnegative().safe(),
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('snapshot-operation'),
+    index: z.number().int().nonnegative().safe(),
+    operation: ChatOperationSnapshotSchema,
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('snapshot-part'),
+    partIndex: z.number().int().nonnegative().safe(),
+    chunkIndex: z.number().int().nonnegative().safe(),
+    partType: z.enum(['text', 'reasoning']),
+    id: opaqueId,
+    text: z
+      .string()
+      .refine((text) => new TextEncoder().encode(text).byteLength <= 24_000),
+    final: z.boolean(),
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('snapshot-end'),
+    partCount: z.number().int().nonnegative().safe(),
+    operationCount: z.number().int().nonnegative().safe(),
+  }),
+]);
+export type ChatSnapshotFrame = z.infer<typeof ChatSnapshotFrameSchema>;
 
 export const ChatAuditEventSchema = z.discriminatedUnion('type', [
   z.strictObject({

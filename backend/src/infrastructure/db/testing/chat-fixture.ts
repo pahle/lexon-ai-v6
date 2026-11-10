@@ -723,6 +723,13 @@ export async function createChatFixture(services: Services) {
         );
         return result.rows[0] ?? null;
       },
+      async streamMetadata(runId: string) {
+        const result = await inspector.query(
+          'SELECT stream_generation::integer AS stream_generation,stream_snapshot_generation::integer AS stream_snapshot_generation,stream_event_id,stream_resumable FROM app.ai_runs WHERE id=$1',
+          [runId],
+        );
+        return result.rows[0] ?? null;
+      },
       async checkpoints(index: number, runId: string) {
         return ai.withTenant(index, async (tx) => {
           const { client } = requireSession(tx);
@@ -737,7 +744,7 @@ export async function createChatFixture(services: Services) {
         return ai.withTenant(index, async (tx) => {
           const { client } = requireSession(tx);
           const result = await client.query(
-            'SELECT text,reasoning_summary,reasoning_duration_ms FROM app.ai_checkpoints WHERE run_id=$1 ORDER BY created_at,id',
+            'SELECT text,reasoning_summary,reasoning_duration_ms,stream_generation::integer AS stream_generation,stream_event_id,stream_revision,stream_resumable FROM app.ai_checkpoints WHERE run_id=$1 ORDER BY created_at,id',
             [runId],
           );
           return result.rows;

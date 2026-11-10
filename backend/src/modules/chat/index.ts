@@ -22,6 +22,8 @@ export {
   type ToolResult,
 } from './tool-executor.js';
 export { ChatModule } from './chat.module.js';
+export { RunEventsService } from './run-events.service.js';
+export { RunEventsController } from './run-events.controller.js';
 export { ChatHistoryContextProvider } from './chat-history-context.js';
 export type {
   ContextPiece,

@@ -54,10 +54,23 @@ export function aiWorkerProviders(
                 { orgId: claim.orgId, userId: claim.userId },
                 (tx) => steps.streamActiveProof(tx, claim),
               ),
+            advanceStreamGeneration: (claim, observed) =>
+              db.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) => steps.advanceStreamGeneration(tx, claim, observed),
+                { timeoutMs: 500 },
+              ),
             authorizeTerminal: (claim) =>
               db.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
                 (tx) => steps.streamTerminalProof(tx, claim),
+              ),
+            advanceTerminalStreamGeneration: (claim, observed) =>
+              db.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) =>
+                  steps.advanceTerminalStreamGeneration(tx, claim, observed),
+                { timeoutMs: 500 },
               ),
             authorizeCommitted: (claim, event) =>
               db.withTenant(

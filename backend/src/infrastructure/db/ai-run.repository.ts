@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ChatSnapshotSchema } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 import type {
@@ -61,6 +62,12 @@ interface RunRow {
   partial_output: string;
   reasoning_summary: string | null;
   reasoning_duration_ms: number | null;
+  stream_generation: number | string;
+  stream_snapshot_generation: number | string;
+  stream_event_id: string | null;
+  stream_attempt_id: string | null;
+  stream_revision: number;
+  stream_resumable: boolean;
   final_output: string | null;
   error_code: string | null;
   created_at: Date;
@@ -89,6 +96,12 @@ function mapRun(row: RunRow): RunRecord {
     partialOutput: row.partial_output,
     reasoningSummary: row.reasoning_summary,
     reasoningDurationMs: row.reasoning_duration_ms,
+    streamGeneration: Number(row.stream_generation),
+    streamSnapshotGeneration: Number(row.stream_snapshot_generation),
+    streamEventId: row.stream_event_id,
+    streamAttemptId: row.stream_attempt_id,
+    streamRevision: row.stream_revision,
+    streamResumable: row.stream_resumable,
     finalOutput: row.final_output,
     errorCode: row.error_code,
     createdAt: row.created_at,
@@ -135,6 +148,177 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
 
 export class AiRunRepository {
   private readonly steps = new AiStepRepository();
+  async existsForOwnedChat(
+    tx: TenantSession,
+    runId: string,
+    userId: string,
+  ): Promise<boolean> {
+    if (
+      !idSchema.safeParse(runId).success ||
+      !idSchema.safeParse(userId).success
+    )
+      return false;
+    const { client, ctx } = requireSession(tx);
+    if (ctx.userId !== userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query(
+      `SELECT 1 FROM app.ai_runs r
+       JOIN app.chat_runs cr ON cr.org_id=r.org_id AND cr.run_id=r.id
+         AND cr.kind='answer'
+       JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3
+         AND c.deleted_at IS NULL LIMIT 1`,
+      [scope.orgId, runId, scope.userId],
+    );
+    return result.rowCount === 1;
+  }
+
+  async authorizedChatSnapshot(
+    tx: TenantSession,
+    runId: string,
+    userId: string,
+  ) {
+    if (
+      !idSchema.safeParse(runId).success ||
+      !idSchema.safeParse(userId).success
+    )
+      return null;
+    const { client, ctx } = requireSession(tx);
+    if (ctx.userId !== userId) return null;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<{
+      id: string;
+      status: string;
+      partial_output: string;
+      final_output: string | null;
+      checkpoint_text: string | null;
+      reasoning_summary: string | null;
+      reasoning_duration_ms: number | null;
+      stream_generation: number | string;
+      stream_snapshot_generation: number | string;
+      stream_event_id: string | null;
+      stream_attempt_id: string | null;
+      stream_revision: number;
+      stream_resumable: boolean;
+      error_code: string | null;
+      resolved_config: unknown;
+      operations: {
+        operationId: string;
+        status: string;
+        approvalRequired: boolean;
+      }[];
+    }>(
+      `SELECT r.id,r.status,r.partial_output,r.final_output,
+         cp.text AS checkpoint_text,
+         r.reasoning_summary,r.reasoning_duration_ms,r.stream_generation,
+         r.stream_snapshot_generation,r.stream_event_id,r.stream_attempt_id,
+         r.stream_revision,r.stream_resumable,r.error_code,r.resolved_config,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'operationId',o.id,
+             'status',CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END,
+             'approvalRequired',o.approval_required
+           ) ORDER BY s.sequence,o.call_occurrence)
+           FROM app.ai_operations o
+           JOIN app.ai_steps s ON s.org_id=o.org_id AND s.run_id=o.run_id AND s.id=o.step_id
+           WHERE o.org_id=r.org_id AND o.run_id=r.id
+             AND s.state IN ('committed','awaiting_approval')
+         ),'[]'::jsonb) AS operations
+       FROM app.ai_runs r
+       JOIN app.chat_runs cr ON cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+       JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+       LEFT JOIN app.ai_steps current_step
+         ON current_step.org_id=r.org_id AND current_step.run_id=r.id
+        AND current_step.sequence=r.next_sequence AND current_step.state='claimed'
+       LEFT JOIN app.ai_checkpoints cp
+         ON cp.org_id=current_step.org_id AND cp.run_id=current_step.run_id
+        AND cp.step_id=current_step.id AND cp.fence=current_step.fence
+        AND cp.attempt_id=r.stream_attempt_id
+       LEFT JOIN app.ai_attempts active_attempt
+         ON active_attempt.org_id=cp.org_id AND active_attempt.run_id=cp.run_id
+        AND active_attempt.id=cp.attempt_id AND active_attempt.active=true
+       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3 AND c.deleted_at IS NULL
+         AND (cp.id IS NULL OR active_attempt.id IS NOT NULL)
+       LIMIT 1`,
+      [scope.orgId, runId, scope.userId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const config = row.resolved_config;
+    const profileSnapshot =
+      typeof config === 'object' &&
+      config !== null &&
+      'profileSnapshot' in config
+        ? config.profileSnapshot
+        : undefined;
+    const maxIterations =
+      typeof profileSnapshot === 'object' &&
+      profileSnapshot !== null &&
+      'maxIterations' in profileSnapshot
+        ? profileSnapshot.maxIterations
+        : undefined;
+    const maxToolProposals =
+      typeof profileSnapshot === 'object' &&
+      profileSnapshot !== null &&
+      'maxToolProposalsPerGeneration' in profileSnapshot
+        ? profileSnapshot.maxToolProposalsPerGeneration
+        : undefined;
+    const operationLimit = Number(maxIterations) * Number(maxToolProposals);
+    if (
+      !Number.isSafeInteger(maxIterations) ||
+      Number(maxIterations) < 1 ||
+      !Number.isSafeInteger(maxToolProposals) ||
+      Number(maxToolProposals) < 1 ||
+      !Number.isSafeInteger(operationLimit) ||
+      operationLimit < 1 ||
+      row.operations.length > operationLimit
+    )
+      throw new Error('Invalid committed chat operation snapshot bound');
+    const attemptId = row.stream_attempt_id;
+    const text =
+      row.final_output ?? `${row.partial_output}${row.checkpoint_text ?? ''}`;
+    const parts = [];
+    if (text)
+      parts.push({ type: 'text' as const, id: attemptId ?? row.id, text });
+    if (row.reasoning_summary)
+      parts.push({
+        type: 'reasoning' as const,
+        id: attemptId ?? row.id,
+        text: row.reasoning_summary,
+      });
+    const snapshot = ChatSnapshotSchema.parse({
+      runId: row.id,
+      messageId: row.id,
+      attemptId,
+      generation:
+        Number(row.stream_snapshot_generation) > 0
+          ? Number(row.stream_snapshot_generation)
+          : null,
+      revision: row.stream_revision,
+      eventId: row.stream_resumable ? row.stream_event_id : null,
+      parts,
+      operations: row.operations,
+      status: row.status,
+      errorCode: row.error_code,
+      reasoningDurationMs: row.reasoning_duration_ms,
+    });
+    return {
+      snapshot,
+      streamGeneration: Number(row.stream_generation),
+      resumable: row.stream_resumable,
+    };
+  }
+
   async streamRegistryState(
     tx: TenantSession,
     runId: string,

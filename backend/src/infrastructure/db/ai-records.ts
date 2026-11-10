@@ -27,6 +27,13 @@ export interface RunRecord {
   readonly partialOutput: string;
   readonly reasoningSummary: string | null;
   readonly reasoningDurationMs: number | null;
+  /** Monotonic Valkey stream incarnation allocator, never copied from a snapshot. */
+  readonly streamGeneration: number;
+  readonly streamSnapshotGeneration: number;
+  readonly streamEventId: string | null;
+  readonly streamAttemptId: string | null;
+  readonly streamRevision: number;
+  readonly streamResumable: boolean;
   readonly finalOutput: string | null;
   readonly errorCode: string | null;
   readonly createdAt: Date;

@@ -20,6 +20,7 @@ import {
 import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
 import { StepExecutor } from '../modules/chat/index.js';
 import type { PinoLogger } from 'nestjs-pino';
+import type { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   #closed = false;
   #abort = new AbortController();
@@ -38,6 +39,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly stepExecutor?: StepExecutor,
     private readonly runStreams?: RunStreams,
     private readonly cancelSignals?: CancelSignals,
+    private readonly streamHub?: StreamHub,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
@@ -128,6 +130,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     await this.consumer?.close();
     await this.cancelSignals?.close();
     await this.runStreams?.close();
+    await this.streamHub?.close();
     await this.producer?.close();
     await this.storage?.close();
     await this.db.close();

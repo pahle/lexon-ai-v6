@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { RuntimeConfigurationError } from './configuration-error.js';
 import { readAuthConfig, type AuthConfig } from './auth-config.js';
 import { readAiConfig, type AiConfig } from './ai-config.js';
+import { readChatConfig, type ChatConfig } from './chat-config.js';
 export { RuntimeConfigurationError } from './configuration-error.js';
 export type RuntimeName =
   'api' | 'ai-worker' | 'document-worker' | 'dispatcher';
@@ -137,6 +138,7 @@ export type RuntimeConfig =
       port: number;
       auth: AuthConfig;
       ai: AiConfig;
+      chat: ChatConfig;
     })
   | (CommonConfig & {
       runtime: 'document-worker';
@@ -166,6 +168,7 @@ export function loadRuntimeConfig(
         port: read(apiSchema, env).PORT,
         auth: readAuthConfig(env),
         ai: readAiConfig(env),
+        chat: readChatConfig(env),
       };
     case 'document-worker':
       return { ...config, runtime, storage: readStorage(env) };

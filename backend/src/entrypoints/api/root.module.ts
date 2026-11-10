@@ -12,6 +12,7 @@ import { DiagnosticController } from '../../modules/platform/diagnostic.controll
 import { chatRuntimeProviders } from '../../modules/chat/chat-runtime.providers.js';
 import { chatApiProviders } from '../../modules/chat/chat-runtime.providers.js';
 import { ChatController } from '../../modules/chat/chat.controller.js';
+import { RunEventsController } from '../../modules/chat/run-events.controller.js';
 import { RunAuthorizationModule } from '../../modules/identity-access/index.js';
 @Module({})
 export class ApiRootModule {
@@ -50,7 +51,12 @@ export class ApiRootModule {
         ...chatRuntimeProviders(),
         ...chatApiProviders(config),
       ],
-      controllers: [HealthController, DiagnosticController, ChatController],
+      controllers: [
+        HealthController,
+        DiagnosticController,
+        ChatController,
+        RunEventsController,
+      ],
     };
   }
 }

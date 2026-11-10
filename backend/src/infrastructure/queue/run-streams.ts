@@ -33,6 +33,7 @@ export interface ActiveStreamProof {
   readonly expectedVersion: number;
   readonly fence: number;
   readonly leaseUntil: Date;
+  readonly streamGeneration?: number;
 }
 
 export interface TerminalStreamProof {
@@ -44,6 +45,7 @@ export interface TerminalStreamProof {
   readonly latestCommittedSequence: number;
   readonly latestCommittedExpectedVersion: number;
   readonly latestCommittedFence: number;
+  readonly streamGeneration?: number;
 }
 
 export interface CommittedStreamProof {
@@ -55,6 +57,7 @@ export interface CommittedStreamProof {
   readonly sequence: number;
   readonly expectedVersion: number;
   readonly fence: number;
+  readonly streamGeneration: number;
 }
 
 export interface RunStreamAuthority {
@@ -73,6 +76,14 @@ export interface RunStreamAuthority {
   reconcile(
     entries: readonly RunStreamRegistryEntry[],
   ): Promise<readonly RunStreamRegistryResult[]>;
+  advanceStreamGeneration?(
+    claim: StepClaim,
+    observed: number,
+  ): Promise<number | undefined>;
+  advanceTerminalStreamGeneration?(
+    claim: TerminalStreamReference,
+    observed: number,
+  ): Promise<number | undefined>;
 }
 
 export interface RunStreamRegistryEntry {
@@ -148,15 +159,26 @@ export class RunStreams {
     claim: StepClaim,
     event: RunStreamEvent,
   ): Promise<'written' | 'unavailable' | 'stale'> {
+    return (await this.publishWithCursor(claim, event)).status;
+  }
+
+  async publishWithCursor(
+    claim: StepClaim,
+    event: RunStreamEvent,
+  ): Promise<{
+    readonly status: 'written' | 'unavailable' | 'stale';
+    readonly eventId?: string;
+    readonly generation: number;
+  }> {
     const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
       event.type === 'finish'
     )
-      return 'stale';
+      return { status: 'stale', generation: 0 };
     const reservation = this.#reserve(claim);
-    if (!reservation) return 'unavailable';
+    if (!reservation) return { status: 'unavailable', generation: 0 };
     let parts: RunStreamEvent[];
     try {
       parts = encodeStreamPartsBounded(
@@ -170,18 +192,23 @@ export class RunStreams {
         error instanceof Error &&
         error.message === 'Stream event exceeds part limit'
       )
-        return 'unavailable';
-      return 'stale';
+        return { status: 'unavailable', generation: 0 };
+      return { status: 'stale', generation: 0 };
     }
     return this.#enqueueReserved(
       claim,
       reservation,
       async (generation) => {
         const serverDeadlineAt = await this.#serverDeadline(deadlineAt);
-        if (serverDeadlineAt === undefined) return 'unavailable';
+        if (serverDeadlineAt === undefined)
+          return { status: 'unavailable' as const, generation };
+        let eventId: string | undefined;
+        let durableGeneration = 0;
         for (const part of parts) {
-          if (performance.now() >= deadlineAt) return 'unavailable';
-          if (!this.#isCurrent(claim, generation)) return 'stale';
+          if (performance.now() >= deadlineAt)
+            return { status: 'unavailable' as const, generation };
+          if (!this.#isCurrent(claim, generation))
+            return { status: 'stale' as const, generation };
           const result = await this.#publishPart(
             claim,
             part,
@@ -189,11 +216,18 @@ export class RunStreams {
             deadlineAt,
             serverDeadlineAt,
           );
-          if (result !== 'written') return result;
+          if (result.status !== 'written')
+            return { status: result.status, generation };
+          eventId = result.eventId;
+          durableGeneration = result.generation ?? durableGeneration;
         }
-        return 'written';
+        return {
+          status: 'written' as const,
+          ...(eventId ? { eventId } : {}),
+          generation: durableGeneration,
+        };
       },
-      'unavailable',
+      { status: 'unavailable', generation: 0 },
       deadlineAt,
     );
   }
@@ -238,6 +272,23 @@ export class RunStreams {
           if (epoch === undefined) return;
           const proof = await this.#terminalProof(claim);
           if (!proof) return;
+          const streamExists =
+            (await this.#client.exists(this.#streamKey(claim.runId))) > 0;
+          let streamGeneration = proof.streamGeneration ?? 0;
+          if (!Number.isSafeInteger(streamGeneration) || streamGeneration < 0)
+            return;
+          if (
+            !streamExists &&
+            this.#authority.advanceTerminalStreamGeneration
+          ) {
+            const advanced =
+              await this.#authority.advanceTerminalStreamGeneration(
+                claim,
+                streamGeneration,
+              );
+            if (advanced === undefined) return;
+            streamGeneration = advanced;
+          }
           const candidate = await this.#terminalCandidate();
           if (performance.now() >= deadlineAt) return;
           const statusEvent: RunStreamEvent = {
@@ -258,7 +309,7 @@ export class RunStreams {
           const result = Number(
             await this.#client.eval(
               FINISH_RUN_STREAM,
-              9,
+              11,
               this.#activeKey(),
               this.#terminalKey(),
               this.#streamKey(claim.runId),
@@ -272,6 +323,10 @@ export class RunStreams {
               this.#epochKey(),
               this.#contextKey(),
               this.#terminalMembersKey(),
+              this.#generationKey(claim.runId),
+              candidate
+                ? this.#generationKey(candidate.runId)
+                : this.#generationKey(claim.runId),
               claim.runId,
               String(proof.runVersion),
               String(claim.sequence),
@@ -289,6 +344,7 @@ export class RunStreams {
               JSON.stringify(statusEvent),
               errorEvent ? JSON.stringify(errorEvent) : '',
               String(writeDeadlineAt),
+              String(streamGeneration),
             ),
           );
           if (result === 1) return;
@@ -388,7 +444,7 @@ export class RunStreams {
               deadlineAt,
               serverDeadlineAt,
             );
-            if (result !== 'written') return result;
+            if (result.status !== 'written') return result.status;
           }
           return 'written';
         },
@@ -409,17 +465,34 @@ export class RunStreams {
     isCurrent: () => boolean,
     deadlineAt: number,
     serverDeadlineAt: number,
-  ): Promise<'written' | 'unavailable' | 'stale'> {
+  ): Promise<{
+    readonly status: 'written' | 'unavailable' | 'stale';
+    readonly eventId?: string;
+    readonly generation?: number;
+  }> {
     for (let attempt = 0; attempt < 3; attempt++) {
-      if (performance.now() >= deadlineAt) return 'unavailable';
+      if (performance.now() >= deadlineAt) return { status: 'unavailable' };
       try {
         const epoch = await this.#readEpoch();
-        if (epoch === undefined) return 'unavailable';
-        if (performance.now() >= deadlineAt) return 'unavailable';
-        if (!isCurrent()) return 'stale';
+        if (epoch === undefined) return { status: 'unavailable' };
+        if (performance.now() >= deadlineAt) return { status: 'unavailable' };
+        if (!isCurrent()) return { status: 'stale' };
         const proof = await this.#activeProof(claim);
-        if (!proof) return 'stale';
-        if (!isCurrent()) return 'stale';
+        if (!proof) return { status: 'stale' };
+        if (!isCurrent()) return { status: 'stale' };
+        const streamExists =
+          (await this.#client.exists(this.#streamKey(claim.runId))) > 0;
+        let streamGeneration = proof.streamGeneration ?? 0;
+        if (!Number.isSafeInteger(streamGeneration) || streamGeneration < 0)
+          return { status: 'stale' };
+        if (!streamExists && this.#authority.advanceStreamGeneration) {
+          const advanced = await this.#authority.advanceStreamGeneration(
+            claim,
+            streamGeneration,
+          );
+          if (advanced === undefined) return { status: 'stale' };
+          streamGeneration = advanced;
+        }
         const guard = guardValue(claim);
         const existing = await this.#client.zscore(
           this.#activeKey(),
@@ -431,14 +504,14 @@ export class RunStreams {
             deadlineAt,
             serverDeadlineAt,
           );
-          if (reconciled === 'unavailable') return 'unavailable';
+          if (reconciled === 'unavailable') return { status: 'unavailable' };
           if (reconciled === 'changed') continue;
         }
-        if (!isCurrent()) return 'stale';
+        if (!isCurrent()) return { status: 'stale' };
         // Recheck after bounded registry reconciliation and immediately before guard initialization.
         const latestProof = await this.#activeProof(claim);
-        if (!latestProof) return 'stale';
-        if (!isCurrent()) return 'stale';
+        if (!latestProof) return { status: 'stale' };
+        if (!isCurrent()) return { status: 'stale' };
         const prepared = await this.#prepare(
           claim,
           guard,
@@ -446,49 +519,56 @@ export class RunStreams {
           latestProof.leaseUntil.getTime(),
           serverDeadlineAt,
         );
-        if (prepared === -2) return 'stale';
-        if (prepared === -3) return 'unavailable';
-        if (prepared === 0) return 'unavailable';
+        if (prepared === -2) return { status: 'stale' };
+        if (prepared === -3 || prepared === 0) return { status: 'unavailable' };
         if (prepared < 0) continue;
-        if (!isCurrent()) return 'stale';
-        if (performance.now() >= deadlineAt) return 'unavailable';
+        if (!isCurrent()) return { status: 'stale' };
+        if (performance.now() >= deadlineAt) return { status: 'unavailable' };
         const serialized = JSON.stringify(event);
         if (
           Buffer.byteLength(serialized, 'utf8') >
           this.#capacity.limits.maxEventBytes
         )
-          return 'stale';
-        const result = Number(
-          await this.#client.eval(
-            APPEND_RUN_STREAM,
-            4,
-            this.#activeKey(),
-            this.#streamKey(claim.runId),
-            this.#guardKey(claim.runId),
-            this.#epochKey(),
-            claim.runId,
-            String(claim.expectedVersion),
-            serialized,
-            String(this.#capacity.limits.maxEntries),
-            String(claim.sequence),
-            String(claim.fence),
-            epoch,
-            String(latestProof.leaseUntil.getTime()),
-            String(serverDeadlineAt),
-            event.type,
-            event.type === 'text-start' || event.type === 'text-end'
-              ? event.id
-              : '',
-          ),
+          return { status: 'stale' };
+        const rawResult = await this.#client.eval(
+          APPEND_RUN_STREAM,
+          5,
+          this.#activeKey(),
+          this.#streamKey(claim.runId),
+          this.#guardKey(claim.runId),
+          this.#epochKey(),
+          this.#generationKey(claim.runId),
+          claim.runId,
+          String(claim.expectedVersion),
+          serialized,
+          String(this.#capacity.limits.maxEntries),
+          String(claim.sequence),
+          String(claim.fence),
+          epoch,
+          String(latestProof.leaseUntil.getTime()),
+          String(serverDeadlineAt),
+          event.type,
+          event.type === 'text-start' || event.type === 'text-end'
+            ? event.id
+            : '',
+          String(streamGeneration),
         );
-        if (result === 1) return 'written';
-        if (result === -1 || result === -2) return 'stale';
-        if (result === -3) return 'unavailable';
+        if (typeof rawResult === 'string' && /^\d+-\d+$/.test(rawResult))
+          return {
+            status: 'written',
+            eventId: rawResult,
+            generation: streamGeneration,
+          };
+        if (Number(rawResult) === 1)
+          return { status: 'written', generation: streamGeneration };
+        const result = Number(rawResult);
+        if (result === -1 || result === -2) return { status: 'stale' };
+        if (result === -3) return { status: 'unavailable' };
       } catch {
-        return 'unavailable';
+        return { status: 'unavailable' };
       }
     }
-    return 'unavailable';
+    return { status: 'unavailable' };
   }
 
   async #publishCommittedPart(
@@ -511,7 +591,9 @@ export class RunStreams {
         proof.fence !== claim.fence ||
         proof.runVersion !== claim.committedRunVersion ||
         proof.status !== claim.committedStatus ||
-        proof.nextSequence < claim.sequence + 1
+        proof.nextSequence < claim.sequence + 1 ||
+        !Number.isSafeInteger(proof.streamGeneration) ||
+        proof.streamGeneration < 0
       )
         return 'stale';
       if (performance.now() >= deadlineAt) return 'unavailable';
@@ -524,11 +606,12 @@ export class RunStreams {
       const result = Number(
         await this.#client.eval(
           APPEND_COMMITTED_RUN_STREAM,
-          4,
+          5,
           this.#streamKey(claim.runId),
           this.#guardKey(claim.runId),
           this.#epochKey(),
           this.#contextKey(),
+          this.#generationKey(claim.runId),
           claim.runId,
           String(claim.committedRunVersion),
           serialized,
@@ -538,6 +621,7 @@ export class RunStreams {
           String(serverDeadlineAt),
           String(claim.sequence),
           String(claim.fence),
+          String(proof.streamGeneration),
         ),
       );
       if (result === 1) return 'written';
@@ -661,6 +745,7 @@ export class RunStreams {
         ...stale.flatMap(({ runId }) => [
           this.#streamKey(runId),
           this.#guardKey(runId),
+          this.#generationKey(runId),
         ]),
       ];
       const args = [
@@ -995,6 +1080,9 @@ export class RunStreams {
   }
   #guardKey(runId: string): string {
     return `${this.#prefix}:${runId}:guard`;
+  }
+  #generationKey(runId: string): string {
+    return `${this.#prefix}:${runId}:generation`;
   }
 }
 

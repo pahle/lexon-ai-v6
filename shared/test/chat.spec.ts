@@ -9,6 +9,7 @@ import {
   ChatMessageSchema,
   ChatSearchRequestSchema,
   ChatSnapshotSchema,
+  ChatSnapshotFrameSchema,
   ChatTreeSchema,
   CreateChatInputSchema,
   EditMessageInputSchema,
@@ -321,6 +322,7 @@ describe('chat contracts', () => {
       revision: 1,
       eventId: null,
       parts: [],
+      operations: [],
       status: 'running',
       errorCode: null,
       reasoningDurationMs: null,
@@ -341,6 +343,97 @@ describe('chat contracts', () => {
     expect(
       ChatSnapshotSchema.safeParse({ ...snapshot, providerMetadata: {} })
         .success,
+    ).toBe(false);
+    const pendingNoAttempt = {
+      ...snapshot,
+      attemptId: null,
+      generation: null,
+      revision: 0,
+      eventId: null,
+    };
+    expect(ChatSnapshotSchema.safeParse(pendingNoAttempt).success).toBe(true);
+    expect(
+      ChatSnapshotSchema.safeParse({ ...pendingNoAttempt, eventId: '1-1' })
+        .success,
+    ).toBe(false);
+    expect(
+      ChatSnapshotSchema.safeParse({
+        ...snapshot,
+        attemptId: null,
+        eventId: '1-1',
+      }).success,
+    ).toBe(false);
+    expect(
+      ChatSnapshotSchema.safeParse({ ...pendingNoAttempt, revision: -1 })
+        .success,
+    ).toBe(false);
+    const snapshotMetadata = Object.fromEntries(
+      Object.entries(pendingNoAttempt).filter(
+        ([key]) => key !== 'parts' && key !== 'operations',
+      ),
+    );
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-start',
+        reset: true,
+        snapshot: snapshotMetadata,
+        partCount: 0,
+        operationCount: 0,
+      }).success,
+    ).toBe(true);
+    const safeOperation = {
+      operationId: parentMessageId,
+      status: 'awaiting_approval',
+      approvalRequired: true,
+    };
+    expect(
+      ChatSnapshotSchema.safeParse({
+        ...pendingNoAttempt,
+        operations: [safeOperation],
+      }).success,
+    ).toBe(true);
+    expect(
+      ChatSnapshotSchema.safeParse({
+        ...pendingNoAttempt,
+        operations: [{ ...safeOperation, args: { token: 'hidden' } }],
+      }).success,
+    ).toBe(false);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-operation',
+        index: 0,
+        operation: safeOperation,
+      }).success,
+    ).toBe(true);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-end',
+        partCount: 0,
+        operationCount: 1,
+      }).success,
+    ).toBe(true);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-part',
+        partIndex: 0,
+        chunkIndex: 0,
+        partType: 'text',
+        id: runId,
+        text: 'x'.repeat(24_001),
+        final: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-reset',
+        reason: 'cursor-gap',
+        debug: 'private',
+      }).success,
     ).toBe(false);
   });
 

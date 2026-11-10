@@ -51,6 +51,7 @@ export interface OrganizationSelectionPort {
   ): Promise<SwitchResult>;
 }
 export const ORGANIZATION_SELECTION = Symbol('OrganizationSelection');
+export const RUN_SSE_REVALIDATION = Symbol('RunSseRevalidation');
 @Injectable()
 export class IdentitySessionService implements OrganizationSelectionPort {
   private readonly policy = new IdentityPolicy();
@@ -67,6 +68,37 @@ export class IdentitySessionService implements OrganizationSelectionPort {
         sessionId,
         ...(targetOrganizationId ? { targetOrganizationId } : {}),
       },
+    });
+  }
+
+  async assertRunSseSelection(
+    identity: VerifiedIdentity,
+    orgId: string,
+  ): Promise<void> {
+    assertVerifiedIdentity(identity);
+    const headers = verifiedIdentityHeaders(identity);
+    await this.transaction(async (tx) => {
+      const actor = await this.actor(tx, headers, identity);
+      this.policy.requireAccount(actor.user, actor.session.mfaVerifiedAt);
+      const facts = await this.selectionFacts(
+        tx,
+        actor.user.id,
+        actor.session.id,
+      );
+      if (
+        !facts.session ||
+        !facts.selected ||
+        !facts.selectedMember ||
+        facts.selected.id !== orgId ||
+        facts.selected.state !== 'active' ||
+        facts.selectedMember.userId !== actor.user.id ||
+        facts.selectedMember.organizationId !== orgId
+      )
+        throw new IdentityError('AUTH_REQUIRED', 401);
+      this.policy.requireOrganizationMfa(
+        facts.selected.require2fa,
+        actor.session.mfaVerifiedAt,
+      );
     });
   }
   private async transaction<T>(

@@ -30,6 +30,7 @@ import {
   recordAiTestToolEffect,
   sleepInAiTestSession,
 } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
   AiOperationRepository,
   AiAttemptRepository,
@@ -53,6 +54,11 @@ import {
   RunStreams,
   type RunStreamAuthority,
 } from '../../src/infrastructure/queue/index.js';
+import { SseStreamReader } from '../../src/infrastructure/queue/sse-stream-reader.js';
+import {
+  StreamHub,
+  type SseFrame,
+} from '../../src/infrastructure/queue/stream-hub.js';
 import type { ContextProvider } from '../../src/modules/chat/run-contracts.js';
 import { RunAuthorizationService } from '../../src/modules/identity-access/run-authorization.service.js';
 import { RequestIdentity } from '../../src/modules/identity-access/request-identity.js';
@@ -80,6 +86,7 @@ import { AttemptService } from '../../src/modules/usage/index.js';
 import { spawnToolOperationWorker } from '../process/tool-operation-harness.js';
 
 const model = 'openai/gpt-6-luna';
+const ORIGINAL_REDIS_EVAL = Redis.prototype.eval;
 const spanExporter = new InMemorySpanExporter();
 const tracerProvider = new BasicTracerProvider({
   spanProcessors: [new SimpleSpanProcessor(spanExporter)],
@@ -364,6 +371,20 @@ function job(
     ctx: tenant,
     payload: { runId, sequence, expectedVersion },
   } as const;
+}
+
+function cursorPublisher(
+  publish: (
+    claim: StepClaim,
+    event: RunStreamEvent,
+  ) => Promise<'written' | 'unavailable' | 'stale'>,
+) {
+  return async (claim: StepClaim, event: RunStreamEvent) => {
+    const status = await publish(claim, event);
+    return status === 'written'
+      ? { status, eventId: '1-0', generation: 1 }
+      : { status };
+  };
 }
 
 const usage = { inputTokens: 20, outputTokens: 3 };
@@ -2088,7 +2109,7 @@ test('new approval requirement stages the pending operation without an effect', 
     },
   });
   const inspector = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let rejectApprovalNotification = true;
   const evalSpy = vi
     .spyOn(Redis.prototype, 'eval')
@@ -2097,7 +2118,7 @@ test('new approval requirement stages the pending operation without an effect', 
         rejectApprovalNotification &&
         args[0] === APPEND_COMMITTED_RUN_STREAM
       ) {
-        const event = typeof args[8] === 'string' ? JSON.parse(args[8]) : null;
+        const event = typeof args[9] === 'string' ? JSON.parse(args[9]) : null;
         if (event?.type === 'approval-required') {
           rejectApprovalNotification = false;
           return -3;
@@ -2714,7 +2735,7 @@ test('approval-required transactional operations remain staged and produce no ef
     prefix: services.queuePrefix,
     authority,
   });
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let holdApprovalEvent = true;
   let releaseApprovalEvent!: () => void;
   let resolveApprovalEvalHeld!: () => void;
@@ -2736,12 +2757,12 @@ test('approval-required transactional operations remain staged and produce no ef
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     let heldCall = false;
     if (holdApprovalEvent && args[0] === APPEND_COMMITTED_RUN_STREAM) {
-      const event = typeof args[8] === 'string' ? JSON.parse(args[8]) : null;
+      const event = typeof args[9] === 'string' ? JSON.parse(args[9]) : null;
       if (event?.type === 'approval-required') {
         holdApprovalEvent = false;
         heldCall = true;
-        heldIncomingVersion = Number(args[7]);
-        heldServerDeadlineAt = Number(args[12]);
+        heldIncomingVersion = Number(args[8]);
+        heldServerDeadlineAt = Number(args[13]);
         resolveApprovalEvalHeld();
         await approvalEventBarrier;
       }
@@ -3107,6 +3128,188 @@ test('proposal limits preserve every accepted approval event and refuse excess b
   } finally {
     redis.disconnect();
     await streams.close();
+    await ai.close();
+  }
+});
+
+test('a missing 31-event approval batch resets from all 15 durable operation states', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const chat = await createChatFixture(services);
+  const steps = new AiStepRepository();
+  const authority: RunStreamAuthority = {
+    authorizeActive: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    authorizeCommitted: (claim, event) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamCommittedProof(tx, claim, event),
+      ),
+    reconcile: async (entries) =>
+      entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader);
+  const originalEval = ORIGINAL_REDIS_EVAL;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  let committedEventAttempts = 0;
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (args[0] === APPEND_COMMITTED_RUN_STREAM) {
+      committedEventAttempts++;
+      if (committedEventAttempts === 17) return -3;
+    }
+    return originalEval.apply(this, args as never);
+  } as never);
+  const tool: TransactionalWriteToolDefinition = {
+    id: 'snapshot-approval-write',
+    version: 1,
+    kind: 'write',
+    inputSchema: z.strictObject({ value: z.string() }),
+    requiresApproval: true,
+    timeoutMs: 1000,
+    maxResultBytes: 512,
+    capabilities: [],
+    idempotency: { mode: 'transactional' },
+    async execute() {
+      throw new Error('Approval-gated proposal executed before approval');
+    },
+  };
+  const runProfile: RunProfile = {
+    ...profile,
+    id: 'snapshot-approval-cap15',
+    maxToolProposalsPerGeneration: 15,
+  };
+  try {
+    const h = await setup(
+      ai,
+      [
+        {
+          events: [
+            ...Array.from({ length: 15 }, (_, index) => ({
+              type: 'tool-proposal' as const,
+              toolCallId: `snapshot-provider-call-${index + 1}`,
+              toolName: tool.id,
+              input: { value: `approval ${index + 1}` },
+            })),
+            { type: 'usage', usage },
+            {
+              type: 'outcome',
+              outcome: { ...success.outcome, finishReason: 'tool_calls' },
+            },
+          ],
+        },
+      ],
+      { tools: [tool], profile: runProfile, streams },
+    );
+    await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
+      signal: new AbortController().signal,
+    });
+    expect(committedEventAttempts).toBe(17);
+    const redis = new Redis(services.valkey.streamsUrl);
+    try {
+      const partialEvents = (
+        await redis.xrange(
+          `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+          '-',
+          '+',
+        )
+      ).map(([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>);
+      expect(
+        partialEvents.filter((event) => event.type === 'operation-status'),
+      ).toHaveLength(8);
+      expect(
+        partialEvents.filter((event) => event.type === 'approval-required'),
+      ).toHaveLength(7);
+    } finally {
+      redis.disconnect();
+    }
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    expect(run?.status).toBe('awaiting_approval');
+    const persisted = await ai.withTenant(0, (tx) =>
+      h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
+    );
+    expect(persisted).toHaveLength(15);
+    expect(
+      persisted.every((operation) => operation.status === 'awaiting_approval'),
+    ).toBe(true);
+    expect(await ai.toolEffectCountForRun(0, h.runId)).toBe(0);
+
+    const chatId = randomUUID();
+    await chat.chat.createFor(h.tenant, chatId);
+    await chat.chat.associateFor(h.tenant, chatId, h.runId);
+    const authorized = await ai.withTenant(0, (tx) =>
+      h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
+    );
+    expect(authorized).not.toBeNull();
+    if (!authorized)
+      throw new Error('Authorized recovery snapshot unavailable');
+
+    const frames: SseFrame[] = [];
+    const subscription = await hub.subscribe(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      undefined,
+      {
+        write(frame) {
+          frames.push(frame);
+          return true;
+        },
+        async drain() {
+          return true;
+        },
+        async close() {},
+      },
+      {
+        snapshot: authorized.snapshot,
+        streamGeneration: authorized.streamGeneration,
+      },
+    );
+    try {
+      const decoded = frames
+        .filter((frame) => frame.data.startsWith('{'))
+        .map((frame) => JSON.parse(frame.data) as Record<string, unknown>);
+      const operationFrames = decoded.filter(
+        (frame) => frame.type === 'snapshot-operation',
+      );
+      expect(operationFrames).toHaveLength(15);
+      expect(operationFrames.map((frame) => frame.index)).toEqual(
+        Array.from({ length: 15 }, (_, index) => index),
+      );
+      expect(
+        operationFrames.every(
+          (frame) =>
+            (frame.operation as Record<string, unknown>).status ===
+              'awaiting_approval' &&
+            (frame.operation as Record<string, unknown>).approvalRequired ===
+              true,
+        ),
+      ).toBe(true);
+      expect(decoded.at(-1)).toMatchObject({
+        type: 'snapshot-end',
+        operationCount: 15,
+      });
+      expect(await ai.toolEffectCountForRun(0, h.runId)).toBe(0);
+    } finally {
+      await subscription.close();
+    }
+  } finally {
+    evalSpy.mockRestore();
+    await hub.close();
+    await streams.close();
+    await chat.close();
     await ai.close();
   }
 });
@@ -4960,10 +5163,12 @@ test('stale stream publication aborts and awaits the current gateway iterator', 
         })();
       },
     };
+    const publish = async (_claim: StepClaim, event: RunStreamEvent) =>
+      event.type === 'text-delta' ? ('stale' as const) : ('written' as const);
     const streams = {
       recover: async () => undefined,
-      publish: async (_claim: unknown, event: { type: string }) =>
-        event.type === 'text-delta' ? ('stale' as const) : ('written' as const),
+      publish,
+      publishWithCursor: cursorPublisher(publish),
     } as unknown as RunStreams;
     const h = await setup(ai, [], { gateway, streams });
     await expect(
@@ -4973,7 +5178,9 @@ test('stale stream publication aborts and awaits the current gateway iterator', 
     ).rejects.toThrow('AI step claim lost');
     expect(finalized).toBe(true);
     expect(signal?.aborted).toBe(true);
-    expect(signal?.reason).toMatchObject({ message: 'AI step claim lost' });
+    expect(signal?.reason).toMatchObject({
+      message: expect.stringContaining('AI step claim lost'),
+    });
   } finally {
     await ai.close();
   }
@@ -5311,6 +5518,115 @@ test('flushes dirty provisional text on the checkpoint interval while generation
   }
 });
 
+test('a checkpoint after unavailable XADD persists text without a resumable cursor', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const chat = await createChatFixture(services);
+  const steps = new AiStepRepository();
+  const authority: RunStreamAuthority = {
+    authorizeActive: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamActiveProof(tx, claim),
+      ),
+    authorizeTerminal: (claim) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamTerminalProof(tx, claim),
+      ),
+    authorizeCommitted: (claim, event) =>
+      ai.database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.streamCommittedProof(tx, claim, event),
+      ),
+    reconcile: async (entries) =>
+      entries.map(({ runId }) => ({ runId, state: 'active' as const })),
+  };
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority,
+  });
+  const originalEval = ORIGINAL_REDIS_EVAL;
+  const evalSpy = vi.spyOn(Redis.prototype, 'eval');
+  evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
+    if (args[0] === APPEND_RUN_STREAM) return -3;
+    return originalEval.apply(this, args as never);
+  } as never);
+  try {
+    let release!: () => void;
+    let emitted!: () => void;
+    const textEmitted = new Promise<void>((resolve) => (emitted = resolve));
+    const continueGeneration = new Promise<void>(
+      (resolve) => (release = resolve),
+    );
+    const gateway: ModelGateway = {
+      generate() {
+        return (async function* () {
+          yield { type: 'text', text: 'durable text without cursor' };
+          emitted();
+          await continueGeneration;
+          yield success;
+        })();
+      },
+    };
+    const h = await setup(ai, [], { gateway, streams });
+    const checkpoint = vi.spyOn(h.steps, 'checkpoint');
+    const running = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    await textEmitted;
+    await vi.waitFor(
+      () => {
+        expect(checkpoint).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.anything(),
+          expect.objectContaining({
+            text: 'durable text without cursor',
+            streamGeneration: 0,
+            streamEventId: null,
+            streamResumable: false,
+          }),
+        );
+      },
+      { timeout: 2500 },
+    );
+    const durable = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    const chatId = randomUUID();
+    await chat.chat.createFor(h.tenant, chatId);
+    await chat.chat.associateFor(h.tenant, chatId, h.runId);
+    const authorized = await ai.withTenant(0, (tx) =>
+      h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
+    );
+    expect(authorized?.snapshot.parts).toContainEqual(
+      expect.objectContaining({
+        type: 'text',
+        text: 'durable text without cursor',
+      }),
+    );
+    expect(authorized?.snapshot).toMatchObject({
+      eventId: null,
+      generation: null,
+      revision: 1,
+    });
+    expect(durable).toMatchObject({
+      partialOutput: '',
+      streamSnapshotGeneration: 0,
+      streamEventId: null,
+      streamResumable: false,
+    });
+    release();
+    await running;
+  } finally {
+    evalSpy.mockRestore();
+    await streams.close();
+    await chat.close();
+    await ai.close();
+  }
+});
+
 test('serializes timed checkpoints and persists text appended during the first write', async ({
   services,
 }) => {
@@ -5447,10 +5763,12 @@ test('stream ownership loss escapes without becoming a provider outcome', async 
 }) => {
   const ai = await createAiFixture(services);
   try {
+    const publish = async (_claim: StepClaim, event: RunStreamEvent) =>
+      event.type === 'text-delta' ? ('stale' as const) : ('written' as const);
     const streams = {
       recover: async () => undefined,
-      publish: async (_claim: unknown, event: { type: string }) =>
-        event.type === 'text-delta' ? ('stale' as const) : ('written' as const),
+      publish,
+      publishWithCursor: cursorPublisher(publish),
     } as unknown as RunStreams;
     const h = await setup(
       ai,
@@ -5827,10 +6145,16 @@ test('cancellation after a settled retry failure does not settle that attempt tw
   };
   const streams = {
     recover: async () => undefined,
-    publish: async (_claim: unknown, event: { type: string }) => {
+    publish: async (_claim: StepClaim, event: RunStreamEvent) => {
       if (event.type === 'reset-step') announceReset();
       return 'written' as const;
     },
+    publishWithCursor: cursorPublisher(
+      async (_claim: StepClaim, event: RunStreamEvent) => {
+        if (event.type === 'reset-step') announceReset();
+        return 'written' as const;
+      },
+    ),
     finish: vi.fn(async () => undefined),
   } as unknown as RunStreams;
   const cancelSignals = {
@@ -5978,6 +6302,7 @@ test('terminal job redelivery performs no third generation or event publication'
     const streams = {
       recover: vi.fn(async () => undefined),
       publish,
+      publishWithCursor: cursorPublisher(publish),
       finish: vi.fn(async () => undefined),
     } as unknown as RunStreams;
     const h = await setup(ai, [], { gateway, streams });
@@ -6188,7 +6513,7 @@ async function assertRetryStreamOutage(
     authority,
   });
   const redis = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let firstTextId: string | undefined;
   const rejectedEvents: string[] = [];
   let resetStepAcknowledgementLostObserved = false;
@@ -6197,8 +6522,8 @@ async function assertRetryStreamOutage(
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     if (args[0] === APPEND_RUN_STREAM) {
-      const eventType = String(args.at(-2));
-      const eventId = String(args.at(-1));
+      const eventType = String(args.at(-3));
+      const eventId = String(args.at(-2));
       if (
         initialHeaderUnavailable &&
         !initialHeaderRejected &&
@@ -6465,14 +6790,14 @@ test('retry stream outage terminal cancellation refreshes the second attempt sna
       })();
     },
   };
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let textEndRejected = false;
   let resetRejected = false;
   let runStatusAtFinish: string | undefined;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     if (args[0] === APPEND_RUN_STREAM) {
-      const type = String(args.at(-2));
+      const type = String(args.at(-3));
       if (type === 'text-end' && !textEndRejected) {
         textEndRejected = true;
         return -3;
@@ -6483,7 +6808,7 @@ test('retry stream outage terminal cancellation refreshes the second attempt sna
       }
     }
     if (args[0] === FINISH_RUN_STREAM) {
-      const runId = String(args[11]);
+      const runId = String(args[13]);
       runStatusAtFinish = (
         await ai.withTenant(0, (tx) => stream.runs.find(tx, runId))
       )?.status;
@@ -6570,13 +6895,13 @@ test('retry stream outage budget refusal refreshes the durable terminal snapshot
 }) => {
   const ai = await createAiFixture(services);
   const stream = await createExecutionStreamFixture(ai, services);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let textEndRejected = false;
   let resetRejected = false;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
     if (args[0] === APPEND_RUN_STREAM) {
-      const type = String(args.at(-2));
+      const type = String(args.at(-3));
       if (type === 'text-end' && !textEndRejected) {
         textEndRejected = true;
         return -3;
@@ -6707,7 +7032,7 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
     const tenant = { orgId: team.id, userId: user.profile.id };
     const stream = await createExecutionStreamFixture(ai, services);
     cleanup.push(() => stream.close());
-    const originalEval = Redis.prototype.eval;
+    const originalEval = ORIGINAL_REDIS_EVAL;
     evalSpy = vi.spyOn(Redis.prototype, 'eval');
     evalSpy.mockImplementation(async function (
       this: Redis,
@@ -6715,14 +7040,14 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
     ) {
       if (
         args[0] === APPEND_RUN_STREAM &&
-        args.at(-2) === 'start' &&
+        args.at(-3) === 'start' &&
         !headerRejected
       ) {
         headerRejected = true;
         return -3;
       }
       if (args[0] === FINISH_RUN_STREAM) {
-        const runId = String(args[11]);
+        const runId = String(args[13]);
         runStatusAtFinish = (
           await ai.database.withTenant(tenant, (tx) =>
             stream.runs.find(tx, runId),
@@ -6823,7 +7148,7 @@ async function assertTextStartFailure(
     authority,
   });
   const redis = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let publicationInterrupted = false;
   let deltaPublications = 0;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
@@ -6831,7 +7156,7 @@ async function assertTextStartFailure(
     if (
       failureMode === 'missing-header' &&
       args[0] === APPEND_RUN_STREAM &&
-      args.at(-2) === 'text-start'
+      args.at(-3) === 'text-start'
     ) {
       publicationInterrupted = true;
       return -3;
@@ -6839,7 +7164,7 @@ async function assertTextStartFailure(
     if (
       failureMode === 'failed-text-closure' &&
       args[0] === APPEND_RUN_STREAM &&
-      args.at(-2) === 'text-end'
+      args.at(-3) === 'text-end'
     ) {
       publicationInterrupted = true;
       return -3;
@@ -6849,7 +7174,7 @@ async function assertTextStartFailure(
       failureMode === 'lost-acknowledgement' &&
       !publicationInterrupted &&
       args[0] === APPEND_RUN_STREAM &&
-      args.at(-2) === 'text-start'
+      args.at(-3) === 'text-start'
     ) {
       publicationInterrupted = true;
       throw new Error('Simulated lost Valkey acknowledgement');
@@ -6858,7 +7183,7 @@ async function assertTextStartFailure(
       failureMode === 'lost-middle-delta' &&
       !publicationInterrupted &&
       args[0] === APPEND_RUN_STREAM &&
-      args.at(-2) === 'text-delta'
+      args.at(-3) === 'text-delta'
     ) {
       deltaPublications++;
       if (deltaPublications === 2) {
@@ -6889,6 +7214,11 @@ async function assertTextStartFailure(
     expect(publicationInterrupted).toBe(true);
     const durableRun = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
     expect(durableRun?.finalOutput).toBe('durable after ack loss');
+    expect(durableRun).toMatchObject({
+      streamResumable: false,
+      streamEventId: null,
+      streamSnapshotGeneration: 0,
+    });
     const rows = await redis.xrange(
       `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
       '-',
@@ -7033,12 +7363,12 @@ test('terminal reset recovers committed text across an unconfirmed next-step rec
     authority,
   });
   const redis = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let resetPublications = 0;
   let rejectedStepTwoRecovery = false;
   const evalSpy = vi.spyOn(Redis.prototype, 'eval');
   evalSpy.mockImplementation(async function (this: Redis, ...args: unknown[]) {
-    if (args[0] === APPEND_RUN_STREAM && args.at(-2) === 'reset') {
+    if (args[0] === APPEND_RUN_STREAM && args.at(-3) === 'reset') {
       resetPublications++;
       if (resetPublications === 2) {
         rejectedStepTwoRecovery = true;
@@ -7196,6 +7526,7 @@ test('Valkey stream unavailability does not stop durable completion', async ({
     const streams = {
       recover: async () => undefined,
       publish: async () => 'unavailable' as const,
+      publishWithCursor: async () => ({ status: 'unavailable' as const }),
       finish: async () => undefined,
     } as unknown as RunStreams;
     const h = await setup(
@@ -7362,6 +7693,12 @@ test('retry reservation failure keeps the first attempt partial output and stops
         streamEvents.push(event.type);
         return 'written' as const;
       },
+      publishWithCursor: cursorPublisher(
+        async (_claim: StepClaim, event: RunStreamEvent) => {
+          streamEvents.push(event.type);
+          return 'written' as const;
+        },
+      ),
       finish: vi.fn(async () => streamEvents.push('finish')),
     } as unknown as RunStreams;
     const h = await setup(ai, [], { gateway, streams });
@@ -7395,6 +7732,12 @@ test('over-reserved length completion publishes the actual terminal budget failu
         streamEvents.push(event.type);
         return 'written' as const;
       },
+      publishWithCursor: cursorPublisher(
+        async (_claim: StepClaim, event: RunStreamEvent) => {
+          streamEvents.push(event.type);
+          return 'written' as const;
+        },
+      ),
       finish: vi.fn(async () => streamEvents.push('finish')),
     } as unknown as RunStreams;
     const h = await setup(

@@ -10,11 +10,18 @@ import {
   RunActorFactsRepository,
 } from '../../infrastructure/db/index.js';
 import { ModelAllowlistSchema } from '../../infrastructure/ai/index.js';
-import { RunAuthorizationService } from '../identity-access/index.js';
+import {
+  RunAuthorizationService,
+  RUN_SSE_REVALIDATION,
+} from '../identity-access/index.js';
 import { createProductionRunRegistry, RunRegistry } from './run-registry.js';
 import { ChatHistoryContextProvider } from './chat-history-context.js';
 import { RunService } from './run.service.js';
 import { ChatService } from './chat.service.js';
+import { RunEventsService } from './run-events.service.js';
+import { SseStreamReader } from '../../infrastructure/queue/sse-stream-reader.js';
+import { StreamHub } from '../../infrastructure/queue/stream-hub.js';
+import { SseConnectionRegistry } from '../../infrastructure/queue/sse-connection-registry.js';
 
 export function chatRuntimeProviders(): Provider[] {
   return [
@@ -37,6 +44,25 @@ export function chatApiProviders(
   config: Extract<RuntimeConfig, { runtime: 'api' }>,
 ): Provider[] {
   return [
+    {
+      provide: SseStreamReader,
+      useFactory: () => new SseStreamReader(config.valkey.streamsUrl),
+    },
+    {
+      provide: StreamHub,
+      inject: [SseStreamReader],
+      useFactory: (reader: SseStreamReader) =>
+        new StreamHub(
+          reader,
+          config.chat.heartbeatMs,
+          config.chat.drainTimeoutMs,
+        ),
+    },
+    {
+      provide: SseConnectionRegistry,
+      useFactory: () =>
+        new SseConnectionRegistry(config.valkey.streamsUrl, config.queuePrefix),
+    },
     {
       provide: RunService,
       inject: [
@@ -88,6 +114,35 @@ export function chatApiProviders(
         runs: RunService,
         authorization: RunAuthorizationService,
       ) => new ChatService(database, runs, authorization),
+    },
+    {
+      provide: RunEventsService,
+      inject: [
+        TenantDatabase,
+        AiRunRepository,
+        RunAuthorizationService,
+        StreamHub,
+        SseConnectionRegistry,
+        RUN_SSE_REVALIDATION,
+      ],
+      useFactory: (
+        database: TenantDatabase,
+        runs: AiRunRepository,
+        authorization: RunAuthorizationService,
+        hub: StreamHub,
+        registry: SseConnectionRegistry,
+        revalidation: ConstructorParameters<typeof RunEventsService>[7],
+      ) =>
+        new RunEventsService(
+          database,
+          runs,
+          authorization,
+          hub,
+          registry,
+          config.queuePrefix,
+          config.chat.maxConnectionsPerUser,
+          revalidation,
+        ),
     },
   ];
 }

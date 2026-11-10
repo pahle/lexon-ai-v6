@@ -6,6 +6,7 @@ import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
 import {
   IdentitySessionService,
   ORGANIZATION_SELECTION,
+  RUN_SSE_REVALIDATION,
 } from './identity-session.service.js';
 import {
   RequestIdentity,
@@ -75,6 +76,12 @@ export class IdentityAccessModule {
           }),
         },
         {
+          provide: RUN_SSE_REVALIDATION,
+          useValue: Object.freeze({
+            assert: identities.assertRunSseSelection.bind(identities),
+          }),
+        },
+        {
           provide: APP_GUARD,
           useValue: new TenantGuard(
             identities,
@@ -88,7 +95,11 @@ export class IdentityAccessModule {
           useValue: new RequestIdentityInterceptor(requests),
         },
       ],
-      exports: [OrganizationAuthPort, ORGANIZATION_SELECTION],
+      exports: [
+        OrganizationAuthPort,
+        ORGANIZATION_SELECTION,
+        RUN_SSE_REVALIDATION,
+      ],
     };
   }
   // The private infrastructure composition supplies its community AuthModule

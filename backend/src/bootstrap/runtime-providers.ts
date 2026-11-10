@@ -19,6 +19,7 @@ import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
 import { StepExecutor } from '../modules/chat/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
+import { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export function runtimeProviders(
   config: RuntimeConfig,
   auth?: { check(): Promise<'up' | 'down'> },
@@ -80,7 +81,7 @@ export function runtimeProviders(
   const capacity = config.runtime === 'api' || config.runtime === 'ai-worker';
   const tokens: InjectionToken[] =
     config.runtime === 'api'
-      ? [QueueProducer, StoragePort]
+      ? [QueueProducer, StoragePort, StreamHub]
       : config.runtime === 'document-worker'
         ? [StoragePort]
         : config.runtime === 'ai-worker'
@@ -103,6 +104,7 @@ export function runtimeProviders(
         | StepExecutor
         | RunStreams
         | CancelSignals
+        | StreamHub
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -128,6 +130,7 @@ export function runtimeProviders(
         dependencies.find(
           (x): x is CancelSignals => x instanceof CancelSignals,
         ),
+        dependencies.find((x): x is StreamHub => x instanceof StreamHub),
       ),
   });
   return providers;

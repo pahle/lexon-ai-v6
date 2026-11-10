@@ -45,10 +45,22 @@ test('executor streams only typed summaries and reload matches measured timing',
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamActiveProof(tx, claim),
         ),
+      advanceStreamGeneration: (claim, observed) =>
+        fixture.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.advanceStreamGeneration(tx, claim, observed),
+          { timeoutMs: 500 },
+        ),
       authorizeTerminal: (claim) =>
         fixture.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
+        ),
+      advanceTerminalStreamGeneration: (claim, observed) =>
+        fixture.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.advanceTerminalStreamGeneration(tx, claim, observed),
+          { timeoutMs: 500 },
         ),
       authorizeCommitted: (claim, event) =>
         fixture.database.withTenant(
@@ -263,8 +275,25 @@ test('executor streams only typed summaries and reload matches measured timing',
         text: 'answer paired with measured timing',
         reasoning_summary: summary,
         reasoning_duration_ms: 1,
+        stream_generation: expect.any(Number),
+        stream_event_id: expect.stringMatching(/^\d+-\d+$/),
+        stream_revision: expect.any(Number),
+        stream_resumable: true,
       },
     ]);
+    expect(
+      entries.find(([id]) => id === checkpointText[0]?.stream_event_id)?.[0],
+    ).toBe(checkpointText[0]?.stream_event_id);
+    const runStreamMetadata = await fixture.inspect.streamMetadata(run.runId);
+    expect(runStreamMetadata).toMatchObject({
+      stream_generation: expect.any(Number),
+      stream_snapshot_generation: checkpointText[0]?.stream_generation,
+      stream_event_id: checkpointText[0]?.stream_event_id,
+      stream_resumable: true,
+    });
+    expect(runStreamMetadata?.stream_generation).toBeGreaterThanOrEqual(
+      runStreamMetadata?.stream_snapshot_generation ?? 0,
+    );
     expect(JSON.stringify(checkpointText)).not.toContain(rawCanary);
 
     const retryChat = await fixture.chat.create(0);
@@ -536,6 +565,10 @@ test('chat reload preserves measured reasoning timing without a summary body', a
         text: 'Synthetic partial answer',
         reasoning_duration_ms: 2500,
         reasoning_summary: null,
+        stream_generation: 0,
+        stream_event_id: null,
+        stream_revision: 0,
+        stream_resumable: false,
       },
     ]);
     const tree = await fixture.chat.tree(0, chat.id);

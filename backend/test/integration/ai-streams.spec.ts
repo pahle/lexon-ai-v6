@@ -9,6 +9,7 @@ import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   AiRunRepository,
+  AiAttemptRepository,
   AiStepRepository,
   TenantDatabase,
   type TerminalStreamReference,
@@ -24,6 +25,8 @@ import {
   PREPARE_RUN_STREAM,
 } from '../../src/infrastructure/queue/run-stream-scripts.js';
 
+const ORIGINAL_REDIS_EVAL = Redis.prototype.eval;
+
 function claimAuthority(
   database: TenantDatabase,
   steps: AiStepRepository,
@@ -34,9 +37,21 @@ function claimAuthority(
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
         steps.streamActiveProof(tx, claim),
       ),
+    advanceStreamGeneration: (claim, observed) =>
+      database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.advanceStreamGeneration(tx, claim, observed),
+        { timeoutMs: 500 },
+      ),
     authorizeTerminal: (claim: TerminalStreamReference) =>
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
         steps.streamTerminalProof(tx, claim),
+      ),
+    advanceTerminalStreamGeneration: (claim, observed) =>
+      database.withTenant(
+        { orgId: claim.orgId, userId: claim.userId },
+        (tx) => steps.advanceTerminalStreamGeneration(tx, claim, observed),
+        { timeoutMs: 500 },
       ),
     authorizeCommitted: (claim, event) =>
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
@@ -393,7 +408,7 @@ test('an owned stream connection stall bounds queued publications without late w
     expect(
       entries.some(([, fields]) => fields[1]?.includes('must not arrive late')),
     ).toBe(false);
-    const originalEval = Redis.prototype.eval;
+    const originalEval = ORIGINAL_REDIS_EVAL;
     let delayAppend = true;
     evalSpy = vi.spyOn(Redis.prototype, 'eval');
     evalSpy.mockImplementation(async function (
@@ -403,7 +418,7 @@ test('an owned stream connection stall bounds queued publications without late w
       if (
         delayAppend &&
         args[0] === APPEND_RUN_STREAM &&
-        args.at(-2) === 'text-delta'
+        args.at(-3) === 'text-delta'
       ) {
         delayAppend = false;
         heldAppendCalls++;
@@ -463,7 +478,7 @@ test('timed out recovery EVAL cannot append a late reset before a newer publicat
     authority: claimAuthority(ai.database as TenantDatabase, steps),
   });
   const inspector = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let holdNextAppend = false;
   let recoveryDeadlineAt = 0;
   let recoveryEvalCalls = 0;
@@ -495,12 +510,12 @@ test('timed out recovery EVAL cannot append a late reset before a newer publicat
       holdNextAppend &&
       typeof source === 'string' &&
       source.includes('local runId = ARGV[1]') &&
-      args.at(-2) === 'reset'
+      args.at(-3) === 'reset'
     ) {
       holdNextAppend = false;
       heldCall = true;
       recoveryEvalCalls++;
-      recoveryDeadlineAt = Number(args.at(-3));
+      recoveryDeadlineAt = Number(args.at(-4));
       resolveEvalHeld();
       await appendBarrier;
     }
@@ -627,7 +642,7 @@ test('timed out terminal EVAL cannot append or recreate a stream after its deadl
     authority: claimAuthority(ai.database as TenantDatabase, steps),
   });
   const redis = new Redis(services.valkey.streamsUrl);
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let holdFinish = false;
   let finishDeadlineAt = 0;
   let finishEvalCalls = 0;
@@ -788,7 +803,7 @@ test('a stalled TIME sample settles on the local budget and dispatches no late w
   });
   const inspector = new Redis(services.valkey.streamsUrl);
   const originalTime = Redis.prototype.time;
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let holdTime = true;
   let heldTime = false;
   let releaseTime!: () => void;
@@ -1423,7 +1438,7 @@ test('an expired proof cannot mutate after a replacement fence is claimed', asyn
     await ai.seedPendingStep(0, run.id);
     const oldClaim = await ai.claim(0, run.id, 1, 1, 100);
     if (!oldClaim) throw new Error('Lease race claim unavailable');
-    const originalEval = Redis.prototype.eval;
+    const originalEval = ORIGINAL_REDIS_EVAL;
     const evalSpy = vi
       .spyOn(Redis.prototype, 'eval')
       .mockImplementation(async function (this: Redis, ...args) {
@@ -2290,7 +2305,7 @@ test('a stale authorization cannot recreate a stream evicted from the terminal p
   const oldClaim = makeClaim();
   const epochKey = `${prefix}:{run-streams}:epoch`;
   const originalGet = Redis.prototype.get;
-  const originalEval = Redis.prototype.eval;
+  const originalEval = ORIGINAL_REDIS_EVAL;
   let capturedEpoch: string | null = null;
   let injectCapturedEpoch = false;
   let capturePrepare = false;
@@ -2589,6 +2604,349 @@ test('a stale claim fence cannot publish after a newer claim', async ({
       id: 'new',
       delta: 'new',
     });
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a lost Valkey stream starts a new durable PG-backed incarnation', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Incarnation test claim unavailable');
+    const streamKey = `${services.queuePrefix}:{run-streams}:${run.id}:events`;
+    const generationKey = `${services.queuePrefix}:{run-streams}:${run.id}:generation`;
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'part',
+        delta: 'before loss',
+      }),
+    ).toBe('written');
+    const firstGeneration = Number(await redis.get(generationKey));
+    expect(Number.isSafeInteger(firstGeneration) && firstGeneration > 0).toBe(
+      true,
+    );
+    const previousId = (await redis.xrange(streamKey, '-', '+'))[0]?.[0];
+    expect(previousId).toBeDefined();
+
+    await redis.del(streamKey, generationKey);
+    expect(
+      await streams.publish(claim, {
+        version: 1,
+        runId: run.id,
+        type: 'text-delta',
+        id: 'part',
+        delta: 'after loss',
+      }),
+    ).toBe('written');
+    const secondGeneration = Number(await redis.get(generationKey));
+    expect(secondGeneration).toBeGreaterThan(firstGeneration);
+    const replacementId = (await redis.xrange(streamKey, '-', '+'))[0]?.[0];
+    expect(replacementId).toBeDefined();
+    expect(replacementId).not.toBe(previousId);
+
+    const authority = claimAuthority(ai.database as TenantDatabase, steps);
+    const staleWriter = new RunStreams({
+      url: services.valkey.streamsUrl,
+      prefix: services.queuePrefix,
+      authority: {
+        ...authority,
+        authorizeActive: async (activeClaim) => {
+          const proof = await authority.authorizeActive(activeClaim);
+          return proof
+            ? { ...proof, streamGeneration: firstGeneration }
+            : undefined;
+        },
+      },
+    });
+    try {
+      expect(
+        await staleWriter.publish(claim, {
+          version: 1,
+          runId: run.id,
+          type: 'text-delta',
+          id: 'part',
+          delta: 'stale writer',
+        }),
+      ).toBe('stale');
+      expect(await redis.get(generationKey)).toBe(String(secondGeneration));
+      expect(
+        (await redis.xrange(streamKey, '-', '+')).map(([id]) => id),
+      ).toEqual([replacementId]);
+    } finally {
+      await staleWriter.close();
+    }
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('an XADD acknowledged before checkpoint commit is later paired with its exact cursor', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const attempts = new AiAttemptRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Checkpoint order claim unavailable');
+    const attemptId = randomUUID();
+    await ai.withTenant(0, (tx) =>
+      attempts.insert(tx, claim, {
+        attemptId,
+        orgId: claim.orgId,
+        runId: claim.runId,
+        stepId: claim.stepId,
+        ordinal: 1,
+        modelId: 'synthetic/test',
+        estimatorVersion: 'test-v1',
+        estimatedInputTokens: 1,
+        reservedInputTokens: 1,
+        reservedOutputTokens: 32,
+        generationId: null,
+        provider: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+        cachedInputTokens: null,
+        reasoningOutputTokens: null,
+        costUsd: null,
+        active: true,
+        outcome: null,
+        createdAt: new Date(),
+        settledAt: null,
+      }),
+    );
+    const publication = await streams.publishWithCursor(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: attemptId,
+      delta: 'prefix before checkpoint',
+    });
+    expect(publication.status).toBe('written');
+    expect(publication.eventId).toMatch(/^\d+-\d+$/);
+    const eventId = publication.eventId;
+    if (!eventId)
+      throw new Error('Checkpoint order publication cursor unavailable');
+    const streamKey = `${services.queuePrefix}:{run-streams}:${run.id}:events`;
+    const entries = await redis.xrange(streamKey, '-', '+');
+    expect(entries.map(([id]) => id)).toContain(eventId);
+    const beforeCheckpoint = await ai.withTenant(0, (tx) =>
+      runs.find(tx, run.id),
+    );
+    expect(beforeCheckpoint).toMatchObject({
+      streamGeneration: publication.generation,
+      streamSnapshotGeneration: 0,
+      streamEventId: null,
+      streamResumable: false,
+    });
+
+    await ai.withTenant(0, (tx) =>
+      steps.checkpoint(tx, claim, {
+        attemptId,
+        text: 'prefix before checkpoint',
+        reasoningSummary: 'summary prefix',
+        reasoningDurationMs: 12,
+        streamGeneration: publication.generation,
+        streamEventId: eventId,
+        streamRevision: 1,
+        streamResumable: true,
+      }),
+    );
+    const afterCheckpoint = await ai.withTenant(0, (tx) =>
+      runs.find(tx, run.id),
+    );
+    expect(afterCheckpoint).toMatchObject({
+      streamGeneration: publication.generation,
+      streamSnapshotGeneration: publication.generation,
+      streamEventId: eventId,
+      streamAttemptId: attemptId,
+      streamRevision: 1,
+      streamResumable: true,
+      reasoningSummary: 'summary prefix',
+      reasoningDurationMs: 12,
+    });
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a checkpoint rollback after XADD never advances the durable snapshot cursor', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const attempts = new AiAttemptRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Checkpoint rollback claim unavailable');
+    const attemptId = randomUUID();
+    await ai.withTenant(0, (tx) =>
+      attempts.insert(tx, claim, {
+        attemptId,
+        orgId: claim.orgId,
+        runId: claim.runId,
+        stepId: claim.stepId,
+        ordinal: 1,
+        modelId: 'synthetic/test',
+        estimatorVersion: 'test-v1',
+        estimatedInputTokens: 1,
+        reservedInputTokens: 1,
+        reservedOutputTokens: 32,
+        generationId: null,
+        provider: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+        cachedInputTokens: null,
+        reasoningOutputTokens: null,
+        costUsd: null,
+        active: true,
+        outcome: null,
+        createdAt: new Date(),
+        settledAt: null,
+      }),
+    );
+    const publication = await streams.publishWithCursor(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'text-delta',
+      id: attemptId,
+      delta: 'published but not checkpointed',
+    });
+    expect(publication.status).toBe('written');
+    const eventId = publication.eventId;
+    if (!eventId)
+      throw new Error('Checkpoint rollback XADD cursor unavailable');
+
+    await expect(
+      ai.withTenant(0, async (tx) => {
+        await steps.checkpoint(tx, claim, {
+          attemptId,
+          text: 'published but not checkpointed',
+          reasoningSummary: null,
+          reasoningDurationMs: null,
+          streamGeneration: publication.generation,
+          streamEventId: eventId,
+          streamRevision: 1,
+          streamResumable: true,
+        });
+        throw new Error('simulated process loss before checkpoint commit');
+      }),
+    ).rejects.toThrow('simulated process loss before checkpoint commit');
+
+    const durable = await ai.withTenant(0, (tx) => runs.find(tx, run.id));
+    expect(durable).toMatchObject({
+      streamGeneration: publication.generation,
+      streamSnapshotGeneration: 0,
+      streamEventId: null,
+      streamAttemptId: null,
+      streamRevision: 0,
+      streamResumable: false,
+      partialOutput: '',
+    });
+    const entries = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    expect(entries.map(([id]) => id)).toContain(eventId);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('terminal-only runs establish durable stream generation before first XADD', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: claimAuthority(ai.database as TenantDatabase, steps),
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    await ai.withTenant(0, async (tx) => {
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'cancelled',
+          outputAppend: '',
+        }),
+      ).toBe(true);
+    });
+    const terminal = await ai.withTenant(0, (tx) =>
+      runs.streamRegistryState(tx, run.id, ai.tenants[0]!.userId),
+    );
+    expect(terminal.state).toBe('terminal');
+    if (terminal.state !== 'terminal')
+      throw new Error('Terminal reference unavailable');
+    await streams.finish(terminal.claim, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    const streamKey = `${services.queuePrefix}:{run-streams}:${run.id}:events`;
+    const generationKey = `${services.queuePrefix}:{run-streams}:${run.id}:generation`;
+    const generation = Number(await redis.get(generationKey));
+    expect(Number.isSafeInteger(generation) && generation > 0).toBe(true);
+    await redis.del(
+      streamKey,
+      generationKey,
+      `${services.queuePrefix}:{run-streams}:${run.id}:guard`,
+    );
+    await streams.finish(terminal.claim, {
+      version: 1,
+      runId: run.id,
+      type: 'finish',
+    });
+    expect(await redis.exists(streamKey, generationKey)).toBe(0);
   } finally {
     redis.disconnect();
     await streams.close();

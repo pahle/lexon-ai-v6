@@ -37,10 +37,11 @@ if epoch ~= ARGV[1] then return -1 end
 for index = 1, count do
   local id = ARGV[3 + ((index - 1) * 2) + 1]
   local context = ARGV[3 + ((index - 1) * 2) + 2]
-  local streamKey = KEYS[3 + ((index - 1) * 2) + 1]
-  local guardKey = KEYS[3 + ((index - 1) * 2) + 2]
+  local streamKey = KEYS[4 + ((index - 1) * 3)]
+  local guardKey = KEYS[5 + ((index - 1) * 3)]
+  local generationKey = KEYS[6 + ((index - 1) * 3)]
   if redis.call('HGET', KEYS[2], id) == context then
-    redis.call('DEL', streamKey, guardKey)
+    redis.call('DEL', streamKey, guardKey, generationKey)
     redis.call('ZREM', KEYS[1], id)
     redis.call('HDEL', KEYS[2], id)
     redis.call('INCR', KEYS[3])
@@ -54,6 +55,17 @@ local runId = ARGV[1]
 local incoming = ARGV[2]
 local event = ARGV[3]
 local maxLen = ARGV[4]
+local generation = ARGV[12]
+local streamExists = 0
+if #KEYS >= 5 and generation then
+  streamExists = redis.call('EXISTS', KEYS[2])
+  local storedGeneration = redis.call('GET', KEYS[5])
+  if streamExists == 0 then
+    if storedGeneration and tonumber(storedGeneration) > tonumber(generation) then return -1 end
+  elseif storedGeneration ~= generation then
+    return -1
+  end
+end
 local serverTime = redis.call('TIME')
 local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
 if tonumber(ARGV[9]) <= nowMs then return -3 end
@@ -87,7 +99,11 @@ end
 if ARGV[10] == 'text-start' then textPartId = ARGV[11] end
 if ARGV[10] == 'text-end' and textPartId == ARGV[11] then textPartId = '' end
 redis.call('SET', KEYS[3], 'open|' .. incoming .. '|' .. ARGV[5] .. '|' .. ARGV[6] .. '|' .. stepOpen .. '|' .. textPartId)
-redis.call('XADD', KEYS[2], 'MAXLEN', '=', maxLen, '*', 'event', event)
+if #KEYS >= 5 and generation and streamExists == 0 then
+  redis.call('SET', KEYS[5], generation)
+end
+local id = redis.call('XADD', KEYS[2], 'MAXLEN', '=', maxLen, '*', 'event', event, 'generation', generation or '0')
+if generation then return id end
 return 1
 `;
 
@@ -96,8 +112,10 @@ local runId = ARGV[1]
 local incoming = ARGV[2]
 local event = ARGV[3]
 local maxLen = ARGV[4]
+local generation = ARGV[10]
 if redis.call('HGET', KEYS[4], runId) ~= ARGV[6] then return -1 end
 if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
+if redis.call('GET', KEYS[5]) ~= generation then return -1 end
 local guard = redis.call('GET', KEYS[2])
 if not guard then return -1 end
 local serverTime = redis.call('TIME')
@@ -116,7 +134,7 @@ if tonumber(incoming) < tonumber(version) or
   (tonumber(incoming) == tonumber(version) and tonumber(ARGV[8]) == tonumber(sequence) and tonumber(ARGV[9]) < tonumber(fence)) then return -1 end
 local framing = string.match(guard, '^%w+|%d+|%d+|%d+|(.*)$')
 local oldStepOpen, oldTextPartId = string.match(framing or '', '^(%d)|(.*)$')
-redis.call('XADD', KEYS[1], 'MAXLEN', '=', maxLen, '*', 'event', event)
+redis.call('XADD', KEYS[1], 'MAXLEN', '=', maxLen, '*', 'event', event, 'generation', generation)
 redis.call('SET', KEYS[2], 'open|' .. incoming .. '|' .. ARGV[8] .. '|' .. ARGV[9] .. '|' .. (oldStepOpen or '0') .. '|' .. (oldTextPartId or ''))
 return 1
 `;
@@ -131,6 +149,7 @@ local maxLen = ARGV[6]
 local ttl = ARGV[7]
 local now = ARGV[8]
 local generation = ARGV[9]
+local streamGeneration = ARGV[18]
 local serverTime = redis.call('TIME')
 local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
 if tonumber(ARGV[17]) <= nowMs then return -1 end
@@ -153,6 +172,15 @@ if guard then
   stepOpen = oldStepOpen or '0'
   textPartId = oldTextPartId or ''
 end
+local streamExists = redis.call('EXISTS', KEYS[3])
+local storedStreamGeneration = KEYS[10] and redis.call('GET', KEYS[10]) or nil
+if streamGeneration and streamGeneration ~= '' then
+  if streamExists == 0 then
+    if storedStreamGeneration and tonumber(storedStreamGeneration) > tonumber(streamGeneration) then return 0 end
+  elseif storedStreamGeneration ~= streamGeneration then
+    return 0
+  end
+end
 local candidateId = ARGV[10]
 local candidateGuard = ARGV[11]
 local existingMember = redis.call('HGET', KEYS[9], runId)
@@ -166,7 +194,8 @@ if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCOR
   local currentCandidateGuard = redis.call('GET', KEYS[6])
   local guardGeneration = currentCandidateGuard and currentCandidateGuard:match('^closed|%d+|%d+|%d+|([^|]+)$')
   if currentCandidateGuard and currentCandidateGuard == candidateGuard and guardGeneration == candidateGeneration then
-    redis.call('DEL', KEYS[5], KEYS[6])
+    if KEYS[11] then redis.call('DEL', KEYS[5], KEYS[6], KEYS[11])
+    else redis.call('DEL', KEYS[5], KEYS[6]) end
     redis.call('ZREM', KEYS[2], candidateId)
     redis.call('HDEL', KEYS[8], candidateRunId)
     redis.call('HDEL', KEYS[9], candidateRunId)
@@ -185,27 +214,31 @@ if redis.call('ZCARD', KEYS[2]) >= 6 and candidateId ~= '' and redis.call('ZSCOR
   end
 end
 if redis.call('ZCARD', KEYS[2]) >= 6 then return -1 end
+if streamGeneration and streamGeneration ~= '' and streamExists == 0 and KEYS[10] then
+  redis.call('SET', KEYS[10], streamGeneration)
+end
 if ARGV[14] == '1' then
   local reset = cjson.encode({version = 1, runId = runId, type = 'reset', sequence = sequence})
-  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', reset)
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', reset, 'generation', streamGeneration or '0')
   local start = cjson.encode({version = 1, runId = runId, type = 'start', messageId = runId})
-  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', start)
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', start, 'generation', streamGeneration or '0')
   stepOpen = '0'
   textPartId = ''
 end
 if textPartId ~= '' then
   local textEnd = cjson.encode({version = 1, runId = runId, type = 'text-end', id = textPartId})
-  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', textEnd)
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', textEnd, 'generation', streamGeneration or '0')
 end
 if stepOpen == '1' then
   local finishStep = cjson.encode({version = 1, runId = runId, type = 'finish-step'})
-  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', finishStep)
+  redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', finishStep, 'generation', streamGeneration or '0')
 end
-if ARGV[15] ~= '' then redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', ARGV[15]) end
-if ARGV[16] ~= '' then redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', ARGV[16]) end
-redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', event)
+if ARGV[15] ~= '' then redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', ARGV[15], 'generation', streamGeneration or '0') end
+if ARGV[16] ~= '' then redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', ARGV[16], 'generation', streamGeneration or '0') end
+redis.call('XADD', KEYS[3], 'MAXLEN', '=', maxLen, '*', 'event', event, 'generation', streamGeneration or '0')
 redis.call('SET', KEYS[4], 'closed|' .. version .. '|' .. sequence .. '|' .. fence .. '|' .. generation, 'EX', ttl)
 redis.call('EXPIRE', KEYS[3], ttl)
+if KEYS[10] then redis.call('EXPIRE', KEYS[10], ttl) end
 redis.call('ZREM', KEYS[1], runId)
 local member = runId .. '|' .. generation
 redis.call('ZADD', KEYS[2], now, member)

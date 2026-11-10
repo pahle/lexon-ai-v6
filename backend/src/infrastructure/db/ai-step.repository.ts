@@ -137,6 +137,7 @@ export class AiStepRepository {
         sequence: number;
         expectedVersion: number;
         fence: number;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -152,9 +153,10 @@ export class AiStepRepository {
       sequence: number;
       expected_version: number;
       fence: number;
+      stream_generation: number | string;
     }>(
       `SELECT r.status,r.run_version,r.next_sequence,s.id AS step_id,
-              s.sequence,s.expected_version,s.fence
+              s.sequence,s.expected_version,s.fence,r.stream_generation
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
          AND r.status=$9 AND r.run_version=$8
@@ -204,6 +206,7 @@ export class AiStepRepository {
           sequence: Number(row.sequence),
           expectedVersion: Number(row.expected_version),
           fence: Number(row.fence),
+          streamGeneration: Number(row.stream_generation),
         }
       : undefined;
   }
@@ -221,6 +224,7 @@ export class AiStepRepository {
         expectedVersion: number;
         fence: number;
         leaseUntil: Date;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -236,9 +240,10 @@ export class AiStepRepository {
       expected_version: number;
       fence: number;
       lease_until: Date;
+      stream_generation: number | string;
     }>(
-      `SELECT r.run_version,r.next_sequence,r.status,s.id AS step_id,s.sequence,
-              s.expected_version,s.fence,s.lease_until
+      `SELECT r.run_version,r.next_sequence,r.status,r.stream_generation,
+              s.id AS step_id,s.sequence,s.expected_version,s.fence,s.lease_until
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
          AND r.status IN ('queued','running','awaiting_approval','cancelling')
@@ -264,8 +269,35 @@ export class AiStepRepository {
           expectedVersion: Number(row.expected_version),
           fence: Number(row.fence),
           leaseUntil: row.lease_until,
+          streamGeneration: Number(row.stream_generation),
         }
       : undefined;
+  }
+
+  async advanceStreamGeneration(
+    tx: TenantSession,
+    claim: StepClaim,
+    observed: number,
+  ): Promise<number | undefined> {
+    if (
+      !validClaim(tx, claim) ||
+      !Number.isSafeInteger(observed) ||
+      observed < 0 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
+      !(await this.lockClaim(tx, claim))
+    )
+      return undefined;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ stream_generation: number | string }>(
+      `UPDATE app.ai_runs r SET stream_generation=CASE
+          WHEN r.stream_generation=$3 THEN r.stream_generation+1
+          ELSE r.stream_generation END
+       WHERE r.org_id=$1 AND r.id=$2 AND r.stream_generation>=$3
+       RETURNING stream_generation`,
+      [claim.orgId, claim.runId, observed],
+    );
+    const generation = result.rows[0]?.stream_generation;
+    return generation === undefined ? undefined : Number(generation);
   }
 
   async streamTerminalProof(
@@ -281,6 +313,7 @@ export class AiStepRepository {
         latestCommittedSequence: number;
         latestCommittedExpectedVersion: number;
         latestCommittedFence: number;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -296,11 +329,12 @@ export class AiStepRepository {
       latest_sequence: number | null;
       latest_expected_version: number | null;
       latest_fence: number | null;
+      stream_generation: number | string;
     }>(
       `SELECT r.status,r.run_version,r.next_sequence,
               s.id AS latest_step_id,s.sequence AS latest_sequence,
               s.expected_version AS latest_expected_version,s.fence AS latest_fence,
-              r.error_code
+              r.error_code,r.stream_generation
        FROM app.ai_runs r
        LEFT JOIN LATERAL (
          SELECT id,sequence,expected_version,fence FROM app.ai_steps s
@@ -346,7 +380,33 @@ export class AiStepRepository {
       latestCommittedSequence: Number(row.latest_sequence),
       latestCommittedExpectedVersion: Number(row.latest_expected_version),
       latestCommittedFence: Number(row.latest_fence),
+      streamGeneration: Number(row.stream_generation),
     };
+  }
+
+  async advanceTerminalStreamGeneration(
+    tx: TenantSession,
+    claim: TerminalStreamReference,
+    observed: number,
+  ): Promise<number | undefined> {
+    if (
+      !validTerminalReference(tx, claim) ||
+      !Number.isSafeInteger(observed) ||
+      observed < 0 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
+      !(await this.streamTerminalProof(tx, claim))
+    )
+      return undefined;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ stream_generation: number | string }>(
+      `UPDATE app.ai_runs SET stream_generation=CASE
+         WHEN stream_generation=$3 THEN stream_generation+1 ELSE stream_generation END
+       WHERE org_id=$1 AND id=$2 AND status IN ('completed','failed','cancelled')
+         AND stream_generation >= $3 RETURNING stream_generation`,
+      [claim.orgId, claim.runId, observed],
+    );
+    const generation = result.rows[0]?.stream_generation;
+    return generation === undefined ? undefined : Number(generation);
   }
 
   async insertInitial(
@@ -662,6 +722,10 @@ export class AiStepRepository {
       text: string;
       reasoningSummary?: string | null;
       reasoningDurationMs?: number | null;
+      streamGeneration?: number;
+      streamEventId?: string | null;
+      streamRevision?: number;
+      streamResumable?: boolean;
     },
   ): Promise<boolean> {
     if (
@@ -673,6 +737,16 @@ export class AiStepRepository {
         input.reasoningDurationMs !== null &&
         (!Number.isSafeInteger(input.reasoningDurationMs) ||
           input.reasoningDurationMs < 0)) ||
+      (input.streamGeneration !== undefined &&
+        (!Number.isSafeInteger(input.streamGeneration) ||
+          input.streamGeneration < 0)) ||
+      (input.streamEventId != null && !/^\d+-\d+$/.test(input.streamEventId)) ||
+      (input.streamRevision !== undefined &&
+        (!Number.isSafeInteger(input.streamRevision) ||
+          input.streamRevision < 0)) ||
+      (input.streamResumable === true &&
+        (!(input.streamGeneration && input.streamGeneration > 0) ||
+          !input.streamEventId)) ||
       !(await this.lockResourceForRun(tx, claim.runId))
     )
       return false;
@@ -682,9 +756,9 @@ export class AiStepRepository {
     await client.query(`SAVEPOINT ${savepoint}`);
     try {
       const result = await client.query(
-        `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms)
+        `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms,stream_generation,stream_event_id,stream_revision,stream_resumable)
        SELECT s.org_id,s.run_id,s.id,a.id,s.fence,$7
-         ,$9,$10
+         ,$9,$10,$11,$12,$13,$14
        FROM app.ai_steps s JOIN app.ai_attempts a ON a.org_id=s.org_id AND a.step_id=s.id
        JOIN app.ai_runs r ON r.org_id=s.org_id AND r.id=s.run_id
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4 AND s.expected_version=$5
@@ -694,7 +768,10 @@ export class AiStepRepository {
               (r.run_version=$5+1 AND r.status='cancelling'))
          AND a.id=$8 AND a.fence=s.fence AND a.active=true
        ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,
-         reasoning_summary=EXCLUDED.reasoning_summary,reasoning_duration_ms=EXCLUDED.reasoning_duration_ms,created_at=clock_timestamp()
+         reasoning_summary=EXCLUDED.reasoning_summary,reasoning_duration_ms=EXCLUDED.reasoning_duration_ms,
+         stream_generation=EXCLUDED.stream_generation,stream_event_id=EXCLUDED.stream_event_id,
+         stream_revision=EXCLUDED.stream_revision,stream_resumable=EXCLUDED.stream_resumable,
+         created_at=clock_timestamp()
          WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id OR EXISTS (
            SELECT 1 FROM app.ai_attempts prior
            WHERE prior.org_id=app.ai_checkpoints.org_id AND prior.id=app.ai_checkpoints.attempt_id
@@ -712,6 +789,10 @@ export class AiStepRepository {
           input.attemptId,
           input.reasoningSummary ?? null,
           input.reasoningDurationMs ?? null,
+          input.streamGeneration ?? 0,
+          input.streamEventId ?? null,
+          input.streamRevision ?? 0,
+          input.streamResumable ?? false,
         ],
       );
       if (result.rowCount !== 1) {
@@ -719,7 +800,9 @@ export class AiStepRepository {
         return false;
       }
       const persisted = await client.query(
-        `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,updated_at=clock_timestamp()
+        `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,
+          stream_snapshot_generation=$10,stream_event_id=$11,stream_attempt_id=$12,
+          stream_revision=$13,stream_resumable=$14,updated_at=clock_timestamp()
        WHERE r.org_id=$1 AND r.id=$2 AND EXISTS (
          SELECT 1 FROM app.ai_steps s JOIN app.ai_attempts a
            ON a.org_id=s.org_id AND a.step_id=s.id AND a.run_id=s.run_id
@@ -737,6 +820,11 @@ export class AiStepRepository {
           claim.expectedVersion,
           claim.fence,
           input.attemptId,
+          input.streamGeneration ?? 0,
+          input.streamEventId ?? null,
+          input.attemptId,
+          input.streamRevision ?? 0,
+          input.streamResumable ?? false,
         ],
       );
       if (persisted.rowCount !== 1) {

@@ -889,6 +889,8 @@ export class StepExecutor {
         let checkpointOwner: Promise<void> | undefined;
         let checkpointError: unknown;
         let deletionFenceObserved = false;
+        let checkpointStreamGeneration = 0;
+        let checkpointStreamEventId: string | undefined;
         const flushCheckpoint = async () => {
           if (deletionFenceObserved) return;
           while (persistedRevision < checkpointRevision) {
@@ -915,6 +917,10 @@ export class StepExecutor {
             const snapshot = attemptText;
             const summarySnapshot = attemptReasoningSummary || null;
             const durationSnapshot = attemptReasoningDurationMs;
+            const resumableSnapshot =
+              streamFramingAvailable &&
+              checkpointStreamGeneration > 0 &&
+              checkpointStreamEventId !== undefined;
             const owner = (async () => {
               const accepted = await this.options.database.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
@@ -924,6 +930,14 @@ export class StepExecutor {
                     text: snapshot,
                     reasoningSummary: summarySnapshot,
                     reasoningDurationMs: durationSnapshot,
+                    streamGeneration: resumableSnapshot
+                      ? checkpointStreamGeneration
+                      : 0,
+                    streamEventId: resumableSnapshot
+                      ? checkpointStreamEventId!
+                      : null,
+                    streamRevision: revision,
+                    streamResumable: resumableSnapshot,
                   }),
               );
               if (!accepted) {
@@ -1087,6 +1101,26 @@ export class StepExecutor {
                 }
               } else if (event.type === 'reasoning-summary-delta') {
                 if (event.attemptId !== attemptId) continue;
+                if (streamFramingAvailable) {
+                  const published = await this.#publishCursor(claim, {
+                    version: 2,
+                    runId: claim.runId,
+                    type: 'reasoning-delta',
+                    id: attemptId,
+                    delta: event.text,
+                  });
+                  if (
+                    published.status === 'written' &&
+                    published.eventId &&
+                    published.generation !== undefined
+                  ) {
+                    checkpointStreamEventId = published.eventId;
+                    checkpointStreamGeneration = published.generation;
+                  } else {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
                 attemptReasoningSummary += event.text;
                 const deltaBytes = Buffer.byteLength(event.text, 'utf8');
                 checkpointBytes += deltaBytes;
@@ -1098,21 +1132,28 @@ export class StepExecutor {
                   Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
                 )
                   await flushCheckpoint();
+              } else if (event.type === 'reasoning-end') {
+                if (event.attemptId !== attemptId) continue;
                 if (streamFramingAvailable) {
-                  const published = await this.#publish(claim, {
+                  const published = await this.#publishCursor(claim, {
                     version: 2,
                     runId: claim.runId,
-                    type: 'reasoning-delta',
+                    type: 'reasoning-end',
                     id: attemptId,
-                    delta: event.text,
+                    durationMs: event.durationMs,
                   });
-                  if (published !== 'written') {
+                  if (
+                    published.status === 'written' &&
+                    published.eventId &&
+                    published.generation !== undefined
+                  ) {
+                    checkpointStreamEventId = published.eventId;
+                    checkpointStreamGeneration = published.generation;
+                  } else {
                     streamFramingAvailable = false;
                     streamSnapshotRequired = true;
                   }
                 }
-              } else if (event.type === 'reasoning-end') {
-                if (event.attemptId !== attemptId) continue;
                 attemptReasoningDurationMs = event.durationMs;
                 checkpointRevision++;
                 checkpointDirty = true;
@@ -1121,33 +1162,7 @@ export class StepExecutor {
                   Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
                 )
                   await flushCheckpoint();
-                if (streamFramingAvailable) {
-                  const published = await this.#publish(claim, {
-                    version: 2,
-                    runId: claim.runId,
-                    type: 'reasoning-end',
-                    id: attemptId,
-                    durationMs: event.durationMs,
-                  });
-                  if (published !== 'written') {
-                    streamFramingAvailable = false;
-                    streamSnapshotRequired = true;
-                  }
-                }
               } else if (event.type === 'text') {
-                attemptText += event.text;
-                activeAttemptText = attemptText;
-                checkpointDirty = true;
-                const deltaBytes = Buffer.byteLength(event.text, 'utf8');
-                checkpointBytes += deltaBytes;
-                dirtyBytes += deltaBytes;
-                checkpointRevision++;
-                if (
-                  checkpointBytes >= CHECKPOINT_BYTES ||
-                  Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
-                ) {
-                  await flushCheckpoint();
-                }
                 if (streamFramingAvailable && !uiStepStarted) {
                   uiStepStarted =
                     (await this.#publish(claim, {
@@ -1173,19 +1188,38 @@ export class StepExecutor {
                     streamSnapshotRequired = true;
                   }
                 }
-                if (streamFramingAvailable && textPartOpen)
-                  await this.#publish(claim, {
+                if (streamFramingAvailable && textPartOpen) {
+                  const published = await this.#publishCursor(claim, {
                     version: 1,
                     runId: claim.runId,
                     type: 'text-delta',
                     id: attemptId,
                     delta: event.text,
-                  }).then((result) => {
-                    if (result !== 'written') {
-                      streamFramingAvailable = false;
-                      streamSnapshotRequired = true;
-                    }
                   });
+                  if (
+                    published.status === 'written' &&
+                    published.eventId &&
+                    published.generation !== undefined
+                  ) {
+                    checkpointStreamEventId = published.eventId;
+                    checkpointStreamGeneration = published.generation;
+                  } else {
+                    streamFramingAvailable = false;
+                    streamSnapshotRequired = true;
+                  }
+                }
+                attemptText += event.text;
+                activeAttemptText = attemptText;
+                checkpointDirty = true;
+                const deltaBytes = Buffer.byteLength(event.text, 'utf8');
+                checkpointBytes += deltaBytes;
+                dirtyBytes += deltaBytes;
+                checkpointRevision++;
+                if (
+                  checkpointBytes >= CHECKPOINT_BYTES ||
+                  Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS
+                )
+                  await flushCheckpoint();
               } else if (event.type === 'tool-proposal') {
                 attemptProposals.push(event);
               } else if (event.type === 'usage') {
@@ -1795,9 +1829,29 @@ export class StepExecutor {
     claim: StepClaim,
     event: RunStreamEvent,
   ): Promise<'written' | 'unavailable'> {
-    const result = await this.options.streams?.publish(claim, event);
-    if (result === 'stale') throw new Error('AI step claim lost');
-    return result ?? 'unavailable';
+    return (await this.#publishCursor(claim, event)).status;
+  }
+
+  async #publishCursor(
+    claim: StepClaim,
+    event: RunStreamEvent,
+  ): Promise<{
+    readonly status: 'written' | 'unavailable';
+    readonly eventId?: string;
+    readonly generation?: number;
+  }> {
+    const result = await this.options.streams?.publishWithCursor(claim, event);
+    if (result?.status === 'stale')
+      throw new Error(`AI step claim lost during ${event.type}`);
+    return result?.status === 'written'
+      ? {
+          status: 'written',
+          ...(result.eventId ? { eventId: result.eventId } : {}),
+          ...(result.generation !== undefined
+            ? { generation: result.generation }
+            : {}),
+        }
+      : { status: 'unavailable' };
   }
 
   async #publishCommittedLifecycle(
