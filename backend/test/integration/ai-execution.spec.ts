@@ -658,6 +658,217 @@ test('late provider completion preserves usage when cancellation aborts first', 
   }
 });
 
+test('known outcome survives claim loss during the following iterator wait', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let releaseNext!: () => void;
+  let notifyStarted!: (input: ModelInput) => void;
+  let notifyOutcomeConsumed!: () => void;
+  let notifyAbort!: () => void;
+  const nextGate = new Promise<void>((resolve) => {
+    releaseNext = resolve;
+  });
+  const started = new Promise<ModelInput>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const outcomeConsumed = new Promise<void>((resolve) => {
+    notifyOutcomeConsumed = resolve;
+  });
+  const aborted = new Promise<void>((resolve) => {
+    notifyAbort = resolve;
+  });
+  const gateway: ModelGateway = {
+    async *generate(input) {
+      notifyStarted(input);
+      input.signal.addEventListener('abort', notifyAbort, { once: true });
+      yield {
+        type: 'outcome',
+        outcome: {
+          finishReason: 'stop',
+          attemptOutcome: 'succeeded',
+          retryable: false,
+          usage: { inputTokens: 23, outputTokens: 11 },
+          costUsd: '0.0150',
+        },
+      };
+      notifyOutcomeConsumed();
+      await nextGate;
+    },
+  };
+  try {
+    const h = await setup(ai, [], { gateway, leaseMs: 300 });
+    const executing = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    const input = await started;
+    await outcomeConsumed;
+    const step = await ai.withTenant(0, (tx) =>
+      h.steps.find(tx, { runId: h.runId, sequence: 1 }),
+    );
+    if (!step) throw new Error('Expected claimed step');
+    const staleClaim: StepClaim = {
+      runId: h.runId,
+      orgId: h.tenant.orgId,
+      userId: h.tenant.userId,
+      stepId: step.id,
+      sequence: 1,
+      expectedVersion: 1,
+      fence: step.fence,
+      leaseUntil: step.leaseUntil!,
+    };
+    await ai.withTenant(0, (tx) =>
+      ai.expireClaimLeaseInSession(tx, staleClaim),
+    );
+    const takeover = await h.coordinator.claim(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+    );
+    expect(takeover.kind).toBe('claimed');
+    await aborted;
+    releaseNext();
+    await expect(executing).rejects.toThrow('AI step claim lost');
+
+    const rows = await ai.withTenantSession(0, async (_tx, client) =>
+      client.query<{
+        outcome: string;
+        reported_input_tokens: string;
+        reported_output_tokens: string;
+        cost_usd: string;
+      }>(
+        `SELECT outcome,reported_input_tokens::text,reported_output_tokens::text,
+                cost_usd::text
+         FROM app.usage_events WHERE attempt_id=$1`,
+        [input.attemptId],
+      ),
+    );
+    expect(rows.rows).toEqual([
+      {
+        outcome: 'succeeded',
+        reported_input_tokens: '23',
+        reported_output_tokens: '11',
+        cost_usd: '0.0150',
+      },
+    ]);
+    expect(
+      await ai.withTenant(0, (tx) => h.attempts.list(tx, h.runId)),
+    ).toMatchObject([{ attemptId: input.attemptId, outcome: 'unknown' }]);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      partialOutput: '',
+      finalOutput: null,
+    });
+  } finally {
+    releaseNext();
+    await ai.close();
+  }
+});
+
+test('known outcome survives cancellation during the following iterator wait', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let releaseNext!: () => void;
+  let notifyStarted!: (input: ModelInput) => void;
+  let notifyOutcomeConsumed!: () => void;
+  let requestCancel!: () => void;
+  const nextGate = new Promise<void>((resolve) => {
+    releaseNext = resolve;
+  });
+  const started = new Promise<ModelInput>((resolve) => {
+    notifyStarted = resolve;
+  });
+  const outcomeConsumed = new Promise<void>((resolve) => {
+    notifyOutcomeConsumed = resolve;
+  });
+  const gateway: ModelGateway = {
+    async *generate(input) {
+      notifyStarted(input);
+      yield {
+        type: 'outcome',
+        outcome: {
+          finishReason: 'stop',
+          attemptOutcome: 'succeeded',
+          retryable: false,
+          usage: { inputTokens: 23, outputTokens: 11 },
+          costUsd: '0.0150',
+        },
+      };
+      notifyOutcomeConsumed();
+      await nextGate;
+    },
+  };
+  const cancelSignals = {
+    bind: () => () => undefined,
+    subscribe: async (_runId: string, onCancel: () => void) => {
+      requestCancel = onCancel;
+      return async () => undefined;
+    },
+  } as unknown as CancelSignals;
+  try {
+    const h = await setup(ai, [], { gateway, cancelSignals });
+    const executing = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    const input = await started;
+    await outcomeConsumed;
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    if (!run) throw new Error('Expected run during cancellation test');
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.runs.transition(tx, {
+          runId: h.runId,
+          expectedVersion: run.runVersion,
+          from: run.status,
+          to: 'cancelling',
+        }),
+      ),
+    ).toBe(true);
+    requestCancel();
+    expect(input.signal.aborted).toBe(true);
+    releaseNext();
+    await expect(executing).resolves.toEqual({ kind: 'done' });
+
+    const rows = await ai.withTenantSession(0, async (_tx, client) =>
+      client.query<{
+        outcome: string;
+        reported_input_tokens: string;
+        reported_output_tokens: string;
+        cost_usd: string;
+      }>(
+        `SELECT outcome,reported_input_tokens::text,reported_output_tokens::text,
+                cost_usd::text
+         FROM app.usage_events WHERE attempt_id=$1`,
+        [input.attemptId],
+      ),
+    );
+    expect(rows.rows).toEqual([
+      {
+        outcome: 'succeeded',
+        reported_input_tokens: '23',
+        reported_output_tokens: '11',
+        cost_usd: '0.0150',
+      },
+    ]);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({
+      status: 'cancelled',
+      partialOutput: '',
+    });
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.steps.find(tx, { runId: h.runId, sequence: 1 }),
+      ),
+    ).toMatchObject({ state: 'committed', committedText: '' });
+  } finally {
+    releaseNext();
+    await ai.close();
+  }
+});
+
 test('attempt-limit refusal retains the last checkpoint from a crashed attempt', async ({
   services,
 }) => {

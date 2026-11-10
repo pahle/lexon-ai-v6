@@ -201,6 +201,59 @@ export class StepExecutor {
           costUsd?: string;
         }
       | undefined;
+    const lateSettledAttempts = new Set<string>();
+    const accountLateOutcome = async (input: {
+      attemptId: string;
+      outcome: ModelOutcome | undefined;
+      usage: Partial<ReportedUsage> | undefined;
+      costUsd: string | undefined;
+    }) => {
+      const claimLost =
+        heartbeat.signal.reason instanceof Error &&
+        heartbeat.signal.reason.message === 'AI step claim lost';
+      const lateOutcome = input.outcome;
+      if (
+        lateSettledAttempts.has(input.attemptId) ||
+        !heartbeat.signal.aborted ||
+        (!cancelRequested && !claimLost) ||
+        !lateOutcome ||
+        (lateOutcome.attemptOutcome !== 'succeeded' &&
+          lateOutcome.attemptOutcome !== 'failed')
+      )
+        return;
+      const lateUsage = lateOutcome.usage ?? input.usage;
+      const lateCost = lateOutcome.costUsd ?? input.costUsd;
+      if (cancelRequested) {
+        lateCancellationSettlement = {
+          attemptId: input.attemptId,
+          outcome: lateOutcome.attemptOutcome,
+          ...(lateUsage ? { usage: lateUsage } : {}),
+          ...(lateCost !== undefined ? { costUsd: lateCost } : {}),
+        };
+      } else {
+        await this.options.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) =>
+            this.options.attempts.settleDetached(tx, input.attemptId, {
+              outcome: lateOutcome.attemptOutcome,
+              ...(lateUsage?.inputTokens !== undefined
+                ? { inputTokens: lateUsage.inputTokens }
+                : {}),
+              ...(lateUsage?.outputTokens !== undefined
+                ? { outputTokens: lateUsage.outputTokens }
+                : {}),
+              ...(lateUsage?.cachedInputTokens !== undefined
+                ? { cachedInputTokens: lateUsage.cachedInputTokens }
+                : {}),
+              ...(lateUsage?.reasoningOutputTokens !== undefined
+                ? { reasoningOutputTokens: lateUsage.reasoningOutputTokens }
+                : {}),
+              ...(lateCost !== undefined ? { costUsd: lateCost } : {}),
+            }),
+        );
+      }
+      lateSettledAttempts.add(input.attemptId);
+    };
     let activeAttemptText = '';
     let uiStepStarted = false;
     let textPartOpen = false;
@@ -831,7 +884,18 @@ export class StepExecutor {
                 next = await iterator.next();
               } catch (error) {
                 if (checkpointError !== undefined) throw checkpointError;
-                if (heartbeat.signal.aborted) throw heartbeat.signal.reason;
+                if (heartbeat.signal.aborted) {
+                  const claimLost =
+                    heartbeat.signal.reason instanceof Error &&
+                    heartbeat.signal.reason.message === 'AI step claim lost';
+                  if (
+                    (cancelRequested || claimLost) &&
+                    (outcome?.attemptOutcome === 'succeeded' ||
+                      outcome?.attemptOutcome === 'failed')
+                  )
+                    break;
+                  throw heartbeat.signal.reason;
+                }
                 if (deadline.timedOut) {
                   outcome = {
                     finishReason: 'error',
@@ -861,53 +925,6 @@ export class StepExecutor {
                   attemptCost = event.costUsd;
                 } else if (event.type === 'outcome') {
                   outcome = event.outcome;
-                  if (
-                    event.outcome.attemptOutcome === 'succeeded' ||
-                    event.outcome.attemptOutcome === 'failed'
-                  ) {
-                    const detachedUsage = event.outcome.usage ?? usage;
-                    const detachedCost = event.outcome.costUsd ?? attemptCost;
-                    if (cancelRequested) {
-                      lateCancellationSettlement = {
-                        attemptId,
-                        outcome: event.outcome.attemptOutcome,
-                        ...(detachedUsage ? { usage: detachedUsage } : {}),
-                        ...(detachedCost !== undefined
-                          ? { costUsd: detachedCost }
-                          : {}),
-                      };
-                    } else {
-                      await this.options.database.withTenant(
-                        { orgId: claim.orgId, userId: claim.userId },
-                        (tx) =>
-                          this.options.attempts.settleDetached(tx, attemptId, {
-                            outcome: event.outcome.attemptOutcome,
-                            ...(detachedUsage?.inputTokens !== undefined
-                              ? { inputTokens: detachedUsage.inputTokens }
-                              : {}),
-                            ...(detachedUsage?.outputTokens !== undefined
-                              ? { outputTokens: detachedUsage.outputTokens }
-                              : {}),
-                            ...(detachedUsage?.cachedInputTokens !== undefined
-                              ? {
-                                  cachedInputTokens:
-                                    detachedUsage.cachedInputTokens,
-                                }
-                              : {}),
-                            ...(detachedUsage?.reasoningOutputTokens !==
-                            undefined
-                              ? {
-                                  reasoningOutputTokens:
-                                    detachedUsage.reasoningOutputTokens,
-                                }
-                              : {}),
-                            ...(detachedCost !== undefined
-                              ? { costUsd: detachedCost }
-                              : {}),
-                          }),
-                      );
-                    }
-                  }
                   break;
                 }
                 continue;
@@ -1022,7 +1039,19 @@ export class StepExecutor {
           if (outcome?.safeCode)
             modelSpan.setAttribute('safeCode', outcome.safeCode);
           modelSpan.end();
+          await accountLateOutcome({
+            attemptId,
+            outcome,
+            usage: outcome?.usage ?? usage,
+            costUsd: outcome?.costUsd ?? attemptCost,
+          });
         }
+        await accountLateOutcome({
+          attemptId,
+          outcome,
+          usage: outcome?.usage ?? usage,
+          costUsd: outcome?.costUsd ?? attemptCost,
+        });
         if (cleanupFailed) throw cleanupError;
         finalOutcome = outcome;
         text = attemptText;
@@ -1072,6 +1101,12 @@ export class StepExecutor {
               }),
           );
           attemptReserved = false;
+          await accountLateOutcome({
+            attemptId,
+            outcome: currentOutcome,
+            usage: settledUsage,
+            costUsd,
+          });
           heartbeat.throwIfAborted();
           const reset = await this.#publish(claim, {
             version: 1,
@@ -1143,8 +1178,20 @@ export class StepExecutor {
         finalOutcome.finishReason === 'length' &&
         !proposals.length &&
         !iterationLimit;
+      await accountLateOutcome({
+        attemptId,
+        outcome: finalOutcome,
+        usage: settledUsage,
+        costUsd,
+      });
       heartbeat.throwIfAborted();
       const unknown = finalOutcome.attemptOutcome === 'unknown';
+      await accountLateOutcome({
+        attemptId,
+        outcome: finalOutcome,
+        usage: settledUsage,
+        costUsd,
+      });
       heartbeat.throwIfAborted();
       if (unknown) {
         const settlement = await this.options.database.withTenant(
