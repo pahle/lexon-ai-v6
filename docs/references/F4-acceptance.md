@@ -262,6 +262,24 @@ At `c975df9` (reviewed Task 3 publication),
 passed unit/integration and Compose E2E on the first attempt. New Task 4
 publication CI is pending; the earlier run is not evidence for later source.
 
+## Task 4 — CI registry guard correction
+
+At `c134a7c`, [run 42746957654](https://github.com/pahle/lexon-ai-v6/actions/runs/42746957654)
+passed Compose E2E but failed one of 943 unit/integration tests. The remaining
+942 passed. The failing F3 test still expected an empty production profile
+registry; F4 intentionally registers `chat` and `chat-title`.
+
+Test-only correction `79f7c28` now requires exactly those literal profile IDs,
+with contexts and tools still empty. It keeps the fixture-exclusion guard and
+changes no production code. Focused tests passed 18/18, the full backend unit
+suite passed 260/260 across 57 files, and typecheck, lint with 96 boundary
+checks, formatting and diff checks passed. Main review and fresh scoped review
+accepted the correction with no new breakage. New-head Linux CI is pending.
+
+Task 5 has completed read-only preparation but no implementation: the required
+Luna/high model hit its usage limit. No model or execution-mode fallback was
+made. Resume from Task 5 when that quota is available; owner gates are unchanged.
+
 ## Pending evidence
 
 The runtime/tree/replay proof, Usage ledger and deletion/capacity races, summary
