@@ -181,10 +181,32 @@ export class StepCoordinator {
         job.ctx,
         async (tx, signal) => {
           await this.steps.lockTenantClaimGuard(tx);
+          let fencedStale = false;
           const result = await this.executor.executeWithin(
             tx,
             job,
             async (session) => {
+              const resourceLive = await this.steps.lockResourceForRun(
+                session,
+                claim.runId,
+              );
+              if (!resourceLive) {
+                if (commit.attemptSettlement) {
+                  try {
+                    await this.usage.settle(
+                      session,
+                      claim,
+                      commit.attemptSettlement,
+                    );
+                  } catch (error) {
+                    if (error instanceof UsageClaimLostError)
+                      throw new StaleCommit();
+                    throw error;
+                  }
+                }
+                fencedStale = true;
+                return;
+              }
               if (!(await this.steps.lockClaim(session, claim)))
                 throw new StaleCommit();
               let budgetExceeded = false;
@@ -365,7 +387,7 @@ export class StepCoordinator {
             },
           );
           void result;
-          return 'committed';
+          return fencedStale ? 'stale' : 'committed';
         },
         commit.transactionTimeoutMs !== undefined
           ? { timeoutMs: commit.transactionTimeoutMs }

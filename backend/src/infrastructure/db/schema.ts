@@ -326,3 +326,105 @@ export const aiRunSlots = ops.table(
     }).onDelete('cascade'),
   ],
 );
+
+export const chats = app.table(
+  'chats',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    title: text().notNull(),
+    titleSource: text('title_source').notNull(),
+    titleVersion: integer('title_version').notNull(),
+    viewedLeafId: uuid('viewed_leaf_id'),
+    activeAnswerRunId: uuid('active_answer_run_id'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    lastActivityAt: timestamp('last_activity_at', {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chats_org_id_id').on(table.orgId, table.id),
+    index('chats_owner_activity').on(
+      table.orgId,
+      table.ownerUserId,
+      table.lastActivityAt,
+      table.id,
+    ),
+  ],
+);
+
+export const chatRuns = app.table(
+  'chat_runs',
+  {
+    orgId: uuid('org_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    kind: text().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chat_runs_org_chat_run').on(
+      table.orgId,
+      table.chatId,
+      table.runId,
+    ),
+    uniqueIndex('chat_runs_org_run').on(table.orgId, table.runId),
+    foreignKey({
+      name: 'chat_runs_chat_fk',
+      columns: [table.orgId, table.chatId],
+      foreignColumns: [chats.orgId, chats.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_runs_run_fk',
+      columns: [table.orgId, table.runId],
+      foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const chatMessages = app.table(
+  'chat_messages',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    parentMessageId: uuid('parent_message_id'),
+    role: text().notNull(),
+    userText: text('user_text'),
+    effort: text(),
+    runId: uuid('run_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chat_messages_org_chat_id').on(
+      table.orgId,
+      table.chatId,
+      table.id,
+    ),
+    uniqueIndex('chat_messages_org_run').on(table.orgId, table.runId),
+    index('chat_messages_tree').on(
+      table.orgId,
+      table.chatId,
+      table.createdAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'chat_messages_chat_fk',
+      columns: [table.orgId, table.chatId],
+      foreignColumns: [chats.orgId, chats.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_messages_parent_fk',
+      columns: [table.orgId, table.chatId, table.parentMessageId],
+      foreignColumns: [table.orgId, table.chatId, table.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_messages_run_fk',
+      columns: [table.orgId, table.chatId, table.runId],
+      foreignColumns: [chatRuns.orgId, chatRuns.chatId, chatRuns.runId],
+    }).onDelete('cascade'),
+  ],
+);

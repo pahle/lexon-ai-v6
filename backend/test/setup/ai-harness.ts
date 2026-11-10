@@ -117,7 +117,14 @@ export async function createAiHarness(
     steps,
     coordinator,
     authorization: services.authorization,
-    start(actor: RunActor, input: { profileId: string; prompt: string }) {
+    start(
+      actor: RunActor,
+      input: {
+        profileId: string;
+        prompt: string;
+        resourceIds?: readonly string[];
+      },
+    ) {
       return runService.start(actor, input);
     },
     dispatch(job: JobEnvelope) {

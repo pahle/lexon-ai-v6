@@ -7,6 +7,7 @@ import type {
   RunRecord,
   TerminalStreamReference,
 } from './ai-records.js';
+import { AiStepRepository } from './ai-step.repository.js';
 
 const idSchema = z.uuid();
 const errorCodes = new Set([
@@ -129,6 +130,7 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
 }
 
 export class AiRunRepository {
+  private readonly steps = new AiStepRepository();
   async streamRegistryState(
     tx: TenantSession,
     runId: string,
@@ -409,6 +411,7 @@ export class AiRunRepository {
       input.fence < 1
     )
       return false;
+    if (!(await this.steps.lockResourceForRun(tx, input.runId))) return false;
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
@@ -466,10 +469,18 @@ export class AiRunRepository {
       (input.errorCode !== undefined && !errorCodes.has(input.errorCode))
     )
       return false;
+    const writesContent =
+      input.outputAppend !== undefined || input.finalizeOutput === true;
+    if (
+      writesContent &&
+      !(await this.steps.lockResourceForRun(tx, input.runId))
+    )
+      return false;
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
-    const result = await client.query(
-      `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,
+    const result = writesContent
+      ? await client.query(
+          `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,
        next_sequence=COALESCE($7,next_sequence),model_iterations=model_iterations+$8,
        partial_output=partial_output||COALESCE($9,''),
        final_output=CASE WHEN $10 THEN partial_output||COALESCE($9,'')
@@ -478,19 +489,36 @@ export class AiRunRepository {
        updated_at=clock_timestamp(),
        error_code=$6,completed_at=CASE WHEN $5 IN ('completed','failed','cancelled') THEN clock_timestamp() ELSE NULL END
        WHERE org_id=$1 AND id=$2 AND run_version=$3 AND status=$4`,
-      [
-        scope.orgId,
-        input.runId,
-        input.expectedVersion,
-        input.from,
-        input.to,
-        input.errorCode ?? null,
-        input.nextSequence ?? null,
-        input.modelIterationDelta ?? 0,
-        input.outputAppend ?? null,
-        input.finalizeOutput ?? false,
-      ],
-    );
+          [
+            scope.orgId,
+            input.runId,
+            input.expectedVersion,
+            input.from,
+            input.to,
+            input.errorCode ?? null,
+            input.nextSequence ?? null,
+            input.modelIterationDelta ?? 0,
+            input.outputAppend ?? null,
+            input.finalizeOutput ?? false,
+          ],
+        )
+      : await client.query(
+          `UPDATE app.ai_runs SET status=$5,run_version=run_version+1,
+           next_sequence=COALESCE($7,next_sequence),model_iterations=model_iterations+$8,
+           updated_at=clock_timestamp(),error_code=$6,
+           completed_at=CASE WHEN $5 IN ('completed','failed','cancelled') THEN clock_timestamp() ELSE NULL END
+           WHERE org_id=$1 AND id=$2 AND run_version=$3 AND status=$4`,
+          [
+            scope.orgId,
+            input.runId,
+            input.expectedVersion,
+            input.from,
+            input.to,
+            input.errorCode ?? null,
+            input.nextSequence ?? null,
+            input.modelIterationDelta ?? 0,
+          ],
+        );
     return result.rowCount === 1;
   }
 }

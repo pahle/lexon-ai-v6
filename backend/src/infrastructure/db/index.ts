@@ -19,6 +19,11 @@ export { appendAuthAuditRecord } from './auth/auth-functions.js';
 export { OutboxRepository } from './outbox.repository.js';
 export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { AiRunRepository } from './ai-run.repository.js';
+export { AiChatResourceRepository } from './ai-chat-resource.repository.js';
+export { ChatRepository } from './chat.repository.js';
+export type { ChatRecord } from './chat.repository.js';
+export { ChatMessageRepository } from './chat-message.repository.js';
+export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
 export {
   assertRunActorFactsSession,
   RunActorFactsRepository,

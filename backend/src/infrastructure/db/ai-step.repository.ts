@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
+import { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 import type {
   StepClaim,
   StepCommit,
@@ -67,6 +68,7 @@ function validLease(leaseMs: number): boolean {
 }
 
 export class AiStepRepository {
+  private readonly chatResources = new AiChatResourceRepository();
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,
@@ -478,6 +480,8 @@ export class AiStepRepository {
       return null;
     const scope = buildAuthorizationPredicate(ctx);
     await this.lockTenantClaimGuard(tx);
+    if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
+      return null;
     const run = await client.query(
       `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
        AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
@@ -560,6 +564,11 @@ export class AiStepRepository {
     await this.lockOrganizationClaimGuard(client, ctx.orgId);
   }
 
+  async lockResourceForRun(tx: TenantSession, runId: string): Promise<boolean> {
+    await this.lockTenantClaimGuard(tx);
+    return this.chatResources.lockLiveForRun(tx, runId);
+  }
+
   async renew(
     tx: TenantSession,
     claim: StepClaim,
@@ -568,6 +577,7 @@ export class AiStepRepository {
     if (
       !validClaim(tx, claim) ||
       !validLease(leaseMs) ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;
@@ -602,7 +612,8 @@ export class AiStepRepository {
     if (
       !validClaim(tx, claim) ||
       !uuid.safeParse(input.attemptId).success ||
-      Buffer.byteLength(input.text, 'utf8') > 262144
+      Buffer.byteLength(input.text, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId))
     )
       return false;
     if (!(await this.lockClaim(tx, claim))) return false;
@@ -647,6 +658,7 @@ export class AiStepRepository {
     if (
       !validClaim(tx, claim) ||
       Buffer.byteLength(text, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;
@@ -677,7 +689,11 @@ export class AiStepRepository {
     claim: StepClaim,
     text: string,
   ): Promise<{ changed: boolean; unknownAttemptIds: string[] }> {
-    if (!validClaim(tx, claim) || Buffer.byteLength(text, 'utf8') > 262144)
+    if (
+      !validClaim(tx, claim) ||
+      Buffer.byteLength(text, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId))
+    )
       return { changed: false, unknownAttemptIds: [] };
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
@@ -728,6 +744,7 @@ export class AiStepRepository {
       Buffer.byteLength(commit.text, 'utf8') > 262144 ||
       typeof data !== 'string' ||
       Buffer.byteLength(data, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;
