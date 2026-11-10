@@ -93,10 +93,7 @@ export class StreamHub {
       run: async () => undefined,
     };
     const queueEntry = (entry: StreamEntry): void => {
-      const id = entry.generation
-        ? `${entry.generation}:${entry.id}`
-        : entry.id;
-      bufferedBytes += encodedFrameBytes({ id, data: entry.event });
+      bufferedBytes += bufferedEntryBytes(entry);
       if (bufferedBytes > SUBSCRIBER_QUEUE_BYTES) void close('slow-client');
       else buffered.push(entry);
     };
@@ -180,6 +177,10 @@ export class StreamHub {
     ): Promise<void> => {
       if (closed) return;
       closed = true;
+      recoveryEpoch++;
+      buffered.length = 0;
+      bufferedBytes = 0;
+      replayBarrierHighWater = undefined;
       if (heartbeat.timer) clearInterval(heartbeat.timer);
       if (resyncTimer.timer) clearInterval(resyncTimer.timer);
       this.reader.remove(live);
@@ -496,13 +497,20 @@ export class StreamHub {
             .splice(0)
             .sort((a, b) => compareIds(a.id, b.id));
           for (const entry of suffix) {
-            if (interrupted()) return;
-            if (
-              entry.generation === activeGeneration &&
-              compareIds(entry.id, highWater) > 0
-            )
-              await deliver(entry, entry.generation);
-            if (interrupted()) return;
+            try {
+              if (interrupted()) return;
+              if (
+                entry.generation === activeGeneration &&
+                compareIds(entry.id, highWater) > 0
+              )
+                await deliver(entry, entry.generation);
+              if (interrupted()) return;
+            } finally {
+              // The recovery epoch owns this accounting. Reset/lineage signals
+              // clear the whole capture, so an older drain must not subtract
+              // from the new epoch's byte total.
+              if (!interrupted()) bufferedBytes -= bufferedEntryBytes(entry);
+            }
           }
         }
         bufferedBytes = 0;
@@ -696,6 +704,11 @@ function encodedFrameBytes(frame: SseFrame): number {
     `${frame.id ? `id: ${frame.id}\n` : ''}data: ${frame.data}\n\n`,
     'utf8',
   );
+}
+
+function bufferedEntryBytes(entry: StreamEntry): number {
+  const id = entry.generation ? `${entry.generation}:${entry.id}` : entry.id;
+  return encodedFrameBytes({ id, data: entry.event });
 }
 
 function isResetEntry(entry: StreamEntry): boolean {

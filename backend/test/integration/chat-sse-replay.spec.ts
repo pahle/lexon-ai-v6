@@ -1320,7 +1320,7 @@ test('snapshot recovery captures an XREAD suffix while the actual high-water rea
   }
 });
 
-test('recovery drains entries that arrive while a buffered suffix write is awaiting drain', async ({
+test('recovery bounds outstanding bytes across cumulative drained suffix batches', async ({
   services,
 }) => {
   const redis = new Redis(services.valkey.streamsUrl);
@@ -1330,6 +1330,7 @@ test('recovery drains entries that arrive while a buffered suffix write is await
   const generationKey = key.replace(/:events$/, ':generation');
   const runId = randomUUID();
   const frames: SseFrame[] = [];
+  const closeReasons: Array<string | undefined> = [];
   let snapshotCursor: string | null = null;
   const attemptId = randomUUID();
   const makeSnapshot = () => ({
@@ -1375,17 +1376,44 @@ test('recovery drains entries that arrive while a buffered suffix write is await
       }
       return rows;
     });
-  let releaseDrain!: (drained: boolean) => void;
-  let suffixDrainStarted!: () => void;
-  const suffixDrain = new Promise<boolean>((resolve) => {
-    releaseDrain = resolve;
+  const batchCount = 5;
+  const markers = Array.from(
+    { length: batchCount },
+    (_, index) => `drain-window suffix-${index}-${'x'.repeat(16_000)}`,
+  );
+  const encodedFrameBytes = markers.map((marker) =>
+    Buffer.byteLength(
+      `id: 1:9999999999999-999999\ndata: ${JSON.stringify({ type: 'text-delta', delta: marker })}\n\n`,
+      'utf8',
+    ),
+  );
+  expect(Math.max(...encodedFrameBytes)).toBeLessThanOrEqual(65_536);
+  expect(
+    encodedFrameBytes.reduce((total, bytes) => total + bytes, 0),
+  ).toBeGreaterThan(65_536);
+  const drains: Array<{
+    started: Promise<void>;
+    start: () => void;
+    completion: Promise<boolean>;
+    release: (drained: boolean) => void;
+  }> = markers.map(() => {
+    let start!: () => void;
+    let release!: (drained: boolean) => void;
+    return {
+      started: new Promise<void>((resolve) => {
+        start = resolve;
+      }),
+      start,
+      completion: new Promise<boolean>((resolve) => {
+        release = resolve;
+      }),
+      release,
+    };
   });
-  const drainStarted = new Promise<void>((resolve) => {
-    suffixDrainStarted = resolve;
-  });
+  const drainStarted = new Set<(typeof drains)[number]>();
   const received = new Map<string, () => void>();
   const receivedPromises = new Map<string, Promise<void>>();
-  for (const marker of ['drain-window first', 'drain-window second']) {
+  for (const marker of markers) {
     let resolve!: () => void;
     receivedPromises.set(
       marker,
@@ -1395,7 +1423,7 @@ test('recovery drains entries that arrive while a buffered suffix write is await
     );
     received.set(marker, resolve);
   }
-  let firstSuffixId: string | undefined;
+  const suffixIds: string[] = [];
   const originalAdd = reader.add.bind(reader);
   const addSpy = vi.spyOn(reader, 'add').mockImplementation((subscription) => {
     const originalReceive = subscription.receive;
@@ -1428,13 +1456,18 @@ test('recovery drains entries that arrive while a buffered suffix write is await
       {
         write(frame) {
           frames.push(frame);
-          return !frame.data.includes('drain-window first');
+          return !markers.some((marker) => frame.data.includes(marker));
         },
         async drain() {
-          suffixDrainStarted();
-          return suffixDrain;
+          const gate = drains.find((candidate) => !drainStarted.has(candidate));
+          if (!gate) throw new Error('Unexpected extra suffix drain');
+          drainStarted.add(gate);
+          gate.start();
+          return gate.completion;
         },
-        async close() {},
+        async close(reason) {
+          closeReasons.push(reason);
+        },
       },
       fallback,
     );
@@ -1454,31 +1487,35 @@ test('recovery drains entries that arrive while a buffered suffix write is await
       return id;
     };
     await enteredRange;
-    firstSuffixId = await appendSuffix('drain-window first');
-    await receivedPromises.get('drain-window first');
+    suffixIds.push(await appendSuffix(markers[0]!));
+    await receivedPromises.get(markers[0]!);
     releaseRange();
-    await drainStarted;
-    const secondSuffixId = await appendSuffix('drain-window second');
-    await receivedPromises.get('drain-window second');
-    releaseDrain(true);
+    for (let index = 0; index < batchCount; index++) {
+      await drains[index]!.started;
+      if (index + 1 < batchCount) {
+        suffixIds.push(await appendSuffix(markers[index + 1]!));
+        await receivedPromises.get(markers[index + 1]!);
+        expect(closeReasons).not.toContain('slow-client');
+      }
+      drains[index]!.release(true);
+    }
 
     await waitFor(() =>
-      frames.some((frame) => frame.id === `1:${secondSuffixId}`),
+      frames.some((frame) => frame.id === `1:${suffixIds.at(-1)}`),
     );
-    expect(
-      frames.filter((frame) => frame.id === `1:${firstSuffixId}`),
-    ).toHaveLength(1);
-    expect(
-      frames.filter((frame) => frame.id === `1:${secondSuffixId}`),
-    ).toHaveLength(1);
-    expect(
-      frames.findIndex((frame) => frame.id === `1:${firstSuffixId}`),
-    ).toBeLessThan(
-      frames.findIndex((frame) => frame.id === `1:${secondSuffixId}`),
+    expect(await redis.exists(key)).toBe(1);
+    for (const id of suffixIds) {
+      expect(frames.filter((frame) => frame.id === `1:${id}`)).toHaveLength(1);
+    }
+    const deliveredIndices = suffixIds.map((id) =>
+      frames.findIndex((frame) => frame.id === `1:${id}`),
+    );
+    expect(deliveredIndices).toEqual(
+      [...deliveredIndices].sort((left, right) => left - right),
     );
   } finally {
     releaseRange();
-    releaseDrain(true);
+    for (const gate of drains) gate.release(true);
     rangeSpy.mockRestore();
     addSpy.mockRestore();
     await subscription?.close();
