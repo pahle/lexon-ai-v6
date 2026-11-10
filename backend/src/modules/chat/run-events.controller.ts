@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { UuidSchema } from '@lexon/contracts';
 import {
@@ -11,12 +11,16 @@ import type {
   Subscription,
 } from '../../infrastructure/queue/stream-hub.js';
 import { RunEventsService } from './run-events.service.js';
+import { ChatService } from './chat.service.js';
+import { CancelService } from './cancel.service.js';
 
 @Controller('runs')
 export class RunEventsController {
   constructor(
     private readonly events: RunEventsService,
     private readonly authorization: RunAuthorizationService,
+    private readonly chats: ChatService,
+    private readonly cancellation: CancelService,
   ) {}
 
   @Get(':runId/events')
@@ -74,6 +78,16 @@ export class RunEventsController {
       } finally {
         await subscription?.close();
       }
+    });
+  }
+
+  @Post(':runId/cancel')
+  cancel(@Param('runId') runId: string) {
+    const identity = currentVerifiedIdentity();
+    const parsedRunId = UuidSchema.parse(runId);
+    return this.authorization.withActor(identity, async (actor) => {
+      await this.chats.assertLiveAnswerRun(actor, parsedRunId);
+      await this.cancellation.cancel(actor, parsedRunId);
     });
   }
 }

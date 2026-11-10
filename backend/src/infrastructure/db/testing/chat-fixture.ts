@@ -16,19 +16,47 @@ interface Services {
 }
 
 function modelBarrier(): {
+  blockAfterText(): void;
   block(): Promise<void>;
+  aborted: Promise<void>;
   release(): void;
   started: Promise<void>;
   gateway: ModelGateway;
 } {
   let release!: () => void;
   let entered!: () => void;
+  let shouldBlockAfterText = false;
   const blocked = new Promise<void>((resolve) => (release = resolve));
   const started = new Promise<void>((resolve) => (entered = resolve));
-  async function* response(): AsyncGenerator<ModelEvent> {
+  let resolveAbort!: () => void;
+  const aborted = new Promise<void>((resolve) => (resolveAbort = resolve));
+  async function* response(signal: AbortSignal): AsyncGenerator<ModelEvent> {
     entered();
-    await blocked;
-    yield { type: 'text', text: 'synthetic answer after release' };
+    if (shouldBlockAfterText)
+      yield { type: 'text', text: 'synthetic partial answer' };
+    await Promise.race([
+      blocked,
+      new Promise<void>((resolve) => {
+        if (signal.aborted) {
+          resolveAbort();
+          resolve();
+        } else
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolveAbort();
+              resolve();
+            },
+            { once: true },
+          );
+      }),
+    ]);
+    if (signal.aborted) {
+      await blocked;
+      throw signal.reason;
+    }
+    if (!shouldBlockAfterText)
+      yield { type: 'text', text: 'synthetic answer after release' };
     yield {
       type: 'outcome',
       outcome: {
@@ -40,14 +68,18 @@ function modelBarrier(): {
     };
   }
   return {
+    blockAfterText() {
+      shouldBlockAfterText = true;
+    },
     async block() {
       await started;
     },
+    aborted,
     release,
     started,
     gateway: {
-      generate() {
-        return response();
+      generate(input) {
+        return response(input.signal);
       },
     },
   };
@@ -476,6 +508,20 @@ export async function createChatFixture(services: Services) {
           );
         });
       },
+      setRunOutputFor(
+        ctx: { orgId: string; userId: string },
+        runId: string,
+        text: string,
+      ) {
+        return ai.database.withTenant(ctx, async (tx) => {
+          const { client } = requireSession(tx);
+          const result = await client.query(
+            'UPDATE app.ai_runs SET partial_output=$3 WHERE org_id=$1 AND id=$2',
+            [ctx.orgId, runId, text],
+          );
+          if (result.rowCount !== 1) throw new Error('Run fixture unavailable');
+        });
+      },
       insertUser(
         index: number,
         input: Parameters<ChatMessageRepository['insertUser']>[1],
@@ -651,6 +697,62 @@ export async function createChatFixture(services: Services) {
       },
     },
     inspect: {
+      async mutationRequestRuntimeDenials(ctx: {
+        orgId: string;
+        userId: string;
+      }) {
+        return ai.database.withTenant(ctx, async (tx) => {
+          const { client } = requireSession(tx);
+          const errors: string[] = [];
+          const attempts = [
+            'UPDATE app.chat_mutation_requests SET created_at=created_at',
+            'DELETE FROM app.chat_mutation_requests',
+            'TRUNCATE app.chat_mutation_requests',
+          ];
+          for (let attempt = 0; attempt < attempts.length; attempt += 1) {
+            await client.query(`SAVEPOINT mutation_privilege_${attempt}`);
+            try {
+              await client.query(attempts[attempt]!);
+              errors.push('allowed');
+            } catch (error) {
+              errors.push(
+                typeof error === 'object' && error !== null && 'code' in error
+                  ? String(error.code)
+                  : 'unknown',
+              );
+            }
+            await client.query(
+              `ROLLBACK TO SAVEPOINT mutation_privilege_${attempt}`,
+            );
+            await client.query(
+              `RELEASE SAVEPOINT mutation_privilege_${attempt}`,
+            );
+          }
+          return errors;
+        });
+      },
+      async mutationRequestPrivileges() {
+        const result = await inspector.query<{
+          rls_enabled: boolean;
+          rls_forced: boolean;
+          can_select: boolean;
+          can_insert: boolean;
+          can_update: boolean;
+          can_delete: boolean;
+          can_truncate: boolean;
+        }>(
+          `SELECT relation.relrowsecurity AS rls_enabled,
+            relation.relforcerowsecurity AS rls_forced,
+            has_table_privilege('lexon_app','app.chat_mutation_requests','SELECT') AS can_select,
+            has_table_privilege('lexon_app','app.chat_mutation_requests','INSERT') AS can_insert,
+            has_table_privilege('lexon_app','app.chat_mutation_requests','UPDATE') AS can_update,
+            has_table_privilege('lexon_app','app.chat_mutation_requests','DELETE') AS can_delete,
+            has_table_privilege('lexon_app','app.chat_mutation_requests','TRUNCATE') AS can_truncate
+           FROM pg_class relation JOIN pg_namespace schema_name ON schema_name.oid=relation.relnamespace
+           WHERE schema_name.nspname='app' AND relation.relname='chat_mutation_requests'`,
+        );
+        return result.rows[0]!;
+      },
       chat: inspectChat,
       async chatSchema() {
         const result = await inspector.query(

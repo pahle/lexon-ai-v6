@@ -11,9 +11,15 @@ import { currentVerifiedIdentity } from '../../src/modules/identity-access/ident
 import type { RunActor } from '../../src/modules/identity-access/index.js';
 import type { RunProfile } from '../../src/modules/chat/index.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
+import { CHAT_PROFILES } from '../../src/modules/chat/chat-profiles.js';
+import { ChatHistoryContextProvider } from '../../src/modules/chat/chat-history-context.js';
 import { CancelService } from '../../src/modules/chat/cancel.service.js';
-import { CancelSignals } from '../../src/infrastructure/queue/index.js';
 import {
+  CancelSignals,
+  RunStreams,
+} from '../../src/infrastructure/queue/index.js';
+import {
+  AiStepRepository,
   AiRunRepository,
   RunActorFactsRepository,
   type RunStepJobEnvelope,
@@ -47,10 +53,61 @@ export async function createChatApiHarness(services: FileServices) {
   }
   const authorization = new RunAuthorizationService();
   const signals = new CancelSignals({
-    url: services.valkey.queueUrl,
+    url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
     database: storage.database,
     runs: new AiRunRepository(),
+  });
+  const runs = new AiRunRepository();
+  const steps = new AiStepRepository();
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: {
+      authorizeActive: (claim) =>
+        storage!.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamActiveProof(tx, claim),
+        ),
+      advanceStreamGeneration: (claim, observed) =>
+        storage!.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.advanceStreamGeneration(tx, claim, observed),
+          { timeoutMs: 500 },
+        ),
+      authorizeTerminal: (claim) =>
+        storage!.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamTerminalProof(tx, claim),
+        ),
+      advanceTerminalStreamGeneration: (claim, observed) =>
+        storage!.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.advanceTerminalStreamGeneration(tx, claim, observed),
+          { timeoutMs: 500 },
+        ),
+      authorizeCommitted: (claim, event) =>
+        storage!.database.withTenant(
+          { orgId: claim.orgId, userId: claim.userId },
+          (tx) => steps.streamCommittedProof(tx, claim, event),
+        ),
+      reconcile: (entries) =>
+        Promise.all(
+          entries.map(async (entry) => {
+            const result = await storage!.database.withTenant(
+              { orgId: entry.orgId, userId: entry.userId },
+              (tx) => runs.streamRegistryState(tx, entry.runId, entry.userId),
+            );
+            return result.state === 'terminal'
+              ? {
+                  runId: entry.runId,
+                  state: 'terminal' as const,
+                  claim: result.claim,
+                }
+              : { runId: entry.runId, state: result.state };
+          }),
+        ),
+    },
   });
   const allowlist = ModelAllowlistSchema.parse(
     JSON.parse(
@@ -69,10 +126,14 @@ export async function createChatApiHarness(services: FileServices) {
       authorization,
       close: async () => {},
     },
-    { profiles: [profile], contexts: [], tools: [] },
+    {
+      profiles: [profile, CHAT_PROFILES.chat],
+      contexts: [new ChatHistoryContextProvider(storage.database)],
+      tools: [],
+    },
     storage.model.gateway,
     undefined,
-    { cancelSignals: signals },
+    { cancelSignals: signals, streams },
   );
   const cancelService = new CancelService(
     storage.database,
@@ -80,7 +141,7 @@ export async function createChatApiHarness(services: FileServices) {
     engine.steps,
     new RunActorFactsRepository(),
     authorization,
-    undefined,
+    streams,
     signals,
   );
 
@@ -178,10 +239,11 @@ export async function createChatApiHarness(services: FileServices) {
         );
       },
       async cancelFor(ctx: { orgId: string; userId: string }, runId: string) {
-        return withActor(ctx, (actor) => cancelService.cancel(actor, runId));
+        await withActor(ctx, (actor) => cancelService.cancel(actor, runId));
       },
     },
     inspect: storage.inspect,
+    streams,
     model: storage.model,
     database: storage.database,
     holdStepClaimGuard: storage.holdStepClaimGuard,
@@ -203,6 +265,7 @@ export async function createChatApiHarness(services: FileServices) {
       await Promise.all([
         api.close(),
         engine.close(),
+        streams.close(),
         storage!.close(),
         signals.close(),
       ]);

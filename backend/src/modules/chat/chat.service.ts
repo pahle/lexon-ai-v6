@@ -6,6 +6,7 @@ import type {
   SendMessageInput,
 } from '@lexon/contracts';
 import { ChatApiError } from '@lexon/contracts';
+import { ChatTreeSchema } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
 import {
   AiStepRepository,
@@ -81,6 +82,14 @@ export class ChatService {
             messageId: runId,
             parentMessageId: input.userMessageId,
             runId,
+          });
+          await this.mutations.insertMutationRequest(tx, {
+            requestId: input.userMessageId,
+            kind: 'send',
+            chatId: input.chatId,
+            sourceMessageId: null,
+            userMessageId: input.userMessageId,
+            assistantMessageId: runId,
           });
           await this.chats.selectLeaf(tx, input.chatId, runId);
           await this.mutations.insertCreateRequest(tx, {
@@ -179,6 +188,14 @@ export class ChatService {
             parentMessageId: input.userMessageId,
             runId,
           });
+          await this.mutations.insertMutationRequest(tx, {
+            requestId: input.userMessageId,
+            kind: 'send',
+            chatId,
+            sourceMessageId: input.parentMessageId,
+            userMessageId: input.userMessageId,
+            assistantMessageId: runId,
+          });
           await this.chats.selectLeaf(tx, chatId, runId);
           await this.audit.append(tx, {
             version: 1,
@@ -219,7 +236,7 @@ export class ChatService {
         if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
         const tree = await this.messages.tree(tx, chatId);
         if (!tree) throw new ChatApiError('CHAT_NOT_FOUND');
-        return {
+        return ChatTreeSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
           messages: tree.messages.map((message) => {
@@ -248,9 +265,18 @@ export class ChatService {
           viewedLeafId: tree.viewedLeafId,
           createdAt: chat.createdAt.toISOString(),
           updatedAt: chat.updatedAt.toISOString(),
-        };
+        });
       },
     );
+  }
+
+  async assertLiveAnswerRun(actor: RunActor, runId: string): Promise<void> {
+    this.authorization.assertLiveActor(actor);
+    const authorized = await this.database.withTenant(
+      { orgId: actor.orgId, userId: actor.userId },
+      (tx) => this.chats.hasLiveAnswerRun(tx, runId),
+    );
+    if (!authorized) throw new ChatApiError('CHAT_NOT_FOUND');
   }
 }
 

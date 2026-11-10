@@ -225,6 +225,13 @@
       "when": 1793404800031,
       "tag": "0031_run_stream_replay_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793404800032,
+      "tag": "0032_chat_mutation_requests",
+      "breakpoints": true
     }
   ]
 }

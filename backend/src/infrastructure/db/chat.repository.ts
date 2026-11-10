@@ -109,6 +109,26 @@ export class ChatRepository {
     return result.rows[0] ? mapChat(result.rows[0]) : null;
   }
 
+  async hasLiveAnswerRun(tx: TenantSession, runId: string): Promise<boolean> {
+    if (!uuid.safeParse(runId).success) return false;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<{ authorized: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM app.chat_runs run_link
+        JOIN app.chats chat ON chat.org_id=run_link.org_id AND chat.id=run_link.chat_id
+        WHERE run_link.org_id=$1 AND chat.owner_user_id=$2 AND chat.deleted_at IS NULL
+          AND run_link.run_id=$3 AND run_link.kind='answer') AS authorized`,
+      [scope.orgId, scope.userId, runId],
+    );
+    return result.rows[0]?.authorized === true;
+  }
+
   async associateAnswer(
     tx: TenantSession,
     chatId: string,
@@ -146,7 +166,10 @@ export class ChatRepository {
       `UPDATE app.chats c SET viewed_leaf_id=$4,updated_at=clock_timestamp()
        WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
          AND EXISTS (SELECT 1 FROM app.chat_messages m
-           WHERE m.org_id=c.org_id AND m.chat_id=c.id AND m.id=$4)`,
+           WHERE m.org_id=c.org_id AND m.chat_id=c.id AND m.id=$4
+             AND NOT EXISTS (SELECT 1 FROM app.chat_messages child
+               WHERE child.org_id=m.org_id AND child.chat_id=m.chat_id
+                 AND child.parent_message_id=m.id))`,
       [scope.orgId, scope.userId, chatId, leafId],
     );
     return result.rowCount === 1;

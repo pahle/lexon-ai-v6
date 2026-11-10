@@ -30,6 +30,14 @@ export interface ChatHistoryRecord {
   readonly status: string | null;
 }
 
+export interface ChatBranchSource {
+  readonly id: string;
+  readonly parentMessageId: string | null;
+  readonly role: ChatMessageRecord['role'];
+  readonly userText: string | null;
+  readonly effort: 'high' | 'max' | null;
+}
+
 interface TreeRow {
   id: string;
   parent_message_id: string | null;
@@ -45,6 +53,75 @@ interface TreeRow {
 }
 
 export class ChatMessageRepository {
+  async branchSource(
+    tx: TenantSession,
+    chatId: string,
+    messageId: string,
+  ): Promise<ChatBranchSource | null> {
+    if (!uuid.safeParse(chatId).success || !uuid.safeParse(messageId).success)
+      return null;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return null;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<{
+      id: string;
+      parent_message_id: string | null;
+      role: ChatMessageRecord['role'];
+      user_text: string | null;
+      effort: 'high' | 'max' | null;
+    }>(
+      `SELECT message.id,message.parent_message_id,message.role,message.user_text,message.effort
+       FROM app.chat_messages message JOIN app.chats chat
+         ON chat.org_id=message.org_id AND chat.id=message.chat_id
+       WHERE message.org_id=$1 AND chat.owner_user_id=$2 AND chat.id=$3
+         AND chat.deleted_at IS NULL AND message.id=$4`,
+      [scope.orgId, scope.userId, chatId, messageId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          id: row.id,
+          parentMessageId: row.parent_message_id,
+          role: row.role,
+          userText: row.user_text,
+          effort: row.effort,
+        }
+      : null;
+  }
+
+  async isLeaf(
+    tx: TenantSession,
+    chatId: string,
+    messageId: string,
+  ): Promise<boolean> {
+    if (!uuid.safeParse(chatId).success || !uuid.safeParse(messageId).success)
+      return false;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    const result = await client.query<{ is_leaf: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM app.chat_messages target
+         JOIN app.chats chat ON chat.org_id=target.org_id AND chat.id=target.chat_id
+         WHERE target.org_id=$1 AND chat.owner_user_id=$2 AND target.chat_id=$3
+           AND target.id=$4 AND chat.deleted_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM app.chat_messages child
+             WHERE child.org_id=target.org_id AND child.chat_id=target.chat_id
+               AND child.parent_message_id=target.id)) AS is_leaf`,
+      [scope.orgId, scope.userId, chatId, messageId],
+    );
+    return result.rows[0]?.is_leaf === true;
+  }
+
   async historyForRun(
     tx: TenantSession,
     runId: string,
