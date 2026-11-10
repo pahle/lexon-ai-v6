@@ -12,6 +12,7 @@ import { SseConnectionRegistry } from '../../src/infrastructure/queue/sse-connec
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
+  AiRunRepository,
   AiStepRepository,
   TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
@@ -413,6 +414,67 @@ test('a peer disconnect does not invalidate another same-session stream across r
   }
 });
 
+test('same-session snapshot-only subscribers share the bounded authorized PG reload', async ({
+  services,
+}) => {
+  const environment = createAuthEnvironment(
+    services,
+    '/tmp/lexon-chat-sse-snapshot-cache-health.json',
+  );
+  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
+    signup: { account: 3, ip: 100, windowSeconds: 600 },
+    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+  });
+  const app = await createTestApi(loadRuntimeConfig('api', environment));
+  const controllers: AbortController[] = [];
+  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+  const snapshotRead = vi.spyOn(
+    AiRunRepository.prototype,
+    'authorizedChatSnapshot',
+  );
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: randomUUID(),
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'Share authorized recovery reads across my live streams',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const open = async () => {
+      const controller = new AbortController();
+      controllers.push(controller);
+      const response = await fetch(`${origin}/api/runs/${runId}/events`, {
+        headers,
+        signal: controller.signal,
+      });
+      expect(response.status).toBe(200);
+      if (!response.body) throw new Error('Run event stream body unavailable');
+      const reader = response.body.getReader();
+      readers.push(reader);
+      await readUntilReader(reader, 'snapshot-end', false);
+    };
+    await open();
+    await open();
+    expect(snapshotRead).toHaveBeenCalledTimes(2);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(snapshotRead).toHaveBeenCalledTimes(3);
+  } finally {
+    for (const controller of controllers) controller.abort();
+    for (const reader of readers) await reader.cancel().catch(() => {});
+    snapshotRead.mockRestore();
+    await app.close();
+  }
+});
+
 test('the seventh live SSE connection evicts only the oldest socket', async ({
   services,
 }) => {
@@ -540,15 +602,15 @@ test('revoking the request session closes its existing run event stream', async 
 test('application shutdown closes active SSE sockets before releasing resources', async ({
   services,
 }) => {
-  const app = await createTestApi(
-    loadRuntimeConfig(
-      'api',
-      createAuthEnvironment(
-        services,
-        '/tmp/lexon-chat-sse-shutdown-health.json',
-      ),
-    ),
+  const environment = createAuthEnvironment(
+    services,
+    '/tmp/lexon-chat-sse-shutdown-health.json',
   );
+  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
+    signup: { account: 3, ip: 100, windowSeconds: 600 },
+    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+  });
+  const app = await createTestApi(loadRuntimeConfig('api', environment));
   const controller = new AbortController();
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let appClosed = false;

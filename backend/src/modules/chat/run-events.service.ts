@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { ChatSnapshot } from '@lexon/contracts';
 import {
   RUN_SSE_REVALIDATION,
   RunAuthorizationService,
@@ -28,6 +29,61 @@ interface AuthorizationCheck {
 }
 
 const authorizationCache = new Map<string, AuthorizationCheck>();
+
+interface AuthorizedSnapshot {
+  readonly snapshot: ChatSnapshot;
+  readonly streamGeneration: number;
+  readonly resumable: boolean;
+}
+
+interface SnapshotRead {
+  expiresAt: number;
+  value: AuthorizedSnapshot | undefined;
+  pending: Promise<AuthorizedSnapshot | undefined> | undefined;
+  cleanup?: ReturnType<typeof setTimeout>;
+}
+
+const snapshotCache = new Map<string, SnapshotRead>();
+
+async function sharedSnapshotRead(
+  key: string,
+  read: () => Promise<AuthorizedSnapshot | undefined>,
+): Promise<AuthorizedSnapshot | undefined> {
+  const existing = snapshotCache.get(key);
+  if (existing?.pending) return existing.pending;
+  if (existing && existing.expiresAt > Date.now()) return existing.value;
+  const entry: SnapshotRead = {
+    expiresAt: Number.POSITIVE_INFINITY,
+    value: undefined,
+    pending: undefined,
+  };
+  const pending = read()
+    .then((value) => {
+      entry.value = value;
+      entry.expiresAt = Date.now() + 1000;
+      entry.cleanup = setTimeout(() => {
+        if (snapshotCache.get(key) === entry) snapshotCache.delete(key);
+      }, 1000);
+      entry.cleanup.unref();
+      return value;
+    })
+    .catch((error: unknown) => {
+      if (entry.cleanup) clearTimeout(entry.cleanup);
+      if (snapshotCache.get(key) === entry) snapshotCache.delete(key);
+      throw error;
+    });
+  entry.pending = pending;
+  snapshotCache.set(key, entry);
+  void pending.then(
+    () => {
+      entry.pending = undefined;
+    },
+    () => {
+      entry.pending = undefined;
+    },
+  );
+  return pending;
+}
 
 interface RunSseRevalidation {
   assert(identity: VerifiedIdentity, orgId: string): Promise<void>;
@@ -86,6 +142,7 @@ export class RunEventsService {
       throw new NotFoundException();
     }
     const streamKey = `${this.queuePrefix}:{run-streams}:${runId}:events`;
+    const snapshotKey = `${orgId}|${userId}|${runId}|${identity.channel}|${identity.sessionId}`;
     let streamSubscription: Subscription | undefined;
     let closed = false;
     let checking = false;
@@ -104,12 +161,15 @@ export class RunEventsService {
     this.#local.set(connectionId, () => close('evicted'));
     try {
       const reloadFallback = async () => {
-        await this.revalidation.assert(identity, orgId);
-        const refreshed = await this.database.withTenant(
-          { orgId, userId },
-          (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),
-          { timeoutMs: 1000 },
-        );
+        const refreshed = await sharedSnapshotRead(snapshotKey, async () => {
+          await this.revalidation.assert(identity, orgId);
+          const value = await this.database.withTenant(
+            { orgId, userId },
+            (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),
+            { timeoutMs: 1000 },
+          );
+          return value ?? undefined;
+        });
         return refreshed
           ? {
               snapshot: refreshed.snapshot,

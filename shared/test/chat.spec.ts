@@ -382,6 +382,16 @@ describe('chat contracts', () => {
         operationCount: 0,
       }).success,
     ).toBe(true);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-start',
+        reset: true,
+        snapshot: { ...snapshotMetadata, eventId: '1-1' },
+        partCount: 0,
+        operationCount: 0,
+      }).success,
+    ).toBe(false);
     const safeOperation = {
       operationId: parentMessageId,
       status: 'awaiting_approval',

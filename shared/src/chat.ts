@@ -188,17 +188,33 @@ export const ChatOperationSnapshotSchema = z.strictObject({
   approvalRequired: z.boolean(),
 });
 
-export const ChatSnapshotMetadataSchema = z.strictObject({
-  runId: uuid,
-  messageId: uuid,
-  attemptId: uuid.nullable(),
-  generation: z.number().int().positive().safe().nullable(),
-  revision: z.number().int().nonnegative().safe(),
-  eventId: opaqueId.nullable(),
-  status: RunStatusSchema,
-  errorCode: RunErrorCodeSchema.nullable(),
-  reasoningDurationMs: z.number().int().nonnegative().safe().nullable(),
-});
+export const ChatSnapshotMetadataSchema = z
+  .strictObject({
+    runId: uuid,
+    messageId: uuid,
+    attemptId: uuid.nullable(),
+    generation: z.number().int().positive().safe().nullable(),
+    revision: z.number().int().nonnegative().safe(),
+    eventId: opaqueId.nullable(),
+    status: RunStatusSchema,
+    errorCode: RunErrorCodeSchema.nullable(),
+    reasoningDurationMs: z.number().int().nonnegative().safe().nullable(),
+  })
+  .superRefine((snapshot, context) => {
+    if (
+      snapshot.eventId !== null &&
+      (snapshot.generation === null ||
+        snapshot.attemptId === null ||
+        snapshot.revision === 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'Snapshot cursor requires a published attempt generation and revision',
+        path: ['eventId'],
+      });
+    }
+  });
 
 export const ChatSnapshotSchema = z
   .strictObject({

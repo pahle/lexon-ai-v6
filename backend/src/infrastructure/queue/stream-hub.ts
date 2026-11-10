@@ -3,10 +3,17 @@ import type {
   StreamSubscription,
   SseStreamReader,
 } from './sse-stream-reader.js';
-import { ChatSnapshotFrameSchema, type ChatSnapshot } from '@lexon/contracts';
+import {
+  ChatSnapshotFrameSchema,
+  RunStreamEventSchema,
+  type ChatSnapshot,
+} from '@lexon/contracts';
 
 const SUBSCRIBER_QUEUE_BYTES = 65_536;
+const SNAPSHOT_FRAME_BYTE_RESERVE = 32;
 const MAX_DEDUP_IDS = 1024;
+const SNAPSHOT_RESYNC_INTERVAL_MS = 1000;
+const SNAPSHOT_YIELD_INTERVAL = 16_384;
 
 export interface SseFrame {
   readonly id?: string;
@@ -59,6 +66,9 @@ export class StreamHub {
     let replaying = true;
     let resyncing = false;
     let lineagePending = false;
+    let snapshotOnly = false;
+    let forceSnapshot = false;
+    let terminalSnapshotSent = false;
     let activeGeneration = fallback?.streamGeneration;
     const buffered: StreamEntry[] = [];
     let bufferedBytes = 0;
@@ -69,9 +79,34 @@ export class StreamHub {
     let writing = false;
     let closed = false;
     const heartbeat: { timer?: ReturnType<typeof setInterval> } = {};
+    const resyncTimer: {
+      timer: ReturnType<typeof setInterval> | undefined;
+    } = { timer: undefined };
+    let currentFallback = fallback;
+    let lastSnapshotSignature = fallback
+      ? snapshotStateSignature(fallback.snapshot)
+      : undefined;
     let resolveDrained: (() => void) | undefined;
     const resynchronizer: { run: () => Promise<void> } = {
       run: async () => undefined,
+    };
+    const queueEntry = (entry: StreamEntry): void => {
+      const id = entry.generation
+        ? `${entry.generation}:${entry.id}`
+        : entry.id;
+      bufferedBytes += encodedFrameBytes({ id, data: entry.event });
+      if (bufferedBytes > SUBSCRIBER_QUEUE_BYTES) void close('slow-client');
+      else buffered.push(entry);
+    };
+    const startResync = (force: boolean): void => {
+      if (closed) return;
+      snapshotOnly = true;
+      forceSnapshot ||= force;
+      ensureResyncTimer();
+      if (!replaying && !resyncing) {
+        resyncing = true;
+        void resynchronizer.run();
+      }
     };
     const live: StreamSubscription = {
       key,
@@ -80,31 +115,25 @@ export class StreamHub {
         buffered.length = 0;
         bufferedBytes = 0;
         lineagePending = true;
-        if (!replaying && !resyncing) {
-          resyncing = true;
-          void resynchronizer.run();
-        }
+        startResync(true);
       },
       receive: (entry) => {
+        if (isResetEntry(entry) && fallback) {
+          queueEntry(entry);
+          startResync(true);
+          return;
+        }
         if (entry.generation !== undefined) {
           if (activeGeneration === undefined)
             activeGeneration = entry.generation;
           else if (entry.generation !== activeGeneration) {
-            bufferedBytes += entry.event.length + entry.id.length;
-            if (bufferedBytes > SUBSCRIBER_QUEUE_BYTES)
-              void close('slow-client');
-            else buffered.push(entry);
-            if (!resyncing && !replaying) {
-              resyncing = true;
-              void resynchronizer.run();
-            }
+            queueEntry(entry);
+            startResync(false);
             return;
           }
         }
-        if (replaying || resyncing) {
-          bufferedBytes += entry.event.length + entry.id.length;
-          if (bufferedBytes > SUBSCRIBER_QUEUE_BYTES) void close('slow-client');
-          else buffered.push(entry);
+        if (replaying || resyncing || snapshotOnly) {
+          queueEntry(entry);
         } else {
           void deliver(entry, entry.generation);
         }
@@ -117,6 +146,7 @@ export class StreamHub {
       if (closed) return;
       closed = true;
       if (heartbeat.timer) clearInterval(heartbeat.timer);
+      if (resyncTimer.timer) clearInterval(resyncTimer.timer);
       this.reader.remove(live);
       for (const item of queue) item.settle(false);
       queue.length = 0;
@@ -153,7 +183,7 @@ export class StreamHub {
 
     const enqueue = (frame: SseFrame): Promise<boolean> => {
       if (closed) return Promise.resolve(false);
-      const bytes = Buffer.byteLength(`${frame.id ?? ''}${frame.data}`, 'utf8');
+      const bytes = encodedFrameBytes(frame);
       if (queueBytes + bytes > SUBSCRIBER_QUEUE_BYTES) {
         void close('slow-client');
         return Promise.resolve(false);
@@ -184,56 +214,79 @@ export class StreamHub {
 
     const enqueueSnapshot = async (snapshot: ChatSnapshot): Promise<void> => {
       const { parts, operations, ...metadata } = snapshot;
-      await enqueue({
-        data: JSON.stringify(
-          ChatSnapshotFrameSchema.parse({
-            version: 1,
-            type: 'snapshot-start',
-            reset: true,
-            snapshot: metadata,
-            partCount: parts.length,
-            operationCount: operations.length,
-          }),
-        ),
-      });
-      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
-        const part = parts[partIndex]!;
-        let chunk = '';
-        let chunkIndex = 0;
-        for (const character of part.text) {
-          if (chunk && Buffer.byteLength(chunk + character, 'utf8') > 24_000) {
-            await enqueue({
-              data: JSON.stringify(
-                ChatSnapshotFrameSchema.parse({
-                  version: 1,
-                  type: 'snapshot-part',
-                  partIndex,
-                  chunkIndex: chunkIndex++,
-                  partType: part.type,
-                  id: part.id,
-                  text: chunk,
-                  final: false,
-                }),
-              ),
-            });
-            chunk = '';
-          }
-          chunk += character;
-        }
-        await enqueue({
+      if (
+        !(await enqueue({
           data: JSON.stringify(
             ChatSnapshotFrameSchema.parse({
               version: 1,
-              type: 'snapshot-part',
-              partIndex,
-              chunkIndex,
-              partType: part.type,
-              id: part.id,
-              text: chunk,
-              final: true,
+              type: 'snapshot-start',
+              reset: true,
+              snapshot: metadata,
+              partCount: parts.length,
+              operationCount: operations.length,
             }),
           ),
+        }))
+      )
+        return;
+      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+        const part = parts[partIndex]!;
+        const chunks: string[] = [];
+        const frameBase = {
+          version: 1 as const,
+          type: 'snapshot-part' as const,
+          partIndex,
+          chunkIndex: 0,
+          partType: part.type,
+          id: part.id,
+          text: '',
+          final: false,
+        };
+        const baseBytes = encodedFrameBytes({
+          data: JSON.stringify(ChatSnapshotFrameSchema.parse(frameBase)),
         });
+        let chunkCharacters: string[] = [];
+        let chunkRawBytes = 0;
+        let chunkEscapedBytes = 0;
+        let processed = 0;
+        for (const character of part.text) {
+          const characterRawBytes = Buffer.byteLength(character, 'utf8');
+          const characterEscapedBytes =
+            Buffer.byteLength(JSON.stringify(character), 'utf8') - 2;
+          if (
+            chunkCharacters.length > 0 &&
+            (chunkRawBytes + characterRawBytes > 24_000 ||
+              baseBytes + chunkEscapedBytes + characterEscapedBytes >
+                SUBSCRIBER_QUEUE_BYTES - SNAPSHOT_FRAME_BYTE_RESERVE)
+          ) {
+            chunks.push(chunkCharacters.join(''));
+            chunkCharacters = [];
+            chunkRawBytes = 0;
+            chunkEscapedBytes = 0;
+          }
+          chunkCharacters.push(character);
+          chunkRawBytes += characterRawBytes;
+          chunkEscapedBytes += characterEscapedBytes;
+          processed++;
+          if (processed % SNAPSHOT_YIELD_INTERVAL === 0)
+            await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        chunks.push(chunkCharacters.join(''));
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+          if (
+            !(await enqueue({
+              data: JSON.stringify(
+                ChatSnapshotFrameSchema.parse({
+                  ...frameBase,
+                  chunkIndex,
+                  text: chunks[chunkIndex]!,
+                  final: chunkIndex === chunks.length - 1,
+                }),
+              ),
+            }))
+          )
+            return;
+        }
       }
       for (let index = 0; index < operations.length; index++) {
         await enqueue({
@@ -259,58 +312,145 @@ export class StreamHub {
       });
     };
 
+    const terminalSnapshot = async (snapshot: ChatSnapshot): Promise<void> => {
+      const status = RunStreamEventSchema.parse({
+        version: 1,
+        runId: snapshot.runId,
+        type: 'status',
+        status: snapshot.status,
+      });
+      await enqueue({ data: JSON.stringify(status) });
+      if (snapshot.errorCode) {
+        const error = RunStreamEventSchema.parse({
+          version: 1,
+          runId: snapshot.runId,
+          type: 'error',
+          code: snapshot.errorCode,
+        });
+        await enqueue({ data: JSON.stringify(error) });
+      }
+      const finish = RunStreamEventSchema.parse({
+        version: 1,
+        runId: snapshot.runId,
+        type: 'finish',
+      });
+      await enqueue({ data: JSON.stringify(finish) });
+      terminalSnapshotSent = true;
+      await close();
+    };
+    const isTerminal = (snapshot: ChatSnapshot): boolean =>
+      snapshot.status === 'completed' ||
+      snapshot.status === 'failed' ||
+      snapshot.status === 'cancelled';
+    const emitSnapshotIfChanged = async (
+      snapshot: ChatSnapshot,
+      force: boolean,
+    ): Promise<void> => {
+      const signature = snapshotStateSignature(snapshot);
+      if (force || signature !== lastSnapshotSignature) {
+        await enqueueSnapshot(snapshot);
+        lastSnapshotSignature = signature;
+      }
+    };
+
     resynchronizer.run = async () => {
       if (closed) return;
-      let current: SnapshotFallback | undefined;
       try {
-        current = await fallback?.reload?.();
-      } catch {
-        await close('revoked');
-        return;
-      }
-      if (!current) {
-        await close('revoked');
-        return;
-      }
-      const currentGeneration = await this.reader.generation(key);
-      const currentHighWater = await this.reader.latest(key);
-      if (closed) return;
-      activeGeneration = currentGeneration;
-      recentIds.clear();
-      recentOrder.length = 0;
-      await enqueueSnapshot(current.snapshot);
-      const oldest = await this.reader.oldest(key);
-      const cursor = current.snapshot.eventId;
-      const compatible = Boolean(
-        cursor &&
-        currentGeneration !== undefined &&
-        current.snapshot.generation === currentGeneration &&
-        current.streamGeneration === currentGeneration &&
-        currentHighWater &&
-        oldest &&
-        compareIds(cursor, oldest) >= 0 &&
-        compareIds(cursor, currentHighWater) <= 0 &&
-        (await this.reader.contains(key, cursor)),
-      );
-      if (compatible) {
+        let current: SnapshotFallback | undefined;
+        try {
+          current = await currentFallback?.reload?.();
+        } catch {
+          await close('revoked');
+          return;
+        }
+        if (!current) {
+          await close('revoked');
+          return;
+        }
+        currentFallback = current;
+        if (isTerminal(current.snapshot)) {
+          await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+          forceSnapshot = false;
+          if (!terminalSnapshotSent) await terminalSnapshot(current.snapshot);
+          return;
+        }
+        const currentGeneration = await this.reader.generation(key);
+        const currentHighWater = await this.reader.latest(key);
+        if (closed) return;
+        activeGeneration = currentGeneration;
+        const cursor = current.snapshot.eventId;
+        const oldest = await this.reader.oldest(key);
+        const compatible = Boolean(
+          cursor &&
+          currentGeneration !== undefined &&
+          current.snapshot.generation === currentGeneration &&
+          current.streamGeneration === currentGeneration &&
+          currentHighWater &&
+          oldest &&
+          compareIds(cursor, oldest) >= 0 &&
+          compareIds(cursor, currentHighWater) <= 0 &&
+          (await this.reader.contains(key, cursor)),
+        );
+
+        if (!compatible) {
+          await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+          forceSnapshot = false;
+          snapshotOnly = true;
+          return;
+        }
+
         const rows = await this.reader.range(key, cursor!, currentHighWater!);
-        if (rows) for (const row of rows) await deliver(row, currentGeneration);
+        if (!rows) {
+          await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+          forceSnapshot = false;
+          snapshotOnly = true;
+          return;
+        }
+        if (rows.some(isResetEntry)) {
+          await emitSnapshotIfChanged(current.snapshot, true);
+          forceSnapshot = false;
+          snapshotOnly = true;
+          return;
+        }
+
+        await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+        forceSnapshot = false;
+        recentIds.clear();
+        recentOrder.length = 0;
+        for (const row of rows) await deliver(row, currentGeneration);
+        const highWater = currentHighWater!;
+        live.cursor = highWater;
+        this.reader.advance(live, highWater);
+        for (const entry of buffered
+          .splice(0)
+          .sort((a, b) => compareIds(a.id, b.id))) {
+          if (
+            entry.generation === activeGeneration &&
+            compareIds(entry.id, highWater) > 0
+          )
+            await deliver(entry, entry.generation);
+        }
+        bufferedBytes = 0;
+        lineagePending = false;
+        snapshotOnly = false;
+        if (resyncTimer.timer) {
+          clearInterval(resyncTimer.timer);
+          resyncTimer.timer = undefined;
+        }
+      } finally {
+        resyncing = false;
       }
-      const highWater = currentHighWater;
-      if (highWater) this.reader.advance(live, highWater);
-      for (const entry of buffered
-        .splice(0)
-        .sort((a, b) => compareIds(a.id, b.id))) {
-        if (
-          entry.generation === activeGeneration &&
-          (!highWater || compareIds(entry.id, highWater) > 0)
-        )
-          await deliver(entry, entry.generation);
-      }
-      bufferedBytes = 0;
-      lineagePending = false;
-      resyncing = false;
     };
+    function ensureResyncTimer(): void {
+      if (!fallback || resyncTimer.timer || closed) return;
+      resyncTimer.timer = setInterval(() => {
+        if (snapshotOnly && !resyncing && !closed) {
+          resyncing = true;
+          void resynchronizer.run();
+        }
+      }, SNAPSHOT_RESYNC_INTERVAL_MS);
+      resyncTimer.timer.unref();
+    }
 
     const waitForQueueDrain = async (): Promise<void> => {
       if (!queue.length && !writing) return;
@@ -341,7 +481,6 @@ export class StreamHub {
       const clientCursorValid = Boolean(
         parsed &&
         parsed.generation === valkeyGeneration &&
-        (!fallback || parsed.generation === fallback.streamGeneration) &&
         oldest &&
         compareIds(parsed.eventId, oldest) >= 0 &&
         compareIds(parsed.eventId, highWater) <= 0 &&
@@ -355,8 +494,19 @@ export class StreamHub {
             ? highWater
             : '0-0';
       const useSnapshot = Boolean(fallback && !clientCursorValid);
-      if (useSnapshot) await enqueueSnapshot(fallback!.snapshot);
-      else if (lastEventId && !initialCursor && !clientCursorValid)
+      if (useSnapshot) {
+        await enqueueSnapshot(fallback!.snapshot);
+        if (fallback)
+          lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
+      }
+      const snapshotOnlyRequired = Boolean(
+        fallback && !clientCursorValid && !snapshotCompatible,
+      );
+      if (fallback && useSnapshot && isTerminal(fallback.snapshot)) {
+        await terminalSnapshot(fallback.snapshot);
+      } else if (snapshotOnlyRequired) {
+        snapshotOnly = true;
+      } else if (lastEventId && !initialCursor && !clientCursorValid)
         await enqueue({
           data: JSON.stringify(
             ChatSnapshotFrameSchema.parse({
@@ -366,46 +516,76 @@ export class StreamHub {
             }),
           ),
         });
-      const rows = await this.reader.range(key, resumeFrom, highWater);
-      if (!rows) {
-        if (!useSnapshot && fallback) await enqueueSnapshot(fallback.snapshot);
-        else if (!useSnapshot)
-          await enqueue({
-            data: JSON.stringify(
-              ChatSnapshotFrameSchema.parse({
-                version: 1,
-                type: 'snapshot-reset',
-                reason: 'stream-unavailable',
-              }),
-            ),
-          });
-      } else {
-        for (const row of rows) await deliver(row, valkeyGeneration);
+      if (!snapshotOnly && !closed) {
+        const rows = await this.reader.range(key, resumeFrom, highWater);
+        if (!rows) {
+          if (!useSnapshot && fallback) {
+            await enqueueSnapshot(fallback.snapshot);
+            lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
+            snapshotOnly = true;
+          } else if (!useSnapshot)
+            await enqueue({
+              data: JSON.stringify(
+                ChatSnapshotFrameSchema.parse({
+                  version: 1,
+                  type: 'snapshot-reset',
+                  reason: 'stream-unavailable',
+                }),
+              ),
+            });
+        } else {
+          const resetIndex = rows.findIndex(isResetEntry);
+          const rowsBeforeReset =
+            resetIndex === -1 ? rows : rows.slice(0, resetIndex);
+          for (const row of rowsBeforeReset)
+            await deliver(row, valkeyGeneration);
+          if (resetIndex !== -1 && fallback) {
+            snapshotOnly = true;
+            forceSnapshot = true;
+          } else if (resetIndex !== -1) {
+            await deliver(rows[resetIndex]!, valkeyGeneration);
+          }
+        }
+        if (fallback && snapshotOnly) {
+          // Keep the shared reader cursor behind unknown events until PostgreSQL
+          // supplies a checkpoint cursor that proves the replay boundary.
+        } else if (!closed) {
+          live.cursor = highWater;
+          this.reader.advance(live, highWater);
+        }
       }
-      live.cursor = highWater;
-      if (highWater) this.reader.advance(live, highWater);
     } else if (fallback) {
       await enqueueSnapshot(fallback.snapshot);
+      lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
+      if (isTerminal(fallback.snapshot))
+        await terminalSnapshot(fallback.snapshot);
+      else snapshotOnly = true;
     }
     replaying = false;
     activeGeneration = valkeyGeneration ?? activeGeneration;
     if (
       lineagePending ||
+      (snapshotOnly && forceSnapshot) ||
       buffered.some(
         (entry) =>
           entry.generation !== undefined &&
           entry.generation !== activeGeneration,
       )
     ) {
-      resyncing = true;
-      await resynchronizer.run();
+      startResync(false);
     }
-    for (const entry of buffered.sort((a, b) => compareIds(a.id, b.id))) {
-      if (!highWater || compareIds(entry.id, highWater) > 0)
-        await deliver(entry, entry.generation ?? valkeyGeneration);
+    if (!snapshotOnly && !resyncing) {
+      for (const entry of buffered.sort((a, b) => compareIds(a.id, b.id))) {
+        if (!highWater || compareIds(entry.id, highWater) > 0)
+          await deliver(entry, entry.generation ?? valkeyGeneration);
+      }
+      buffered.length = 0;
+      bufferedBytes = 0;
     }
-    buffered.length = 0;
-    bufferedBytes = 0;
+    if (snapshotOnly && fallback) {
+      ensureResyncTimer();
+    }
+    if (closed || terminalSnapshotSent) return { close: async () => close() };
     await enqueue({ data: ': connected\n\n' });
     heartbeat.timer = setInterval(() => {
       void enqueue({ data: ': heartbeat\n\n' });
@@ -428,6 +608,41 @@ function compareIds(left: string, right: string): number {
   if (leftMs !== rightMs) return leftMs! < rightMs! ? -1 : 1;
   if (leftSeq !== rightSeq) return leftSeq! < rightSeq! ? -1 : 1;
   return 0;
+}
+
+function encodedFrameBytes(frame: SseFrame): number {
+  return Buffer.byteLength(
+    `${frame.id ? `id: ${frame.id}\n` : ''}data: ${frame.data}\n\n`,
+    'utf8',
+  );
+}
+
+function isResetEntry(entry: StreamEntry): boolean {
+  try {
+    const event: unknown = JSON.parse(entry.event);
+    return (
+      typeof event === 'object' &&
+      event !== null &&
+      'version' in event &&
+      event.version === 1 &&
+      'type' in event &&
+      event.type === 'reset'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function snapshotStateSignature(snapshot: ChatSnapshot): string {
+  return JSON.stringify({
+    attemptId: snapshot.attemptId,
+    revision: snapshot.revision,
+    status: snapshot.status,
+    errorCode: snapshot.errorCode,
+    reasoningDurationMs: snapshot.reasoningDurationMs,
+    parts: snapshot.parts,
+    operations: snapshot.operations,
+  });
 }
 
 function parseCursor(

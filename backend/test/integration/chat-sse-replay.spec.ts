@@ -351,22 +351,23 @@ test('an open subscriber resets and adopts a replacement Valkey lineage before l
   const generationKey = key.replace(/:events$/, ':generation');
   const frames: SseFrame[] = [];
   const runId = randomUUID();
-  const fallback = (streamGeneration: number) => ({
+  let replacementCursor: string | undefined;
+  const fallback = (streamGeneration: number, cursor?: string) => ({
     streamGeneration,
     snapshot: {
       runId,
       messageId: runId,
-      attemptId: null,
-      generation: null,
-      revision: 0,
-      eventId: null,
+      attemptId: cursor ? runId : null,
+      generation: cursor ? streamGeneration : null,
+      revision: cursor ? 1 : 0,
+      eventId: cursor ?? null,
       parts: [],
       operations: [],
       status: 'running' as const,
       errorCode: null,
       reasoningDurationMs: null,
     },
-    reload: async () => fallback(2),
+    reload: async () => fallback(2, replacementCursor),
   });
   const sink = {
     write(frame: SseFrame) {
@@ -381,7 +382,7 @@ test('an open subscriber resets and adopts a replacement Valkey lineage before l
   let subscription: { close(): Promise<void> } | undefined;
   try {
     await redis.set(generationKey, '1');
-    await redis.xadd(
+    const oldLineageId = await redis.xadd(
       key,
       '*',
       'event',
@@ -389,10 +390,11 @@ test('an open subscriber resets and adopts a replacement Valkey lineage before l
       'generation',
       '1',
     );
+    if (!oldLineageId) throw new Error('Valkey did not return an XADD cursor');
     subscription = await hub.subscribe(key, undefined, sink, fallback(1));
     await redis.del(key, generationKey);
     await redis.set(generationKey, '2');
-    await redis.xadd(
+    const replacementId = await redis.xadd(
       key,
       '*',
       'event',
@@ -400,10 +402,20 @@ test('an open subscriber resets and adopts a replacement Valkey lineage before l
       'generation',
       '2',
     );
+    if (!replacementId) throw new Error('Valkey did not return an XADD cursor');
     await waitFor(
       () =>
         frames.filter((frame) => frame.data.includes('"type":"snapshot-start"'))
           .length >= 2,
+    );
+    expect(frames.some((frame) => frame.id === `2:${replacementId}`)).toBe(
+      false,
+    );
+    replacementCursor = replacementId;
+    await waitFor(
+      () =>
+        frames.filter((frame) => frame.data.includes('"type":"snapshot-start"'))
+          .length >= 3,
     );
     const suffixId = await redis.xadd(
       key,
@@ -435,22 +447,25 @@ test('replacement between XREAD and lineage read never relabels old entries', as
   const generationKey = key.replace(/:events$/, ':generation');
   const frames: SseFrame[] = [];
   const runId = randomUUID();
-  const fallback = (streamGeneration: number) => ({
+  let replacementCursor: string | undefined;
+  const fallback = (streamGeneration: number, cursor?: string) => ({
     streamGeneration,
     snapshot: {
       runId,
       messageId: runId,
-      attemptId: null,
-      generation: null,
-      revision: 0,
-      eventId: null,
-      parts: [],
+      attemptId: cursor ? runId : null,
+      generation: cursor ? streamGeneration : null,
+      revision: cursor ? 1 : 0,
+      eventId: cursor ?? null,
+      parts: cursor
+        ? [{ type: 'text' as const, id: runId, text: 'new lineage canary' }]
+        : [],
       operations: [],
       status: 'running' as const,
       errorCode: null,
       reasoningDurationMs: null,
     },
-    reload: async () => fallback(2),
+    reload: async () => fallback(2, replacementCursor),
   });
   const sink = {
     write(frame: SseFrame) {
@@ -524,6 +539,17 @@ test('replacement between XREAD and lineage read never relabels old entries', as
       ),
     ).toBe(false);
     expect(frames.some((frame) => frame.id === `2:${replacedId}`)).toBe(false);
+    replacementCursor = replacedId;
+    await waitFor(
+      () =>
+        frames.filter((frame) => frame.data.includes('"type":"snapshot-start"'))
+          .length >= 3,
+    );
+    expect(
+      frames
+        .filter((frame) => frame.data.includes('"type":"snapshot-part"'))
+        .some((frame) => frame.data.includes('new lineage canary')),
+    ).toBe(true);
     const suffixId = await redis.xadd(
       key,
       '*',
@@ -554,7 +580,7 @@ test('large PG fallback snapshots are chunked into frames within the subscriber 
   let maximumFrameBytes = 0;
   const sink = {
     write(frame: SseFrame) {
-      const bytes = Buffer.byteLength(frame.data, 'utf8');
+      const bytes = serializedSseFrameBytes(frame);
       maximumFrameBytes = Math.max(maximumFrameBytes, bytes);
       frames.push(frame);
       return true;
@@ -566,27 +592,42 @@ test('large PG fallback snapshots are chunked into frames within the subscriber 
   };
   const answer = 'a'.repeat(262_144);
   const summary = 's'.repeat(16_384);
+  let eventLoopTicks = 0;
+  let expectedProbeTime = Date.now() + 10;
+  let maximumEventLoopLagMs = 0;
+  const eventLoopProbe = setInterval(() => {
+    const now = Date.now();
+    eventLoopTicks++;
+    maximumEventLoopLagMs = Math.max(
+      maximumEventLoopLagMs,
+      now - expectedProbeTime,
+    );
+    expectedProbeTime = now + 10;
+  }, 10);
   const runId = randomUUID();
-  const subscription = await hub.subscribe(key, undefined, sink, {
-    streamGeneration: 0,
-    snapshot: {
-      runId,
-      messageId: runId,
-      attemptId: null,
-      generation: null,
-      revision: 0,
-      eventId: null,
-      parts: [
-        { type: 'text', id: runId, text: answer },
-        { type: 'reasoning', id: runId, text: summary },
-      ],
-      operations: [],
-      status: 'running',
-      errorCode: null,
-      reasoningDurationMs: null,
-    },
-  });
+  let subscription: { close(): Promise<void> } | undefined;
   try {
+    subscription = await hub.subscribe(key, undefined, sink, {
+      streamGeneration: 0,
+      snapshot: {
+        runId,
+        messageId: runId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        parts: [
+          { type: 'text', id: runId, text: answer },
+          { type: 'reasoning', id: runId, text: summary },
+        ],
+        operations: [],
+        status: 'running',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+    });
+    expect(eventLoopTicks).toBeGreaterThan(0);
+    expect(maximumEventLoopLagMs).toBeLessThan(250);
     expect(maximumFrameBytes).toBeLessThan(65_536);
     const parts = frames
       .filter((frame) => frame.data.includes('"type":"snapshot-part"'))
@@ -617,8 +658,228 @@ test('large PG fallback snapshots are chunked into frames within the subscriber 
       frames.some((frame) => frame.data.includes('"type":"snapshot-end"')),
     ).toBe(true);
   } finally {
+    clearInterval(eventLoopProbe);
+    await subscription?.close();
+    await hub.close();
+  }
+});
+
+test('snapshot chunks stay within 64 KiB after JSON escaping control characters', async ({
+  services,
+}) => {
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const frames: SseFrame[] = [];
+  let closeReason: string | undefined;
+  const text = '\u0001'.repeat(20_000);
+  const runId = randomUUID();
+  const subscription = await hub.subscribe(
+    key,
+    undefined,
+    {
+      write(frame) {
+        frames.push(frame);
+        return true;
+      },
+      async drain() {
+        return true;
+      },
+      async close(reason) {
+        closeReason = reason;
+      },
+    },
+    {
+      streamGeneration: 0,
+      snapshot: {
+        runId,
+        messageId: runId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        parts: [{ type: 'text', id: runId, text }],
+        operations: [],
+        status: 'running',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+    },
+  );
+  try {
+    expect(closeReason).toBeUndefined();
+    expect(Math.max(...frames.map(serializedSseFrameBytes))).toBeLessThan(
+      65_536,
+    );
+    expect(
+      frames
+        .filter((frame) => frame.data.includes('"type":"snapshot-part"'))
+        .map((frame) => JSON.parse(frame.data) as { text: string })
+        .map((frame) => frame.text)
+        .join(''),
+    ).toBe(text);
+  } finally {
     await subscription.close();
     await hub.close();
+  }
+});
+
+test('nonresumable snapshots hold unknown entries until PG provides a compatible cursor', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const runId = randomUUID();
+  const attemptId = randomUUID();
+  const frames: SseFrame[] = [];
+  let snapshotText = 'old committed text';
+  let snapshotCursor: string | null = null;
+  let snapshotRevision = 0;
+  const makeSnapshot = () => ({
+    runId,
+    messageId: runId,
+    attemptId,
+    generation: snapshotCursor ? 1 : null,
+    revision: snapshotRevision,
+    eventId: snapshotCursor,
+    parts: [{ type: 'text' as const, id: runId, text: snapshotText }],
+    operations: [],
+    status: 'running' as const,
+    errorCode: null,
+    reasoningDurationMs: null,
+  });
+  const fallback = {
+    streamGeneration: 1,
+    snapshot: makeSnapshot(),
+    reload: async () => ({
+      streamGeneration: 1,
+      snapshot: makeSnapshot(),
+      reload: fallback.reload,
+    }),
+  };
+  let checkpointedId = '';
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    checkpointedId =
+      (await redis.xadd(
+        key,
+        '*',
+        'event',
+        JSON.stringify({ type: 'text-delta', delta: ' checkpointed' }),
+        'generation',
+        '1',
+      )) ?? '';
+    if (!checkpointedId)
+      throw new Error('Valkey did not return an XADD cursor');
+    subscription = await hub.subscribe(
+      key,
+      undefined,
+      {
+        write(frame) {
+          frames.push(frame);
+          return true;
+        },
+        async drain() {
+          return true;
+        },
+        async close() {},
+      },
+      fallback,
+    );
+    await waitFor(() =>
+      frames.some((frame) => frame.data.includes('"type":"snapshot-end"')),
+    );
+    expect(frames.some((frame) => frame.id === `1:${checkpointedId}`)).toBe(
+      false,
+    );
+    snapshotText = 'old committed text checkpointed';
+    snapshotCursor = checkpointedId;
+    snapshotRevision = 1;
+    await waitFor(
+      () =>
+        frames.filter((frame) => frame.data.includes('"type":"snapshot-start"'))
+          .length >= 2,
+    );
+    const latestSnapshotStart = frames.findLastIndex((frame) =>
+      frame.data.includes('"type":"snapshot-start"'),
+    );
+    const recoveredParts = frames
+      .slice(latestSnapshotStart + 1)
+      .filter((frame) => frame.data.includes('"type":"snapshot-part"'))
+      .map((frame) => JSON.parse(frame.data) as { text: string });
+    expect(recoveredParts.map((part) => part.text).join('')).toBe(
+      'old committed text checkpointed',
+    );
+    const suffixId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: ' suffix' }),
+      'generation',
+      '1',
+    );
+    if (!suffixId) throw new Error('Valkey did not return an XADD cursor');
+    await waitFor(() => frames.some((frame) => frame.id === `1:${suffixId}`));
+    expect(frames.filter((frame) => frame.id === `1:${suffixId}`)).toHaveLength(
+      1,
+    );
+    snapshotText = 'old committed text checkpointed';
+    snapshotCursor = null;
+    snapshotRevision = 1;
+    const resetId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ version: 1, runId, type: 'reset', sequence: 2 }),
+      'generation',
+      '1',
+    );
+    if (!resetId) throw new Error('Valkey did not return an XADD cursor');
+    await waitFor(
+      () =>
+        frames.filter((frame) => frame.data.includes('"type":"snapshot-start"'))
+          .length >= 3,
+    );
+    expect(frames.some((frame) => frame.id === `1:${resetId}`)).toBe(false);
+    snapshotCursor = resetId;
+    const postResetSuffixId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: ' suffix' }),
+      'generation',
+      '1',
+    );
+    if (!postResetSuffixId)
+      throw new Error('Valkey did not return an XADD cursor');
+    await waitFor(() =>
+      frames.some((frame) => frame.id === `1:${postResetSuffixId}`),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2200));
+    expect(
+      frames.filter((frame) => frame.id === `1:${postResetSuffixId}`),
+    ).toHaveLength(1);
+    const liveId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: ' still live' }),
+      'generation',
+      '1',
+    );
+    if (!liveId) throw new Error('Valkey did not return an XADD cursor');
+    await waitFor(() => frames.some((frame) => frame.id === `1:${liveId}`));
+    expect(frames.filter((frame) => frame.id === `1:${liveId}`)).toHaveLength(
+      1,
+    );
+  } finally {
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
   }
 });
 
@@ -747,6 +1008,66 @@ test('live overflow closes a slow subscriber before its queued frames exceed 64 
   }
 });
 
+test('replay buffering accounts for the UTF-8 SSE frame bytes before the replay boundary', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  let closeReason: string | undefined;
+  let releaseRange!: () => void;
+  let rangeEntered!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseRange = resolve;
+  });
+  const entered = new Promise<void>((resolve) => {
+    rangeEntered = resolve;
+  });
+  const originalRange = reader.range.bind(reader);
+  const rangeSpy = vi
+    .spyOn(reader, 'range')
+    .mockImplementation(async (...args) => {
+      rangeEntered();
+      await gate;
+      return originalRange(...args);
+    });
+  let opening: Promise<{ close(): Promise<void> }> | undefined;
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.xadd(key, '*', 'event', JSON.stringify({ type: 'seed' }));
+    opening = hub.subscribe(key, undefined, {
+      write() {
+        return true;
+      },
+      async drain() {
+        return true;
+      },
+      async close(reason) {
+        closeReason = reason;
+      },
+    });
+    await entered;
+    const delta = '😀'.repeat(9_000);
+    for (let index = 0; index < 2; index++)
+      await redis.xadd(
+        key,
+        '*',
+        'event',
+        JSON.stringify({ type: 'text-delta', delta }),
+      );
+    await waitFor(() => closeReason === 'slow-client');
+    expect(closeReason).toBe('slow-client');
+  } finally {
+    releaseRange();
+    rangeSpy.mockRestore();
+    subscription = await opening;
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
 async function waitFor(predicate: () => boolean): Promise<void> {
   const deadline = Date.now() + 3000;
   while (!predicate()) {
@@ -754,4 +1075,11 @@ async function waitFor(predicate: () => boolean): Promise<void> {
       throw new Error('Timed out waiting for SSE frame');
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
+}
+
+function serializedSseFrameBytes(frame: SseFrame): number {
+  return Buffer.byteLength(
+    `${frame.id ? `id: ${frame.id}\n` : ''}data: ${frame.data}\n\n`,
+    'utf8',
+  );
 }

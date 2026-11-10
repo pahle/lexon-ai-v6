@@ -172,6 +172,7 @@ async function setup(
     tools?: readonly ToolDefinition[];
     modelCallTimeoutMs?: number;
     tenant?: { orgId: string; userId: string };
+    resourceIds?: readonly string[];
     cancelSignals?: CancelSignals;
   } = {},
 ) {
@@ -240,6 +241,7 @@ async function setup(
       profileId: (options.profile ?? profile).id,
       prompt: 'Synthetic prompt',
       ...(options.effort ? { effort: options.effort } : {}),
+      ...(options.resourceIds ? { resourceIds: options.resourceIds } : {}),
     }),
   )) as { runId: string };
   return {
@@ -3193,12 +3195,18 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
     id: 'snapshot-approval-cap15',
     maxToolProposalsPerGeneration: 15,
   };
+  const liveFrames: SseFrame[] = [];
+  let liveSubscription: { close(): Promise<void> } | undefined;
   try {
+    const tenant = ai.tenants[0]!;
+    const chatId = randomUUID();
+    await chat.chat.createFor(tenant, chatId);
     const h = await setup(
       ai,
       [
         {
           events: [
+            { type: 'text', text: 'committed answer prefix' },
             ...Array.from({ length: 15 }, (_, index) => ({
               type: 'tool-proposal' as const,
               toolCallId: `snapshot-provider-call-${index + 1}`,
@@ -3213,11 +3221,59 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
           ],
         },
       ],
-      { tools: [tool], profile: runProfile, streams },
+      {
+        tools: [tool],
+        profile: runProfile,
+        streams,
+        tenant,
+        resourceIds: [chatId],
+      },
+    );
+    await chat.chat.associateFor(h.tenant, chatId, h.runId);
+    const initialSnapshot = await ai.withTenant(0, (tx) =>
+      h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
+    );
+    expect(initialSnapshot).not.toBeNull();
+    if (!initialSnapshot)
+      throw new Error('Authorized initial recovery snapshot unavailable');
+    const reloadFallback = async () => {
+      const refreshed = await ai.withTenant(0, (tx) =>
+        h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
+      );
+      return refreshed
+        ? {
+            snapshot: refreshed.snapshot,
+            streamGeneration: refreshed.streamGeneration,
+            reload: reloadFallback,
+          }
+        : undefined;
+    };
+    liveSubscription = await hub.subscribe(
+      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
+      undefined,
+      {
+        write(frame) {
+          liveFrames.push(frame);
+          return true;
+        },
+        async drain() {
+          return true;
+        },
+        async close() {},
+      },
+      {
+        snapshot: initialSnapshot.snapshot,
+        streamGeneration: initialSnapshot.streamGeneration,
+        reload: reloadFallback,
+      },
     );
     await h.executor.execute(job(h.runId, h.tenant, 1, 1, 'run.start.v1'), {
       signal: new AbortController().signal,
     });
+    const executedRun = await ai.withTenant(0, (tx) =>
+      h.runs.find(tx, h.runId),
+    );
+    expect(executedRun?.status).toBe('awaiting_approval');
     expect(committedEventAttempts).toBe(17);
     const redis = new Redis(services.valkey.streamsUrl);
     try {
@@ -3247,44 +3303,34 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
       persisted.every((operation) => operation.status === 'awaiting_approval'),
     ).toBe(true);
     expect(await ai.toolEffectCountForRun(0, h.runId)).toBe(0);
-
-    const chatId = randomUUID();
-    await chat.chat.createFor(h.tenant, chatId);
-    await chat.chat.associateFor(h.tenant, chatId, h.runId);
-    const authorized = await ai.withTenant(0, (tx) =>
-      h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
-    );
-    expect(authorized).not.toBeNull();
-    if (!authorized)
-      throw new Error('Authorized recovery snapshot unavailable');
-
-    const frames: SseFrame[] = [];
-    const subscription = await hub.subscribe(
-      `${services.queuePrefix}:{run-streams}:${h.runId}:events`,
-      undefined,
-      {
-        write(frame) {
-          frames.push(frame);
-          return true;
-        },
-        async drain() {
-          return true;
-        },
-        async close() {},
-      },
-      {
-        snapshot: authorized.snapshot,
-        streamGeneration: authorized.streamGeneration,
-      },
+    await waitForSse(() => {
+      const latestStart = liveFrames.findLast((frame) =>
+        frame.data.includes('"type":"snapshot-start"'),
+      );
+      if (!latestStart) return false;
+      return (
+        (JSON.parse(latestStart.data) as { operationCount: number })
+          .operationCount === 15
+      );
+    });
+    const latestSnapshotStart = liveFrames.findLastIndex((frame) =>
+      frame.data.includes('"type":"snapshot-start"'),
     );
     try {
-      const decoded = frames
+      const decoded = liveFrames
+        .slice(latestSnapshotStart)
         .filter((frame) => frame.data.startsWith('{'))
         .map((frame) => JSON.parse(frame.data) as Record<string, unknown>);
       const operationFrames = decoded.filter(
         (frame) => frame.type === 'snapshot-operation',
       );
       expect(operationFrames).toHaveLength(15);
+      expect(
+        decoded
+          .filter((frame) => frame.type === 'snapshot-part')
+          .map((frame) => frame.text)
+          .join(''),
+      ).toContain('committed answer prefix');
       expect(operationFrames.map((frame) => frame.index)).toEqual(
         Array.from({ length: 15 }, (_, index) => index),
       );
@@ -3303,9 +3349,11 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
       });
       expect(await ai.toolEffectCountForRun(0, h.runId)).toBe(0);
     } finally {
-      await subscription.close();
+      await liveSubscription.close();
+      liveSubscription = undefined;
     }
   } finally {
+    await liveSubscription?.close();
     evalSpy.mockRestore();
     await hub.close();
     await streams.close();
@@ -3313,6 +3361,15 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
     await ai.close();
   }
 });
+
+async function waitForSse(predicate: () => boolean): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (!predicate()) {
+    if (Date.now() >= deadline)
+      throw new Error('Timed out waiting for SSE snapshot recovery');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
 
 test('approved operation resumes from a fresh sequence and executes one transaction', async ({
   services,
