@@ -190,6 +190,13 @@
       "when": 1793404800026,
       "tag": "0026_chat_tree",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793404800027,
+      "tag": "0027_chat_owner_fence_fixes",
+      "breakpoints": true
     }
   ]
 }

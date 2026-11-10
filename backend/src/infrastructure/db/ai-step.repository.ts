@@ -69,6 +69,56 @@ function validLease(leaseMs: number): boolean {
 
 export class AiStepRepository {
   private readonly chatResources = new AiChatResourceRepository();
+  async deletedCancellationFacts(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<{ activeAttemptIds: string[] } | null> {
+    if (!validClaim(tx, claim)) return null;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ active_attempt_ids: string[] }>(
+      `SELECT active_attempt_ids FROM ops.ai_chat_deleted_cancel_facts($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return result.rows[0]
+      ? { activeAttemptIds: result.rows[0].active_attempt_ids }
+      : null;
+  }
+
+  async finalizeDeletedCancellation(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<{ changed: boolean; activeAttemptIds: string[] }> {
+    if (!validClaim(tx, claim)) return { changed: false, activeAttemptIds: [] };
+    const { client } = requireSession(tx);
+    const result = await client.query<{
+      changed: boolean;
+      active_attempt_ids: string[];
+    }>(
+      `SELECT changed,active_attempt_ids FROM ops.ai_chat_finalize_deleted_cancel($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return {
+      changed: result.rows[0]?.changed === true,
+      activeAttemptIds: result.rows[0]?.active_attempt_ids ?? [],
+    };
+  }
+
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,

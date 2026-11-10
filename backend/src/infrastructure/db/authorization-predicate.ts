@@ -44,6 +44,8 @@ export function buildAuthorizationPredicate(
 export function buildAuthorizationPredicate(
   ctx: TenantContext | OwnedChatAuthorizationScope,
 ): Readonly<{ orgId: string } | Omit<OwnedChatAuthorizationScope, 'scope'>> {
+  if (!ctx || typeof ctx !== 'object')
+    throw new Error('Invalid tenant context');
   if ('scope' in ctx) {
     const parsed = ownedChatScopeSchema.safeParse(ctx);
     if (!parsed.success)

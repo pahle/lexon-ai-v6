@@ -8,6 +8,7 @@ import { ChatMessageRepository } from '../chat-message.repository.js';
 import { requireSession } from '../tenant-session.js';
 import type { ModelEvent, ModelGateway } from '../../ai/index.js';
 import { createAiFixture } from './ai-fixture.js';
+import type { StepClaim } from '../ai-records.js';
 
 interface Services {
   readonly appUrl: string;
@@ -133,6 +134,200 @@ export async function createChatFixture(services: Services) {
       await client.end();
     }
   }
+  async function directRunOutputAs(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+    output: string,
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        'UPDATE app.ai_runs SET partial_output=$3 WHERE org_id=$1 AND id=$2 RETURNING id',
+        [ctx.orgId, runId, output],
+      );
+    });
+  }
+  async function directSetStepTextAs(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+    text: string,
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        'UPDATE app.ai_steps SET committed_text=$3 WHERE org_id=$1 AND run_id=$2',
+        [ctx.orgId, runId, text],
+      );
+    });
+  }
+  async function setRunResourcesAs(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+    resourceIds: readonly string[],
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        `UPDATE app.ai_runs
+         SET resolved_config=jsonb_set(resolved_config,'{resourceIds}',$3::jsonb)
+         WHERE org_id=$1 AND id=$2 RETURNING id`,
+        [ctx.orgId, runId, JSON.stringify(resourceIds)],
+      );
+    });
+  }
+  async function runWithoutTenant(runId: string) {
+    const client = appClient();
+    await client.connect();
+    try {
+      return await client.query(
+        'SELECT partial_output,final_output FROM app.ai_runs WHERE id=$1',
+        [runId],
+      );
+    } finally {
+      await client.end();
+    }
+  }
+  async function deletedCancellationFactsAs(
+    ctx: { orgId: string; userId: string },
+    input: {
+      orgId: string;
+      userId: string;
+      runId: string;
+      expectedVersion: number;
+      sequence: number;
+      stepId: string;
+      fence: number;
+    },
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        `SELECT * FROM ops.ai_chat_deleted_cancel_facts($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          input.orgId,
+          input.userId,
+          input.runId,
+          input.expectedVersion,
+          input.sequence,
+          input.stepId,
+          input.fence,
+        ],
+      );
+    });
+  }
+  async function deletedCancellationFactsWithoutTenant(input: {
+    orgId: string;
+    userId: string;
+    runId: string;
+    expectedVersion: number;
+    sequence: number;
+    stepId: string;
+    fence: number;
+  }) {
+    const client = appClient();
+    await client.connect();
+    try {
+      return await client.query(
+        `SELECT * FROM ops.ai_chat_deleted_cancel_facts($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          input.orgId,
+          input.userId,
+          input.runId,
+          input.expectedVersion,
+          input.sequence,
+          input.stepId,
+          input.fence,
+        ],
+      );
+    } finally {
+      await client.end();
+    }
+  }
+  async function directRelatedRunContent(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      const [stepsResult, checkpointsResult, operationsResult] =
+        await Promise.all([
+          client.query(
+            'SELECT committed_text FROM app.ai_steps WHERE org_id=$1 AND run_id=$2',
+            [ctx.orgId, runId],
+          ),
+          client.query(
+            'SELECT text FROM app.ai_checkpoints WHERE org_id=$1 AND run_id=$2',
+            [ctx.orgId, runId],
+          ),
+          client.query(
+            'SELECT args,result FROM app.ai_operations WHERE org_id=$1 AND run_id=$2',
+            [ctx.orgId, runId],
+          ),
+        ]);
+      return {
+        steps: stepsResult.rows,
+        checkpoints: checkpointsResult.rows,
+        operations: operationsResult.rows,
+      };
+    });
+  }
+  async function deleteAssociationAs(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        'DELETE FROM app.chat_runs WHERE org_id=$1 AND run_id=$2 RETURNING run_id',
+        [ctx.orgId, runId],
+      );
+    });
+  }
+  async function expireStepLeaseAs(
+    ctx: { orgId: string; userId: string },
+    runId: string,
+  ) {
+    return ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      return client.query(
+        `UPDATE app.ai_steps SET lease_until=clock_timestamp()-interval '1 second'
+         WHERE org_id=$1 AND run_id=$2 AND state='claimed'`,
+        [ctx.orgId, runId],
+      );
+    });
+  }
+  async function insertSyntheticAttemptFor(
+    ctx: { orgId: string; userId: string },
+    claim: StepClaim,
+  ) {
+    const attemptId = randomUUID();
+    await ai.database.withTenant(ctx, (tx) =>
+      attempts.insert(tx, claim, {
+        attemptId,
+        orgId: claim.orgId,
+        runId: claim.runId,
+        stepId: claim.stepId,
+        ordinal: 1,
+        modelId: 'synthetic/test',
+        estimatorVersion: 'test-v1',
+        estimatedInputTokens: 1,
+        reservedInputTokens: 1,
+        reservedOutputTokens: 4,
+        generationId: null,
+        provider: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+        cachedInputTokens: null,
+        reasoningOutputTokens: null,
+        costUsd: null,
+        active: true,
+        outcome: null,
+        createdAt: new Date(),
+        settledAt: null,
+      }),
+    );
+    return attemptId;
+  }
 
   return {
     database: ai.database,
@@ -257,6 +452,39 @@ export async function createChatFixture(services: Services) {
       },
       selectWithoutTenant,
       markerWithoutTenant,
+      directRunOutputAs,
+      directSetStepTextAs,
+      setRunResourcesAs,
+      async checkpointFor(
+        ctx: { orgId: string; userId: string },
+        claim: StepClaim,
+        attemptId: string,
+        text: string,
+      ) {
+        return ai.database.withTenant(ctx, (tx) =>
+          steps.checkpoint(tx, claim, { attemptId, text }),
+        );
+      },
+      insertSyntheticAttemptFor,
+      async deactivateAttemptFor(
+        ctx: { orgId: string; userId: string },
+        attemptId: string,
+      ) {
+        return ai.database.withTenant(ctx, async (tx) => {
+          const { client } = requireSession(tx);
+          return client.query(
+            `UPDATE app.ai_attempts SET active=false,outcome='failed',settled_at=clock_timestamp()
+             WHERE org_id=$1 AND id=$2`,
+            [ctx.orgId, attemptId],
+          );
+        });
+      },
+      runWithoutTenant,
+      deletedCancellationFactsAs,
+      deletedCancellationFactsWithoutTenant,
+      directRelatedRunContent,
+      deleteAssociationAs,
+      expireStepLeaseAs,
       delete(index: number, chatId: string) {
         return ai.withTenant(index, (tx) => chats.markDeleted(tx, chatId));
       },
@@ -378,6 +606,27 @@ export async function createChatFixture(services: Services) {
         );
         return result.rows[0];
       },
+      async lifecycleFunctionPrivileges() {
+        const result = await inspector.query(
+          `SELECT has_function_privilege('lexon_app','ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS app_can_execute,
+                  has_function_privilege('lexon_auth','ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS auth_can_execute,
+                  has_function_privilege('public','ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_execute,
+                  has_function_privilege('lexon_app','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS app_can_finalize,
+                  has_function_privilege('lexon_auth','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS auth_can_finalize,
+                  has_function_privilege('public','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_finalize`,
+        );
+        return result.rows[0];
+      },
+      async effectiveChatTablePrivileges() {
+        const result = await inspector.query(
+          `SELECT table_name,
+            has_table_privilege('lexon_app',format('app.%I',table_name),'DELETE') AS can_delete,
+            has_table_privilege('lexon_app',format('app.%I',table_name),'TRUNCATE') AS can_truncate
+           FROM (VALUES ('chats'),('chat_runs'),('chat_messages')) AS names(table_name)
+           ORDER BY table_name`,
+        );
+        return result.rows;
+      },
       async tree(chatId: string) {
         const result = await inspector.query(
           `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.run_id,r.partial_output,r.final_output
@@ -417,6 +666,16 @@ export async function createChatFixture(services: Services) {
           [runId],
         );
         return result.rows;
+      },
+      async usageFor(ctx: { orgId: string; userId: string }, runId: string) {
+        return ai.database.withTenant(ctx, async (tx) => {
+          const { client } = requireSession(tx);
+          const result = await client.query(
+            'SELECT * FROM app.usage_events WHERE org_id=$1 AND actor_user_id=$2 AND run_id=$3',
+            [ctx.orgId, ctx.userId, runId],
+          );
+          return result.rows;
+        });
       },
       async capacity(runId: string) {
         const result = await inspector.query(

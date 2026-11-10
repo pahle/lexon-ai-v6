@@ -875,9 +875,24 @@ export class StepExecutor {
         let dirtyBytes = 0;
         let checkpointOwner: Promise<void> | undefined;
         let checkpointError: unknown;
+        let deletionFenceObserved = false;
         const flushCheckpoint = async () => {
+          if (deletionFenceObserved) return;
           while (persistedRevision < checkpointRevision) {
-            heartbeat.throwIfAborted();
+            try {
+              heartbeat.throwIfAborted();
+            } catch (error) {
+              if (
+                await this.options.coordinator.isDeletedChatCancellation(
+                  job,
+                  claim,
+                )
+              ) {
+                deletionFenceObserved = true;
+                return;
+              }
+              throw error;
+            }
             if (checkpointOwner) {
               await checkpointOwner;
               continue;
@@ -894,7 +909,18 @@ export class StepExecutor {
                     text: snapshot,
                   }),
               );
-              if (!accepted) throw new Error('AI step claim lost');
+              if (!accepted) {
+                if (
+                  await this.options.coordinator.isDeletedChatCancellation(
+                    job,
+                    claim,
+                  )
+                ) {
+                  deletionFenceObserved = true;
+                  return;
+                }
+                throw new Error('AI step claim lost');
+              }
               persistedRevision = revision;
               dirtyBytes -= bytes;
               checkpointBytes -= bytes;
@@ -1129,6 +1155,38 @@ export class StepExecutor {
           usage: outcome?.usage ?? usage,
           costUsd: outcome?.costUsd ?? attemptCost,
         });
+        if (deletionFenceObserved) {
+          const attemptOutcome = outcome?.attemptOutcome;
+          const cancellationUsage = outcome?.usage ?? usage;
+          const cancellationCost = outcome?.costUsd ?? attemptCost;
+          const cancellation =
+            await this.options.coordinator.commitCancellation(job, claim, {
+              text: '',
+              ...(attemptOutcome === 'succeeded' || attemptOutcome === 'failed'
+                ? {
+                    settlement: {
+                      attemptId,
+                      outcome: attemptOutcome,
+                      ...(cancellationUsage
+                        ? { usage: cancellationUsage }
+                        : {}),
+                      ...(cancellationCost !== undefined
+                        ? { costUsd: cancellationCost }
+                        : {}),
+                    },
+                  }
+                : attemptReserved
+                  ? { attemptId }
+                  : {}),
+            });
+          if (cancellation === 'committed') {
+            await heartbeat.stop();
+            setStepSpanStatus('cancelled');
+            setRunSpanStatus('cancelled');
+            return { kind: 'done' };
+          }
+          throw new Error('AI step claim lost');
+        }
         if (cleanupFailed) throw cleanupError;
         finalOutcome = outcome;
         text = attemptText;

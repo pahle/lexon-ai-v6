@@ -11,7 +11,13 @@ import { currentVerifiedIdentity } from '../../src/modules/identity-access/ident
 import type { RunActor } from '../../src/modules/identity-access/index.js';
 import type { RunProfile } from '../../src/modules/chat/index.js';
 import { stepJobId } from '../../src/modules/chat/step-job-id.js';
-import type { RunStepJobEnvelope } from '../../src/infrastructure/db/index.js';
+import { CancelService } from '../../src/modules/chat/cancel.service.js';
+import { CancelSignals } from '../../src/infrastructure/queue/index.js';
+import {
+  AiRunRepository,
+  RunActorFactsRepository,
+  type RunStepJobEnvelope,
+} from '../../src/infrastructure/db/index.js';
 import { IdentitySummarySchema } from '@lexon/contracts';
 
 const model = 'openai/gpt-6-luna';
@@ -23,7 +29,7 @@ const profile: RunProfile = {
   queue: 'ai-interactive',
   priority: 1,
   maxIterations: 1,
-  tokenBudget: 128,
+  tokenBudget: 8192,
   maxOutputTokens: 32,
   contextBudgets: {},
   capabilities: [],
@@ -40,6 +46,12 @@ export async function createChatApiHarness(services: FileServices) {
     throw error;
   }
   const authorization = new RunAuthorizationService();
+  const signals = new CancelSignals({
+    url: services.valkey.queueUrl,
+    prefix: services.queuePrefix,
+    database: storage.database,
+    runs: new AiRunRepository(),
+  });
   const allowlist = ModelAllowlistSchema.parse(
     JSON.parse(
       readFileSync(
@@ -59,6 +71,17 @@ export async function createChatApiHarness(services: FileServices) {
     },
     { profiles: [profile], contexts: [], tools: [] },
     storage.model.gateway,
+    undefined,
+    { cancelSignals: signals },
+  );
+  const cancelService = new CancelService(
+    storage.database,
+    engine.runs,
+    engine.steps,
+    new RunActorFactsRepository(),
+    authorization,
+    undefined,
+    signals,
   );
 
   async function withActor<T>(
@@ -125,6 +148,19 @@ export async function createChatApiHarness(services: FileServices) {
         call: api.call,
       },
       chat: storage.chat,
+      directRunOutputAs: storage.chat.directRunOutputAs,
+      directSetStepTextAs: storage.chat.directSetStepTextAs,
+      setRunResourcesAs: storage.chat.setRunResourcesAs,
+      checkpointFor: storage.chat.checkpointFor,
+      insertSyntheticAttemptFor: storage.chat.insertSyntheticAttemptFor,
+      deactivateAttemptFor: storage.chat.deactivateAttemptFor,
+      runWithoutTenant: storage.chat.runWithoutTenant,
+      deletedCancellationFactsAs: storage.chat.deletedCancellationFactsAs,
+      deletedCancellationFactsWithoutTenant:
+        storage.chat.deletedCancellationFactsWithoutTenant,
+      directRelatedRunContent: storage.chat.directRelatedRunContent,
+      deleteAssociationAs: storage.chat.deleteAssociationAs,
+      expireStepLeaseAs: storage.chat.expireStepLeaseAs,
       async startAnswer(
         ctx: { orgId: string; userId: string },
         chatId: string,
@@ -137,6 +173,9 @@ export async function createChatApiHarness(services: FileServices) {
             resourceIds: [chatId],
           }),
         );
+      },
+      async cancelFor(ctx: { orgId: string; userId: string }, runId: string) {
+        return withActor(ctx, (actor) => cancelService.cancel(actor, runId));
       },
     },
     inspect: storage.inspect,
@@ -158,7 +197,12 @@ export async function createChatApiHarness(services: FileServices) {
       };
     },
     async close() {
-      await Promise.all([api.close(), engine.close(), storage!.close()]);
+      await Promise.all([
+        api.close(),
+        engine.close(),
+        storage!.close(),
+        signals.close(),
+      ]);
     },
   };
 }

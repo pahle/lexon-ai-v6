@@ -469,6 +469,55 @@ export class StepCoordinator {
       await this.database.withTenant(
         job.ctx,
         async (tx) => {
+          const deletedFacts = await this.steps.deletedCancellationFacts(
+            tx,
+            claim,
+          );
+          if (deletedFacts) {
+            const settledAttemptId =
+              input.settlement?.attemptId ?? input.attemptId;
+            const knownActive =
+              settledAttemptId !== undefined &&
+              deletedFacts.activeAttemptIds.includes(settledAttemptId);
+            if (input.settlement && knownActive)
+              await this.usage.settleDetached(tx, settledAttemptId!, {
+                outcome: input.settlement.outcome,
+                ...(input.settlement.usage?.inputTokens !== undefined
+                  ? { inputTokens: input.settlement.usage.inputTokens }
+                  : {}),
+                ...(input.settlement.usage?.outputTokens !== undefined
+                  ? { outputTokens: input.settlement.usage.outputTokens }
+                  : {}),
+                ...(input.settlement.usage?.cachedInputTokens !== undefined
+                  ? {
+                      cachedInputTokens:
+                        input.settlement.usage.cachedInputTokens,
+                    }
+                  : {}),
+                ...(input.settlement.usage?.reasoningOutputTokens !== undefined
+                  ? {
+                      reasoningOutputTokens:
+                        input.settlement.usage.reasoningOutputTokens,
+                    }
+                  : {}),
+                ...(input.settlement.costUsd !== undefined
+                  ? { costUsd: input.settlement.costUsd }
+                  : {}),
+              });
+            const finalized = await this.steps.finalizeDeletedCancellation(
+              tx,
+              claim,
+            );
+            if (!finalized.changed) throw new StaleCommit();
+            for (const attemptId of finalized.activeAttemptIds)
+              if (
+                !input.settlement ||
+                !knownActive ||
+                attemptId !== settledAttemptId
+              )
+                await this.usage.markUnknown(tx, attemptId);
+            return;
+          }
           await this.steps.lockTenantClaimGuard(tx);
           const run = await this.runs.lockForLifecycle(tx, claim.runId);
           const step = await this.steps.lockCurrent(tx, {
@@ -625,6 +674,27 @@ export class StepCoordinator {
       if (error instanceof StaleCommit) return 'stale';
       throw error;
     }
+  }
+
+  async isDeletedChatCancellation(
+    job: JobEnvelope,
+    claim: StepClaim,
+  ): Promise<boolean> {
+    if (
+      !isRunStepJob(job) ||
+      job.payload.runId !== claim.runId ||
+      job.payload.sequence !== claim.sequence ||
+      job.payload.expectedVersion !== claim.expectedVersion ||
+      job.ctx.orgId !== claim.orgId ||
+      job.ctx.userId !== claim.userId
+    )
+      return false;
+    return this.database.withTenant(
+      job.ctx,
+      async (tx) =>
+        (await this.steps.deletedCancellationFacts(tx, claim)) !== null,
+      { timeoutMs: CANCELLATION_TRANSACTION_TIMEOUT_MS },
+    );
   }
 
   async #recoverCancellation(job: JobEnvelope): Promise<ClaimResult> {

@@ -143,8 +143,17 @@ export class ChatMessageRepository {
        LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
        LEFT JOIN app.ai_runs r ON r.org_id=m.org_id AND r.id=m.run_id
        LEFT JOIN LATERAL (
-         SELECT checkpoint.text FROM app.ai_checkpoints checkpoint
-         WHERE checkpoint.org_id=r.org_id AND checkpoint.run_id=r.id
+         SELECT checkpoint.text FROM app.ai_steps current_step
+         JOIN app.ai_checkpoints checkpoint
+           ON checkpoint.org_id=current_step.org_id
+          AND checkpoint.run_id=current_step.run_id
+          AND checkpoint.step_id=current_step.id
+          AND checkpoint.fence=current_step.fence
+         JOIN app.ai_attempts attempt
+           ON attempt.org_id=checkpoint.org_id AND attempt.run_id=checkpoint.run_id
+          AND attempt.id=checkpoint.attempt_id AND attempt.active=true
+         WHERE current_step.org_id=r.org_id AND current_step.run_id=r.id
+           AND current_step.sequence=r.next_sequence AND current_step.state='claimed'
          ORDER BY checkpoint.created_at DESC,checkpoint.id DESC LIMIT 1
        ) cp ON true
        WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
