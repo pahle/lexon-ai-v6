@@ -5608,6 +5608,116 @@ test('retries a classified unknown network outcome as a new persisted attempt', 
   }
 });
 
+test('cancellation after a settled retry failure does not settle that attempt twice', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  let announceReset!: () => void;
+  let requestCancel!: () => void;
+  let calls = 0;
+  const resetPublished = new Promise<void>((resolve) => {
+    announceReset = resolve;
+  });
+  const gateway: ModelGateway = {
+    generate(input) {
+      calls++;
+      if (calls !== 1) throw new Error('unexpected second model call');
+      return createScriptedModelGateway([
+        {
+          events: [
+            {
+              type: 'outcome',
+              outcome: {
+                finishReason: 'error',
+                attemptOutcome: 'failed',
+                retryable: true,
+                usage: { inputTokens: 17, outputTokens: 3 },
+                safeCode: 'AI_PROVIDER_UNAVAILABLE',
+              },
+            },
+          ],
+        },
+      ]).generate(input);
+    },
+  };
+  const streams = {
+    recover: async () => undefined,
+    publish: async (_claim: unknown, event: { type: string }) => {
+      if (event.type === 'reset-step') announceReset();
+      return 'written' as const;
+    },
+    finish: vi.fn(async () => undefined),
+  } as unknown as RunStreams;
+  const cancelSignals = {
+    bind: () => () => undefined,
+    subscribe: async (_runId: string, onCancel: () => void) => {
+      requestCancel = onCancel;
+      return async () => undefined;
+    },
+  } as unknown as CancelSignals;
+  try {
+    const h = await setup(ai, [], { gateway, streams, cancelSignals });
+    const executing = h.executor.execute(
+      job(h.runId, h.tenant, 1, 1, 'run.start.v1'),
+      { signal: new AbortController().signal },
+    );
+    await resetPublished;
+
+    const beforeCancel = await ai.withTenant(0, (tx) =>
+      h.attempts.list(tx, h.runId),
+    );
+    expect(beforeCancel).toMatchObject([
+      { active: false, outcome: 'failed', reportedInputTokens: 17 },
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(calls).toBe(1);
+    const run = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
+    if (!run) throw new Error('Expected run before retry cancellation');
+    expect(
+      await ai.withTenant(0, (tx) =>
+        h.runs.transition(tx, {
+          runId: h.runId,
+          expectedVersion: run.runVersion,
+          from: run.status,
+          to: 'cancelling',
+        }),
+      ),
+    ).toBe(true);
+    requestCancel();
+    await expect(executing).resolves.toEqual({ kind: 'done' });
+
+    const attempts = await ai.withTenant(0, (tx) =>
+      h.attempts.list(tx, h.runId),
+    );
+    const ledgerRows = await ai.withTenantSession(0, async (_tx, client) =>
+      client.query<{
+        outcome: string;
+        reported_input_tokens: string;
+        reported_output_tokens: string;
+      }>(
+        `SELECT outcome,reported_input_tokens::text,reported_output_tokens::text
+         FROM app.usage_events WHERE run_id=$1`,
+        [h.runId],
+      ),
+    );
+    expect(calls).toBe(1);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]).toMatchObject({ active: false, outcome: 'failed' });
+    expect(ledgerRows.rows).toEqual([
+      {
+        outcome: 'failed',
+        reported_input_tokens: '17',
+        reported_output_tokens: '3',
+      },
+    ]);
+    expect(
+      await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId)),
+    ).toMatchObject({ status: 'cancelled' });
+  } finally {
+    await ai.close();
+  }
+});
+
 test('two retryable failures never start a third physical attempt', async ({
   services,
 }) => {

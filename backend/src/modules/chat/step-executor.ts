@@ -256,6 +256,7 @@ export class StepExecutor {
       const lateOutcome = input.outcome;
       if (
         lateSettledAttempts.has(input.attemptId) ||
+        !attemptReserved ||
         !heartbeat.signal.aborted ||
         (!cancelRequested && !claimLost) ||
         !lateOutcome ||
@@ -1149,6 +1150,7 @@ export class StepExecutor {
               }),
           );
           attemptReserved = false;
+          retainedKnownResult = undefined;
           await accountLateOutcome({
             attemptId,
             outcome: currentOutcome,
