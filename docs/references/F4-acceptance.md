@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–7 accepted after review;
-Tasks 8–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–8 accepted after review;
+Tasks 9–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -439,8 +439,79 @@ rollback. Fresh scoped re-review and main review accepted spec and quality.
   Task 8 must still force mid-batch publication unavailability and prove durable
   snapshot recovery. The 32-event bound and 250 ms deadline remain unchanged.
 
-New-head Linux CI is pending publication. Real effort distributions and estimator
-calibration remain the owner-run Task 17 gate.
+Published head `e823483` passed both Linux CI layers in
+[run 42800100237](https://github.com/pahle/lexon-ai-v6/actions/runs/42800100237).
+Real effort distributions and estimator calibration remain the owner-run Task 17
+gate.
+
+## Task 8 — authorized replay and bounded SSE fanout
+
+Source `e4b8f33`; review fixes `7b5a0db`, `69b4f54`, `cd7f172`, and
+`c038beb`. Main and fresh scoped reviews accepted spec compliance and quality
+after closing six initial Important findings and subsequent recovery/accounting
+regressions. Full initial diff coverage and each fix range were reviewed.
+
+The Backend API authorizes an owner-private, tenant-scoped, live chat before
+SSE headers, reader access or lease allocation. Request identity scope lasts
+until socket closure; current session, selection, membership, organization MFA
+and chat ownership are rechecked in short transactions. Disconnect does not
+cancel a run. Admission is atomic across processes: the seventh socket revokes
+the oldest of that user's six; owner tokens fence renewal/release. Shared
+readers use one blocking and one replay connection, with serialized per-client
+writes, actual UTF-8 frame accounting, a 64 KiB bound and a five-second drain.
+
+Migration 0031 adds PostgreSQL-backed stream incarnations and exact successful
+XADD checkpoint metadata. Allocation and snapshot generation are separate;
+replacement cannot reuse a process-local counter. Cursor/checkpoint prefixes
+carry attempt and revision, with nullable metadata before a real attempt.
+Generation-stamped entries and bounded capture protect replay/live and stream
+replacement races. Terminal expiry recovers from PostgreSQL without recreating
+closed Valkey streams or weakening terminal proof/idempotency.
+
+When a checkpoint cannot be paired with a retained stream cursor, recovery
+sends authoritative replacement snapshots at the existing one-second checkpoint
+cadence. It resumes incremental suffixes only after proving a compatible exact
+cursor. Same-generation resets force this recovery; a terminal snapshot carries
+text, measured reasoning, IDs-only operation states and finish before closure.
+This degraded-path latency trades immediacy for coherent output. It does not
+change the normal incremental path or F3's 32-event/250 ms publication bounds.
+Shared strict snapshot frames split escaped JSON safely; pending states never
+invent attempt IDs or generation values. Recovery traffic is bounded by
+outstanding bytes, not cumulative drained traffic.
+
+- The initial affected gate passed **138/138** before final import/callback
+  cleanup, followed by focused replay/API/executor checks. Fix round 1 passed
+  **143/143 across seven files** under Node 24.22.1. Later narrow fixes passed
+  the full **17-test replay suite** and **3 API/cache/shutdown/executor cases**,
+  plus backend typecheck, lint/boundary checks, formatting and diff checks.
+  Contracts tests/typecheck/lint passed when their schema changed.
+- Real Valkey barriers cover high-water response delay, replacement during
+  reads, reset during drain, arrivals during suffix drain and cumulative
+  traffic above 64 KiB with bounded outstanding backlog. Actual executor
+  publication failure recovers all 15 committed operation states to an
+  already-connected hub client without a tool effect. Checkpoint rollback and
+  unavailable-publication tests keep durable cursors truthful.
+- Actual HTTP tests cover no-allocation authentication/owner negatives,
+  revocation, selection/membership/MFA changes, Bearer independence, peer and
+  sequential reconnects, oldest-socket eviction and shutdown. A controlled
+  Compose fixture through Caddy proves valid-cursor suffix-only replay and a
+  later live frame before closure; fixture seeding is routing evidence,
+  separate from executor publication evidence.
+- Maximum snapshot measurement: 262,144 answer plus 16,384 summary characters,
+  **33.96 ms**, **1 ms** observed event-loop lag, maximum encoded frame
+  **24,159 bytes**. Earlier quadratic chunking measured 5,776 ms and was fixed.
+- Some cursor/schema/hub drafts preceded dedicated behavior tests; full
+  historical TDD is not claimed. Review fixes have retained failing/passing
+  regressions. Interrupted/expired command sessions and fixture failures are
+  excluded from passing gates. Shared test IP quotas caused signup 429s;
+  scoped test overrides retain account caps and production rules.
+- An earlier second-request Caddy closure remains unexplained. The stronger
+  valid-cursor/live Caddy proof and separate two-request API reconnect pass;
+  this does not establish the cause of the earlier observation. Initial host
+  Node 26 warnings are qualified; final affected gates used pinned Node 24.
+
+New-head Linux CI is pending publication. Client runtime/tree/replay compatibility
+remains the Task 10 proof; no product chat screen or real model call was added.
 
 ## Pending evidence
 
