@@ -392,6 +392,11 @@ export class StreamHub {
       if (closed) return;
       const observedEpoch = recoveryEpoch;
       const interrupted = (): boolean => recoveryEpoch !== observedEpoch;
+      // Capture the bounded live window before any recovery reads. Once a
+      // compatible PG cursor and high-water mark are proven, earlier entries
+      // can be discarded as included in XRANGE and only the suffix is drained.
+      replayBarrierHighWater = '0-0';
+      activeGeneration = undefined;
       try {
         let current: SnapshotFallback | undefined;
         try {
@@ -415,6 +420,7 @@ export class StreamHub {
         }
         const currentGeneration = await this.reader.generation(key);
         if (interrupted()) return;
+        activeGeneration = currentGeneration;
         const cursor = current.snapshot.eventId;
         const oldest = await this.reader.oldest(key);
         if (interrupted()) return;
@@ -425,7 +431,6 @@ export class StreamHub {
         const currentHighWater = await this.reader.latest(key);
         if (interrupted()) return;
         if (closed) return;
-        activeGeneration = currentGeneration;
         const compatible = Boolean(
           cursor &&
           currentGeneration !== undefined &&
@@ -439,6 +444,9 @@ export class StreamHub {
         );
 
         if (!compatible) {
+          buffered.length = 0;
+          bufferedBytes = 0;
+          replayBarrierHighWater = undefined;
           await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
           forceSnapshot = false;
           snapshotOnly = true;
@@ -451,6 +459,8 @@ export class StreamHub {
         const rows = await this.reader.range(key, cursor!, currentHighWater!);
         if (interrupted()) return;
         if (!rows) {
+          buffered.length = 0;
+          bufferedBytes = 0;
           replayBarrierHighWater = undefined;
           await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
           if (interrupted()) return;
@@ -459,6 +469,8 @@ export class StreamHub {
           return;
         }
         if (rows.some(isResetEntry)) {
+          buffered.length = 0;
+          bufferedBytes = 0;
           replayBarrierHighWater = undefined;
           await emitSnapshotIfChanged(current.snapshot, true);
           if (interrupted()) return;
@@ -479,16 +491,19 @@ export class StreamHub {
         const highWater = currentHighWater!;
         live.cursor = highWater;
         this.reader.advance(live, highWater);
-        for (const entry of buffered
-          .splice(0)
-          .sort((a, b) => compareIds(a.id, b.id))) {
-          if (interrupted()) return;
-          if (
-            entry.generation === activeGeneration &&
-            compareIds(entry.id, highWater) > 0
-          )
-            await deliver(entry, entry.generation);
-          if (interrupted()) return;
+        while (buffered.length) {
+          const suffix = buffered
+            .splice(0)
+            .sort((a, b) => compareIds(a.id, b.id));
+          for (const entry of suffix) {
+            if (interrupted()) return;
+            if (
+              entry.generation === activeGeneration &&
+              compareIds(entry.id, highWater) > 0
+            )
+              await deliver(entry, entry.generation);
+            if (interrupted()) return;
+          }
         }
         bufferedBytes = 0;
         replayBarrierHighWater = undefined;

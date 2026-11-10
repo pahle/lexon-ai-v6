@@ -1169,6 +1169,324 @@ test('snapshot-only subscribers survive unknown traffic until the PG terminal sn
   }
 });
 
+test('snapshot recovery captures an XREAD suffix while the actual high-water read is pending', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const runId = randomUUID();
+  const frames: SseFrame[] = [];
+  let snapshotCursor: string | null = null;
+  const attemptId = randomUUID();
+  const makeSnapshot = () => ({
+    runId,
+    messageId: runId,
+    attemptId: snapshotCursor ? attemptId : null,
+    generation: snapshotCursor ? 1 : null,
+    revision: snapshotCursor ? 1 : 0,
+    eventId: snapshotCursor,
+    parts: [{ type: 'text' as const, id: runId, text: 'authorized PG prefix' }],
+    operations: [],
+    status: 'running' as const,
+    errorCode: null,
+    reasoningDurationMs: null,
+  });
+  const fallback = {
+    streamGeneration: 1,
+    snapshot: makeSnapshot(),
+    reload: async () => ({
+      streamGeneration: 1,
+      snapshot: makeSnapshot(),
+      reload: fallback.reload,
+    }),
+  };
+  const originalLatest = reader.latest.bind(reader);
+  let holdLatest = false;
+  let capturedHighWater!: (id: string | undefined) => void;
+  const highWaterRead = new Promise<string | undefined>((resolve) => {
+    capturedHighWater = resolve;
+  });
+  let releaseLatest!: () => void;
+  const latestGate = new Promise<void>((resolve) => {
+    releaseLatest = resolve;
+  });
+  const latestSpy = vi
+    .spyOn(reader, 'latest')
+    .mockImplementation(async (streamKey) => {
+      const actualHighWater = await originalLatest(streamKey);
+      if (holdLatest) {
+        holdLatest = false;
+        capturedHighWater(actualHighWater);
+        await latestGate;
+      }
+      return actualHighWater;
+    });
+  let canaryReceived!: () => void;
+  const receivedCanary = new Promise<void>((resolve) => {
+    canaryReceived = resolve;
+  });
+  const originalAdd = reader.add.bind(reader);
+  const addSpy = vi.spyOn(reader, 'add').mockImplementation((subscription) => {
+    const originalReceive = subscription.receive;
+    Object.defineProperty(subscription, 'receive', {
+      configurable: true,
+      value: (entry: StreamEntry) => {
+        originalReceive(entry);
+        if (entry.event.includes('highwater-window canary')) canaryReceived();
+      },
+    });
+    originalAdd(subscription);
+  });
+  const advancedIds: string[] = [];
+  const originalAdvance = reader.advance.bind(reader);
+  const advanceSpy = vi
+    .spyOn(reader, 'advance')
+    .mockImplementation((sub, id) => {
+      advancedIds.push(id);
+      originalAdvance(sub, id);
+    });
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const highWaterId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'status', status: 'running' }),
+      'generation',
+      '1',
+    );
+    if (!highWaterId) throw new Error('Valkey did not return an XADD cursor');
+    subscription = await hub.subscribe(
+      key,
+      undefined,
+      {
+        write(frame) {
+          frames.push(frame);
+          return true;
+        },
+        async drain() {
+          return true;
+        },
+        async close() {},
+      },
+      fallback,
+    );
+
+    snapshotCursor = highWaterId;
+    holdLatest = true;
+    expect(await highWaterRead).toBe(highWaterId);
+    const suffixId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        type: 'text-delta',
+        delta: 'highwater-window canary',
+      }),
+      'generation',
+      '1',
+    );
+    if (!suffixId) throw new Error('Valkey did not return an XADD cursor');
+    await receivedCanary;
+    expect(advancedIds).not.toContain(suffixId);
+    // The reader has delivered this XADD after H. Simulate retention removing
+    // it before the hub finishes recovery; only the active bounded capture can
+    // preserve it now.
+    await redis.xdel(key, suffixId);
+    releaseLatest();
+
+    await waitFor(() => frames.some((frame) => frame.id === `1:${suffixId}`));
+    expect(frames.filter((frame) => frame.id === `1:${suffixId}`)).toHaveLength(
+      1,
+    );
+    expect(
+      frames.findIndex((frame) => frame.data.includes('"type":"snapshot-end"')),
+    ).toBeLessThan(frames.findIndex((frame) => frame.id === `1:${suffixId}`));
+    expect(
+      frames.find((frame) => frame.id === `1:${suffixId}`)?.data,
+    ).toContain('highwater-window canary');
+  } finally {
+    releaseLatest();
+    latestSpy.mockRestore();
+    addSpy.mockRestore();
+    advanceSpy.mockRestore();
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
+test('recovery drains entries that arrive while a buffered suffix write is awaiting drain', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const runId = randomUUID();
+  const frames: SseFrame[] = [];
+  let snapshotCursor: string | null = null;
+  const attemptId = randomUUID();
+  const makeSnapshot = () => ({
+    runId,
+    messageId: runId,
+    attemptId: snapshotCursor ? attemptId : null,
+    generation: snapshotCursor ? 1 : null,
+    revision: snapshotCursor ? 1 : 0,
+    eventId: snapshotCursor,
+    parts: [],
+    operations: [],
+    status: 'running' as const,
+    errorCode: null,
+    reasoningDurationMs: null,
+  });
+  const fallback = {
+    streamGeneration: 1,
+    snapshot: makeSnapshot(),
+    reload: async () => ({
+      streamGeneration: 1,
+      snapshot: makeSnapshot(),
+      reload: fallback.reload,
+    }),
+  };
+  let releaseRange!: () => void;
+  let rangeEntered!: () => void;
+  const rangeGate = new Promise<void>((resolve) => {
+    releaseRange = resolve;
+  });
+  const enteredRange = new Promise<void>((resolve) => {
+    rangeEntered = resolve;
+  });
+  const originalRange = reader.range.bind(reader);
+  let holdRange = false;
+  const rangeSpy = vi
+    .spyOn(reader, 'range')
+    .mockImplementation(async (...args) => {
+      const rows = await originalRange(...args);
+      if (holdRange) {
+        holdRange = false;
+        rangeEntered();
+        await rangeGate;
+      }
+      return rows;
+    });
+  let releaseDrain!: (drained: boolean) => void;
+  let suffixDrainStarted!: () => void;
+  const suffixDrain = new Promise<boolean>((resolve) => {
+    releaseDrain = resolve;
+  });
+  const drainStarted = new Promise<void>((resolve) => {
+    suffixDrainStarted = resolve;
+  });
+  const received = new Map<string, () => void>();
+  const receivedPromises = new Map<string, Promise<void>>();
+  for (const marker of ['drain-window first', 'drain-window second']) {
+    let resolve!: () => void;
+    receivedPromises.set(
+      marker,
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+    );
+    received.set(marker, resolve);
+  }
+  let firstSuffixId: string | undefined;
+  const originalAdd = reader.add.bind(reader);
+  const addSpy = vi.spyOn(reader, 'add').mockImplementation((subscription) => {
+    const originalReceive = subscription.receive;
+    Object.defineProperty(subscription, 'receive', {
+      configurable: true,
+      value: (entry: StreamEntry) => {
+        originalReceive(entry);
+        for (const [marker, notify] of received) {
+          if (entry.event.includes(marker)) notify();
+        }
+      },
+    });
+    originalAdd(subscription);
+  });
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const highWaterId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'status', status: 'running' }),
+      'generation',
+      '1',
+    );
+    if (!highWaterId) throw new Error('Valkey did not return an XADD cursor');
+    subscription = await hub.subscribe(
+      key,
+      undefined,
+      {
+        write(frame) {
+          frames.push(frame);
+          return !frame.data.includes('drain-window first');
+        },
+        async drain() {
+          suffixDrainStarted();
+          return suffixDrain;
+        },
+        async close() {},
+      },
+      fallback,
+    );
+
+    snapshotCursor = highWaterId;
+    holdRange = true;
+    const appendSuffix = async (marker: string): Promise<string> => {
+      const id = await redis.xadd(
+        key,
+        '*',
+        'event',
+        JSON.stringify({ type: 'text-delta', delta: marker }),
+        'generation',
+        '1',
+      );
+      if (!id) throw new Error('Valkey did not return an XADD cursor');
+      return id;
+    };
+    await enteredRange;
+    firstSuffixId = await appendSuffix('drain-window first');
+    await receivedPromises.get('drain-window first');
+    releaseRange();
+    await drainStarted;
+    const secondSuffixId = await appendSuffix('drain-window second');
+    await receivedPromises.get('drain-window second');
+    releaseDrain(true);
+
+    await waitFor(() =>
+      frames.some((frame) => frame.id === `1:${secondSuffixId}`),
+    );
+    expect(
+      frames.filter((frame) => frame.id === `1:${firstSuffixId}`),
+    ).toHaveLength(1);
+    expect(
+      frames.filter((frame) => frame.id === `1:${secondSuffixId}`),
+    ).toHaveLength(1);
+    expect(
+      frames.findIndex((frame) => frame.id === `1:${firstSuffixId}`),
+    ).toBeLessThan(
+      frames.findIndex((frame) => frame.id === `1:${secondSuffixId}`),
+    );
+  } finally {
+    releaseRange();
+    releaseDrain(true);
+    rangeSpy.mockRestore();
+    addSpy.mockRestore();
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
 test('reset snapshots emit every safe committed operation before snapshot-end', async ({
   services,
 }) => {
