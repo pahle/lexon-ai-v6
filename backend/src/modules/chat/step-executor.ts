@@ -193,6 +193,48 @@ export class StepExecutor {
     let checkpointBytes = 0;
     let attemptId = '';
     let attemptReserved = false;
+    let retainedKnownResult:
+      | {
+          attemptId: string;
+          outcome: 'succeeded' | 'failed';
+          usage?: Partial<ReportedUsage>;
+          costUsd?: string;
+        }
+      | undefined;
+    const retainOutcome = (
+      currentAttemptId: string,
+      outcome: ModelOutcome,
+      usage: Partial<ReportedUsage> | undefined,
+      costUsd: string | undefined,
+    ) => {
+      if (
+        outcome.attemptOutcome === 'succeeded' ||
+        outcome.attemptOutcome === 'failed'
+      ) {
+        const retainedUsage = outcome.usage ?? usage;
+        const retainedCost = outcome.costUsd ?? costUsd;
+        retainedKnownResult = {
+          attemptId: currentAttemptId,
+          outcome: outcome.attemptOutcome,
+          ...(retainedUsage ? { usage: retainedUsage } : {}),
+          ...(retainedCost !== undefined ? { costUsd: retainedCost } : {}),
+        };
+      } else retainedKnownResult = undefined;
+    };
+    const retainUsage = (
+      currentAttemptId: string,
+      usage: Partial<ReportedUsage>,
+      costUsd: string | undefined,
+    ) => {
+      if (retainedKnownResult?.attemptId !== currentAttemptId) return;
+      retainedKnownResult = {
+        ...retainedKnownResult,
+        ...(retainedKnownResult.usage ? {} : { usage }),
+        ...(retainedKnownResult.costUsd !== undefined || costUsd === undefined
+          ? {}
+          : { costUsd }),
+      };
+    };
     let lateCancellationSettlement:
       | {
           attemptId: string;
@@ -703,6 +745,8 @@ export class StepExecutor {
         checkpointBytes = 0;
         heartbeat.throwIfAborted();
         attemptId = randomUUID();
+        retainedKnownResult = undefined;
+        lateCancellationSettlement = undefined;
         const modelInput: ModelInput = {
           runId: claim.runId,
           stepId: claim.stepId,
@@ -923,8 +967,10 @@ export class StepExecutor {
                 if (event.type === 'usage') {
                   usage = event.usage;
                   attemptCost = event.costUsd;
+                  retainUsage(attemptId, usage, attemptCost);
                 } else if (event.type === 'outcome') {
                   outcome = event.outcome;
+                  retainOutcome(attemptId, outcome, usage, attemptCost);
                   break;
                 }
                 continue;
@@ -996,8 +1042,10 @@ export class StepExecutor {
               } else if (event.type === 'usage') {
                 usage = event.usage;
                 attemptCost = event.costUsd;
+                retainUsage(attemptId, usage, attemptCost);
               } else if (event.type === 'outcome') {
                 outcome = event.outcome;
+                retainOutcome(attemptId, outcome, usage, attemptCost);
               }
             }
             void actor;
@@ -1306,6 +1354,56 @@ export class StepExecutor {
       );
       return { kind: 'done' };
     } catch (error) {
+      const claimLost =
+        heartbeat.signal.reason instanceof Error &&
+        heartbeat.signal.reason.message === 'AI step claim lost';
+      const confirmedAbort =
+        heartbeat.signal.aborted &&
+        error === heartbeat.signal.reason &&
+        (cancelRequested || claimLost);
+      if (!confirmedAbort) {
+        if (cancelRequested) {
+          setStepSpanStatus('cancelled');
+          setRunSpanStatus('cancelled');
+        } else {
+          setStepSpanStatus('failed');
+          setRunSpanStatus('failed');
+        }
+        throw error;
+      }
+      const retained = retainedKnownResult;
+      if (retained && !lateSettledAttempts.has(retained.attemptId)) {
+        if (cancelRequested) {
+          lateCancellationSettlement = retained;
+        } else {
+          await this.options.database.withTenant(
+            { orgId: claim.orgId, userId: claim.userId },
+            (tx) =>
+              this.options.attempts.settleDetached(tx, retained.attemptId, {
+                outcome: retained.outcome,
+                ...(retained.usage?.inputTokens !== undefined
+                  ? { inputTokens: retained.usage.inputTokens }
+                  : {}),
+                ...(retained.usage?.outputTokens !== undefined
+                  ? { outputTokens: retained.usage.outputTokens }
+                  : {}),
+                ...(retained.usage?.cachedInputTokens !== undefined
+                  ? { cachedInputTokens: retained.usage.cachedInputTokens }
+                  : {}),
+                ...(retained.usage?.reasoningOutputTokens !== undefined
+                  ? {
+                      reasoningOutputTokens:
+                        retained.usage.reasoningOutputTokens,
+                    }
+                  : {}),
+                ...(retained.costUsd !== undefined
+                  ? { costUsd: retained.costUsd }
+                  : {}),
+              }),
+          );
+        }
+        lateSettledAttempts.add(retained.attemptId);
+      }
       if (!cancelRequested) {
         setStepSpanStatus('failed');
         setRunSpanStatus('failed');
@@ -1325,7 +1423,7 @@ export class StepExecutor {
               : {}),
         },
       );
-      const lateSettlement = lateCancellationSettlement;
+      const lateSettlement = retained;
       if (result === 'stale' && lateSettlement)
         await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
