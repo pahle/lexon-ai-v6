@@ -291,6 +291,190 @@ it('captures same-frame signal and answer timing before awaited observers', asyn
   expect(events.at(-1)).toMatchObject({ type: 'reasoning-end', durationMs: 0 });
 });
 
+it('projects the provider chunk and usage to approved fields before SDK parsing', async () => {
+  const extraCanary = 'usage-extra-reasoning-canary';
+  const malformedCanary = 'usage-malformed-canary';
+  const observer = createProviderSseObserver({
+    attemptId: input().attemptId!,
+    onEvent: () => undefined,
+  });
+  const projected = await observer.observe({
+    id: 'generation-safe-id',
+    model: 'openai/gpt-6-luna',
+    provider: 'azure/us',
+    private_top_level: extraCanary,
+    choices: [
+      {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          content: 'safe answer',
+          private_delta: extraCanary,
+          reasoning_details: [
+            { type: 'reasoning.summary', summary: 'safe summary' },
+            { type: 'reasoning.text', text: extraCanary },
+          ],
+        },
+        finish_reason: null,
+        private_choice: extraCanary,
+      },
+      {
+        index: 1,
+        delta: {
+          reasoning_details: [
+            { type: 'reasoning.summary', summary: extraCanary },
+          ],
+        },
+      },
+    ],
+    usage: {
+      prompt_tokens: 5,
+      completion_tokens: 3,
+      total_tokens: 8,
+      prompt_tokens_details: { cached_tokens: 1, private: extraCanary },
+      completion_tokens_details: {
+        reasoning_tokens: 2,
+        private: extraCanary,
+      },
+      cost: 0.002,
+      cost_details: {
+        upstream_inference_cost: 0.001,
+        private: extraCanary,
+      },
+      reasoning_details: extraCanary,
+    },
+  });
+  expect(JSON.stringify(projected)).not.toContain(extraCanary);
+  expect(projected).toMatchObject({
+    id: 'generation-safe-id',
+    model: 'openai/gpt-6-luna',
+    provider: 'azure/us',
+    choices: [
+      {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          content: 'safe answer',
+          reasoning_details: [
+            { type: 'reasoning.summary', summary: 'safe summary' },
+          ],
+        },
+        finish_reason: null,
+      },
+    ],
+    usage: {
+      prompt_tokens: 5,
+      completion_tokens: 3,
+      total_tokens: 8,
+      prompt_tokens_details: { cached_tokens: 1 },
+      completion_tokens_details: { reasoning_tokens: 2 },
+      cost: 0.002,
+      cost_details: { upstream_inference_cost: 0.001 },
+    },
+  });
+
+  const malformed = await observer.observe({
+    ...frame({}),
+    usage: {
+      prompt_tokens: 'not-a-number',
+      completion_tokens: 1,
+      total_tokens: 1,
+      private_reasoning: malformedCanary,
+    },
+  });
+  expect(JSON.stringify(malformed)).not.toContain(malformedCanary);
+  expect(malformed).toEqual({
+    error: { message: 'Provider stream frame was invalid' },
+  });
+});
+
+it('ignores reasoning that arrives after answer-first timing has closed', async () => {
+  let clock = 0;
+  const events: unknown[] = [];
+  const observer = createProviderSseObserver({
+    attemptId: input().attemptId!,
+    now: () => clock,
+    onEvent: (event) => {
+      events.push(event);
+    },
+  });
+  const answerFirst = await observer.observe(
+    frame({ content: 'answer first' }),
+  );
+  clock = 25;
+  const lateReasoning = await observer.observe(
+    frame({
+      reasoning_details: [
+        { type: 'reasoning.summary', summary: 'late summary must not stream' },
+      ],
+    }),
+  );
+  await observer.finish();
+  expect(answerFirst).toMatchObject({
+    choices: [{ delta: { content: 'answer first' } }],
+  });
+  expect(lateReasoning).toMatchObject({
+    choices: [{ delta: {} }],
+  });
+  expect(events).toEqual([]);
+});
+
+it('keeps valid usage accounting at the real SDK boundary while stripping usage canaries', async () => {
+  const canary = 'usage-raw-reasoning-private-canary';
+  const events = await collect(async () =>
+    response(frame({ content: 'answer with usage' }), {
+      ...frame({}),
+      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      usage: {
+        prompt_tokens: 7,
+        completion_tokens: 4,
+        total_tokens: 11,
+        cost: 0.003,
+        prompt_tokens_details: { cached_tokens: 2, private: canary },
+        completion_tokens_details: {
+          reasoning_tokens: 1,
+          private: canary,
+        },
+        private_reasoning: canary,
+      },
+    }),
+  );
+  expect(events.find((event) => event.type === 'usage')).toMatchObject({
+    type: 'usage',
+    costUsd: '0.003',
+    usage: {
+      inputTokens: 7,
+      outputTokens: 4,
+      cachedInputTokens: 2,
+      reasoningOutputTokens: 1,
+    },
+  });
+  expect(JSON.stringify(events)).not.toContain(canary);
+
+  const malformed = await collect(async () =>
+    response({
+      ...frame({}),
+      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 2,
+        total_tokens: 3,
+        private_reasoning: canary,
+        completion_tokens_details: { reasoning_tokens: malformedNumber() },
+      },
+    }),
+  );
+  expect(JSON.stringify(malformed)).not.toContain(canary);
+  expect(malformed.at(-1)).toMatchObject({
+    type: 'outcome',
+    outcome: { finishReason: 'error' },
+  });
+});
+
+function malformedNumber() {
+  return 'not-a-number';
+}
+
 it.each([
   {
     name: 'raw-only',

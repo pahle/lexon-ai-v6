@@ -678,8 +678,11 @@ export class AiStepRepository {
       return false;
     if (!(await this.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
-    const result = await client.query(
-      `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms)
+    const savepoint = 'ai_reasoning_checkpoint_pair';
+    await client.query(`SAVEPOINT ${savepoint}`);
+    try {
+      const result = await client.query(
+        `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms)
        SELECT s.org_id,s.run_id,s.id,a.id,s.fence,$7
          ,$9,$10
        FROM app.ai_steps s JOIN app.ai_attempts a ON a.org_id=s.org_id AND a.step_id=s.id
@@ -698,22 +701,25 @@ export class AiStepRepository {
              AND prior.active=false
          )
        RETURNING id`,
-      [
-        claim.orgId,
-        claim.runId,
-        claim.stepId,
-        claim.sequence,
-        claim.expectedVersion,
-        claim.fence,
-        input.text,
-        input.attemptId,
-        input.reasoningSummary ?? null,
-        input.reasoningDurationMs ?? null,
-      ],
-    );
-    if (result.rowCount !== 1) return false;
-    const persisted = await client.query(
-      `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,updated_at=clock_timestamp()
+        [
+          claim.orgId,
+          claim.runId,
+          claim.stepId,
+          claim.sequence,
+          claim.expectedVersion,
+          claim.fence,
+          input.text,
+          input.attemptId,
+          input.reasoningSummary ?? null,
+          input.reasoningDurationMs ?? null,
+        ],
+      );
+      if (result.rowCount !== 1) {
+        await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+        return false;
+      }
+      const persisted = await client.query(
+        `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,updated_at=clock_timestamp()
        WHERE r.org_id=$1 AND r.id=$2 AND EXISTS (
          SELECT 1 FROM app.ai_steps s JOIN app.ai_attempts a
            ON a.org_id=s.org_id AND a.step_id=s.id AND a.run_id=s.run_id
@@ -721,19 +727,30 @@ export class AiStepRepository {
            AND s.expected_version=$7 AND s.fence=$8 AND s.state='claimed'
            AND s.lease_until>clock_timestamp() AND a.id=$9 AND a.active=true
        )`,
-      [
-        claim.orgId,
-        claim.runId,
-        input.reasoningSummary ?? null,
-        input.reasoningDurationMs ?? null,
-        claim.stepId,
-        claim.sequence,
-        claim.expectedVersion,
-        claim.fence,
-        input.attemptId,
-      ],
-    );
-    return persisted.rowCount === 1;
+        [
+          claim.orgId,
+          claim.runId,
+          input.reasoningSummary ?? null,
+          input.reasoningDurationMs ?? null,
+          claim.stepId,
+          claim.sequence,
+          claim.expectedVersion,
+          claim.fence,
+          input.attemptId,
+        ],
+      );
+      if (persisted.rowCount !== 1) {
+        await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+        await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+        return false;
+      }
+      await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+      return true;
+    } catch (error) {
+      await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+      await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+      throw error;
+    }
   }
 
   async commitCancellation(

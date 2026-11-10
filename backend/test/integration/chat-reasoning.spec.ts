@@ -360,6 +360,100 @@ test('executor streams only typed summaries and reload matches measured timing',
   }
 });
 
+test('checkpoint writes roll back together if its lease expires between writes', async ({
+  services,
+}) => {
+  const fixture = await createChatFixture(services);
+  let removeLeaseTrigger: (() => Promise<void>) | undefined;
+  try {
+    const tenant = fixture.tenants[0]!;
+    const chat = await fixture.chat.create(0);
+    const parentId = randomUUID();
+    await fixture.chat.insertUser(0, {
+      chatId: chat.id,
+      messageId: parentId,
+      parentMessageId: null,
+      text: 'Synthetic question',
+      effort: 'high',
+    });
+    const run = await fixture.database.withTenant(tenant, (tx) =>
+      new AiRunRepository().insert(tx, {
+        id: randomUUID(),
+        orgId: tenant.orgId,
+        initiatingUserId: tenant.userId,
+        profileId: 'test-profile',
+        profileVersion: 1,
+        resolvedConfig: { resourceIds: [] },
+        modelId: 'synthetic/test',
+        inputText: 'Synthetic question',
+        inputBudgetTokens: 100,
+        outputBudgetTokens: 100,
+      }),
+    );
+    await fixture.chat.linkAnswer(0, chat.id, run.id);
+    await fixture.chat.insertAssistant(0, {
+      chatId: chat.id,
+      messageId: run.id,
+      parentMessageId: parentId,
+      runId: run.id,
+    });
+    removeLeaseTrigger = await fixture.expireCheckpointLeaseAfterInsert(run.id);
+    await fixture.database.withTenant(tenant, async (tx) => {
+      const result = await new AiStepRepository().claim(tx, {
+        runId: run.id,
+        sequence: 1,
+        expectedVersion: 1,
+        leaseMs: 30_000,
+      });
+      if (!result?.claim)
+        throw new Error('Reasoning fixture claim unavailable');
+      const attemptId = randomUUID();
+      await new AiAttemptRepository().insert(tx, result.claim, {
+        attemptId,
+        orgId: tenant.orgId,
+        runId: run.id,
+        stepId: result.claim.stepId,
+        ordinal: 1,
+        modelId: 'synthetic/test',
+        estimatorVersion: 'test-v1',
+        estimatedInputTokens: 1,
+        reservedInputTokens: 1,
+        reservedOutputTokens: 4,
+        generationId: null,
+        provider: null,
+        reportedInputTokens: null,
+        reportedOutputTokens: null,
+        cachedInputTokens: null,
+        reasoningOutputTokens: null,
+        costUsd: null,
+        active: true,
+        outcome: null,
+        createdAt: new Date(),
+        settledAt: null,
+      });
+      const saved = await new AiStepRepository().checkpoint(tx, result.claim, {
+        attemptId,
+        text: 'Synthetic partial answer',
+        reasoningSummary: 'must roll back with answer',
+        reasoningDurationMs: 2500,
+      });
+      expect(saved).toBe(false);
+    });
+    const persisted = await fixture.inspect.reasoningCheckpoints(0, run.id);
+    expect(persisted).toEqual([]);
+    const reloadedRun = await fixture.database.withTenant(tenant, (tx) =>
+      new AiRunRepository().find(tx, run.id),
+    );
+    expect(reloadedRun).toMatchObject({
+      reasoningSummary: null,
+      reasoningDurationMs: null,
+    });
+  } finally {
+    await removeLeaseTrigger?.();
+    await fixture.close();
+  }
+});
+
 test('chat reload preserves measured reasoning timing without a summary body', async ({
   services,
 }) => {
@@ -429,21 +523,15 @@ test('chat reload preserves measured reasoning timing without a summary body', a
         createdAt: new Date(),
         settledAt: null,
       });
-      const checkpointInput = {
+      const saved = await new AiStepRepository().checkpoint(tx, result.claim, {
         attemptId,
         text: 'Synthetic partial answer',
         reasoningSummary: null,
         reasoningDurationMs: 2500,
-      } as Parameters<AiStepRepository['checkpoint']>[2];
-      const saved = await new AiStepRepository().checkpoint(
-        tx,
-        result.claim,
-        checkpointInput,
-      );
+      });
       expect(saved).toBe(true);
     });
-    const persisted = await fixture.inspect.reasoningCheckpoints(0, run.id);
-    expect(persisted).toEqual([
+    expect(await fixture.inspect.reasoningCheckpoints(0, run.id)).toEqual([
       {
         text: 'Synthetic partial answer',
         reasoning_duration_ms: 2500,
@@ -459,8 +547,10 @@ test('chat reload preserves measured reasoning timing without a summary body', a
       reasoningDurationMs: 2500,
     });
     expect(await fixture.chat.delete(0, chat.id)).toBe(true);
-    const fencedWrites = await fixture.chat.directReasoningWrites(0, run.id);
-    expect(fencedWrites).toEqual({ run: 0, checkpoint: 0 });
+    expect(await fixture.chat.directReasoningWrites(0, run.id)).toEqual({
+      run: 0,
+      checkpoint: 0,
+    });
   } finally {
     await fixture.close();
   }

@@ -362,6 +362,34 @@ export async function createChatFixture(services: Services) {
     capacity: ai.capacity,
     capacityConfig: ai.capacityConfig,
     tenants: ai.tenants as readonly { orgId: string; userId: string }[],
+    async expireCheckpointLeaseAfterInsert(runId: string) {
+      const triggerToken = randomUUID().replaceAll('-', '');
+      const triggerName = `task7_expire_${triggerToken}`;
+      const functionName = `${triggerName}_fn`;
+      if (!/^[0-9a-f-]{36}$/i.test(runId))
+        throw new Error('Invalid test run id');
+      await inspector.query(
+        `CREATE FUNCTION app.${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN
+           IF NEW.run_id = '${runId}'::uuid THEN
+             UPDATE app.ai_steps SET lease_until=clock_timestamp()-interval '1 second'
+             WHERE id=NEW.step_id;
+           END IF;
+           RETURN NEW;
+         END
+         $$`,
+      );
+      await inspector.query(
+        `CREATE TRIGGER ${triggerName} AFTER INSERT ON app.ai_checkpoints
+         FOR EACH ROW EXECUTE FUNCTION app.${functionName}()`,
+      );
+      return async () => {
+        await inspector.query(
+          `DROP TRIGGER IF EXISTS ${triggerName} ON app.ai_checkpoints`,
+        );
+        await inspector.query(`DROP FUNCTION IF EXISTS app.${functionName}()`);
+      };
+    },
     chat: {
       create(index: number, chatId = randomUUID()) {
         return ai.withTenant(index, (tx) => chats.insert(tx, chatId));
