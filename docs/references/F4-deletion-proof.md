@@ -64,3 +64,7 @@ Official documentation and installed package metadata/changelogs were checked on
 - Phase tests establish stateless, durable restart convergence with fresh worker objects and an injected post-Valkey completion-audit failure; they do not simulate killing a separate worker process at every instruction boundary.
 - New title-run coverage models `kind='title'` association and null outcome in the fixture; the actual title producer is a later F4 task.
 - The default-grace request-to-completion measurement runs the actual outbox, queue, and cleanup path with the production 30,000 ms grace and finishes in approximately 30.45 seconds, below the 60,000 ms target. The injected Valkey-outage retry/recovery case remains a separate test with a 25 ms grace override.
+
+## Task 12 producer coverage update (2026-11-12)
+
+The earlier qualification above that “the actual title producer is a later F4 task” was correct as of Task 11 and is now superseded by [F4 Task 12 title evidence](F4-title-proof.md). The real title producer is now tested for delayed `run.start` delivery after delete and for a title generation held across DELETE then released as a late finish. The latter confirms the deleted chat retains its excerpt and the title run does not complete. Task 11 remains the evidence for the broader cleanup path, exact capacity release and late usage settlement; the new Task 12 test does not claim to duplicate those cleanup or accounting assertions.

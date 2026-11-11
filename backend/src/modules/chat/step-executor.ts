@@ -44,6 +44,7 @@ import {
   MAX_TOOL_PROPOSALS_PER_GENERATION,
 } from './run-contracts.js';
 import { StepCoordinator } from './step-coordinator.js';
+import type { ChatTitleService } from './chat-title.service.js';
 import { renderContexts } from './untrusted-context.js';
 import { fitModelContext } from './model-input.js';
 import { canonicalOperationHash } from './canonical-operation.js';
@@ -72,6 +73,7 @@ export interface StepExecutorOptions {
   readonly streams?: RunStreams;
   readonly cancelSignals?: CancelSignals;
   readonly modelCallTimeoutMs?: number;
+  readonly chatTitles?: ChatTitleService;
 }
 
 export class StepExecutor {
@@ -1539,6 +1541,16 @@ export class StepExecutor {
         terminal,
         outcome:
           finalOutcome.attemptOutcome === 'succeeded' ? 'succeeded' : 'failed',
+        ...(this.options.chatTitles
+          ? {
+              onCompleted: (tx: TenantSession, completedRun: RunRecord) =>
+                completedRun.profileId === 'chat-title'
+                  ? this.options
+                      .chatTitles!.applyWithin(tx, completedRun.id)
+                      .then(() => undefined)
+                  : this.options.chatTitles!.scheduleWithin(tx, completedRun),
+            }
+          : {}),
         ...(invalidProposals
           ? { errorCode: 'AI_INVALID_TOOL' as const }
           : initial.profile.reasoning &&
@@ -1763,6 +1775,12 @@ export class StepExecutor {
         const run = await this.options.runs.find(tx, claim.runId);
         if (!run || !(await this.options.steps.lockClaim(tx, claim)))
           return null;
+        if (
+          run.profileId === 'chat-title' &&
+          (!this.options.chatTitles ||
+            !(await this.options.chatTitles.isCurrentRun(tx, run.id)))
+        )
+          throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
         const snapshot = record(run.resolvedConfig);
         const profile = record(
           snapshot.profileSnapshot,

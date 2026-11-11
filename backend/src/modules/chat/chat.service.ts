@@ -20,6 +20,7 @@ import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
+import { titleExcerpt } from './chat-title.service.js';
 
 export class ChatService {
   private readonly chats = new ChatRepository();
@@ -69,7 +70,7 @@ export class ChatService {
         if (await this.chats.lockLive(tx, input.chatId))
           throw new ChatApiError('CHAT_CONFLICT');
         try {
-          await this.chats.insert(tx, input.chatId);
+          await this.chats.insert(tx, input.chatId, titleExcerpt(input.text));
           await this.messages.insertUser(tx, {
             chatId: input.chatId,
             messageId: input.userMessageId,
@@ -286,6 +287,18 @@ export class ChatService {
       (tx) => this.chats.hasLiveAnswerRun(tx, runId),
     );
     if (!authorized) throw new ChatApiError('CHAT_NOT_FOUND');
+  }
+
+  async rename(actor: RunActor, chatId: string, title: string): Promise<void> {
+    this.authorization.assertLiveActor(actor);
+    const normalized = title.trim();
+    if (!normalized || Array.from(normalized).length > 120)
+      throw new ChatApiError('CHAT_CONFLICT');
+    const renamed = await this.database.withTenant(
+      { orgId: actor.orgId, userId: actor.userId },
+      (tx) => this.chats.rename(tx, chatId, normalized),
+    );
+    if (!renamed) throw new ChatApiError('CHAT_NOT_FOUND');
   }
 }
 

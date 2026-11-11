@@ -34,3 +34,4 @@ export { PublicRoute, AccountRoute, PlatformRoute } from './route-access.js';
 export { currentTenantContext } from './request-identity.js';
 export type { TenantRequestContext } from './request-identity.js';
 export type { RunActor } from './run-actor.js';
+export { createWorkerRunActorScope } from './run-actor.js';

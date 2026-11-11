@@ -145,7 +145,8 @@ export async function createChatFixture(services: Services) {
 
   const inspectChat = async (chatId: string) => {
     const result = await inspector.query(
-      `SELECT id,org_id,owner_user_id,deleted_at,viewed_leaf_id,active_answer_run_id
+      `SELECT id,org_id,owner_user_id,deleted_at,viewed_leaf_id,active_answer_run_id,
+              title,title_source,title_version
        FROM app.chats WHERE id=$1`,
       [chatId],
     );
@@ -435,11 +436,17 @@ export async function createChatFixture(services: Services) {
       };
     },
     chat: {
-      create(index: number, chatId = randomUUID()) {
-        return ai.withTenant(index, (tx) => chats.insert(tx, chatId));
+      create(index: number, chatId = randomUUID(), excerpt = '') {
+        return ai.withTenant(index, (tx) => chats.insert(tx, chatId, excerpt));
       },
-      createFor(ctx: { orgId: string; userId: string }, chatId = randomUUID()) {
-        return ai.database.withTenant(ctx, (tx) => chats.insert(tx, chatId));
+      createFor(
+        ctx: { orgId: string; userId: string },
+        chatId = randomUUID(),
+        excerpt = '',
+      ) {
+        return ai.database.withTenant(ctx, (tx) =>
+          chats.insert(tx, chatId, excerpt),
+        );
       },
       tree(index: number, chatId: string) {
         return ai.withTenant(index, (tx) => messages.tree(tx, chatId));
@@ -810,6 +817,9 @@ export async function createChatFixture(services: Services) {
           [runId],
         );
         return result.rows[0]?.status ?? null;
+      },
+      async query(text: string, values: readonly unknown[] = []) {
+        return inspector.query(text, [...values]);
       },
       async requestDeletionStatusInsideTransaction(
         ctx: { orgId: string; userId: string },

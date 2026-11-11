@@ -20,6 +20,7 @@ import { StepExecutor } from '../modules/chat/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { ChatTitleService } from '../modules/chat/chat-title.service.js';
 import { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export function runtimeProviders(
   config: RuntimeConfig,
@@ -88,7 +89,13 @@ export function runtimeProviders(
       : config.runtime === 'document-worker'
         ? [StoragePort]
         : config.runtime === 'ai-worker'
-          ? [QueueConsumer, StepExecutor, RunStreams, CancelSignals]
+          ? [
+              QueueConsumer,
+              StepExecutor,
+              RunStreams,
+              CancelSignals,
+              ChatTitleService,
+            ]
           : [QueueProducer, OutboxDispatcher];
   if (capacity) tokens.push(AiCapacityRepository);
   if (config.runtime === 'ai-worker') tokens.push(ChatCleanupWorker);
@@ -110,6 +117,7 @@ export function runtimeProviders(
         | CancelSignals
         | StreamHub
         | ChatCleanupWorker
+        | ChatTitleService
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -138,6 +146,9 @@ export function runtimeProviders(
         dependencies.find((x): x is StreamHub => x instanceof StreamHub),
         dependencies.find(
           (x): x is ChatCleanupWorker => x instanceof ChatCleanupWorker,
+        ),
+        dependencies.find(
+          (x): x is ChatTitleService => x instanceof ChatTitleService,
         ),
       ),
   });

@@ -21,6 +21,7 @@ export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { AiRunRepository } from './ai-run.repository.js';
 export { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 export { ChatRepository } from './chat.repository.js';
+export { chatTitleJobId } from './chat-title-job-id.js';
 export { ChatDeletionRepository } from './chat-deletion.repository.js';
 export { chatCleanupJobId } from './chat-cleanup-job-id.js';
 export type { ChatCleanupPhase } from './chat-cleanup-job-id.js';

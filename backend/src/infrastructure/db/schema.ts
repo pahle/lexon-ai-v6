@@ -379,6 +379,8 @@ export const chatRuns = app.table(
     chatId: uuid('chat_id').notNull(),
     runId: uuid('run_id').notNull(),
     kind: text().notNull(),
+    titleVersion: integer('title_version'),
+    sourceAnswerRunId: uuid('source_answer_run_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -396,6 +398,11 @@ export const chatRuns = app.table(
     foreignKey({
       name: 'chat_runs_run_fk',
       columns: [table.orgId, table.runId],
+      foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_runs_source_answer_fk',
+      columns: [table.orgId, table.sourceAnswerRunId],
       foreignColumns: [aiRuns.orgId, aiRuns.id],
     }).onDelete('cascade'),
   ],

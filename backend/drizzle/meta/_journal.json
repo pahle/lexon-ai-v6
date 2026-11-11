@@ -239,6 +239,13 @@
       "when": 1793404800033,
       "tag": "0033_chat_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793404800034,
+      "tag": "0034_chat_title_association",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ import { RunService } from '../../src/modules/chat/run.service.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
 import { StepExecutor } from '../../src/modules/chat/step-executor.js';
+import { ChatTitleService } from '../../src/modules/chat/chat-title.service.js';
 import type { CancelSignals } from '../../src/infrastructure/queue/index.js';
 import type { RunStreams } from '../../src/infrastructure/queue/index.js';
 import type { JobEnvelope } from '../../src/infrastructure/db/index.js';
@@ -69,7 +70,11 @@ export async function createAiHarness(
   instrumentation?: {
     onStepClaim(outboxId: string, at: number): void;
   },
-  options: { cancelSignals?: CancelSignals; streams?: RunStreams } = {},
+  options: {
+    cancelSignals?: CancelSignals;
+    streams?: RunStreams;
+    chatTitleServiceFactory?: (runs: RunService) => ChatTitleService;
+  } = {},
 ) {
   await services.capacity.configure(services.capacityConfig);
   const registry = new RunRegistry();
@@ -98,6 +103,7 @@ export async function createAiHarness(
     services.capacityConfig,
     services.allowlist as never,
   );
+  const chatTitles = options.chatTitleServiceFactory?.(runService);
   const stepExecutor = new StepExecutor({
     database: services.database,
     runs,
@@ -108,11 +114,13 @@ export async function createAiHarness(
     attempts: new AttemptService(),
     registry,
     gateway,
+    ...(chatTitles ? { chatTitles } : {}),
     ...(options.cancelSignals ? { cancelSignals: options.cancelSignals } : {}),
     ...(options.streams ? { streams: options.streams } : {}),
   });
   return {
     gateway,
+    runService,
     runs,
     steps,
     coordinator,
@@ -122,6 +130,7 @@ export async function createAiHarness(
       input: {
         profileId: string;
         prompt: string;
+        effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
         resourceIds?: readonly string[];
       },
     ) {

@@ -13,6 +13,7 @@ import type {
   StepCommit,
   TerminalStreamReference,
   TenantSession,
+  RunRecord,
 } from '../../infrastructure/db/index.js';
 import type { ReportedUsage } from '../../infrastructure/db/index.js';
 import type { JobExecutor } from '../platform/index.js';
@@ -57,6 +58,10 @@ export interface StepCoordinatorCommit extends StepCommit {
     signal?: AbortSignal,
   ) => Promise<void>;
   readonly transactionTimeoutMs?: number;
+  readonly onCompleted?: (
+    tx: TenantSession,
+    completedRun: RunRecord,
+  ) => Promise<void>;
 }
 
 export type ClaimResult =
@@ -329,6 +334,12 @@ export class StepCoordinator {
                 }))
               )
                 throw new StaleCommit();
+              if (nextStatus === 'completed' && commit.onCompleted) {
+                const completedRun = await this.runs.find(tx, claim.runId);
+                if (!completedRun || completedRun.status !== 'completed')
+                  throw new StaleCommit();
+                await commit.onCompleted(tx, completedRun);
+              }
               if (terminal) {
                 const safeCode = budgetExceeded
                   ? 'AI_BUDGET_EXCEEDED'
