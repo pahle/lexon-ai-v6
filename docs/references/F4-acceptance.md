@@ -1,7 +1,7 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–8 accepted after review;
-Tasks 9–21 are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–9 accepted after review;
+Tasks 10–21 are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -510,8 +510,58 @@ outstanding bytes, not cumulative drained traffic.
   this does not establish the cause of the earlier observation. Initial host
   Node 26 warnings are qualified; final affected gates used pinned Node 24.
 
-New-head Linux CI is pending publication. Client runtime/tree/replay compatibility
-remains the Task 10 proof; no product chat screen or real model call was added.
+Published head `979cf2c` passed both Linux CI layers on the first attempt in
+[run 42868874899](https://github.com/pahle/lexon-ai-v6/actions/runs/42868874899).
+Client runtime/tree/replay compatibility remains the Task 10 proof; no product
+chat screen or real model call was added.
+
+## Task 9 — durable branches, selection and owner stop
+
+Source `60ce0e9`, review correction `333030a`. Edit creates a sibling user and
+its answer; regenerate creates an assistant sibling under the source user with
+that user's effort. Existing history remains immutable. The chat lock and
+transaction-aware engine start serialize mutations and preserve atomic
+run/outbox/capacity changes. Viewed selection requires an actual leaf and chat
+reads parse the shared tree schema. IDs-only immutable receipts in migration
+0032 bind retries to their original result, including send retries after later
+regeneration. Receipt keys survive content deletion; live-chat RLS hides deleted
+lookups, and cross-chat identity reuse conflicts without restoring content.
+Task 11 must retain these tombstones through physical cleanup.
+
+The dedicated cancel route checks an owned live answer before calling F3's
+cancellation policy. A real HTTP/worker test waits for model entry and streamed
+partial output, observes AbortSignal, and proves busy state/capacity remain until
+the worker commits cancellation. Partial output and one finish are retained;
+repeated stop adds no finish. Try again regenerates the stopped MAX answer into
+a new assistant under the same user, preserving effort and adding no user turn.
+
+Initial review found four Important gaps. The fix narrows error translation to
+expected message/receipt constraints; an injected unexpected late outbox
+uniqueness error returns safe 500 with full rollback. A populated disposable
+clone simulates the pre-0032 schema, reapplies checked-in SQL under the actual
+migrator role, and verifies exact live/deleted receipt mappings. HTTP stop
+negatives and rejected/colliding mutation snapshots now cover authorization and
+no-effect guarantees. Fresh scoped review and main review accepted spec and
+quality with no remaining blocking finding.
+
+- Final focused checks: **7/7** branch, stop and migration tests, followed by a
+  **1/1** upgrade rerun after a test-helper boundary correction. Existing
+  cancellation, concurrency, send and privacy regressions passed **41/41**.
+  Backend typecheck, lint with 96 boundary checks, formatting and diff checks
+  passed. The helper adjustment did not change branch/stop production code.
+- Receipt tests execute UPDATE/DELETE/TRUNCATE as the runtime role and receive
+  permission denials; FORCE RLS and foreign-owner reads are checked. Stop
+  negatives cover same-organization peer, foreign organization, deleted chat
+  and revoked membership, with unchanged messages/run/outbox/capacity state.
+- Initial REDs demonstrate missing edit/regenerate routes; detailed sibling
+  and retry cases were later regressions, not all historical pre-code REDs.
+  Unexpected uniqueness translation has an explicit failing/passing test;
+  fixture setup failures are excluded. Large combined tests and expected
+  runtime log noise remain final-review readability notes.
+
+New-head Linux CI is pending publication. Task 10 must still prove the chosen
+client adapter against the real persisted tree and streaming endpoints before
+product screen implementation.
 
 ## Pending evidence
 
