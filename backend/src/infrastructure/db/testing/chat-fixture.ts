@@ -19,6 +19,7 @@ function modelBarrier(): {
   blockAfterText(): void;
   block(): Promise<void>;
   aborted: Promise<void>;
+  callCount(): number;
   release(): void;
   started: Promise<void>;
   gateway: ModelGateway;
@@ -26,6 +27,8 @@ function modelBarrier(): {
   let release!: () => void;
   let entered!: () => void;
   let shouldBlockAfterText = false;
+  let cooperateWithAbort = false;
+  let callCount = 0;
   const blocked = new Promise<void>((resolve) => (release = resolve));
   const started = new Promise<void>((resolve) => (entered = resolve));
   let resolveAbort!: () => void;
@@ -34,26 +37,30 @@ function modelBarrier(): {
     entered();
     if (shouldBlockAfterText)
       yield { type: 'text', text: 'synthetic partial answer' };
-    await Promise.race([
-      blocked,
-      new Promise<void>((resolve) => {
-        if (signal.aborted) {
-          resolveAbort();
-          resolve();
-        } else
-          signal.addEventListener(
-            'abort',
-            () => {
-              resolveAbort();
-              resolve();
-            },
-            { once: true },
-          );
-      }),
-    ]);
-    if (signal.aborted) {
+    if (cooperateWithAbort) {
+      await Promise.race([
+        blocked,
+        new Promise<void>((resolve) => {
+          if (signal.aborted) {
+            resolveAbort();
+            resolve();
+          } else
+            signal.addEventListener(
+              'abort',
+              () => {
+                resolveAbort();
+                resolve();
+              },
+              { once: true },
+            );
+        }),
+      ]);
+      if (signal.aborted) {
+        await blocked;
+        throw signal.reason;
+      }
+    } else {
       await blocked;
-      throw signal.reason;
     }
     if (!shouldBlockAfterText)
       yield { type: 'text', text: 'synthetic answer after release' };
@@ -70,6 +77,7 @@ function modelBarrier(): {
   return {
     blockAfterText() {
       shouldBlockAfterText = true;
+      cooperateWithAbort = true;
     },
     async block() {
       await started;
@@ -77,8 +85,10 @@ function modelBarrier(): {
     aborted,
     release,
     started,
+    callCount: () => callCount,
     gateway: {
       generate(input) {
+        callCount++;
         return response(input.signal);
       },
     },

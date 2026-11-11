@@ -303,36 +303,11 @@ export class StepExecutor {
     let textPartOpen = false;
     let streamMessageStarted: boolean;
     let streamFramingAvailable = true;
-    let streamSnapshotRequired = false;
+    let streamSnapshotRequired = true;
 
-    try {
-      heartbeat.throwIfAborted();
-      const recovery = await this.options.streams?.recover(claim, {
-        version: 1,
-        runId: claim.runId,
-        type: 'reset',
-        sequence: claim.sequence,
-      });
-      streamSnapshotRequired = recovery !== undefined && recovery !== 'written';
-      streamMessageStarted =
-        (await this.#publish(claim, {
-          version: 1,
-          runId: claim.runId,
-          type: 'start',
-          messageId: claim.runId,
-        })) === 'written';
-      streamFramingAvailable = streamMessageStarted;
-      streamSnapshotRequired ||= !streamMessageStarted;
-      heartbeat.throwIfAborted();
-      let initial: {
-        run: RunRecord;
-        profile: RunProfile;
-        actorScope: ReturnType<RunAuthorizationService['workerActorScope']>;
-        activeCapabilities: readonly string[];
-        provider: string;
-      } | null;
+    const loadInitial = async () => {
       try {
-        initial = await this.#loadAndAuthorize(claim);
+        return await this.#loadAndAuthorize(claim);
       } catch (error) {
         if (
           !(error instanceof ToolPolicyOutcome) ||
@@ -345,9 +320,40 @@ export class StepExecutor {
           heartbeat,
           streamSnapshotRequired,
         );
-        return { kind: 'done' };
+        return null;
       }
+    };
+
+    try {
+      heartbeat.throwIfAborted();
+      let initial = await loadInitial();
       if (!initial) return { kind: 'done' };
+      try {
+        const recovery = await this.options.streams?.recover(claim, {
+          version: 1,
+          runId: claim.runId,
+          type: 'reset',
+          sequence: claim.sequence,
+        });
+        streamSnapshotRequired =
+          recovery !== undefined && recovery !== 'written';
+        if (recovery === 'stale') throw new StaleStreamOwnershipError('reset');
+        streamMessageStarted =
+          (await this.#publish(claim, {
+            version: 1,
+            runId: claim.runId,
+            type: 'start',
+            messageId: claim.runId,
+          })) === 'written';
+        streamFramingAvailable = streamMessageStarted;
+        streamSnapshotRequired ||= !streamMessageStarted;
+        heartbeat.throwIfAborted();
+      } catch (error) {
+        if (!(error instanceof StaleStreamOwnershipError)) throw error;
+        initial = await loadInitial();
+        if (!initial) return { kind: 'done' };
+        throw error;
+      }
       const { run, profile, actorScope, activeCapabilities } = initial;
       runSpan = this.#aiTracer.startSpan('ai.run', {
         runId: run.id,
@@ -1842,7 +1848,7 @@ export class StepExecutor {
   }> {
     const result = await this.options.streams?.publishWithCursor(claim, event);
     if (result?.status === 'stale')
-      throw new Error(`AI step claim lost during ${event.type}`);
+      throw new StaleStreamOwnershipError(event.type);
     return result?.status === 'written'
       ? {
           status: 'written',
@@ -2169,6 +2175,13 @@ class ModelCallTimeoutError extends Error {
   constructor() {
     super('Model call timed out');
     this.name = 'ModelCallTimeoutError';
+  }
+}
+
+class StaleStreamOwnershipError extends Error {
+  constructor(eventType: string) {
+    super(`AI step claim lost during ${eventType}`);
+    this.name = 'StaleStreamOwnershipError';
   }
 }
 

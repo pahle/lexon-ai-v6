@@ -42,8 +42,19 @@ const profile: RunProfile = {
 };
 
 /** Real API plus tenant repository and worker fixtures sharing the file database. */
-export async function createChatApiHarness(services: FileServices) {
-  const api = await identityApiHarness(services);
+export async function createChatApiHarness(
+  services: FileServices,
+  hooks: {
+    readonly afterActiveProof?: () => Promise<void>;
+    readonly forceFirstActiveProofStale?: boolean;
+    readonly authRateRulesJson?: string;
+  } = {},
+) {
+  const api = await identityApiHarness(
+    services,
+    undefined,
+    hooks.authRateRulesJson,
+  );
   let storage: Awaited<ReturnType<typeof createChatFixture>> | undefined;
   try {
     storage = await createChatFixture(services);
@@ -60,15 +71,23 @@ export async function createChatApiHarness(services: FileServices) {
   });
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
+  let forcedActiveProofStale = false;
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
     authority: {
-      authorizeActive: (claim) =>
-        storage!.database.withTenant(
+      authorizeActive: async (claim) => {
+        if (hooks.forceFirstActiveProofStale && !forcedActiveProofStale) {
+          forcedActiveProofStale = true;
+          return undefined;
+        }
+        const proof = await storage!.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamActiveProof(tx, claim),
-        ),
+        );
+        if (proof) await hooks.afterActiveProof?.();
+        return proof;
+      },
       advanceStreamGeneration: (claim, observed) =>
         storage!.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },

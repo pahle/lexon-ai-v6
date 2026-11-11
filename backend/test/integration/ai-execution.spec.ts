@@ -7060,7 +7060,7 @@ test('retry reset does not invent a message header after the initial start is un
   });
 });
 
-test('revoked resume after an unavailable header finishes from a snapshot boundary', async ({
+test('revoked resume fails without publishing a run header', async ({
   services,
 }) => {
   const cleanup: Array<() => Promise<void>> = [];
@@ -7124,7 +7124,7 @@ test('revoked resume after an unavailable header finishes from a snapshot bounda
     const durable = await ai.database.withTenant(tenant, (tx) =>
       h.runs.find(tx, h.runId),
     );
-    expect(headerRejected).toBe(true);
+    expect(headerRejected).toBe(false);
     expect(durable).toMatchObject({
       status: 'failed',
       errorCode: 'AI_ACCESS_REVOKED',

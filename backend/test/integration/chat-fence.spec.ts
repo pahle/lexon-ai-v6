@@ -753,6 +753,113 @@ test('a real API actor and worker cannot persist a response after deletion commi
   }
 });
 
+test('a stale first stream publication after deletion does not start the model', async ({
+  services,
+}) => {
+  const proofObserved = deferred();
+  const releaseProof = deferred();
+  let pauseNextProof = true;
+  const harness = await createChatApiHarness(services, {
+    authRateRulesJson: JSON.stringify({
+      signup: { account: 3, ip: 100, windowSeconds: 600 },
+      'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+    }),
+    afterActiveProof: async () => {
+      if (!pauseNextProof) return;
+      pauseNextProof = false;
+      proofObserved.resolve();
+      await releaseProof.promise;
+    },
+  });
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  let worker: Promise<unknown> | undefined;
+  try {
+    const owner = await harness.client.identity.user('Stale stream owner');
+    const actor = await harness.client.identity.user('Stale stream actor');
+    const organization = await organizations.seedTeam([
+      owner.profile.id,
+      actor.profile.id,
+    ]);
+    const member = organization.members.find(
+      (candidate) => candidate.userId === actor.profile.id,
+    )!;
+    const ctx = { orgId: organization.id, userId: actor.profile.id };
+    const chat = await harness.client.chat.createFor(ctx);
+    const { runId } = await harness.client.startAnswer(ctx, chat.id, 'prompt');
+    await harness.associateStartedAnswer(ctx, chat.id, runId);
+    worker = harness.engine.execute(harness.jobForAnswer(ctx, runId), {
+      signal: new AbortController().signal,
+    });
+    await stage(proofObserved.promise, 'initial active stream proof');
+    const [deleted, removed] = await stage(
+      Promise.all([
+        harness.client.chat.deleteFor(ctx, chat.id),
+        harness.client.identity.call(
+          `/organizations/${organization.id}/members/${member.id}`,
+          owner.headers,
+          'DELETE',
+        ),
+      ]),
+      'chat deletion and membership removal',
+    );
+    expect(deleted).toBe(true);
+    expect(removed.status, await removed.text()).toBe(204);
+    releaseProof.resolve();
+    await stage(worker, 'stale stream claim cleanup');
+    expect(harness.model.callCount()).toBe(0);
+    expect(await harness.inspect.runs(runId)).toMatchObject({
+      partial_output: '',
+      final_output: null,
+    });
+    expect(await harness.inspect.tree(chat.id)).toEqual([]);
+    expect(await harness.inspect.outbox(chat.id)).toHaveLength(1);
+  } finally {
+    releaseProof.resolve();
+    await worker?.catch(() => undefined);
+    await organizations.close();
+    await harness.close();
+  }
+});
+
+test('a stale stream proof does not hide a still-valid run claim', async ({
+  services,
+}) => {
+  const harness = await createChatApiHarness(services, {
+    forceFirstActiveProofStale: true,
+    authRateRulesJson: JSON.stringify({
+      signup: { account: 3, ip: 100, windowSeconds: 600 },
+      'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+    }),
+  });
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  try {
+    const actor = await harness.client.identity.user('Valid stale proof actor');
+    const organization = await organizations.seedTeam([actor.profile.id]);
+    const ctx = { orgId: organization.id, userId: actor.profile.id };
+    const chat = await harness.client.chat.createFor(ctx);
+    const { runId } = await harness.client.startAnswer(ctx, chat.id, 'prompt');
+    await harness.associateStartedAnswer(ctx, chat.id, runId);
+    const worker = harness.engine.execute(harness.jobForAnswer(ctx, runId), {
+      signal: new AbortController().signal,
+    });
+    await expect(stage(worker, 'stale proof revalidation')).rejects.toThrow(
+      'AI step claim lost during reset',
+    );
+    expect(harness.model.callCount()).toBe(0);
+    expect(await harness.inspect.runs(runId)).toMatchObject({
+      partial_output: '',
+      final_output: null,
+    });
+  } finally {
+    await organizations.close();
+    await harness.close();
+  }
+});
+
 function deferred<T = void>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => (resolve = res));

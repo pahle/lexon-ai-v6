@@ -16,10 +16,12 @@ import { totpForUri } from './totp.js';
 export async function identityApiHarness(
   services: FileServices,
   limiterUrl?: string,
+  authRateRulesJson?: string,
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'lexon-privacy-'));
   const env = createAuthEnvironment(services, join(directory, 'health.json'));
   if (limiterUrl) env.VALKEY_LIMITER_URL = limiterUrl;
+  if (authRateRulesJson) env.AUTH_RATE_RULES_JSON = authRateRulesJson;
   const config = loadRuntimeConfig('api', env);
   const mail: TransactionalEmail[] = [];
   const logs: string[] = [];
