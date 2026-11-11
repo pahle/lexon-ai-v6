@@ -43,6 +43,7 @@ test('DELETE applies cookie origin guard before invoking deletion service', asyn
     authorization as never,
     {} as never,
     { request: deletionRequest } as never,
+    {} as never,
     config as never,
   );
   const context = cookieIdentityHeaders('https://attacker.example');

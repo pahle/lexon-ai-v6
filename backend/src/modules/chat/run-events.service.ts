@@ -1,6 +1,11 @@
+import { AsyncResource } from 'node:async_hooks';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { ChatSnapshot, ChatStreamRecoveryMode } from '@lexon/contracts';
+import {
+  ChatInvalidationEventSchema,
+  type ChatSnapshot,
+  type ChatStreamRecoveryMode,
+} from '@lexon/contracts';
 import {
   RUN_SSE_REVALIDATION,
   RunAuthorizationService,
@@ -9,6 +14,7 @@ import {
 } from '../identity-access/index.js';
 import {
   AiRunRepository,
+  type ChatTitleNotification,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import {
@@ -23,6 +29,9 @@ import {
 import { CancelSignals } from '../../infrastructure/queue/cancel-signals.js';
 
 const PROCESS_ID = randomUUID();
+const MAX_PENDING_TITLE_INVALIDATIONS = 64;
+const TITLE_INVALIDATION_HEARTBEAT_MS = 15_000;
+const TITLE_INVALIDATION_DRAIN_MS = 5000;
 interface AuthorizationCheck {
   expiresAt: number;
   readonly pending: Promise<void>;
@@ -107,11 +116,17 @@ export class RunEventsService {
 
   readonly #local = new Map<
     string,
-    { readonly runId: string; readonly close: () => Promise<void> }
+    {
+      readonly runId?: string;
+      readonly close: () => Promise<void>;
+      readonly shutdown: () => Promise<void>;
+    }
   >();
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.all([...this.#local.values()].map(({ close }) => close()));
+    await Promise.all(
+      [...this.#local.values()].map(({ shutdown }) => shutdown()),
+    );
     await this.registry.close();
   }
 
@@ -121,6 +136,167 @@ export class RunEventsService {
         .filter((connection) => connection.runId === runId)
         .map(({ close }) => close()),
     );
+  }
+
+  async connectChatInvalidations(
+    actor: RunActor,
+    sink: SseSink,
+    identity: VerifiedIdentity,
+  ): Promise<Subscription> {
+    this.authorization.assertLiveActor(actor);
+    const { orgId, userId } = actor;
+    const connectionId = randomUUID();
+    let lease: SseConnectionLease | undefined;
+    try {
+      const admitted = await this.registry.admit(
+        userId,
+        connectionId,
+        PROCESS_ID,
+        this.connectionLimit,
+      );
+      lease = admitted.lease;
+      if (admitted.evicted?.processId === PROCESS_ID)
+        await this.#local.get(admitted.evicted.connectionId)?.close();
+    } catch {
+      throw new NotFoundException();
+    }
+
+    let closed = false;
+    let renewal: ReturnType<typeof setInterval> | undefined;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let unsubscribe: (() => Promise<void>) | undefined;
+    let checkingLease = false;
+    let delivering = false;
+    let invalidateAll = false;
+    const pendingChatIds = new Set<string>();
+    const notificationScope = new AsyncResource(
+      'LexonChatInvalidationSubscription',
+    );
+    const close = async (
+      reason?: 'slow-client' | 'revoked' | 'shutdown' | 'evicted',
+    ): Promise<void> => {
+      if (closed) return;
+      closed = true;
+      if (renewal) clearInterval(renewal);
+      if (heartbeat) clearInterval(heartbeat);
+      this.#local.delete(connectionId);
+      pendingChatIds.clear();
+      invalidateAll = false;
+      await unsubscribe?.().catch(() => undefined);
+      notificationScope.emitDestroy();
+      if (lease) await this.registry.release(lease).catch(() => false);
+      if (reason) await sink.close(reason).catch(() => undefined);
+    };
+    this.#local.set(connectionId, {
+      close: () => close('evicted'),
+      shutdown: () => close('shutdown'),
+    });
+
+    const drainInvalidations = async () => {
+      if (closed || delivering) return;
+      delivering = true;
+      try {
+        while (!closed && (invalidateAll || pendingChatIds.size > 0)) {
+          let chatId: string | null;
+          if (invalidateAll) {
+            invalidateAll = false;
+            chatId = null;
+          } else {
+            const nextChatId = pendingChatIds.values().next().value;
+            if (!nextChatId) break;
+            pendingChatIds.delete(nextChatId);
+            chatId = nextChatId;
+          }
+          try {
+            await this.revalidation.assert(identity, orgId);
+          } catch {
+            await close('revoked');
+            return;
+          }
+          if (closed) return;
+          const event = ChatInvalidationEventSchema.parse({
+            version: 1,
+            type: 'chat.invalidated',
+            chatId,
+          });
+          if (!sink.write({ data: JSON.stringify(event) })) {
+            let drained = false;
+            try {
+              drained = await sink.drain(TITLE_INVALIDATION_DRAIN_MS);
+            } catch {
+              drained = false;
+            }
+            if (!drained) {
+              await close('slow-client');
+              return;
+            }
+          }
+        }
+      } catch {
+        await close('revoked');
+      } finally {
+        delivering = false;
+      }
+    };
+    const enqueueInvalidation = (notification: ChatTitleNotification) => {
+      if (
+        closed ||
+        notification.orgId !== orgId ||
+        notification.userId !== userId
+      )
+        return;
+      if (!invalidateAll) {
+        pendingChatIds.add(notification.chatId);
+        if (pendingChatIds.size > MAX_PENDING_TITLE_INVALIDATIONS) {
+          pendingChatIds.clear();
+          invalidateAll = true;
+        }
+      }
+      void drainInvalidations();
+    };
+
+    try {
+      unsubscribe = await this.signals.subscribeChatTitleInvalidations(
+        notificationScope.bind(enqueueInvalidation),
+        notificationScope.bind(() => void close('revoked')),
+      );
+      if (closed) {
+        await unsubscribe();
+        throw new NotFoundException();
+      }
+      sink.write({ data: ': connected' });
+      heartbeat = setInterval(() => {
+        if (closed || delivering || invalidateAll || pendingChatIds.size > 0)
+          return;
+        void (async () => {
+          if (sink.write({ data: ': heartbeat' })) return;
+          const drained = await sink
+            .drain(TITLE_INVALIDATION_DRAIN_MS)
+            .catch(() => false);
+          if (!drained) await close('slow-client');
+        })();
+      }, TITLE_INVALIDATION_HEARTBEAT_MS);
+      heartbeat.unref();
+      renewal = setInterval(() => {
+        if (closed || !lease || checkingLease) return;
+        checkingLease = true;
+        void (async () => {
+          const current = await this.registry.renew(lease!);
+          if (!current) return close('evicted');
+          lease = current;
+          await this.revalidation.assert(identity, orgId);
+        })()
+          .catch(() => close('revoked'))
+          .finally(() => {
+            checkingLease = false;
+          });
+      }, 1000);
+      renewal.unref();
+      return { close: () => close() };
+    } catch (error) {
+      await close();
+      throw error;
+    }
   }
 
   async connect(
@@ -181,6 +357,7 @@ export class RunEventsService {
     this.#local.set(connectionId, {
       runId,
       close: () => close('evicted'),
+      shutdown: () => close('shutdown'),
     });
     try {
       unbindCancel = this.signals.bind(runId, { orgId, userId });

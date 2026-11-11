@@ -44,3 +44,43 @@ Affected checks pass: `pnpm --filter @lexon/backend typecheck`,
 and `git diff --check`. The prompt test includes control characters requiring
 JSON escaping and remains within 4,096 UTF-8 bytes. No real model call or new dependency was used. The
 controller owns acceptance and push; this note records bounded task evidence.
+
+## Fix round 1: client invalidation and Unicode punctuation
+
+The reviewed implementation had no consumer path for the existing title
+notification. It now shares the process's existing PostgreSQL notification
+listener and exposes authenticated `GET /api/chats/events`. Frames contain only
+the strict `{ version, type, chatId }` invalidation contract. The service checks
+the stream's current owner and organization, binds each callback to its
+subscriber async context, and shares the existing six-connections-per-user
+registry. A bounded 64-ID queue coalesces overflow into one `chatId: null`
+owner-wide refresh; slow sinks close after the existing 5-second drain bound.
+It does not add a PostgreSQL listener connection.
+
+The public frontend helper subscribes with cookie credentials and invalidates
+only `['tenant', orgId, userId, ...]` chat keys. Open and reconnect perform a
+15-second-bounded refresh so a missed event is recovered; dispose clears
+handlers and closes the source. No screen has adopted this helper yet. Task 14/15
+consumers should call `subscribeToChatInvalidations` with the active verified
+org/user scope, and must not source that scope from event payloads.
+
+Unicode punctuation validation now rejects trailing Unicode punctuation and
+quotation-mark wrappers while preserving internal punctuation. The actual
+producer test confirms `「Perjanjian」`, `‹Perjanjian›`, and `Perjanjian —`
+retain the excerpt, while `Perjanjian — dasar hukumnya` is accepted.
+
+Additional transaction tests confirm a failed or cancelled first answer can be
+followed by an eligible completed answer, and an injected `chat.title.v1`
+outbox insert failure rolls back the answer's completion transition and leaves
+no title task. Stream unit tests cover overflow, slow-client cleanup, oldest
+local eviction, and listener loss. Backend integration covers two simultaneous
+owners through the real authenticated API and shared PostgreSQL notification
+path. These tests do not claim an end-to-end queue-consumer test or any UI
+screen wiring.
+
+Official interface checks read 2026-11-12: the [WHATWG HTML Standard's
+EventSource definition](https://html.spec.whatwg.org/print.pdf) confirms the
+`withCredentials` constructor option; the [TanStack QueryClient
+reference](https://tanstack.com/query/latest/docs/framework/react/reference/classes/QueryClient)
+documents `invalidateQueries` query-key filters. The installed frontend pins
+`@tanstack/react-query` 5.105.0.

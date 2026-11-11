@@ -125,6 +125,13 @@ export const ChatPageSchema = z.strictObject({
 });
 export type ChatPage = z.infer<typeof ChatPageSchema>;
 
+export const ChatInvalidationEventSchema = z.strictObject({
+  version: z.literal(1),
+  type: z.literal('chat.invalidated'),
+  chatId: uuid.nullable(),
+});
+export type ChatInvalidationEvent = z.infer<typeof ChatInvalidationEventSchema>;
+
 export const ChatSearchRequestSchema = z.strictObject({
   query: z.string().trim().min(1).max(500),
   cursor: z.string().min(1).max(256).optional(),

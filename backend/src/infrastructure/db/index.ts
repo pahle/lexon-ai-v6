@@ -61,7 +61,9 @@ export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {
   CHAT_DELETION_NOTIFICATION_CHANNEL,
+  CHAT_TITLE_NOTIFICATION_CHANNEL,
   PgNotificationListener,
+  type ChatTitleNotification,
 } from './pg-notification-listener.js';
 export {
   isJobQueue,

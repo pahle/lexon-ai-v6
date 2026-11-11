@@ -15,14 +15,8 @@ import { RunService } from './run.service.js';
 
 const MAX_SOURCE_BYTES = 4096;
 const TITLE_MAX_CHARS = 60;
-const INVALID_ENDING = /[.!?,;:…。！？、；：]$/u;
-const QUOTES: Readonly<Record<string, string>> = Object.freeze({
-  '"': '"',
-  "'": "'",
-  '“': '”',
-  '‘': '’',
-  '«': '»',
-});
+const INVALID_ENDING = /\p{P}$/u;
+const QUOTATION_MARK = /\p{Quotation_Mark}/u;
 
 export class ChatTitleService {
   private readonly chats = new ChatRepository();
@@ -141,15 +135,17 @@ export function titleExcerpt(text: string): string {
 export function validTitle(output: string): string | null {
   const title = output.trim();
   const points = Array.from(title);
+  const first = points[0]!;
+  const last = points.at(-1)!;
   if (
     !title ||
     points.length > TITLE_MAX_CHARS ||
     /[\r\n]/u.test(title) ||
-    INVALID_ENDING.test(title)
+    INVALID_ENDING.test(title) ||
+    QUOTATION_MARK.test(first) ||
+    QUOTATION_MARK.test(last)
   )
     return null;
-  const first = points[0]!;
-  if (QUOTES[first] === points.at(-1)) return null;
   return title;
 }
 

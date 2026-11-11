@@ -1091,6 +1091,31 @@ export async function createChatFixture(services: Services) {
           );
         };
       },
+      async failChatTitleOutboxInsert() {
+        const triggerName = `fail_chat_title_outbox_${randomUUID().replaceAll('-', '')}`;
+        const functionName = `fail_chat_title_outbox_${randomUUID().replaceAll('-', '')}`;
+        await inspector.query(
+          `CREATE FUNCTION public.${functionName}() RETURNS trigger
+           LANGUAGE plpgsql AS $$ BEGIN
+             IF NEW.type='chat.title.v1' THEN
+               RAISE EXCEPTION 'injected title outbox failure' USING ERRCODE='23514';
+             END IF;
+             RETURN NEW;
+           END $$`,
+        );
+        await inspector.query(
+          `CREATE TRIGGER ${triggerName} BEFORE INSERT ON ops.outbox
+           FOR EACH ROW EXECUTE FUNCTION public.${functionName}()`,
+        );
+        return async () => {
+          await inspector.query(
+            `DROP TRIGGER IF EXISTS ${triggerName} ON ops.outbox`,
+          );
+          await inspector.query(
+            `DROP FUNCTION IF EXISTS public.${functionName}()`,
+          );
+        };
+      },
       async mutationCounts(input: { chatId: string; runId: string }) {
         const result = await inspector.query<{
           messages: string;

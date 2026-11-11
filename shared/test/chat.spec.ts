@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ChatAuditEventSchema,
+  ChatInvalidationEventSchema,
   ChatFeedbackSchema,
   ChatMutationResultSchema,
   ChatPageSchema,
@@ -488,5 +489,23 @@ describe('chat contracts', () => {
         }).success,
       ).toBe(false);
     }
+  });
+
+  it('accepts only versioned chat invalidation IDs', () => {
+    expect(
+      ChatInvalidationEventSchema.safeParse({
+        version: 1,
+        type: 'chat.invalidated',
+        chatId,
+      }).success,
+    ).toBe(true);
+    expect(
+      ChatInvalidationEventSchema.safeParse({
+        version: 1,
+        type: 'chat.invalidated',
+        chatId,
+        title: 'private title',
+      }).success,
+    ).toBe(false);
   });
 });

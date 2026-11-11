@@ -94,6 +94,8 @@ async function createTitleScenario(
     titleText?: string;
     titleFails?: boolean;
     answerFails?: boolean;
+    answerCancelled?: boolean;
+    followUpAnswer?: boolean;
     blockTitle?: boolean;
   } = {},
 ) {
@@ -119,13 +121,14 @@ async function createTitleScenario(
   });
   const inputs: ModelInput[] = [];
   let calls = 0;
+  const titleCallIndex = options.answerFails && options.followUpAnswer ? 3 : 2;
   const titleStarted = deferred();
   const titleGate = deferred();
   const gateway: ModelGateway = {
     async *generate(input) {
       calls++;
       inputs.push(input);
-      if (calls === 2) {
+      if (calls === titleCallIndex) {
         titleStarted.resolve();
         if (options.blockTitle) await titleGate.promise;
         if (options.titleFails) {
@@ -158,7 +161,7 @@ async function createTitleScenario(
       yield {
         type: 'text',
         text:
-          calls === 1
+          calls < titleCallIndex
             ? answerText
             : (options.titleText ?? 'Perjanjian dan Dasar Hukumnya'),
       };
@@ -234,10 +237,26 @@ async function createTitleScenario(
       ctx: tenant,
       payload: { runId: started.runId, sequence: 1, expectedVersion: 1 },
     };
+    if (options.answerCancelled)
+      await fixture.database.withTenant(tenant, (tx) =>
+        new AiRunRepository().transition(tx, {
+          runId: started.runId,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'cancelled',
+        }),
+      );
     await engine.execute(answerJob, { signal: new AbortController().signal });
-    const titleJob = options.answerFails
-      ? null
-      : await readJob(fixture, tenant, 'chat.title.v1', 'chatId', chat.id);
+    let titleJob =
+      options.answerFails || options.answerCancelled
+        ? null
+        : ((await readJob(
+            fixture,
+            tenant,
+            'chat.title.v1',
+            'chatId',
+            chat.id,
+          )) as Extract<JobEnvelope, { type: 'chat.title.v1' }>);
     return {
       fixture,
       engine,
@@ -249,16 +268,23 @@ async function createTitleScenario(
       prompt,
       excerpt,
       answerRunId: started.runId,
-      titleJob: titleJob as Extract<
-        JobEnvelope,
-        { type: 'chat.title.v1' }
-      > | null,
+      get titleJob() {
+        return titleJob;
+      },
       answerJob,
       inputs,
       calls: () => calls,
       titleStarted: titleStarted.promise,
       releaseTitle: titleGate.resolve,
       async startTitle() {
+        if (!titleJob)
+          titleJob = (await readJob(
+            fixture,
+            tenant,
+            'chat.title.v1',
+            'chatId',
+            chat.id,
+          )) as Extract<JobEnvelope, { type: 'chat.title.v1' }>;
         if (!titleJob) throw new Error('Title task unavailable');
         return new JobExecutor(fixture.database).execute(
           titleJob,
@@ -276,6 +302,55 @@ async function createTitleScenario(
         const runId = await this.titleRunId();
         if (!runId) throw new Error('Title run unavailable');
         await this.deliverTitleRun(runId);
+        return runId;
+      },
+      async prepareNextAnswer(text: string) {
+        const nextMessageId = randomUUID();
+        await fixture.chat.insertUser(0, {
+          chatId: chat.id,
+          messageId: nextMessageId,
+          parentMessageId: null,
+          text,
+          effort: 'high',
+        });
+        const next = await withActor(tenant, authorization, (actor) =>
+          engine.start(actor, {
+            profileId: CHAT_PROFILES.chat.id,
+            prompt: text,
+            effort: 'high',
+            resourceIds: [chat.id],
+          }),
+        );
+        await fixture.chat.associateStartedAnswer(0, chat.id, next.runId);
+        await fixture.chat.insertAssistant(0, {
+          chatId: chat.id,
+          messageId: next.runId,
+          parentMessageId: nextMessageId,
+          runId: next.runId,
+        });
+        return next.runId;
+      },
+      async executeAnswer(runId: string) {
+        const nextJob = {
+          outboxId: stepJobId(runId, 1),
+          type: 'run.start.v1' as const,
+          ctx: tenant,
+          payload: { runId, sequence: 1, expectedVersion: 1 },
+        };
+        await engine.execute(nextJob, {
+          signal: new AbortController().signal,
+        });
+        titleJob = (await readJob(
+          fixture,
+          tenant,
+          'chat.title.v1',
+          'chatId',
+          chat.id,
+        )) as Extract<JobEnvelope, { type: 'chat.title.v1' }>;
+      },
+      async sendNextAnswer(text: string) {
+        const runId = await this.prepareNextAnswer(text);
+        await this.executeAnswer(runId);
         return runId;
       },
       async deliverTitleRun(runId: string) {
@@ -429,12 +504,34 @@ test('title source prompt stays within its byte cap when JSON must escape input'
   }
 });
 
+test('title may contain internal Unicode punctuation', async ({ services }) => {
+  const scenario = await createTitleScenario(services, {
+    titleText: 'Perjanjian — dasar hukumnya',
+  });
+  try {
+    await scenario.startTitle();
+    const titleRunId = await scenario.runTitle();
+    expect(await scenario.chatTitle()).toMatchObject({
+      title: 'Perjanjian — dasar hukumnya',
+      title_source: 'ai',
+    });
+    expect(await scenario.fixture.inspect.runStatus(titleRunId)).toBe(
+      'completed',
+    );
+  } finally {
+    await scenario.close();
+  }
+});
+
 test('quoted, punctuated, and over-limit title output preserves the excerpt', async ({
   services,
 }) => {
   for (const titleText of [
     '“Perjanjian”',
+    '「Perjanjian」',
+    '‹Perjanjian›',
     'Perjanjian hukum.',
+    'Perjanjian —',
     'Perjanjian hukum yang membahas berbagai akibat dan kewajiban para pihak dalam aturan Indonesia',
   ]) {
     const scenario = await createTitleScenario(services, { titleText });
@@ -482,7 +579,10 @@ test('failed title generation leaves the excerpt and completed answer intact', a
 test('failed first answer does not schedule a title task', async ({
   services,
 }) => {
-  const scenario = await createTitleScenario(services, { answerFails: true });
+  const scenario = await createTitleScenario(services, {
+    answerFails: true,
+    followUpAnswer: true,
+  });
   try {
     expect(
       (await scenario.engine.inspect(scenario.tenant, scenario.answerRunId))
@@ -496,7 +596,75 @@ test('failed first answer does not schedule a title task', async ({
     const titleTaskCount = result.rows[0]!.count;
     expect(titleTaskCount).toBe('0');
     expect(scenario.titleJob).toBeNull();
+    const eligibleRunId = await scenario.sendNextAnswer(
+      'A later completed legal question',
+    );
+    expect(
+      (await scenario.engine.inspect(scenario.tenant, eligibleRunId))?.status,
+    ).toBe('completed');
+    expect(scenario.titleJob).toMatchObject({
+      payload: { runId: eligibleRunId, chatId: scenario.chat.id },
+    });
+    await scenario.startTitle();
+    expect(await scenario.titleRunId()).toBeDefined();
   } finally {
+    await scenario.close();
+  }
+});
+
+test('cancelled first answer leaves the excerpt until a later answer completes', async ({
+  services,
+}) => {
+  const scenario = await createTitleScenario(services, {
+    answerCancelled: true,
+  });
+  try {
+    expect(
+      (await scenario.engine.inspect(scenario.tenant, scenario.answerRunId))
+        ?.status,
+    ).toBe('cancelled');
+    expect(scenario.titleJob).toBeNull();
+    const eligibleRunId = await scenario.sendNextAnswer(
+      'A later completed legal question',
+    );
+    expect(
+      (await scenario.engine.inspect(scenario.tenant, eligibleRunId))?.status,
+    ).toBe('completed');
+    expect(scenario.titleJob).toMatchObject({
+      payload: { runId: eligibleRunId, chatId: scenario.chat.id },
+    });
+  } finally {
+    await scenario.close();
+  }
+});
+
+test('title outbox failure rolls back the answer completion transition', async ({
+  services,
+}) => {
+  const scenario = await createTitleScenario(services, {
+    answerCancelled: true,
+  });
+  let removeFailure: (() => Promise<void>) | undefined;
+  try {
+    const eligibleRunId = await scenario.prepareNextAnswer(
+      'A completion that must roll back atomically',
+    );
+    removeFailure = await scenario.fixture.inspect.failChatTitleOutboxInsert();
+    await expect(scenario.executeAnswer(eligibleRunId)).rejects.toThrow();
+    const run = await scenario.fixture.inspect.query(
+      `SELECT status,final_output FROM app.ai_runs WHERE id=$1`,
+      [eligibleRunId],
+    );
+    expect(run.rows[0]?.status).not.toBe('completed');
+    expect(run.rows[0]?.final_output).toBeNull();
+    const titleTasks = await scenario.fixture.inspect.query(
+      `SELECT count(*)::text AS count FROM ops.outbox
+       WHERE type='chat.title.v1' AND payload->>'chatId'=$1`,
+      [scenario.chat.id],
+    );
+    expect(titleTasks.rows[0]?.count).toBe('0');
+  } finally {
+    await removeFailure?.();
     await scenario.close();
   }
 });

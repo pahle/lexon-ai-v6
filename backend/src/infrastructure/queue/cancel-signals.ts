@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   PgNotificationListener,
   type AiRunRepository,
+  type ChatTitleNotification,
   type TenantDatabase,
 } from '../db/index.js';
 
@@ -29,6 +30,10 @@ export class CancelSignals {
   readonly #closeSubscriptions = new Set<() => Promise<void>>();
   #deletionSubscriber: Redis | undefined;
   readonly #deletionListeners = new Map<string, Set<() => void>>();
+  readonly #chatTitleInvalidationListeners = new Set<{
+    readonly onNotification: (notification: ChatTitleNotification) => void;
+    readonly onUnavailable: () => void;
+  }>();
   #databaseDeletionListener: PgNotificationListener | undefined;
   #deletionOperations: Promise<void> = Promise.resolve();
 
@@ -139,6 +144,29 @@ export class CancelSignals {
           }
         }
       });
+      this.#closeSubscriptions.delete(unsubscribe);
+    };
+    this.#closeSubscriptions.add(unsubscribe);
+    return unsubscribe;
+  }
+
+  async subscribeChatTitleInvalidations(
+    onNotification: (notification: ChatTitleNotification) => void,
+    onUnavailable: () => void,
+  ): Promise<() => Promise<void>> {
+    const listener = { onNotification, onUnavailable };
+    this.#chatTitleInvalidationListeners.add(listener);
+    try {
+      await this.#serializeDeletion(() => this.#getDatabaseDeletionListener());
+    } catch {
+      this.#chatTitleInvalidationListeners.delete(listener);
+      throw new Error('Chat invalidation listener unavailable');
+    }
+    let active = true;
+    const unsubscribe = async () => {
+      if (!active) return;
+      active = false;
+      this.#chatTitleInvalidationListeners.delete(listener);
       this.#closeSubscriptions.delete(unsubscribe);
     };
     this.#closeSubscriptions.add(unsubscribe);
@@ -269,6 +297,10 @@ export class CancelSignals {
           for (const onDeleted of this.#deletionListeners.get(channel) ?? [])
             onDeleted();
         },
+        onChatTitleNotification: (notification) => {
+          for (const subscriber of this.#chatTitleInvalidationListeners)
+            subscriber.onNotification(notification);
+        },
         onUnavailable: () => {
           if (this.#databaseDeletionListener !== listener) return;
           this.#databaseDeletionListener = undefined;
@@ -283,6 +315,15 @@ export class CancelSignals {
               onDeleted();
             } catch {
               // Losing durable revocation transport fails each live stream closed.
+            }
+          }
+          const titleListeners = [...this.#chatTitleInvalidationListeners];
+          this.#chatTitleInvalidationListeners.clear();
+          for (const subscriber of titleListeners) {
+            try {
+              subscriber.onUnavailable();
+            } catch {
+              // Losing the invalidation transport closes local streams.
             }
           }
         },
