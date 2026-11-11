@@ -46,6 +46,7 @@ test('a send retry keeps its original answer identity after that answer is regen
       assistantMessageId: string;
       runId: string;
     };
+    const activeBaseline = await fixture.inspect.chatSendSnapshot(chatId);
     const activeEdit = await fetch(
       `${origin}/api/chats/${chatId}/messages/${rootUserId}/edit`,
       {
@@ -72,6 +73,9 @@ test('a send retry keeps its original answer identity after that answer is regen
       },
     );
     expect(activeRegenerate.status).toBe(409);
+    expect(await fixture.inspect.chatSendSnapshot(chatId)).toEqual(
+      activeBaseline,
+    );
     const identity = (await (
       await fetch(`${origin}/api/identity`, { headers })
     ).json()) as { user: { id: string }; organization: { id: string } };
@@ -136,6 +140,14 @@ test('a send retry keeps its original answer identity after that answer is regen
       },
     );
     expect(wrongRoleEdit.status).toBe(409);
+    expect(await fixture.inspect.chatSendSnapshot(chatId)).toMatchObject({
+      messages: '2',
+      answers: '1',
+      runs: '1',
+      start_outbox: '1',
+      start_audit: '1',
+      slots: '0',
+    });
 
     const sentInput = {
       userMessageId: randomUUID(),
@@ -458,6 +470,8 @@ test('editing a user message creates a new root sibling and leaves its source un
             to: 'completed',
           }),
       );
+    const replacementBaseline =
+      await fixture.inspect.chatSendSnapshot(replacementChatId);
     const reusedDeletedIdentity = await fetch(
       `${origin}/api/chats/${replacementChatId}/messages/${replacementUserId}/edit`,
       {
@@ -472,6 +486,9 @@ test('editing a user message creates a new root sibling and leaves its source un
       },
     );
     expect(reusedDeletedIdentity.status).toBe(409);
+    expect(await fixture.inspect.chatSendSnapshot(replacementChatId)).toEqual(
+      replacementBaseline,
+    );
     expect(
       ChatTreeSchema.parse(
         await (
@@ -480,6 +497,81 @@ test('editing a user message creates a new root sibling and leaves its source un
       ).messages,
     ).toHaveLength(2);
   } finally {
+    await app.close();
+    await fixture.close();
+  }
+});
+
+test('unexpected outbox uniqueness failures remain server errors and roll back an edit', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createAuthEnvironment(services, '/tmp/lexon-chat-branches-health.json'),
+    ),
+  );
+  const fixture = await createChatFixture(services);
+  let removeConstraint: (() => Promise<void>) | undefined;
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const chatId = randomUUID();
+    const sourceUserId = randomUUID();
+    const text = `unique-run-prompt-${randomUUID()}`;
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: sourceUserId,
+        requestId: randomUUID(),
+        text,
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const mutation = (await created.json()) as { runId: string };
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as { user: { id: string }; organization: { id: string } };
+    const tenant = {
+      orgId: identity.organization.id,
+      userId: identity.user.id,
+    };
+    expect(
+      await app.get(TenantDatabase).withTenant(tenant, (tx) =>
+        new AiRunRepository().transition(tx, {
+          runId: mutation.runId,
+          expectedVersion: 1,
+          from: 'queued',
+          to: 'completed',
+        }),
+      ),
+    ).toBe(true);
+    const before = await fixture.inspect.chatSendSnapshot(chatId);
+    removeConstraint =
+      await fixture.inspect.installUnexpectedOutboxUniqueViolation();
+
+    const edit = await fetch(
+      `${origin}/api/chats/${chatId}/messages/${sourceUserId}/edit`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messageId: sourceUserId,
+          newMessageId: randomUUID(),
+          text,
+          effort: 'max',
+        }),
+      },
+    );
+    expect(edit.status).toBe(500);
+    expect(await edit.text()).not.toContain('task9_unexpected_outbox_unique');
+    expect(await fixture.inspect.chatSendSnapshot(chatId)).toEqual(before);
+  } finally {
+    await removeConstraint?.();
     await app.close();
     await fixture.close();
   }

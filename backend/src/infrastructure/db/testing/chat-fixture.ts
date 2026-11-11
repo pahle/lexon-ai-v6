@@ -697,6 +697,28 @@ export async function createChatFixture(services: Services) {
       },
     },
     inspect: {
+      async installUnexpectedOutboxUniqueViolation() {
+        await inspector.query(
+          `CREATE FUNCTION ops.task9_unexpected_outbox_unique() RETURNS trigger
+           LANGUAGE plpgsql AS $$ BEGIN
+             IF NEW.type='run.start.v1' THEN
+               RAISE unique_violation USING CONSTRAINT='task9_unexpected_outbox_unique';
+             END IF;
+             RETURN NEW;
+           END $$;
+           CREATE TRIGGER task9_unexpected_outbox_unique
+           BEFORE INSERT ON ops.outbox FOR EACH ROW
+           EXECUTE FUNCTION ops.task9_unexpected_outbox_unique()`,
+        );
+        return async () => {
+          await inspector.query(
+            'DROP TRIGGER IF EXISTS task9_unexpected_outbox_unique ON ops.outbox',
+          );
+          await inspector.query(
+            'DROP FUNCTION IF EXISTS ops.task9_unexpected_outbox_unique()',
+          );
+        };
+      },
       async mutationRequestRuntimeDenials(ctx: {
         orgId: string;
         userId: string;
@@ -754,6 +776,13 @@ export async function createChatFixture(services: Services) {
         return result.rows[0]!;
       },
       chat: inspectChat,
+      async runStatus(runId: string) {
+        const result = await inspector.query<{ status: string }>(
+          'SELECT status FROM app.ai_runs WHERE id=$1',
+          [runId],
+        );
+        return result.rows[0]?.status ?? null;
+      },
       async chatSchema() {
         const result = await inspector.query(
           `SELECT c.relrowsecurity,c.relforcerowsecurity,

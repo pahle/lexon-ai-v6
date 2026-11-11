@@ -7,6 +7,7 @@ import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
+import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import { createChatApiHarness } from '../setup/chat-api-harness.js';
 import {
@@ -29,15 +30,16 @@ test('owner stop retains one partial answer, clears busy state, and terminal rep
     const origin = await app.getUrl();
     const headers = await apiHeaders(app);
     const chatId = randomUUID();
+    const sourceUserId = randomUUID();
     const created = await fetch(`${origin}/api/chats`, {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json' },
       body: JSON.stringify({
         chatId,
-        userMessageId: randomUUID(),
+        userMessageId: sourceUserId,
         requestId: randomUUID(),
         text: 'Question to stop',
-        effort: 'high',
+        effort: 'max',
       }),
     });
     expect(created.status).toBe(201);
@@ -94,25 +96,52 @@ test('owner stop retains one partial answer, clears busy state, and terminal rep
       active_answer_run_id: null,
     });
 
-    const retry = await fetch(`${origin}/api/chats/${chatId}/messages`, {
-      method: 'POST',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        userMessageId: randomUUID(),
-        parentMessageId: mutation.assistantMessageId,
-        text: 'Try again from the stopped turn',
-        effort: 'high',
-      }),
-    });
+    const retryRequestId = randomUUID();
+    const retry = await fetch(
+      `${origin}/api/chats/${chatId}/messages/${mutation.assistantMessageId}/regenerate`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messageId: mutation.assistantMessageId,
+          requestId: retryRequestId,
+        }),
+      },
+    );
     expect(retry.status).toBe(201);
-    const retryResult = (await retry.json()) as { runId: string };
+    const retryResult = (await retry.json()) as {
+      userMessageId: string;
+      assistantMessageId: string;
+      runId: string;
+    };
+    expect(retryResult).toMatchObject({
+      userMessageId: sourceUserId,
+      assistantMessageId: retryResult.runId,
+    });
+    expect(retryResult.assistantMessageId).not.toBe(
+      mutation.assistantMessageId,
+    );
     const retryRun = await app
       .get(TenantDatabase)
       .withTenant(
         { orgId: identity.organization.id, userId: identity.user.id },
         (tx) => new AiRunRepository().find(tx, retryResult.runId),
       );
-    expect(retryRun?.resolvedConfig).toMatchObject({ resolvedEffort: 'high' });
+    expect(retryRun?.resolvedConfig).toMatchObject({ resolvedEffort: 'max' });
+    const retriedTree = ChatTreeSchema.parse(
+      await (await fetch(`${origin}/api/chats/${chatId}`, { headers })).json(),
+    );
+    expect(
+      retriedTree.messages.filter((message) => message.role === 'user'),
+    ).toHaveLength(1);
+    expect(
+      retriedTree.messages.filter((message) => message.role === 'assistant'),
+    ).toHaveLength(2);
+    expect(
+      retriedTree.messages
+        .filter((message) => message.role === 'assistant')
+        .map((message) => message.parentId),
+    ).toEqual([sourceUserId, sourceUserId]);
   } finally {
     await app.close();
     await fixture.close();
@@ -242,5 +271,123 @@ test('HTTP stop keeps the answer busy until the blocked worker acknowledges canc
     controller.abort();
     redis.disconnect();
     await harness.close();
+  }
+});
+
+test('stop rejects nonowners, foreign organizations, deleted chats, and revoked owners without side effects', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createAuthEnvironment(services, '/tmp/lexon-chat-stop-authz-health.json'),
+    ),
+  );
+  const organizations = createOrganizationInspector(services);
+  const fixture = await createChatFixture(services);
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const owner = await apiHeaders(app);
+    const peer = await apiHeaders(app);
+    const foreign = await apiHeaders(app);
+    const identity = async (headers: Record<string, string>) =>
+      (await (await fetch(`${origin}/api/identity`, { headers })).json()) as {
+        user: { id: string };
+      };
+    const ownerId = (await identity(owner)).user.id;
+    const peerId = (await identity(peer)).user.id;
+    const team = await organizations.seedTeam([ownerId, peerId]);
+    for (const headers of [owner, peer]) {
+      expect(
+        (
+          await fetch(`${origin}/api/organizations/active`, {
+            method: 'POST',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({ organizationId: team.id }),
+          })
+        ).status,
+      ).toBe(200);
+    }
+    const createChat = async (
+      headers: Record<string, string>,
+      chatId: string,
+      userMessageId: string,
+    ) => {
+      const response = await fetch(`${origin}/api/chats`, {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          chatId,
+          userMessageId,
+          requestId: randomUUID(),
+          text: 'Stop authorization fixture',
+          effort: 'max',
+        }),
+      });
+      expect(response.status).toBe(201);
+      return (await response.json()) as {
+        userMessageId: string;
+        assistantMessageId: string;
+        runId: string;
+      };
+    };
+    const nonownerChatId = randomUUID();
+    const nonownerRun = await createChat(owner, nonownerChatId, randomUUID());
+    const nonownerBaseline =
+      await fixture.inspect.chatSendSnapshot(nonownerChatId);
+    for (const headers of [peer, foreign]) {
+      const rejected = await fetch(
+        `${origin}/api/runs/${nonownerRun.runId}/cancel`,
+        { method: 'POST', headers },
+      );
+      expect(rejected.status).toBe(404);
+      expect(await fixture.inspect.chatSendSnapshot(nonownerChatId)).toEqual(
+        nonownerBaseline,
+      );
+      expect(await fixture.inspect.runStatus(nonownerRun.runId)).toBe('queued');
+      expect(await fixture.inspect.chat(nonownerChatId)).toMatchObject({
+        active_answer_run_id: nonownerRun.runId,
+      });
+    }
+
+    await fixture.chat.deleteFor(
+      { orgId: team.id, userId: ownerId },
+      nonownerChatId,
+    );
+    const deletedBaseline =
+      await fixture.inspect.chatSendSnapshot(nonownerChatId);
+    const deletedStop = await fetch(
+      `${origin}/api/runs/${nonownerRun.runId}/cancel`,
+      { method: 'POST', headers: owner },
+    );
+    expect(deletedStop.status).toBe(404);
+    expect(await fixture.inspect.chatSendSnapshot(nonownerChatId)).toEqual(
+      deletedBaseline,
+    );
+    expect(await fixture.inspect.runStatus(nonownerRun.runId)).toBe('queued');
+
+    const revokedChatId = randomUUID();
+    const revokedRun = await createChat(peer, revokedChatId, randomUUID());
+    const revokedBaseline =
+      await fixture.inspect.chatSendSnapshot(revokedChatId);
+    const peerMember = team.members.find((member) => member.userId === peerId)!;
+    await organizations.mutateMember(peerMember.id, 'delete');
+    const revokedStop = await fetch(
+      `${origin}/api/runs/${revokedRun.runId}/cancel`,
+      { method: 'POST', headers: peer },
+    );
+    expect(revokedStop.status).toBe(404);
+    expect(await fixture.inspect.chatSendSnapshot(revokedChatId)).toEqual(
+      revokedBaseline,
+    );
+    expect(await fixture.inspect.runStatus(revokedRun.runId)).toBe('queued');
+    expect(await fixture.inspect.chat(revokedChatId)).toMatchObject({
+      active_answer_run_id: revokedRun.runId,
+    });
+  } finally {
+    await app.close();
+    await organizations.close();
+    await fixture.close();
   }
 });

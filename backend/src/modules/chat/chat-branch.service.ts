@@ -106,7 +106,14 @@ export class ChatBranchService {
             runId,
           };
         } catch (error) {
-          if (isMutationConflict(error))
+          if (
+            isExpectedMutationUniqueViolation(error, [
+              'chat_messages_pkey',
+              'chat_messages_org_id_chat_id_id_key',
+              'chat_messages_org_id_run_id_key',
+              'chat_mutation_requests_pkey',
+            ])
+          )
             throw new ChatApiError('CHAT_CONFLICT');
           throw error;
         }
@@ -192,7 +199,14 @@ export class ChatBranchService {
             runId,
           };
         } catch (error) {
-          if (isMutationConflict(error))
+          if (
+            isExpectedMutationUniqueViolation(error, [
+              'chat_messages_pkey',
+              'chat_messages_org_id_chat_id_id_key',
+              'chat_messages_org_id_run_id_key',
+              'chat_mutation_requests_pkey',
+            ])
+          )
             throw new ChatApiError('CHAT_CONFLICT');
           throw error;
         }
@@ -220,12 +234,14 @@ export class ChatBranchService {
   }
 }
 
-function isMutationConflict(error: unknown): boolean {
+function isExpectedMutationUniqueViolation(
+  error: unknown,
+  constraints: readonly string[],
+): boolean {
   const candidate = error as { code?: unknown; constraint?: unknown } | null;
   return (
-    candidate?.code === '23505' ||
-    (candidate?.code === '23514' &&
-      typeof candidate.constraint === 'string' &&
-      candidate.constraint.startsWith('chat_'))
+    candidate?.code === '23505' &&
+    typeof candidate.constraint === 'string' &&
+    constraints.includes(candidate.constraint)
   );
 }
