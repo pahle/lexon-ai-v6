@@ -574,12 +574,38 @@ No ownership/Lua proof was relaxed. A baseline pg concurrent-query warning
 remains tracked. Published head `ebc6487` passed both Linux CI layers in
 [run 42951005070](https://github.com/pahle/lexon-ai-v6/actions/runs/42951005070).
 
-Task 10 must still prove the chosen client adapter against the real persisted
-tree and streaming endpoints before product screen implementation.
+## Task 10 — persisted runtime and recovery proof
+
+Accepted after spec and quality review of `f266b89`, followed by fixes
+`531a78f` and `a8b684c`. The public `useChat` / `useAISDKRuntime` adapter
+passed the early gate; no external-store fallback or internal runtime patch
+is used. [Runtime proof](F4-runtime-proof.md) records the exact commands and
+research.
+
+The mock-model Caddy proof passed **3/3** scenarios, including live persisted
+branch switching, root/nonroot edits, full selected-path equality after reload,
+actual received cursor replay, XTRIM recovery, measured/no-signal reasoning,
+and the visible Stop control's server cancellation. An independent tenant-scoped
+PostgreSQL projection checks the tree and viewed leaf. Browser expiry was not
+separately exercised; XTRIM is the browser fallback evidence.
+
+Affected verification passed **32 frontend tests**, **31 backend SSE/replay
+tests**, **99 lint/boundary checks**, both package typechecks, scoped formatting,
+and worker syntax checks. The final storage-only fix received a scoped review;
+the controller reran its exact two regressions successfully and verified the
+source-diff hash against the commit. Linux CI on the new published head remains
+pending.
+
+Review corrections cover public Stop versus disconnect, serialized branch PUT
+invocations and safe failure display, snapshot ordering/identity before cursor
+acceptance, and denied storage getters/methods. Historical test chronology is
+qualified in the proof; setup failures are not claimed as behavior REDs. Large
+test files/duplicated diagnostics and exploratory test naming remain minor
+items for the final branch review.
 
 ## Pending evidence
 
-The runtime/tree/replay proof, deletion/capacity races with the Usage ledger,
+Deletion/capacity races with the Usage ledger,
 chat UI, search and evals, owner-run high/max smoke and
 calibration, S2 load, visual approval and Linux golden evidence remain pending.
 No real model request, paid eval dispatch or account/admin change was made.
