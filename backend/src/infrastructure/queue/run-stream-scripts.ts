@@ -1,6 +1,7 @@
 export const PREPARE_RUN_STREAM = `
 local runId = ARGV[1]
 local activeGuard = ARGV[3]
+if redis.call('GET', KEYS[4]) == 'deleted' then return -4 end
 local serverTime = redis.call('TIME')
 local nowMs = (tonumber(serverTime[1]) * 1000) + math.floor(tonumber(serverTime[2]) / 1000)
 if tonumber(ARGV[9]) <= nowMs then return -3 end
@@ -48,6 +49,21 @@ for index = 1, count do
   end
 end
 return 1
+`;
+
+export const DELETE_RUN_STREAMS = `
+for i = 2, #ARGV do
+  local runId = ARGV[i]
+  local member = redis.call('HGET', KEYS[4], runId)
+  redis.call('ZREM', KEYS[1], runId)
+  if member then redis.call('ZREM', KEYS[2], member) end
+  redis.call('HDEL', KEYS[3], runId)
+  redis.call('HDEL', KEYS[4], runId)
+  local keyIndex = 5 + (i - 2) * 3
+  redis.call('DEL', KEYS[keyIndex], KEYS[keyIndex + 2])
+  redis.call('SET', KEYS[keyIndex + 1], 'deleted', 'EX', ARGV[1])
+end
+return #ARGV - 1
 `;
 
 export const APPEND_RUN_STREAM = `

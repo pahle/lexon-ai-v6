@@ -8,6 +8,8 @@ import {
   type JobEnvelope,
   type TenantJobHandler,
 } from '../db/index.js';
+import type { StepClaim, TenantDatabase } from '../db/index.js';
+import { StepPermitReferenceRepository } from '../db/index.js';
 import type { JobHandlerRegistry, QueueJobHandler } from './job-contracts.js';
 import {
   StepPermitManager,
@@ -54,13 +56,17 @@ export class QueueConsumer {
   #registryValue: JobHandlerRegistry | undefined;
   #closing = false;
   readonly #timing: QueueConsumerTiming;
+  readonly #permitReferences?: StepPermitReferenceRepository;
 
   constructor(
     private readonly options: QueueOptions,
     private readonly executor: JobRunner,
     timing: Partial<QueueConsumerTiming> = {},
+    database?: TenantDatabase,
   ) {
     this.#timing = { ...DEFAULT_TIMING, ...timing };
+    if (database)
+      this.#permitReferences = new StepPermitReferenceRepository(database);
   }
 
   async start(
@@ -199,6 +205,12 @@ export class QueueConsumer {
       }
       if (handler.strategy === 'short-transaction')
         return await this.executor.execute(envelope, handler.handle);
+      if (handler.strategy === 'cleanup-work') {
+        const outcome = await handler.handle(envelope);
+        if (outcome === 'pending')
+          await this.#delay(job, Date.now() + this.#timing.busyRetryMs);
+        return 'processed';
+      }
       const outcome = await this.#executeDurable(envelope, handler);
       if (outcome.kind === 'busy') {
         if (!Number.isSafeInteger(outcome.retryAtMs))
@@ -245,10 +257,22 @@ export class QueueConsumer {
     let result: Awaited<ReturnType<typeof registration.handle>> | undefined;
     let handlerError: unknown;
     let handlerFailed = false;
+    let recordedClaim: StepClaim | undefined;
     try {
       result = await registration.handle(job, {
         signal: controller.signal,
         permit,
+        ...(this.#permitReferences
+          ? {
+              recordClaim: async (claim: StepClaim) => {
+                await this.#permitReferences!.record(
+                  permit.ownerReference,
+                  claim,
+                );
+                recordedClaim = claim;
+              },
+            }
+          : {}),
       });
     } catch (error) {
       handlerFailed = true;
@@ -258,6 +282,11 @@ export class QueueConsumer {
       try {
         await renewal;
         await permit.release();
+        if (recordedClaim)
+          await this.#permitReferences?.remove(
+            permit.ownerReference,
+            recordedClaim,
+          );
       } finally {
         this.#activeControllers.delete(controller);
       }

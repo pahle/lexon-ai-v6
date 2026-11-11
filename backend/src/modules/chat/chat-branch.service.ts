@@ -9,6 +9,7 @@ import {
   ChatMessageRepository,
   ChatMutationRepository,
   ChatRepository,
+  ChatDeletionRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -20,6 +21,7 @@ export class ChatBranchService {
   private readonly messages = new ChatMessageRepository();
   private readonly mutations = new ChatMutationRepository();
   private readonly steps = new AiStepRepository();
+  private readonly deletions = new ChatDeletionRepository();
 
   constructor(
     private readonly database: TenantDatabase,
@@ -41,6 +43,8 @@ export class ChatBranchService {
         await this.steps.lockTenantClaimGuard(tx);
         const chat = await this.chats.lockLive(tx, chatId);
         if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
+        if (await this.deletions.wasDeleted(tx, 'message', input.newMessageId))
+          throw new ChatApiError('CHAT_CONFLICT');
         const retry = await this.mutations.findByRequestIdentity(tx, {
           chatId,
           kind: 'edit',

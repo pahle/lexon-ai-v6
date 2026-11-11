@@ -13,6 +13,7 @@ import {
   ChatMessageRepository,
   ChatMutationRepository,
   ChatRepository,
+  ChatDeletionRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -26,6 +27,7 @@ export class ChatService {
   private readonly mutations = new ChatMutationRepository();
   private readonly steps = new AiStepRepository();
   private readonly audit = new AuditService();
+  private readonly deletions = new ChatDeletionRepository();
 
   constructor(
     private readonly database: TenantDatabase,
@@ -42,6 +44,11 @@ export class ChatService {
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         await this.steps.lockTenantClaimGuard(tx);
+        if (
+          (await this.deletions.wasDeleted(tx, 'chat', input.chatId)) ||
+          (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
+        )
+          throw new ChatApiError('CHAT_NOT_FOUND');
         const retry = await this.mutations.findCreateRequest(
           tx,
           input.requestId,
@@ -165,6 +172,8 @@ export class ChatService {
             throw new ChatApiError('CHAT_CONFLICT');
           return this.mutations.toMutationResult(retry);
         }
+        if (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
+          throw new ChatApiError('CHAT_CONFLICT');
         if (chat.activeAnswerRunId) throw new ChatApiError('CHAT_CONFLICT');
 
         try {

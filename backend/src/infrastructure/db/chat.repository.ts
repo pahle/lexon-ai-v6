@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { OutboxRepository } from './outbox.repository.js';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  chatCleanupJobId,
+  type ChatCleanupPhase,
+} from './chat-cleanup-job-id.js';
 
 const uuid = z.uuid();
 
@@ -175,7 +179,12 @@ export class ChatRepository {
     return result.rowCount === 1;
   }
 
-  async markDeleted(tx: TenantSession, chatId: string): Promise<boolean> {
+  async markDeleted(
+    tx: TenantSession,
+    chatId: string,
+    phase: ChatCleanupPhase = 'grace',
+    outboxId = chatCleanupJobId(chatId, phase),
+  ): Promise<boolean> {
     if (!uuid.safeParse(chatId).success) return false;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
@@ -190,11 +199,15 @@ export class ChatRepository {
       [scope.orgId, scope.userId, chatId],
     );
     if (result.rows[0]?.deleted !== true) return false;
-    await this.outbox.append(tx, {
-      type: 'chat.cleanup.v1',
-      ctx: { orgId: ctx.orgId, userId: ctx.userId },
-      payload: { chatId },
-    });
+    await this.outbox.append(
+      tx,
+      {
+        type: 'chat.cleanup.v1',
+        ctx: { orgId: ctx.orgId, userId: ctx.userId },
+        payload: { chatId, phase },
+      },
+      { id: outboxId },
+    );
     return true;
   }
 }

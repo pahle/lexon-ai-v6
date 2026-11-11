@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   Post,
@@ -25,6 +28,7 @@ import {
 } from '../identity-access/index.js';
 import { ChatService } from './chat.service.js';
 import { ChatBranchService } from './chat-branch.service.js';
+import { ChatDeletionService } from './chat-deletion.service.js';
 
 @Controller('chats')
 export class ChatController {
@@ -32,6 +36,7 @@ export class ChatController {
     private readonly chats: ChatService,
     private readonly authorization: RunAuthorizationService,
     private readonly branches: ChatBranchService,
+    private readonly deletion: ChatDeletionService,
     @Inject(RUNTIME_CONFIG)
     private readonly config: Extract<RuntimeConfig, { runtime: 'api' }>,
   ) {}
@@ -50,6 +55,15 @@ export class ChatController {
     const identity = currentVerifiedIdentity();
     return this.authorization.withActor(identity, (actor) =>
       this.chats.get(actor, UuidSchema.parse(chatId)),
+    );
+  }
+
+  @Delete(':chatId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  delete(@Param('chatId') chatId: string): Promise<void> {
+    const identity = currentVerifiedIdentity();
+    return this.authorization.withActor(identity, (actor) =>
+      this.deletion.request(actor, UuidSchema.parse(chatId)),
     );
   }
 

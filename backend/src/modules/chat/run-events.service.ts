@@ -103,11 +103,22 @@ export class RunEventsService {
     private readonly revalidation: RunSseRevalidation,
   ) {}
 
-  readonly #local = new Map<string, () => Promise<void>>();
+  readonly #local = new Map<
+    string,
+    { readonly runId: string; readonly close: () => Promise<void> }
+  >();
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.all([...this.#local.values()].map((close) => close()));
+    await Promise.all([...this.#local.values()].map(({ close }) => close()));
     await this.registry.close();
+  }
+
+  async closeRun(runId: string): Promise<void> {
+    await Promise.all(
+      [...this.#local.values()]
+        .filter((connection) => connection.runId === runId)
+        .map(({ close }) => close()),
+    );
   }
 
   async connect(
@@ -138,7 +149,7 @@ export class RunEventsService {
       );
       lease = admitted.lease;
       if (admitted.evicted?.processId === PROCESS_ID)
-        await this.#local.get(admitted.evicted.connectionId)?.();
+        await this.#local.get(admitted.evicted.connectionId)?.close();
     } catch {
       throw new NotFoundException();
     }
@@ -159,7 +170,10 @@ export class RunEventsService {
       if (lease) await this.registry.release(lease).catch(() => false);
       if (reason) await sink.close(reason);
     };
-    this.#local.set(connectionId, () => close('evicted'));
+    this.#local.set(connectionId, {
+      runId,
+      close: () => close('evicted'),
+    });
     try {
       const reloadFallback = async () => {
         const refreshed = await sharedSnapshotRead(snapshotKey, async () => {

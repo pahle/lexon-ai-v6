@@ -232,6 +232,13 @@
       "when": 1793404800032,
       "tag": "0032_chat_mutation_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793404800033,
+      "tag": "0033_chat_cleanup",
+      "breakpoints": true
     }
   ]
 }

@@ -52,7 +52,10 @@ const schema = z.discriminatedUnion('type', [
     outboxId: z.uuid(),
     type: z.literal('chat.cleanup.v1'),
     ctx: runContextSchema,
-    payload: z.strictObject({ chatId: z.uuid() }),
+    payload: z.strictObject({
+      chatId: z.uuid(),
+      phase: z.enum(['grace', 'purge_db', 'purge_valkey']).optional(),
+    }),
   }),
 ]);
 export type JobEnvelope = Readonly<
@@ -82,7 +85,10 @@ export type JobEnvelope = Readonly<
       outboxId: string;
       type: 'chat.cleanup.v1';
       ctx: Readonly<{ orgId: string; userId: string }>;
-      payload: Readonly<{ chatId: string }>;
+      payload: Readonly<{
+        chatId: string;
+        phase?: 'grace' | 'purge_db' | 'purge_valkey';
+      }>;
     }
 >;
 
@@ -103,7 +109,11 @@ export function parseJobEnvelope(input: unknown): JobEnvelope {
   const result = schema.safeParse(input);
   // Zod issues can contain input values. Never expose them for queue metadata.
   if (!result.success) throw new Error('Invalid job envelope');
-  const { outboxId, type, ctx, payload } = result.data;
+  const { outboxId, type, ctx } = result.data;
+  const payload =
+    result.data.type === 'chat.cleanup.v1'
+      ? { ...result.data.payload, phase: result.data.payload.phase ?? 'grace' }
+      : result.data.payload;
   return Object.freeze({
     outboxId,
     type,

@@ -19,6 +19,7 @@ import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
 import { StepExecutor } from '../modules/chat/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
+import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
 import { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export function runtimeProviders(
   config: RuntimeConfig,
@@ -64,6 +65,8 @@ export function runtimeProviders(
             prefix: config.queuePrefix,
           },
           new JobExecutor(db),
+          {},
+          db,
         ),
     });
   if (config.runtime === 'dispatcher')
@@ -88,6 +91,7 @@ export function runtimeProviders(
           ? [QueueConsumer, StepExecutor, RunStreams, CancelSignals]
           : [QueueProducer, OutboxDispatcher];
   if (capacity) tokens.push(AiCapacityRepository);
+  if (config.runtime === 'ai-worker') tokens.push(ChatCleanupWorker);
   providers.push({
     provide: RuntimeLifecycle,
     inject: [TenantDatabase, HealthIndicators, PinoLogger, ...tokens],
@@ -105,6 +109,7 @@ export function runtimeProviders(
         | RunStreams
         | CancelSignals
         | StreamHub
+        | ChatCleanupWorker
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -131,6 +136,9 @@ export function runtimeProviders(
           (x): x is CancelSignals => x instanceof CancelSignals,
         ),
         dependencies.find((x): x is StreamHub => x instanceof StreamHub),
+        dependencies.find(
+          (x): x is ChatCleanupWorker => x instanceof ChatCleanupWorker,
+        ),
       ),
   });
   return providers;

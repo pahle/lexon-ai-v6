@@ -21,6 +21,18 @@ export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { AiRunRepository } from './ai-run.repository.js';
 export { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 export { ChatRepository } from './chat.repository.js';
+export { ChatDeletionRepository } from './chat-deletion.repository.js';
+export { chatCleanupJobId } from './chat-cleanup-job-id.js';
+export type { ChatCleanupPhase } from './chat-cleanup-job-id.js';
+export type {
+  ChatDeletionState,
+  ChatDeletionWork,
+} from './chat-deletion.repository.js';
+export { StepPermitReferenceRepository } from './step-permit.repository.js';
+export type {
+  StepPermitOwner,
+  StepPermitReference,
+} from './step-permit.repository.js';
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';

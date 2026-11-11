@@ -504,6 +504,7 @@ export class StepCoordinator {
                   ? { costUsd: input.settlement.costUsd }
                   : {}),
               });
+            if (deletedFacts.purged) return;
             const finalized = await this.steps.finalizeDeletedCancellation(
               tx,
               claim,

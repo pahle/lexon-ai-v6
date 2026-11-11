@@ -92,6 +92,73 @@ test('durable busy claims are delayed without consuming BullMQ failure attempts'
   }
 });
 
+test('cleanup work is delayed without consuming a durable receipt or failure attempt', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:cleanup-work`,
+  };
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const registry = new JobRegistry();
+  const jobId = randomUUID();
+  const pendingUntil = Date.now() + 500;
+  let calls = 0;
+  const consumer = new QueueConsumer(
+    options,
+    new JobExecutor(fixture.database),
+    {
+      lockDuration: 1000,
+      stalledInterval: 1000,
+      interactiveConcurrency: 1,
+      batchConcurrency: 1,
+      stepLeaseMs: 300,
+      busyRetryMs: 100,
+    },
+  );
+  registry.register('chat.cleanup.v1', {
+    strategy: 'cleanup-work',
+    handle: async () =>
+      ++calls && Date.now() < pendingUntil ? 'pending' : 'complete',
+  });
+  try {
+    await consumer.start(registry);
+    await producer.enqueue(
+      {
+        outboxId: jobId,
+        type: 'chat.cleanup.v1',
+        ctx: { orgId: randomUUID(), userId: randomUUID() },
+        payload: { chatId: randomUUID(), phase: 'purge_valkey' },
+      },
+      { queue: 'ai-batch', priority: 4, timeoutMs: 1000 },
+    );
+    await expect
+      .poll(async () => (await queue.getJob(jobId))?.getState())
+      .toBe('delayed');
+    expect((await queue.getJob(jobId))?.attemptsMade).toBe(0);
+    expect(await fixture.receiptCount(jobId)).toBe(0);
+    await expect
+      .poll(async () => (await queue.getJob(jobId))?.getState(), {
+        timeout: 5000,
+      })
+      .toBe('completed');
+    expect(calls).toBeGreaterThan(1);
+    expect((await queue.getJob(jobId))?.attemptsMade).toBe(1);
+    expect(await fixture.receiptCount(jobId)).toBe(0);
+  } finally {
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await fixture.close();
+  }
+});
+
 test('expired live-refused recovery delivery stays delayed until a new fence commits', async ({
   services,
 }) => {
@@ -1059,6 +1126,40 @@ test('organization step permits are isolated, renew by owner, and expire after w
   } finally {
     await first?.release();
     await second?.release();
+    await replacement?.release();
+    await manager.close();
+  }
+});
+
+test('cleanup releases a persisted permit owner without releasing its replacement', async ({
+  services,
+}) => {
+  const manager = await StepPermitManager.create({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:permit-reference`,
+    leaseMs: 5000,
+  });
+  const orgId = randomUUID();
+  let first: Awaited<ReturnType<StepPermitManager['acquire']>> = null;
+  let replacement: Awaited<ReturnType<StepPermitManager['acquire']>> = null;
+  const claim = {
+    runId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    stepId: randomUUID(),
+    fence: 1,
+  };
+  try {
+    first = await manager.acquire(orgId);
+    expect(first).not.toBeNull();
+    const oldReference = { ...first!.ownerReference, ...claim };
+    expect(await manager.releaseReference(oldReference)).toBe('released');
+    replacement = await manager.acquire(orgId);
+    expect(replacement).not.toBeNull();
+    expect(await manager.releaseReference(oldReference)).toBe('lost');
+    expect(await replacement!.renew()).toBe('renewed');
+  } finally {
+    await first?.release();
     await replacement?.release();
     await manager.close();
   }

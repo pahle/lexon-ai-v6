@@ -148,7 +148,11 @@ export type RuntimeConfig =
       runtime: 'dispatcher';
       dispatcher: ReturnType<typeof readDispatcher>;
     })
-  | (CommonConfig & { runtime: 'ai-worker'; ai: AiConfig });
+  | (CommonConfig & {
+      runtime: 'ai-worker';
+      ai: AiConfig;
+      chat: ChatConfig;
+    });
 export type ApiConfig = Extract<RuntimeConfig, { runtime: 'api' }>;
 export function loadRuntimeConfig<R extends RuntimeName>(
   runtime: R,
@@ -175,6 +179,11 @@ export function loadRuntimeConfig(
     case 'dispatcher':
       return { ...config, runtime, dispatcher: readDispatcher(env) };
     case 'ai-worker':
-      return { ...config, runtime, ai: readAiConfig(env) };
+      return {
+        ...config,
+        runtime,
+        ai: readAiConfig(env),
+        chat: readChatConfig(env),
+      };
   }
 }

@@ -21,6 +21,7 @@ import {
   APPEND_RUN_STREAM,
   APPEND_COMMITTED_RUN_STREAM,
   RECONCILE_RUN_STREAMS,
+  DELETE_RUN_STREAMS,
 } from './run-stream-scripts.js';
 import { StreamCapacity } from './stream-capacity.js';
 
@@ -124,6 +125,8 @@ interface SerializedQueue {
 const MAX_PENDING_PUBLICATIONS = 4;
 const MAX_PARTS_PER_PUBLICATION = 32;
 const PUBLICATION_DEADLINE_MS = 250;
+// More than four publication deadlines; a fresh publication always rechecks PostgreSQL.
+const DELETED_RUN_STREAM_FENCE_TTL_SECONDS = 2;
 
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -459,6 +462,39 @@ export class RunStreams {
     this.#client.disconnect();
   }
 
+  async removeRuns(runIds: readonly string[]): Promise<void> {
+    if (runIds.some((runId) => !uuid.test(runId)))
+      throw new Error('Invalid run stream deletion');
+    if (runIds.length === 0) return;
+    if (!(await this.#connect()))
+      throw new Error('Run stream store unavailable');
+    const uniqueRunIds = [...new Set(runIds)];
+    const keys = [
+      this.#activeKey(),
+      this.#terminalKey(),
+      this.#contextKey(),
+      this.#terminalMembersKey(),
+      ...uniqueRunIds.flatMap((runId) => [
+        this.#streamKey(runId),
+        this.#guardKey(runId),
+        this.#generationKey(runId),
+      ]),
+    ];
+    await this.#client.eval(
+      DELETE_RUN_STREAMS,
+      keys.length,
+      ...keys,
+      String(DELETED_RUN_STREAM_FENCE_TTL_SECONDS),
+      ...uniqueRunIds,
+    );
+    for (const [key, queue] of this.#serial) {
+      if (uniqueRunIds.includes(key.split(':')[1] ?? '')) {
+        this.#invalidate(queue);
+        this.#serial.delete(key);
+      }
+    }
+  }
+
   async #publishPart(
     claim: StepClaim,
     event: RunStreamEvent,
@@ -520,6 +556,7 @@ export class RunStreams {
           serverDeadlineAt,
         );
         if (prepared === -2) return { status: 'stale' };
+        if (prepared === -4) return { status: 'stale' };
         if (prepared === -3 || prepared === 0) return { status: 'unavailable' };
         if (prepared < 0) continue;
         if (!isCurrent()) return { status: 'stale' };

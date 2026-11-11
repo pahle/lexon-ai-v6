@@ -72,7 +72,7 @@ export class AiStepRepository {
   async deletedCancellationFacts(
     tx: TenantSession,
     claim: StepClaim,
-  ): Promise<{ activeAttemptIds: string[] } | null> {
+  ): Promise<{ activeAttemptIds: string[]; purged?: boolean } | null> {
     if (!validClaim(tx, claim)) return null;
     const { client } = requireSession(tx);
     const result = await client.query<{ active_attempt_ids: string[] }>(
@@ -87,8 +87,25 @@ export class AiStepRepository {
         claim.fence,
       ],
     );
-    return result.rows[0]
-      ? { activeAttemptIds: result.rows[0].active_attempt_ids }
+    if (result.rows[0])
+      return { activeAttemptIds: result.rows[0].active_attempt_ids };
+    const purged = await client.query<{
+      active_attempt_ids: string[];
+      purged: boolean;
+    }>(
+      `SELECT active_attempt_ids,purged FROM ops.ai_chat_deleted_run_facts($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return purged.rows[0]?.purged
+      ? { activeAttemptIds: purged.rows[0].active_attempt_ids, purged: true }
       : null;
   }
 

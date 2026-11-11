@@ -1,4 +1,5 @@
 import type { Provider } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import type { RuntimeConfig } from '../config/runtime-config.js';
 import {
   AiOperationRepository,
@@ -21,6 +22,8 @@ import {
 } from '../modules/chat/index.js';
 import { RunAuthorizationService } from '../modules/identity-access/index.js';
 import { AttemptService } from '../modules/usage/index.js';
+import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
 
 export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
@@ -96,6 +99,37 @@ export function aiWorkerProviders(
               ),
           },
         }),
+    },
+    {
+      provide: ChatCleanupWorker,
+      inject: [TenantDatabase, RunStreams, PinoLogger],
+      useFactory: async (
+        db: TenantDatabase,
+        streams: RunStreams,
+        logger: PinoLogger,
+      ) =>
+        new ChatCleanupWorker(
+          db,
+          streams,
+          await StepPermitManager.create({
+            url: config.valkey.limiterUrl,
+            prefix: config.queuePrefix,
+          }),
+          undefined,
+          {
+            targetMs: config.chat.deleteTargetMs,
+            observer: {
+              record: (metric) =>
+                logger.info({
+                  event: 'chat_cleanup_metric',
+                  result: metric.event,
+                  phase: metric.phase,
+                  elapsedMs: metric.elapsedMs,
+                  overdueMs: metric.overdueMs,
+                }),
+            },
+          },
+        ),
     },
     {
       provide: StepExecutor,

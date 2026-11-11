@@ -25,6 +25,7 @@ import { StreamHub } from '../../infrastructure/queue/stream-hub.js';
 import { SseConnectionRegistry } from '../../infrastructure/queue/sse-connection-registry.js';
 import { CancelSignals, RunStreams } from '../../infrastructure/queue/index.js';
 import { CancelService } from './cancel.service.js';
+import { ChatDeletionService } from './chat-deletion.service.js';
 
 export function chatRuntimeProviders(): Provider[] {
   return [
@@ -144,6 +145,28 @@ export function chatApiProviders(
           authorization,
           streams,
           signals,
+        ),
+    },
+    {
+      provide: ChatDeletionService,
+      inject: [
+        TenantDatabase,
+        RunAuthorizationService,
+        CancelSignals,
+        RunEventsService,
+      ],
+      useFactory: (
+        database: TenantDatabase,
+        authorization: RunAuthorizationService,
+        signals: CancelSignals,
+        events: RunEventsService,
+      ) =>
+        new ChatDeletionService(
+          database,
+          authorization,
+          signals,
+          config.chat.deleteGraceMs,
+          events,
         ),
     },
     {

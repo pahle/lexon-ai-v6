@@ -66,6 +66,98 @@ test('an unknown stream recovery mode is rejected before SSE admission', async (
   }
 });
 
+test('an in-flight old publication cannot recreate a deleted stream after guard expiry', async ({
+  services,
+}) => {
+  const prefix = `${services.queuePrefix}:delete-guard-expiry`;
+  const runId = randomUUID();
+  const claim = {
+    orgId: randomUUID(),
+    userId: randomUUID(),
+    runId,
+    stepId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    fence: 1,
+    leaseUntil: new Date(Date.now() + 60_000),
+  };
+  let enteredAdvance!: () => void;
+  let resumeAdvance!: () => void;
+  const advanced = new Promise<void>((resolve) => (enteredAdvance = resolve));
+  const held = new Promise<void>((resolve) => (resumeAdvance = resolve));
+  const authority = {
+    authorizeActive: async () => ({
+      runVersion: claim.expectedVersion,
+      nextSequence: claim.sequence,
+      status: 'running' as const,
+      stepId: claim.stepId,
+      sequence: claim.sequence,
+      expectedVersion: claim.expectedVersion,
+      fence: claim.fence,
+      leaseUntil: claim.leaseUntil,
+    }),
+    advanceStreamGeneration: async (_claim: unknown, observed: number) => {
+      enteredAdvance();
+      await held;
+      return observed + 1;
+    },
+    authorizeTerminal: async () => undefined,
+    reconcile: async (entries: readonly { runId: string }[]) =>
+      entries.map(({ runId: entryRunId }) => ({
+        runId: entryRunId,
+        state: 'missing' as const,
+      })),
+  };
+  const stalePublisher = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix,
+    authority,
+  });
+  const cleaner = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix,
+    authority: { ...authority, authorizeActive: async () => undefined },
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  const guardKey = `${prefix}:{run-streams}:${runId}:guard`;
+  try {
+    const oldPublish = stalePublisher.publish(claim, {
+      version: 1,
+      runId,
+      type: 'text-start',
+      id: randomUUID(),
+    });
+    await advanced;
+    await cleaner.removeRuns([runId]);
+    await redis.pexpire(guardKey, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    resumeAdvance();
+
+    expect(await oldPublish).not.toBe('written');
+    expect(await redis.exists(guardKey)).toBe(0);
+    expect(
+      await redis.zscore(`${prefix}:{run-streams}:active`, runId),
+    ).toBeNull();
+    expect(await redis.exists(`${prefix}:{run-streams}:${runId}:events`)).toBe(
+      0,
+    );
+    expect(
+      await redis.exists(`${prefix}:{run-streams}:${runId}:generation`),
+    ).toBe(0);
+    expect(
+      await cleaner.publish(claim, {
+        version: 1,
+        runId,
+        type: 'text-start',
+        id: randomUUID(),
+      }),
+    ).toBe('stale');
+  } finally {
+    resumeAdvance();
+    await Promise.all([stalePublisher.close(), cleaner.close(), redis.quit()]);
+  }
+});
+
 test('the owning user can open the authorized run event stream', async ({
   services,
 }) => {

@@ -269,6 +269,7 @@ export async function createChatApiHarness(
     waitForClaimLockWaiters: storage.waitForClaimLockWaiters,
     engine,
     associateStartedAnswer: storage.chat.associateFor,
+    associateTitleRun: storage.chat.associateTitleFor,
     jobForAnswer(
       ctx: { orgId: string; userId: string },
       runId: string,

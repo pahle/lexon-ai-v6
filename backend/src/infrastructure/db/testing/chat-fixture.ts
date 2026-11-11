@@ -5,6 +5,7 @@ import { AiAttemptRepository } from '../ai-attempt.repository.js';
 import { AiStepRepository } from '../ai-step.repository.js';
 import { ChatRepository } from '../chat.repository.js';
 import { ChatMessageRepository } from '../chat-message.repository.js';
+import { ChatDeletionRepository } from '../chat-deletion.repository.js';
 import { requireSession } from '../tenant-session.js';
 import type { ModelEvent, ModelGateway } from '../../ai/index.js';
 import { createAiFixture } from './ai-fixture.js';
@@ -105,6 +106,7 @@ export async function createChatFixture(services: Services) {
   const runs = new AiRunRepository();
   const steps = new AiStepRepository();
   const attempts = new AiAttemptRepository();
+  const deletions = new ChatDeletionRepository();
   const mockModel = modelBarrier();
   function startDirectRunOutputWrite(
     tenant: { orgId: string; userId: string },
@@ -509,6 +511,22 @@ export async function createChatFixture(services: Services) {
           );
         });
       },
+      async associateTitleFor(
+        ctx: { orgId: string; userId: string },
+        chatId: string,
+        runId: string,
+      ) {
+        await ai.database.withTenant(ctx, async (tx) => {
+          if (!(await chats.lockLive(tx, chatId)))
+            throw new Error('Chat fixture unavailable');
+          const { client } = requireSession(tx);
+          await client.query(
+            `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+             VALUES($1,$2,$3,'title')`,
+            [ctx.orgId, chatId, runId],
+          );
+        });
+      },
       setRunOutput(index: number, runId: string, text: string) {
         return ai.withTenant(index, async (tx) => {
           const { client } = requireSession(tx);
@@ -793,6 +811,20 @@ export async function createChatFixture(services: Services) {
         );
         return result.rows[0]?.status ?? null;
       },
+      async requestDeletionStatusInsideTransaction(
+        ctx: { orgId: string; userId: string },
+        chatId: string,
+        runId: string,
+      ) {
+        const accepted = await ai.database.withTenant(ctx, (tx) =>
+          deletions.request(tx, chatId, 30_000),
+        );
+        const status = await inspector.query<{ status: string }>(
+          'SELECT status FROM app.ai_runs WHERE org_id=$1 AND id=$2',
+          [ctx.orgId, runId],
+        );
+        return { accepted, runStatus: status.rows[0]?.status ?? null };
+      },
       async chatSchema() {
         const result = await inspector.query(
           `SELECT c.relrowsecurity,c.relforcerowsecurity,
@@ -897,6 +929,134 @@ export async function createChatFixture(services: Services) {
           [chatId],
         );
         return result.rows;
+      },
+      async deletedChatWithoutTenant(input: {
+        orgId: string;
+        userId: string;
+        chatId: string;
+      }) {
+        const client = appClient();
+        await client.connect();
+        try {
+          const result = await client.query<{ deleted: boolean }>(
+            'SELECT ops.ai_chat_was_deleted($1,$2,$3) AS deleted',
+            [input.orgId, input.userId, input.chatId],
+          );
+          return result.rows[0]?.deleted ?? false;
+        } finally {
+          await client.end();
+        }
+      },
+      async deletedRunFactsWithoutTenant(input: {
+        orgId: string;
+        userId: string;
+        runId: string;
+        expectedVersion: number;
+        sequence: number;
+        stepId: string;
+        fence: number;
+      }) {
+        const client = appClient();
+        await client.connect();
+        try {
+          const result = await client.query<{
+            active_attempt_ids: string[];
+            purged: boolean;
+          }>(
+            'SELECT * FROM ops.ai_chat_deleted_run_facts($1,$2,$3,$4,$5,$6,$7)',
+            [
+              input.orgId,
+              input.userId,
+              input.runId,
+              input.expectedVersion,
+              input.sequence,
+              input.stepId,
+              input.fence,
+            ],
+          );
+          return result.rows[0] ?? null;
+        } finally {
+          await client.end();
+        }
+      },
+      async deletionCounts(chatId: string, runId: string) {
+        const result = await inspector.query<{
+          chats: number;
+          messages: number;
+          runs: number;
+          slots: number;
+          completed_audit: number;
+        }>(
+          `SELECT
+             (SELECT count(*)::int FROM app.chats WHERE id=$1) AS chats,
+             (SELECT count(*)::int FROM app.chat_messages WHERE chat_id=$1) AS messages,
+             (SELECT count(*)::int FROM app.ai_runs WHERE id=$2) AS runs,
+             (SELECT count(*)::int FROM ops.ai_run_slots WHERE run_id=$2) AS slots,
+             (SELECT count(*)::int FROM ops.audit_events
+               WHERE type='chat.deletion_completed.v1' AND metadata->>'chatId'=$1::text) AS completed_audit`,
+          [chatId, runId],
+        );
+        const row = result.rows[0]!;
+        return {
+          chats: row.chats,
+          messages: row.messages,
+          runs: row.runs,
+          slots: row.slots,
+          completedAudit: row.completed_audit,
+        };
+      },
+      async expireChatCreateRequest(chatId: string) {
+        await inspector.query(
+          'DELETE FROM app.chat_create_requests WHERE chat_id=$1',
+          [chatId],
+        );
+      },
+      async deletionRequestState(chatId: string) {
+        const result = await inspector.query<{
+          deleted_at: Date | null;
+          cleanup_jobs: number;
+        }>(
+          `SELECT c.deleted_at,
+            (SELECT count(*)::int FROM ops.outbox o
+             WHERE o.type='chat.cleanup.v1' AND o.payload->>'chatId'=$1::text) AS cleanup_jobs
+           FROM app.chats c WHERE c.id=$1::uuid`,
+          [chatId],
+        );
+        return result.rows[0]
+          ? {
+              deletedAt: result.rows[0].deleted_at,
+              cleanupJobs: result.rows[0].cleanup_jobs,
+            }
+          : null;
+      },
+      async failChatDeletionAuditInsert(
+        eventType:
+          | 'chat.deletion_requested.v1'
+          | 'chat.deletion_completed.v1' = 'chat.deletion_requested.v1',
+      ) {
+        const triggerName = `fail_chat_delete_audit_${randomUUID().replaceAll('-', '')}`;
+        const functionName = `fail_chat_delete_audit_${randomUUID().replaceAll('-', '')}`;
+        await inspector.query(
+          `CREATE FUNCTION public.${functionName}() RETURNS trigger
+           LANGUAGE plpgsql AS $$ BEGIN
+             IF NEW.type='${eventType}' THEN
+               RAISE EXCEPTION 'injected delete audit failure' USING ERRCODE='23514';
+             END IF;
+             RETURN NEW;
+           END $$`,
+        );
+        await inspector.query(
+          `CREATE TRIGGER ${triggerName} BEFORE INSERT ON ops.audit_events
+           FOR EACH ROW EXECUTE FUNCTION public.${functionName}()`,
+        );
+        return async () => {
+          await inspector.query(
+            `DROP TRIGGER IF EXISTS ${triggerName} ON ops.audit_events`,
+          );
+          await inspector.query(
+            `DROP FUNCTION IF EXISTS public.${functionName}()`,
+          );
+        };
       },
       async mutationCounts(input: { chatId: string; runId: string }) {
         const result = await inspector.query<{
@@ -1044,6 +1204,12 @@ export async function createChatFixture(services: Services) {
           [runId],
         );
         return result.rows;
+      },
+      async activeSlotCount() {
+        const result = await inspector.query<{ count: number }>(
+          'SELECT count(*)::int AS count FROM ops.ai_run_slots',
+        );
+        return result.rows[0]?.count ?? 0;
       },
     },
     model: mockModel,
