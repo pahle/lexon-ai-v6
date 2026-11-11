@@ -37,6 +37,18 @@ export type {
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
+export { ChatSearchRepository } from './chat-search.repository.js';
+export type {
+  ChatListCursor,
+  ChatSearchCursor,
+  ChatSearchRow,
+} from './chat-search.repository.js';
+export { MessageFeedbackRepository } from './message-feedback.repository.js';
+export type {
+  MessageFeedbackAction,
+  MessageFeedbackRating,
+  MessageFeedbackResult,
+} from './message-feedback.repository.js';
 export { ChatMutationRepository } from './chat-mutation.repository.js';
 export type {
   ChatCreateRequestRecord,
