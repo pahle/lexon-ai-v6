@@ -658,6 +658,32 @@ registry keys observed in the intermediate run have not had their origin or
 release lifetime established; final branch review must triage that observation.
 This repair is not global registry-cleanup clearance or a new CI pass.
 
+## Task 12 — durable titles and owner invalidation
+
+Task 12 is implemented through `dfb6c7e` with a fresh task review and two
+scoped fix reviews. [Title proof](F4-title-proof.md) records the exact evidence.
+Answer completion schedules one stable title task transactionally; title-run
+creation shares the job receipt transaction and retries capacity refusal.
+Version/source checks preserve renames, deletion fences late writes, and invalid
+Unicode quotation or trailing punctuation retains the excerpt without a repair
+call. Failed and cancelled answers remain eligible for a later successful
+answer; an injected outbox failure verifies completion rollback.
+
+An authenticated owner-scoped invalidation stream shares the existing API
+PostgreSQL listener and per-user connection budget. Its pending IDs are bounded
+and coalesced. A tested frontend helper invalidates tenant/organization/user
+query keys and recovers missed events after reconnect. Tasks 14–15 must adopt
+and dispose this helper with the active verified identity; screen wiring is
+not claimed here. The main session independently verified the final integration
+pair at **16/16** and frontend helper at **6/6**. Reported affected unit tests,
+contracts, both typechecks and lint, formatting and diff checks passed.
+No full queue-consumer E2E or real-model title quality is claimed.
+
+Published predecessor `22c8ce0` passed Linux unit/integration on the first
+attempt and Compose on a failed-job rerun after the Ubuntu dependency mirror
+DNS failure in [run 43060376679](https://github.com/pahle/lexon-ai-v6/actions/runs/43060376679).
+This is predecessor evidence; the new task head still needs CI.
+
 ## Pending evidence
 
 Chat UI, search and evals, owner-run high/max smoke and
