@@ -312,6 +312,19 @@ const chatDeletion = z.strictObject({
   actorUserId: UuidSchema,
   metadata: z.strictObject({ chatId: UuidSchema }),
 });
+const chatMessageFeedback = z.strictObject({
+  ...base,
+  type: z.literal('chat.message_feedback.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({
+    chatId: UuidSchema,
+    messageId: UuidSchema,
+    runId: UuidSchema,
+    action: z.enum(['set', 'changed', 'cleared']),
+  }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -334,6 +347,7 @@ export const AuditEventSchema = z.union([
   chatCreated,
   chatMessageSent,
   chatDeletion,
+  chatMessageFeedback,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };
