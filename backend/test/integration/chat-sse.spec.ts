@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
-import { createAuthEnvironment } from '../setup/auth-environment.js';
+import { createAuthEnvironment as baseCreateAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { RunEventsService } from '../../src/modules/chat/run-events.service.js';
 import {
@@ -27,13 +27,31 @@ import {
   withVerifiedIdentity,
 } from '../../src/modules/identity-access/identity.types.js';
 
+const CHAT_SSE_AUTH_RATE_RULES = JSON.stringify({
+  signup: { account: 3, ip: 100, windowSeconds: 600 },
+  'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+});
+
+function createSseAuthEnvironment(
+  services: Parameters<typeof baseCreateAuthEnvironment>[0],
+  healthPath: string,
+): Record<string, string> {
+  return {
+    ...baseCreateAuthEnvironment(services, healthPath),
+    AUTH_RATE_RULES_JSON: CHAT_SSE_AUTH_RATE_RULES,
+  };
+}
+
 test('an unknown stream recovery mode is rejected before SSE admission', async ({
   services,
 }) => {
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(services, '/tmp/lexon-chat-sse-mode-health.json'),
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-mode-health.json',
+      ),
     ),
   );
   try {
@@ -168,7 +186,7 @@ test('the owning user can open the authorized run event stream', async ({
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(services, '/tmp/lexon-chat-sse-health.json'),
+      createSseAuthEnvironment(services, '/tmp/lexon-chat-sse-health.json'),
     ),
   );
   try {
@@ -229,7 +247,7 @@ test('a sequential authorized reconnect resumes from the last actual XADD cursor
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(
+      createSseAuthEnvironment(
         services,
         '/tmp/lexon-chat-sse-reconnect-health.json',
       ),
@@ -370,7 +388,7 @@ test('a missed deletion publication is checked before a backpressured SSE queue 
 }) => {
   const config = loadRuntimeConfig(
     'api',
-    createAuthEnvironment(
+    createSseAuthEnvironment(
       services,
       '/tmp/lexon-chat-sse-delete-missed-health.json',
     ),
@@ -503,7 +521,7 @@ test('a missed Valkey publication closes a writable remote SSE before later writ
 }) => {
   const config = loadRuntimeConfig(
     'api',
-    createAuthEnvironment(
+    createSseAuthEnvironment(
       services,
       '/tmp/lexon-chat-sse-writable-delete-missed-health.json',
     ),
@@ -774,7 +792,7 @@ test('an unauthenticated request to an existing run allocates no SSE reader or l
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(
+      createSseAuthEnvironment(
         services,
         '/tmp/lexon-chat-sse-unauthorized-health.json',
       ),
@@ -785,6 +803,9 @@ test('an unauthenticated request to an existing run allocates no SSE reader or l
     await app.listen(0, '127.0.0.1');
     const origin = await app.getUrl();
     const headers = await apiHeaders(app);
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as { user: { id: string } };
     const created = await fetch(`${origin}/api/chats`, {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json' },
@@ -809,7 +830,9 @@ test('an unauthenticated request to an existing run allocates no SSE reader or l
     );
     expect(connect).not.toHaveBeenCalled();
     expect(
-      await redis.keys(`${services.queuePrefix}:{sse-connections}:*`),
+      await redis.keys(
+        `${services.queuePrefix}:{sse-connections}:${identity.user.id}*`,
+      ),
     ).toEqual([]);
   } finally {
     redis.disconnect();
@@ -823,7 +846,7 @@ test('same-team peers, foreign organizations and deleted runs receive the same n
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(
+      createSseAuthEnvironment(
         services,
         '/tmp/lexon-chat-sse-private-health.json',
       ),
@@ -846,6 +869,7 @@ test('same-team peers, foreign organizations and deleted runs receive the same n
       };
     const ownerId = (await identity(owner)).user.id;
     const peerId = (await identity(peer)).user.id;
+    const foreignId = (await identity(foreign)).user.id;
     const team = await organizations.seedTeam([ownerId, peerId]);
     for (const headers of [owner, peer]) {
       const switched = await fetch(`${origin}/api/organizations/active`, {
@@ -895,7 +919,13 @@ test('same-team peers, foreign organizations and deleted runs receive the same n
     expect(subscribe).not.toHaveBeenCalled();
     expect(admit).not.toHaveBeenCalled();
     expect(
-      await redis.keys(`${services.queuePrefix}:{sse-connections}:*`),
+      (
+        await Promise.all(
+          [ownerId, peerId, foreignId].map((userId) =>
+            redis.keys(`${services.queuePrefix}:{sse-connections}:${userId}*`),
+          ),
+        )
+      ).flat(),
     ).toEqual([]);
   } finally {
     redis.disconnect();
@@ -911,7 +941,10 @@ test('a peer disconnect does not invalidate another same-session stream across r
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(services, '/tmp/lexon-chat-sse-peer-health.json'),
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-peer-health.json',
+      ),
     ),
   );
   const controllers: AbortController[] = [];
@@ -964,14 +997,10 @@ test('a peer disconnect does not invalidate another same-session stream across r
 test('same-session snapshot-only subscribers share the bounded authorized PG reload', async ({
   services,
 }) => {
-  const environment = createAuthEnvironment(
+  const environment = createSseAuthEnvironment(
     services,
     '/tmp/lexon-chat-sse-snapshot-cache-health.json',
   );
-  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
-    signup: { account: 3, ip: 100, windowSeconds: 600 },
-    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
-  });
   const app = await createTestApi(loadRuntimeConfig('api', environment));
   const controllers: AbortController[] = [];
   const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
@@ -1031,7 +1060,10 @@ test('the seventh live SSE connection evicts only the oldest socket', async ({
   const app = await createTestApi(
     loadRuntimeConfig(
       'api',
-      createAuthEnvironment(services, '/tmp/lexon-chat-sse-limit-health.json'),
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-limit-health.json',
+      ),
     ),
   );
   const controllers: AbortController[] = [];
@@ -1097,16 +1129,10 @@ test('the seventh live SSE connection evicts only the oldest socket', async ({
 test('revoking the request session closes its existing run event stream', async ({
   services,
 }) => {
-  const environment = createAuthEnvironment(
+  const environment = createSseAuthEnvironment(
     services,
     '/tmp/lexon-chat-sse-revocation-health.json',
   );
-  // The file shares one Valkey limiter namespace across its API applications.
-  // Keep the production per-IP signup rule from making these fixture users order-dependent.
-  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
-    signup: { account: 3, ip: 100, windowSeconds: 600 },
-    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
-  });
   const app = await createTestApi(loadRuntimeConfig('api', environment));
   const controller = new AbortController();
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -1154,14 +1180,10 @@ test('revoking the request session closes its existing run event stream', async 
 test('application shutdown closes active SSE sockets before releasing resources', async ({
   services,
 }) => {
-  const environment = createAuthEnvironment(
+  const environment = createSseAuthEnvironment(
     services,
     '/tmp/lexon-chat-sse-shutdown-health.json',
   );
-  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
-    signup: { account: 3, ip: 100, windowSeconds: 600 },
-    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
-  });
   const app = await createTestApi(loadRuntimeConfig('api', environment));
   const controller = new AbortController();
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -1206,16 +1228,10 @@ test('application shutdown closes active SSE sockets before releasing resources'
 test('organization switch, membership removal and new MFA policy revoke cookie streams while Bearer selection stays independent', async ({
   services,
 }) => {
-  const environment = createAuthEnvironment(
+  const environment = createSseAuthEnvironment(
     services,
     '/tmp/lexon-chat-sse-selection-health.json',
   );
-  // The file shares one Valkey limiter namespace across its API applications.
-  // Keep the production per-IP signup rule from making these fixture users order-dependent.
-  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
-    signup: { account: 3, ip: 100, windowSeconds: 600 },
-    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
-  });
   const app = await createTestApi(loadRuntimeConfig('api', environment));
   const organizations = createOrganizationInspector({
     migratorUrl: services.migratorUrl,
