@@ -17,6 +17,24 @@ export const E2E_PROJECTS = {
   evals: ['evaluation-smoke'],
 };
 
+export function composeFilesForE2EProjects(
+  selectedProjects,
+  repositoryRoot,
+  visualDev = false,
+) {
+  const files = [
+    `${repositoryRoot}backend/test/e2e/compose.egress-probe.yml`,
+    `${repositoryRoot}backend/test/e2e/compose.identity.yml`,
+  ];
+  if (selectedProjects.includes('chat-runtime-proof'))
+    files.push(
+      `${repositoryRoot}backend/test/e2e/compose.chat-runtime-proof.yml`,
+    );
+  if (visualDev)
+    files.push(`${repositoryRoot}backend/test/e2e/compose.visual-dev.yml`);
+  return files;
+}
+
 export function resolveE2ESelection(rawArgs, mappings = E2E_PROJECTS) {
   const args = rawArgs.filter((arg) => arg !== '--');
   let packageName;
@@ -74,6 +92,7 @@ export function resolveE2ESelection(rawArgs, mappings = E2E_PROJECTS) {
 function matchesProject(project, selector) {
   const pattern = new RegExp(
     `^${selector.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`,
+    'i',
   );
   return pattern.test(project);
 }

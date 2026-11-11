@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { E2E_PROJECTS, resolveE2ESelection } from '../e2e-projects.mjs';
+import {
+  composeFilesForE2EProjects,
+  E2E_PROJECTS,
+  resolveE2ESelection,
+} from '../e2e-projects.mjs';
 
 test('default E2E selection includes the chat proof and its test overlay', () => {
   const selection = resolveE2ESelection([]);
@@ -60,4 +66,40 @@ test('project selectors preserve Playwright wildcard matching', () => {
     'identity-api',
     'identity-browser',
   ]);
+});
+
+test('case-insensitive exact and mixed wildcard selectors match installed Playwright', () => {
+  const cli = fileURLToPath(
+    new URL('../../node_modules/@playwright/test/cli.js', import.meta.url),
+  );
+  for (const selectors of [
+    ['--project=CHAT-RUNTIME-PROOF'],
+    ['--project=CHAT-*', '--project', 'IDENTITY-API'],
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'test', '--list', ...selectors],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const actualProjects = new Set(
+      [...result.stdout.matchAll(/^\s+\[([^\]]+)\]/gm)].map(
+        (match) => match[1],
+      ),
+    );
+    const resolvedProjects = new Set(
+      resolveE2ESelection(selectors).selectedProjects,
+    );
+    assert.deepEqual([...resolvedProjects].sort(), [...actualProjects].sort());
+    const composeFiles = composeFilesForE2EProjects(
+      [...resolvedProjects],
+      '/repository/',
+    );
+    assert.equal(
+      composeFiles.includes(
+        '/repository/backend/test/e2e/compose.chat-runtime-proof.yml',
+      ),
+      actualProjects.has('chat-runtime-proof'),
+    );
+  }
 });

@@ -1,4 +1,7 @@
-import { resolveE2ESelection } from './e2e-projects.mjs';
+import {
+  composeFilesForE2EProjects,
+  resolveE2ESelection,
+} from './e2e-projects.mjs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -75,14 +78,11 @@ try {
   await writeFile(operatorEnvironmentPath, JSON.stringify(env), {
     mode: 0o600,
   });
-  const files = [
-    root + 'backend/test/e2e/compose.egress-probe.yml',
-    root + 'backend/test/e2e/compose.identity.yml',
-  ];
-  if (selectedProjects.includes('chat-runtime-proof'))
-    files.push(root + 'backend/test/e2e/compose.chat-runtime-proof.yml');
-  if (process.env.LEXON_VISUAL_DEV === '1')
-    files.push(root + 'backend/test/e2e/compose.visual-dev.yml');
+  const files = composeFilesForE2EProjects(
+    selectedProjects,
+    root,
+    process.env.LEXON_VISUAL_DEV === '1',
+  );
   await withOwnedStack({
     project,
     directory,
