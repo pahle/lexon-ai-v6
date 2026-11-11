@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import {
   chatListQueryKey,
   chatThreadQueryKey,
@@ -59,7 +59,7 @@ it('subscribes with cookies and invalidates exact owner-scoped list and thread k
   expect(source!.close).toHaveBeenCalledOnce();
 });
 
-it('refreshes bounded owner chat queries on EventSource open and reconnect', async () => {
+it('refreshes owner chat queries on EventSource open and error', async () => {
   const invalidateQueries = vi.fn(
     async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
   );
@@ -85,7 +85,6 @@ it('refreshes bounded owner chat queries on EventSource open and reconnect', asy
   source!.onopen!(new Event('open'));
   await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(2));
   source!.onerror!(new Event('error'));
-  source!.onopen!(new Event('open'));
   await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(4));
   expect(
     invalidateQueries.mock.calls.map(([filter]) => filter.queryKey),
@@ -98,6 +97,94 @@ it('refreshes bounded owner chat queries on EventSource open and reconnect', asy
   dispose();
   expect(source!.onopen).toBeNull();
   expect(source!.onerror).toBeNull();
+});
+
+it('refetches after reconnect when an invalidation may have been missed offline', async () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  let serverTitle = 'Excerpt title';
+  const queryFn = vi.fn(async () => serverTitle);
+  const observer = new QueryObserver(queryClient, {
+    queryKey: chatListQueryKey(scope),
+    queryFn,
+    staleTime: Infinity,
+  });
+  const stopObserving = observer.subscribe(() => {});
+  await observer.refetch();
+  expect(observer.getCurrentResult().data).toBe('Excerpt title');
+
+  let source:
+    | {
+        onmessage: ((event: MessageEvent<string>) => void) | null;
+        onopen: ((event: Event) => void) | null;
+        onerror: ((event: Event) => void) | null;
+        close: ReturnType<typeof vi.fn>;
+      }
+    | undefined;
+  const dispose = subscribeToChatInvalidations(queryClient, scope, () => {
+    const created = {
+      onmessage: null,
+      onopen: null,
+      onerror: null,
+      close: vi.fn(),
+    };
+    source = created;
+    return created;
+  });
+  source!.onopen!(new Event('open'));
+  await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+  source!.onerror!(new Event('error'));
+  await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(3));
+  expect(observer.getCurrentResult().data).toBe('Excerpt title');
+
+  vi.useFakeTimers();
+  serverTitle = 'Updated while disconnected';
+  source!.onopen!(new Event('open'));
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(queryFn).toHaveBeenCalledTimes(4);
+  expect(observer.getCurrentResult().data).toBe('Updated while disconnected');
+
+  dispose();
+  stopObserving();
+  queryClient.clear();
+  vi.useRealTimers();
+});
+
+it('cancels a throttled reconnect refresh when the subscription is disposed', async () => {
+  vi.useFakeTimers();
+  const invalidateQueries = vi.fn(
+    async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
+  );
+  const queryClient = { invalidateQueries } as unknown as QueryClient;
+  let source:
+    | {
+        onmessage: ((event: MessageEvent<string>) => void) | null;
+        onopen: ((event: Event) => void) | null;
+        onerror: ((event: Event) => void) | null;
+        close: ReturnType<typeof vi.fn>;
+      }
+    | undefined;
+  const dispose = subscribeToChatInvalidations(queryClient, scope, () => {
+    const created = {
+      onmessage: null,
+      onopen: null,
+      onerror: null,
+      close: vi.fn(),
+    };
+    source = created;
+    return created;
+  });
+  source!.onopen!(new Event('open'));
+  expect(invalidateQueries).toHaveBeenCalledTimes(2);
+  source!.onerror!(new Event('error'));
+  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  source!.onopen!(new Event('open'));
+  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  dispose();
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  vi.useRealTimers();
 });
 
 it('rejects malformed or content-bearing invalidations', async () => {

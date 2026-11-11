@@ -59,8 +59,11 @@ It does not add a PostgreSQL listener connection.
 
 The public frontend helper subscribes with cookie credentials and invalidates
 only `['tenant', orgId, userId, ...]` chat keys. Open and reconnect perform a
-15-second-bounded refresh so a missed event is recovered; dispose clears
-handlers and closes the source. No screen has adopted this helper yet. Task 14/15
+15-second-bounded refresh so a missed event is recovered. When an error-time
+refresh completes before a change during the disconnect, reconnect schedules
+one refresh at the end of the active 15-second throttle window. Dispose clears
+the pending timer and event handlers and closes the source. No screen has
+adopted this helper yet. Task 14/15
 consumers should call `subscribeToChatInvalidations` with the active verified
 org/user scope, and must not source that scope from event payloads.
 
@@ -84,3 +87,13 @@ EventSource definition](https://html.spec.whatwg.org/print.pdf) confirms the
 reference](https://tanstack.com/query/latest/docs/framework/react/reference/classes/QueryClient)
 documents `invalidateQueries` query-key filters. The installed frontend pins
 `@tanstack/react-query` 5.105.0.
+
+## Fix round 2: reconnect recovery
+
+The regression uses an active TanStack `QueryObserver`: the error-time fetch
+returns the excerpt, the title changes while disconnected, and a reconnect
+inside the throttle window must eventually refetch the new title. A single
+deferred refresh is scheduled for the throttle boundary; disposing the helper
+cancels it.
+
+Focused frontend verification is recorded in the round-two task report.

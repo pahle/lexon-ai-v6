@@ -57,13 +57,28 @@ export function subscribeToChatInvalidations(
   ) => ChatInvalidationSource = (url, options) => new EventSource(url, options),
 ): () => void {
   const source = createSource('/api/chats/events', { withCredentials: true });
-  let lastRecoveryRefresh = 0;
+  let lastRecoveryRefresh: number | undefined;
+  let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
   let hasOpened = false;
   let needsRecoveryRefresh = false;
   const invalidateOwnerChats = (recovery = false) => {
     const now = Date.now();
-    if (recovery && now - lastRecoveryRefresh < 15_000) return;
-    if (recovery) lastRecoveryRefresh = now;
+    if (recovery) {
+      const elapsed =
+        lastRecoveryRefresh === undefined
+          ? Number.POSITIVE_INFINITY
+          : now - lastRecoveryRefresh;
+      if (elapsed < 15_000) {
+        if (recoveryTimer === undefined) {
+          recoveryTimer = setTimeout(() => {
+            recoveryTimer = undefined;
+            invalidateOwnerChats(true);
+          }, 15_000 - elapsed);
+        }
+        return;
+      }
+      lastRecoveryRefresh = now;
+    }
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) }),
       queryClient.invalidateQueries({
@@ -93,6 +108,7 @@ export function subscribeToChatInvalidations(
     );
   };
   return () => {
+    if (recoveryTimer !== undefined) clearTimeout(recoveryTimer);
     source.onmessage = null;
     source.onopen = null;
     source.onerror = null;
