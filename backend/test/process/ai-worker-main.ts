@@ -147,6 +147,7 @@ process.once('message', async (input: WorkerInput) => {
   const cancelSignals = new CancelSignals({
     url: input.streamUrl,
     prefix: input.prefix,
+    databaseUrl: input.appUrl,
     database,
     runs,
   });

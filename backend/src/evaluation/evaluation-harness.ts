@@ -222,6 +222,7 @@ export async function createEvaluationHarness(
     signals = new CancelSignals({
       url: options.services.valkeyUrl,
       prefix: queuePrefix,
+      databaseUrl: appUrl,
       database,
       runs,
     });

@@ -498,6 +498,173 @@ test('a missed deletion publication is checked before a backpressured SSE queue 
   }
 });
 
+test('a missed Valkey publication closes a writable remote SSE before later writes', async ({
+  services,
+}) => {
+  const config = loadRuntimeConfig(
+    'api',
+    createAuthEnvironment(
+      services,
+      '/tmp/lexon-chat-sse-writable-delete-missed-health.json',
+    ),
+  );
+  const owner = await createTestApi(config);
+  const remote = await createTestApi(config);
+  const fixture = await createChatFixture(services);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let removeAuditFailure: (() => Promise<void>) | undefined;
+  let signalStreamReady!: () => void;
+  let signalRevoked!: () => void;
+  const streamReady = new Promise<void>(
+    (resolve) => (signalStreamReady = resolve),
+  );
+  const revoked = new Promise<void>((resolve) => (signalRevoked = resolve));
+  let tryPostDeleteWrite: (() => boolean) | undefined;
+  let tryPostRollbackWrite: (() => boolean) | undefined;
+  let applicationWrites = 0;
+  let postDeleteWritesOnWire = 0;
+  let initialWritable: boolean | undefined;
+  try {
+    await owner.listen(0, '127.0.0.1');
+    await remote.listen(0, '127.0.0.1');
+    const ownerOrigin = await owner.getUrl();
+    const remoteOrigin = await remote.getUrl();
+    const headers = await apiHeaders(owner);
+    const chatId = randomUUID();
+    const created = await fetch(`${ownerOrigin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'writable stream deletion proof',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+
+    const events = remote.get(RunEventsService);
+    const connect = events.connect.bind(events);
+    vi.spyOn(events, 'connect').mockImplementation(
+      async (
+        actor,
+        requestedRunId,
+        lastEventId,
+        sink,
+        identity,
+        recoveryMode,
+      ) =>
+        connect(
+          actor,
+          requestedRunId,
+          lastEventId,
+          {
+            ...sink,
+            write: (frame) => {
+              applicationWrites++;
+              if (frame.data.includes('post-delete-writable-canary'))
+                postDeleteWritesOnWire++;
+              return sink.write(frame);
+            },
+          },
+          identity,
+          recoveryMode,
+        ),
+    );
+
+    const hub = remote.get(StreamHub);
+    vi.spyOn(hub, 'subscribe').mockImplementation(async (...args) => {
+      const sink = args[2]!;
+      const liveSink: SseSink = {
+        setRecoveryMode: (mode) => sink.setRecoveryMode?.(mode),
+        write: (frame) => sink.write(frame),
+        drain: (timeoutMs) => sink.drain(timeoutMs),
+        close: (reason) => sink.close(reason),
+      };
+      initialWritable = liveSink.write({ data: ': connected\n\n' });
+      liveSink.write({ data: 'data: writable-before-delete\n\n' });
+      tryPostDeleteWrite = () =>
+        liveSink.write({ data: 'data: post-delete-writable-canary\n\n' });
+      tryPostRollbackWrite = () =>
+        liveSink.write({ data: 'data: after-rollback-canary\n\n' });
+      signalStreamReady();
+      return {
+        close: async () => {},
+        revoke: async () => {
+          signalRevoked();
+          await liveSink.close('revoked');
+        },
+      };
+    });
+
+    const response = await fetch(`${remoteOrigin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(response.status).toBe(200);
+    reader = response.body!.getReader();
+    await streamReady;
+    expect(initialWritable).toBe(true);
+    let beforeDelete = '';
+    while (!beforeDelete.includes('writable-before-delete')) {
+      const { done, value } = await reader.read();
+      expect(done).toBe(false);
+      beforeDelete += new TextDecoder().decode(value);
+    }
+
+    removeAuditFailure = await fixture.inspect.failChatDeletionAuditInsert();
+    const rolledBack = await fetch(`${ownerOrigin}/api/chats/${chatId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(rolledBack.status).toBe(500);
+    expect(tryPostRollbackWrite?.()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(tryPostRollbackWrite?.()).toBe(true);
+    await removeAuditFailure();
+    removeAuditFailure = undefined;
+    const wireWritesBeforeDelete = applicationWrites;
+
+    vi.spyOn(owner.get(CancelSignals), 'publishDeletion').mockRejectedValueOnce(
+      new Error('simulated Valkey deletion publication outage'),
+    );
+    const deleted = await fetch(`${ownerOrigin}/api/chats/${chatId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(deleted.status).toBe(204);
+
+    const revocationArrived = await Promise.race([
+      revoked.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 300)),
+    ]);
+    if (!revocationArrived) expect(tryPostDeleteWrite?.()).toBe(false);
+    expect(revocationArrived).toBe(true);
+    expect(applicationWrites).toBe(wireWritesBeforeDelete);
+    expect(tryPostDeleteWrite?.()).toBe(false);
+    expect(postDeleteWritesOnWire).toBe(0);
+
+    const closed = await Promise.race([
+      (async () => {
+        for (;;) {
+          const { done } = await reader!.read();
+          if (done) return true;
+        }
+      })(),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
+    ]);
+    expect(closed).toBe(true);
+  } finally {
+    await removeAuditFailure?.();
+    await reader?.cancel().catch(() => {});
+    await owner.close();
+    await remote.close();
+    await fixture.close();
+  }
+});
+
 test('shared Valkey reader callbacks run in the verified identity scope of their owning subscriber', async ({
   services,
 }) => {

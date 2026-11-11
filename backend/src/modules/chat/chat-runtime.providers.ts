@@ -55,6 +55,7 @@ export function chatApiProviders(
         new CancelSignals({
           url: config.valkey.streamsUrl,
           prefix: config.queuePrefix,
+          databaseUrl: config.database.appUrl,
           database,
           runs,
         }),

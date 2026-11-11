@@ -66,6 +66,7 @@ export async function createChatApiHarness(
   const signals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: storage.database,
     runs: new AiRunRepository(),
   });

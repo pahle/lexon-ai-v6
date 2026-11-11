@@ -23,6 +23,10 @@ import {
   type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import {
+  chatDeletionListenerPids,
+  terminateChatDeletionListeners,
+} from '../../src/infrastructure/db/testing/chat-deletion-listener.js';
 import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import { aiTestBackendPid } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
@@ -367,6 +371,7 @@ test('database polling signals cancellation when no Valkey message arrives', asy
   const signals = new CancelSignals({
     url: proxy.url,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs,
   });
@@ -408,6 +413,7 @@ test('deletion revocations multiplex run listeners over one process subscriber',
   const signals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs: new AiRunRepository(),
   });
@@ -466,6 +472,68 @@ test('deletion revocations multiplex run listeners over one process subscriber',
   }
 });
 
+test('deletion subscription fails closed if PostgreSQL LISTEN is lost during registration', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const runId = randomUUID();
+  let releaseSubscribe!: () => void;
+  let signalSubscribe!: () => void;
+  const subscribeHeld = new Promise<void>((resolve) => {
+    releaseSubscribe = resolve;
+  });
+  const atSubscribe = new Promise<void>((resolve) => {
+    signalSubscribe = resolve;
+  });
+  const originalOn = Redis.prototype.on;
+  const onSpy = vi.spyOn(Redis.prototype, 'on');
+  onSpy.mockImplementation(function (this: Redis, ...args) {
+    const result = originalOn.apply(this, args);
+    if (args[0] === 'message') {
+      vi.spyOn(this, 'subscribe').mockImplementation(async () => {
+        signalSubscribe();
+        await subscribeHeld;
+        return 1;
+      });
+    }
+    return result;
+  });
+  let unsubscribe: (() => Promise<void>) | undefined;
+  try {
+    const subscribing = signals.subscribeDeletion(runId, () => {});
+    await atSubscribe;
+    await expect
+      .poll(
+        async () => (await chatDeletionListenerPids(services.appUrl)).length,
+      )
+      .toBe(1);
+    expect(await terminateChatDeletionListeners(services.appUrl)).toBe(1);
+    await expect
+      .poll(
+        async () => (await chatDeletionListenerPids(services.appUrl)).length,
+      )
+      .toBe(0);
+    releaseSubscribe();
+    await expect(subscribing).rejects.toThrow(
+      'Deletion notification listener unavailable',
+    );
+    unsubscribe = await subscribing.catch(() => undefined);
+  } finally {
+    releaseSubscribe();
+    onSpy.mockRestore();
+    await unsubscribe?.();
+    await signals.close();
+    await ai.close();
+  }
+});
+
 test('deletion subscriber error fails listeners closed and replaces the single client', async ({
   services,
 }) => {
@@ -473,6 +541,7 @@ test('deletion subscriber error fails listeners closed and replaces the single c
   const signals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs: new AiRunRepository(),
   });
@@ -614,6 +683,7 @@ test('cancelling a streaming model aborts it and commits partial output once', a
   const runSignals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs: new AiRunRepository(),
   });
@@ -1190,6 +1260,7 @@ test('queue shutdown aborts a handler and waits for bounded cancellation poll cl
   const signals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database,
     runs: new AiRunRepository(),
   });

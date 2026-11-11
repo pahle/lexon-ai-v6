@@ -6806,6 +6806,7 @@ test('retry stream outage terminal cancellation refreshes the second attempt sna
   const cancelSignals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs: stream.runs,
   });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { OutboxRepository } from './outbox.repository.js';
+import { CHAT_DELETION_NOTIFICATION_CHANNEL } from './pg-notification-listener.js';
 import { ChatRepository } from './chat.repository.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 import {
@@ -95,6 +96,11 @@ export class ChatDeletionRepository {
       ctx.userId,
       chatId,
     ]);
+    for (const runId of runIds)
+      await client.query('SELECT pg_notify($1,$2)', [
+        CHAT_DELETION_NOTIFICATION_CHANNEL,
+        runId,
+      ]);
     return true;
   }
 

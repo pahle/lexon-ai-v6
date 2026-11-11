@@ -59,6 +59,10 @@ export { hashOperationArgs } from './ai-operation.repository.js';
 export { AiCapacityRepository } from './ai-capacity.repository.js';
 export { DispatcherSession } from './dispatcher-session.js';
 export {
+  CHAT_DELETION_NOTIFICATION_CHANNEL,
+  PgNotificationListener,
+} from './pg-notification-listener.js';
+export {
   isJobQueue,
   parseJobEnvelope,
   isRunStepJob,

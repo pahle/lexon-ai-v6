@@ -1,6 +1,10 @@
 import { Redis } from 'ioredis';
 import { z } from 'zod';
-import type { AiRunRepository, TenantDatabase } from '../db/index.js';
+import {
+  PgNotificationListener,
+  type AiRunRepository,
+  type TenantDatabase,
+} from '../db/index.js';
 
 const runIdSchema = z.uuid();
 const POLL_INTERVAL_MS = 1000;
@@ -9,6 +13,7 @@ const DATABASE_POLL_TIMEOUT_MS = 500;
 export interface CancelSignalsOptions {
   readonly url: string;
   readonly prefix: string;
+  readonly databaseUrl: string;
   readonly database: TenantDatabase;
   readonly runs: AiRunRepository;
 }
@@ -17,12 +22,14 @@ export class CancelSignals {
   readonly #prefix: string;
   readonly #url: string;
   readonly #database: TenantDatabase;
+  readonly #databaseUrl: string;
   readonly #runs: AiRunRepository;
   readonly #publisher: Redis;
   readonly #contexts = new Map<string, { orgId: string; userId: string }>();
   readonly #closeSubscriptions = new Set<() => Promise<void>>();
   #deletionSubscriber: Redis | undefined;
   readonly #deletionListeners = new Map<string, Set<() => void>>();
+  #databaseDeletionListener: PgNotificationListener | undefined;
   #deletionOperations: Promise<void> = Promise.resolve();
 
   constructor(options: CancelSignalsOptions) {
@@ -31,6 +38,7 @@ export class CancelSignals {
     this.#prefix = `${options.prefix}:ai-cancel`;
     this.#url = options.url;
     this.#database = options.database;
+    this.#databaseUrl = options.databaseUrl;
     this.#runs = options.runs;
     this.#publisher = redis(options.url);
   }
@@ -88,7 +96,10 @@ export class CancelSignals {
       throw new Error('Invalid deletion revocation subscription');
     let active = true;
     await this.#serializeDeletion(async () => {
+      const databaseListener = await this.#getDatabaseDeletionListener();
       const subscriber = await this.#getDeletionSubscriber();
+      if (this.#databaseDeletionListener !== databaseListener)
+        throw new Error('Deletion notification listener unavailable');
       const channel = this.#deletionChannel(runId);
       let listeners = this.#deletionListeners.get(channel);
       const first = !listeners;
@@ -104,6 +115,11 @@ export class CancelSignals {
           listeners.delete(onDeleted);
           this.#deletionListeners.delete(channel);
           throw new Error('Deletion revocation subscription unavailable');
+        }
+        if (this.#databaseDeletionListener !== databaseListener) {
+          listeners.delete(onDeleted);
+          if (listeners.size === 0) this.#deletionListeners.delete(channel);
+          throw new Error('Deletion notification listener unavailable');
         }
       }
     });
@@ -196,6 +212,9 @@ export class CancelSignals {
       this.#deletionListeners.clear();
       this.#deletionSubscriber?.disconnect();
       this.#deletionSubscriber = undefined;
+      const databaseListener = this.#databaseDeletionListener;
+      this.#databaseDeletionListener = undefined;
+      await databaseListener?.close();
     });
     this.#publisher.disconnect();
     this.#contexts.clear();
@@ -239,6 +258,45 @@ export class CancelSignals {
       throw new Error('Deletion revocation subscription unavailable');
     }
     return subscriber;
+  }
+
+  async #getDatabaseDeletionListener(): Promise<PgNotificationListener> {
+    if (!this.#databaseDeletionListener) {
+      const listener = new PgNotificationListener({
+        appUrl: this.#databaseUrl,
+        onNotification: (runId) => {
+          const channel = this.#deletionChannel(runId);
+          for (const onDeleted of this.#deletionListeners.get(channel) ?? [])
+            onDeleted();
+        },
+        onUnavailable: () => {
+          if (this.#databaseDeletionListener !== listener) return;
+          this.#databaseDeletionListener = undefined;
+          const listeners = [...this.#deletionListeners.values()].flatMap(
+            (items) => [...items],
+          );
+          this.#deletionListeners.clear();
+          this.#deletionSubscriber?.disconnect();
+          this.#deletionSubscriber = undefined;
+          for (const onDeleted of listeners) {
+            try {
+              onDeleted();
+            } catch {
+              // Losing durable revocation transport fails each live stream closed.
+            }
+          }
+        },
+      });
+      this.#databaseDeletionListener = listener;
+      try {
+        await listener.start();
+      } catch {
+        if (this.#databaseDeletionListener === listener)
+          this.#databaseDeletionListener = undefined;
+        throw new Error('Deletion notification listener unavailable');
+      }
+    }
+    return this.#databaseDeletionListener;
   }
 
   #invalidateDeletionSubscriber(subscriber: Redis): void {

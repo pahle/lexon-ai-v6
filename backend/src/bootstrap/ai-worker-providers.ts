@@ -37,6 +37,7 @@ export function aiWorkerProviders(
         new CancelSignals({
           url: config.valkey.streamsUrl,
           prefix: config.queuePrefix,
+          databaseUrl: config.database.appUrl,
           database: db,
           runs,
         }),
