@@ -44,6 +44,7 @@ Official documentation and installed package metadata/changelogs were checked on
 - `pnpm exec vitest run --config vitest.config.ts --project backend-integration backend/test/integration/chat-delete-races.spec.ts -t 'cleanup advances one durable phase'` — 1/1 passed; the new terminalizer denies app-role calls with no tenant context and calls under a different organization.
 - `pnpm exec vitest run --config vitest.config.ts --project backend-integration backend/test/integration/chat-stop.spec.ts -t 'HTTP stop keeps the answer busy until the blocked worker acknowledges cancellation'` — 1/1 passed; ordinary cancellation emits one terminal `finish` event after the worker acknowledges.
 - `pnpm exec vitest run --project backend-unit backend/test/unit/chat-config.spec.ts` — 4/4 passed.
+- `pnpm exec vitest run --config vitest.config.ts --project backend-unit backend/test/unit/chat-delete-controller.spec.ts` — 1/1 passed; the direct controller test rejects an attacker Origin before calling the deletion service. Its guard-removed behavior RED is recorded in the Task 11 implementation report. The HTTP cross-origin check is already rejected by upstream identity middleware.
 - `pnpm --filter @lexon/backend lint` — final run passed ESLint and **99/99 boundary checks**.
 - `pnpm format:check` — final run passed.
 - `pnpm --filter @lexon/backend typecheck` and `git diff --check` — passed.
