@@ -44,6 +44,51 @@ export function chatRuntimeProviders(): Provider[] {
   ];
 }
 
+export function chatRunServiceProvider(
+  config: Extract<RuntimeConfig, { runtime: 'api' | 'ai-worker' }>,
+): Provider {
+  return {
+    provide: RunService,
+    inject: [
+      TenantDatabase,
+      AiRunRepository,
+      AiStepRepository,
+      OutboxRepository,
+      RunAuthorizationService,
+      RunRegistry,
+      AiCapacityRepository,
+    ],
+    useFactory: (
+      database: TenantDatabase,
+      runs: AiRunRepository,
+      steps: AiStepRepository,
+      outbox: OutboxRepository,
+      authorization: RunAuthorizationService,
+      registry: RunRegistry,
+      capacity: AiCapacityRepository,
+    ) =>
+      new RunService(
+        database,
+        runs,
+        steps,
+        outbox,
+        new RunActorFactsRepository(),
+        authorization,
+        registry,
+        capacity,
+        config.ai,
+        ModelAllowlistSchema.parse(
+          JSON.parse(
+            readFileSync(
+              new URL('../../../config/model-allowlist.json', import.meta.url),
+              'utf8',
+            ),
+          ),
+        ),
+      ),
+  };
+}
+
 export function chatApiProviders(
   config: Extract<RuntimeConfig, { runtime: 'api' }>,
 ): Provider[] {
@@ -195,49 +240,7 @@ export function chatApiProviders(
       useFactory: () =>
         new SseConnectionRegistry(config.valkey.streamsUrl, config.queuePrefix),
     },
-    {
-      provide: RunService,
-      inject: [
-        TenantDatabase,
-        AiRunRepository,
-        AiStepRepository,
-        OutboxRepository,
-        RunAuthorizationService,
-        RunRegistry,
-        AiCapacityRepository,
-      ],
-      useFactory: (
-        database: TenantDatabase,
-        runs: AiRunRepository,
-        steps: AiStepRepository,
-        outbox: OutboxRepository,
-        authorization: RunAuthorizationService,
-        registry: RunRegistry,
-        capacity: AiCapacityRepository,
-      ) =>
-        new RunService(
-          database,
-          runs,
-          steps,
-          outbox,
-          new RunActorFactsRepository(),
-          authorization,
-          registry,
-          capacity,
-          config.ai,
-          ModelAllowlistSchema.parse(
-            JSON.parse(
-              readFileSync(
-                new URL(
-                  '../../../config/model-allowlist.json',
-                  import.meta.url,
-                ),
-                'utf8',
-              ),
-            ),
-          ),
-        ),
-    },
+    chatRunServiceProvider(config),
     {
       provide: ChatService,
       inject: [TenantDatabase, RunService, RunAuthorizationService],

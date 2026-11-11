@@ -25,6 +25,7 @@ import { AttemptService } from '../modules/usage/index.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
 import { ChatTitleService } from '../modules/chat/chat-title.service.js';
 import { RunService } from '../modules/chat/run.service.js';
+import { chatRunServiceProvider } from '../modules/chat/chat-runtime.providers.js';
 import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
 import { queueStepPermitPrefix } from '../infrastructure/queue/queue-producer.js';
 
@@ -32,6 +33,7 @@ export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
 ): Provider[] {
   return [
+    chatRunServiceProvider(config),
     {
       provide: ChatTitleService,
       inject: [TenantDatabase, RunService],
