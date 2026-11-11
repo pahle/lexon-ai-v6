@@ -593,8 +593,16 @@ Affected verification passed **32 frontend tests**, **31 backend SSE/replay
 tests**, **99 lint/boundary checks**, both package typechecks, scoped formatting,
 and worker syntax checks. The final storage-only fix received a scoped review;
 the controller reran its exact two regressions successfully and verified the
-source-diff hash against the commit. Linux CI on the new published head remains
-pending.
+source-diff hash against the commit. Linux CI on published head `876739f` passed unit/integration tests but
+failed the three Compose runtime-proof cases in
+[run 43013406306](https://github.com/pahle/lexon-ai-v6/actions/runs/43013406306).
+The default all-project command had omitted the test-only overlay, although
+focused proof commands loaded it. Reviewed runner fixes `563dae6` and `54e29f1`
+resolve effective projects before Compose setup, including case-insensitive
+selectors verified against the pinned Playwright CLI. The 17 focused runner
+checks and scoped quality checks pass; default Compose CI on the repair head
+remains pending. Full-worktree lint during this follow-up was blocked by an
+uncommitted Task 11 test import; that file is not in the repair commits.
 
 Review corrections cover public Stop versus disconnect, serialized branch PUT
 invocations and safe failure display, snapshot ordering/identity before cursor
