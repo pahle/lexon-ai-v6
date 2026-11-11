@@ -645,6 +645,19 @@ objects and injected faults; title coverage currently uses an associated
 synthetic title run. Task 12 adds the real title producer and its deletion race.
 Search and feedback deletion predicates remain requirements for Task 13.
 
+Linux CI on `228aa02` failed before Compose E2E because Chromium dependency
+installation could not resolve the Ubuntu mirror. Unit/integration passed
+1,101 tests and failed one SSE fixture signup. Reviewed test-only repair
+`c99658c` consistently configures the file's bounded auth fixture allowance;
+production auth and SSE limits are unchanged. The baseline full file reproduced
+14/15; the main session independently verified the repaired file at 15/15.
+The exact failed signup HTTP status was not captured; shared limiter exhaustion
+is the diagnosis from configuration and reproduction, not a recorded response.
+Privacy lease assertions now check all participating users. Unrelated users'
+registry keys observed in the intermediate run have not had their origin or
+release lifetime established; final branch review must triage that observation.
+This repair is not global registry-cleanup clearance or a new CI pass.
+
 ## Pending evidence
 
 Chat UI, search and evals, owner-run high/max smoke and
