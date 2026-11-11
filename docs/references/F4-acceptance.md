@@ -559,9 +559,22 @@ quality with no remaining blocking finding.
   fixture setup failures are excluded. Large combined tests and expected
   runtime log noise remain final-review readability notes.
 
-New-head Linux CI is pending publication. Task 10 must still prove the chosen
-client adapter against the real persisted tree and streaming endpoints before
-product screen implementation.
+At published head `59c4967`, [CI run 42947627726](https://github.com/pahle/lexon-ai-v6/actions/runs/42947627726)
+passed Compose E2E but failed two of 1,043 unit/integration tests. The new shared
+mock had made legacy late-result tests cooperative, losing their known usage;
+real streams also exposed a stale-start race before policy evaluation.
+
+Correction `65418a9` restores noncooperative defaults with explicit stop-test
+opt-in. The worker now authorizes before stream startup and rechecks typed
+stale ownership: disappeared/revoked claims do no model work, while a valid
+claim still throws for retry. Revoked terminal recovery retains its complete
+snapshot framing. Gated real-stream regressions and the final six-file suite
+passed **142/142**, plus quality checks; fresh scoped review accepted the fix.
+No ownership/Lua proof was relaxed. A baseline pg concurrent-query warning
+remains tracked. New-head Linux CI is pending publication.
+
+Task 10 must still prove the chosen client adapter against the real persisted
+tree and streaming endpoints before product screen implementation.
 
 ## Pending evidence
 
