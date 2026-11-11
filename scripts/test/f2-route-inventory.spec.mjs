@@ -22,15 +22,14 @@ const approvedF4FrontendRequest = {
 };
 
 function isForbiddenFrontendRequest(file, line) {
-  const chatPath =
-    /\/api\/chat(?:s\/events)?\b(?:\/[^'"`\s)]*|[?#][^'"`\s)]*)?/.exec(
-      line,
-    )?.[0];
+  const chatPaths = [...line.matchAll(/\/api\/chat[^'"`\s)]*/g)].map(
+    ([path]) => path,
+  );
   if (
-    chatPath &&
-    !(
-      file === approvedF4FrontendRequest.file &&
-      chatPath === approvedF4FrontendRequest.path
+    chatPaths.some(
+      (path) =>
+        file !== approvedF4FrontendRequest.file ||
+        path !== approvedF4FrontendRequest.path,
     )
   )
     return true;
@@ -148,6 +147,27 @@ test('approved F4 event route does not permit legacy chat or theme requests', ()
     isForbiddenFrontendRequest(
       'other-file.ts',
       "new EventSource('/api/chats/events')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      'other-file.ts',
+      "fetch('/api/chats/arbitrary')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "fetch('/api/chats/events-extra')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "new EventSource('/api/chats/events'); fetch('/api/chat')",
     ),
     true,
   );
