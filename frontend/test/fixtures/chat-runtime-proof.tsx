@@ -12,13 +12,15 @@ import {
 } from '@assistant-ui/react';
 import { ChatTreeSchema, UuidSchema } from '@lexon/contracts';
 import type { ChatTree } from '@lexon/contracts';
-import { ChatRuntime } from '@/components/chat/chat-runtime';
+import {
+  ChatComposerCancel,
+  ChatRuntime,
+} from '@/components/chat/chat-runtime';
 
 export default function ChatRuntimeProofPage() {
   const [chatId, setChatId] = useState<string>();
   const [actorScope, setActorScope] = useState<string>();
   const [tree, setTree] = useState<ChatTree>();
-  const [stopRun, setStopRun] = useState<() => Promise<void>>();
   const [runId, setRunId] = useState<string>();
   const [error, setError] = useState('');
 
@@ -78,7 +80,6 @@ export default function ChatRuntimeProofPage() {
         chatId={chatId}
         tree={tree}
         onRunId={setRunId}
-        onStopReady={(stop) => setStopRun(() => stop)}
       >
         <ThreadPrimitive.Root>
           <output data-testid="active-run-id">{runId ?? ''}</output>
@@ -89,15 +90,8 @@ export default function ChatRuntimeProofPage() {
           <ComposerPrimitive.Root onSubmit={(event) => event.preventDefault()}>
             <ComposerPrimitive.Input aria-label="Message" submitMode="none" />
             <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-            <ComposerPrimitive.Cancel>Stop</ComposerPrimitive.Cancel>
+            <ChatComposerCancel>Stop</ChatComposerCancel>
           </ComposerPrimitive.Root>
-          <button
-            type="button"
-            onClick={() => void stopRun?.()}
-            disabled={!stopRun}
-          >
-            Stop server run
-          </button>
         </ThreadPrimitive.Root>
       </ChatRuntime>
     </main>

@@ -1,15 +1,28 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useAISDKRuntime } from '@assistant-ui/ai-sdk';
-import { AssistantRuntimeProvider } from '@assistant-ui/react';
+import {
+  AssistantRuntimeProvider,
+  ComposerPrimitive,
+} from '@assistant-ui/react';
 import type { AppendMessage } from '@assistant-ui/react';
 import type { CreateUIMessage, UIMessage } from 'ai';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
 import { createChatClient } from '@/lib/chat-client';
 import { LexonChatTransport, type ChatUIMessage } from '@/lib/chat-transport';
+
+const ChatStopContext = createContext<(() => Promise<void>) | null>(null);
 
 export interface ChatRuntimeProps {
   readonly actorScope: string;
@@ -42,6 +55,7 @@ function ChatRuntimeSession({
   const [runId, setRunId] = useState<string | undefined>(
     () => findActiveRun(tree)?.runId,
   );
+  const [selectionSaveFailed, setSelectionSaveFailed] = useState(false);
   const onRunIdRef = useRef(onRunId);
   const onStopReadyRef = useRef(onStopReady);
   useEffect(() => {
@@ -89,10 +103,13 @@ function ChatRuntimeSession({
       readonly headId: string | null;
     }) => {
       if (headId === null) return;
-      const persisted = client
-        .setViewedLeaf(chatId, { leafId: headId })
-        .then(() => undefined);
-      transport.selectLeaf(headId, persisted);
+      setSelectionSaveFailed(false);
+      void transport
+        .selectLeaf(headId, () =>
+          client.setViewedLeaf(chatId, { leafId: headId }),
+        )
+        .then(() => setSelectionSaveFailed(false))
+        .catch(() => setSelectionSaveFailed(true));
     },
   });
 
@@ -125,9 +142,46 @@ function ChatRuntimeSession({
   }, [runId]);
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
+    <ChatStopContext.Provider value={stop}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+        {selectionSaveFailed ? (
+          <span role="alert">
+            Could not save this branch selection. Reload the conversation before
+            sending another message.
+          </span>
+        ) : null}
+      </AssistantRuntimeProvider>
+    </ChatStopContext.Provider>
+  );
+}
+
+type ChatComposerCancelProps = Omit<
+  ComponentProps<typeof ComposerPrimitive.Cancel>,
+  'onClick'
+>;
+
+export function ChatComposerCancel(props: ChatComposerCancelProps) {
+  const stop = useContext(ChatStopContext);
+  const [failed, setFailed] = useState(false);
+  if (!stop)
+    throw new Error('ChatComposerCancel must be used inside ChatRuntime.');
+  return (
+    <>
+      <ComposerPrimitive.Cancel
+        {...props}
+        onClick={(event) => {
+          event.preventDefault();
+          setFailed(false);
+          void stop().catch(() => setFailed(true));
+        }}
+      />
+      {failed ? (
+        <span role="alert">
+          Unable to stop this response. Please try again.
+        </span>
+      ) : null}
+    </>
   );
 }
 

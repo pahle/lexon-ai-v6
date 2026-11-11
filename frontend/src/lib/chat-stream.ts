@@ -22,9 +22,25 @@ type StreamState = {
     readonly eventId: string | null;
     readonly partCount: number;
     readonly operationCount: number;
-    readonly parts: Map<number, { nextChunk: number; complete: boolean }>;
+    readonly parts: Map<
+      number,
+      {
+        readonly id: string;
+        readonly type: 'text' | 'reasoning';
+        readonly complete: boolean;
+      }
+    >;
     readonly operations: Set<number>;
+    nextPartIndex: number;
+    nextOperationIndex: number;
+    activePart?: {
+      readonly index: number;
+      readonly id: string;
+      readonly type: 'text' | 'reasoning';
+      nextChunk: number;
+    };
   };
+  invalidSnapshot?: boolean;
 };
 
 export function createChatUIMessageStream(
@@ -189,6 +205,7 @@ function chunksFromFrame(
   try {
     value = JSON.parse(data) as unknown;
   } catch {
+    if (state.snapshot) invalidateSnapshot(state);
     return [];
   }
 
@@ -197,12 +214,14 @@ function chunksFromFrame(
     const frame = snapshot.data;
     if (frame.type === 'snapshot-reset') {
       delete state.snapshot;
+      state.invalidSnapshot = false;
       delete state.status;
       delete state.messageId;
       delete state.reasoningDurationMs;
       return [];
     }
     if (frame.type === 'snapshot-start') {
+      state.invalidSnapshot = false;
       state.status = frame.snapshot.status;
       state.messageId = frame.snapshot.messageId;
       state.reasoningDurationMs = frame.snapshot.reasoningDurationMs;
@@ -213,6 +232,8 @@ function chunksFromFrame(
         operationCount: frame.operationCount,
         parts: new Map(),
         operations: new Set(),
+        nextPartIndex: 0,
+        nextOperationIndex: 0,
       };
       return [
         { type: 'reset-step' },
@@ -227,19 +248,55 @@ function chunksFromFrame(
         },
       ];
     }
+    if (state.invalidSnapshot) return [];
     if (frame.type === 'snapshot-part') {
       const current = state.snapshot;
-      if (!current || frame.partIndex >= current.partCount) return [];
-      const progress = current.parts.get(frame.partIndex);
-      const expectedChunk = progress?.nextChunk ?? 0;
-      if ((progress?.complete ?? false) || frame.chunkIndex !== expectedChunk) {
-        delete state.snapshot;
+      if (
+        !current ||
+        current.nextOperationIndex !== 0 ||
+        frame.partIndex >= current.partCount
+      ) {
+        invalidateSnapshot(state);
         return [];
       }
-      current.parts.set(frame.partIndex, {
-        nextChunk: frame.chunkIndex + 1,
-        complete: frame.final,
-      });
+      let progress = current.activePart;
+      if (!progress) {
+        if (
+          frame.partIndex !== current.nextPartIndex ||
+          frame.chunkIndex !== 0
+        ) {
+          invalidateSnapshot(state);
+          return [];
+        }
+        progress = {
+          index: frame.partIndex,
+          id: frame.id,
+          type: frame.partType,
+          nextChunk: 0,
+        };
+        current.activePart = progress;
+      } else if (
+        frame.partIndex !== progress.index ||
+        frame.id !== progress.id ||
+        frame.partType !== progress.type
+      ) {
+        invalidateSnapshot(state);
+        return [];
+      }
+      if (frame.chunkIndex !== progress.nextChunk) {
+        invalidateSnapshot(state);
+        return [];
+      }
+      progress.nextChunk += 1;
+      if (frame.final) {
+        current.parts.set(progress.index, {
+          id: progress.id,
+          type: progress.type,
+          complete: true,
+        });
+        current.nextPartIndex += 1;
+        delete current.activePart;
+      }
       const chunks: UIMessageChunk[] = [];
       if (frame.partType === 'text') {
         if (frame.chunkIndex === 0)
@@ -272,11 +329,14 @@ function chunksFromFrame(
       if (
         !current ||
         frame.index >= current.operationCount ||
-        current.operations.has(frame.index)
+        frame.index !== current.nextOperationIndex ||
+        current.nextPartIndex !== current.partCount ||
+        current.activePart !== undefined
       ) {
-        delete state.snapshot;
+        invalidateSnapshot(state);
         return [];
       }
+      current.nextOperationIndex += 1;
       current.operations.add(frame.index);
       return [];
     }
@@ -286,14 +346,18 @@ function chunksFromFrame(
         current !== undefined &&
         current.partCount === frame.partCount &&
         current.operationCount === frame.operationCount &&
+        current.nextPartIndex === current.partCount &&
+        current.activePart === undefined &&
+        current.nextOperationIndex === current.operationCount &&
         current.parts.size === current.partCount &&
         current.operations.size === current.operationCount &&
         [...current.parts.values()].every((part) => part.complete);
       if (!complete || !state.messageId) {
-        delete state.snapshot;
+        invalidateSnapshot(state);
         return [];
       }
       delete state.snapshot;
+      state.invalidSnapshot = false;
       const expectedCursor =
         current.generation !== null && current.eventId
           ? `${current.generation}:${current.eventId}`
@@ -324,8 +388,16 @@ function chunksFromFrame(
   }
 
   const event = RunStreamEventSchema.safeParse(value);
-  if (!event.success) return [];
+  if (!event.success) {
+    if (state.snapshot) invalidateSnapshot(state);
+    return [];
+  }
   const item = event.data;
+  if (state.invalidSnapshot && item.type !== 'reset') return [];
+  if (state.snapshot && item.type !== 'reset') {
+    invalidateSnapshot(state);
+    return [];
+  }
   if (item.type !== 'reset' && frameId && isCursor(frameId))
     handlers.onCursor?.(frameId);
   switch (item.type) {
@@ -349,6 +421,7 @@ function chunksFromFrame(
       ];
     case 'reset':
       delete state.snapshot;
+      state.invalidSnapshot = false;
       delete state.messageId;
       delete state.status;
       state.reasoningDurationMs = null;
@@ -401,6 +474,11 @@ function chunksFromFrame(
     default:
       return [];
   }
+}
+
+function invalidateSnapshot(state: StreamState): void {
+  delete state.snapshot;
+  state.invalidSnapshot = true;
 }
 
 function isTerminalStatus(status: string | undefined): boolean {

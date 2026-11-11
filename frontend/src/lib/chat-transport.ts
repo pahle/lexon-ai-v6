@@ -55,7 +55,10 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   private readonly activeStreams = new Set<ReadableStream<UIMessageChunk>>();
   private readonly activeRequests = new Set<AbortController>();
   private selectedLeafId: string | null;
+  private persistedLeafId: string | null;
   private selectionPersisted: Promise<void> = Promise.resolve();
+  private selectionQueue: Promise<void> = Promise.resolve();
+  private selectionVersion = 0;
   private effort: 'high' | 'max';
 
   constructor(private readonly options: LexonChatTransportOptions) {
@@ -69,6 +72,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.selectedLeafId = options.selectedLeafId
       ? UuidSchema.parse(options.selectedLeafId)
       : null;
+    this.persistedLeafId = this.selectedLeafId;
     this.runId = options.initialRunId
       ? UuidSchema.parse(options.initialRunId)
       : undefined;
@@ -79,11 +83,29 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     return this.recoveryMode === 'snapshot';
   }
 
-  selectLeaf(leafId: string | null, persisted: Promise<unknown>): void {
-    this.selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
-    this.selectionPersisted = this.selectionPersisted
+  selectLeaf(
+    leafId: string | null,
+    persist: () => Promise<unknown>,
+  ): Promise<void> {
+    const selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
+    const version = ++this.selectionVersion;
+    this.selectedLeafId = selectedLeafId;
+    const write = this.selectionQueue
       .catch(() => {})
-      .then(() => persisted.then(() => {}));
+      .then(() => persist())
+      .then(() => {
+        this.persistedLeafId = selectedLeafId;
+      });
+    this.selectionQueue = write.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.selectionPersisted = write;
+    return write.catch((error: unknown) => {
+      if (version === this.selectionVersion)
+        this.selectedLeafId = this.persistedLeafId;
+      throw error;
+    });
   }
 
   setEffort(effort: 'high' | 'max'): void {
@@ -92,6 +114,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
 
   syncSelectedLeaf(leafId: string | null): void {
     this.selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
+    this.persistedLeafId = this.selectedLeafId;
   }
 
   async sendMessages(
@@ -103,9 +126,9 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     let result: { runId: string };
 
     if (request.trigger === 'regenerate-message') {
-      const messageId = request.messageId ?? this.selectedLeafId;
+      const selectedLeafId = await this.waitForSelection();
+      const messageId = request.messageId ?? selectedLeafId;
       if (!messageId) throw new Error('The selected server answer is missing.');
-      await this.selectionPersisted;
       const mutation = await this.client.regenerate(request.chatId, {
         messageId: UuidSchema.parse(messageId),
         requestId: crypto.randomUUID(),
@@ -127,7 +150,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
         .map((part) => part.text)
         .join('');
       const edit = user.metadata?.chatOperation;
-      await this.selectionPersisted;
+      const parentMessageId = await this.waitForSelection();
       const mutation =
         edit?.type === 'edit'
           ? await this.client.edit(request.chatId, {
@@ -139,7 +162,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
           : await (async () => {
               return this.client.send(request.chatId, {
                 userMessageId: UuidSchema.parse(user.id),
-                parentMessageId: this.selectedLeafId,
+                parentMessageId,
                 text,
                 effort: this.effort,
               });
@@ -304,6 +327,19 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.options.onRunId?.(runId);
   }
 
+  private async waitForSelection(): Promise<string | null> {
+    while (true) {
+      const selectedLeafId = this.selectedLeafId;
+      const pending = this.selectionPersisted;
+      await pending;
+      if (
+        selectedLeafId === this.selectedLeafId &&
+        pending === this.selectionPersisted
+      )
+        return selectedLeafId;
+    }
+  }
+
   private assertActive(): void {
     if (this.closed) throw new Error(SafeErrorMessages.AI_ACCESS_REVOKED);
   }
@@ -351,8 +387,12 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   }
 
   private removeRecovery(): void {
-    if (typeof sessionStorage !== 'undefined')
+    if (typeof sessionStorage === 'undefined') return;
+    try {
       sessionStorage.removeItem(this.storageKey);
+    } catch {
+      // Terminal cleanup must not depend on browser storage availability.
+    }
   }
 }
 

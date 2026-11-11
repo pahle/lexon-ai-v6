@@ -14,7 +14,10 @@ import {
   useAui,
 } from '@assistant-ui/react';
 import type { ChatTree } from '@lexon/contracts';
-import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
+import {
+  ChatComposerCancel,
+  ChatRuntime,
+} from '../src/components/chat/chat-runtime.js';
 import {
   ProofMessage,
   RuntimeProofControls,
@@ -82,6 +85,102 @@ it('seeds the persisted parent-linked tree once and reports an explicit branch s
   });
 
   await act(async () => root.unmount());
+});
+
+it('routes the visible composer Stop control through server cancellation before stream abort', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const assistantId = '33333333-3333-4333-8333-333333333333';
+  const runId = '44444444-4444-4444-8444-444444444444';
+  const stopOrder: string[] = [];
+  let bodyCancelled = false;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url === `/api/runs/${runId}/cancel`) {
+      expect(init?.method).toBe('POST');
+      stopOrder.push('server-cancel');
+      return new Response(null, { status: 204 });
+    }
+    expect(url).toBe(`/api/runs/${runId}/events`);
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        cancel() {
+          bodyCancelled = true;
+          stopOrder.push('stream-abort');
+        },
+      }),
+      {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      },
+    );
+  });
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal('fetch', fetch);
+  const tree: ChatTree = {
+    id: chatId,
+    title: 'Runtime proof',
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: assistantId,
+        role: 'assistant',
+        parentId: userId,
+        runId,
+        text: 'Partial answer',
+        status: 'running',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+    ],
+    viewedLeafId: assistantId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:01.000Z',
+  };
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={chatId} tree={tree}>
+        <ThreadPrimitive.Root>
+          <ComposerPrimitive.Root>
+            <ChatComposerCancel>Stop</ChatComposerCancel>
+          </ComposerPrimitive.Root>
+        </ThreadPrimitive.Root>
+      </ChatRuntime>,
+    );
+  });
+  await act(async () => Promise.resolve());
+
+  expect(
+    fetch.mock.calls.some(([input]) => String(input).endsWith('/events')),
+  ).toBe(true);
+  const stopButton = container.querySelector<HTMLButtonElement>('button');
+  if (!stopButton)
+    throw new Error('The visible Composer Stop control is missing.');
+  await act(async () => {
+    stopButton.click();
+    await Promise.resolve();
+  });
+
+  expect(fetch.mock.calls.map(([input]) => String(input))).toContain(
+    `/api/runs/${runId}/cancel`,
+  );
+  expect(bodyCancelled).toBe(true);
+  expect(stopOrder).toEqual(['server-cancel', 'stream-abort']);
+  await act(async () => root.unmount());
+  vi.stubGlobal('fetch', originalFetch);
 });
 
 it('keeps the full external repository when the visible server branch changes', async () => {
@@ -981,6 +1080,98 @@ it('keeps a live ChatRuntime when its parent recreates callback props', async ()
 
   expect(renders).toBeLessThan(4);
   await act(async () => root.unmount());
+});
+
+it('shows a safe alert when persisting a public branch selection fails', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const rootUserId = '22222222-2222-4222-8222-222222222222';
+  const firstAssistantId = '33333333-3333-4333-8333-333333333333';
+  const selectedAssistantId = '44444444-4444-4444-8444-444444444444';
+  let rejectBranchWrite: ((response: Response) => void) | undefined;
+  let resolveBranchWriteStarted: (() => void) | undefined;
+  const branchWriteStarted = new Promise<void>((resolve) => {
+    resolveBranchWriteStarted = resolve;
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).endsWith('/viewed-leaf')) {
+      resolveBranchWriteStarted?.();
+      return new Promise<Response>((resolve) => {
+        rejectBranchWrite = resolve;
+      });
+    }
+    throw new Error('Unexpected request during branch selection proof');
+  });
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal('fetch', fetch);
+  const tree: ChatTree = {
+    id: chatId,
+    title: 'Branch persistence proof',
+    messages: [
+      {
+        id: rootUserId,
+        role: 'user',
+        parentId: null,
+        text: 'Question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      ...[
+        [firstAssistantId, 'First answer'],
+        [selectedAssistantId, 'Selected answer'],
+      ].map(([id, text], index) => ({
+        id: id!,
+        role: 'assistant' as const,
+        parentId: rootUserId,
+        runId: `55555555-5555-4555-8555-55555555555${index}`,
+        text: text!,
+        status: 'completed' as const,
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: `2026-11-11T00:00:0${index + 1}.000Z`,
+      })),
+    ],
+    viewedLeafId: selectedAssistantId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:01.000Z',
+  };
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () => {
+    root.render(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={chatId} tree={tree}>
+        <ThreadPrimitive.Root>
+          <ThreadPrimitive.Messages>
+            {() => <ProofMessage />}
+          </ThreadPrimitive.Messages>
+        </ThreadPrimitive.Root>
+      </ChatRuntime>,
+    );
+  });
+  const previous = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Previous answer"]',
+  );
+  if (!previous) throw new Error('The previous branch control is missing.');
+  await act(async () => previous.click());
+  await branchWriteStarted;
+  await act(async () => {
+    rejectBranchWrite?.(
+      Response.json(
+        { error: { code: 'AI_PROVIDER_UNAVAILABLE', message: 'Safe error' } },
+        { status: 503 },
+      ),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    'Could not save this branch selection',
+  );
+  expect(container.textContent).not.toContain('Safe error');
+  await act(async () => root.unmount());
+  vi.stubGlobal('fetch', originalFetch);
 });
 
 it('keeps the public runtime on the canonical selected path after nonroot edit, root edit, and send', async () => {

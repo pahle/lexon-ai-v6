@@ -184,6 +184,184 @@ it('uses the explicitly selected server leaf as the new user parent, never the S
   expect(mutation.parentMessageId).toBe(selectedLeafId);
 });
 
+it('serializes rapid viewed-leaf writes and reload retains the last selected branch', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const firstBranchId = '66666666-6666-4666-8666-666666666666';
+  const lastBranchId = '77777777-7777-4777-8777-777777777777';
+  let serverViewedLeaf = assistantId;
+  const writes: Array<{ leafId: string; commit: () => void }> = [];
+  let resolveSecondWriteStarted: (() => void) | undefined;
+  const secondWriteStarted = new Promise<void>((resolve) => {
+    resolveSecondWriteStarted = resolve;
+  });
+  let resolveFirstWriteStarted: (() => void) | undefined;
+  const firstWriteStarted = new Promise<void>((resolve) => {
+    resolveFirstWriteStarted = resolve;
+  });
+  const persistViewedLeaf = (leafId: string) =>
+    new Promise<void>((resolve) => {
+      writes.push({
+        leafId,
+        commit: () => {
+          serverViewedLeaf = leafId;
+          resolve();
+        },
+      });
+      if (leafId === firstBranchId) resolveFirstWriteStarted?.();
+      if (leafId === lastBranchId) resolveSecondWriteStarted?.();
+    });
+  const requests: Array<{ path: string; parentMessageId?: string | null }> = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input);
+    if (path.endsWith('/events'))
+      return new Response('', {
+        headers: { 'x-lexon-stream-recovery-result': 'snapshot' },
+      });
+    const body = init?.body
+      ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+      : {};
+    requests.push({
+      path,
+      ...(typeof body.parentMessageId === 'string' ||
+      body.parentMessageId === null
+        ? { parentMessageId: body.parentMessageId }
+        : {}),
+    });
+    return Response.json(
+      { chatId, userMessageId: userId, assistantMessageId: assistantId, runId },
+      { status: 201 },
+    );
+  });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId: assistantId,
+    fetch,
+  });
+
+  const firstSelection = transport.selectLeaf(firstBranchId, () =>
+    persistViewedLeaf(firstBranchId),
+  );
+  const lastSelection = transport.selectLeaf(lastBranchId, () =>
+    persistViewedLeaf(lastBranchId),
+  );
+  await firstWriteStarted;
+  expect(writes.map(({ leafId }) => leafId)).toEqual([firstBranchId]);
+  writes[0]!.commit();
+  await secondWriteStarted;
+  expect(writes.map(({ leafId }) => leafId)).toEqual([
+    firstBranchId,
+    lastBranchId,
+  ]);
+  writes[1]!.commit();
+  await Promise.all([firstSelection, lastSelection]);
+  await transport.sendMessages({
+    trigger: 'submit-message',
+    chatId,
+    messageId: undefined,
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parts: [{ type: 'text', text: 'After branch switch' }],
+      },
+    ],
+    abortSignal: undefined,
+  });
+
+  expect(serverViewedLeaf).toBe(lastBranchId);
+  expect(requests.at(-1)?.parentMessageId).toBe(lastBranchId);
+  const reloaded = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId: serverViewedLeaf,
+    fetch,
+  });
+  await reloaded.sendMessages({
+    trigger: 'submit-message',
+    chatId,
+    messageId: undefined,
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parts: [{ type: 'text', text: 'After reload' }],
+      },
+    ],
+    abortSignal: undefined,
+  });
+  expect(requests.at(-1)?.parentMessageId).toBe(lastBranchId);
+});
+
+it('blocks a send after the selected branch write fails and restores the persisted leaf', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const selectedLeafId = '66666666-6666-4666-8666-666666666666';
+  const failedLeafId = '77777777-7777-4777-8777-777777777777';
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    void init;
+    if (String(input).endsWith('/events'))
+      return new Response('', {
+        headers: { 'x-lexon-stream-recovery-result': 'snapshot' },
+      });
+    return Response.json(
+      { chatId, userMessageId: userId, assistantMessageId: assistantId, runId },
+      { status: 201 },
+    );
+  });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId,
+    fetch,
+  });
+
+  await expect(
+    transport.selectLeaf(failedLeafId, async () => {
+      throw new Error('safe failure');
+    }),
+  ).rejects.toThrow('safe failure');
+  await expect(
+    transport.sendMessages({
+      trigger: 'submit-message',
+      chatId,
+      messageId: undefined,
+      messages: [
+        {
+          id: userId,
+          role: 'user',
+          parts: [{ type: 'text', text: 'Blocked' }],
+        },
+      ],
+      abortSignal: undefined,
+    }),
+  ).rejects.toThrow();
+  expect(fetch).not.toHaveBeenCalled();
+
+  const recovered = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId,
+    fetch,
+  });
+  await recovered.sendMessages({
+    trigger: 'submit-message',
+    chatId,
+    messageId: undefined,
+    messages: [
+      { id: userId, role: 'user', parts: [{ type: 'text', text: 'Reload' }] },
+    ],
+    abortSignal: undefined,
+  });
+  const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as {
+    parentMessageId: string;
+  };
+  expect(request.parentMessageId).toBe(selectedLeafId);
+});
+
 it('routes a public runtime edit to the source user and a fresh message ID', async () => {
   const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -334,6 +512,187 @@ it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', asyn
   expect(reconnectHeaders.get('last-event-id')).toBe('1:1783814399000-1');
   expect(reconnectHeaders.get('x-lexon-stream-recovery')).toBe('snapshot');
   expect(stream).not.toBeNull();
+});
+
+it('does not prove or store cursors from out-of-order or inconsistent snapshots', async () => {
+  const { createChatUIMessageStream } =
+    await import('../src/lib/chat-stream.js');
+  const checkpointId = '1783814400000-0';
+  const metadata = {
+    runId,
+    messageId: assistantId,
+    attemptId: '55555555-5555-4555-8555-555555555555',
+    generation: 1,
+    revision: 3,
+    eventId: checkpointId,
+    status: 'completed',
+    errorCode: null,
+    reasoningDurationMs: null,
+  };
+  const start = (partCount: number, operationCount = 0) => ({
+    version: 1,
+    type: 'snapshot-start',
+    reset: true,
+    snapshot: metadata,
+    partCount,
+    operationCount,
+  });
+  const part = (
+    partIndex: number,
+    chunkIndex: number,
+    id: string,
+    final: boolean,
+    text = 'part',
+    partType: 'text' | 'reasoning' = 'text',
+  ) => ({
+    version: 1,
+    type: 'snapshot-part',
+    partIndex,
+    chunkIndex,
+    partType,
+    id,
+    text,
+    final,
+  });
+  const operation = (index: number) => ({
+    version: 1,
+    type: 'snapshot-operation',
+    index,
+    operation: {
+      operationId: index === 0 ? userId : assistantId,
+      status: 'completed',
+      approvalRequired: false,
+    },
+  });
+  const end = (partCount: number, operationCount = 0) => ({
+    version: 1,
+    type: 'snapshot-end',
+    partCount,
+    operationCount,
+  });
+  const malformedSnapshots = [
+    [start(2), part(1, 0, 'part-1', true), part(0, 0, 'part-0', true), end(2)],
+    [
+      start(1),
+      part(0, 0, 'text-part-a', false),
+      part(0, 1, 'text-part-b', true),
+      end(1),
+    ],
+    [
+      start(1),
+      part(0, 0, 'text-part', false, 'answer', 'text'),
+      part(0, 1, 'text-part', true, 'reasoning', 'reasoning'),
+      end(1),
+    ],
+    [
+      start(1, 2),
+      part(0, 0, 'part-0', true),
+      operation(1),
+      operation(0),
+      end(1, 2),
+    ],
+    [
+      start(2, 2),
+      part(0, 0, 'part-0', true),
+      operation(0),
+      part(1, 0, 'part-1', true),
+      operation(1),
+      end(2, 2),
+    ],
+  ];
+
+  for (const frames of malformedSnapshots) {
+    const onCursor = vi.fn();
+    const onPrefix = vi.fn();
+    const data = frames
+      .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+      .join('');
+    const ending = JSON.stringify(frames.at(-1));
+    const body = data.replace(
+      `data: ${ending}`,
+      `id: 1:${checkpointId}\ndata: ${ending}`,
+    );
+    const stream = createChatUIMessageStream(
+      new Response(body, {
+        headers: { 'content-type': 'text/event-stream' },
+      }),
+      { onCursor, onPrefix },
+    );
+    const reader = stream.getReader();
+    let sawFinish = false;
+    while (true) {
+      const result = await reader.read();
+      if (result.done) break;
+      if (result.value.type === 'finish') sawFinish = true;
+    }
+    expect(onCursor).not.toHaveBeenCalled();
+    expect(onPrefix).not.toHaveBeenCalled();
+    expect(sawFinish).toBe(false);
+  }
+});
+
+it('finishes a successful terminal snapshot when browser storage removal throws', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const frames = [
+    {
+      version: 1,
+      type: 'snapshot-start',
+      reset: true,
+      snapshot: {
+        runId,
+        messageId: assistantId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        status: 'completed',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+      partCount: 0,
+      operationCount: 0,
+    },
+    { version: 1, type: 'snapshot-end', partCount: 0, operationCount: 0 },
+  ];
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(''),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
+      ),
+  );
+  const removeItem = vi
+    .spyOn(Storage.prototype, 'removeItem')
+    .mockImplementation(() => {
+      throw new Error('Storage denied');
+    });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    initialRunId: runId,
+    fetch,
+  });
+
+  const stream = await transport.reconnectToStream({ chatId, headers: {} });
+  if (!stream) throw new Error('Expected terminal recovery stream');
+  const reader = stream.getReader();
+  let finishReason: string | undefined;
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    if (result.value.type === 'finish')
+      finishReason = result.value.finishReason;
+  }
+
+  expect(finishReason).toBe('stop');
+  expect(removeItem).toHaveBeenCalled();
+  removeItem.mockRestore();
 });
 
 it('proves a replay prefix and stores its checkpoint only after snapshot-end', async () => {

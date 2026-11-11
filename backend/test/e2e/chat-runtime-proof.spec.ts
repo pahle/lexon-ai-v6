@@ -4,7 +4,14 @@ import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
 
 async function workerControl(
-  op: 'status' | 'release-prefix' | 'release' | 'cursor' | 'trim' | 'shape',
+  op:
+    | 'status'
+    | 'release-prefix'
+    | 'release'
+    | 'cursor'
+    | 'trim'
+    | 'shape'
+    | 'database-tree',
   runId: string,
   cursor?: string,
 ) {
@@ -24,6 +31,14 @@ async function workerControl(
     released?: boolean;
     exists?: boolean;
     removed?: number;
+    viewedLeafId?: string | null;
+    messages?: Array<{
+      id: string;
+      parentId: string | null;
+      role: string;
+      status: string | null;
+      textMatches: boolean;
+    }>;
     [key: string]: unknown;
   } | null;
 }
@@ -1039,10 +1054,42 @@ test('the public assistant runtime sends through the Caddy API to the scripted r
       role: string;
       parentId: string | null;
       text: string;
+      status?: string;
       reasoningSummary?: string | null;
       reasoningDurationMs?: number | null;
     }>;
   };
+  const identityResponse = await page.request.get(
+    `${stack.apiUrl}/api/identity`,
+  );
+  expect(identityResponse.ok()).toBe(true);
+  const identity = (await identityResponse.json()) as {
+    user: { id: string };
+    organization: { id: string };
+  };
+  const databaseTree = await workerControl(
+    'database-tree',
+    chatId,
+    JSON.stringify({
+      orgId: identity.organization.id,
+      userId: identity.user.id,
+      expected: reasoningTree.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        text: message.text,
+      })),
+    }),
+  );
+  expect(databaseTree?.viewedLeafId).toBe(reasoningTree.viewedLeafId);
+  expect(databaseTree?.messages).toEqual(
+    reasoningTree.messages.map((message) => ({
+      id: message.id,
+      parentId: message.parentId,
+      role: message.role,
+      status: message.status ?? null,
+      textMatches: true,
+    })),
+  );
   const reasoningMessagesById = new Map(
     reasoningTree.messages.map((message) => [message.id, message]),
   );
@@ -1672,7 +1719,13 @@ test('stops an active answer, rejects a concurrent turn, and retries a safe prov
   };
   expect(conflictBody.error?.code).toBe('CHAT_CONFLICT');
 
-  await page.getByRole('button', { name: 'Stop server run' }).click();
+  const cancelResponsePromise = page.waitForResponse((response) => {
+    const path = new URL(response.url()).pathname;
+    return path === `/api/runs/${activeAssistant.runId}/cancel`;
+  });
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
+  const cancelResponse = await cancelResponsePromise;
+  expect(cancelResponse.ok()).toBe(true);
   await expect
     .poll(async () => {
       const response = await page.request.get(

@@ -185,7 +185,13 @@ export function classifyImport({
     source !== 'backend/src/entrypoints/api/main.ts'
   )
     return deny('auth-runtime-owner');
-  if (databasePackage(specifier) && !inDb) return deny('database-owner');
+  const e2eChatTreeReader =
+    source === 'backend/test/e2e/chat-worker-main.mjs' &&
+    specifier === 'pg' &&
+    names.length === 1 &&
+    names[0] === 'Client';
+  if (databasePackage(specifier) && !inDb && !e2eChatTreeReader)
+    return deny('database-owner');
   if (aiPackage(specifier) && !inAi && !testSource) {
     const client =
       owner === 'frontend' &&

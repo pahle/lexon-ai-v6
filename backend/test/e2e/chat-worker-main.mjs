@@ -1,6 +1,7 @@
 import { createServer } from 'node:net';
 import { chmod, rm } from 'node:fs/promises';
 import Redis from 'ioredis';
+import { Client } from 'pg';
 import { NestFactory } from '@nestjs/core';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
 import { AiWorkerRootModule } from '../../dist/entrypoints/ai-worker/root.module.js';
@@ -22,6 +23,80 @@ await streamInspector.connect();
 const runs = new Map();
 const retryCounts = new Map();
 const inputShapes = new Map();
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+async function readTenantChatTree(chatId, tenant) {
+  if (
+    !tenant ||
+    !uuidPattern.test(tenant.orgId) ||
+    !uuidPattern.test(tenant.userId) ||
+    !Array.isArray(tenant.expected) ||
+    tenant.expected.length > 128 ||
+    tenant.expected.some(
+      (message) =>
+        !message ||
+        !uuidPattern.test(message.id) ||
+        !['user', 'assistant'].includes(message.role) ||
+        typeof message.text !== 'string' ||
+        message.text.length > 16_384,
+    )
+  )
+    throw new Error('invalid tenant tree read');
+  const database = new Client({ connectionString: config.database.appUrl });
+  await database.connect();
+  try {
+    await database.query('BEGIN');
+    await database.query(
+      "SELECT set_config('app.org_id', $1, true), set_config('app.user_id', $2, true)",
+      [tenant.orgId, tenant.userId],
+    );
+    const result = await database.query(
+      `SELECT chat.viewed_leaf_id AS "viewedLeafId",
+        COALESCE(jsonb_agg(jsonb_build_object(
+          'id', message.id,
+          'parentId', message.parent_message_id,
+          'role', message.role,
+          'status', run.status,
+          'textMatches', CASE
+            WHEN message.role='user'
+              THEN message.user_text IS NOT DISTINCT FROM expected.expected_text
+            WHEN message.role='assistant'
+              THEN run.final_output IS NOT DISTINCT FROM expected.expected_text
+            ELSE false
+          END
+        ) ORDER BY message.created_at,message.id)
+          FILTER (WHERE message.id IS NOT NULL), '[]'::jsonb) AS messages
+       FROM app.chats chat
+       LEFT JOIN app.chat_messages message
+         ON message.org_id=chat.org_id AND message.chat_id=chat.id
+       LEFT JOIN app.ai_runs run
+         ON run.org_id=message.org_id AND run.id=message.run_id
+       LEFT JOIN jsonb_to_recordset($4::jsonb)
+         AS expected(id uuid, role text, expected_text text)
+         ON expected.id=message.id AND expected.role=message.role
+       WHERE chat.org_id=$1 AND chat.owner_user_id=$2 AND chat.id=$3
+         AND chat.deleted_at IS NULL
+       GROUP BY chat.viewed_leaf_id`,
+      [
+        tenant.orgId,
+        tenant.userId,
+        chatId,
+        JSON.stringify(
+          tenant.expected.map(({ id, role, text }) => ({
+            id,
+            role,
+            expected_text: text,
+          })),
+        ),
+      ],
+    );
+    await database.query('ROLLBACK');
+    return result.rows[0] ?? null;
+  } finally {
+    await database.end();
+  }
+}
 
 function contentShape(content) {
   if (Array.isArray(content))
@@ -182,14 +257,14 @@ function createScriptedGateway() {
 await rm(socketPath, { force: true });
 const control = createServer((socket) => {
   socket.setEncoding('utf8');
-  socket.setTimeout(1500, () => socket.destroy());
+  socket.setTimeout(5000, () => socket.destroy());
   let buffer = '';
   socket.on('data', async (chunk) => {
     buffer += chunk;
-    if (buffer.length > 512) return socket.destroy();
+    if (buffer.length > 16_384) return socket.destroy();
     if (!buffer.includes('\n')) return;
     try {
-      const { op, runId } = JSON.parse(buffer.split('\n')[0]);
+      const { op, runId, cursor } = JSON.parse(buffer.split('\n')[0]);
       if (
         ![
           'status',
@@ -198,18 +273,24 @@ const control = createServer((socket) => {
           'cursor',
           'trim',
           'shape',
+          'database-tree',
         ].includes(op) ||
         typeof runId !== 'string' ||
-        !/^[0-9a-f-]{36}$/.test(runId)
+        !uuidPattern.test(runId)
       )
         throw new Error('invalid control command');
+      if (op === 'database-tree') {
+        const tenant = JSON.parse(cursor);
+        const result = await readTenantChatTree(runId, tenant);
+        socket.end(JSON.stringify(result) + '\n');
+        return;
+      }
       const run = runs.get(runId);
       if (op === 'shape') {
         socket.end(JSON.stringify(inputShapes.get(runId) ?? null) + '\n');
         return;
       }
       if (op === 'cursor') {
-        const cursor = JSON.parse(buffer.split('\n')[0]).cursor;
         if (
           typeof cursor !== 'string' ||
           !/^\d{1,9}:\d{1,20}-\d{1,10}$/.test(cursor)
