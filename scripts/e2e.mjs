@@ -1,4 +1,4 @@
-import { E2E_PROJECTS } from './e2e-projects.mjs';
+import { resolveE2ESelection } from './e2e-projects.mjs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,13 +19,7 @@ async function port() {
   return value;
 }
 const allocatedPorts = new Set();
-const args = process.argv.slice(2).filter((arg) => arg !== '--');
-const packageIndex = args.indexOf('--package');
-const selected = packageIndex < 0 ? undefined : args.splice(packageIndex, 2)[1];
-const mappings = E2E_PROJECTS;
-if (selected && !mappings[selected]) throw new Error('Unknown E2E package');
-if (selected && !args.includes('--project'))
-  for (const project of mappings[selected]) args.push('--project', project);
+const { args, selectedProjects } = resolveE2ESelection(process.argv.slice(2));
 const directory = await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
 const secret = () => randomBytes(24).toString('hex');
@@ -85,7 +79,7 @@ try {
     root + 'backend/test/e2e/compose.egress-probe.yml',
     root + 'backend/test/e2e/compose.identity.yml',
   ];
-  if (args.includes('chat-runtime-proof'))
+  if (selectedProjects.includes('chat-runtime-proof'))
     files.push(root + 'backend/test/e2e/compose.chat-runtime-proof.yml');
   if (process.env.LEXON_VISUAL_DEV === '1')
     files.push(root + 'backend/test/e2e/compose.visual-dev.yml');

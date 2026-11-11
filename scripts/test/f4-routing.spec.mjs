@@ -182,6 +182,13 @@ test('Caddy owns browser routing and Next.js has no API rewrite', async () => {
   assert.match(mapping, /chat-routing/);
 });
 
+test('E2E overlay follows the selected Playwright projects, including defaults', async () => {
+  const e2e = await readFile('scripts/e2e.mjs', 'utf8');
+
+  assert.match(e2e, /resolveE2ESelection\(/);
+  assert.match(e2e, /selectedProjects\.includes\('chat-runtime-proof'\)/);
+});
+
 test('development and E2E descriptors use Caddy as public/auth origin and keep API diagnostics private', async () => {
   const composeEnvironmentSource = await readFile(
     'scripts/compose-environment.mjs',
