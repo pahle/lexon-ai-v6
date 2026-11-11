@@ -688,7 +688,14 @@ The initial Task 12 head `532c943` subsequently failed
 because the worker could not resolve `RunService` for `ChatTitleService`.
 Compose also stopped at AI-worker startup. Reviewed repair `0d6682d` registers
 the shared existing provider in the worker; the main session independently
-verified runtime composition at 5/5. This repair still needs new-head CI.
+verified runtime composition at 5/5. On repaired predecessor `80ceab6`, Compose passed and unit/integration tests
+passed in [run 43085059735](https://github.com/pahle/lexon-ai-v6/actions/runs/43085059735),
+but the later tooling step failed the obsolete F2 no-chat source guard.
+Reviewed follow-up through `ed67cc6` allows only the approved notification
+helper's exact quoted `/api/chats/events` path. Counterexamples retain legacy
+chat, unapproved plural/suffix paths, mixed same-line requests, and theme-call
+rejection. The main session verified the focused Node suite at 4/4; the new
+published head still needs CI.
 
 During Task 13 isolation, an agent cleanup command removed the ignored F4
 workflow directory. Published code, public proofs, plans, and source stashes
