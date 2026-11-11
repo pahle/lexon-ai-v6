@@ -16,6 +16,27 @@ const routeFiles = [
   ],
 ];
 
+const approvedF4FrontendRequest = {
+  file: 'lib/chat-title-invalidation.ts',
+  path: '/api/chats/events',
+};
+
+function isForbiddenFrontendRequest(file, line) {
+  const chatPath =
+    /\/api\/chat(?:s\/events)?\b(?:\/[^'"`\s)]*|[?#][^'"`\s)]*)?/.exec(
+      line,
+    )?.[0];
+  if (
+    chatPath &&
+    !(
+      file === approvedF4FrontendRequest.file &&
+      chatPath === approvedF4FrontendRequest.path
+    )
+  )
+    return true;
+  return /identityApi.*theme|fetch.*theme/.test(line);
+}
+
 test('F2 route inventory retains descriptive titles and shell not-found routes', async () => {
   for (const [path, title] of routeFiles) {
     const source = await readFile(path, 'utf8');
@@ -64,7 +85,7 @@ test('F2 legacy settings page entrypoints remain removed', async () => {
   }
 });
 
-test('F2 frontend source has no chat endpoint or theme preference API call', async () => {
+test('F2 frontend source has no unapproved chat endpoint or theme preference API call', async () => {
   const root = 'frontend/src';
   const files = [];
   async function visit(directory) {
@@ -81,15 +102,53 @@ test('F2 frontend source has no chat endpoint or theme preference API call', asy
   const matches = [];
   for (const path of files) {
     const source = await readFile(path, 'utf8');
-    const match = /\/api\/chat|identityApi.*theme|fetch.*theme/.exec(source);
-    if (match) {
-      const line = source.slice(0, match.index).split('\n').length;
-      matches.push(`${relative(root, path).split(sep).join('/')}:${line}`);
+    const relativePath = relative(root, path).split(sep).join('/');
+    for (const [index, line] of source.split('\n').entries()) {
+      if (isForbiddenFrontendRequest(relativePath, line))
+        matches.push(`${relativePath}:${index + 1}`);
     }
   }
   assert.equal(
     matches.join('\n'),
     '',
     `Unexpected chat or theme backend request:\n${matches.join('\n')}`,
+  );
+});
+
+test('approved F4 event route does not permit legacy chat or theme requests', () => {
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "new EventSource('/api/chats/events')",
+    ),
+    false,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      'lib/chat-title-invalidation.ts',
+      "fetch('/api/chat')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      'lib/chat-title-invalidation.ts',
+      'const path = `/api/chat/${chatId}`',
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "identityApi.updateUser({ theme: 'dark' })",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      'other-file.ts',
+      "new EventSource('/api/chats/events')",
+    ),
+    true,
   );
 });
