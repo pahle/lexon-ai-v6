@@ -22,15 +22,19 @@ const approvedF4FrontendRequest = {
 };
 
 function isForbiddenFrontendRequest(file, line) {
-  const chatPaths = [...line.matchAll(/\/api\/chat[^'"`\s)]*/g)].map(
-    ([path]) => path,
-  );
+  const chatPaths = [...line.matchAll(/\/api\/chat/g)];
   if (
-    chatPaths.some(
-      (path) =>
+    chatPaths.some(({ index }) => {
+      const quote = line[index - 1];
+      if (quote !== "'" && quote !== '"' && quote !== '`') return true;
+      const end = line.indexOf(quote, index);
+      if (end < 0) return true;
+      const path = line.slice(index, end);
+      return (
         file !== approvedF4FrontendRequest.file ||
-        path !== approvedF4FrontendRequest.path,
-    )
+        path !== approvedF4FrontendRequest.path
+      );
+    })
   )
     return true;
   return /identityApi.*theme|fetch.*theme/.test(line);
@@ -168,6 +172,27 @@ test('approved F4 event route does not permit legacy chat or theme requests', ()
     isForbiddenFrontendRequest(
       approvedF4FrontendRequest.file,
       "new EventSource('/api/chats/events'); fetch('/api/chat')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "fetch('/api/chats/events)extra')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      "fetch('/api/chats/events extra')",
+    ),
+    true,
+  );
+  assert.equal(
+    isForbiddenFrontendRequest(
+      approvedF4FrontendRequest.file,
+      'fetch(`/api/chats/events${suffix}`)',
     ),
     true,
   );
