@@ -600,8 +600,12 @@ The default all-project command had omitted the test-only overlay, although
 focused proof commands loaded it. Reviewed runner fixes `563dae6` and `54e29f1`
 resolve effective projects before Compose setup, including case-insensitive
 selectors verified against the pinned Playwright CLI. The 17 focused runner
-checks and scoped quality checks pass; default Compose CI on the repair head
-remains pending. Full-worktree lint during this follow-up was blocked by an
+checks and scoped quality checks pass; published repair head `863b4c6` passed Compose on the first attempt and
+unit/integration on a single failed-job rerun in
+[run 43016292502](https://github.com/pahle/lexon-ai-v6/actions/runs/43016292502).
+The first unit attempt passed 1,080 tests and failed the pre-existing F3
+90 ms lease/backoff test with claim loss; that original result is retained,
+with no test or engine change made for the rerun. Full-worktree lint during this follow-up was blocked by an
 uncommitted Task 11 test import; that file is not in the repair commits.
 
 Review corrections cover public Stop versus disconnect, serialized branch PUT
@@ -611,10 +615,39 @@ qualified in the proof; setup failures are not claimed as behavior REDs. Large
 test files/duplicated diagnostics and exploratory test naming remain minor
 items for the final branch review.
 
+## Task 11 — permanent deletion
+
+Task 11 is implemented through `b8b3636` and passed the task review and three
+scoped fix reviews. [Deletion proof](F4-deletion-proof.md) records the tests,
+research, timing, and qualifications. The deletion marker, ID-only audit, and
+cleanup outbox commit together. Durable cleanup terminalizes runs through the
+existing fenced release paths, retains content-free late usage, and prevents
+content or stream resurrection. The default 30-second grace completed through
+the dispatcher/queue/worker path in approximately 30.45 seconds, below the
+60-second target while dependencies were available.
+
+Review fixes cover production permit wiring, DELETE's cookie-origin guard,
+remote SSE revocation, terminalization before purge, and default-grace timing.
+One PostgreSQL LISTEN connection per API process receives UUID-only deletion
+notifications committed with the marker; Valkey remains a duplicate signal.
+Listener loss fails streams closed, registration races reject admission, and a
+fresh database check protects a resumed backpressure drain. Notifications are
+asynchronous: this is not a zero-delay distributed guarantee, and bytes already
+handed to the socket before deletion cannot be recalled. No bound for an
+undetected notification-network stall is claimed.
+
+The main session's final selected integration run passed 5/5 across four files;
+backend typecheck also passed. The implementation's final lint passed all 99
+boundary checks, with format and diff checks passing. Earlier broader results
+and subsequent targeted corrections are preserved in the proof rather than
+reported as a new full-suite pass. Cleanup restart tests use fresh worker
+objects and injected faults; title coverage currently uses an associated
+synthetic title run. Task 12 adds the real title producer and its deletion race.
+Search and feedback deletion predicates remain requirements for Task 13.
+
 ## Pending evidence
 
-Deletion/capacity races with the Usage ledger,
-chat UI, search and evals, owner-run high/max smoke and
+Chat UI, search and evals, owner-run high/max smoke and
 calibration, S2 load, visual approval and Linux golden evidence remain pending.
 No real model request, paid eval dispatch or account/admin change was made.
 Production TLS/hardening stays F20; P8 physical-region verification and F17
