@@ -23,6 +23,8 @@ import {
 import { RunAuthorizationService } from '../modules/identity-access/index.js';
 import { AttemptService } from '../modules/usage/index.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { ChatTitleService } from '../modules/chat/chat-title.service.js';
+import { RunService } from '../modules/chat/run.service.js';
 import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
 import { queueStepPermitPrefix } from '../infrastructure/queue/queue-producer.js';
 
@@ -30,6 +32,12 @@ export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
 ): Provider[] {
   return [
+    {
+      provide: ChatTitleService,
+      inject: [TenantDatabase, RunService],
+      useFactory: (db: TenantDatabase, runs: RunService) =>
+        new ChatTitleService(db, runs),
+    },
     {
       provide: CancelSignals,
       inject: [TenantDatabase, AiRunRepository],
@@ -145,6 +153,7 @@ export function aiWorkerProviders(
         MODEL_GATEWAY,
         RunStreams,
         CancelSignals,
+        ChatTitleService,
       ],
       useFactory: (
         db: TenantDatabase,
@@ -156,6 +165,7 @@ export function aiWorkerProviders(
         gateway: ModelGateway,
         streams: RunStreams,
         cancelSignals: CancelSignals,
+        chatTitles: ChatTitleService,
       ) => {
         const operations = new AiOperationRepository();
         const coordinator = new StepCoordinator(
@@ -181,6 +191,7 @@ export function aiWorkerProviders(
           gateway,
           streams,
           cancelSignals,
+          chatTitles,
         });
       },
     },

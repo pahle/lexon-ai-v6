@@ -1,5 +1,6 @@
 import type { RunProfile } from './run-contracts.js';
 import { CHAT_INSTRUCTIONS } from './chat-instructions.js';
+import { CHAT_TITLE_INSTRUCTIONS } from './chat-title-instructions.js';
 
 const MODEL = 'openai/gpt-6-luna';
 export const CHAT_HISTORY_CONTEXT_ID = 'chat-history';
@@ -40,6 +41,7 @@ export const CHAT_PROFILES = Object.freeze({
     maxAttemptsPerStep: 2,
     contextBudgets: {},
     capabilities: [],
+    instructions: CHAT_TITLE_INSTRUCTIONS,
     reasoning: {
       allowed: ['none'],
       default: 'none',
