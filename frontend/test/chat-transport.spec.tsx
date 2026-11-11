@@ -683,16 +683,89 @@ it('finishes a successful terminal snapshot when browser storage removal throws'
   if (!stream) throw new Error('Expected terminal recovery stream');
   const reader = stream.getReader();
   let finishReason: string | undefined;
+  const chunkTypes: string[] = [];
   while (true) {
     const result = await reader.read();
     if (result.done) break;
+    chunkTypes.push(result.value.type);
     if (result.value.type === 'finish')
       finishReason = result.value.finishReason;
   }
 
+  expect(chunkTypes).toContain('finish');
   expect(finishReason).toBe('stop');
   expect(removeItem).toHaveBeenCalled();
   removeItem.mockRestore();
+});
+
+it('finishes recovery when the sessionStorage property getter is denied', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const cursor = '1:1783814400000-2';
+  const frames = [
+    {
+      version: 1,
+      type: 'snapshot-start',
+      reset: true,
+      snapshot: {
+        runId,
+        messageId: assistantId,
+        attemptId: '55555555-5555-4555-8555-555555555555',
+        generation: 1,
+        revision: 1,
+        eventId: '1783814400000-2',
+        status: 'completed',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+      partCount: 0,
+      operationCount: 0,
+    },
+  ];
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        [
+          `data: ${JSON.stringify(frames[0])}\n\n`,
+          `id: ${cursor}\ndata: ${JSON.stringify({ version: 1, type: 'snapshot-end', partCount: 0, operationCount: 0 })}\n\n`,
+        ].join(''),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
+      ),
+  );
+  const getter = vi
+    .spyOn(globalThis, 'sessionStorage', 'get')
+    .mockImplementation(() => {
+      throw new DOMException('Storage denied', 'SecurityError');
+    });
+
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    initialRunId: runId,
+    fetch,
+  });
+  const stream = await transport.reconnectToStream({ chatId, headers: {} });
+  if (!stream) throw new Error('Expected terminal recovery stream');
+  const reader = stream.getReader();
+  let finishReason: string | undefined;
+  const chunkTypes: string[] = [];
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    chunkTypes.push(result.value.type);
+    if (result.value.type === 'finish')
+      finishReason = result.value.finishReason;
+  }
+
+  expect(chunkTypes).toContain('finish');
+  expect(finishReason).toBe('stop');
+  expect(getter).toHaveBeenCalledTimes(3);
+  getter.mockRestore();
 });
 
 it('proves a replay prefix and stores its checkpoint only after snapshot-end', async () => {

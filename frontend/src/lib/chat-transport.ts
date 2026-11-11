@@ -345,9 +345,10 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   }
 
   private readRecovery(): RecoveryRecord | undefined {
-    if (typeof sessionStorage === 'undefined') return undefined;
+    const storage = getSessionStorage();
+    if (!storage) return undefined;
     try {
-      const raw = sessionStorage.getItem(this.storageKey);
+      const raw = storage.getItem(this.storageKey);
       if (!raw || raw.length > 512) return undefined;
       const record = JSON.parse(raw) as Partial<RecoveryRecord>;
       if (
@@ -359,7 +360,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
         typeof record.updatedAt !== 'number' ||
         Date.now() - record.updatedAt > STORAGE_TTL_MS
       ) {
-        sessionStorage.removeItem(this.storageKey);
+        storage.removeItem(this.storageKey);
         return undefined;
       }
       if (this.runId && record.runId !== this.runId) return undefined;
@@ -371,7 +372,8 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   }
 
   private saveRecovery(runId: string, cursor: string): void {
-    if (typeof sessionStorage === 'undefined') return;
+    const storage = getSessionStorage();
+    if (!storage) return;
     try {
       const record: RecoveryRecord = {
         actorScope: this.options.actorScope.slice(0, 128),
@@ -380,19 +382,28 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
         cursor,
         updatedAt: Date.now(),
       };
-      sessionStorage.setItem(this.storageKey, JSON.stringify(record));
+      storage.setItem(this.storageKey, JSON.stringify(record));
     } catch {
       // Recovery continues from the server snapshot if session storage is unavailable.
     }
   }
 
   private removeRecovery(): void {
-    if (typeof sessionStorage === 'undefined') return;
+    const storage = getSessionStorage();
+    if (!storage) return;
     try {
-      sessionStorage.removeItem(this.storageKey);
+      storage.removeItem(this.storageKey);
     } catch {
       // Terminal cleanup must not depend on browser storage availability.
     }
+  }
+}
+
+function getSessionStorage(): Storage | undefined {
+  try {
+    return globalThis.sessionStorage;
+  } catch {
+    return undefined;
   }
 }
 
