@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
+import type { ChatSnapshot } from '@lexon/contracts';
 import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
@@ -75,6 +76,131 @@ test('replay and live delivery serialize writes through the replay boundary', as
     );
   } finally {
     releaseDrain();
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
+test('snapshot recovery replaces a valid client cursor with the PG checkpoint prefix', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const runId = randomUUID();
+  const attemptId = randomUUID();
+  const key = `${services.queuePrefix}:{run-streams}:${runId}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const frames: SseFrame[] = [];
+  const sink = {
+    write(frame: SseFrame) {
+      frames.push(frame);
+      return true;
+    },
+    async drain() {
+      return true;
+    },
+    async close() {},
+  };
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const checkpointId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        version: 1,
+        runId,
+        type: 'text-delta',
+        id: 'a1',
+        delta: 'replayed prefix',
+      }),
+      'generation',
+      '1',
+    );
+    const suffixId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        version: 1,
+        runId,
+        type: 'text-delta',
+        id: 'a1',
+        delta: ' after checkpoint',
+      }),
+      'generation',
+      '1',
+    );
+    const latestId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        version: 1,
+        runId,
+        type: 'text-delta',
+        id: 'a1',
+        delta: ' latest',
+      }),
+      'generation',
+      '1',
+    );
+    if (!checkpointId || !suffixId || !latestId)
+      throw new Error('Valkey did not return stream cursors');
+    const fallback = {
+      streamGeneration: 1,
+      snapshot: {
+        runId,
+        messageId: runId,
+        attemptId,
+        generation: 1,
+        revision: 1,
+        eventId: checkpointId,
+        parts: [
+          { type: 'text' as const, id: 'a1', text: 'persisted checkpoint' },
+        ],
+        operations: [],
+        status: 'running' as const,
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+    };
+
+    subscription = await hub.subscribe(
+      key,
+      `1:${latestId}`,
+      sink,
+      fallback,
+      'snapshot',
+    );
+
+    const start = frames.findIndex((frame) =>
+      frame.data.includes('"type":"snapshot-start"'),
+    );
+    const end = frames.findIndex((frame) =>
+      frame.data.includes('"type":"snapshot-end"'),
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(
+      frames
+        .slice(start + 1, end)
+        .some((frame) => frame.data.includes('persisted checkpoint')),
+    ).toBe(true);
+    expect(frames.some((frame) => frame.data.includes('snapshot-reset'))).toBe(
+      false,
+    );
+    expect(frames[end]?.id).toBe(`1:${checkpointId}`);
+    expect(frames.slice(start, end).some((frame) => frame.id)).toBe(false);
+    expect(
+      frames
+        .filter((frame, index) => index > end && frame.id)
+        .map((frame) => frame.id),
+    ).toEqual([`1:${suffixId}`, `1:${latestId}`]);
+  } finally {
     await subscription?.close();
     await hub.close();
     redis.disconnect();
@@ -295,6 +421,139 @@ test('trimmed cursors produce reset instead of replaying an incompatible retaine
         .some((frame) => frame.data.includes('"type":"snapshot-reset"')),
     ).toBe(true);
     expect(frames.filter((frame) => frame.id)).toEqual([]);
+  } finally {
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
+test('trimmed snapshot recovery waits for a retained PG checkpoint before delivering the completed prefix', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const runId = randomUUID();
+  const attemptId = randomUUID();
+  const key = `${services.queuePrefix}:{run-streams}:${runId}:events`;
+  const generationKey = key.replace(/:events$/, ':generation');
+  const frames: SseFrame[] = [];
+  const sink = {
+    write(frame: SseFrame) {
+      frames.push(frame);
+      return true;
+    },
+    async drain() {
+      return true;
+    },
+    async close() {},
+  };
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(generationKey, '1');
+    const trimmedCursor = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        version: 1,
+        runId,
+        type: 'text-delta',
+        id: 'answer',
+        delta: 'Answer prefix — ',
+      }),
+      'generation',
+      '1',
+    );
+    if (!trimmedCursor)
+      throw new Error('Valkey did not return a checkpoint cursor');
+    await redis.xtrim(key, 'MAXLEN', '=', 0);
+
+    let checkpoint: string | null = trimmedCursor;
+    let revision = 1;
+    let answer = 'Answer prefix — ';
+    let status: ChatSnapshot['status'] = 'running';
+    const reload = async () => ({
+      streamGeneration: 1,
+      snapshot: {
+        runId,
+        messageId: runId,
+        attemptId,
+        generation: 1,
+        revision,
+        eventId: checkpoint,
+        parts: [{ type: 'text' as const, id: 'answer', text: answer }],
+        operations: [],
+        status,
+        errorCode: null,
+        reasoningDurationMs: 17,
+      },
+      reload,
+    });
+    const fallback = await reload();
+    subscription = await hub.subscribe(
+      key,
+      `1:${trimmedCursor}`,
+      sink,
+      fallback,
+      'snapshot',
+    );
+
+    const initialEnd = frames.findIndex((frame) =>
+      frame.data.includes('"type":"snapshot-end"'),
+    );
+    expect(initialEnd).toBeGreaterThanOrEqual(0);
+    expect(frames[initialEnd]?.id).toBeUndefined();
+    expect(frames.some((frame) => frame.data.includes('snapshot-reset'))).toBe(
+      false,
+    );
+
+    const suffixId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({
+        version: 1,
+        runId,
+        type: 'text-delta',
+        id: 'answer',
+        delta: 'answer suffix.',
+      }),
+      'generation',
+      '1',
+    );
+    if (!suffixId) throw new Error('Valkey did not return a suffix cursor');
+    checkpoint = suffixId;
+    revision = 2;
+    answer = 'Answer prefix — answer suffix.';
+    status = 'completed';
+
+    await waitFor(() =>
+      frames.some(
+        (frame) =>
+          frame.data.includes('"type":"snapshot-start"') &&
+          frame.data.includes('"revision":2'),
+      ),
+    );
+    const completedStartIndex = frames.findIndex(
+      (frame) =>
+        frame.data.includes('"type":"snapshot-start"') &&
+        frame.data.includes('"revision":2'),
+    );
+    const completedEnd = frames
+      .slice(completedStartIndex + 1)
+      .find((frame) => frame.data.includes('"type":"snapshot-end"'));
+    expect(completedEnd).toBeDefined();
+    expect(completedEnd?.id).toBeUndefined();
+    expect(
+      frames.some((frame) =>
+        frame.data.includes('Answer prefix — answer suffix.'),
+      ),
+    ).toBe(true);
+    expect(frames.some((frame) => frame.data.includes('"type":"finish"'))).toBe(
+      true,
+    );
   } finally {
     await subscription?.close();
     await hub.close();
@@ -563,7 +822,16 @@ test('replacement between XREAD and lineage read never relabels old entries', as
     );
     if (!suffixId) throw new Error('Valkey did not return an XADD cursor');
     await waitFor(() => frames.some((frame) => frame.id === `2:${suffixId}`));
-    expect(frames.some((frame) => frame.id === `2:${replacedId}`)).toBe(false);
+    const checkpointFrame = frames.find(
+      (frame) => frame.id === `2:${replacedId}`,
+    );
+    expect(checkpointFrame?.data).toContain('"type":"snapshot-end"');
+    const checkpointIndex = frames.indexOf(checkpointFrame!);
+    const checkpointStart = frames
+      .slice(0, checkpointIndex)
+      .findLast((frame) => frame.data.includes('"type":"snapshot-start"'));
+    expect(checkpointStart?.data).toContain(`"generation":2`);
+    expect(checkpointStart?.data).toContain(`"eventId":"${replacedId}"`);
   } finally {
     releaseLineageRead();
     mgetSpy.mockRestore();
@@ -1051,7 +1319,14 @@ test('a reset received during recovery cannot transition to live with a stale sn
           frame.data.includes('revision 2'),
       ),
     );
-    expect(frames.some((frame) => frame.id === `2:${resetId}`)).toBe(false);
+    const checkpointFrame = frames.find((frame) => frame.id === `2:${resetId}`);
+    expect(checkpointFrame?.data).toContain('"type":"snapshot-end"');
+    const checkpointIndex = frames.indexOf(checkpointFrame!);
+    const checkpointStart = frames
+      .slice(0, checkpointIndex)
+      .findLast((frame) => frame.data.includes('"type":"snapshot-start"'));
+    expect(checkpointStart?.data).toContain('"generation":2');
+    expect(checkpointStart?.data).toContain(`"eventId":"${resetId}"`);
     expect(
       frames.filter((frame) => frame.data.includes('"type":"snapshot-start"')),
     ).toHaveLength(2);

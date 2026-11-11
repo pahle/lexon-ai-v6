@@ -7,6 +7,7 @@ import {
   ChatSnapshotFrameSchema,
   RunStreamEventSchema,
   type ChatSnapshot,
+  type ChatStreamRecoveryMode,
 } from '@lexon/contracts';
 
 const SUBSCRIBER_QUEUE_BYTES = 65_536;
@@ -23,6 +24,8 @@ export interface SseFrame {
 export interface SseSink {
   /** Return false when the socket is backpressured. */
   write(frame: SseFrame): boolean;
+  /** Select recovery behavior before the first frame flushes response headers. */
+  setRecoveryMode?(mode: ChatStreamRecoveryMode): void;
   drain(timeoutMs: number): Promise<boolean>;
   close(
     reason?: 'slow-client' | 'revoked' | 'shutdown' | 'evicted',
@@ -61,6 +64,7 @@ export class StreamHub {
     lastEventId: string | undefined,
     sink: SseSink,
     fallback?: SnapshotFallback,
+    recoveryMode: ChatStreamRecoveryMode = 'incremental',
   ): Promise<Subscription> {
     const initialCursor = lastEventId === undefined || lastEventId === '0-0';
     let replaying = true;
@@ -88,6 +92,7 @@ export class StreamHub {
     let lastSnapshotSignature = fallback
       ? snapshotStateSignature(fallback.snapshot)
       : undefined;
+    let lastSnapshotCheckpointId: string | undefined;
     let resolveDrained: (() => void) | undefined;
     const resynchronizer: { run: () => Promise<void> } = {
       run: async () => undefined,
@@ -248,7 +253,10 @@ export class StreamHub {
       });
     };
 
-    const enqueueSnapshot = async (snapshot: ChatSnapshot): Promise<void> => {
+    const enqueueSnapshot = async (
+      snapshot: ChatSnapshot,
+      checkpointId?: string,
+    ): Promise<boolean> => {
       const { parts, operations, ...metadata } = snapshot;
       if (
         !(await enqueue({
@@ -264,7 +272,7 @@ export class StreamHub {
           ),
         }))
       )
-        return;
+        return false;
       for (let partIndex = 0; partIndex < parts.length; partIndex++) {
         const part = parts[partIndex]!;
         const chunks: string[] = [];
@@ -321,22 +329,26 @@ export class StreamHub {
               ),
             }))
           )
-            return;
+            return false;
         }
       }
       for (let index = 0; index < operations.length; index++) {
-        await enqueue({
-          data: JSON.stringify(
-            ChatSnapshotFrameSchema.parse({
-              version: 1,
-              type: 'snapshot-operation',
-              index,
-              operation: operations[index],
-            }),
-          ),
-        });
+        if (
+          !(await enqueue({
+            data: JSON.stringify(
+              ChatSnapshotFrameSchema.parse({
+                version: 1,
+                type: 'snapshot-operation',
+                index,
+                operation: operations[index],
+              }),
+            ),
+          }))
+        )
+          return false;
       }
-      await enqueue({
+      return enqueue({
+        ...(checkpointId ? { id: checkpointId } : {}),
         data: JSON.stringify(
           ChatSnapshotFrameSchema.parse({
             version: 1,
@@ -381,11 +393,29 @@ export class StreamHub {
     const emitSnapshotIfChanged = async (
       snapshot: ChatSnapshot,
       force: boolean,
+      checkpoint?: { readonly generation: number; readonly eventId: string },
     ): Promise<void> => {
       const signature = snapshotStateSignature(snapshot);
-      if (force || signature !== lastSnapshotSignature) {
-        await enqueueSnapshot(snapshot);
-        lastSnapshotSignature = signature;
+      const checkpointId =
+        checkpoint &&
+        Number.isSafeInteger(checkpoint.generation) &&
+        checkpoint.generation > 0 &&
+        snapshot.generation === checkpoint.generation &&
+        snapshot.eventId === checkpoint.eventId &&
+        /^\d{1,20}-\d{1,10}$/.test(checkpoint.eventId)
+          ? `${checkpoint.generation}:${checkpoint.eventId}`
+          : undefined;
+      if (
+        force ||
+        signature !== lastSnapshotSignature ||
+        (checkpointId !== undefined &&
+          checkpointId !== lastSnapshotCheckpointId)
+      ) {
+        const complete = await enqueueSnapshot(snapshot, checkpointId);
+        if (complete) {
+          lastSnapshotSignature = signature;
+          lastSnapshotCheckpointId = checkpointId;
+        }
       }
     };
 
@@ -480,7 +510,10 @@ export class StreamHub {
           return;
         }
 
-        await emitSnapshotIfChanged(current.snapshot, forceSnapshot);
+        await emitSnapshotIfChanged(current.snapshot, forceSnapshot, {
+          generation: currentGeneration!,
+          eventId: cursor!,
+        });
         if (interrupted()) return;
         forceSnapshot = false;
         recentIds.clear();
@@ -568,6 +601,7 @@ export class StreamHub {
         (await this.reader.contains(key, snapshotCursor)),
       );
       const clientCursorValid = Boolean(
+        recoveryMode !== 'snapshot' &&
         parsed &&
         parsed.generation === valkeyGeneration &&
         oldest &&
@@ -582,11 +616,23 @@ export class StreamHub {
           : fallback || (lastEventId && !initialCursor)
             ? highWater
             : '0-0';
-      const useSnapshot = Boolean(fallback && !clientCursorValid);
+      const useSnapshot = Boolean(
+        fallback && (recoveryMode === 'snapshot' || !clientCursorValid),
+      );
+      sink.setRecoveryMode?.(useSnapshot ? 'snapshot' : 'incremental');
       if (useSnapshot) {
-        await enqueueSnapshot(fallback!.snapshot);
-        if (fallback)
+        const checkpointId =
+          snapshotCompatible && valkeyGeneration !== undefined && snapshotCursor
+            ? `${valkeyGeneration}:${snapshotCursor}`
+            : undefined;
+        const complete = await enqueueSnapshot(
+          fallback!.snapshot,
+          checkpointId,
+        );
+        if (fallback && complete) {
           lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
+          lastSnapshotCheckpointId = checkpointId;
+        }
       }
       const snapshotOnlyRequired = Boolean(
         fallback && !clientCursorValid && !snapshotCompatible,
@@ -595,7 +641,13 @@ export class StreamHub {
         await terminalSnapshot(fallback.snapshot);
       } else if (snapshotOnlyRequired) {
         snapshotOnly = true;
-      } else if (lastEventId && !initialCursor && !clientCursorValid)
+      } else if (
+        !useSnapshot &&
+        recoveryMode !== 'snapshot' &&
+        lastEventId &&
+        !initialCursor &&
+        !clientCursorValid
+      )
         await enqueue({
           data: JSON.stringify(
             ChatSnapshotFrameSchema.parse({
@@ -609,6 +661,7 @@ export class StreamHub {
         const rows = await this.reader.range(key, resumeFrom, highWater);
         if (!rows) {
           if (!useSnapshot && fallback) {
+            sink.setRecoveryMode?.('snapshot');
             await enqueueSnapshot(fallback.snapshot);
             lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
             snapshotOnly = true;
@@ -644,6 +697,7 @@ export class StreamHub {
         }
       }
     } else if (fallback) {
+      sink.setRecoveryMode?.('snapshot');
       await enqueueSnapshot(fallback.snapshot);
       lastSnapshotSignature = snapshotStateSignature(fallback.snapshot);
       if (isTerminal(fallback.snapshot))

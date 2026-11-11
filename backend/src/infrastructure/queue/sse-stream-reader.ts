@@ -1,3 +1,4 @@
+import { AsyncResource } from 'node:async_hooks';
 import { Redis } from 'ioredis';
 
 export interface StreamEntry {
@@ -18,6 +19,14 @@ export class SseStreamReader {
   readonly #blocking: Redis;
   readonly #replay: Redis;
   readonly #subscriptions = new Map<string, Set<StreamSubscription>>();
+  readonly #boundSubscriptions = new WeakMap<
+    StreamSubscription,
+    StreamSubscription
+  >();
+  readonly #subscriptionResources = new Map<
+    StreamSubscription,
+    AsyncResource
+  >();
   readonly #cursors = new Map<string, string>();
   readonly #lineages = new Map<string, number | undefined>();
   #replayConnecting: Promise<void> | undefined;
@@ -108,25 +117,57 @@ export class SseStreamReader {
   }
 
   add(subscription: StreamSubscription): void {
+    let registered = this.#boundSubscriptions.get(subscription);
+    if (!registered) {
+      const resource = new AsyncResource('LexonSseStreamSubscription');
+      registered = {
+        key: subscription.key,
+        get cursor() {
+          return subscription.cursor;
+        },
+        set cursor(value: string) {
+          subscription.cursor = value;
+        },
+        receive: resource.bind((entry: StreamEntry) =>
+          subscription.receive(entry),
+        ),
+        ...(subscription.lineageChanged
+          ? {
+              lineageChanged: resource.bind((generation: number | undefined) =>
+                subscription.lineageChanged!(generation),
+              ),
+            }
+          : {}),
+      };
+      this.#boundSubscriptions.set(subscription, registered);
+      this.#subscriptionResources.set(subscription, resource);
+    }
     const set = this.#subscriptions.get(subscription.key) ?? new Set();
     if (set.size)
-      subscription.cursor = this.#cursors.get(subscription.key) ?? '0-0';
-    set.add(subscription);
+      registered.cursor = this.#cursors.get(subscription.key) ?? '0-0';
+    set.add(registered);
     this.#subscriptions.set(subscription.key, set);
     if (!this.#cursors.has(subscription.key))
-      this.#cursors.set(subscription.key, subscription.cursor);
+      this.#cursors.set(subscription.key, registered.cursor);
     this.#start();
   }
 
   /** Advance one subscriber after replay; the shared cursor remains at the slowest subscriber. */
   advance(subscription: StreamSubscription, id: string): void {
-    if (compareIds(id, subscription.cursor) > 0) subscription.cursor = id;
+    const registered =
+      this.#boundSubscriptions.get(subscription) ?? subscription;
+    if (compareIds(id, registered.cursor) > 0) registered.cursor = id;
     this.#updateSharedCursor(subscription.key);
   }
 
   remove(subscription: StreamSubscription): void {
+    const registered =
+      this.#boundSubscriptions.get(subscription) ?? subscription;
     const set = this.#subscriptions.get(subscription.key);
-    set?.delete(subscription);
+    set?.delete(registered);
+    this.#subscriptionResources.get(subscription)?.emitDestroy();
+    this.#subscriptionResources.delete(subscription);
+    this.#boundSubscriptions.delete(subscription);
     if (!set?.size) {
       this.#subscriptions.delete(subscription.key);
       this.#cursors.delete(subscription.key);
@@ -139,6 +180,9 @@ export class SseStreamReader {
   async close(): Promise<void> {
     this.#closed = true;
     this.#subscriptions.clear();
+    for (const resource of this.#subscriptionResources.values())
+      resource.emitDestroy();
+    this.#subscriptionResources.clear();
     this.#cursors.clear();
     this.#lineages.clear();
     this.#blocking.disconnect();

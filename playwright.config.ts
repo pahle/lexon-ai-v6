@@ -45,6 +45,12 @@ export default defineConfig({
       testMatch: 'backend/test/e2e/chat-routing.spec.ts',
     },
     {
+      name: 'chat-runtime-proof',
+      timeout: 90000,
+      testMatch: 'backend/test/e2e/chat-runtime-proof.spec.ts',
+      use: { trace: 'off', video: 'off', screenshot: 'off' },
+    },
+    {
       name: 'frontend-browser',
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },

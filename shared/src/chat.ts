@@ -8,6 +8,14 @@ import {
 const uuid = z.uuid();
 const opaqueId = z.string().min(1).max(256);
 const timestamp = z.iso.datetime();
+export const ChatStreamRecoveryModeSchema = z.enum(['snapshot', 'incremental']);
+export type ChatStreamRecoveryMode = z.infer<
+  typeof ChatStreamRecoveryModeSchema
+>;
+export const CHAT_STREAM_RECOVERY_HEADER = 'x-lexon-stream-recovery';
+export const CHAT_STREAM_RECOVERY_RESULT_HEADER =
+  'x-lexon-stream-recovery-result';
+
 const chatText = z
   .string()
   .refine((text) => text.trim().length > 0, {

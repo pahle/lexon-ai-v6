@@ -10,6 +10,7 @@ export const E2E_PROJECTS = {
     'frontend-browser',
     // Includes F1 identity regression and F2 shell/theme/accessibility suites.
     'identity-browser',
+    'chat-runtime-proof',
     'visual-review',
   ],
   shared: ['backend-api', 'identity-api'],

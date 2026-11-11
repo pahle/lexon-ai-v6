@@ -1,6 +1,19 @@
-import { Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { UuidSchema } from '@lexon/contracts';
+import {
+  CHAT_STREAM_RECOVERY_HEADER,
+  CHAT_STREAM_RECOVERY_RESULT_HEADER,
+  ChatStreamRecoveryModeSchema,
+  UuidSchema,
+} from '@lexon/contracts';
 import {
   currentVerifiedIdentity,
   RunAuthorizationService,
@@ -37,6 +50,10 @@ export class RunEventsController {
       resolveDisconnected = resolve;
     });
     const sink: SseSink = {
+      setRecoveryMode: (mode) => {
+        if (!response.headersSent)
+          response.setHeader(CHAT_STREAM_RECOVERY_RESULT_HEADER, mode);
+      },
       write: (frame) => {
         if (disconnected || response.destroyed) return false;
         if (!response.headersSent) {
@@ -63,6 +80,15 @@ export class RunEventsController {
       void subscription?.close();
     });
     const parsedRunId = UuidSchema.parse(runId);
+    const rawRecoveryMode = request.header(CHAT_STREAM_RECOVERY_HEADER);
+    const recoveryMode =
+      rawRecoveryMode === undefined
+        ? 'incremental'
+        : ChatStreamRecoveryModeSchema.safeParse(rawRecoveryMode).success
+          ? ChatStreamRecoveryModeSchema.parse(rawRecoveryMode)
+          : (() => {
+              throw new BadRequestException('Invalid stream recovery mode');
+            })();
     await this.authorization.withActor(identity, async (actor) => {
       try {
         subscription = await this.events.connect(
@@ -71,6 +97,7 @@ export class RunEventsController {
           request.header('last-event-id') ?? undefined,
           sink,
           identity,
+          recoveryMode,
         );
         if (disconnected || response.destroyed || response.writableEnded)
           await subscription.close();

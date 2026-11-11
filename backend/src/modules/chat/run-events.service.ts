@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { ChatSnapshot } from '@lexon/contracts';
+import type { ChatSnapshot, ChatStreamRecoveryMode } from '@lexon/contracts';
 import {
   RUN_SSE_REVALIDATION,
   RunAuthorizationService,
@@ -116,6 +116,7 @@ export class RunEventsService {
     lastEventId: string | undefined,
     sink: SseSink,
     identity: VerifiedIdentity,
+    recoveryMode: ChatStreamRecoveryMode = 'incremental',
   ): Promise<Subscription> {
     this.authorization.assertLiveActor(actor);
     const orgId = actor.orgId;
@@ -187,6 +188,7 @@ export class RunEventsService {
           streamGeneration: state.streamGeneration,
           reload: reloadFallback,
         },
+        recoveryMode,
       );
       renewal = setInterval(() => {
         if (checking || closed || !lease) return;

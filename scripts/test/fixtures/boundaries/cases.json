@@ -55,9 +55,15 @@
   },
   {
     "name": "frontend AI client type",
-    "importer": "frontend/src/page.ts",
+    "importer": "frontend/src/lib/chat-transport.ts",
     "code": "import type { UIMessage } from 'ai';",
     "rule": null
+  },
+  {
+    "name": "unrelated frontend AI client type",
+    "importer": "frontend/src/page.ts",
+    "code": "import type { UIMessage } from 'ai';",
+    "rule": "ai-owner"
   },
   {
     "name": "frontend AI SDK hook",
@@ -271,7 +277,7 @@
   },
   {
     "name": "frontend inline type import",
-    "importer": "frontend/src/page.ts",
+    "importer": "frontend/src/lib/chat-transport.ts",
     "code": "import { type UIMessage } from 'ai';",
     "rule": null
   },

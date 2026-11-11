@@ -36,3 +36,9 @@ FROM runtime AS dispatcher
 CMD ["node", "backend/dist/entrypoints/dispatcher/main.js"]
 FROM runtime AS document-worker
 CMD ["node", "backend/dist/entrypoints/document-worker/main.js"]
+
+FROM runtime AS e2e-test-worker
+COPY --chown=node:node backend/test/e2e/chat-worker-main.mjs backend/test/e2e/chat-worker-control.mjs backend/test/e2e/
+CMD ["node", "backend/test/e2e/chat-worker-main.mjs"]
+
+FROM document-worker AS production

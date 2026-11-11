@@ -17,6 +17,54 @@ import {
   TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
 import { RunStreams } from '../../src/infrastructure/queue/run-streams.js';
+import { SseStreamReader } from '../../src/infrastructure/queue/sse-stream-reader.js';
+import {
+  assertVerifiedIdentity,
+  withVerifiedIdentity,
+} from '../../src/modules/identity-access/identity.types.js';
+
+test('an unknown stream recovery mode is rejected before SSE admission', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createAuthEnvironment(services, '/tmp/lexon-chat-sse-mode-health.json'),
+    ),
+  );
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: randomUUID(),
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'Reject an unknown stream recovery mode',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const connect = vi.spyOn(app.get(RunEventsService), 'connect');
+
+    const response = await fetch(`${origin}/api/runs/${runId}/events`, {
+      headers: { ...headers, 'x-lexon-stream-recovery': 'unknown' },
+      signal: AbortSignal.timeout(2_000),
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get('content-type')).not.toContain(
+      'text/event-stream',
+    );
+    expect(connect).not.toHaveBeenCalled();
+  } finally {
+    await app.close();
+  }
+});
 
 test('the owning user can open the authorized run event stream', async ({
   services,
@@ -218,6 +266,109 @@ test('a sequential authorized reconnect resumes from the last actual XADD cursor
     }
     redis.disconnect();
     await app.close();
+  }
+});
+
+test('shared Valkey reader callbacks run in the verified identity scope of their owning subscriber', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const firstFacts = {
+    userId: randomUUID(),
+    sessionId: randomUUID(),
+    activeOrganizationId: randomUUID(),
+    channel: 'cookie' as const,
+    platformAdmin: false,
+    mfaVerifiedAt: null,
+    reauthenticatedAt: null,
+  };
+  const secondFacts = {
+    userId: randomUUID(),
+    sessionId: randomUUID(),
+    activeOrganizationId: randomUUID(),
+    channel: 'cookie' as const,
+    platformAdmin: false,
+    mfaVerifiedAt: null,
+    reauthenticatedAt: null,
+  };
+  const firstKey = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const secondKey = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const firstGenerationKey = firstKey.replace(/:events$/, ':generation');
+  const secondGenerationKey = secondKey.replace(/:events$/, ':generation');
+  let firstSubscription: Parameters<typeof reader.add>[0] | undefined;
+  let firstCallbackObserved!: () => void;
+  const firstCallback = new Promise<void>((resolve) => {
+    firstCallbackObserved = resolve;
+  });
+  let secondCallbackObserved!: () => void;
+  const secondCallback = new Promise<void>((resolve) => {
+    secondCallbackObserved = resolve;
+  });
+  let secondIdentityVerified = false;
+  let secondIdentityErrorCode: string | undefined;
+  try {
+    await redis.set(firstGenerationKey, '1');
+    await redis.set(secondGenerationKey, '1');
+    await withVerifiedIdentity(firstFacts, async (firstIdentity) => {
+      firstSubscription = {
+        key: firstKey,
+        cursor: '0-0',
+        receive: () => {
+          assertVerifiedIdentity(firstIdentity);
+          firstCallbackObserved();
+        },
+      };
+      reader.add(firstSubscription);
+      await redis.xadd(
+        firstKey,
+        '*',
+        'event',
+        JSON.stringify({ type: 'first' }),
+        'generation',
+        '1',
+      );
+      await firstCallback;
+    });
+
+    await withVerifiedIdentity(secondFacts, async (secondIdentity) => {
+      const secondSubscription = {
+        key: secondKey,
+        cursor: '0-0',
+        receive: () => {
+          try {
+            assertVerifiedIdentity(secondIdentity);
+            secondIdentityVerified = true;
+          } catch (error) {
+            secondIdentityErrorCode =
+              typeof error === 'object' && error !== null && 'code' in error
+                ? String((error as { code: unknown }).code)
+                : 'unknown';
+          }
+          secondCallbackObserved();
+        },
+      };
+      reader.add(secondSubscription);
+      if (firstSubscription) reader.remove(firstSubscription);
+      await redis.xadd(
+        secondKey,
+        '*',
+        'event',
+        JSON.stringify({ type: 'second' }),
+        'generation',
+        '1',
+      );
+      await secondCallback;
+      expect({ secondIdentityVerified, secondIdentityErrorCode }).toEqual({
+        secondIdentityVerified: true,
+        secondIdentityErrorCode: undefined,
+      });
+      reader.remove(secondSubscription);
+    });
+  } finally {
+    if (firstSubscription) reader.remove(firstSubscription);
+    await reader.close();
+    redis.disconnect();
   }
 });
 
@@ -547,15 +698,17 @@ test('the seventh live SSE connection evicts only the oldest socket', async ({
 test('revoking the request session closes its existing run event stream', async ({
   services,
 }) => {
-  const app = await createTestApi(
-    loadRuntimeConfig(
-      'api',
-      createAuthEnvironment(
-        services,
-        '/tmp/lexon-chat-sse-revocation-health.json',
-      ),
-    ),
+  const environment = createAuthEnvironment(
+    services,
+    '/tmp/lexon-chat-sse-revocation-health.json',
   );
+  // The file shares one Valkey limiter namespace across its API applications.
+  // Keep the production per-IP signup rule from making these fixture users order-dependent.
+  environment.AUTH_RATE_RULES_JSON = JSON.stringify({
+    signup: { account: 3, ip: 100, windowSeconds: 600 },
+    'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+  });
+  const app = await createTestApi(loadRuntimeConfig('api', environment));
   const controller = new AbortController();
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
