@@ -12,6 +12,7 @@ import { RunEventsService } from './run-events.service.js';
 
 export interface DeletionSignalPublisher {
   publish(runId: string): Promise<void>;
+  publishDeletion?(runId: string): Promise<void>;
 }
 
 export class ChatDeletionService {
@@ -52,9 +53,10 @@ export class ChatDeletionService {
     );
     await Promise.all(work.runIds.map((runId) => this.events?.closeRun(runId)));
     await Promise.all(
-      work.runIds.map((runId) =>
-        this.signals?.publish(runId).catch(() => undefined),
-      ),
+      work.runIds.map(async (runId) => {
+        await this.signals?.publishDeletion?.(runId).catch(() => undefined);
+        await this.signals?.publish(runId).catch(() => undefined);
+      }),
     );
   }
 }

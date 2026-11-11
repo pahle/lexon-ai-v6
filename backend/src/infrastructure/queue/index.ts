@@ -1,6 +1,7 @@
 export {
   QueueProducer,
   QUEUE_NAME,
+  queueStepPermitPrefix,
   type QueueOptions,
 } from './queue-producer.js';
 export {

@@ -1,24 +1,28 @@
 import { randomUUID } from 'node:crypto';
+import { Redis } from 'ioredis';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
+import { CancelSignals } from '../../src/infrastructure/queue/cancel-signals.js';
 
 test('owner delete commits the marker and cleanup outbox before hiding the chat', async ({
   services,
 }) => {
-  const app = await createTestApi(
-    loadRuntimeConfig(
-      'api',
-      createAuthEnvironment(services, '/tmp/lexon-chat-delete-health.json'),
-    ),
+  const config = loadRuntimeConfig(
+    'api',
+    createAuthEnvironment(services, '/tmp/lexon-chat-delete-health.json'),
   );
+  const app = await createTestApi(config);
+  const remoteApp = await createTestApi(config);
   const fixture = await createChatFixture(services);
   try {
     await app.listen(0, '127.0.0.1');
+    await remoteApp.listen(0, '127.0.0.1');
     const origin = await app.getUrl();
+    const remoteOrigin = await remoteApp.getUrl();
     const headers = await apiHeaders(app);
     const input = {
       chatId: randomUUID(),
@@ -36,7 +40,7 @@ test('owner delete commits the marker and cleanup outbox before hiding the chat'
     const mutation = (await created.json()) as { runId: string };
 
     const oldStream = await fetch(
-      `${origin}/api/runs/${mutation.runId}/events`,
+      `${remoteOrigin}/api/runs/${mutation.runId}/events`,
       {
         headers,
         signal: AbortSignal.timeout(5_000),
@@ -44,8 +48,19 @@ test('owner delete commits the marker and cleanup outbox before hiding the chat'
     );
     expect(oldStream.status).toBe(200);
     const reader = oldStream.body!.getReader();
-    await reader.read();
-    const closed = reader.read().then(({ done }) => done);
+    const decoder = new TextDecoder();
+    let initialFrames = '';
+    while (!initialFrames.includes(': connected\n\n')) {
+      const { done, value } = await reader.read();
+      expect(done).toBe(false);
+      initialFrames += decoder.decode(value, { stream: true });
+    }
+    const closed = (async () => {
+      while (true) {
+        const { done } = await reader.read();
+        if (done) return true;
+      }
+    })();
 
     const deleted = await fetch(`${origin}/api/chats/${input.chatId}`, {
       method: 'DELETE',
@@ -128,6 +143,140 @@ test('owner delete commits the marker and cleanup outbox before hiding the chat'
     });
   } finally {
     await app.close();
+    await remoteApp.close();
+    await fixture.close();
+  }
+});
+
+test('remote SSE rechecks durable authorization when deletion races initial admission', async ({
+  services,
+}) => {
+  const config = loadRuntimeConfig(
+    'api',
+    createAuthEnvironment(services, '/tmp/lexon-chat-delete-race-health.json'),
+  );
+  const deletingApp = await createTestApi(config);
+  const subscribingApp = await createTestApi(config);
+  const fixture = await createChatFixture(services);
+  const inspector = new Redis(services.valkey.streamsUrl);
+  let releaseSubscribe!: () => void;
+  let signalSubscribeReached!: () => void;
+  const subscribeBarrier = new Promise<void>((resolve) => {
+    releaseSubscribe = resolve;
+  });
+  const subscribeReached = new Promise<void>((resolve) => {
+    signalSubscribeReached = resolve;
+  });
+  try {
+    await deletingApp.listen(0, '127.0.0.1');
+    await subscribingApp.listen(0, '127.0.0.1');
+    const deleteOrigin = await deletingApp.getUrl();
+    const subscribeOrigin = await subscribingApp.getUrl();
+    const headers = await apiHeaders(deletingApp);
+    const identity = (await (
+      await fetch(`${deleteOrigin}/api/identity`, { headers })
+    ).json()) as { user: { id: string } };
+    const chatId = randomUUID();
+    const created = await fetch(`${deleteOrigin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'handshake race content',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+
+    const signals = subscribingApp.get(CancelSignals);
+    const subscribeDeletion = signals.subscribeDeletion.bind(signals);
+    signals.subscribeDeletion = async (...args) => {
+      signalSubscribeReached();
+      await subscribeBarrier;
+      return subscribeDeletion(...args);
+    };
+    const pendingStream = fetch(`${subscribeOrigin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    await subscribeReached;
+    const deleted = await fetch(`${deleteOrigin}/api/chats/${chatId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(deleted.status).toBe(204);
+    releaseSubscribe();
+    const response = await pendingStream;
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain('handshake race content');
+
+    signals.subscribeDeletion = subscribeDeletion;
+    const secondChatId = randomUUID();
+    const secondCreated = await fetch(`${deleteOrigin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: secondChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'subscription return race content',
+        effort: 'high',
+      }),
+    });
+    expect(secondCreated.status).toBe(201);
+    const secondRunId = ((await secondCreated.json()) as { runId: string })
+      .runId;
+    let releaseReturn!: () => void;
+    let signalReturnReady!: () => void;
+    const returnBarrier = new Promise<void>((resolve) => {
+      releaseReturn = resolve;
+    });
+    const returnReady = new Promise<void>((resolve) => {
+      signalReturnReady = resolve;
+    });
+    signals.subscribeDeletion = async (...args) => {
+      const unsubscribe = await subscribeDeletion(...args);
+      signalReturnReady();
+      await returnBarrier;
+      return unsubscribe;
+    };
+    const responseNotOpened = fetch(
+      `${subscribeOrigin}/api/runs/${secondRunId}/events`,
+      { headers, signal: AbortSignal.timeout(5_000) },
+    );
+    await returnReady;
+    const secondDeleted = await fetch(
+      `${deleteOrigin}/api/chats/${secondChatId}`,
+      { method: 'DELETE', headers },
+    );
+    expect(secondDeleted.status).toBe(204);
+    releaseReturn();
+    const notOpened = await responseNotOpened;
+    expect(notOpened.status).toBe(404);
+    expect(notOpened.headers.get('content-type')).not.toContain(
+      'text/event-stream',
+    );
+    expect(await notOpened.text()).not.toContain(
+      'subscription return race content',
+    );
+    const channels = (await inspector.call(
+      'PUBSUB',
+      'NUMSUB',
+      `${services.queuePrefix}:ai-cancel:deleted:${secondRunId}`,
+    )) as [string, number | string][];
+    expect(Number(channels[1])).toBe(0);
+    const leaseCount = await inspector.zcard(
+      `${services.queuePrefix}:{sse-connections}:${identity.user.id}`,
+    );
+    expect(leaseCount).toBe(0);
+  } finally {
+    releaseSubscribe();
+    inspector.disconnect();
+    await deletingApp.close();
+    await subscribingApp.close();
     await fixture.close();
   }
 });

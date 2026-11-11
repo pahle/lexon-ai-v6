@@ -77,6 +77,36 @@ test('chat API rejects unauthenticated, malformed and cross-origin cookie mutati
     );
     expect(missingOrigin.status).toBe(403);
     expect(await missingOrigin.text()).not.toContain(canary);
+
+    const deletableChatId = randomUUID();
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: deletableChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'delete origin guard',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const crossOriginDelete = await fetch(
+      `${origin}/api/chats/${deletableChatId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          ...headers,
+          origin: 'https://attacker.example',
+        },
+      },
+    );
+    expect(crossOriginDelete.status).toBe(403);
+    const sameOriginDelete = await fetch(
+      `${origin}/api/chats/${deletableChatId}`,
+      { method: 'DELETE', headers },
+    );
+    expect(sameOriginDelete.status).toBe(204);
   } finally {
     await app.close();
   }

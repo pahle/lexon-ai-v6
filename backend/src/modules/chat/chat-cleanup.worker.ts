@@ -63,6 +63,8 @@ export class ChatCleanupWorker {
         return current;
       }
       if (current.phase === 'purge_db') {
+        if (!(await this.deletions.terminalizeRuns(tx, current.chatId)))
+          throw new Error('Chat cleanup run terminalization failed');
         if (!(await this.deletions.purgeContent(tx, current.chatId)))
           throw new Error('Chat cleanup database purge failed');
         await this.deletions.moveToNextPhase(

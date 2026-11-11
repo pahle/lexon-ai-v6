@@ -707,9 +707,12 @@ test('same-session snapshot-only subscribers share the bounded authorized PG rel
     };
     await open();
     await open();
-    expect(snapshotRead).toHaveBeenCalledTimes(2);
+    // Each connection reads once for its initial authorization and once after
+    // the deletion revocation subscription is active.
+    expect(snapshotRead).toHaveBeenCalledTimes(4);
+    snapshotRead.mockClear();
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    expect(snapshotRead).toHaveBeenCalledTimes(3);
+    expect(snapshotRead).toHaveBeenCalledTimes(1);
   } finally {
     for (const controller of controllers) controller.abort();
     for (const reader of readers) await reader.cancel().catch(() => {});

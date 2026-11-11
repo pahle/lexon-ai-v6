@@ -15,7 +15,11 @@ import {
   StepPermitManager,
   STEP_PERMIT_RENEWAL_DIVISOR,
 } from './step-permits.js';
-import { QUEUE_NAMES, type QueueOptions } from './queue-producer.js';
+import {
+  QUEUE_NAMES,
+  queueStepPermitPrefix,
+  type QueueOptions,
+} from './queue-producer.js';
 
 /** Runs short effects through the F0 receipt transaction. */
 export interface JobRunner {
@@ -116,7 +120,7 @@ export class QueueConsumer {
 
     const permits = await StepPermitManager.create({
       url: this.options.limiterUrl ?? this.options.url,
-      prefix: `${this.options.prefix}:limiter`,
+      prefix: queueStepPermitPrefix(this.options.prefix),
       leaseMs: this.#timing.stepLeaseMs,
     });
     let app: INestApplicationContext | undefined;

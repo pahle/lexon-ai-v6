@@ -24,6 +24,7 @@ import { RunAuthorizationService } from '../modules/identity-access/index.js';
 import { AttemptService } from '../modules/usage/index.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
 import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
+import { queueStepPermitPrefix } from '../infrastructure/queue/queue-producer.js';
 
 export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
@@ -113,7 +114,7 @@ export function aiWorkerProviders(
           streams,
           await StepPermitManager.create({
             url: config.valkey.limiterUrl,
-            prefix: config.queuePrefix,
+            prefix: queueStepPermitPrefix(config.queuePrefix),
           }),
           undefined,
           {

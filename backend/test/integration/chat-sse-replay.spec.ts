@@ -82,6 +82,77 @@ test('replay and live delivery serialize writes through the replay boundary', as
   }
 });
 
+test('revocation immediately discards queued SSE frames without waiting for drain', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const frames: SseFrame[] = [];
+  let releaseDrain!: () => void;
+  let notifyBlocked!: () => void;
+  let notified = false;
+  let closed = false;
+  const blockedDrain = new Promise<boolean>((resolve) => {
+    releaseDrain = () => resolve(true);
+  });
+  const drainStarted = new Promise<void>((resolve) => {
+    notifyBlocked = resolve;
+  });
+  let subscription: Awaited<ReturnType<StreamHub['subscribe']>> | undefined;
+  try {
+    subscription = await hub.subscribe(key, '0-0', {
+      write(frame) {
+        frames.push(frame);
+        if (frame.data.includes('first queued canary')) {
+          if (!notified) {
+            notified = true;
+            notifyBlocked();
+          }
+          return false;
+        }
+        return true;
+      },
+      async drain() {
+        return blockedDrain;
+      },
+      async close() {
+        closed = true;
+      },
+    });
+    await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: 'first queued canary' }),
+    );
+    await drainStarted;
+    await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: 'second queued canary' }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await subscription.revoke?.();
+    expect(closed).toBe(true);
+    releaseDrain();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(
+      frames.some((frame) => frame.data.includes('first queued canary')),
+    ).toBe(true);
+    expect(
+      frames.some((frame) => frame.data.includes('second queued canary')),
+    ).toBe(false);
+  } finally {
+    releaseDrain();
+    await subscription?.close();
+    await hub.close();
+    redis.disconnect();
+  }
+});
+
 test('snapshot recovery replaces a valid client cursor with the PG checkpoint prefix', async ({
   services,
 }) => {

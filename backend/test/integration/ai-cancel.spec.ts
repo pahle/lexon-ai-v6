@@ -401,6 +401,70 @@ test('database polling signals cancellation when no Valkey message arrives', asy
   }
 });
 
+test('deletion revocations multiplex run listeners over one process subscriber', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const firstRun = randomUUID();
+  const secondRun = randomUUID();
+  const seen: string[] = [];
+  let unsubscribeFirst: (() => Promise<void>) | undefined;
+  let unsubscribePeer: (() => Promise<void>) | undefined;
+  let unsubscribeOther: (() => Promise<void>) | undefined;
+  try {
+    unsubscribeFirst = await signals.subscribeDeletion(firstRun, () =>
+      seen.push('first'),
+    );
+    unsubscribePeer = await signals.subscribeDeletion(firstRun, () =>
+      seen.push('peer'),
+    );
+    unsubscribeOther = await signals.subscribeDeletion(secondRun, () =>
+      seen.push('other'),
+    );
+    const clients = String(await inspector.client('LIST'));
+    const owned = clients
+      .split('\n')
+      .filter((line) =>
+        line.includes(
+          `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+        ),
+      );
+    expect(owned).toHaveLength(1);
+    await unsubscribeFirst();
+    await signals.publishDeletion(firstRun);
+    await signals.publishDeletion(secondRun);
+    await expect.poll(() => seen.slice().sort()).toEqual(['other', 'peer']);
+    await unsubscribePeer();
+    await signals.publishDeletion(firstRun);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(seen).toEqual(['peer', 'other']);
+  } finally {
+    await unsubscribeFirst?.();
+    await unsubscribePeer?.();
+    await unsubscribeOther?.();
+    await signals.close();
+    const clients = String(await inspector.client('LIST'));
+    expect(
+      clients
+        .split('\n')
+        .filter((line) =>
+          line.includes(
+            `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+          ),
+        ),
+    ).toHaveLength(0);
+    inspector.disconnect();
+    await ai.close();
+  }
+});
+
 test('live step claim remains valid only for cancellation cleanup', async ({
   services,
 }) => {

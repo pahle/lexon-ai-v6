@@ -19,11 +19,48 @@ import {
   QueueProducer,
 } from '../../src/infrastructure/queue/index.js';
 import { StepPermitManager } from '../../src/infrastructure/queue/step-permits.js';
+import { queueStepPermitPrefix } from '../../src/infrastructure/queue/queue-producer.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
+
+test('queue consumers and cleanup share the limiter namespace', () => {
+  expect(queueStepPermitPrefix('lexon')).toBe('lexon:limiter');
+});
+
+test('cleanup releases the permit namespace used by a live queue consumer', async ({
+  services,
+}) => {
+  const orgId = randomUUID();
+  const consumerPermits = await StepPermitManager.create({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:limiter`,
+  });
+  const cleanupPermits = await StepPermitManager.create({
+    url: services.valkey.limiterUrl,
+    prefix: queueStepPermitPrefix(services.queuePrefix),
+  });
+  try {
+    const held = await consumerPermits.acquire(orgId);
+    expect(held).not.toBeNull();
+    if (!held) throw new Error('Consumer permit was not acquired');
+    const result = await cleanupPermits.releaseReference({
+      ...held.ownerReference,
+      runId: randomUUID(),
+      sequence: 1,
+      expectedVersion: 1,
+      stepId: randomUUID(),
+      fence: 1,
+    });
+    expect(result).toBe('released');
+    expect(await held.renew()).toBe('lost');
+  } finally {
+    await consumerPermits.close();
+    await cleanupPermits.close();
+  }
+});
 
 test('durable busy claims are delayed without consuming BullMQ failure attempts', async ({
   services,

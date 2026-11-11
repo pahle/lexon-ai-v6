@@ -61,6 +61,7 @@ export class ChatController {
   @Delete(':chatId')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('chatId') chatId: string): Promise<void> {
+    this.assertCookieOrigin();
     const identity = currentVerifiedIdentity();
     return this.authorization.withActor(identity, (actor) =>
       this.deletion.request(actor, UuidSchema.parse(chatId)),

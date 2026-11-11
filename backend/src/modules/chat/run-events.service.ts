@@ -20,6 +20,7 @@ import {
   type SseSink,
   type Subscription,
 } from '../../infrastructure/queue/stream-hub.js';
+import { CancelSignals } from '../../infrastructure/queue/cancel-signals.js';
 
 const PROCESS_ID = randomUUID();
 interface AuthorizationCheck {
@@ -97,6 +98,7 @@ export class RunEventsService {
     private readonly authorization: RunAuthorizationService,
     private readonly hub: StreamHub,
     private readonly registry: SseConnectionRegistry,
+    private readonly signals: CancelSignals,
     private readonly queuePrefix: string,
     private readonly connectionLimit: number,
     @Inject(RUN_SSE_REVALIDATION)
@@ -156,6 +158,8 @@ export class RunEventsService {
     const streamKey = `${this.queuePrefix}:{run-streams}:${runId}:events`;
     const snapshotKey = `${orgId}|${userId}|${runId}|${identity.channel}|${identity.sessionId}`;
     let streamSubscription: Subscription | undefined;
+    let unsubscribeCancel: (() => Promise<void>) | undefined;
+    let unbindCancel: (() => void) | undefined;
     let closed = false;
     let checking = false;
     let renewal: ReturnType<typeof setInterval> | undefined;
@@ -166,15 +170,38 @@ export class RunEventsService {
       closed = true;
       if (renewal) clearInterval(renewal);
       this.#local.delete(connectionId);
-      await streamSubscription?.close();
+      if (reason && streamSubscription?.revoke)
+        await streamSubscription.revoke();
+      else await streamSubscription?.close();
+      await unsubscribeCancel?.();
+      unbindCancel?.();
       if (lease) await this.registry.release(lease).catch(() => false);
-      if (reason) await sink.close(reason);
+      if (reason && streamSubscription) await sink.close(reason);
     };
     this.#local.set(connectionId, {
       runId,
       close: () => close('evicted'),
     });
     try {
+      unbindCancel = this.signals.bind(runId, { orgId, userId });
+      const unsubscribe = await this.signals.subscribeDeletion(runId, () => {
+        void close('revoked');
+      });
+      if (closed) {
+        await unsubscribe();
+        unbindCancel?.();
+        throw new NotFoundException();
+      }
+      unsubscribeCancel = unsubscribe;
+      const current = await this.database.withTenant(
+        { orgId, userId },
+        (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),
+        { timeoutMs: 1000 },
+      );
+      if (!current || closed) {
+        await close();
+        throw new NotFoundException();
+      }
       const reloadFallback = async () => {
         const refreshed = await sharedSnapshotRead(snapshotKey, async () => {
           await this.revalidation.assert(identity, orgId);
@@ -193,17 +220,28 @@ export class RunEventsService {
             }
           : undefined;
       };
+      const guardedSink: SseSink = {
+        setRecoveryMode: (mode) => sink.setRecoveryMode?.(mode),
+        write: (frame) => (closed ? false : sink.write(frame)),
+        drain: (timeoutMs) => sink.drain(timeoutMs),
+        close: (reason) => sink.close(reason),
+      };
       streamSubscription = await this.hub.subscribe(
         streamKey,
         lastEventId,
-        sink,
+        guardedSink,
         {
-          snapshot: state.snapshot,
-          streamGeneration: state.streamGeneration,
+          snapshot: current.snapshot,
+          streamGeneration: current.streamGeneration,
           reload: reloadFallback,
         },
         recoveryMode,
       );
+      if (closed) {
+        if (streamSubscription.revoke) await streamSubscription.revoke();
+        else await streamSubscription.close();
+        throw new NotFoundException();
+      }
       renewal = setInterval(() => {
         if (checking || closed || !lease) return;
         checking = true;

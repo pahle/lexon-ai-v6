@@ -16,9 +16,21 @@ import { StepPermitManager } from '../../src/infrastructure/queue/step-permits.j
 import {
   ChatDeletionRepository,
   StepPermitReferenceRepository,
+  OutboxRepository,
+  DispatcherSession,
   type JobEnvelope,
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
+import {
+  QueueConsumer,
+  QueueProducer,
+  queueStepPermitPrefix,
+} from '../../src/infrastructure/queue/index.js';
+import {
+  JobExecutor,
+  JobRegistry,
+  OutboxDispatcher,
+} from '../../src/modules/platform/index.js';
 
 test('cleanup advances one durable phase at a time and permanently retains identity tombstones', async ({
   services,
@@ -122,6 +134,11 @@ test('cleanup advances one durable phase at a time and permanently retains ident
       }),
     );
     expect(otherTenant).toEqual({ visible: false, work: null });
+    const deletionWorkBeforeCleanup = await fixture.database.withTenant(
+      { orgId: identity.organization.id, userId: identity.user.id },
+      (tx) => new ChatDeletionRepository().read(tx, input.chatId),
+    );
+    expect(deletionWorkBeforeCleanup?.runIds).toContain(mutation.runId);
     const [initial] = await fixture.inspect.outbox(input.chatId);
     const job = {
       outboxId: initial.id,
@@ -151,6 +168,19 @@ test('cleanup advances one durable phase at a time and permanently retains ident
       (entry) => entry.payload.phase === 'purge_db',
     );
     expect(dbPhase).toBeDefined();
+    expect(
+      await fixture.inspect.terminalizeDeletedRunsWithoutTenant({
+        orgId: identity.organization.id,
+        userId: identity.user.id,
+        chatId: input.chatId,
+      }),
+    ).toBe(false);
+    expect(
+      await fixture.database.withTenant(
+        { orgId: randomUUID(), userId: identity.user.id },
+        (tx) => new ChatDeletionRepository().terminalizeRuns(tx, input.chatId),
+      ),
+    ).toBe(false);
     const dbWorker = new ChatCleanupWorker(fixture.database, streams, permits);
     expect(
       await dbWorker.advance({
@@ -438,6 +468,25 @@ test('cleanup releases exact run capacity while a started model call remains blo
     );
     expect(dbJob).toBeDefined();
     expect(
+      await harness.database.withTenant(ctx, (tx) =>
+        deletions.terminalizeRuns(tx, chat.id),
+      ),
+    ).toBe(true);
+    expect(await harness.inspect.runs(runId)).toMatchObject({
+      status: 'cancelled',
+      partial_output: '',
+      next_sequence: 2,
+      first_step_state: 'failed',
+    });
+    expect(await harness.inspect.runs(titleRun.runId)).toMatchObject({
+      status: 'cancelled',
+      next_sequence: 2,
+      first_step_state: 'failed',
+    });
+    expect(await harness.inspect.capacity(runId)).toHaveLength(0);
+    expect(await harness.inspect.capacity(titleRun.runId)).toHaveLength(0);
+    expect(await harness.inspect.activeSlotCount()).toBe(baselineSlots);
+    expect(
       await cleanup.advance({
         ...envelope,
         outboxId: dbJob!.id,
@@ -493,3 +542,129 @@ test('cleanup releases exact run capacity while a started model call remains blo
     await harness.close();
   }
 });
+
+test('default 30-second grace completes through the production outbox and queue path', async ({
+  services,
+}) => {
+  const environment = createAuthEnvironment(
+    services,
+    '/tmp/lexon-chat-delete-default-grace-health.json',
+  );
+  const config = loadRuntimeConfig('api', environment);
+  const dispatcherConfig = loadRuntimeConfig('dispatcher', environment);
+  expect(config.chat.deleteGraceMs).toBe(30_000);
+  const app = await createTestApi(config);
+  const fixture = await createChatFixture(services);
+  const streams = new RunStreams({
+    url: config.valkey.streamsUrl,
+    prefix: config.queuePrefix,
+    authority: {
+      authorizeActive: async () => undefined,
+      advanceStreamGeneration: async (_claim, observed) => observed + 1,
+      authorizeTerminal: async () => undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'missing' as const })),
+    },
+  });
+  const permits = await StepPermitManager.create({
+    url: config.valkey.limiterUrl,
+    prefix: queueStepPermitPrefix(config.queuePrefix),
+  });
+  const cleanupMetrics: ChatCleanupMetric[] = [];
+  const cleanup = new ChatCleanupWorker(
+    fixture.database,
+    streams,
+    permits,
+    { now: () => Date.now() },
+    {
+      targetMs: config.chat.deleteTargetMs,
+      observer: { record: (metric) => cleanupMetrics.push(metric) },
+    },
+  );
+  const producer = new QueueProducer({
+    url: config.valkey.queueUrl,
+    prefix: config.queuePrefix,
+  });
+  const consumer = new QueueConsumer(
+    {
+      url: config.valkey.queueUrl,
+      limiterUrl: config.valkey.limiterUrl,
+      prefix: config.queuePrefix,
+    },
+    new JobExecutor(fixture.database),
+  );
+  const registry = new JobRegistry();
+  registry.register('run.start.v1', {
+    strategy: 'durable-step',
+    handle: async () => ({ kind: 'done' }),
+  });
+  registry.register('chat.cleanup.v1', {
+    strategy: 'cleanup-work',
+    handle: (job) => cleanup.advance(job),
+  });
+  const dispatcher = new OutboxDispatcher(
+    new OutboxRepository(fixture.database),
+    new DispatcherSession(services.appUrl),
+    producer,
+    dispatcherConfig.dispatcher,
+  );
+  const abort = new AbortController();
+  let dispatcherTask: Promise<void> | undefined;
+  try {
+    await app.listen(0, '127.0.0.1');
+    await consumer.start(registry);
+    dispatcherTask = dispatcher.start(abort.signal);
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as {
+      user: { id: string };
+      organization: { id: string };
+    };
+    const chatId = randomUUID();
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'default grace pipeline content',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const requestedAt = performance.now();
+    const deleted = await fetch(`${origin}/api/chats/${chatId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(deleted.status).toBe(204);
+    await expect
+      .poll(
+        async () =>
+          fixture.database.withTenant(
+            { orgId: identity.organization.id, userId: identity.user.id },
+            (tx) => new ChatDeletionRepository().read(tx, chatId),
+          ),
+        { timeout: 65_000, interval: 100 },
+      )
+      .toMatchObject({ phase: 'complete' });
+    const elapsedMs = performance.now() - requestedAt;
+    expect(elapsedMs).toBeGreaterThanOrEqual(30_000);
+    expect(elapsedMs).toBeLessThan(60_000);
+    expect(cleanupMetrics).toContainEqual(
+      expect.objectContaining({ event: 'complete', phase: 'purge_valkey' }),
+    );
+  } finally {
+    abort.abort();
+    await dispatcherTask;
+    await consumer.close();
+    await producer.close();
+    await cleanup.close();
+    await streams.close();
+    await app.close();
+    await fixture.close();
+  }
+}, 75_000);

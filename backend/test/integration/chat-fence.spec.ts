@@ -457,6 +457,9 @@ async function verifyDeletedCancellation(
       app_can_finalize: true,
       auth_can_finalize: false,
       public_can_finalize: false,
+      app_can_terminalize: true,
+      auth_can_terminalize: false,
+      public_can_terminalize: false,
     });
     const finalization = harness.engine.coordinator.finalizeCancellation(
       job,

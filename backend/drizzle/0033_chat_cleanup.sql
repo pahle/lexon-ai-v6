@@ -153,6 +153,146 @@ END $$;
 REVOKE ALL ON FUNCTION ops.ai_chat_deleted_run_facts(uuid,uuid,uuid,integer,integer,uuid,bigint) FROM PUBLIC,lexon_auth;
 GRANT EXECUTE ON FUNCTION ops.ai_chat_deleted_run_facts(uuid,uuid,uuid,integer,integer,uuid,bigint) TO lexon_app;
 --> statement-breakpoint
+CREATE OR REPLACE FUNCTION ops.ai_chat_deleted_cancel_facts(
+  input_org_id uuid,input_user_id uuid,input_run_id uuid,input_expected_version integer,
+  input_sequence integer,input_step_id uuid,input_fence bigint
+) RETURNS TABLE(run_status text,run_version integer,next_sequence integer,lease_until timestamptz,active_attempt_ids uuid[])
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $$
+DECLARE context_org uuid; context_user uuid; chat_id uuid; resource_ids jsonb;
+BEGIN
+  context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+  context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+  IF context_org IS NULL OR context_user IS NULL OR input_org_id IS DISTINCT FROM context_org
+    OR input_user_id IS DISTINCT FROM context_user THEN RETURN; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:'||input_org_id::text,0));
+  SELECT cr.chat_id INTO chat_id FROM app.chat_runs cr JOIN app.chats c
+    ON c.org_id=cr.org_id AND c.id=cr.chat_id
+   WHERE cr.org_id=input_org_id AND cr.run_id=input_run_id
+     AND c.owner_user_id=input_user_id AND c.deleted_at IS NOT NULL FOR UPDATE OF c;
+  IF NOT FOUND THEN RETURN; END IF;
+  SELECT r.status,r.run_version,r.next_sequence,r.resolved_config->'resourceIds'
+    INTO run_status,run_version,next_sequence,resource_ids FROM app.ai_runs r
+   WHERE r.org_id=input_org_id AND r.id=input_run_id
+     AND ((r.status='cancelling' AND r.run_version=input_expected_version+1)
+       OR (r.status='cancelled' AND r.run_version=input_expected_version+2))
+     AND r.next_sequence=input_sequence FOR UPDATE;
+  IF NOT FOUND OR jsonb_typeof(resource_ids) IS DISTINCT FROM 'array'
+    OR jsonb_array_length(resource_ids)<>1 OR resource_ids->>0 IS DISTINCT FROM chat_id::text THEN RETURN; END IF;
+  SELECT s.lease_until INTO lease_until FROM app.ai_steps s
+   WHERE s.org_id=input_org_id AND s.run_id=input_run_id AND s.id=input_step_id
+     AND s.sequence=input_sequence AND s.expected_version=input_expected_version
+     AND s.fence=input_fence AND s.state='claimed' FOR UPDATE;
+  IF NOT FOUND THEN RETURN; END IF;
+  SELECT COALESCE(array_agg(a.id ORDER BY a.id),'{}'::uuid[]) INTO active_attempt_ids
+    FROM app.ai_attempts a WHERE a.org_id=input_org_id AND a.run_id=input_run_id
+      AND a.step_id=input_step_id AND a.fence=input_fence AND a.active;
+  RETURN NEXT;
+END $$;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION ops.ai_chat_finalize_deleted_cancel(
+  input_org_id uuid,input_user_id uuid,input_run_id uuid,input_expected_version integer,
+  input_sequence integer,input_step_id uuid,input_fence bigint
+) RETURNS TABLE(changed boolean,active_attempt_ids uuid[])
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $$
+DECLARE context_org uuid; context_user uuid; facts record;
+BEGIN
+  changed:=false; active_attempt_ids:='{}'::uuid[];
+  context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+  context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+  IF context_org IS NULL OR context_user IS NULL OR input_org_id IS DISTINCT FROM context_org
+    OR input_user_id IS DISTINCT FROM context_user THEN RETURN NEXT; RETURN; END IF;
+  SELECT * INTO facts FROM ops.ai_chat_deleted_cancel_facts(input_org_id,input_user_id,input_run_id,
+    input_expected_version,input_sequence,input_step_id,input_fence);
+  IF NOT FOUND THEN RETURN NEXT; RETURN; END IF;
+  active_attempt_ids:=facts.active_attempt_ids;
+  UPDATE app.ai_steps SET state='failed',updated_at=clock_timestamp()
+   WHERE org_id=input_org_id AND run_id=input_run_id AND id=input_step_id
+     AND sequence=input_sequence AND expected_version=input_expected_version
+     AND fence=input_fence AND state='claimed';
+  IF NOT FOUND THEN RETURN NEXT; RETURN; END IF;
+  UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
+   WHERE org_id=input_org_id AND run_id=input_run_id AND step_id=input_step_id
+     AND fence=input_fence AND active;
+  IF facts.run_status='cancelling' THEN
+    UPDATE app.ai_runs SET status='cancelled',run_version=run_version+1,
+      next_sequence=next_sequence+1,error_code=NULL,completed_at=clock_timestamp(),updated_at=clock_timestamp()
+     WHERE org_id=input_org_id AND id=input_run_id
+       AND status='cancelling' AND run_version=input_expected_version+1
+       AND next_sequence=input_sequence;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Deleted chat cancellation state changed' USING ERRCODE='40001'; END IF;
+  END IF;
+  UPDATE app.usage_events SET outcome='unknown',settled_at=COALESCE(settled_at,clock_timestamp())
+   WHERE attempt_id=ANY(active_attempt_ids) AND outcome='reserved';
+  changed:=true; RETURN NEXT;
+END $$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint) FROM PUBLIC,lexon_auth;
+REVOKE ALL ON FUNCTION ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint) FROM PUBLIC,lexon_auth;
+GRANT EXECUTE ON FUNCTION ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint) TO lexon_app;
+GRANT EXECUTE ON FUNCTION ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint) TO lexon_app;
+--> statement-breakpoint
+CREATE FUNCTION ops.ai_chat_terminalize_deleted_runs(input_org_id uuid,input_user_id uuid,input_chat_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $$
+DECLARE context_org uuid; context_user uuid; owner_id uuid; work_phase text; run_row record; step_row record; final record; expected integer;
+BEGIN
+  context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+  context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+  IF context_org IS NULL OR context_user IS NULL OR input_org_id IS DISTINCT FROM context_org
+    OR input_user_id IS DISTINCT FROM context_user OR input_chat_id IS NULL THEN RETURN false; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:'||input_org_id::text,0));
+  SELECT c.owner_user_id INTO owner_id FROM app.chats c
+   WHERE c.org_id=input_org_id AND c.id=input_chat_id AND c.deleted_at IS NOT NULL FOR UPDATE;
+  SELECT d.phase INTO work_phase FROM app.chat_deletion_work d
+   WHERE d.org_id=input_org_id AND d.owner_user_id=input_user_id AND d.chat_id=input_chat_id FOR UPDATE;
+  IF owner_id IS DISTINCT FROM input_user_id OR work_phase IS DISTINCT FROM 'purge_db' THEN RETURN false; END IF;
+  UPDATE app.chat_deletion_work d SET late_attempt_refs=COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'attemptId',a.id,'runId',a.run_id,'stepId',a.step_id,'sequence',s.sequence,
+      'expectedVersion',s.expected_version,'fence',a.fence) ORDER BY a.id)
+    FROM app.ai_attempts a JOIN app.ai_steps s
+      ON s.org_id=a.org_id AND s.run_id=a.run_id AND s.id=a.step_id
+    JOIN app.chat_runs cr ON cr.org_id=a.org_id AND cr.run_id=a.run_id
+    WHERE cr.org_id=input_org_id AND cr.chat_id=input_chat_id AND a.active
+      AND s.state='claimed'), d.late_attempt_refs, '[]'::jsonb)
+   WHERE d.org_id=input_org_id AND d.owner_user_id=input_user_id
+     AND d.chat_id=input_chat_id AND d.phase='purge_db';
+  FOR run_row IN
+    SELECT r.id,r.status,r.run_version,r.next_sequence FROM app.ai_runs r
+    JOIN app.chat_runs cr ON cr.org_id=r.org_id AND cr.run_id=r.id
+    WHERE cr.org_id=input_org_id AND cr.chat_id=input_chat_id
+      AND r.status IN ('queued','running','awaiting_approval','cancelling')
+    ORDER BY r.id FOR UPDATE OF r
+  LOOP
+    expected:=run_row.run_version;
+    IF run_row.status<>'cancelling' THEN
+      UPDATE app.ai_runs SET status='cancelling',run_version=run_version+1,updated_at=clock_timestamp()
+       WHERE org_id=input_org_id AND id=run_row.id AND status=run_row.status AND run_version=expected;
+      IF NOT FOUND THEN RETURN false; END IF;
+      expected:=expected+1;
+    END IF;
+    SELECT s.id,s.sequence,s.expected_version,s.fence INTO step_row
+      FROM app.ai_steps s WHERE s.org_id=input_org_id AND s.run_id=run_row.id
+        AND s.sequence=run_row.next_sequence AND s.state='claimed' FOR UPDATE;
+    IF FOUND THEN
+      SELECT * INTO final FROM ops.ai_chat_finalize_deleted_cancel(input_org_id,input_user_id,
+        run_row.id,step_row.expected_version,step_row.sequence,step_row.id,step_row.fence);
+      IF NOT COALESCE(final.changed,false) THEN RETURN false; END IF;
+    ELSE
+      UPDATE app.ai_runs SET status='cancelled',run_version=run_version+1,
+        error_code=NULL,completed_at=clock_timestamp(),updated_at=clock_timestamp()
+       WHERE org_id=input_org_id AND id=run_row.id AND status='cancelling' AND run_version=expected;
+      IF NOT FOUND THEN RETURN false; END IF;
+    END IF;
+  END LOOP;
+  RETURN NOT EXISTS(SELECT 1 FROM app.ai_runs r JOIN app.chat_runs cr
+    ON cr.org_id=r.org_id AND cr.run_id=r.id
+    WHERE cr.org_id=input_org_id AND cr.chat_id=input_chat_id
+      AND r.status IN ('queued','running','awaiting_approval','cancelling'));
+END $$;
+REVOKE ALL ON FUNCTION ops.ai_chat_terminalize_deleted_runs(uuid,uuid,uuid) FROM PUBLIC,lexon_auth;
+GRANT EXECUTE ON FUNCTION ops.ai_chat_terminalize_deleted_runs(uuid,uuid,uuid) TO lexon_app;
+--> statement-breakpoint
 CREATE FUNCTION ops.ai_purge_deleted_chat(input_org_id uuid,input_user_id uuid,input_chat_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $$
@@ -169,14 +309,21 @@ BEGIN
   SELECT COALESCE(array_agg(run_id ORDER BY run_id),'{}'::uuid[]) INTO related_runs
    FROM app.chat_runs WHERE org_id=input_org_id AND chat_id=input_chat_id;
 
-  UPDATE app.chat_deletion_work d SET late_attempt_refs=COALESCE((
+  IF EXISTS(SELECT 1 FROM app.ai_runs r WHERE r.org_id=input_org_id
+    AND r.id=ANY(related_runs) AND r.status IN ('queued','running','awaiting_approval','cancelling')) THEN
+    RETURN false;
+  END IF;
+
+  UPDATE app.chat_deletion_work d SET late_attempt_refs=CASE
+    WHEN d.late_attempt_refs<>'[]'::jsonb THEN d.late_attempt_refs
+    ELSE COALESCE((
     SELECT jsonb_agg(jsonb_build_object(
       'attemptId',a.id,'runId',a.run_id,'stepId',a.step_id,'sequence',s.sequence,
       'expectedVersion',s.expected_version,'fence',a.fence) ORDER BY a.id)
     FROM app.ai_attempts a JOIN app.ai_steps s
       ON s.org_id=a.org_id AND s.run_id=a.run_id AND s.id=a.step_id
     WHERE a.org_id=input_org_id AND a.run_id=ANY(related_runs) AND a.active
-      AND s.state='claimed'), '[]'::jsonb)
+      AND s.state='claimed'), '[]'::jsonb) END
    WHERE d.org_id=input_org_id AND d.owner_user_id=input_user_id
      AND d.chat_id=input_chat_id AND d.phase='purge_db';
 

@@ -173,6 +173,17 @@ export class ChatDeletionRepository {
     return result.rows[0]?.purged === true;
   }
 
+  async terminalizeRuns(tx: TenantSession, chatId: string): Promise<boolean> {
+    if (!uuid.safeParse(chatId).success) return false;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return false;
+    const result = await client.query<{ terminalized: boolean }>(
+      'SELECT ops.ai_chat_terminalize_deleted_runs($1,$2,$3) AS terminalized',
+      [ctx.orgId, ctx.userId, chatId],
+    );
+    return result.rows[0]?.terminalized === true;
+  }
+
   async complete(tx: TenantSession, chatId: string): Promise<boolean> {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;

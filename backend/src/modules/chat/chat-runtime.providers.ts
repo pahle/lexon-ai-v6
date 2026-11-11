@@ -263,6 +263,7 @@ export function chatApiProviders(
         RunAuthorizationService,
         StreamHub,
         SseConnectionRegistry,
+        CancelSignals,
         RUN_SSE_REVALIDATION,
       ],
       useFactory: (
@@ -271,7 +272,8 @@ export function chatApiProviders(
         authorization: RunAuthorizationService,
         hub: StreamHub,
         registry: SseConnectionRegistry,
-        revalidation: ConstructorParameters<typeof RunEventsService>[7],
+        signals: CancelSignals,
+        revalidation: ConstructorParameters<typeof RunEventsService>[8],
       ) =>
         new RunEventsService(
           database,
@@ -279,6 +281,7 @@ export function chatApiProviders(
           authorization,
           hub,
           registry,
+          signals,
           config.queuePrefix,
           config.chat.maxConnectionsPerUser,
           revalidation,

@@ -858,9 +858,29 @@ export async function createChatFixture(services: Services) {
                   has_function_privilege('public','ops.ai_chat_deleted_cancel_facts(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_execute,
                   has_function_privilege('lexon_app','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS app_can_finalize,
                   has_function_privilege('lexon_auth','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS auth_can_finalize,
-                  has_function_privilege('public','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_finalize`,
+                  has_function_privilege('public','ops.ai_chat_finalize_deleted_cancel(uuid,uuid,uuid,integer,integer,uuid,bigint)','EXECUTE') AS public_can_finalize,
+                  has_function_privilege('lexon_app','ops.ai_chat_terminalize_deleted_runs(uuid,uuid,uuid)','EXECUTE') AS app_can_terminalize,
+                  has_function_privilege('lexon_auth','ops.ai_chat_terminalize_deleted_runs(uuid,uuid,uuid)','EXECUTE') AS auth_can_terminalize,
+                  has_function_privilege('public','ops.ai_chat_terminalize_deleted_runs(uuid,uuid,uuid)','EXECUTE') AS public_can_terminalize`,
         );
         return result.rows[0];
+      },
+      async terminalizeDeletedRunsWithoutTenant(input: {
+        orgId: string;
+        userId: string;
+        chatId: string;
+      }) {
+        const client = appClient();
+        await client.connect();
+        try {
+          const result = await client.query<{ terminalized: boolean }>(
+            'SELECT ops.ai_chat_terminalize_deleted_runs($1,$2,$3) AS terminalized',
+            [input.orgId, input.userId, input.chatId],
+          );
+          return result.rows[0]?.terminalized ?? false;
+        } finally {
+          await client.end();
+        }
       },
       async chatAssociationFunctionPrivileges() {
         const result = await inspector.query(
@@ -891,7 +911,10 @@ export async function createChatFixture(services: Services) {
       },
       async runs(runId: string) {
         const result = await inspector.query(
-          'SELECT id,status,partial_output,final_output FROM app.ai_runs WHERE id=$1',
+          `SELECT r.id,r.status,r.partial_output,r.final_output,r.next_sequence,
+                  (SELECT s.state FROM app.ai_steps s
+                   WHERE s.org_id=r.org_id AND s.run_id=r.id AND s.sequence=1) AS first_step_state
+           FROM app.ai_runs r WHERE r.id=$1`,
           [runId],
         );
         return result.rows[0] ?? null;

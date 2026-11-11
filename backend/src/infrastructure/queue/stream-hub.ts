@@ -34,6 +34,8 @@ export interface SseSink {
 
 export interface Subscription {
   close(): Promise<void>;
+  /** Close immediately, dropping queued frames and bypassing socket drain. */
+  revoke?(): Promise<void>;
 }
 
 interface QueuedFrame {
@@ -728,7 +730,8 @@ export class StreamHub {
     if (snapshotOnly && fallback) {
       ensureResyncTimer();
     }
-    if (closed || terminalSnapshotSent) return { close: async () => close() };
+    if (closed || terminalSnapshotSent)
+      return { close: async () => close(), revoke: async () => close() };
     await enqueue({ data: ': connected\n\n' });
     heartbeat.timer = setInterval(() => {
       void enqueue({ data: ': heartbeat\n\n' });
@@ -739,6 +742,7 @@ export class StreamHub {
         await waitForQueueDrain();
         await close();
       },
+      revoke: async () => close('revoked'),
     };
   }
 }
