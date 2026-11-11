@@ -4,6 +4,7 @@ import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
   AiAttemptRepository,
+  ChatDeletionRepository,
   AiRunRepository,
   AiStepRepository,
   DispatcherSession,
@@ -25,40 +26,160 @@ import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
+import { ChatCleanupWorker } from '../../src/modules/chat/chat-cleanup.worker.js';
+import { createChatApiHarness } from '../setup/chat-api-harness.js';
+import { runtimeEnvironment } from '../setup/runtime-environment.js';
+import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
+import { runtimeProviders } from '../../src/bootstrap/runtime-providers.js';
+import { aiWorkerProviders } from '../../src/bootstrap/ai-worker-providers.js';
+import { RunStreams } from '../../src/infrastructure/queue/run-streams.js';
 
 test('queue consumers and cleanup share the limiter namespace', () => {
   expect(queueStepPermitPrefix('lexon')).toBe('lexon:limiter');
 });
 
-test('cleanup releases the permit namespace used by a live queue consumer', async ({
+test('production queue consumer permit is released by production cleanup wiring', async ({
   services,
 }) => {
-  const orgId = randomUUID();
-  const consumerPermits = await StepPermitManager.create({
-    url: services.valkey.limiterUrl,
-    prefix: `${services.queuePrefix}:limiter`,
+  const harness = await createChatApiHarness(services);
+  const healthFile = `/tmp/lexon-production-permit-${randomUUID()}.json`;
+  const environment = runtimeEnvironment(services, healthFile);
+  environment.CHAT_DELETE_GRACE_MS = '25';
+  const config = loadRuntimeConfig('ai-worker', environment);
+  const consumerProvider = runtimeProviders(config).find(
+    (provider) =>
+      typeof provider === 'object' &&
+      provider !== null &&
+      'provide' in provider &&
+      provider.provide === QueueConsumer,
+  ) as { useFactory?: (...dependencies: unknown[]) => unknown } | undefined;
+  const cleanupProvider = aiWorkerProviders(config).find(
+    (provider) =>
+      typeof provider === 'object' &&
+      provider !== null &&
+      'provide' in provider &&
+      provider.provide === ChatCleanupWorker,
+  ) as { useFactory?: (...dependencies: unknown[]) => unknown } | undefined;
+  if (!consumerProvider?.useFactory || !cleanupProvider?.useFactory)
+    throw new Error('Production queue/cleanup providers unavailable');
+  const consumer = (await consumerProvider.useFactory(
+    harness.database,
+  )) as QueueConsumer;
+  const streams = new RunStreams({
+    url: config.valkey.streamsUrl,
+    prefix: config.queuePrefix,
+    authority: {
+      authorizeActive: async () => undefined,
+      advanceStreamGeneration: async (_claim, generation) => generation + 1,
+      authorizeTerminal: async () => undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'missing' as const })),
+    },
   });
-  const cleanupPermits = await StepPermitManager.create({
-    url: services.valkey.limiterUrl,
-    prefix: queueStepPermitPrefix(services.queuePrefix),
+  const cleanup = (await cleanupProvider.useFactory(harness.database, streams, {
+    info: () => undefined,
+  } as never)) as ChatCleanupWorker;
+  const producer = new QueueProducer({
+    url: config.valkey.queueUrl,
+    limiterUrl: config.valkey.limiterUrl,
+    prefix: config.queuePrefix,
   });
+  const queue = new Queue('ai-interactive', {
+    connection: { url: config.valkey.queueUrl },
+    prefix: config.queuePrefix,
+  });
+  const registry = new JobRegistry();
+  let signalReady!: () => void;
+  let unblockHandler!: () => void;
+  const acquired = new Promise<void>((resolve) => {
+    signalReady = resolve;
+  });
+  const waitForRelease = new Promise<void>((resolve) => {
+    unblockHandler = resolve;
+  });
+  let permitRenew: (() => Promise<unknown>) | undefined;
+  const deletionRepository = new ChatDeletionRepository();
   try {
-    const held = await consumerPermits.acquire(orgId);
-    expect(held).not.toBeNull();
-    if (!held) throw new Error('Consumer permit was not acquired');
-    const result = await cleanupPermits.releaseReference({
-      ...held.ownerReference,
-      runId: randomUUID(),
-      sequence: 1,
-      expectedVersion: 1,
-      stepId: randomUUID(),
-      fence: 1,
+    const actor = await harness.client.identity.user('Production permit owner');
+    const identity = (await (
+      await harness.client.identity.call('/identity', actor.headers)
+    ).json()) as { organization: { id: string } };
+    const ctx = { orgId: identity.organization.id, userId: actor.profile.id };
+    const chat = await harness.client.chat.createFor(ctx);
+    const { runId } = await harness.client.startAnswer(
+      ctx,
+      chat.id,
+      'production permit cleanup test',
+    );
+    await harness.associateStartedAnswer(ctx, chat.id, runId);
+    const job = harness.jobForAnswer(ctx, runId);
+    const claimResult = await harness.engine.dispatch(job);
+    expect(claimResult.kind).toBe('claimed');
+    if (claimResult.kind !== 'claimed') throw new Error('Expected step claim');
+    registry.register('run.start.v1', {
+      strategy: 'durable-step',
+      handle: async (_delivery, context) => {
+        permitRenew = () => context.permit.renew();
+        await context.recordClaim?.(claimResult.claim);
+        signalReady();
+        await waitForRelease;
+        return { kind: 'done' };
+      },
     });
-    expect(result).toBe('released');
-    expect(await held.renew()).toBe('lost');
+    await consumer.start(registry);
+    await producer.enqueue(job, {
+      queue: 'ai-interactive',
+      priority: 1,
+      timeoutMs: 2_000,
+    });
+    await expect.poll(() => Boolean(permitRenew)).toBe(true);
+    await acquired;
+
+    await harness.database.withTenant(ctx, async (tx) => {
+      await new AiStepRepository().lockTenantClaimGuard(tx);
+      expect(await deletionRepository.request(tx, chat.id, 25)).toBe(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 35));
+    const [graceJob] = await harness.inspect.outbox(chat.id);
+    expect(graceJob).toBeDefined();
+    const envelope = {
+      outboxId: graceJob!.id,
+      type: 'chat.cleanup.v1',
+      ctx,
+      payload: { chatId: chat.id, phase: 'grace' },
+    } satisfies JobEnvelope;
+    expect(await cleanup.advance(envelope)).toBe('pending');
+    const dbPhase = (await harness.inspect.outbox(chat.id)).find(
+      (entry) => entry.payload.phase === 'purge_db',
+    );
+    expect(dbPhase).toBeDefined();
+    expect(
+      await cleanup.advance({
+        ...envelope,
+        outboxId: dbPhase!.id,
+        payload: { chatId: chat.id, phase: 'purge_db' },
+      }),
+    ).toBe('pending');
+    const valkeyPhase = (await harness.inspect.outbox(chat.id)).find(
+      (entry) => entry.payload.phase === 'purge_valkey',
+    );
+    expect(valkeyPhase).toBeDefined();
+    expect(
+      await cleanup.advance({
+        ...envelope,
+        outboxId: valkeyPhase!.id,
+        payload: { chatId: chat.id, phase: 'purge_valkey' },
+      }),
+    ).toBe('complete');
+    expect(await permitRenew?.()).toBe('lost');
   } finally {
-    await consumerPermits.close();
-    await cleanupPermits.close();
+    unblockHandler();
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await cleanup.close();
+    await streams.close();
+    await harness.close();
   }
 });
 

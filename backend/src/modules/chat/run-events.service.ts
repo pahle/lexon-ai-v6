@@ -223,7 +223,31 @@ export class RunEventsService {
       const guardedSink: SseSink = {
         setRecoveryMode: (mode) => sink.setRecoveryMode?.(mode),
         write: (frame) => (closed ? false : sink.write(frame)),
-        drain: (timeoutMs) => sink.drain(timeoutMs),
+        drain: async (timeoutMs) => {
+          if (closed) return false;
+          let drained: boolean;
+          try {
+            drained = await sink.drain(timeoutMs);
+          } catch {
+            return false;
+          }
+          if (!drained || closed) return false;
+          try {
+            const current = await this.database.withTenant(
+              { orgId, userId },
+              (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),
+              { timeoutMs: 1000 },
+            );
+            if (!current || closed) {
+              await close('revoked');
+              return false;
+            }
+            return true;
+          } catch {
+            await close('revoked');
+            return false;
+          }
+        },
         close: (reason) => sink.close(reason),
       };
       streamSubscription = await this.hub.subscribe(

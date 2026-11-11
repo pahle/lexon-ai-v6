@@ -5,7 +5,7 @@ import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { Redis } from 'ioredis';
 import {
   consumeUiMessageChunks,
@@ -450,17 +450,93 @@ test('deletion revocations multiplex run listeners over one process subscriber',
     await unsubscribePeer?.();
     await unsubscribeOther?.();
     await signals.close();
-    const clients = String(await inspector.client('LIST'));
+    await expect
+      .poll(async () =>
+        String(await inspector.client('LIST'))
+          .split('\n')
+          .filter((line) =>
+            line.includes(
+              `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+            ),
+          ),
+      )
+      .toHaveLength(0);
+    inspector.disconnect();
+    await ai.close();
+  }
+});
+
+test('deletion subscriber error fails listeners closed and replaces the single client', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const runId = randomUUID();
+  const clients: Redis[] = [];
+  const originalOn = Redis.prototype.on;
+  const onSpy = vi.spyOn(Redis.prototype, 'on');
+  onSpy.mockImplementation(function (this: Redis, ...args) {
+    if (args[0] === 'message') clients.push(this);
+    return originalOn.apply(this, args);
+  });
+  let unsubscribeFirst: (() => Promise<void>) | undefined;
+  let unsubscribeSecond: (() => Promise<void>) | undefined;
+  let firstClosed = 0;
+  let secondClosed = 0;
+  try {
+    unsubscribeFirst = await signals.subscribeDeletion(runId, () => {
+      firstClosed++;
+    });
+    expect(clients).toHaveLength(1);
+    const firstClient = clients[0]!;
+    firstClient.emit('error', new Error('simulated subscriber error'));
+    expect(firstClosed).toBe(1);
+    await expect
+      .poll(async () => {
+        const named = String(await inspector.client('LIST'))
+          .split('\n')
+          .filter((line) =>
+            line.includes(
+              `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+            ),
+          );
+        return named.length;
+      })
+      .toBe(0);
+
+    unsubscribeSecond = await signals.subscribeDeletion(runId, () => {
+      secondClosed++;
+    });
+    expect(clients).toHaveLength(2);
     expect(
-      clients
+      String(await inspector.client('LIST'))
         .split('\n')
         .filter((line) =>
           line.includes(
             `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
           ),
         ),
-    ).toHaveLength(0);
+    ).toHaveLength(1);
+    firstClient.emit(
+      'message',
+      `${services.queuePrefix}:ai-cancel:deleted:${runId}`,
+      runId,
+    );
+    expect(secondClosed).toBe(0);
+    await signals.publishDeletion(runId);
+    await expect.poll(() => secondClosed).toBe(1);
+  } finally {
+    await unsubscribeFirst?.();
+    await unsubscribeSecond?.();
+    await signals.close();
     inspector.disconnect();
+    onSpy.mockRestore();
     await ai.close();
   }
 });

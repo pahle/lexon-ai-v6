@@ -7,7 +7,10 @@ import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { RunEventsService } from '../../src/modules/chat/run-events.service.js';
-import { StreamHub } from '../../src/infrastructure/queue/stream-hub.js';
+import {
+  StreamHub,
+  type SseSink,
+} from '../../src/infrastructure/queue/stream-hub.js';
 import { SseConnectionRegistry } from '../../src/infrastructure/queue/sse-connection-registry.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
@@ -17,6 +20,7 @@ import {
   TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
 import { RunStreams } from '../../src/infrastructure/queue/run-streams.js';
+import { CancelSignals } from '../../src/infrastructure/queue/cancel-signals.js';
 import { SseStreamReader } from '../../src/infrastructure/queue/sse-stream-reader.js';
 import {
   assertVerifiedIdentity,
@@ -358,6 +362,139 @@ test('a sequential authorized reconnect resumes from the last actual XADD cursor
     }
     redis.disconnect();
     await app.close();
+  }
+});
+
+test('a missed deletion publication is checked before a backpressured SSE queue resumes', async ({
+  services,
+}) => {
+  const config = loadRuntimeConfig(
+    'api',
+    createAuthEnvironment(
+      services,
+      '/tmp/lexon-chat-sse-delete-missed-health.json',
+    ),
+  );
+  const owner = await createTestApi(config);
+  const remote = await createTestApi(config);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let releaseDrain!: () => void;
+  let signalDrain!: () => void;
+  const drainBarrier = new Promise<void>((resolve) => (releaseDrain = resolve));
+  const drainReached = new Promise<void>((resolve) => (signalDrain = resolve));
+  const writtenCanaries: string[] = [];
+  let delivery: Promise<void> | undefined;
+  try {
+    await owner.listen(0, '127.0.0.1');
+    await remote.listen(0, '127.0.0.1');
+    const ownerOrigin = await owner.getUrl();
+    const remoteOrigin = await remote.getUrl();
+    const headers = await apiHeaders(owner);
+    const chatId = randomUUID();
+    const created = await fetch(`${ownerOrigin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'missed notification recovery proof',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const events = remote.get(RunEventsService);
+    const connect = events.connect.bind(events);
+    vi.spyOn(events, 'connect').mockImplementation(
+      async (actor, runId, lastEventId, sink, identity, recoveryMode) =>
+        connect(
+          actor,
+          runId,
+          lastEventId,
+          { ...sink, drain: async () => true },
+          identity,
+          recoveryMode,
+        ),
+    );
+    const hub = remote.get(StreamHub);
+    vi.spyOn(hub, 'subscribe').mockImplementation(async (...args) => {
+      const sink = args[2]!;
+      const gatedSink: SseSink = {
+        setRecoveryMode: (mode) => sink.setRecoveryMode?.(mode),
+        write: (frame) => {
+          if (frame.data.includes('delete-drain-second'))
+            writtenCanaries.push('second');
+          const writable = sink.write(frame);
+          return frame.data.includes('delete-drain-first') ? false : writable;
+        },
+        drain: (timeoutMs) => sink.drain(timeoutMs),
+        close: (reason) => sink.close(reason),
+      };
+      delivery = (async () => {
+        gatedSink.write({ data: ': connected\n\n' });
+        gatedSink.write({ data: 'data: delete-drain-first\n\n' });
+        signalDrain();
+        await drainBarrier;
+        const canContinue = await gatedSink.drain(1000);
+        if (canContinue)
+          gatedSink.write({ data: 'data: delete-drain-second\n\n' });
+      })();
+      return {
+        close: async () => {},
+        revoke: async () => {
+          await gatedSink.close('revoked');
+        },
+      };
+    });
+
+    const response = await fetch(`${remoteOrigin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(response.status).toBe(200);
+    reader = response.body!.getReader();
+    await drainReached;
+    let preDeleteFrames = '';
+    while (!preDeleteFrames.includes('delete-drain-first')) {
+      const { done, value } = await reader.read();
+      expect(done).toBe(false);
+      preDeleteFrames += new TextDecoder().decode(value);
+    }
+    vi.spyOn(owner.get(CancelSignals), 'publishDeletion').mockRejectedValueOnce(
+      new Error('simulated owner publisher outage'),
+    );
+    const deleted = await fetch(`${ownerOrigin}/api/chats/${chatId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    expect(deleted.status).toBe(204);
+
+    let remainder = '';
+    const closes = (async () => {
+      for (;;) {
+        const { done, value } = await reader!.read();
+        if (done) return true;
+        remainder += new TextDecoder().decode(value);
+      }
+    })();
+    releaseDrain();
+    await delivery;
+    expect(writtenCanaries).toEqual([]);
+    expect(
+      await Promise.race([
+        closes,
+        new Promise<boolean>((resolve) =>
+          setTimeout(() => resolve(false), 1000),
+        ),
+      ]),
+    ).toBe(true);
+    expect(remainder).not.toContain('delete-drain-second');
+  } finally {
+    releaseDrain();
+    await reader?.cancel().catch(() => {});
+    await owner.close();
+    await remote.close();
   }
 });
 

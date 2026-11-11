@@ -281,6 +281,132 @@ test('remote SSE rechecks durable authorization when deletion races initial admi
   }
 });
 
+test('remote SSE fails closed when the shared deletion subscriber is lost and reconnects', async ({
+  services,
+}) => {
+  const config = loadRuntimeConfig(
+    'api',
+    createAuthEnvironment(
+      services,
+      '/tmp/lexon-chat-delete-subscriber-loss.json',
+    ),
+  );
+  const owner = await createTestApi(config);
+  const remote = await createTestApi(config);
+  const inspector = new Redis(services.valkey.streamsUrl);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    await owner.listen(0, '127.0.0.1');
+    await remote.listen(0, '127.0.0.1');
+    const ownerOrigin = await owner.getUrl();
+    const remoteOrigin = await remote.getUrl();
+    const headers = await apiHeaders(owner);
+    const chatId = randomUUID();
+    const created = await fetch(`${ownerOrigin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'subscriber loss proof',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const response = await fetch(`${remoteOrigin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(response.status).toBe(200);
+    reader = response.body!.getReader();
+    let initial = '';
+    while (
+      !initial.includes('snapshot-end') ||
+      !initial.includes(': connected\n\n')
+    ) {
+      const { done, value } = await reader.read();
+      expect(done).toBe(false);
+      initial += new TextDecoder().decode(value);
+    }
+
+    const clientsBefore = String(await inspector.client('LIST'));
+    const named = clientsBefore
+      .split('\n')
+      .filter((line) =>
+        line.includes(
+          `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+        ),
+      );
+    expect(named).toHaveLength(1);
+    const subscriber = named.find((line) => line.includes('flags=P'));
+    expect(subscriber).toBeDefined();
+    const subscriberId = /(?:^| )id=(\d+)(?: |$)/.exec(subscriber!)?.[1];
+    expect(subscriberId).toBeDefined();
+    expect(await inspector.call('CLIENT', 'KILL', 'ID', subscriberId!)).toBe(1);
+
+    const lostConnectionClosed = await Promise.race([
+      (async () => {
+        for (;;) {
+          const { done } = await reader!.read();
+          if (done) return true;
+        }
+      })(),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 300)),
+    ]);
+    expect(lostConnectionClosed).toBe(true);
+
+    const recovered = await fetch(`${remoteOrigin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(recovered.status).toBe(200);
+    const recoveredReader = recovered.body!.getReader();
+    let recoveryFrames = '';
+    while (
+      !recoveryFrames.includes('snapshot-end') ||
+      !recoveryFrames.includes(': connected\n\n')
+    ) {
+      const { done, value } = await recoveredReader.read();
+      expect(done).toBe(false);
+      recoveryFrames += new TextDecoder().decode(value);
+    }
+    const clientsAfter = String(await inspector.client('LIST'));
+    expect(
+      clientsAfter
+        .split('\n')
+        .filter((line) =>
+          line.includes(
+            `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+          ),
+        ),
+    ).toHaveLength(1);
+    expect(
+      await fetch(`${ownerOrigin}/api/chats/${chatId}`, {
+        method: 'DELETE',
+        headers,
+      }),
+    ).toMatchObject({ status: 204 });
+    const recoveredStreamClosed = await Promise.race([
+      (async () => {
+        for (;;) {
+          const { done } = await recoveredReader.read();
+          if (done) return true;
+        }
+      })(),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000)),
+    ]);
+    expect(recoveredStreamClosed).toBe(true);
+    await recoveredReader.cancel();
+  } finally {
+    await reader?.cancel().catch(() => {});
+    inspector.disconnect();
+    await owner.close();
+    await remote.close();
+  }
+});
+
 test('delete transaction failure rolls back the marker and cleanup outbox', async ({
   services,
 }) => {

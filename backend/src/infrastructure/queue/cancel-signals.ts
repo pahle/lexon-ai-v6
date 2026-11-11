@@ -216,7 +216,12 @@ export class CancelSignals {
         true,
         `lexon-chat-deletion-revocations:${this.#prefix}`,
       );
+      const invalidate = () => this.#invalidateDeletionSubscriber(subscriber);
+      subscriber.on('close', invalidate);
+      subscriber.on('end', invalidate);
+      subscriber.on('error', invalidate);
       subscriber.on('message', (channel: string, message: string) => {
+        if (this.#deletionSubscriber !== subscriber) return;
         if (channel !== this.#deletionChannel(message)) return;
         for (const listener of this.#deletionListeners.get(channel) ?? [])
           listener();
@@ -226,12 +231,31 @@ export class CancelSignals {
     const subscriber = this.#deletionSubscriber;
     try {
       if (subscriber.status === 'wait') await subscriber.connect();
+      if (subscriber.status !== 'ready')
+        throw new Error('Deletion revocation subscriber is not ready');
     } catch {
       subscriber.disconnect();
-      this.#deletionSubscriber = undefined;
+      this.#invalidateDeletionSubscriber(subscriber);
       throw new Error('Deletion revocation subscription unavailable');
     }
     return subscriber;
+  }
+
+  #invalidateDeletionSubscriber(subscriber: Redis): void {
+    if (this.#deletionSubscriber !== subscriber) return;
+    this.#deletionSubscriber = undefined;
+    const listeners = [...this.#deletionListeners.values()].flatMap((items) => [
+      ...items,
+    ]);
+    this.#deletionListeners.clear();
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch {
+        // Losing revocation transport fails each live stream closed.
+      }
+    }
+    subscriber.disconnect();
   }
 
   async #serializeDeletion<T>(operation: () => Promise<T>): Promise<T> {
