@@ -571,7 +571,8 @@ claim still throws for retry. Revoked terminal recovery retains its complete
 snapshot framing. Gated real-stream regressions and the final six-file suite
 passed **142/142**, plus quality checks; fresh scoped review accepted the fix.
 No ownership/Lua proof was relaxed. A baseline pg concurrent-query warning
-remains tracked. New-head Linux CI is pending publication.
+remains tracked. Published head `ebc6487` passed both Linux CI layers in
+[run 42951005070](https://github.com/pahle/lexon-ai-v6/actions/runs/42951005070).
 
 Task 10 must still prove the chosen client adapter against the real persisted
 tree and streaming endpoints before product screen implementation.
