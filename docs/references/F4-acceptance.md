@@ -682,7 +682,19 @@ No full queue-consumer E2E or real-model title quality is claimed.
 Published predecessor `22c8ce0` passed Linux unit/integration on the first
 attempt and Compose on a failed-job rerun after the Ubuntu dependency mirror
 DNS failure in [run 43060376679](https://github.com/pahle/lexon-ai-v6/actions/runs/43060376679).
-This is predecessor evidence; the new task head still needs CI.
+The initial Task 12 head `532c943` subsequently failed
+[run 43081756738](https://github.com/pahle/lexon-ai-v6/actions/runs/43081756738):
+1,127 integration/unit tests passed and two runtime-composition checks failed
+because the worker could not resolve `RunService` for `ChatTitleService`.
+Compose also stopped at AI-worker startup. Reviewed repair `0d6682d` registers
+the shared existing provider in the worker; the main session independently
+verified runtime composition at 5/5. This repair still needs new-head CI.
+
+During Task 13 isolation, an agent cleanup command removed the ignored F4
+workflow directory. Published code, public proofs, plans, and source stashes
+were unaffected. The controller reconstructed the progress ledger from commits
+and retained session records; lost private logs are not claimed as recovered
+originals. Completed tasks were not repeated.
 
 ## Pending evidence
 
