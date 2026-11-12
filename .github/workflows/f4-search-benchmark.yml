@@ -2,6 +2,8 @@ name: F4 search benchmark
 on:
   workflow_dispatch:
   push:
+    branches:
+      - '**'
     paths:
       - '.github/workflows/f4-search-benchmark.yml'
       - 'backend/drizzle/0035_chat_search.sql'

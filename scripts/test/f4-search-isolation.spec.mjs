@@ -62,7 +62,12 @@ test('the isolated search workflow captures automatic triggers and failure evide
   assert.match(workflow, /workflow_dispatch:/u);
   assert.match(workflow, /push:/u);
   assert.doesNotMatch(workflow, /pull_request:/u);
-  assert.doesNotMatch(workflow, /branches:/u);
+  const pushTrigger = workflow.match(
+    /push:\s*\n([\s\S]*?)\npermissions:/u,
+  )?.[1];
+  assert.ok(pushTrigger);
+  assert.match(pushTrigger, /branches:\s*\n\s+- '\*\*'/u);
+  assert.doesNotMatch(pushTrigger, /tags:/u);
   assert.match(workflow, /ubuntu-24\.04/u);
   assert.match(workflow, /chat-search\*\.spec\.ts/u);
   assert.match(workflow, /backend\/drizzle\/\*chat\*search\*\.sql/u);
