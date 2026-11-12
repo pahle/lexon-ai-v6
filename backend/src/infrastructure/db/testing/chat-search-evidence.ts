@@ -11,6 +11,23 @@ export interface SearchClassSummary {
   readonly statusCounts: Readonly<Record<string, number>>;
 }
 
+export function isCompleteSearchRun(
+  samplesByClass: ReadonlyMap<string, readonly SearchSample[]>,
+  expectedClasses: readonly string[],
+  expectedSampleCount: number,
+): boolean {
+  return (
+    samplesByClass.size === expectedClasses.length &&
+    expectedClasses.every((queryClass) => {
+      const samples = samplesByClass.get(queryClass);
+      return (
+        samples?.length === expectedSampleCount &&
+        samples.every((sample) => sample.status === 200)
+      );
+    })
+  );
+}
+
 function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object'
     ? (value as Record<string, unknown>)

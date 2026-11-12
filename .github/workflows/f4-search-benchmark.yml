@@ -16,6 +16,7 @@ on:
       - 'backend/src/infrastructure/db/testing/chat-search-evidence.ts'
       - 'backend/src/infrastructure/db/testing/chat-fixture.ts'
       - 'backend/src/modules/chat/chat-search*.ts'
+      - 'backend/src/modules/chat/chat.controller.ts'
       - 'backend/test/integration/chat-search*.spec.ts'
       - 'backend/test/setup/**'
       - 'backend/vitest.chat-search-benchmark.config.ts'
@@ -27,6 +28,8 @@ on:
       - 'scripts/container-images.mjs'
       - 'scripts/test/prepare-f4-search-evidence.mjs'
       - 'scripts/test/f4-search-isolation.spec.mjs'
+      - 'shared/src/chat.ts'
+      - 'shared/src/index.ts'
   push:
     branches:
       - main
@@ -44,6 +47,7 @@ on:
       - 'backend/src/infrastructure/db/testing/chat-search-evidence.ts'
       - 'backend/src/infrastructure/db/testing/chat-fixture.ts'
       - 'backend/src/modules/chat/chat-search*.ts'
+      - 'backend/src/modules/chat/chat.controller.ts'
       - 'backend/test/integration/chat-search*.spec.ts'
       - 'backend/test/setup/**'
       - 'backend/vitest.chat-search-benchmark.config.ts'
@@ -55,6 +59,8 @@ on:
       - 'scripts/container-images.mjs'
       - 'scripts/test/prepare-f4-search-evidence.mjs'
       - 'scripts/test/f4-search-isolation.spec.mjs'
+      - 'shared/src/chat.ts'
+      - 'shared/src/index.ts'
 permissions:
   contents: read
 concurrency:
@@ -69,6 +75,10 @@ jobs:
       F4_RUNNER_IMAGE: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Initialize sanitized search evidence
+        run: node scripts/test/prepare-f4-search-evidence.mjs
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.33.1
@@ -76,8 +86,6 @@ jobs:
         with:
           node-version: 24.22.1
           cache: pnpm
-      - name: Initialize sanitized search evidence
-        run: node scripts/test/prepare-f4-search-evidence.mjs
       - run: pnpm install --frozen-lockfile
       - name: Run only the representative search benchmark
         run: pnpm exec vitest run --config backend/vitest.chat-search-benchmark.config.ts
@@ -85,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: f4-search-benchmark-${{ github.sha }}
+          name: f4-search-benchmark-${{ github.event.pull_request.head.sha || github.sha }}
           path: test-results/f4-search/*.jsonl
           retention-days: 14
           if-no-files-found: error

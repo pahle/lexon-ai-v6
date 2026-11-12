@@ -12,6 +12,7 @@ import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixt
 import { explainChatSearch } from '../../src/infrastructure/db/testing/chat-search-benchmark.js';
 import {
   formatSearchClassSummary,
+  isCompleteSearchRun,
   selectPostgresContainerId,
   summarizeSearchSamples,
   whitelistRuntimeEvidence,
@@ -294,9 +295,11 @@ test(
       await record({
         type: 'performance-summary',
         metrics,
-        complete:
-          timings.size === queryTypes.length &&
-          [...timings.values()].every((samples) => samples.length === 30),
+        complete: isCompleteSearchRun(
+          timings,
+          queryTypes.map(([name]) => name),
+          30,
+        ),
       });
       console.log(`F4_SEARCH_ARTIFACT ${artifactPath}`);
 

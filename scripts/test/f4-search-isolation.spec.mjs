@@ -79,3 +79,53 @@ test('the isolated search workflow captures automatic triggers and failure evide
   );
   assert.doesNotMatch(workflow, /pnpm test(?:\s|$)/u);
 });
+
+test('PR evidence checks out and names artifacts by the source head SHA', () => {
+  const workflow = readFileSync(
+    '.github/workflows/f4-search-benchmark.yml',
+    'utf8',
+  );
+  assert.match(
+    workflow,
+    /ref:\s*\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  );
+  assert.match(
+    workflow,
+    /name: f4-search-benchmark-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  );
+});
+
+test('evidence initializes immediately after checkout and before tool setup', () => {
+  const workflow = readFileSync(
+    '.github/workflows/f4-search-benchmark.yml',
+    'utf8',
+  );
+  const checkoutIndex = workflow.indexOf(
+    'uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',
+  );
+  const initializeIndex = workflow.indexOf(
+    'run: node scripts/test/prepare-f4-search-evidence.mjs',
+  );
+  const pnpmSetupIndex = workflow.indexOf(
+    'uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1',
+  );
+  const nodeSetupIndex = workflow.indexOf(
+    'uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
+  );
+  assert.ok(checkoutIndex < initializeIndex);
+  assert.ok(initializeIndex < pnpmSetupIndex);
+  assert.ok(initializeIndex < nodeSetupIndex);
+});
+
+test('search route and contract files trigger the benchmark on PRs and main pushes', () => {
+  const workflow = readFileSync(
+    '.github/workflows/f4-search-benchmark.yml',
+    'utf8',
+  );
+  for (const path of [
+    'backend/src/modules/chat/chat.controller.ts',
+    'shared/src/chat.ts',
+    'shared/src/index.ts',
+  ])
+    assert.equal(workflow.split(`- '${path}'`).length - 1, 2);
+});

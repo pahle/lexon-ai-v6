@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   formatSearchClassSummary,
+  isCompleteSearchRun,
   selectPostgresContainerId,
   summarizeSearchSamples,
   whitelistRuntimeEvidence,
@@ -123,4 +124,36 @@ test('the PostgreSQL container is selected by its exact published database port'
       49153,
     ),
   ).toThrow('Expected exactly one PostgreSQL container for mapped port');
+});
+
+test('the overall gate is incomplete when the final sample of a class is non-200', () => {
+  const successfulSamples = () =>
+    Array.from({ length: 30 }, (_, index) => ({
+      status: 200,
+      elapsedMs: index + 1,
+    }));
+  const finalClass = successfulSamples();
+  finalClass[29] = { status: 503, elapsedMs: 30 };
+  const samples = new Map([
+    ['stem', successfulSamples()],
+    ['partial', successfulSamples()],
+    ['article', successfulSamples()],
+    ['noMatch', finalClass],
+  ]);
+
+  expect(
+    isCompleteSearchRun(samples, ['stem', 'partial', 'article', 'noMatch'], 30),
+  ).toBe(false);
+  expect(
+    isCompleteSearchRun(
+      new Map([
+        ['stem', successfulSamples()],
+        ['partial', successfulSamples()],
+        ['article', successfulSamples()],
+        ['noMatch', successfulSamples()],
+      ]),
+      ['stem', 'partial', 'article', 'noMatch'],
+      30,
+    ),
+  ).toBe(true);
 });

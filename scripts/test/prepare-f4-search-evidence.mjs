@@ -17,6 +17,7 @@ const sourceFiles = [
   'backend/src/infrastructure/db/testing/chat-fixture.ts',
   'backend/src/infrastructure/db/testing/provision.ts',
   'backend/src/infrastructure/db/testing/test-infrastructure.ts',
+  'backend/src/modules/chat/chat.controller.ts',
   'backend/src/modules/chat/chat-search.service.ts',
   'backend/test/integration/chat-search-performance.spec.ts',
   'backend/test/unit/chat-search-evidence.spec.ts',
@@ -27,6 +28,8 @@ const sourceFiles = [
   '.github/workflows/f4-search-benchmark.yml',
   'scripts/test/prepare-f4-search-evidence.mjs',
   'scripts/test/f4-search-isolation.spec.mjs',
+  'shared/src/chat.ts',
+  'shared/src/index.ts',
 ];
 
 function safeCommand(command, args) {
