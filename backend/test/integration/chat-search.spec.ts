@@ -5,8 +5,10 @@ import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
-import { ChatMessageRepository } from '../../src/infrastructure/db/chat-message.repository.js';
-import { ChatSearchRepository } from '../../src/infrastructure/db/chat-search.repository.js';
+import {
+  ChatMessageRepository,
+  ChatSearchRepository,
+} from '../../src/infrastructure/db/index.js';
 
 test('ranked chat search returns owner matches and keeps search terms out of cursors', async ({
   services,
@@ -31,8 +33,16 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     const secretTerm = `ranked-canary-${randomUUID()}`;
     await fixture.chat.createFor(ownerIdentity, firstId, 'First discussion');
     await fixture.chat.createFor(ownerIdentity, secondId, 'Second discussion');
-    await fixture.chat.createFor(ownerIdentity, deletedId, `Deleted ${secretTerm}`);
-    await fixture.chat.createFor(ownerIdentity, titleOnlyId, 'Title-only legislation');
+    await fixture.chat.createFor(
+      ownerIdentity,
+      deletedId,
+      `Deleted ${secretTerm}`,
+    );
+    await fixture.chat.createFor(
+      ownerIdentity,
+      titleOnlyId,
+      'Title-only legislation',
+    );
     const messages = new ChatMessageRepository();
     await fixture.database.withTenant(ownerIdentity, async (tx) => {
       await messages.insertUser(tx, {
@@ -59,15 +69,21 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     });
     await fixture.chat.deleteFor(ownerIdentity, deletedId);
 
-
     const firstPageResponse = await fetch(`${origin}/api/chats/search`, {
       method: 'POST',
       headers: { ...owner, 'content-type': 'application/json' },
       body: JSON.stringify({ query: secretTerm, limit: 1 }),
     });
-    expect(firstPageResponse.status, await firstPageResponse.clone().text()).toBe(200);
+    expect(
+      firstPageResponse.status,
+      await firstPageResponse.clone().text(),
+    ).toBe(200);
     const firstPage = (await firstPageResponse.json()) as {
-      items: Array<{ chatId: string; messageId: string | null; excerpt: string }>;
+      items: Array<{
+        chatId: string;
+        messageId: string | null;
+        excerpt: string;
+      }>;
       pageInfo: { nextCursor: string | null };
     };
     expect(firstPage.items).toHaveLength(1);
@@ -92,17 +108,22 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     expect(secondPage.items.map((item) => item.chatId)).toHaveLength(1);
     expect(secondPage.items[0]?.chatId).not.toBe(firstPage.items[0]?.chatId);
     expect(secondPage.items[0]?.chatId).not.toBe(deletedId);
-    const lookaheadRows = await fixture.database.withTenant(ownerIdentity, (tx) =>
-      new ChatSearchRepository().search(tx, secretTerm, null, 1),
+    const lookaheadRows = await fixture.database.withTenant(
+      ownerIdentity,
+      (tx) => new ChatSearchRepository().search(tx, secretTerm, null, 1),
     );
     expect(lookaheadRows).toHaveLength(2);
     expect(lookaheadRows[0]?.excerpt).toContain(secretTerm);
     expect(lookaheadRows[1]?.excerpt).toBeNull();
 
     const titleOnly = await search(origin, owner, 'legislation');
-    expect(titleOnly.items.find((item) => item.chatId === titleOnlyId)?.messageId).toBeNull();
+    expect(
+      titleOnly.items.find((item) => item.chatId === titleOnlyId)?.messageId,
+    ).toBeNull();
     const titlePartial = await search(origin, owner, 'legislat');
-    expect(titlePartial.items.find((item) => item.chatId === titleOnlyId)?.messageId).toBeNull();
+    expect(
+      titlePartial.items.find((item) => item.chatId === titleOnlyId)?.messageId,
+    ).toBeNull();
 
     const answerChatId = randomUUID();
     const answerTerm = `answer-index-${randomUUID()}`;
@@ -117,17 +138,25 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
         effort: 'high',
       }),
     });
-    expect(answerCreation.status, await answerCreation.clone().text()).toBe(201);
+    expect(answerCreation.status, await answerCreation.clone().text()).toBe(
+      201,
+    );
     const answerRun = (await answerCreation.json()) as { runId: string };
-    await fixture.chat.setRunOutputFor(ownerIdentity, answerRun.runId, `A canonical ${answerTerm} answer`);
+    await fixture.chat.setRunOutputFor(
+      ownerIdentity,
+      answerRun.runId,
+      `A canonical ${answerTerm} answer`,
+    );
     const answerVector = await fixture.inspect.query(
       'SELECT search_vector::text FROM app.ai_runs WHERE id=$1',
       [answerRun.runId],
     );
     expect(answerVector.rows[0]?.search_vector).toContain("'answer'");
     const answerResults = await search(origin, owner, answerTerm);
-    expect(answerResults.items.find((item) => item.chatId === answerChatId)?.messageId)
-      .toBe(answerRun.runId);
+    expect(
+      answerResults.items.find((item) => item.chatId === answerChatId)
+        ?.messageId,
+    ).toBe(answerRun.runId);
 
     const branchChatId = randomUUID();
     const branchRootId = randomUUID();
@@ -170,11 +199,14 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     const latestBranch = await resolve(branchRootId);
     expect(latestBranch.status).toBe(201);
     expect((await latestBranch.json()).leafId).toBe(newerLeafId);
-    const selectViewed = await fetch(`${origin}/api/chats/${branchChatId}/viewed-leaf`, {
-      method: 'PUT',
-      headers: { ...owner, 'content-type': 'application/json' },
-      body: JSON.stringify({ leafId: olderLeafId }),
-    });
+    const selectViewed = await fetch(
+      `${origin}/api/chats/${branchChatId}/viewed-leaf`,
+      {
+        method: 'PUT',
+        headers: { ...owner, 'content-type': 'application/json' },
+        body: JSON.stringify({ leafId: olderLeafId }),
+      },
+    );
     expect(selectViewed.status).toBe(200);
     const viewedBranch = await resolve(branchRootId);
     expect(viewedBranch.status).toBe(201);
@@ -186,7 +218,10 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
       { query: 'contrac', text: 'Partial contract vocabulary' },
       { query: '1320', text: 'Article 1320 protects the parties' },
       { query: 'café', text: 'A café in Jakarta is named here' },
-      { query: 'script', text: "Script marker with hostile <script>alert('xss')</script>" },
+      {
+        query: 'script',
+        text: "Script marker with hostile <script>alert('xss')</script>",
+      },
     ];
     const caseIds = indexedCases.map(() => randomUUID());
     const caseMessageIds = indexedCases.map(() => randomUUID());
@@ -215,22 +250,31 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     expect(scriptVector.rows[0]?.search_vector).toContain('script');
     for (const [index, item] of indexedCases.entries()) {
       const page = await search(origin, owner, item.query);
-      const hit = page.items.find((candidate) => candidate.chatId === caseIds[index]);
+      const hit = page.items.find(
+        (candidate) => candidate.chatId === caseIds[index],
+      );
       expect(hit, `expected search hit for ${item.query}`).toBeDefined();
       expect(hit?.excerpt.length).toBeLessThanOrEqual(500);
       if (item.query === 'script') {
         expect(hit?.excerpt).toContain('<script>');
         expect(hit?.matchStart).toBeGreaterThanOrEqual(0);
         expect(hit?.matchEnd).toBeGreaterThan(hit?.matchStart ?? 0);
-        expect(hit?.excerpt.slice(hit.matchStart!, hit.matchEnd!)).toMatch(/script/i);
+        expect(hit?.excerpt.slice(hit.matchStart!, hit.matchEnd!)).toMatch(
+          /script/i,
+        );
       }
     }
     const articleLookalike = await search(origin, owner, '13200');
-    expect(articleLookalike.items.some((item) => item.chatId === caseIds[2])).toBe(false);
+    expect(
+      articleLookalike.items.some((item) => item.chatId === caseIds[2]),
+    ).toBe(false);
     const wrongQueryCursor = await fetch(`${origin}/api/chats/search`, {
       method: 'POST',
       headers: { ...owner, 'content-type': 'application/json' },
-      body: JSON.stringify({ query: 'different private term', cursor: firstPage.pageInfo.nextCursor }),
+      body: JSON.stringify({
+        query: 'different private term',
+        cursor: firstPage.pageInfo.nextCursor,
+      }),
     });
     expect(wrongQueryCursor.status).toBe(409);
     expect(await wrongQueryCursor.text()).not.toContain(secretTerm);
@@ -242,7 +286,6 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     });
     expect(foreignResponse.status).toBe(200);
     expect((await foreignResponse.json()).items).toEqual([]);
-
   } finally {
     await app.close();
     await fixture.close();

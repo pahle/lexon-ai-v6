@@ -318,8 +318,7 @@ export class ChatService {
         cursor = listCursorSchema.parse(
           JSON.parse(Buffer.from(request.cursor, 'base64url').toString('utf8')),
         );
-        if (cursor[1] !== ownerDigest(actor))
-          throw new Error();
+        if (cursor[1] !== ownerDigest(actor)) throw new Error();
       } catch {
         throw new ChatApiError('CHAT_CONFLICT');
       }
@@ -329,9 +328,7 @@ export class ChatService {
       async (tx) => {
         const rows = await this.searchRepository.list(
           tx,
-          cursor
-            ? { activityAt: cursor[2], chatId: cursor[3] }
-            : null,
+          cursor ? { activityAt: cursor[2], chatId: cursor[3] } : null,
           request.limit + 1,
         );
         const hasMore = rows.length > request.limit;

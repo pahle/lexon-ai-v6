@@ -174,12 +174,12 @@ After five successful warmups per class, the harness recorded 30 successful
 API requests per class. These are client-side elapsed milliseconds from the
 HTTP request helper:
 
-| Query class | Samples | p50 ms | p95 ms | Maximum ms | Failures |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| stem | 30 | 246.60 | 281.75 | 283.26 | 0 |
-| partial | 30 | 223.51 | 237.41 | 259.13 | 0 |
-| article (`1320`) | 30 | 224.45 | 231.26 | 260.06 | 0 |
-| no-match | 30 | 168.18 | 173.22 | 174.37 | 0 |
+| Query class      | Samples | p50 ms | p95 ms | Maximum ms | Failures |
+| ---------------- | ------: | -----: | -----: | ---------: | -------: |
+| stem             |      30 | 246.60 | 281.75 |     283.26 |        0 |
+| partial          |      30 | 223.51 | 237.41 |     259.13 |        0 |
+| article (`1320`) |      30 | 224.45 | 231.26 |     260.06 |        0 |
+| no-match         |      30 | 168.18 | 173.22 |     174.37 |        0 |
 
 All four measured p95 values are below the owner-approved 300 ms target. The
 earlier failed warmup run remains documented as historical; it did not
@@ -189,6 +189,12 @@ Its source SHA-256 manifest includes the 0035/0036 migrations, repository,
 schema, fixture, benchmark helper, service, and performance test. Host was
 Apple M4/macOS 27.0/arm64 with 10 CPUs and 16 GiB; Docker Desktop VM had 10
 CPUs and 8,217,059,328 bytes, with container limits unlimited inside the VM.
+After measurement, only formatting was applied to the repository, fixture,
+benchmark helper, service, and search tests; tests were also changed to import
+repositories through the public database barrel after lint identified the
+boundary violation. No production behavior changed. The artifact hashes refer
+to the exact pre-format source used for measurement, not the formatting-only
+follow-up commit.
 
 This is bounded evidence for the accepted per-owner chat-search fixture. It
 does not establish indexed full-text or trigram behavior under RLS at document

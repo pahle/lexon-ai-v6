@@ -63,14 +63,21 @@ test('owner can set, change, and clear one answer feedback rating', async ({
       'changed',
       'cleared',
     ]);
-    expect(auditRows.every((row) =>
-      Object.keys(row.metadata).every((key) =>
-        ['chatId', 'messageId', 'runId', 'action'].includes(key),
+    expect(
+      auditRows.every((row) =>
+        Object.keys(row.metadata).every((key) =>
+          ['chatId', 'messageId', 'runId', 'action'].includes(key),
+        ),
       ),
-    )).toBe(true);
-    expect(JSON.stringify(auditRows)).not.toMatch(/good|bad|Synthetic feedback test input/);
-    expect((await fixture.chat.feedbackWithoutTenant(chatId, mutation.runId).then((result) => result.rows)))
-      .toEqual([]);
+    ).toBe(true);
+    expect(JSON.stringify(auditRows)).not.toMatch(
+      /good|bad|Synthetic feedback test input/,
+    );
+    expect(
+      await fixture.chat
+        .feedbackWithoutTenant(chatId, mutation.runId)
+        .then((result) => result.rows),
+    ).toEqual([]);
     const feedbackPolicy = await fixture.inspect.query(
       `SELECT relrowsecurity,relforcerowsecurity FROM pg_class c
        JOIN pg_namespace n ON n.oid=c.relnamespace
@@ -126,5 +133,7 @@ async function expectFeedback(
   const tree = (await response.json()) as {
     messages: Array<{ id: string; feedback: 'good' | 'bad' | null }>;
   };
-  expect(tree.messages.find((message) => message.id === messageId)?.feedback).toBe(rating);
+  expect(
+    tree.messages.find((message) => message.id === messageId)?.feedback,
+  ).toBe(rating);
 }

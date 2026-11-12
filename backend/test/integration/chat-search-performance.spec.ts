@@ -43,10 +43,16 @@ test(
       'backend/src/modules/chat/chat-search.service.ts',
       'backend/test/integration/chat-search-performance.spec.ts',
     ];
-    const sourceHashes = Object.fromEntries(await Promise.all(sourceFiles.map(async (path) => [
-      path,
-      createHash('sha256').update(await readFile(resolve(testRoot, path))).digest('hex'),
-    ])));
+    const sourceHashes = Object.fromEntries(
+      await Promise.all(
+        sourceFiles.map(async (path) => [
+          path,
+          createHash('sha256')
+            .update(await readFile(resolve(testRoot, path)))
+            .digest('hex'),
+        ]),
+      ),
+    );
     const hardware = {
       platform: `${os.platform()} ${os.release()}`,
       architecture: os.arch(),
@@ -62,7 +68,8 @@ test(
     await record({
       type: 'header',
       artifactPath,
-      testCommand: 'pnpm exec vitest run --project backend-integration chat-search-performance.spec',
+      testCommand:
+        'pnpm exec vitest run --project backend-integration chat-search-performance.spec',
       configuredApiStatementTimeoutMs: 10_000,
       plannerSeqscanSetting: 'on',
       hardware,
@@ -71,7 +78,10 @@ test(
     const app = await createTestApi(
       loadRuntimeConfig(
         'api',
-        createAuthEnvironment(services, '/tmp/lexon-chat-search-performance-health.json'),
+        createAuthEnvironment(
+          services,
+          '/tmp/lexon-chat-search-performance-health.json',
+        ),
       ),
     );
     const fixture = await createChatFixture(services);
@@ -80,9 +90,14 @@ test(
       const origin = await app.getUrl();
       const owner = await apiHeaders(app);
       const ownerContext = await readIdentity(origin, owner);
-      await fixture.inspect.query('ALTER TABLE app.chat_messages DROP COLUMN search_vector');
-      await fixture.inspect.query('ALTER TABLE app.ai_runs DROP COLUMN search_vector');
-      const seeded = await fixture.chat.seedSearchPerformanceCorpus(ownerContext);
+      await fixture.inspect.query(
+        'ALTER TABLE app.chat_messages DROP COLUMN search_vector',
+      );
+      await fixture.inspect.query(
+        'ALTER TABLE app.ai_runs DROP COLUMN search_vector',
+      );
+      const seeded =
+        await fixture.chat.seedSearchPerformanceCorpus(ownerContext);
       expect(seeded.chatCount).toBe(2_000);
       expect(seeded.messageCount).toBe(50_000);
       expect(seeded.foreignMessageCount).toBeGreaterThanOrEqual(1_000_000);
@@ -113,11 +128,16 @@ test(
       for (const [index, statement] of migrationStatements.entries()) {
         const started = performance.now();
         await fixture.inspect.query(statement);
-        const timing = { statementIndex: index, elapsedMs: performance.now() - started };
+        const timing = {
+          statementIndex: index,
+          elapsedMs: performance.now() - started,
+        };
         migrationCosts.push(timing);
         await record({ type: 'migration-alter', ...timing });
       }
-      await fixture.inspect.query('ANALYZE app.chats,app.chat_messages,app.ai_runs');
+      await fixture.inspect.query(
+        'ANALYZE app.chats,app.chat_messages,app.ai_runs',
+      );
       await record({ type: 'post-migration-analyze', completed: true });
       const messageBytesAfter = await fixture.inspect.query(
         `SELECT pg_total_relation_size('app.chat_messages') AS bytes,
@@ -143,11 +163,12 @@ test(
       let messageVectorWritePrevented = false;
       try {
         await fixture.inspect.query(
-          "UPDATE app.chat_messages SET search_vector='\"forged\"'::tsvector WHERE id=$1",
+          'UPDATE app.chat_messages SET search_vector=\'"forged"\'::tsvector WHERE id=$1',
           [(messageProbe.rows[0] as { id: string } | undefined)?.id],
         );
       } catch (error) {
-        messageVectorWritePrevented = (error as { code?: string }).code === '428C9';
+        messageVectorWritePrevented =
+          (error as { code?: string }).code === '428C9';
       }
       const runProbe = await fixture.inspect.query(
         "SELECT id FROM app.ai_runs WHERE model_id='synthetic/benchmark' LIMIT 1",
@@ -155,7 +176,7 @@ test(
       let runVectorWritePrevented = false;
       try {
         await fixture.inspect.query(
-          "UPDATE app.ai_runs SET search_vector='\"forged\"'::tsvector WHERE id=$1",
+          'UPDATE app.ai_runs SET search_vector=\'"forged"\'::tsvector WHERE id=$1',
           [(runProbe.rows[0] as { id: string } | undefined)?.id],
         );
       } catch (error) {
@@ -166,7 +187,8 @@ test(
       const serverVersion = await fixture.inspect.query('SHOW server_version');
       await record({
         type: 'migration-cost',
-        serverVersion: (serverVersion.rows[0] as { server_version: string }).server_version,
+        serverVersion: (serverVersion.rows[0] as { server_version: string })
+          .server_version,
         statements: migrationCosts,
         messageBytesBefore: messageBytesBefore.rows[0],
         messageBytesAfter: messageBytesAfter.rows[0],
@@ -188,8 +210,9 @@ test(
         await record({ type: 'plan', queryClass: name, plan: summary });
       }
       const runtime = {
-        postgresVersion: (serverVersion.rows[0] as { server_version: string } | undefined)
-          ?.server_version,
+        postgresVersion: (
+          serverVersion.rows[0] as { server_version: string } | undefined
+        )?.server_version,
         appSessionSettings: planSummaries[0]?.settings,
         hardware,
         sourceHashes,
@@ -211,11 +234,20 @@ test(
       >();
       let warmupFailed = false;
       for (const [name, query] of queryTypes) {
-        const samples: Array<{ status: number; elapsedMs: number; error?: string }> = [];
+        const samples: Array<{
+          status: number;
+          elapsedMs: number;
+          error?: string;
+        }> = [];
         for (let index = 0; index < 5; index++) {
           const sample = await requestSearch(origin, owner, query);
           samples.push(sample);
-          await record({ type: 'warmup', queryClass: name, sampleIndex: index + 1, ...sample });
+          await record({
+            type: 'warmup',
+            queryClass: name,
+            sampleIndex: index + 1,
+            ...sample,
+          });
           if (sample.status !== 200) {
             warmupFailed = true;
             break;
@@ -225,19 +257,33 @@ test(
         if (warmupFailed) break;
       }
       const warmupMetrics = Object.fromEntries(
-        [...warmups.entries()].map(([name, samples]) => [name, summarizeTimings(samples)]),
+        [...warmups.entries()].map(([name, samples]) => [
+          name,
+          summarizeTimings(samples),
+        ]),
       );
       await record({ type: 'warmup-summary', warmupMetrics });
       if (warmupFailed)
-        throw new Error(`Search warmup failed; incomplete gate artifact: ${artifactPath}`);
+        throw new Error(
+          `Search warmup failed; incomplete gate artifact: ${artifactPath}`,
+        );
 
       let requestFailed = false;
       for (const [name, query] of queryTypes) {
-        const samples: Array<{ status: number; elapsedMs: number; error?: string }> = [];
+        const samples: Array<{
+          status: number;
+          elapsedMs: number;
+          error?: string;
+        }> = [];
         for (let index = 0; index < 30; index++) {
           const sample = await requestSearch(origin, owner, query);
           samples.push(sample);
-          await record({ type: 'measurement', queryClass: name, sampleIndex: index + 1, ...sample });
+          await record({
+            type: 'measurement',
+            queryClass: name,
+            sampleIndex: index + 1,
+            ...sample,
+          });
           if (sample.status !== 200) {
             requestFailed = true;
             break;
@@ -247,32 +293,47 @@ test(
         if (requestFailed) break;
       }
 
-      const metrics = Object.fromEntries([...timings.entries()].map(([name, samples]) => [
-        name,
-        samples.length === 30 && samples.every((sample) => sample.status === 200)
-          ? summarizeTimings(samples)
-          : {
-              samples: samples.length,
-              complete: false,
-              failedSamples: samples.filter((sample) => sample.status !== 200).length,
-            },
-      ]));
+      const metrics = Object.fromEntries(
+        [...timings.entries()].map(([name, samples]) => [
+          name,
+          samples.length === 30 &&
+          samples.every((sample) => sample.status === 200)
+            ? summarizeTimings(samples)
+            : {
+                samples: samples.length,
+                complete: false,
+                failedSamples: samples.filter((sample) => sample.status !== 200)
+                  .length,
+              },
+        ]),
+      );
       await record({
         type: 'performance-summary',
         metrics,
-        complete: timings.size === queryTypes.length &&
+        complete:
+          timings.size === queryTypes.length &&
           [...timings.values()].every((samples) => samples.length === 30),
       });
       console.log(`F4_SEARCH_ARTIFACT ${artifactPath}`);
 
-      expect(requestFailed, `search measurement failed; see ${artifactPath}`).toBe(false);
-      expect(timings.size, `incomplete measurements; see ${artifactPath}`).toBe(queryTypes.length);
+      expect(
+        requestFailed,
+        `search measurement failed; see ${artifactPath}`,
+      ).toBe(false);
+      expect(timings.size, `incomplete measurements; see ${artifactPath}`).toBe(
+        queryTypes.length,
+      );
       for (const [name, summary] of Object.entries(metrics)) {
         expect(summary.samples, `${name} sample count`).toBe(30);
-        expect('p95Ms' in summary, `${name} lacks a complete p95; see ${artifactPath}`)
-          .toBe(true);
+        expect(
+          'p95Ms' in summary,
+          `${name} lacks a complete p95; see ${artifactPath}`,
+        ).toBe(true);
         if ('p95Ms' in summary)
-          expect(summary.p95Ms, `${name} p95; see ${artifactPath}`).toBeLessThan(300);
+          expect(
+            summary.p95Ms,
+            `${name} p95; see ${artifactPath}`,
+          ).toBeLessThan(300);
       }
     } finally {
       await app.close();
@@ -319,19 +380,29 @@ async function requestSearch(
 function summarizeTimings(
   samples: Array<{ status: number; elapsedMs: number; error?: string }>,
 ) {
-  const sorted = samples.map((sample) => sample.elapsedMs).sort((a, b) => a - b);
+  const sorted = samples
+    .map((sample) => sample.elapsedMs)
+    .sort((a, b) => a - b);
   return {
     samples: samples.length,
     p50Ms: percentile(sorted, 0.5),
     p95Ms: percentile(sorted, 0.95),
     maxMs: sorted.at(-1) ?? 0,
     failedSamples: samples.filter((sample) => sample.status !== 200).length,
-    errors: [...new Set(samples.flatMap((sample) => sample.error ? [sample.error] : []))],
+    errors: [
+      ...new Set(
+        samples.flatMap((sample) => (sample.error ? [sample.error] : [])),
+      ),
+    ],
   };
 }
 
 function percentile(sorted: readonly number[], fraction: number): number {
-  return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+  return (
+    sorted[
+      Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)
+    ] ?? 0
+  );
 }
 
 function summarizePlan(result: Awaited<ReturnType<typeof explainChatSearch>>) {
@@ -349,8 +420,14 @@ function summarizePlan(result: Awaited<ReturnType<typeof explainChatSearch>>) {
     'Plan Width'?: number;
     Plans?: Node[];
   };
-  type Output = { Plan?: Node; 'Planning Time'?: number; 'Execution Time'?: number };
-  const output = (result.plan.rows[0] as { 'QUERY PLAN': Output[] })['QUERY PLAN'][0]!;
+  type Output = {
+    Plan?: Node;
+    'Planning Time'?: number;
+    'Execution Time'?: number;
+  };
+  const output = (result.plan.rows[0] as { 'QUERY PLAN': Output[] })[
+    'QUERY PLAN'
+  ][0]!;
   const flatten = (node: Node): PlanSummaryNode[] => [
     {
       nodeType: node['Node Type'],
@@ -402,18 +479,25 @@ function assertOwnerFirstPlan(plan: ReturnType<typeof summarizePlan>) {
   expect(plan.session.tenantOrgSet).toBe(true);
   expect(plan.session.tenantUserSet).toBe(true);
   expect(plan.session.enableSeqscan).toBe('on');
-  const ownerIndex = plan.nodes.find((node) => node.indexName === 'chats_owner_activity');
+  const ownerIndex = plan.nodes.find(
+    (node) => node.indexName === 'chats_owner_activity',
+  );
   expect(ownerIndex, 'owner-scoped chat B-tree missing').toBeDefined();
   expect(ownerIndex?.indexCond).toContain('org_id');
   expect(ownerIndex?.indexCond).toContain('owner_user_id');
-  expect(plan.nodes.some((node) => node.subplanName?.includes('owner_chats'))).toBe(true);
   expect(
-    plan.nodes.some((node) =>
-      node.nodeType === 'Seq Scan' &&
-      ['chats', 'chat_messages', 'ai_runs'].includes(node.relationName ?? ''),
+    plan.nodes.some((node) => node.subplanName?.includes('owner_chats')),
+  ).toBe(true);
+  expect(
+    plan.nodes.some(
+      (node) =>
+        node.nodeType === 'Seq Scan' &&
+        ['chats', 'chat_messages', 'ai_runs'].includes(node.relationName ?? ''),
     ),
   ).toBe(false);
-  const messages = plan.nodes.filter((node) => node.relationName === 'chat_messages');
+  const messages = plan.nodes.filter(
+    (node) => node.relationName === 'chat_messages',
+  );
   expect(messages.length).toBeGreaterThan(0);
   expect(messages.every((node) => node.indexName !== undefined)).toBe(true);
 }

@@ -5,21 +5,30 @@ import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
-import { ChatMessageRepository } from '../../src/infrastructure/db/chat-message.repository.js';
+import { ChatMessageRepository } from '../../src/infrastructure/db/index.js';
 
-test('search statement timeout returns the fixed bounded response', async ({ services }) => {
-  const app = await createTestApi(loadRuntimeConfig('api', {
-    ...createAuthEnvironment(services, '/tmp/lexon-chat-search-timeout-health.json'),
-    DATABASE_STATEMENT_TIMEOUT_MS: '250',
-  }));
+test('search statement timeout returns the fixed bounded response', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig('api', {
+      ...createAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-search-timeout-health.json',
+      ),
+      DATABASE_STATEMENT_TIMEOUT_MS: '250',
+    }),
+  );
   const fixture = await createChatFixture(services);
   let lockHeld = false;
   try {
     await app.listen(0, '127.0.0.1');
     const origin = await app.getUrl();
     const owner = await apiHeaders(app);
-    const identityResponse = await fetch(`${origin}/api/identity`, { headers: owner });
-    const identity = await identityResponse.json() as {
+    const identityResponse = await fetch(`${origin}/api/identity`, {
+      headers: owner,
+    });
+    const identity = (await identityResponse.json()) as {
       user: { id: string };
       organization: { id: string };
     };
@@ -40,7 +49,9 @@ test('search statement timeout returns the fixed bounded response', async ({ ser
       }),
     );
     await fixture.inspect.query('BEGIN');
-    await fixture.inspect.query('LOCK TABLE app.chat_messages IN ACCESS EXCLUSIVE MODE');
+    await fixture.inspect.query(
+      'LOCK TABLE app.chat_messages IN ACCESS EXCLUSIVE MODE',
+    );
     lockHeld = true;
     const query = `timeout-${randomUUID()}`;
     const response = await fetch(`${origin}/api/chats/search`, {
@@ -48,7 +59,9 @@ test('search statement timeout returns the fixed bounded response', async ({ ser
       headers: { ...owner, 'content-type': 'application/json' },
       body: JSON.stringify({ query }),
     });
-    const body = await response.json() as { error: { code: string; message: string } };
+    const body = (await response.json()) as {
+      error: { code: string; message: string };
+    };
     expect(response.status).toBe(503);
     expect(body.error).toEqual({
       code: 'CHAT_SEARCH_TIMEOUT',

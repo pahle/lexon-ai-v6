@@ -260,7 +260,7 @@ export async function createChatFixture(services: Services) {
     );
     const outputByteLengths = Array.from(
       { length: chatCount * answersPerChat },
-      (_, index) => index % 20 === 0 ? 12_288 : index % 5 === 0 ? 4_096 : 512,
+      (_, index) => (index % 20 === 0 ? 12_288 : index % 5 === 0 ? 4_096 : 512),
     );
     const answerBase =
       'Synthetic canonical answer fixture. Index marker: agreements, contract, article 1320. This neutral placeholder contains no legal analysis. ';
@@ -279,10 +279,14 @@ export async function createChatFixture(services: Services) {
         const texts = ids.map((_, offset) => {
           const chatIndex = start + offset;
           switch ((chatIndex + turn) % 4) {
-            case 0: return `Synthetic user prompt with agreements marker ${chatIndex}-${turn}`;
-            case 1: return `Synthetic user prompt with contract marker ${chatIndex}-${turn}`;
-            case 2: return `Synthetic user prompt with article 1320 marker ${chatIndex}-${turn}`;
-            default: return `Synthetic user prompt with document marker ${chatIndex}-${turn}`;
+            case 0:
+              return `Synthetic user prompt with agreements marker ${chatIndex}-${turn}`;
+            case 1:
+              return `Synthetic user prompt with contract marker ${chatIndex}-${turn}`;
+            case 2:
+              return `Synthetic user prompt with article 1320 marker ${chatIndex}-${turn}`;
+            default:
+              return `Synthetic user prompt with document marker ${chatIndex}-${turn}`;
           }
         });
         await client.query(
@@ -357,7 +361,9 @@ export async function createChatFixture(services: Services) {
     const foreignMessagesPerTenant = 166_667;
     const foreignChatsPerTenant = Math.ceil(foreignMessagesPerTenant / 25);
     for (const tenant of ai.tenants) {
-      const foreignChatIds = Array.from({ length: foreignChatsPerTenant }, () => randomUUID());
+      const foreignChatIds = Array.from({ length: foreignChatsPerTenant }, () =>
+        randomUUID(),
+      );
       await ai.database.withTenant(tenant, async (tx) => {
         const { client } = requireSession(tx);
         await client.query(
@@ -368,7 +374,10 @@ export async function createChatFixture(services: Services) {
         );
         let parentIds: Array<string | null> = foreignChatIds.map(() => null);
         for (let turn = 0; turn < 25; turn++) {
-          const chatIds = foreignChatIds.slice(0, turn < 17 ? undefined : foreignChatsPerTenant - 1);
+          const chatIds = foreignChatIds.slice(
+            0,
+            turn < 17 ? undefined : foreignChatsPerTenant - 1,
+          );
           const parents = parentIds.slice(0, chatIds.length);
           const insertedIds = chatIds.map(() => randomUUID());
           if (turn % 2 === 0) {
@@ -383,7 +392,9 @@ export async function createChatFixture(services: Services) {
               [tenant.orgId, turn, insertedIds, chatIds, parents],
             );
           } else {
-            const outputs = insertedIds.map(() => 'Synthetic foreign tenant response.');
+            const outputs = insertedIds.map(
+              () => 'Synthetic foreign tenant response.',
+            );
             await client.query(
               `INSERT INTO app.ai_runs(
                  id,org_id,initiating_user_id,profile_id,profile_version,resolved_config,
@@ -411,15 +422,21 @@ export async function createChatFixture(services: Services) {
               [tenant.orgId, insertedIds, chatIds, parents],
             );
           }
-          const nextParents = new Map(chatIds.map((chatId, index) => [chatId, insertedIds[index]!]));
-          parentIds = foreignChatIds.map((chatId) => nextParents.get(chatId) ?? null);
+          const nextParents = new Map(
+            chatIds.map((chatId, index) => [chatId, insertedIds[index]!]),
+          );
+          parentIds = foreignChatIds.map(
+            (chatId) => nextParents.get(chatId) ?? null,
+          );
           foreignMessageCount += chatIds.length;
         }
       });
       foreignChatCount += foreignChatsPerTenant;
     }
     await inspector.query('ANALYZE app.chats,app.chat_messages,app.ai_runs');
-    const sortedLengths = [...outputByteLengths].sort((left, right) => left - right);
+    const sortedLengths = [...outputByteLengths].sort(
+      (left, right) => left - right,
+    );
     const bytePercentile = (fraction: number) =>
       sortedLengths[Math.ceil(sortedLengths.length * fraction) - 1] ?? 0;
     return {

@@ -43,11 +43,8 @@ export class ChatApiError extends Error {
 
   constructor(readonly code: ChatErrorCode) {
     super(SafeErrorMessages[code]);
-    this.status = code === 'CHAT_NOT_FOUND'
-      ? 404
-      : code === 'CHAT_CONFLICT'
-        ? 409
-        : 503;
+    this.status =
+      code === 'CHAT_NOT_FOUND' ? 404 : code === 'CHAT_CONFLICT' ? 409 : 503;
   }
 }
 

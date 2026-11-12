@@ -110,11 +110,7 @@ export interface ChatSearchRow {
 }
 
 export class ChatSearchRepository {
-  async list(
-    tx: TenantSession,
-    cursor: ChatListCursor | null,
-    limit: number,
-  ) {
+  async list(tx: TenantSession, cursor: ChatListCursor | null, limit: number) {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
     const scope = buildAuthorizationPredicate({
@@ -168,18 +164,15 @@ export class ChatSearchRepository {
       userId: ctx.userId,
       excludeDeleted: true,
     });
-    const result = await client.query<ChatSearchRow>(
-      CHAT_SEARCH_SQL,
-      [
-        scope.orgId,
-        scope.userId,
-        queryText,
-        cursor?.score ?? null,
-        cursor?.activityAt ?? null,
-        cursor?.chatId ?? null,
-        limit,
-      ],
-    );
+    const result = await client.query<ChatSearchRow>(CHAT_SEARCH_SQL, [
+      scope.orgId,
+      scope.userId,
+      queryText,
+      cursor?.score ?? null,
+      cursor?.activityAt ?? null,
+      cursor?.chatId ?? null,
+      limit,
+    ]);
     return result.rows;
   }
 

@@ -332,7 +332,10 @@ export interface ChatApi {
   get(chatId: string): Promise<ChatTree>;
   list(input?: { cursor?: string; limit?: number }): Promise<ChatPage>;
   search(input: ChatSearchRequest): Promise<ChatSearchPage>;
-  resolveSearchMatch(chatId: string, messageId: string): Promise<ChatSearchMatch>;
+  resolveSearchMatch(
+    chatId: string,
+    messageId: string,
+  ): Promise<ChatSearchMatch>;
   setFeedback(
     chatId: string,
     messageId: string,

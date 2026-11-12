@@ -41,8 +41,7 @@ function decodeCursor(
     const parsed = cursorSchema.parse(
       JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')),
     );
-    if (parsed[1] !== queryDigest)
-      throw new Error();
+    if (parsed[1] !== queryDigest) throw new Error();
     return {
       score: parsed[2],
       activityAt: parsed[3],
@@ -69,12 +68,14 @@ function safeSnippet(text: string, query: string) {
   const excerpt = text.slice(start, end);
   return {
     excerpt,
-    matchStart: match && match.index >= start && match.index + match[0].length <= end
-      ? match.index - start
-      : null,
-    matchEnd: match && match.index >= start && match.index + match[0].length <= end
-      ? match.index - start + match[0].length
-      : null,
+    matchStart:
+      match && match.index >= start && match.index + match[0].length <= end
+        ? match.index - start
+        : null,
+    matchEnd:
+      match && match.index >= start && match.index + match[0].length <= end
+        ? match.index - start + match[0].length
+        : null,
   };
 }
 
@@ -83,8 +84,12 @@ function escapeRegExp(value: string): string {
 }
 
 function isStatementTimeout(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error &&
-    error.code === '57014';
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '57014'
+  );
 }
 
 export class ChatSearchService {
@@ -95,7 +100,10 @@ export class ChatSearchService {
     private readonly authorization: RunAuthorizationService,
   ) {}
 
-  async search(actor: RunActor, input: ChatSearchRequest): Promise<ChatSearchPage> {
+  async search(
+    actor: RunActor,
+    input: ChatSearchRequest,
+  ): Promise<ChatSearchPage> {
     this.authorization.assertLiveActor(actor);
     const request = ChatSearchRequestSchema.parse(input);
     const queryDigest = digest(actor, request.query);

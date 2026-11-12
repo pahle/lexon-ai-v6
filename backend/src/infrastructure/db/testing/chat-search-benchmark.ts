@@ -35,30 +35,29 @@ export async function explainChatSearch(
   const settings = await client.query(
     `SELECT name,setting,unit FROM pg_settings
      WHERE name=ANY($1::text[]) ORDER BY name`,
-    [[
-      'effective_cache_size',
-      'effective_io_concurrency',
-      'jit',
-      'max_parallel_workers_per_gather',
-      'random_page_cost',
-      'seq_page_cost',
-      'shared_buffers',
-      'statement_timeout',
-      'work_mem',
-    ]],
-  );
-  const plan = await client.query(
-    `EXPLAIN (FORMAT JSON) ${CHAT_SEARCH_SQL}`,
     [
-      scope.orgId,
-      scope.userId,
-      queryText,
-      cursor?.score ?? null,
-      cursor?.activityAt ?? null,
-      cursor?.chatId ?? null,
-      limit,
+      [
+        'effective_cache_size',
+        'effective_io_concurrency',
+        'jit',
+        'max_parallel_workers_per_gather',
+        'random_page_cost',
+        'seq_page_cost',
+        'shared_buffers',
+        'statement_timeout',
+        'work_mem',
+      ],
     ],
   );
+  const plan = await client.query(`EXPLAIN (FORMAT JSON) ${CHAT_SEARCH_SQL}`, [
+    scope.orgId,
+    scope.userId,
+    queryText,
+    cursor?.score ?? null,
+    cursor?.activityAt ?? null,
+    cursor?.chatId ?? null,
+    limit,
+  ]);
   const row = session.rows[0]!;
   return {
     session: {
