@@ -335,9 +335,9 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
           </div>
         )}
       </MessagePrimitive.Error>
-      {running && role === 'assistant' ? (
+      {role === 'assistant' && announcement.active ? (
         <p className="sr-only" aria-live="polite" aria-atomic="false">
-          {announcement}
+          <span key={announcement.sequence}>{announcement.text}</span>
         </p>
       ) : null}
       {role === 'assistant' ? (
@@ -365,28 +365,126 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
   );
 };
 
-function useIncrementalAnnouncement(
+const announcementSegmentLength = 160;
+const announcementSegmentIntervalMs = 500;
+
+function announcementSegmentEnd(text: string, start: number) {
+  const end = Math.min(start + announcementSegmentLength, text.length);
+  if (end < text.length) {
+    const previous = text.charCodeAt(end - 1);
+    const next = text.charCodeAt(end);
+    if (
+      previous >= 0xd800 &&
+      previous <= 0xdbff &&
+      next >= 0xdc00 &&
+      next <= 0xdfff
+    )
+      return end - 1;
+  }
+  return end;
+}
+
+type AnnouncementQueue = {
+  messageId: string;
+  cursor: number;
+  latestText: string;
+  running: boolean;
+  sequence: number;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+
+type IncrementalAnnouncement = {
+  messageId: string;
+  text: string;
+  sequence: number;
+  active: boolean;
+};
+
+export function useIncrementalAnnouncement(
   messageId: string,
   text: string,
   running: boolean,
-) {
-  const cursor = useRef({ messageId, length: text.length });
-  const [announcement, setAnnouncement] = useState('');
+): IncrementalAnnouncement {
+  const queueRef = useRef<AnnouncementQueue | null>(null);
+  if (queueRef.current?.messageId !== messageId) {
+    queueRef.current = {
+      messageId,
+      cursor: text.length,
+      latestText: text,
+      running,
+      sequence: 0,
+      timer: null,
+    };
+  }
+  const [announcement, setAnnouncement] = useState<IncrementalAnnouncement>(
+    () => ({
+      messageId,
+      text: '',
+      sequence: 0,
+      active: running,
+    }),
+  );
+
   useEffect(() => {
-    if (cursor.current.messageId !== messageId) {
-      cursor.current = { messageId, length: text.length };
-      setAnnouncement('');
-      return;
+    const queue = queueRef.current;
+    if (!queue || queue.messageId !== messageId) return;
+    queue.latestText = text;
+    queue.running = running;
+
+    const emitNext = () => {
+      if (queueRef.current !== queue) return;
+      queue.timer = null;
+      if (queue.cursor < queue.latestText.length) {
+        const end = announcementSegmentEnd(queue.latestText, queue.cursor);
+        const segment = queue.latestText.slice(queue.cursor, end);
+        queue.cursor += segment.length;
+        queue.sequence += 1;
+        setAnnouncement({
+          messageId,
+          text: segment,
+          sequence: queue.sequence,
+          active: true,
+        });
+        queue.timer = setTimeout(emitNext, announcementSegmentIntervalMs);
+      } else if (!queue.running) {
+        setAnnouncement({
+          messageId,
+          text: '',
+          sequence: queue.sequence,
+          active: false,
+        });
+      }
+    };
+
+    if (queue.timer === null) {
+      if (queue.cursor < queue.latestText.length) {
+        emitNext();
+      } else {
+        setAnnouncement((current) =>
+          current.messageId === messageId && current.active === running
+            ? current
+            : {
+                messageId,
+                text: '',
+                sequence: queue.sequence,
+                active: running,
+              },
+        );
+      }
     }
-    if (!running || text.length <= cursor.current.length) {
-      cursor.current.length = text.length;
-      return;
-    }
-    const delta = text.slice(cursor.current.length);
-    cursor.current.length = text.length;
-    setAnnouncement(delta.slice(0, 160));
   }, [messageId, running, text]);
-  return announcement;
+
+  useEffect(() => {
+    const queue = queueRef.current;
+    return () => {
+      if (queue?.timer !== null && queue?.timer !== undefined)
+        clearTimeout(queue.timer);
+    };
+  }, [messageId]);
+
+  return announcement.messageId === messageId
+    ? announcement
+    : { messageId, text: '', sequence: 0, active: running };
 }
 
 const ThreadScrollToBottom: FC = () => (
