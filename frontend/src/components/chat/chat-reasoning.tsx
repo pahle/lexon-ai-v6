@@ -12,15 +12,27 @@ import { MarkdownText } from './markdown-text';
 export function PersistedReasoning({
   summary,
   durationMs,
+  answerHasText,
   running = false,
 }: {
   readonly summary: string | null;
   readonly durationMs: number | null;
+  readonly answerHasText: boolean;
   readonly running?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  if (running && !answerHasText)
+    return (
+      <span
+        role="status"
+        className="text-muted-foreground flex items-center gap-2 text-sm"
+      >
+        <LoaderCircleIcon className="size-4 animate-spin motion-reduce:animate-none" />
+        Thinking…
+      </span>
+    );
   if (summary === null) {
-    if (durationMs !== null && !running) {
+    if (durationMs !== null && answerHasText) {
       const seconds = Math.round(durationMs / 1000);
       return (
         <p className="text-muted-foreground my-3 text-sm">
@@ -38,7 +50,10 @@ export function PersistedReasoning({
       </span>
     ) : null;
   }
-  const seconds = durationMs === null ? null : Math.round(durationMs / 1000);
+  const seconds =
+    durationMs === null || !answerHasText
+      ? null
+      : Math.round(durationMs / 1000);
   const label =
     seconds === null
       ? 'Reasoning'

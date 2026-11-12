@@ -184,8 +184,8 @@ function ChatViewSession({
                 event.currentTarget.form?.requestSubmit();
               }
             }}
-            rows={3}
-            className="max-h-48 min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"
+            rows={1}
+            className="max-h-48 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
           />
           <div className="flex flex-nowrap items-center justify-between gap-3 pt-2">
             <div className="flex min-w-0 flex-nowrap items-center gap-3">

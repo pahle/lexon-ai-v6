@@ -14,10 +14,8 @@ import {
   useAui,
 } from '@assistant-ui/react';
 import type { ChatTree } from '@lexon/contracts';
-import {
-  ChatComposerCancel,
-  ChatRuntime,
-} from '../src/components/chat/chat-runtime.js';
+import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
+import { Thread } from '../src/components/assistant-ui/elements/thread.aui.js';
 import {
   ProofMessage,
   RuntimeProofControls,
@@ -29,6 +27,13 @@ import {
 import { expect, it, vi } from 'vitest';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+Object.assign(globalThis, {
+  ResizeObserver: class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+});
 
 const makeMessage = (
   id: string,
@@ -148,10 +153,10 @@ it('routes the visible composer Stop control through server cancellation before 
         role: 'assistant',
         parentId: userId,
         runId,
-        text: 'Partial answer',
+        text: '',
         status: 'running',
-        reasoningSummary: null,
-        reasoningDurationMs: null,
+        reasoningSummary: 'The clause allocates liability.',
+        reasoningDurationMs: 2_300,
         feedback: null,
         createdAt: '2026-11-11T00:00:01.000Z',
       },
@@ -165,12 +170,8 @@ it('routes the visible composer Stop control through server cancellation before 
   await act(async () => {
     root.render(
       <ChatRuntime actorScope="tenant-1:user-1" chatId={chatId} tree={tree}>
-        <ThreadPrimitive.Root>
-          <ComposerPrimitive.Root>
-            <ChatComposerCancel>Stop</ChatComposerCancel>
-          </ComposerPrimitive.Root>
-          <PublicStateProbe />
-        </ThreadPrimitive.Root>
+        <Thread displayName="Ada" />
+        <PublicStateProbe />
       </ChatRuntime>,
     );
   });
@@ -179,9 +180,18 @@ it('routes the visible composer Stop control through server cancellation before 
   expect(
     fetch.mock.calls.some(([input]) => String(input).endsWith('/events')),
   ).toBe(true);
-  const stopButton = container.querySelector<HTMLButtonElement>('button');
+  expect(
+    container.querySelector<HTMLTextAreaElement>('textarea')?.placeholder,
+  ).toBe('Lexon is answering…');
+  expect(container.textContent).toContain('Thinking…');
+  expect(container.textContent).not.toContain('Thought for');
+  const stopButton = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Stop generating"]',
+  );
   if (!stopButton)
-    throw new Error('The visible Composer Stop control is missing.');
+    throw new Error(
+      'The accessible Composer Stop generating control is missing.',
+    );
   await act(async () => {
     stopButton.click();
     await Promise.resolve();

@@ -28,6 +28,7 @@ import {
   CopyIcon,
   PencilIcon,
   RefreshCwIcon,
+  SquareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
   XIcon,
@@ -289,6 +290,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
         <PersistedReasoning
           summary={summary}
           durationMs={durationMs}
+          answerHasText={answerText.length > 0}
           running={running}
         />
       ) : null}
@@ -710,7 +712,10 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    if (promptByteLength(composerText) > MAX_PROMPT_BYTES)
+    if (
+      !composerText.trim() ||
+      promptByteLength(composerText) > MAX_PROMPT_BYTES
+    )
       event.preventDefault();
   };
   return (
@@ -726,7 +731,11 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
         className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]"
       >
         <ComposerPrimitive.Input
-          placeholder="Ask Lexon about a contract, a regulation, or a case..."
+          placeholder={
+            running
+              ? 'Lexon is answering…'
+              : 'Ask Lexon about a contract, a regulation, or a case...'
+          }
           className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
           rows={1}
           addAttachmentOnPaste={false}
@@ -749,8 +758,14 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           {running ? (
             <ChatComposerCancel
               render={
-                <Button type="button" variant="outline" size="sm">
-                  Stop
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon"
+                  className="aui-composer-send size-7 rounded-full"
+                  aria-label="Stop generating"
+                >
+                  <SquareIcon className="size-4" aria-hidden="true" />
                 </Button>
               }
             />
@@ -761,7 +776,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   tooltip="Send message"
                   side="bottom"
                   type="button"
-                  disabled={tooLong}
+                  disabled={tooLong || !composerText.trim()}
                   variant="default"
                   size="icon"
                   className="aui-composer-send size-7 rounded-full"

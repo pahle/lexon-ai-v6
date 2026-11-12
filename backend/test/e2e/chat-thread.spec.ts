@@ -100,6 +100,23 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await page.goto(`${stack.publicUrl}/workspace`);
   const composer = page.getByRole('textbox', { name: 'Message input' });
   await expect(composer).toBeVisible();
+  const sendButton = page.getByRole('button', { name: 'Send message' });
+  await expect(sendButton).toBeDisabled();
+  await expect(composer).toHaveCSS('resize', 'none');
+  const initialHeight = await composer.evaluate(
+    (element) => element.getBoundingClientRect().height,
+  );
+  await composer.fill('First line\nSecond line\nThird line');
+  await expect
+    .poll(() =>
+      composer.evaluate((element) => element.getBoundingClientRect().height),
+    )
+    .toBeGreaterThan(initialHeight);
+  await composer.fill('   ');
+  await expect(sendButton).toBeDisabled();
+  await composer.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/workspace`);
+  await composer.fill('');
   await mkdir('test-results/f4-chat', { recursive: true });
   await page.screenshot({
     path: 'test-results/f4-chat/task-14-newchat-desktop-light.png',
@@ -154,8 +171,9 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect
     .poll(() => workerControl('status', runId))
     .toMatchObject({ prefixBlocked: true });
-  const thought = page.getByRole('button', { name: 'Thought for 2 seconds' });
-  await expect(thought).toBeVisible();
+  await expect(composer).toHaveAttribute('placeholder', 'Lexon is answering…');
+  await expect(page.getByText('Thinking…')).toBeVisible();
+  await expect(page.getByText('Thought for 2 seconds')).toHaveCount(0);
   const spinner = page.locator('.lucide-loader-circle').first();
   await expect(spinner).toBeVisible();
   await expect
@@ -171,6 +189,8 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect
     .poll(() => workerControl('status', runId))
     .toMatchObject({ answerBlocked: true, blocked: false });
+  const thought = page.getByRole('button', { name: 'Thought for 2 seconds' });
+  await expect(thought).toBeVisible();
   const announcementRegion = page.locator(
     '[data-role="assistant"] p.sr-only[aria-live="polite"][aria-atomic="false"]',
   );
@@ -190,10 +210,33 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect(page.locator('[data-role="assistant"] .aui-md')).toContainText(
     'See the contract text',
   );
+  await expect(composer).toHaveAttribute(
+    'placeholder',
+    'Ask Lexon about a contract, a regulation, or a case...',
+  );
   await expect(
     page.getByRole('button', { name: 'Send message' }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Stop generating' }),
+  ).toHaveCount(0);
+  const threadSend = page.getByRole('button', { name: 'Send message' });
+  const messageCountBeforeWhitespace = await page.request
+    .get(`${stack.apiUrl}/api/chats/${chatId}`, { headers })
+    .then(async (response) => {
+      const tree = (await response.json()) as { messages: unknown[] };
+      return tree.messages.length;
+    });
+  await composer.fill('   ');
+  await expect(threadSend).toBeDisabled();
+  await composer.press('Enter');
+  const messageCountAfterWhitespace = await page.request
+    .get(`${stack.apiUrl}/api/chats/${chatId}`, { headers })
+    .then(async (response) => {
+      const tree = (await response.json()) as { messages: unknown[] };
+      return tree.messages.length;
+    });
+  expect(messageCountAfterWhitespace).toBe(messageCountBeforeWhitespace);
   await thought.click();
   await expect(
     page.getByText(
@@ -628,7 +671,7 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
   await expect(stoppedMessage.locator('.aui-md')).toContainText(
     'Answer prefix —',
   );
-  const stop = page.getByRole('button', { name: 'Stop' });
+  const stop = page.getByRole('button', { name: 'Stop generating' });
   await expect(stop).toBeVisible({ timeout: 20_000 });
   const cancelResponsePromise = page.waitForResponse(
     (response) => {
@@ -663,4 +706,10 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
   await expect(stoppedMessage).toContainText('Stopped');
   await page.reload();
   await expect(stoppedMessage).toContainText('Stopped');
+  await expect(
+    page.getByRole('textbox', { name: 'Message input' }),
+  ).toHaveAttribute(
+    'placeholder',
+    'Ask Lexon about a contract, a regulation, or a case...',
+  );
 });

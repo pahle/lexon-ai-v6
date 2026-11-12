@@ -14,17 +14,17 @@ export function MarkdownText({
   const components: Components = {
     img: () => null,
     h1: ({ children }) => (
-      <h1 className="mt-6 mb-3 font-serif text-2xl font-semibold tracking-tight first:mt-0">
+      <h1 className="mt-6 mb-3 text-2xl font-semibold tracking-tight first:mt-0">
         {children}
       </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="mt-6 mb-3 font-serif text-xl font-semibold tracking-tight first:mt-0">
+      <h2 className="mt-6 mb-3 text-xl font-semibold tracking-tight first:mt-0">
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="mt-5 mb-2 font-serif text-lg font-semibold tracking-tight first:mt-0">
+      <h3 className="mt-5 mb-2 text-lg font-semibold tracking-tight first:mt-0">
         {children}
       </h3>
     ),

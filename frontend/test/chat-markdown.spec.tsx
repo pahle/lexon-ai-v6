@@ -26,14 +26,15 @@ it('keeps heading hierarchy and visible ordered and unordered list markers', asy
   const view = await render(
     <MarkdownText
       source={
-        '## Liability review\n\n- Cap damages\n- Exclude indirect loss\n\n1. Define a cap\n2. Narrow exceptions'
+        '# Liability review\n\n## Allocation\n\n### Exceptions\n\n- Cap damages\n- Exclude indirect loss\n\n1. Define a cap\n2. Narrow exceptions'
       }
     />,
   );
   try {
-    expect(view.container.querySelector('h2')?.className).toContain(
-      'font-serif',
-    );
+    for (const heading of view.container.querySelectorAll('h1, h2, h3')) {
+      expect(heading.className).toContain('font-semibold');
+      expect(heading.className).not.toContain('font-serif');
+    }
     expect(view.container.querySelector('ul')?.className).toContain(
       'list-disc',
     );
