@@ -369,3 +369,94 @@ at `c704190` passed both functional/unit/integration and Compose layers.
 The isolated startup abort is neither passing nor failing latency evidence;
 the single measured isolated run remains pending. No query optimization,
 threshold change or retry to seek a better number was performed.
+
+## Single isolated Linux measurement — gate missed, STOP
+
+The startup and trigger repairs passed scoped spec/quality reviews. The
+benchmark-only global setup now builds packages before loading infrastructure.
+Automatic execution uses actual changed-file filters on pushes to all branches
+(`branches: ['**']`, excluding tag events), plus manual dispatch. This avoids
+PR filters' cumulative-diff behavior. A final-head run remains mandatory before
+handoff; no further measured run is authorized after the miss below.
+
+The single measured isolated Linux job
+[43175713326](https://github.com/pahle/lexon-ai-v6/actions/runs/43175713326)
+ran source `86ddad8572d46ee32e3633dda1e05562632ddbe3`.
+It finished all four classes, with five warmups and **30 measured HTTP 200
+requests per class**. The unchanged under-300-ms p95 gate failed for stem,
+partial and article queries. There was no retry for a better number.
+Task 13 performance acceptance remains open and Task 14 remains stopped.
+
+The complete [Linux JSONL evidence](F4-search-linux-gate-2026-11-12.jsonl)
+contains 157 records, including all 120 samples, 20 warmups, four complete
+nested plans, actual runner/container metadata, source attribution, migration
+costs, vector sizes, the summary, and the assertion failure. SHA-256:
+`afcb37e9af9bbf3b676bee59942929491c41c6e6f95f282de02be9d4cafc91b0`.
+GitHub artifact `13924043317` uploaded despite failure with 14-day retention;
+the committed copy remains durable. Compact per-class summaries also survived
+in the job log. The controller independently checked all 22 source hashes
+against the producer, sample indexes/counts/statuses, nearest-rank statistics,
+and the four plans. This verification did not rerun the benchmark.
+
+### Local and isolated Linux results
+
+Both use the unchanged synthetic fixture: 2,000 owner chats, 50,000 owner
+messages, 24,000 canonical answer runs and 1,000,002 other-owner messages in
+40,002 chats. The local producer is `2bf4281`; the Linux producer is `86ddad8`.
+The production repository, search service, fixture and migrations have identical
+source hashes. No query, RLS, timeout, sample-count or threshold change was made.
+
+| Class            | Local p50 ms | Local p95 ms | Local max ms | Linux p50 ms | Linux p95 ms | Linux max ms |
+| ---------------- | -----------: | -----------: | -----------: | -----------: | -----------: | -----------: |
+| Stem             |       256.28 |       273.00 |       278.32 |       391.52 |   **405.30** |       498.37 |
+| Partial          |       232.36 |       259.52 |       277.54 |       377.93 |   **401.93** |       405.51 |
+| Article (`1320`) |       235.36 |       251.33 |       254.98 |       384.37 |   **407.02** |       407.34 |
+| No match         |       169.62 |       188.87 |       194.31 |       222.20 |       227.88 |       231.35 |
+
+The earlier contended/default-suite Linux result remains recorded separately:
+stem p95 360.01 ms, without a retained full artifact. It is not substituted for
+this complete isolated result. The startup-only attempt has no timing data.
+
+### Actual Linux machine and PostgreSQL settings
+
+Runner image: `ubuntu-24.04`, `ImageOS=ubuntu24`,
+`ImageVersion=20261101.360.1`; Linux `7.0.0-1017-azure`, x64;
+AMD EPYC 7763 64-Core Processor, **4 available CPUs**, **16,760,336,384 bytes RAM**.
+Docker 28.0.4 reports the same CPU and memory capacity, systemd/cgroup v2.
+PostgreSQL is `17.11 (Debian 17.11-1.pgdg12+2)`, image
+`postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5`.
+Its actual HostConfig has memory, NanoCPUs, CPU quota/period/shares all zero
+(no explicit limits), empty CPU-set and null PID limit. Effective cgroup
+CPU is `max 100000`, CPU set `0-3`, memory has no finite recorded limit,
+and PID maximum is 17,436. These are observed Linux values, not the local
+Docker Desktop metadata.
+
+App-session settings: `statement_timeout=10000ms`, `work_mem=4096kB`,
+`shared_buffers=16384×8kB`, `effective_cache_size=524288×8kB`,
+`effective_io_concurrency=1`, `jit=on`, `max_parallel_workers_per_gather=2`,
+`random_page_cost=4`, `seq_page_cost=1`, `enable_seqscan=on`.
+
+### Plans and migration evidence
+
+Every Linux plan retains a 62-node nested tree. In each, the owner CTE contains
+`chats_owner_activity` with both `org_id` and `owner_user_id` index conditions
+and partial predicate `(deleted_at IS NULL)`. Execution role is `lexon_app`,
+org/user context is set, and chats/messages/runs have enabled and forced RLS.
+There is no whole-table sequential scan on those tables. Final indexes used:
+`chats_owner_activity`, `chats_pkey`, `chat_messages_tree`,
+`chat_runs_org_id_run_id_key`, `ai_runs_org_id_id_key`, `ai_runs_pkey`.
+No GIN index, RLS bypass, LEAKPROOF change or planner override was introduced.
+Full local and Linux plan trees are available in their linked JSONL files.
+The plan difference and hardware difference alone do not establish a cause for
+the latency difference; no further optimization or causal claim is made.
+
+Linux populated migration times were 6,033.37 ms for message vectors and
+8,824.85 ms for answer vectors. Message relation bytes changed from
+433,938,432 to 451,510,272; vectors total 51,304,300 bytes (p50/p95 87/89).
+Run relation bytes changed from 264,003,584 to 277,135,360; vectors total
+45,818,400 bytes (p50/p95 67/67). Post-migration ANALYZE and generated-column
+write-prohibition checks passed. Synthetic-term compressibility remains a
+limitation; this is not F8/S3 document-scale search evidence.
+
+Work is stopped for the owner's decision. No further benchmark, optimization,
+threshold change, timeout change or Task 14 implementation follows this miss.

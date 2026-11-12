@@ -707,9 +707,18 @@ originals. Completed tasks were not repeated.
 
 ## Task 13 — private history, search and feedback
 
-Linux CI at `9f1c619` later missed the unchanged gate: stem p95 360.01 ms.
-See the diagnostic’s Linux CI section for the stop and missing CI artifact
-evidence. The local results below remain valid only for the recorded local run.
+**STOP: the single isolated Linux measurement missed the gate.** Run
+[43175713326](https://github.com/pahle/lexon-ai-v6/actions/runs/43175713326)
+at `86ddad8` completed all 120 requests successfully, but p95 was 405.30 ms
+(stem), 401.93 ms (partial), 407.02 ms (article), and 227.88 ms (no-match).
+Task 13 performance acceptance remains open; Task 14 stays stopped for owner
+direction. No retry or optimization followed this miss.
+
+The [diagnostic](F4-search-query-plan-gap.md) compares both runs and records
+actual Linux hardware/settings, four owner-first RLS plans and all timings in
+[durable Linux evidence](F4-search-linux-gate-2026-11-12.jsonl). The earlier
+startup-only attempt is retained separately and has no latency samples.
+The local results below apply only to the recorded local run.
 
 The owner-approved RLS and stored-vector amendments are implemented. Search
 uses generated English vectors derived from user text and canonical run output,
