@@ -71,37 +71,16 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Send message' }),
-  ).toHaveAttribute('aria-disabled', 'true');
+  ).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'Add Attachment' }),
-  ).toHaveAttribute('aria-disabled', 'true');
-  const openTooltips = page.locator('[data-slot="tooltip-content"][data-open]');
-  await expect(openTooltips).toHaveCount(0);
-  await expect(page.getByText('No conversations yet.')).toBeVisible();
-
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /voice|audio|record/i }),
+  ).toHaveCount(0);
   await message.fill('Draft legal question');
-  await message.press('Enter');
-  await expect(message).toHaveValue('Draft legal question\n');
-  const send = page.getByRole('button', { name: 'Send message' });
-  await send.focus();
-  await expect(send).toBeFocused();
-  await expect(openTooltips).toHaveCount(1);
-  await expect(openTooltips).toContainText('Chat is coming soon');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Enter');
-  await send.click({ force: true });
-  await message.focus();
-  await expect(openTooltips).toHaveCount(0);
-  const attachment = page.getByRole('button', { name: 'Add Attachment' });
-  await attachment.focus();
-  await expect(attachment).toBeFocused();
-  await expect(openTooltips).toHaveCount(1);
-  await expect(openTooltips).toContainText('Chat is coming soon');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Enter');
-  await attachment.click({ force: true });
+  await expect(message).toHaveValue('Draft legal question');
   await expect(page.locator('[data-role="user"]')).toHaveCount(0);
-  await expect(page.getByText('New Thread')).toHaveCount(0);
   expect(chatRequests).toEqual([]);
 
   const sidebarContainer = page.locator(
@@ -464,21 +443,15 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   });
   await page.setViewportSize({ width: 768, height: 720 });
   await page.goto(`${stack.frontendUrl}/workspace`);
-  await expect(
-    page.getByRole('heading', { name: 'Home', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
   const composerInput = page.getByRole('textbox', { name: 'Message input' });
-  const attachment = page.getByRole('button', {
-    name: 'Add Attachment',
-    exact: true,
-  });
   const send = page.getByRole('button', {
     name: 'Send message',
     exact: true,
   });
   await expect(composerInput).toBeVisible();
-  await expect(attachment).toBeVisible();
   await expect(send).toBeVisible();
+  await expect(send).toBeDisabled();
   // This test-only structural aside checks desktop layout around RightPanel's
   // host; frontend/test/right-panel.spec.tsx verifies its actual mobile modal.
   await page.locator('[data-panel-host]').evaluate((host) => {
@@ -535,7 +508,7 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
         ),
         'main content',
       );
-      const headingElement = one('main#main h1', 'page heading');
+      const headingElement = one('main#main h2', 'page headline');
       const heading = rect(headingElement, 'page heading');
       const textRange = document.createRange();
       textRange.selectNodeContents(headingElement);
@@ -546,10 +519,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
       const panel = rect(
         one('[data-panel-host] aside[aria-label="Details"]', 'test panel'),
         'test panel',
-      );
-      const attachment = rect(
-        one('button[aria-label="Add Attachment"]', 'attachment action'),
-        'attachment action',
       );
       const send = rect(
         one('button[aria-label="Send message"]', 'send action'),
@@ -565,7 +534,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
         panelWidth: panel.width,
         documentWidth: document.documentElement.scrollWidth,
         composer: rect(composer, 'message input'),
-        attachment,
         send,
         panelCount: panelHost.querySelectorAll('aside').length,
       };
@@ -586,7 +554,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
       snapshot.composer.right,
       'message input must not overlap the optional panel',
     ).toBeLessThanOrEqual(snapshot.panelLeft);
-    expect(snapshot.attachment.right).toBeLessThanOrEqual(snapshot.panelLeft);
     expect(snapshot.send.right).toBeLessThanOrEqual(snapshot.panelLeft);
   };
   assertGeometry(geometry);
@@ -609,7 +576,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     expect(overlappingGeometry.composer.right).toBeGreaterThan(
       overlappingGeometry.panelLeft,
     );
-    expect(overlappingGeometry.attachment).toEqual(geometry.attachment);
     expect(overlappingGeometry.send).toEqual(geometry.send);
     expect(() => assertGeometry(overlappingGeometry)).toThrow(
       /message input must not overlap the optional panel/,

@@ -796,7 +796,7 @@ test('real API-authenticated Home captures Task 6A shell states', async ({
   }
 });
 
-test('inert Home composer controls render the published disabled opacity while remaining focusable', async ({
+test('F4 new-chat composer exposes its active input and no retired controls', async ({
   page,
 }) => {
   const stack = descriptor();
@@ -807,22 +807,17 @@ test('inert Home composer controls render the published disabled opacity while r
   );
   expect(onboarding.status()).toBe(204);
   await page.goto(stack.frontendUrl + '/workspace');
-  for (const selector of [
-    '.aui-composer-add-attachment',
-    '.aui-composer-send',
-  ]) {
-    const control = page.locator(selector);
-    await expect(control).toHaveAttribute('aria-disabled', 'true');
-    expect(
-      await control.evaluate((node) => getComputedStyle(node).opacity),
-    ).toBe('0.5');
-    expect(
-      await control.evaluate((node) => (node as HTMLElement).tabIndex),
-    ).toBeGreaterThanOrEqual(0);
-    expect(
-      await control.evaluate((node) => getComputedStyle(node).display),
-    ).not.toBe('none');
-  }
+  await expect(
+    page.getByRole('textbox', { name: 'Message input' }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('button', {
+      name: /attachment|voice|audio|record|branch|sample|example/i,
+    }),
+  ).toHaveCount(0);
 });
 
 test('Task 6B auth state captures cover sign-in and secondary flows', async ({
@@ -1236,7 +1231,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       .click();
     await expect(secondOwnerPage).toHaveURL(/workspace/);
     await expect(
-      secondOwnerPage.getByRole('heading', { name: 'Home' }),
+      secondOwnerPage.getByRole('textbox', { name: 'Message input' }),
     ).toBeVisible();
     expect(
       await secondOwnerPage.evaluate(
@@ -1287,7 +1282,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   expect(requireTwoFactor).toBe(200);
 
   await page.goto(stack.frontendUrl + '/workspace');
-  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'home', theme);
   await captureTask9Variants(page, 'home', 'Home');

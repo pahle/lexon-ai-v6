@@ -85,6 +85,16 @@ jobs:
           else
             pnpm test:e2e
           fi
+      - name: Upload F4 chat preview captures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f4-chat-preview-${{ github.sha }}
+          path: |
+            test-results/f4-chat/*.png
+            test-results/f4-chat/*.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Verify exact approved Linux baseline manifest
         if: success() && github.event_name == 'workflow_dispatch'
         run: node scripts/test/write-visual-baseline-manifest.mjs
