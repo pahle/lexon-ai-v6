@@ -337,3 +337,35 @@ capture needs actual runner metadata and failure-path artifact retention.
 No optimization, RLS change, planner override, timeout increase, threshold
 change or manual CI retry was performed after discovering this miss. The owner
 must decide the next measurement or optimization scope before work resumes.
+
+## Isolated Linux setup attempt — no measurements
+
+The owner approved moving the representative benchmark out of default tests,
+with relevant-path/manual isolated CI and a mandatory final-head measurement.
+The functional search tests remain in normal CI. The dedicated layer always
+uploads JSONL with 14-day retention and prints per-class summaries before the
+latency assertion; query, RLS, timeout, fixture and threshold are unchanged.
+
+The first isolated job [43172798424](https://github.com/pahle/lexon-ai-v6/actions/runs/43172798424)
+at `c704190738e41ef3813e0924737cae21b4ac437e` aborted during startup,
+before the benchmark body or fixture ran. It produced **no latency samples**.
+The always-upload step preserved its
+[partial artifact](F4-search-linux-startup-2026-11-12.jsonl), SHA-256
+`005a49ed775bf329106ce4d40062513104e43881b79baf266b878f761e2fc950`.
+Its actual runner was Ubuntu image `20261101.360.1` (`ubuntu24`), AMD EPYC
+9V74, 4 CPUs and 16,760,348,672 bytes RAM, Docker 28.0.4. PostgreSQL limits,
+plans and timing records do not exist for this setup attempt.
+
+Vitest 5.0.5 imported all global setup modules before executing their callbacks.
+The infrastructure module transitively imported workspace contracts before
+package preparation created `shared/dist`. A clean Node 24.22.1 Linux canary
+reproduced the same startup error without running the representative fixture.
+The benchmark-only wrapper now initializes evidence, awaits package preparation,
+then dynamically imports infrastructure. The repaired Linux canary passed and
+the actual benchmark config collected its spec with the body skipped.
+
+Normal CI [43172798227](https://github.com/pahle/lexon-ai-v6/actions/runs/43172798227)
+at `c704190` passed both functional/unit/integration and Compose layers.
+The isolated startup abort is neither passing nor failing latency evidence;
+the single measured isolated run remains pending. No query optimization,
+threshold change or retry to seek a better number was performed.
