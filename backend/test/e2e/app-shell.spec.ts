@@ -486,8 +486,12 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
           width: bounds.width,
         };
       };
-      const one = (selector: string, label: string) => {
-        const matches = document.querySelectorAll(selector);
+      const one = (
+        selector: string,
+        label: string,
+        root: ParentNode = document,
+      ) => {
+        const matches = root.querySelectorAll(selector);
         if (matches.length !== 1) {
           throw new Error(`Expected one ${label}, found ${matches.length}`);
         }
@@ -501,14 +505,12 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
         'workspace sidebar',
       );
       const main = rect(one('main#main', 'main'), 'main');
-      const content = rect(
-        one(
-          'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
-          'main content',
-        ),
+      const contentElement = one(
+        'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
         'main content',
       );
-      const headingElement = one('main#main h2', 'page headline');
+      const content = rect(contentElement, 'main content');
+      const headingElement = one('h2', 'page headline', contentElement);
       const heading = rect(headingElement, 'page heading');
       const textRange = document.createRange();
       textRange.selectNodeContents(headingElement);
