@@ -703,6 +703,26 @@ were unaffected. The controller reconstructed the progress ledger from commits
 and retained session records; lost private logs are not claimed as recovered
 originals. Completed tasks were not repeated.
 
+## Task 13 — performance gate stopped
+
+Task 13 remains incomplete and its source is uncommitted. The owner-approved
+amendment is recorded in plan/design commit `b754f07`. The
+[search diagnostic](F4-search-query-plan-gap.md) records the before/after plan
+observations and stopped representative run: 2,000 owner chats, 50,000 owner
+messages with long canonical answers, plus 1,000,002 other-owner messages across
+40,002 chats. All four owner-first/no-global-scan plan assertions passed before
+warmups. Successful observed server response times were approximately 7.4–8.3
+seconds, and partial-term requests repeatedly returned HTTP 500 at the existing
+10-second deadline. No valid 30-sample class, client p50/p95/max, or no-match
+samples were collected. Some serialized plan/settings detail was truncated;
+these gaps are stated rather than inferred. No further query optimization was
+performed after this failure. Owner direction is required before resuming.
+
+The migration draft removes unused search GIN indexes. No RLS bypass, LEAKPROOF
+change, SECURITY DEFINER search path, forced planner setting, or larger query
+timeout was introduced. F8 and spike S3 still require document-scale indexed
+FTS/trigram search under RLS; this F4 per-owner scan is not that evidence.
+
 ## Pending evidence
 
 Chat UI, search and evals, owner-run high/max smoke and
