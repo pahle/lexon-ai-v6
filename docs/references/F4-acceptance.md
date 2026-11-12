@@ -703,29 +703,57 @@ were unaffected. The controller reconstructed the progress ledger from commits
 and retained session records; lost private logs are not claimed as recovered
 originals. Completed tasks were not repeated.
 
-## Task 13 — performance gate stopped
+## Task 13 — private history, search and feedback
 
-Task 13 remains incomplete and its source is uncommitted. The owner-approved
-amendment is recorded in plan/design commit `b754f07`. The
-[search diagnostic](F4-search-query-plan-gap.md) records the before/after plan
-observations and stopped representative run: 2,000 owner chats, 50,000 owner
-messages with long canonical answers, plus 1,000,002 other-owner messages across
-40,002 chats. All four owner-first/no-global-scan plan assertions passed before
-warmups. Successful observed server response times were approximately 7.4–8.3
-seconds, and partial-term requests repeatedly returned HTTP 500 at the existing
-10-second deadline. No valid 30-sample class, client p50/p95/max, or no-match
-samples were collected. Some serialized plan/settings detail was truncated;
-these gaps are stated rather than inferred. No further query optimization was
-performed after this failure. Owner direction is required before resuming.
+The owner-approved RLS and stored-vector amendments are implemented. Search
+uses generated English vectors derived from user text and canonical run output,
+safe final-token FTS prefixes for bodies, ordinary numeric tokens, and title-only
+trigram matching. Matching messages take precedence over title-only hits; the
+page is selected before bounded plain-text snippets are computed. A statement
+timeout returns HTTP 503 with “Search took too long. Try more specific words.”
+History, search, target resolution and feedback enforce owner and deletion
+predicates. Feedback changes remain tenant-scoped and audited.
 
-The migration draft removes unused search GIN indexes. No RLS bypass, LEAKPROOF
-change, SECURITY DEFINER search path, forced planner setting, or larger query
-timeout was introduced. F8 and spike S3 still require document-scale indexed
-FTS/trigram search under RLS; this F4 per-owner scan is not that evidence.
+The [search diagnostic](F4-search-query-plan-gap.md) retains the initial failed
+gate and subsequent corrections. The final measurement producer is
+`2bf4281fa7e6d783c90e59d5242445fa238f42b1`. The committed
+[153-record evidence](F4-search-final-gate-2026-11-12.jsonl) has SHA-256
+`0bfb1da386b700c0137c8113e6821fd447913090bd8e220026026aba4dc86e6c`.
+It preserves complete nested plans, settings, eight source hashes, migration
+cost, vector sizes, 20 warmups and all 120 measured HTTP 200 requests. Each
+class has 30 sequential warm samples:
+
+| Query class             | p50 ms | p95 ms | max ms |
+| ----------------------- | -----: | -----: | -----: |
+| Stemmed word            | 256.28 | 273.00 | 278.32 |
+| Partial term            | 232.36 | 259.52 | 277.54 |
+| Article number (`1320`) | 235.36 | 251.33 | 254.98 |
+| No match                | 169.62 | 188.87 | 194.31 |
+
+All four p95 values satisfy the unchanged <300 ms gate with 2,000 owner chats,
+50,000 owner messages including long answers, and 1,000,002 other-owner messages.
+The benchmark ran on an Apple M4 / 16 GiB host and Docker Desktop Linux arm64
+VM with 10 CPUs / 8,217,059,328 bytes, PostgreSQL 17.11. Plans start from the
+owner-scoped B-tree under enabled, forced RLS; none sequentially scans whole
+chat/message/run tables. No unused GIN indexes, RLS bypass, LEAKPROOF change,
+SECURITY DEFINER search wrapper, planner override or timeout increase was added.
+
+Review corrections cover body-hit navigation despite title matches, final-token
+prefixes including trailing punctuation, stem-aware bounded snippets, complete
+plan/source evidence, ties, inactive branches, stale/deleted targets and query
+privacy. Controller verification independently checks the artifact/source
+hashes and focused tests; it is not a second benchmark run. Generic logging
+and OpenTelemetry filters have query-canary coverage. No Sentry SDK or sink
+exists in either package, so no Sentry integration test is claimed.
+
+The fixture repeats synthetic terms and is compressible; these timings and
+storage sizes do not generalize to arbitrary corpora. F8 and spike S3 must
+separately solve document-scale indexed FTS/trigram under RLS. Run search vectors
+follow the canonical final/partial columns, not in-flight step checkpoints.
 
 ## Pending evidence
 
-Chat UI, search and evals, owner-run high/max smoke and
+Chat UI and evals, owner-run high/max smoke and
 calibration, S2 load, visual approval and Linux golden evidence remain pending.
 No real model request, paid eval dispatch or account/admin change was made.
 Production TLS/hardening stays F20; P8 physical-region verification and F17

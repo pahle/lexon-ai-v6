@@ -287,10 +287,10 @@ elapsed milliseconds:
 | no-match         |      30 | 169.62 | 188.87 |     194.31 |        0 |
 
 Every p95 remains below the owner-approved 300 ms target. Migration 0036 on
-the populated fixture took 2,866.78 ms for message vectors and 3,899.30 ms for
-answer vectors. Message relation bytes changed from 434,429,952 to 451,477,504
+the populated fixture took 2,816.14 ms for message vectors and 4,095.09 ms for
+answer vectors. Message relation bytes changed from 436,469,760 to 451,477,504
 (51,304,300 vector bytes; vector size p50/p95 87/89 bytes). Run relation
-bytes changed from 263,356,416 to 277,094,400 (45,818,400 vector bytes;
+bytes changed from 263,757,824 to 277,094,400 (45,818,400 vector bytes;
 p50/p95 67/67 bytes). `ANALYZE` ran after migration; direct writes to either
 generated vector were rejected.
 
