@@ -1,12 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type {
+  ChatPage,
   ChatMutationResult,
   ChatTree as SharedChatTree,
   CreateChatInput,
   SendMessageInput,
 } from '@lexon/contracts';
 import { ChatApiError } from '@lexon/contracts';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatPageSchema, ChatTreeSchema } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
 import {
   AiStepRepository,
@@ -14,6 +16,7 @@ import {
   ChatMutationRepository,
   ChatRepository,
   ChatDeletionRepository,
+  ChatSearchRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -22,6 +25,23 @@ import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
 import { titleExcerpt } from './chat-title.service.js';
 
+const listCursorSchema = z.tuple([
+  z.literal(1),
+  z.string().regex(/^[a-f0-9]{64}$/),
+  z.iso.datetime(),
+  z.uuid(),
+]);
+
+function encodeListCursor(input: z.infer<typeof listCursorSchema>): string {
+  return Buffer.from(JSON.stringify(input), 'utf8').toString('base64url');
+}
+
+function ownerDigest(actor: RunActor): string {
+  return createHash('sha256')
+    .update(`${actor.orgId}\0${actor.userId}`, 'utf8')
+    .digest('hex');
+}
+
 export class ChatService {
   private readonly chats = new ChatRepository();
   private readonly messages = new ChatMessageRepository();
@@ -29,6 +49,7 @@ export class ChatService {
   private readonly steps = new AiStepRepository();
   private readonly audit = new AuditService();
   private readonly deletions = new ChatDeletionRepository();
+  private readonly searchRepository = new ChatSearchRepository();
 
   constructor(
     private readonly database: TenantDatabase,
@@ -268,7 +289,7 @@ export class ChatService {
                   status: RunStatusSchema.parse(message.status),
                   reasoningSummary: message.reasoningSummary,
                   reasoningDurationMs: message.reasoningDurationMs,
-                  feedback: null,
+                  feedback: message.feedback,
                   createdAt: message.createdAt.toISOString(),
                 };
           }),
@@ -278,6 +299,80 @@ export class ChatService {
         });
       },
     );
+  }
+
+  async list(
+    actor: RunActor,
+    input: { cursor?: string; limit?: number } = {},
+  ): Promise<ChatPage> {
+    this.authorization.assertLiveActor(actor);
+    const request = z
+      .strictObject({
+        cursor: z.string().min(1).max(256).optional(),
+        limit: z.number().int().min(1).max(100).default(20),
+      })
+      .parse(input);
+    let cursor: z.infer<typeof listCursorSchema> | null = null;
+    if (request.cursor) {
+      try {
+        cursor = listCursorSchema.parse(
+          JSON.parse(Buffer.from(request.cursor, 'base64url').toString('utf8')),
+        );
+        if (cursor[1] !== ownerDigest(actor))
+          throw new Error();
+      } catch {
+        throw new ChatApiError('CHAT_CONFLICT');
+      }
+    }
+    return this.database.withTenant(
+      { orgId: actor.orgId, userId: actor.userId },
+      async (tx) => {
+        const rows = await this.searchRepository.list(
+          tx,
+          cursor
+            ? { activityAt: cursor[2], chatId: cursor[3] }
+            : null,
+          request.limit + 1,
+        );
+        const hasMore = rows.length > request.limit;
+        const pageRows = hasMore ? rows.slice(0, request.limit) : rows;
+        const items = pageRows.map((row) => ({
+          id: row.id,
+          title: row.title || 'New chat',
+          updatedAt: row.updated_at.toISOString(),
+          lastMessageAt: row.last_message_at?.toISOString() ?? null,
+        }));
+        const last = pageRows.at(-1);
+        return ChatPageSchema.parse({
+          items,
+          pageInfo: {
+            nextCursor:
+              hasMore && last
+                ? encodeListCursor([
+                    1,
+                    ownerDigest(actor),
+                    last.activity_at,
+                    last.id,
+                  ])
+                : null,
+          },
+        });
+      },
+    );
+  }
+
+  async resolveSearchMatch(
+    actor: RunActor,
+    chatId: string,
+    messageId: string,
+  ): Promise<{ leafId: string; messageId: string }> {
+    this.authorization.assertLiveActor(actor);
+    const resolved = await this.database.withTenant(
+      { orgId: actor.orgId, userId: actor.userId },
+      (tx) => this.searchRepository.resolveMatch(tx, chatId, messageId),
+    );
+    if (!resolved) throw new ChatApiError('CHAT_NOT_FOUND');
+    return resolved;
   }
 
   async assertLiveAnswerRun(actor: RunActor, runId: string): Promise<void> {

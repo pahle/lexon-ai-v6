@@ -78,6 +78,19 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         'POST',
         contracts.ChatSearchRequestSchema.parse(input),
       ),
+    resolveSearchMatch: (chatId, messageId) =>
+      call(
+        `/chats/${id(chatId)}/search-match/${id(messageId)}`,
+        contracts.ChatSearchMatchSchema,
+        'POST',
+      ),
+    setFeedback: (chatId, messageId, input) =>
+      call(
+        `/chats/${id(chatId)}/messages/${id(messageId)}/feedback`,
+        null,
+        'PUT',
+        contracts.SetChatFeedbackInputSchema.parse(input),
+      ),
     send: (chatId, input) =>
       call(
         `/chats/${id(chatId)}/messages`,

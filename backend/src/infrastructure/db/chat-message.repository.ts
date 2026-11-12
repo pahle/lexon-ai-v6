@@ -13,6 +13,7 @@ export interface ChatMessageRecord {
   readonly assistantText: string | null;
   readonly reasoningSummary: string | null;
   readonly reasoningDurationMs: number | null;
+  readonly feedback: 'good' | 'bad' | null;
   readonly runId: string | null;
   readonly status: string | null;
   readonly createdAt: Date;
@@ -49,6 +50,7 @@ interface TreeRow {
   assistant_text: string | null;
   reasoning_summary: string | null;
   reasoning_duration_ms: number | null;
+  feedback: 'good' | 'bad' | null;
   created_at: Date;
 }
 
@@ -286,10 +288,13 @@ export class ChatMessageRepository {
           ELSE COALESCE(r.partial_output,'') END AS assistant_text,
         CASE WHEN m.role='assistant' THEN r.reasoning_summary ELSE NULL END AS reasoning_summary,
         CASE WHEN m.role='assistant' THEN r.reasoning_duration_ms ELSE NULL END AS reasoning_duration_ms,
-        m.created_at,c.viewed_leaf_id
+        feedback.rating AS feedback,m.created_at,c.viewed_leaf_id
        FROM app.chats c
        LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
        LEFT JOIN app.ai_runs r ON r.org_id=m.org_id AND r.id=m.run_id
+       LEFT JOIN app.message_feedback feedback ON feedback.org_id=m.org_id
+         AND feedback.chat_id=m.chat_id AND feedback.message_id=m.id
+         AND feedback.owner_user_id=c.owner_user_id
        LEFT JOIN LATERAL (
          SELECT checkpoint.text FROM app.ai_steps current_step
          JOIN app.ai_checkpoints checkpoint
@@ -322,6 +327,7 @@ export class ChatMessageRepository {
         assistantText: row.assistant_text,
         reasoningSummary: row.reasoning_summary,
         reasoningDurationMs: row.reasoning_duration_ms,
+        feedback: row.feedback,
         runId: row.run_id,
         status: row.status,
         createdAt: row.created_at,

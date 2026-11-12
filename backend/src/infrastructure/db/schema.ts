@@ -12,9 +12,12 @@ import {
   uniqueIndex,
   foreignKey,
   smallint,
+  customType,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 const ops = pgSchema('ops');
 const app = pgSchema('app');
+const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
 export const outbox = ops.table('outbox', {
   id: uuid().primaryKey(),
   type: text().notNull(),
@@ -81,6 +84,9 @@ export const aiRuns = app.table(
     }).notNull(),
     partialOutput: text('partial_output').notNull(),
     finalOutput: text('final_output'),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('english',coalesce(CASE WHEN status='completed' THEN final_output ELSE partial_output END,''))`,
+    ),
     reasoningSummary: text('reasoning_summary'),
     reasoningDurationMs: integer('reasoning_duration_ms'),
     streamGeneration: bigint('stream_generation', { mode: 'number' }).notNull(),
@@ -417,6 +423,9 @@ export const chatMessages = app.table(
     parentMessageId: uuid('parent_message_id'),
     role: text().notNull(),
     userText: text('user_text'),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('english',coalesce(user_text,''))`,
+    ),
     effort: text(),
     runId: uuid('run_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { RunErrorCodeSchema } from './ai-run.js';
 
-export const ChatErrorCodeSchema = z.enum(['CHAT_CONFLICT', 'CHAT_NOT_FOUND']);
+export const ChatErrorCodeSchema = z.enum([
+  'CHAT_CONFLICT',
+  'CHAT_NOT_FOUND',
+  'CHAT_SEARCH_TIMEOUT',
+]);
 export type ChatErrorCode = z.infer<typeof ChatErrorCodeSchema>;
 
 export const SafeErrorCodeSchema = z.union([
@@ -31,14 +35,19 @@ export const SafeErrorMessages = {
   CHAT_CONFLICT:
     'This chat is busy. Try again when the current answer finishes.',
   CHAT_NOT_FOUND: 'Chat not found.',
+  CHAT_SEARCH_TIMEOUT: 'Search took too long. Try more specific words.',
 } as const satisfies Record<SafeErrorCode, string>;
 
 export class ChatApiError extends Error {
-  readonly status: 404 | 409;
+  readonly status: 404 | 409 | 503;
 
   constructor(readonly code: ChatErrorCode) {
     super(SafeErrorMessages[code]);
-    this.status = code === 'CHAT_NOT_FOUND' ? 404 : 409;
+    this.status = code === 'CHAT_NOT_FOUND'
+      ? 404
+      : code === 'CHAT_CONFLICT'
+        ? 409
+        : 503;
   }
 }
 

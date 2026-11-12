@@ -146,12 +146,24 @@ export const ChatSearchPageSchema = z.strictObject({
       title: z.string().min(1).max(240),
       messageId: uuid.nullable(),
       excerpt: z.string().max(500),
+      matchStart: z.number().int().min(0).nullable(),
+      matchEnd: z.number().int().min(0).nullable(),
       updatedAt: timestamp,
     }),
   ),
   pageInfo: z.strictObject({ nextCursor: z.string().max(256).nullable() }),
 });
 export type ChatSearchPage = z.infer<typeof ChatSearchPageSchema>;
+
+export const ChatSearchMatchSchema = z.strictObject({
+  leafId: uuid,
+  messageId: uuid,
+});
+export type ChatSearchMatch = z.infer<typeof ChatSearchMatchSchema>;
+export const SetChatFeedbackInputSchema = z.strictObject({
+  rating: ChatFeedbackSchema,
+});
+export type SetChatFeedbackInput = z.infer<typeof SetChatFeedbackInputSchema>;
 
 export const CreateChatInputSchema = z.strictObject({
   chatId: uuid,
@@ -320,6 +332,12 @@ export interface ChatApi {
   get(chatId: string): Promise<ChatTree>;
   list(input?: { cursor?: string; limit?: number }): Promise<ChatPage>;
   search(input: ChatSearchRequest): Promise<ChatSearchPage>;
+  resolveSearchMatch(chatId: string, messageId: string): Promise<ChatSearchMatch>;
+  setFeedback(
+    chatId: string,
+    messageId: string,
+    input: SetChatFeedbackInput,
+  ): Promise<void>;
   send(chatId: string, input: SendMessageInput): Promise<ChatMutationResult>;
   edit(chatId: string, input: EditMessageInput): Promise<ChatMutationResult>;
   regenerate(

@@ -130,3 +130,67 @@ changed to work around those documented constraints.
 The gate's request failures need owner review before further performance
 work. This report does not claim the 300 ms target was met, does not waive the
 30-sample requirement, and does not mark Task 13 complete.
+
+## Owner-authorized generated-vector optimization and final gate
+
+The owner then authorized a bounded optimization: stored generated English
+vectors for user messages and canonical answer output, a materialized
+query-input CTE, safe prefix-query construction, and title-only trigram
+matching. The answer vector follows the existing search rule: completed runs
+use `final_output`; all other statuses use `partial_output`. No vector index
+was added because the final representative plans did not select one. The
+production search path retains app-role RLS and the same explicit owner,
+organization, and nondeleted-chat checks. Search timeout SQLSTATE 57014 maps
+to a fixed HTTP 503 message.
+
+The corrected final run used the command above. It seeded 2,000 owner chats,
+50,000 owner messages, 24,000 canonical answer runs, and 1,000,002 unrelated
+messages across 40,002 unrelated chats. It applied migration 0036 to the
+populated tables and ran `ANALYZE app.chats, app.chat_messages, app.ai_runs`
+before planning. PostgreSQL reported `17.11 (Debian 17.11-1.pgdg12+2)`; the
+same app-role connection reported `statement_timeout=10000 ms`,
+`enable_seqscan=on`, `work_mem=4096 kB`, `shared_buffers=16384` (8kB pages),
+`effective_cache_size=524288` (8kB pages), `random_page_cost=4`,
+`seq_page_cost=1`, `jit=on`, `effective_io_concurrency=1`, and
+`max_parallel_workers_per_gather=2`. No planner override was used.
+
+All four EXPLAIN JSON plans passed the owner-first and no-whole-table-scan
+assertions. Each owner CTE starts with `chats_owner_activity` using both
+`org_id` and `owner_user_id`; message access uses `chat_messages_tree` and
+other primary/unique B-tree indexes. No plan has a sequential scan on chats,
+chat_messages, or ai_runs. No generated-vector GIN index was selected or
+created. The complete sanitized plan nodes and settings are retained in the
+benchmark JSONL artifact.
+
+Adding the stored generated columns to the populated fixture took 3,018.03 ms
+for the message vector and 3,792.81 ms for the answer vector. Afterward,
+message relation bytes were 431,923,200 before and 451,477,504 after, with
+51,304,300 vector bytes (vector size p50 87 bytes, p95 89 bytes). Run relation
+bytes were 262,668,288 before and 277,094,400 after, with 45,818,400 vector
+bytes (p50/p95 67 bytes). Direct writes to both generated columns were
+rejected as expected.
+
+After five successful warmups per class, the harness recorded 30 successful
+API requests per class. These are client-side elapsed milliseconds from the
+HTTP request helper:
+
+| Query class | Samples | p50 ms | p95 ms | Maximum ms | Failures |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| stem | 30 | 246.60 | 281.75 | 283.26 | 0 |
+| partial | 30 | 223.51 | 237.41 | 259.13 | 0 |
+| article (`1320`) | 30 | 224.45 | 231.26 | 260.06 | 0 |
+| no-match | 30 | 168.18 | 173.22 | 174.37 | 0 |
+
+All four measured p95 values are below the owner-approved 300 ms target. The
+earlier failed warmup run remains documented as historical; it did not
+contain a complete measurement set and was not used to claim a p95 miss. The
+artifact is `test-results/f4-search/gate-2026-11-12T03-54-29.116Z-39372.jsonl`.
+Its source SHA-256 manifest includes the 0035/0036 migrations, repository,
+schema, fixture, benchmark helper, service, and performance test. Host was
+Apple M4/macOS 27.0/arm64 with 10 CPUs and 16 GiB; Docker Desktop VM had 10
+CPUs and 8,217,059,328 bytes, with container limits unlimited inside the VM.
+
+This is bounded evidence for the accepted per-owner chat-search fixture. It
+does not establish indexed full-text or trigram behavior under RLS at document
+scale; the separate F8 retrieval and S3 spike remain responsible for that
+scale requirement.

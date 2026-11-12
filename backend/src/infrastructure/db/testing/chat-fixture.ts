@@ -6,7 +6,7 @@ import { AiStepRepository } from '../ai-step.repository.js';
 import { ChatRepository } from '../chat.repository.js';
 import { ChatMessageRepository } from '../chat-message.repository.js';
 import { ChatDeletionRepository } from '../chat-deletion.repository.js';
-import { requireSession } from '../tenant-session.js';
+import { requireSession, type TenantSession } from '../tenant-session.js';
 import type { ModelEvent, ModelGateway } from '../../ai/index.js';
 import { createAiFixture } from './ai-fixture.js';
 import type { StepClaim } from '../ai-records.js';
@@ -231,6 +231,211 @@ export async function createChatFixture(services: Services) {
     } finally {
       await client.end();
     }
+  }
+  async function feedbackWithoutTenant(chatId: string, messageId: string) {
+    const client = appClient();
+    await client.connect();
+    try {
+      return await client.query(
+        'SELECT rating FROM app.message_feedback WHERE chat_id=$1 AND message_id=$2',
+        [chatId, messageId],
+      );
+    } finally {
+      await client.end();
+    }
+  }
+  async function seedSearchPerformanceCorpus(ctx: {
+    orgId: string;
+    userId: string;
+  }) {
+    const chatCount = 2_000;
+    const usersPerChat = 13;
+    const answersPerChat = 12;
+    const chatIds = Array.from({ length: chatCount }, () => randomUUID());
+    const userIds = Array.from({ length: usersPerChat }, () =>
+      Array.from({ length: chatCount }, () => randomUUID()),
+    );
+    const runIds = Array.from({ length: answersPerChat }, () =>
+      Array.from({ length: chatCount }, () => randomUUID()),
+    );
+    const outputByteLengths = Array.from(
+      { length: chatCount * answersPerChat },
+      (_, index) => index % 20 === 0 ? 12_288 : index % 5 === 0 ? 4_096 : 512,
+    );
+    const answerBase =
+      'Synthetic canonical answer fixture. Index marker: agreements, contract, article 1320. This neutral placeholder contains no legal analysis. ';
+    const buildAnswer = (length: number) =>
+      answerBase.repeat(Math.ceil(length / answerBase.length)).slice(0, length);
+    const insertUsers = async (
+      tx: TenantSession,
+      turn: number,
+      parentIds: readonly string[] | null,
+    ) => {
+      const { client } = requireSession(tx);
+      for (let start = 0; start < chatCount; start += 400) {
+        const end = Math.min(chatCount, start + 400);
+        const ids = userIds[turn]!.slice(start, end);
+        const idsForChats = chatIds.slice(start, end);
+        const texts = ids.map((_, offset) => {
+          const chatIndex = start + offset;
+          switch ((chatIndex + turn) % 4) {
+            case 0: return `Synthetic user prompt with agreements marker ${chatIndex}-${turn}`;
+            case 1: return `Synthetic user prompt with contract marker ${chatIndex}-${turn}`;
+            case 2: return `Synthetic user prompt with article 1320 marker ${chatIndex}-${turn}`;
+            default: return `Synthetic user prompt with document marker ${chatIndex}-${turn}`;
+          }
+        });
+        await client.query(
+          `INSERT INTO app.chat_messages(id,org_id,chat_id,parent_message_id,role,user_text,effort)
+           SELECT data.message_id,$1,data.chat_id,data.parent_id,'user',data.user_text,'high'
+           FROM unnest($2::uuid[],$3::uuid[],$4::uuid[],$5::text[])
+             AS data(message_id,chat_id,parent_id,user_text)`,
+          [
+            ctx.orgId,
+            ids,
+            idsForChats,
+            parentIds?.slice(start, end) ?? ids.map(() => null),
+            texts,
+          ],
+        );
+      }
+    };
+
+    await ai.database.withTenant(ctx, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chats(id,org_id,owner_user_id,title)
+         SELECT data.chat_id,$1,$2,'F4 Task13 synthetic benchmark chat '||data.ordinal::text
+         FROM unnest($3::uuid[]) WITH ORDINALITY AS data(chat_id,ordinal)`,
+        [ctx.orgId, ctx.userId, chatIds],
+      );
+      await insertUsers(tx, 0, null);
+      for (let turn = 0; turn < answersPerChat; turn++) {
+        for (let start = 0; start < chatCount; start += 400) {
+          const end = Math.min(chatCount, start + 400);
+          const batchRuns = runIds[turn]!.slice(start, end);
+          const batchChats = chatIds.slice(start, end);
+          const batchParents = userIds[turn]!.slice(start, end);
+          const outputs = batchRuns.map((_, offset) => {
+            const outputIndex = turn * chatCount + start + offset;
+            return buildAnswer(outputByteLengths[outputIndex]!);
+          });
+          await client.query(
+            `INSERT INTO app.ai_runs(
+               id,org_id,initiating_user_id,profile_id,profile_version,resolved_config,
+               model_id,input_text,status,input_budget_tokens,output_budget_tokens,
+               final_output,completed_at
+             )
+             SELECT data.run_id,$1,$2,'chat',1,'{}'::jsonb,'synthetic/benchmark',
+               'F4 Task13 synthetic performance prompt','completed',1024,4096,data.final_output,clock_timestamp()
+             FROM unnest($3::uuid[],$4::text[]) AS data(run_id,final_output)`,
+            [ctx.orgId, ctx.userId, batchRuns, outputs],
+          );
+          await client.query(
+            `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+             SELECT $1,data.chat_id,data.run_id,'answer'
+             FROM unnest($2::uuid[],$3::uuid[]) AS data(chat_id,run_id)`,
+            [ctx.orgId, batchChats, batchRuns],
+          );
+          await client.query(
+            `INSERT INTO app.chat_messages(
+               id,org_id,chat_id,parent_message_id,role,user_text,effort,run_id
+             )
+             SELECT data.run_id,$1,data.chat_id,data.parent_id,'assistant',NULL,NULL,data.run_id
+             FROM unnest($2::uuid[],$3::uuid[],$4::uuid[])
+               AS data(run_id,chat_id,parent_id)`,
+            [ctx.orgId, batchRuns, batchChats, batchParents],
+          );
+        }
+        if (turn + 1 < usersPerChat)
+          await insertUsers(tx, turn + 1, runIds[turn]!);
+      }
+    });
+
+    let foreignMessageCount = 0;
+    let foreignChatCount = 0;
+    const foreignMessagesPerTenant = 166_667;
+    const foreignChatsPerTenant = Math.ceil(foreignMessagesPerTenant / 25);
+    for (const tenant of ai.tenants) {
+      const foreignChatIds = Array.from({ length: foreignChatsPerTenant }, () => randomUUID());
+      await ai.database.withTenant(tenant, async (tx) => {
+        const { client } = requireSession(tx);
+        await client.query(
+          `INSERT INTO app.chats(id,org_id,owner_user_id,title)
+           SELECT data.chat_id,$1,$2,'F4 Task13 synthetic foreign chat '||data.ordinal::text
+           FROM unnest($3::uuid[]) WITH ORDINALITY AS data(chat_id,ordinal)`,
+          [tenant.orgId, tenant.userId, foreignChatIds],
+        );
+        let parentIds: Array<string | null> = foreignChatIds.map(() => null);
+        for (let turn = 0; turn < 25; turn++) {
+          const chatIds = foreignChatIds.slice(0, turn < 17 ? undefined : foreignChatsPerTenant - 1);
+          const parents = parentIds.slice(0, chatIds.length);
+          const insertedIds = chatIds.map(() => randomUUID());
+          if (turn % 2 === 0) {
+            await client.query(
+              `INSERT INTO app.chat_messages(
+                 id,org_id,chat_id,parent_message_id,role,user_text,effort
+               )
+               SELECT data.message_id,$1,data.chat_id,data.parent_id,'user',
+                 'Synthetic foreign tenant prompt '||$2::text||'-'||data.ordinal::text,'high'
+               FROM unnest($3::uuid[],$4::uuid[],$5::uuid[]) WITH ORDINALITY
+                 AS data(message_id,chat_id,parent_id,ordinal)`,
+              [tenant.orgId, turn, insertedIds, chatIds, parents],
+            );
+          } else {
+            const outputs = insertedIds.map(() => 'Synthetic foreign tenant response.');
+            await client.query(
+              `INSERT INTO app.ai_runs(
+                 id,org_id,initiating_user_id,profile_id,profile_version,resolved_config,
+                 model_id,input_text,status,input_budget_tokens,output_budget_tokens,
+                 final_output,completed_at
+               )
+               SELECT data.run_id,$1,$2,'chat',1,'{}'::jsonb,'synthetic/benchmark',
+                 'Synthetic foreign tenant prompt','completed',128,128,data.final_output,clock_timestamp()
+               FROM unnest($3::uuid[],$4::text[]) AS data(run_id,final_output)`,
+              [tenant.orgId, tenant.userId, insertedIds, outputs],
+            );
+            await client.query(
+              `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+               SELECT $1,data.chat_id,data.run_id,'answer'
+               FROM unnest($2::uuid[],$3::uuid[]) AS data(chat_id,run_id)`,
+              [tenant.orgId, chatIds, insertedIds],
+            );
+            await client.query(
+              `INSERT INTO app.chat_messages(
+                 id,org_id,chat_id,parent_message_id,role,user_text,effort,run_id
+               )
+               SELECT data.run_id,$1,data.chat_id,data.parent_id,'assistant',NULL,NULL,data.run_id
+               FROM unnest($2::uuid[],$3::uuid[],$4::uuid[])
+                 AS data(run_id,chat_id,parent_id)`,
+              [tenant.orgId, insertedIds, chatIds, parents],
+            );
+          }
+          const nextParents = new Map(chatIds.map((chatId, index) => [chatId, insertedIds[index]!]));
+          parentIds = foreignChatIds.map((chatId) => nextParents.get(chatId) ?? null);
+          foreignMessageCount += chatIds.length;
+        }
+      });
+      foreignChatCount += foreignChatsPerTenant;
+    }
+    await inspector.query('ANALYZE app.chats,app.chat_messages,app.ai_runs');
+    const sortedLengths = [...outputByteLengths].sort((left, right) => left - right);
+    const bytePercentile = (fraction: number) =>
+      sortedLengths[Math.ceil(sortedLengths.length * fraction) - 1] ?? 0;
+    return {
+      chatCount,
+      messageCount: chatCount * 25,
+      foreignMessageCount,
+      foreignChatCount,
+      answerCount: chatCount * answersPerChat,
+      answerOutputBytes: {
+        p50: bytePercentile(0.5),
+        p90: bytePercentile(0.9),
+        p95: bytePercentile(0.95),
+        p99: bytePercentile(0.99),
+        max: sortedLengths.at(-1) ?? 0,
+      },
+    };
   }
   async function deletedCancellationFactsAs(
     ctx: { orgId: string; userId: string },
@@ -617,6 +822,8 @@ export async function createChatFixture(services: Services) {
         });
       },
       runWithoutTenant,
+      feedbackWithoutTenant,
+      seedSearchPerformanceCorpus,
       deletedCancellationFactsAs,
       deletedCancellationFactsWithoutTenant,
       chatRunAssociatedAs,

@@ -281,6 +281,8 @@ describe('chat contracts', () => {
             title: 'Question',
             messageId: userMessageId,
             excerpt: 'A safe excerpt',
+            matchStart: 2,
+            matchEnd: 8,
             updatedAt: '2026-11-09T00:00:00.000Z',
           },
         ],

@@ -246,6 +246,20 @@
       "when": 1793404800034,
       "tag": "0034_chat_title_association",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793404800035,
+      "tag": "0035_chat_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793404800036,
+      "tag": "0036_chat_search_vectors",
+      "breakpoints": true
     }
   ]
 }

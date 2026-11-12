@@ -18,6 +18,8 @@ import { createProductionRunRegistry, RunRegistry } from './run-registry.js';
 import { ChatHistoryContextProvider } from './chat-history-context.js';
 import { RunService } from './run.service.js';
 import { ChatService } from './chat.service.js';
+import { ChatSearchService } from './chat-search.service.js';
+import { ChatFeedbackService } from './chat-feedback.service.js';
 import { ChatBranchService } from './chat-branch.service.js';
 import { RunEventsService } from './run-events.service.js';
 import { SseStreamReader } from '../../infrastructure/queue/sse-stream-reader.js';
@@ -249,6 +251,22 @@ export function chatApiProviders(
         runs: RunService,
         authorization: RunAuthorizationService,
       ) => new ChatService(database, runs, authorization),
+    },
+    {
+      provide: ChatSearchService,
+      inject: [TenantDatabase, RunAuthorizationService],
+      useFactory: (
+        database: TenantDatabase,
+        authorization: RunAuthorizationService,
+      ) => new ChatSearchService(database, authorization),
+    },
+    {
+      provide: ChatFeedbackService,
+      inject: [TenantDatabase, RunAuthorizationService],
+      useFactory: (
+        database: TenantDatabase,
+        authorization: RunAuthorizationService,
+      ) => new ChatFeedbackService(database, authorization),
     },
     {
       provide: ChatBranchService,
