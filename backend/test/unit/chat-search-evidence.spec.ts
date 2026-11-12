@@ -1,11 +1,89 @@
 import { expect, test } from 'vitest';
 import {
+  assessSearchClass,
   formatSearchClassSummary,
+  formatSearchGateMarkdown,
   isCompleteSearchRun,
   selectPostgresContainerId,
   summarizeSearchSamples,
   whitelistRuntimeEvidence,
 } from '../../src/infrastructure/db/testing/chat-search-evidence.js';
+
+const samplesAt = (elapsedMs: number, status = 200) =>
+  Array.from({ length: 30 }, () => ({ status, elapsedMs }));
+
+test('classifies warning and blocking thresholds with strict boundaries', () => {
+  const policy = {
+    expectedSampleCount: 30,
+    warningP95Ms: 500,
+    blockingP95Ms: 1000,
+  };
+  expect(assessSearchClass(samplesAt(499.99), policy)).toMatchObject({
+    blockingStatus: 'pass',
+    warning: false,
+    p95Ms: 499.99,
+  });
+  expect(assessSearchClass(samplesAt(500), policy)).toMatchObject({
+    blockingStatus: 'pass',
+    warning: true,
+    p95Ms: 500,
+  });
+  expect(assessSearchClass(samplesAt(999.99), policy)).toMatchObject({
+    blockingStatus: 'pass',
+    warning: true,
+    p95Ms: 999.99,
+  });
+  expect(assessSearchClass(samplesAt(1000), policy)).toMatchObject({
+    blockingStatus: 'fail',
+    warning: false,
+    p95Ms: 1000,
+  });
+  expect(
+    formatSearchGateMarkdown(
+      { stem: assessSearchClass(samplesAt(1000), policy) },
+      policy,
+    ),
+  ).toContain('| stem | 30/30 | 1000 ms | NONE | FAIL |');
+});
+
+test('incomplete and unsuccessful samples fail the blocking class assessment', () => {
+  const policy = {
+    expectedSampleCount: 30,
+    warningP95Ms: 500,
+    blockingP95Ms: 1000,
+  };
+  expect(assessSearchClass(samplesAt(10).slice(0, 29), policy)).toMatchObject({
+    blockingStatus: 'fail',
+    complete: false,
+  });
+  expect(assessSearchClass(samplesAt(10, 503), policy)).toMatchObject({
+    blockingStatus: 'fail',
+    complete: false,
+    successfulSamples: 0,
+  });
+  const failed = samplesAt(10);
+  failed[29] = { status: 503, elapsedMs: 10 };
+  expect(assessSearchClass(failed, policy)).toMatchObject({
+    blockingStatus: 'fail',
+    complete: false,
+    successfulSamples: 29,
+  });
+});
+
+test('GitHub markdown includes numeric policy and per-class warning and blocking status', () => {
+  const policy = {
+    expectedSampleCount: 30,
+    warningP95Ms: 500,
+    blockingP95Ms: 1000,
+  };
+  const warning = assessSearchClass(samplesAt(536.09), policy);
+  expect(formatSearchGateMarkdown({ partial: warning }, policy)).toContain(
+    '| partial | 30/30 | 536.09 ms | WARNING | PASS |',
+  );
+  expect(formatSearchGateMarkdown({ partial: warning }, policy)).toContain(
+    'warning target <500 ms; blocking limit <1000 ms; 30 successful samples per class',
+  );
+});
 
 test('runtime evidence retains only approved host and container resource fields', () => {
   expect(

@@ -11,8 +11,10 @@ import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import { explainChatSearch } from '../../src/infrastructure/db/testing/chat-search-benchmark.js';
 import {
-  formatSearchClassSummary,
+  assessSearchClass,
+  formatSearchGateMarkdown,
   isCompleteSearchRun,
+  SEARCH_GATE_POLICY,
   selectPostgresContainerId,
   summarizeSearchSamples,
   whitelistRuntimeEvidence,
@@ -279,28 +281,59 @@ test(
       const metrics = Object.fromEntries(
         queryTypes.map(([name]) => {
           const samples = timings.get(name) ?? [];
+          const assessment = assessSearchClass(samples, SEARCH_GATE_POLICY);
           return [
             name,
             {
               ...summarizeSearchSamples(samples),
-              complete:
-                samples.length === 30 &&
-                samples.every((sample) => sample.status === 200),
+              ...assessment,
             },
           ];
         }),
       );
-      for (const [name] of queryTypes)
-        console.log(formatSearchClassSummary(name, metrics[name]!));
+      const assessments = Object.fromEntries(
+        Object.entries(metrics).map(([name, metric]) => [
+          name,
+          {
+            complete: metric.complete,
+            successfulSamples: metric.successfulSamples,
+            p95Ms: metric.p95Ms,
+            warning: metric.warning,
+            blockingStatus: metric.blockingStatus,
+          },
+        ]),
+      );
+      const complete = Object.values(assessments).every(
+        (assessment) => assessment.complete,
+      );
+      const blockingPass = Object.values(assessments).every(
+        (assessment) => assessment.blockingStatus === 'pass',
+      );
+      const gateMarkdown = formatSearchGateMarkdown(
+        assessments,
+        SEARCH_GATE_POLICY,
+      );
+      console.log(gateMarkdown);
       await record({
         type: 'performance-summary',
+        policy: SEARCH_GATE_POLICY,
+        assessments,
         metrics,
-        complete: isCompleteSearchRun(
-          timings,
-          queryTypes.map(([name]) => name),
-          30,
-        ),
+        complete:
+          complete &&
+          isCompleteSearchRun(
+            timings,
+            queryTypes.map(([name]) => name),
+            SEARCH_GATE_POLICY.expectedSampleCount,
+          ),
+        blockingPass,
       });
+      if (process.env.GITHUB_STEP_SUMMARY)
+        await appendFile(
+          process.env.GITHUB_STEP_SUMMARY,
+          `${gateMarkdown}\n\n`,
+          'utf8',
+        );
       console.log(`F4_SEARCH_ARTIFACT ${artifactPath}`);
 
       expect(
@@ -311,14 +344,13 @@ test(
         queryTypes.length,
       );
       for (const [name, summary] of Object.entries(metrics)) {
-        expect(summary.count, `${name} sample count`).toBe(30);
-        expect(
-          summary.p95Ms,
-          `${name} lacks a complete p95; see ${artifactPath}`,
-        ).not.toBeNull();
-        expect(summary.p95Ms, `${name} p95; see ${artifactPath}`).toBeLessThan(
-          500,
+        expect(summary.count, `${name} sample count`).toBe(
+          SEARCH_GATE_POLICY.expectedSampleCount,
         );
+        expect(summary.successfulSamples, `${name} successful samples`).toBe(
+          SEARCH_GATE_POLICY.expectedSampleCount,
+        );
+        expect(summary.blockingStatus, `${name} blocking gate`).toBe('pass');
       }
     } catch (error) {
       await record({

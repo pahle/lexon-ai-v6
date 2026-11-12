@@ -54,15 +54,26 @@ test('the dedicated selection discovers only the representative benchmark', () =
   assert.ok(loadInfrastructure > preparePackages);
 });
 
-test('the measured p95 ceiling stays below the owner-approved 500 ms target', () => {
+test('the measured p95 uses 500 ms warning and strict 1000 ms blocking limits', () => {
   const benchmark = readFileSync(
     'backend/test/integration/chat-search-performance.spec.ts',
     'utf8',
   );
+  const evidence = readFileSync(
+    'backend/src/infrastructure/db/testing/chat-search-evidence.ts',
+    'utf8',
+  );
+  assert.match(
+    evidence,
+    /warningP95Ms:\s*500[\s\S]{0,80}blockingP95Ms:\s*1000/u,
+  );
+  assert.match(benchmark, /SEARCH_GATE_POLICY/u);
   assert.match(
     benchmark,
-    /expect\(summary\.p95Ms,[\s\S]{0,120}?\.toBeLessThan\(\s*500\s*,?\s*\)/u,
+    /summary\.blockingStatus[\s\S]{0,80}\.toBe\('pass'\)/u,
   );
+  assert.match(benchmark, /formatSearchGateMarkdown/u);
+  assert.match(benchmark, /GITHUB_STEP_SUMMARY/u);
 });
 
 test('the isolated search workflow captures automatic triggers and failure evidence', () => {

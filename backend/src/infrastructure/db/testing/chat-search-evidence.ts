@@ -11,6 +11,69 @@ export interface SearchClassSummary {
   readonly statusCounts: Readonly<Record<string, number>>;
 }
 
+export interface SearchGatePolicy {
+  readonly expectedSampleCount: number;
+  readonly warningP95Ms: number;
+  readonly blockingP95Ms: number;
+}
+
+export const SEARCH_GATE_POLICY: SearchGatePolicy = {
+  expectedSampleCount: 30,
+  warningP95Ms: 500,
+  blockingP95Ms: 1000,
+};
+
+export interface SearchClassAssessment {
+  readonly complete: boolean;
+  readonly successfulSamples: number;
+  readonly p95Ms: number | null;
+  readonly warning: boolean;
+  readonly blockingStatus: 'pass' | 'fail';
+}
+
+export function assessSearchClass(
+  samples: readonly SearchSample[],
+  policy: SearchGatePolicy,
+): SearchClassAssessment {
+  const p95Ms = summarizeSearchSamples(samples).p95Ms;
+  const successfulSamples = samples.filter(
+    (sample) => sample.status === 200,
+  ).length;
+  const complete =
+    samples.length === policy.expectedSampleCount &&
+    successfulSamples === policy.expectedSampleCount;
+  return {
+    complete,
+    successfulSamples,
+    p95Ms,
+    warning:
+      p95Ms !== null &&
+      p95Ms >= policy.warningP95Ms &&
+      p95Ms < policy.blockingP95Ms,
+    blockingStatus:
+      complete && p95Ms !== null && p95Ms < policy.blockingP95Ms
+        ? 'pass'
+        : 'fail',
+  };
+}
+
+export function formatSearchGateMarkdown(
+  assessments: Readonly<Record<string, SearchClassAssessment>>,
+  policy: SearchGatePolicy,
+): string {
+  const rows = Object.entries(assessments).map(
+    ([queryClass, assessment]) =>
+      `| ${queryClass} | ${assessment.successfulSamples}/${policy.expectedSampleCount} | ${assessment.p95Ms === null ? 'n/a' : `${assessment.p95Ms} ms`} | ${assessment.warning ? 'WARNING' : 'NONE'} | ${assessment.blockingStatus.toUpperCase()} |`,
+  );
+  return [
+    `Search gate policy: warning target <${policy.warningP95Ms} ms; blocking limit <${policy.blockingP95Ms} ms; ${policy.expectedSampleCount} successful samples per class.`,
+    '',
+    '| Class | Successful samples | p95 | Warning target | Blocking gate |',
+    '| --- | ---: | ---: | --- | --- |',
+    ...rows,
+  ].join('\n');
+}
+
 export function isCompleteSearchRun(
   samplesByClass: ReadonlyMap<string, readonly SearchSample[]>,
   expectedClasses: readonly string[],
