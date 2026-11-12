@@ -317,7 +317,7 @@ test(
           `${name} lacks a complete p95; see ${artifactPath}`,
         ).not.toBeNull();
         expect(summary.p95Ms, `${name} p95; see ${artifactPath}`).toBeLessThan(
-          300,
+          500,
         );
       }
     } catch (error) {

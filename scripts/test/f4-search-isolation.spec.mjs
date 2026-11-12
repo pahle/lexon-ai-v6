@@ -54,6 +54,17 @@ test('the dedicated selection discovers only the representative benchmark', () =
   assert.ok(loadInfrastructure > preparePackages);
 });
 
+test('the measured p95 ceiling stays below the owner-approved 500 ms target', () => {
+  const benchmark = readFileSync(
+    'backend/test/integration/chat-search-performance.spec.ts',
+    'utf8',
+  );
+  assert.match(
+    benchmark,
+    /expect\(summary\.p95Ms,[\s\S]{0,120}?\.toBeLessThan\(\s*500\s*,?\s*\)/u,
+  );
+});
+
 test('the isolated search workflow captures automatic triggers and failure evidence', () => {
   const workflow = readFileSync(
     '.github/workflows/f4-search-benchmark.yml',
