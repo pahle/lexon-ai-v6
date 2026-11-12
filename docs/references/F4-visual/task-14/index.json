@@ -1,0 +1,49 @@
+{
+  "producer": "7707b45",
+  "command": "pnpm test:e2e --project chat-browser --grep 'new chat accepts'",
+  "status": "main visually compared; spec and quality review passed; awaiting informal owner feedback",
+  "deviceScaleFactor": 1,
+  "files": [
+    {
+      "file": "task-14-answer-desktop-dark.png",
+      "sha256": "9ea9c8054adb3069ced9b4bdd41e0fdd7d70fdbc5411d5c22f43c63df6168819"
+    },
+    {
+      "file": "task-14-answer-desktop-light.png",
+      "sha256": "13205373ff7b117cb9851a6fae46f9a0d4baf9fc16b66661447ad1dd6779b13e"
+    },
+    {
+      "file": "task-14-answer-mobile-dark.png",
+      "sha256": "69dae4165e545cc3e804fb6850ebf0506d9c5a84984f9ad806490df9b09c158d"
+    },
+    {
+      "file": "task-14-answer-mobile-light.png",
+      "sha256": "fde06edddb5dd5882ddd3cb05bfd27d32f576c6d58ffdb83d2f155d76b72aa82"
+    },
+    {
+      "file": "task-14-newchat-desktop-dark.png",
+      "sha256": "9aae752b43e0b97f8960c9620538fe01f89bc0877398e0c30b7a4ad00984e6a5"
+    },
+    {
+      "file": "task-14-newchat-desktop-light.png",
+      "sha256": "cf2b3f8c798e7db7afba4b1857a132df53fddaefbb2268f6f2998420da0e91ed"
+    },
+    {
+      "file": "task-14-newchat-mobile-dark.png",
+      "sha256": "c6b23e35e57f67706a2230cc4b1276d5f5beb5646c24513c7afbc08dec01cfbc"
+    },
+    {
+      "file": "task-14-newchat-mobile-light.png",
+      "sha256": "beb57c184e5c2775531c27ca645dad4a5f185f9eed1a12ab94fd5da069e9f380"
+    },
+    {
+      "file": "task-14-reasoning-expanded-desktop-light.png",
+      "sha256": "219c17e8b27316016bf20fa22f1cd6cf097a7a63ab298a9c31c9158ce8923fa6"
+    },
+    {
+      "file": "task-14-streaming-desktop-light.png",
+      "sha256": "2d93856792f64d93a4c12d24d3522d42d70ba54cff5b554f132162d1e7c78333"
+    }
+  ],
+  "reviewedHead": "846cd65"
+}

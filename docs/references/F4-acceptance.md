@@ -785,3 +785,34 @@ calibration, S2 load, visual approval and Linux golden evidence remain pending.
 No real model request, paid eval dispatch or account/admin change was made.
 Production TLS/hardening stays F20; P8 physical-region verification and F17
 unknown-attempt cost reconciliation remain explicit follow-ups.
+
+## Task 14 — thread preview ready for owner feedback
+
+Source `e2442d7` implements the thread; review corrections `7707b45` address
+identity-scope reset, public inline editing and assistant branch selection,
+live/reloaded cancellation and failure, persisted feedback, UTF-8 validation,
+focus and safe Markdown. A chat-only bounded viewport fixes runaway height
+observed with the top-anchor layout; held-run geometry and a normal pointer
+Stop are covered. Stop awaits the backend and then uses the public runtime
+cancellation action. Task 15 navigation/history is not included.
+
+The main session independently ran the Compose/Caddy preview flow at
+`7707b45`: 1/1 passed (8.2 seconds), and visually compared the new-chat,
+completed light/dark desktop/mobile and expanded-reasoning states with
+`prototype/01-new-chat.png`, `05-reasoning-open.png`, `06-answer-complete.png`
+and `21-answer-dark.png`. The retained [informal preview](F4-visual/task-14/README.md)
+contains ten stable PNGs and hashes. Generic Home/Chat breadcrumbs and the old
+sidebar remain pending Task 15. Fixture-control markers are synthetic prompt
+data. These images are not Task 19 formal approval.
+
+Browser verification is qualified: a combined run passed three of four
+scenarios; the remaining edit/branch/UTF-8-boundary scenario passed on a focused
+final-source rerun (1/1, 13.6 seconds). No all-four final-source pass is claimed.
+The main preview recapture separately passed. Actual copy interaction, visible
+reconnect interaction and no-signal live/reload parity are not browser-verified;
+lower-layer runtime/transport and static reasoning tests provide the recorded
+coverage. Scoped reviews found announcement truncation/reset edge cases;
+announcement-only follow-ups `a712334` and `846cd65` passed scoped spec and
+quality re-review. Final verification reports 249 frontend tests, both package
+typechecks, lint and formatting passing. They do not change the captured layout.
+Task 14 is ready for informal owner feedback; Task 15 remains gated.
