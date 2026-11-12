@@ -203,17 +203,18 @@ scale requirement.
 
 ## Task 13 review fixes and durable final gate (2026-11-12)
 
-The final review fix source is commit `ae13a980d905b7fd9ee4f796941c43216dc8f5d7`
-(`fix(chat): complete search review requirements`). The complete durable
+The review-fix source is commit `2bf4281fa7e6d783c90e59d5242445fa238f42b1`
+(`fix(chat): preserve punctuated search prefixes`), following
+`ae13a980d905b7fd9ee4f796941c43216dc8f5d7`. The complete durable
 synthetic JSONL artifact is
 [F4-search-final-gate-2026-11-12.jsonl](F4-search-final-gate-2026-11-12.jsonl),
-SHA-256 `217539a3f4754d3b40f6570ea49d94752128f2be2573beb1354dc692364886f1`.
+SHA-256 `0bfb1da386b700c0137c8113e6821fd447913090bd8e220026026aba4dc86e6c`.
 The artifact contains the sanitized full nested plans, app-session settings,
 four plan records, 20 warmups, all 120 client request timings, migration
 measurements, and the performance summary. Its eight-file source manifest
 matches the producer commit exactly. Unlike the earlier JSONL referenced above,
-this copy is committed and contains no absolute workspace path. The old final
-gate above is retained as historical evidence; this run is the newest gate.
+this copy is committed and contains no absolute workspace path. The previous
+final gate remains in git history; this run is the newest gate.
 
 ### Corrected selection and safe snippets
 
@@ -239,7 +240,9 @@ the official [PostgreSQL 17 text-search controls and headline safety notes](http
 The search regression now verifies title/message priority, nonfinal exact
 terms versus final-token prefixes, plural-to-singular stem snippets near the
 end of a long answer, offset correctness, multiple markers, hostile marker-like
-source text, deterministic message ID ties, an inactive-branch hit followed by
+source text, trailing punctuation preserving a final word prefix (`contrac!`),
+numeric `1320!` remaining an ordinary term, punctuation-only input returning no
+matches safely, deterministic message ID ties, an inactive-branch hit followed by
 branch resolution, and deletion between search and target resolution. Existing
 URL/cursor/error canaries remain. HTTP logging and OTel tests include a search
 query canary in a POST body and in unapproved span attributes. The repository
@@ -251,8 +254,8 @@ its own integration canary.
 ### Plan shape and measurements
 
 Command: `pnpm exec vitest run --project backend-integration chat-search-performance.spec`
-— **1 file passed, 1 test passed**, duration 126.98 seconds. This final run used
-producer commit `ae13a980d905b7fd9ee4f796941c43216dc8f5d7`, PostgreSQL
+— **1 file passed, 1 test passed**, duration 158.09 seconds. This final run used
+producer commit `2bf4281fa7e6d783c90e59d5242445fa238f42b1`, PostgreSQL
 `17.11 (Debian 17.11-1.pgdg12+2)`, the same representative fixture (2,000
 owner chats/50,000 owner messages/24,000 canonical answer runs and 1,000,002
 other-tenant messages across 40,002 chats), `statement_timeout=10000 ms`, and
@@ -278,10 +281,10 @@ elapsed milliseconds:
 
 | Query class      | Samples | p50 ms | p95 ms | Maximum ms | Failures |
 | ---------------- | ------: | -----: | -----: | ---------: | -------: |
-| stem             |      30 | 257.64 | 268.31 |     275.24 |        0 |
-| partial          |      30 | 172.68 | 252.90 |     255.16 |        0 |
-| article (`1320`) |      30 | 172.66 | 179.85 |     180.30 |        0 |
-| no-match         |      30 | 109.42 | 113.00 |     113.12 |        0 |
+| stem             |      30 | 256.28 | 273.00 |     278.32 |        0 |
+| partial          |      30 | 232.36 | 259.52 |     277.54 |        0 |
+| article (`1320`) |      30 | 235.36 | 251.33 |     254.98 |        0 |
+| no-match         |      30 | 169.62 | 188.87 |     194.31 |        0 |
 
 Every p95 remains below the owner-approved 300 ms target. Migration 0036 on
 the populated fixture took 2,866.78 ms for message vectors and 3,899.30 ms for
@@ -297,7 +300,7 @@ SHA-256 source manifest from the final measurement:
 | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `backend/drizzle/0035_chat_search.sql`                           | `75bd1bd7f5a72c86cc13e3576a650d97dc7c0fea8f8c7e92117bd0c66f56f9ac` |
 | `backend/drizzle/0036_chat_search_vectors.sql`                   | `e3f78202877a994e58e6eeddafc5242856036a10b28ae9460f83462573e85239` |
-| `backend/src/infrastructure/db/chat-search.repository.ts`        | `29c5e54ba85992fb8c01ec596082f5106cf3cf5b8ae4ba62e5fdbd38ba5ed095` |
+| `backend/src/infrastructure/db/chat-search.repository.ts`        | `62b22f0836d247dc81e82cc8a4392050120abcc31f9149d87176db9668804be7` |
 | `backend/src/infrastructure/db/schema.ts`                        | `a53e6b1cf5ecdfc910725b6bf4e9b10a071746a88de1ec0a94ad3721120f2dd6` |
 | `backend/src/infrastructure/db/testing/chat-search-benchmark.ts` | `cc5a2c671a66f01556501f526d609853896c884622e4428968673c90bd10ae08` |
 | `backend/src/infrastructure/db/testing/chat-fixture.ts`          | `1566fd9ddf700d488bc841e637e94e200f1277cabb639d587b6f38c8014cda53` |
