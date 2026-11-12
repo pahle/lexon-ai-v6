@@ -557,3 +557,17 @@ Task 14 corrections or Task 15. The **final-head isolated run remains mandatory*
 the owner will review its numbers against the 500 ms target before merge.
 F20 owns production PostgreSQL tuning (shared_buffers remains default128MB);
 F8 and spike S3 own document-scale indexed FTS/trigram under RLS.
+
+## First run with split gate/target semantics
+
+Automatic relevant-file run
+[43257653026](https://github.com/pahle/lexon-ai-v6/actions/runs/43257653026)
+at `373c1f4` passed the new blocking gate and all 500 ms targets.
+All four classes completed 30/30 successful requests. Per-class p95 ms:
+stem **367.78**, partial **401.79**, article **367.58**, no-match **208.19**.
+The job log and GitHub step summary report PASS/NONE per class; JSONL contains
+both policy limits and assessments. This is another observed run, not a retry
+of either historical accepted run. Complete data is retained in
+[F4-search-policy-gate-2026-11-12.jsonl](F4-search-policy-gate-2026-11-12.jsonl).
+The controller checked producer source hashes against the recorded head.
+The final-head isolated run is still required; no final-head claim is made.
