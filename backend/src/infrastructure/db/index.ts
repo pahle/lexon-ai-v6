@@ -42,6 +42,7 @@ export type {
   ChatListCursor,
   ChatSearchCursor,
   ChatSearchRow,
+  ChatSearchSnippetMarkers,
 } from './chat-search.repository.js';
 export { MessageFeedbackRepository } from './message-feedback.repository.js';
 export type {

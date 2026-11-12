@@ -406,72 +406,40 @@ function percentile(sorted: readonly number[], fraction: number): number {
 }
 
 function summarizePlan(result: Awaited<ReturnType<typeof explainChatSearch>>) {
-  type Node = {
-    'Node Type'?: string;
-    'Relation Name'?: string;
-    'Index Name'?: string;
-    'Index Cond'?: string;
-    Filter?: string;
-    'Subplan Name'?: string;
-    'CTE Name'?: string;
-    'Actual Rows'?: number;
-    'Actual Loops'?: number;
-    'Plan Rows'?: number;
-    'Plan Width'?: number;
-    Plans?: Node[];
-  };
   type Output = {
-    Plan?: Node;
+    Plan?: Record<string, unknown>;
     'Planning Time'?: number;
     'Execution Time'?: number;
   };
   const output = (result.plan.rows[0] as { 'QUERY PLAN': Output[] })[
     'QUERY PLAN'
   ][0]!;
-  const flatten = (node: Node): PlanSummaryNode[] => [
-    {
-      nodeType: node['Node Type'],
-      relationName: node['Relation Name'],
-      indexName: node['Index Name'],
-      indexCond: sanitizePlanText(node['Index Cond']),
-      filter: sanitizePlanText(node.Filter),
-      subplanName: node['Subplan Name'],
-      cteName: node['CTE Name'],
-      actualRows: node['Actual Rows'],
-      actualLoops: node['Actual Loops'],
-      planRows: node['Plan Rows'],
-      planWidth: node['Plan Width'],
-    },
-    ...(node.Plans ?? []).flatMap(flatten),
-  ];
   return {
     session: result.session,
     settings: result.settings,
+    ownerIndexPredicate: result.ownerIndexPredicate,
+    rowSecurity: result.rowSecurity,
     planningMs: output['Planning Time'],
     executionMs: output['Execution Time'],
-    nodes: output.Plan ? flatten(output.Plan) : [],
+    planTree: output.Plan ? sanitizePlanValue(output.Plan) : null,
   };
 }
 
-interface PlanSummaryNode {
-  nodeType?: string | undefined;
-  relationName?: string | undefined;
-  indexName?: string | undefined;
-  indexCond?: string | undefined;
-  filter?: string | undefined;
-  subplanName?: string | undefined;
-  cteName?: string | undefined;
-  actualRows?: number | undefined;
-  actualLoops?: number | undefined;
-  planRows?: number | undefined;
-  planWidth?: number | undefined;
-}
-
-function sanitizePlanText(value: string | undefined): string | undefined {
-  return value?.replace(
-    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu,
-    '<uuid>',
-  );
+function sanitizePlanValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizePlanValue);
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        sanitizePlanValue(entry),
+      ]),
+    );
+  if (typeof value === 'string')
+    return value.replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu,
+      '<uuid>',
+    );
+  return value;
 }
 
 function assertOwnerFirstPlan(plan: ReturnType<typeof summarizePlan>) {
@@ -479,25 +447,76 @@ function assertOwnerFirstPlan(plan: ReturnType<typeof summarizePlan>) {
   expect(plan.session.tenantOrgSet).toBe(true);
   expect(plan.session.tenantUserSet).toBe(true);
   expect(plan.session.enableSeqscan).toBe('on');
-  const ownerIndex = plan.nodes.find(
-    (node) => node.indexName === 'chats_owner_activity',
+  expect(
+    plan.rowSecurity.map((table) => [
+      table.relation,
+      table.enabled,
+      table.forced,
+    ]),
+  ).toEqual([
+    ['app.ai_runs', true, true],
+    ['app.chat_messages', true, true],
+    ['app.chats', true, true],
+  ]);
+  expect(plan.ownerIndexPredicate).toMatch(/deleted_at IS NULL/i);
+  const root = plan.planTree as PlanNode;
+  const ownerCte = findPlanPath(root, (node) =>
+    String(node['Subplan Name']).includes('owner_chats'),
   );
+  expect(ownerCte, 'owner_chats CTE subtree missing').toBeDefined();
+  const ownerIndexPath = ownerCte
+    ? findPlanPath(
+        ownerCte.node,
+        (node) => String(node['Index Name']) === 'chats_owner_activity',
+      )
+    : undefined;
+  expect(
+    ownerIndexPath,
+    'owner index must be below owner_chats CTE',
+  ).toBeDefined();
+  const ownerIndex = ownerIndexPath?.node;
   expect(ownerIndex, 'owner-scoped chat B-tree missing').toBeDefined();
-  expect(ownerIndex?.indexCond).toContain('org_id');
-  expect(ownerIndex?.indexCond).toContain('owner_user_id');
+  expect(String(ownerIndex?.['Index Cond'])).toContain('org_id');
+  expect(String(ownerIndex?.['Index Cond'])).toContain('owner_user_id');
   expect(
-    plan.nodes.some((node) => node.subplanName?.includes('owner_chats')),
-  ).toBe(true);
-  expect(
-    plan.nodes.some(
+    ownerIndexPath?.path.some(
       (node) =>
-        node.nodeType === 'Seq Scan' &&
-        ['chats', 'chat_messages', 'ai_runs'].includes(node.relationName ?? ''),
+        node['Relation Name'] === 'chats' &&
+        ['Bitmap Heap Scan', 'Index Scan'].includes(String(node['Node Type'])),
+    ),
+  ).toBe(true);
+  const allNodes = flattenPlan(root);
+  expect(
+    allNodes.some(
+      (node) =>
+        node['Node Type'] === 'Seq Scan' &&
+        ['chats', 'chat_messages', 'ai_runs'].includes(
+          String(node['Relation Name']),
+        ),
     ),
   ).toBe(false);
-  const messages = plan.nodes.filter(
-    (node) => node.relationName === 'chat_messages',
+  const messages = allNodes.filter(
+    (node) => node['Relation Name'] === 'chat_messages',
   );
   expect(messages.length).toBeGreaterThan(0);
-  expect(messages.every((node) => node.indexName !== undefined)).toBe(true);
+}
+
+type PlanNode = Record<string, unknown> & { Plans?: PlanNode[] };
+
+function flattenPlan(node: PlanNode): PlanNode[] {
+  return [node, ...(node.Plans ?? []).flatMap(flattenPlan)];
+}
+
+function findPlanPath(
+  root: PlanNode,
+  matches: (node: PlanNode) => boolean,
+  path: PlanNode[] = [],
+): { node: PlanNode; path: PlanNode[] } | undefined {
+  const nextPath = [...path, root];
+  if (matches(root)) return { node: root, path: nextPath };
+  for (const child of root.Plans ?? []) {
+    const found = findPlanPath(child, matches, nextPath);
+    if (found) return found;
+  }
+  return undefined;
 }

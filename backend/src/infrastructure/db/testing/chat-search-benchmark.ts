@@ -49,6 +49,23 @@ export async function explainChatSearch(
       ],
     ],
   );
+  const ownerIndexPredicate = await client.query<{ predicate: string | null }>(
+    `SELECT pg_get_expr(index_meta.indpred,index_meta.indrelid) AS predicate
+     FROM pg_index index_meta
+     WHERE index_meta.indexrelid='app.chats_owner_activity'::regclass`,
+  );
+  const rowSecurity = await client.query<{
+    relation: string;
+    enabled: boolean;
+    forced: boolean;
+  }>(
+    `SELECT n.nspname||'.'||c.relname AS relation,
+        c.relrowsecurity AS enabled,c.relforcerowsecurity AS forced
+     FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+     WHERE c.oid=ANY(ARRAY[
+       'app.chats'::regclass,'app.chat_messages'::regclass,'app.ai_runs'::regclass
+     ]) ORDER BY relation`,
+  );
   const plan = await client.query(`EXPLAIN (FORMAT JSON) ${CHAT_SEARCH_SQL}`, [
     scope.orgId,
     scope.userId,
@@ -57,6 +74,8 @@ export async function explainChatSearch(
     cursor?.activityAt ?? null,
     cursor?.chatId ?? null,
     limit,
+    '__LXPLANSTART__',
+    '__LXPLANEND__',
   ]);
   const row = session.rows[0]!;
   return {
@@ -68,6 +87,8 @@ export async function explainChatSearch(
       statementTimeout: row.statement_timeout,
     },
     settings: settings.rows,
+    ownerIndexPredicate: ownerIndexPredicate.rows[0]?.predicate ?? null,
+    rowSecurity: rowSecurity.rows,
     plan,
   };
 }

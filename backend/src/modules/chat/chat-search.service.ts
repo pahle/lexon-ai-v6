@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ChatSearchPage, ChatSearchRequest } from '@lexon/contracts';
 import {
   ChatApiError,
@@ -10,6 +10,7 @@ import {
   ChatSearchRepository,
   TenantDatabase,
   type ChatSearchCursor,
+  type ChatSearchSnippetMarkers,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
@@ -53,15 +54,68 @@ function decodeCursor(
   }
 }
 
-function safeSnippet(text: string, query: string) {
+function safeSnippet(
+  text: string,
+  query: string,
+  markers?: ChatSearchSnippetMarkers,
+) {
+  if (markers) {
+    const headline = removeHeadlineMarkers(text, markers);
+    if (headline.matchStart !== null && headline.matchEnd !== null) {
+      return boundedSnippet(
+        headline.plain,
+        headline.matchStart,
+        headline.matchEnd,
+      );
+    }
+  }
   const parts = query.match(/[\p{L}\p{N}]+/gu) ?? [];
   let match: RegExpExecArray | null = null;
   for (const part of parts) {
     match = new RegExp(escapeRegExp(part), 'iu').exec(text);
     if (match) break;
   }
+  return boundedSnippet(
+    text,
+    match?.index ?? 0,
+    match ? match.index + match[0].length : null,
+  );
+}
+
+function removeHeadlineMarkers(
+  text: string,
+  markers: ChatSearchSnippetMarkers,
+): { plain: string; matchStart: number | null; matchEnd: number | null } {
+  let cursor = 0;
+  let plain = '';
+  let matchStart: number | null = null;
+  let matchEnd: number | null = null;
+  while (cursor < text.length) {
+    const nextStart = text.indexOf(markers.start, cursor);
+    const nextEnd = text.indexOf(markers.end, cursor);
+    const isStart = nextStart >= 0 && (nextEnd < 0 || nextStart < nextEnd);
+    const markerIndex = isStart ? nextStart : nextEnd;
+    if (markerIndex < 0) break;
+    plain += text.slice(cursor, markerIndex);
+    if (isStart) {
+      if (matchStart === null) matchStart = plain.length;
+      cursor = markerIndex + markers.start.length;
+    } else {
+      if (matchStart !== null && matchEnd === null) matchEnd = plain.length;
+      cursor = markerIndex + markers.end.length;
+    }
+  }
+  plain += text.slice(cursor);
+  return { plain, matchStart, matchEnd };
+}
+
+function boundedSnippet(
+  text: string,
+  matchStart: number,
+  matchEnd: number | null,
+) {
   const maxLength = 500;
-  let start = match ? Math.max(0, match.index - 180) : 0;
+  let start = Math.max(0, matchStart - 180);
   if (start > 0 && /[\uDC00-\uDFFF]/u.test(text[start] ?? '')) start++;
   let end = Math.min(text.length, start + maxLength);
   if (end < text.length && /[\uD800-\uDBFF]/u.test(text[end - 1] ?? '')) end--;
@@ -69,14 +123,19 @@ function safeSnippet(text: string, query: string) {
   return {
     excerpt,
     matchStart:
-      match && match.index >= start && match.index + match[0].length <= end
-        ? match.index - start
+      matchEnd !== null && matchStart >= start && matchEnd <= end
+        ? matchStart - start
         : null,
     matchEnd:
-      match && match.index >= start && match.index + match[0].length <= end
-        ? match.index - start + match[0].length
+      matchEnd !== null && matchStart >= start && matchEnd <= end
+        ? matchEnd - start
         : null,
   };
+}
+
+function snippetMarkers(): ChatSearchSnippetMarkers {
+  const nonce = randomUUID().replaceAll('-', '');
+  return { start: `__LX${nonce}S__`, end: `__LX${nonce}E__` };
 }
 
 function escapeRegExp(value: string): string {
@@ -110,6 +169,7 @@ export class ChatSearchService {
     const cursor = request.cursor
       ? decodeCursor(request.cursor, actor, queryDigest)
       : null;
+    const markers = snippetMarkers();
     try {
       return await this.database.withTenant(
         { orgId: actor.orgId, userId: actor.userId },
@@ -119,6 +179,7 @@ export class ChatSearchService {
             request.query,
             cursor,
             request.limit,
+            markers,
           );
           const hasMore = rows.length > request.limit;
           const pageRows = hasMore ? rows.slice(0, request.limit) : rows;
@@ -126,7 +187,11 @@ export class ChatSearchService {
             chatId: row.chatId,
             title: row.title || 'New chat',
             messageId: row.messageId,
-            ...safeSnippet(row.excerpt ?? '', request.query),
+            ...safeSnippet(
+              row.excerpt ?? '',
+              request.query,
+              row.messageId === null ? undefined : markers,
+            ),
             updatedAt: row.updatedAt.toISOString(),
           }));
           const last = pageRows.at(-1);

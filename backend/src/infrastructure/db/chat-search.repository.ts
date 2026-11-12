@@ -12,7 +12,10 @@ export const CHAT_SEARCH_SQL = `WITH owner_chats AS MATERIALIZED (
   SELECT $3::text AS query_text,lower($3::text) AS query_lower,
     plainto_tsquery('english',$3::text) AS query_ts,
     (SELECT to_tsquery('english',string_agg(
-        quote_literal(tokens.lexeme)||CASE WHEN parts.token ~ '^[0-9]+$' THEN '' ELSE ':*' END,
+        quote_literal(tokens.lexeme)||CASE
+          WHEN parts.token_order=(SELECT max(last_part.token_order)
+            FROM regexp_split_to_table($3::text,'[^[:alnum:]]+') WITH ORDINALITY AS last_part(token,token_order))
+            AND parts.token !~ '^[0-9]+$' THEN ':*' ELSE '' END,
         ' & '
       ORDER BY parts.token_order,tokens.lexeme))
      FROM regexp_split_to_table($3::text,'[^[:alnum:]]+') WITH ORDINALITY AS parts(token,token_order)
@@ -54,7 +57,8 @@ export const CHAT_SEARCH_SQL = `WITH owner_chats AS MATERIALIZED (
     AND (run.search_vector @@ input.query_ts OR run.search_vector @@ input.prefix_ts)
 ), best_per_chat AS (
   SELECT matched.*,row_number() OVER (PARTITION BY matched.chat_id
-    ORDER BY matched.score DESC,matched.source_order,matched.message_id ASC NULLS FIRST) AS match_rank
+    ORDER BY CASE WHEN matched.source_order=0 THEN 1 ELSE 0 END,
+      matched.score DESC,matched.source_order,matched.message_id ASC NULLS FIRST) AS match_rank
   FROM raw_matches matched
 ), page AS (
   SELECT best.chat_id,best.title,best.message_id,best.source_order,best.updated_at,
@@ -77,9 +81,14 @@ SELECT page.chat_id AS "chatId",page.title,page.message_id AS "messageId",
 FROM page
 LEFT JOIN LATERAL (
   SELECT CASE WHEN page.source_order=0 THEN page.title
-    WHEN message.role='user' THEN message.user_text
-    WHEN run.status='completed' THEN run.final_output ELSE run.partial_output END AS match_text
+    WHEN message.role='user' THEN ts_headline('english',message.user_text,input.prefix_ts,
+      'HighlightAll=true,StartSel='||$8::text||',StopSel='||$9::text)
+    WHEN run.status='completed' THEN ts_headline('english',run.final_output,input.prefix_ts,
+      'HighlightAll=true,StartSel='||$8::text||',StopSel='||$9::text)
+    ELSE ts_headline('english',run.partial_output,input.prefix_ts,
+      'HighlightAll=true,StartSel='||$8::text||',StopSel='||$9::text) END AS match_text
   FROM (SELECT 1) AS one
+  CROSS JOIN search_input input
   LEFT JOIN app.chat_messages message ON page.source_order IN (1,2)
     AND message.org_id=$1 AND message.chat_id=page.chat_id AND message.id=page.message_id
   LEFT JOIN app.ai_runs run ON page.source_order=2 AND run.org_id=$1 AND run.id=message.run_id
@@ -107,6 +116,11 @@ export interface ChatSearchRow {
   readonly updatedAt: Date;
   readonly activityAt: string;
   readonly score: string;
+}
+
+export interface ChatSearchSnippetMarkers {
+  readonly start: string;
+  readonly end: string;
 }
 
 export class ChatSearchRepository {
@@ -155,6 +169,7 @@ export class ChatSearchRepository {
     queryText: string,
     cursor: ChatSearchCursor | null,
     limit: number,
+    markers: ChatSearchSnippetMarkers,
   ): Promise<ChatSearchRow[]> {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
@@ -172,6 +187,8 @@ export class ChatSearchRepository {
       cursor?.activityAt ?? null,
       cursor?.chatId ?? null,
       limit,
+      markers.start,
+      markers.end,
     ]);
     return result.rows;
   }
