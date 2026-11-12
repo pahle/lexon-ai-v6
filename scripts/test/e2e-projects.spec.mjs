@@ -12,6 +12,7 @@ test('default E2E selection includes the chat proof and its test overlay', () =>
   const selection = resolveE2ESelection([]);
 
   assert.ok(selection.selectedProjects.includes('chat-runtime-proof'));
+  assert.ok(selection.selectedProjects.includes('chat-browser'));
   assert.deepEqual(selection.args, []);
 });
 
@@ -23,6 +24,17 @@ test('explicit proof project selectors include both CLI spellings', () => {
     const selection = resolveE2ESelection(args);
     assert.deepEqual(selection.selectedProjects, ['chat-runtime-proof']);
   }
+});
+
+test('chat browser selects its Compose overlay and browser test project', () => {
+  const selection = resolveE2ESelection(['--project', 'chat-browser']);
+  assert.deepEqual(selection.selectedProjects, ['chat-browser']);
+  assert.ok(
+    composeFilesForE2EProjects(
+      selection.selectedProjects,
+      '/repository/',
+    ).includes('/repository/backend/test/e2e/compose.chat-runtime-proof.yml'),
+  );
 });
 
 test('explicit project lists retain every selected project', () => {
@@ -42,6 +54,7 @@ test('package filters resolve their mapped projects before choosing overlays', (
   const frontend = resolveE2ESelection(['--package', 'frontend']);
   assert.deepEqual(frontend.selectedProjects, E2E_PROJECTS.frontend);
   assert.ok(frontend.selectedProjects.includes('chat-runtime-proof'));
+  assert.ok(frontend.selectedProjects.includes('chat-browser'));
   assert.deepEqual(
     frontend.args.filter((argument) => argument === '--project').length,
     E2E_PROJECTS.frontend.length,

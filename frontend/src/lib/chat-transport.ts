@@ -23,6 +23,7 @@ export interface LexonChatTransportOptions {
   readonly initialRunId?: string;
   readonly fetch?: typeof fetch;
   readonly onRunId?: (runId: string | undefined) => void;
+  readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
 }
 
 export interface ChatMessageMetadata {
@@ -190,6 +191,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.assertActive();
     const runId = this.runId;
     if (!runId) return null;
+    this.options.onStreamState?.('reconnecting');
     const generation = this.generation;
     const headers = mergeHeaders(request.headers);
     const suppliedCursor = headers.get('last-event-id');
@@ -319,6 +321,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
       requestController.signal,
     );
     this.activeStreams.add(stream);
+    this.options.onStreamState?.('connected');
     return stream;
   }
 

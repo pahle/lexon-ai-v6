@@ -16,6 +16,8 @@ type Crumb = { title: string; href?: string };
 
 function routeCrumbs(pathname: string): Crumb[] {
   if (pathname === '/workspace') return [{ title: 'Home' }];
+  if (/^\/chats\/[0-9a-f-]{36}$/i.test(pathname))
+    return [{ title: 'Home', href: '/workspace' }, { title: 'Chat' }];
   if (pathname === '/platform/provisioning')
     return [
       { title: 'Platform', href: '/platform/provisioning' },

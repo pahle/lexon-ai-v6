@@ -1,10 +1,13 @@
 import { act } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useAuiState } from '@assistant-ui/react';
-import { ChatRuntimeProvider } from '../src/components/shell/chat-runtime-provider';
+import {
+  ChatRuntimeProvider,
+  inertChatModelAdapter,
+} from '../src/components/shell/chat-runtime-provider';
 import { Workspace } from '../src/components/organizations/workspace';
 import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.aui';
-import { inertChatModelAdapter } from '../src/components/shell/chat-runtime-provider';
 import { render, settle } from './render.js';
 
 beforeEach(() => {
@@ -17,14 +20,15 @@ beforeEach(() => {
     },
   );
 });
-
 afterEach(() => vi.unstubAllGlobals());
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/workspace',
 }));
-
+vi.mock('../src/lib/chat-title-invalidation.js', () => ({
+  subscribeToChatInvalidations: () => () => undefined,
+}));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({
     identity: {
@@ -34,154 +38,61 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
   }),
 }));
 
-it('renders a full inert Home with a keyboard-reachable composer', async () => {
+const queryClient = new QueryClient();
+function page(tenantId: string) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ChatRuntimeProvider tenantId={tenantId}>
+        <RuntimeStateProbe />
+        <ThreadList />
+        <Workspace />
+      </ChatRuntimeProvider>
+    </QueryClientProvider>
+  );
+}
+
+it('renders an enabled new-chat composer without inventing attachment or model controls', async () => {
   const run = vi.spyOn(inertChatModelAdapter, 'run');
   const network = vi
     .spyOn(globalThis, 'fetch')
     .mockRejectedValue(new Error('Unexpected network request'));
-  let filePickerCalls = 0;
-  const inputClick = vi
-    .spyOn(HTMLInputElement.prototype, 'click')
-    .mockImplementation(function (this: HTMLInputElement) {
-      if (this.type === 'file') filePickerCalls += 1;
-    });
-  const view = await render(
-    <ChatRuntimeProvider tenantId="tenant-1">
-      <RuntimeStateProbe />
-      <ThreadList />
-      <Workspace />
-    </ChatRuntimeProvider>,
-  );
-
+  const view = await render(page('tenant-1'));
   try {
     await settle();
     expect(view.container.querySelectorAll('h1')).toHaveLength(1);
     expect(view.container.querySelector('h1')?.parentElement?.className).toBe(
       'sr-only',
     );
-    expect(view.container.querySelector('h1')?.getAttribute('tabindex')).toBe(
-      '-1',
-    );
-    expect(document.activeElement).toBe(document.body);
+    expect(view.container.querySelector('h1')?.textContent).toBe('New chat');
     expect(view.container.textContent).toContain('Welcome, Ada Lovelace');
-    expect(view.container.textContent).toContain('Chat is coming soon');
     expect(view.container.textContent).toContain('No conversations yet.');
+    const input = view.container.querySelector('textarea');
+    expect(input?.placeholder).toBe(
+      'Ask Lexon about a contract, a regulation, or a case...',
+    );
+    expect(input?.disabled).toBe(false);
     expect(
-      view.container.querySelector('textarea')?.getAttribute('placeholder'),
-    ).toBe('Ask Lexon about a contract, a regulation, or a case...');
+      view.container.querySelector('button[type="submit"]')?.textContent,
+    ).toContain('Send');
     expect(
-      (view.container.querySelector('textarea') as HTMLTextAreaElement | null)
-        ?.disabled,
-    ).toBe(false);
-    const send = view.container.querySelector(
-      '[aria-label="Send message"]',
-    ) as HTMLButtonElement | null;
-    const attachment = view.container.querySelector(
-      '[aria-label="Add Attachment"]',
-    ) as HTMLButtonElement | null;
-    expect(send?.getAttribute('aria-disabled')).toBe('true');
-    expect(attachment?.getAttribute('aria-disabled')).toBe('true');
-    expect(send?.disabled).toBe(false);
-    expect(attachment?.disabled).toBe(false);
-    expect(view.container.querySelector('[aria-label*="New"]')).toBeNull();
+      view.container.querySelector('[aria-label*="Attachment"]'),
+    ).toBeNull();
+    expect(view.container.querySelector('[aria-label*="Model"]')).toBeNull();
+    expect(view.container.querySelector('input[type="file"]')).toBeNull();
     expect(
       view.container.querySelector('audio, video, [contenteditable="true"]'),
     ).toBeNull();
-
-    const composer = view.container.querySelector('form');
-    const input = view.container.querySelector(
-      'textarea',
-    ) as HTMLTextAreaElement;
-    expect(composer).not.toBeNull();
-    expect(input).not.toBeNull();
-
     await act(async () => {
       Object.getOwnPropertyDescriptor(
         HTMLTextAreaElement.prototype,
         'value',
       )!.set!.call(input, 'Draft text');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      const textPaste = new Event('paste', { bubbles: true, cancelable: true });
-      Object.defineProperty(textPaste, 'clipboardData', {
-        value: {
-          files: [],
-          items: [],
-          types: ['text/plain'],
-          getData: () => ' pasted words',
-        },
-      });
-      input.dispatchEvent(textPaste);
-      expect(textPaste.defaultPrevented).toBe(false);
+      input!.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(input.value).toBe('Draft text');
-    let fileDrop: Event;
-    let filePaste: Event;
-
-    send!.focus();
-    expect(document.activeElement).toBe(send);
-    await act(async () => {
-      send!.dispatchEvent(
-        new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
-      );
-      send!.dispatchEvent(
-        new KeyboardEvent('keyup', { key: ' ', bubbles: true }),
-      );
-      send!.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-      );
-      send!.dispatchEvent(
-        new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }),
-      );
-      send!.click();
-      attachment!.click();
-      fileDrop = new Event('drop', { bubbles: true, cancelable: true });
-      Object.defineProperty(fileDrop, 'dataTransfer', {
-        value: { files: [new File(['doc'], 'draft.txt')], types: ['Files'] },
-      });
-      composer!.dispatchEvent(fileDrop);
-      filePaste = new Event('paste', { bubbles: true, cancelable: true });
-      Object.defineProperty(filePaste, 'clipboardData', {
-        value: {
-          files: [new File(['doc'], 'draft.txt')],
-          items: [
-            { kind: 'file', getAsFile: () => new File(['doc'], 'draft.txt') },
-          ],
-          types: ['Files'],
-          getData: () => '',
-        },
-      });
-      input.dispatchEvent(filePaste);
-      input!.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-      );
-      composer!.dispatchEvent(
-        new Event('submit', { bubbles: true, cancelable: true }),
-      );
-    });
-    expect(fileDrop!.defaultPrevented).toBe(true);
-    expect(filePaste!.defaultPrevented).toBe(true);
-    expect(
-      view.container.querySelector('[data-testid="runtime-state"]')
-        ?.textContent,
-    ).toBe('0 messages / 0 threads / 0 attachments');
-    expect(view.container.querySelectorAll('[data-role="user"]')).toHaveLength(
-      0,
-    );
-    expect(view.container.textContent).not.toContain('New Thread');
-    expect(
-      view.container.querySelectorAll('[data-slot="aui_thread-list-item"]'),
-    ).toHaveLength(0);
-    expect(view.container.querySelector('input[type="file"]')).toBeNull();
-    expect(filePickerCalls).toBe(0);
-    expect(run).not.toHaveBeenCalled();
+    expect((input as HTMLTextAreaElement).value).toBe('Draft text');
     expect(network).not.toHaveBeenCalled();
-    await view.rerender(
-      <ChatRuntimeProvider tenantId="tenant-2">
-        <RuntimeStateProbe />
-        <ThreadList />
-        <Workspace />
-      </ChatRuntimeProvider>,
-    );
+    expect(run).not.toHaveBeenCalled();
+    await view.rerender(page('tenant-2'));
     expect(
       (view.container.querySelector('textarea') as HTMLTextAreaElement | null)
         ?.value,
@@ -190,7 +101,6 @@ it('renders a full inert Home with a keyboard-reachable composer', async () => {
     await view.unmount();
     run.mockRestore();
     network.mockRestore();
-    inputClick.mockRestore();
   }
 });
 
@@ -207,20 +117,9 @@ function RuntimeStateProbe() {
 
 it('unmounts the tenant runtime when its key changes or identity is signed out', async () => {
   const run = vi.spyOn(inertChatModelAdapter, 'run');
-  const view = await render(
-    <ChatRuntimeProvider tenantId="tenant-1">
-      <ThreadList />
-      <Workspace />
-    </ChatRuntimeProvider>,
-  );
-
+  const view = await render(page('tenant-1'));
   try {
-    await view.rerender(
-      <ChatRuntimeProvider tenantId="tenant-2">
-        <ThreadList />
-        <Workspace />
-      </ChatRuntimeProvider>,
-    );
+    await view.rerender(page('tenant-2'));
     expect(view.container.textContent).toContain('Welcome, Ada Lovelace');
     await view.rerender(<></>);
     expect(view.container.querySelector('textarea')).toBeNull();

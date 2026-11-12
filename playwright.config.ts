@@ -51,6 +51,12 @@ export default defineConfig({
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },
     {
+      name: 'chat-browser',
+      timeout: 90000,
+      testMatch: 'backend/test/e2e/chat-thread.spec.ts',
+      use: { trace: 'off', video: 'off', screenshot: 'off' },
+    },
+    {
       name: 'frontend-browser',
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },

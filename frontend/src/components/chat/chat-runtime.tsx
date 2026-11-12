@@ -31,6 +31,7 @@ export interface ChatRuntimeProps {
   readonly effort?: 'high' | 'max';
   readonly children: ReactNode;
   readonly onRunId?: (runId: string | undefined) => void;
+  readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
   readonly onStopReady?: (stop: () => Promise<void>) => void;
 }
 
@@ -50,6 +51,7 @@ function ChatRuntimeSession({
   effort = 'high',
   children,
   onRunId,
+  onStreamState,
   onStopReady,
 }: ChatRuntimeProps) {
   const [runId, setRunId] = useState<string | undefined>(
@@ -57,10 +59,14 @@ function ChatRuntimeSession({
   );
   const [selectionSaveFailed, setSelectionSaveFailed] = useState(false);
   const onRunIdRef = useRef(onRunId);
+  const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
   useEffect(() => {
     onRunIdRef.current = onRunId;
   }, [onRunId]);
+  useEffect(() => {
+    onStreamStateRef.current = onStreamState;
+  }, [onStreamState]);
   useEffect(() => {
     onStopReadyRef.current = onStopReady;
   }, [onStopReady]);
@@ -79,6 +85,7 @@ function ChatRuntimeSession({
         actorScope,
         selectedLeafId: tree.viewedLeafId,
         effort,
+        onStreamState: (state) => onStreamStateRef.current?.(state),
         ...(activeRun ? { initialRunId: activeRun.runId } : {}),
         onRunId: handleRunId,
       }),

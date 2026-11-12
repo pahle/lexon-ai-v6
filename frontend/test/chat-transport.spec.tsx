@@ -494,13 +494,15 @@ it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', asyn
       },
     );
   });
+  const streamStates: string[] = [];
   const transport = new LexonChatTransport({
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
     initialRunId: runId,
     fetch,
-  });
+    onStreamState: (state: string) => streamStates.push(state),
+  } as never);
 
   const stream = await transport.reconnectToStream({
     chatId,
@@ -512,6 +514,7 @@ it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', asyn
   expect(reconnectHeaders.get('last-event-id')).toBe('1:1783814399000-1');
   expect(reconnectHeaders.get('x-lexon-stream-recovery')).toBe('snapshot');
   expect(stream).not.toBeNull();
+  expect(streamStates).toEqual(['reconnecting', 'connected']);
 });
 
 it('does not prove or store cursors from out-of-order or inconsistent snapshots', async () => {

@@ -11,6 +11,7 @@ export const E2E_PROJECTS = {
     // Includes F1 identity regression and F2 shell/theme/accessibility suites.
     'identity-browser',
     'chat-runtime-proof',
+    'chat-browser',
     'visual-review',
   ],
   shared: ['backend-api', 'identity-api'],
@@ -26,7 +27,10 @@ export function composeFilesForE2EProjects(
     `${repositoryRoot}backend/test/e2e/compose.egress-probe.yml`,
     `${repositoryRoot}backend/test/e2e/compose.identity.yml`,
   ];
-  if (selectedProjects.includes('chat-runtime-proof'))
+  if (
+    selectedProjects.includes('chat-runtime-proof') ||
+    selectedProjects.includes('chat-browser')
+  )
     files.push(
       `${repositoryRoot}backend/test/e2e/compose.chat-runtime-proof.yml`,
     );
