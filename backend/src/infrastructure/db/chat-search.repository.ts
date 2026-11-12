@@ -14,7 +14,8 @@ export const CHAT_SEARCH_SQL = `WITH owner_chats AS MATERIALIZED (
     (SELECT to_tsquery('english',string_agg(
         quote_literal(tokens.lexeme)||CASE
           WHEN parts.token_order=(SELECT max(last_part.token_order)
-            FROM regexp_split_to_table($3::text,'[^[:alnum:]]+') WITH ORDINALITY AS last_part(token,token_order))
+            FROM regexp_split_to_table($3::text,'[^[:alnum:]]+') WITH ORDINALITY AS last_part(token,token_order)
+            WHERE last_part.token<>'')
             AND parts.token !~ '^[0-9]+$' THEN ':*' ELSE '' END,
         ' & '
       ORDER BY parts.token_order,tokens.lexeme))

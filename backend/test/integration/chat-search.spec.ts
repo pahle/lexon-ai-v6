@@ -191,6 +191,31 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
       exactLeadingTerms.items.some((item) => item.chatId === multiwordChat),
     ).toBe(false);
 
+    const trailingPunctuationChat = randomUUID();
+    const trailingPunctuationMessage = randomUUID();
+    await fixture.chat.createFor(
+      ownerIdentity,
+      trailingPunctuationChat,
+      'Punctuation query',
+    );
+    await fixture.database.withTenant(ownerIdentity, (tx) =>
+      messages.insertUser(tx, {
+        chatId: trailingPunctuationChat,
+        messageId: trailingPunctuationMessage,
+        parentMessageId: null,
+        text: 'contract',
+        effort: 'high',
+      }),
+    );
+    const trailingPunctuation = await search(origin, owner, 'contrac!');
+    expect(
+      trailingPunctuation.items.find(
+        (item) => item.chatId === trailingPunctuationChat,
+      )?.messageId,
+    ).toBe(trailingPunctuationMessage);
+    const punctuationOnly = await search(origin, owner, '!!!');
+    expect(punctuationOnly.items).toEqual([]);
+
     const answerChatId = randomUUID();
     const answerTerm = `answer-index-${randomUUID()}`;
     const answerCreation = await fetch(`${origin}/api/chats`, {
@@ -494,6 +519,10 @@ test('ranked chat search returns owner matches and keeps search terms out of cur
     expect(
       articleLookalike.items.some((item) => item.chatId === caseIds[2]),
     ).toBe(false);
+    const punctuatedArticle = await search(origin, owner, '1320!');
+    expect(
+      punctuatedArticle.items.some((item) => item.chatId === caseIds[2]),
+    ).toBe(true);
     const wrongQueryCursor = await fetch(`${origin}/api/chats/search`, {
       method: 'POST',
       headers: { ...owner, 'content-type': 'application/json' },
