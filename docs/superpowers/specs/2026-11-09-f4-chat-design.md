@@ -944,3 +944,42 @@ Before or alongside Task 15, implement with regression tests:
 Task 19 screenshots must show realistic synthetic names, plausible legal
 questions and answers, and no visible test-control markers. Keep control data
 out of user-visible text rather than hiding it only in screenshots.
+
+## Owner amendment — blocking gate and non-blocking target (2026-11-12)
+
+This amendment supersedes the earlier absolute 300/500 ms stop gates. Shared
+GitHub-hosted ubuntu-24.04 4-vCPU runner timings vary; the owner treats the
+observed variation on unchanged search code/plans as shared-runner variance,
+not evidence of a code regression. Stem p95 moved from 405.30 to 530.60 ms on
+the same reported CPU model, and the later run's stem/article p50 differed
+(520.43/365.85 ms). No controlled experiment isolated a cause. The 22-source
+manifests were verified against each run's producer; the search query/service,
+fixture and migrations are unchanged, while evidence/UI dependencies may differ.
+The fixture represents an extreme long-term heavy user. No further F4 search
+optimization is authorized.
+
+**Blocking:** owner-first plans, enabled and FORCE RLS, no whole-table sequential
+scans on chats/messages/runs; all **120 measured requests succeed** (30 per
+class), no timeout or 5xx; strict **p95 under 1,000 ms in every class**. Missing
+or incomplete measurements fail. This bound catches material regressions such
+as the earlier approximately eight-second per-row vector query.
+
+**Non-blocking target:** strict **p95 under 500 ms per class** on the 4-vCPU
+reference runner. A miss produces a warning in JSONL evidence, the per-class
+log summary and GitHub job summary; it never fails the job or triggers a stop.
+The stop-on-miss rule now applies only to blocking failures. Preserve every
+run's measurements, runner/container metadata, complete plans and always-upload
+artifacts, with the numeric policy recorded for trend comparisons.
+
+| Run           | Blocking gate under new policy                                                  | 500 ms target          |
+| ------------- | ------------------------------------------------------------------------------- | ---------------------- |
+| `43175713326` | PASS (all120 success; plans/RLS pass; p95 405.30 / 401.93 / 407.02 / 227.88 ms) | All classes pass       |
+| `43232959421` | PASS (all120 success; plans/RLS pass; p95 530.60 / 536.09 / 385.63 / 220.65 ms) | WARN: stem and partial |
+
+These are owner-accepted assessments under the new policy, not rewrites of the
+historical job conclusions or JSONL artifacts. Do not rerun these jobs. The
+performance trend remains open for review, but it no longer blocks the six
+Task 14 corrections or Task 15. The **final-head isolated run remains mandatory**;
+the owner will review its numbers against the 500 ms target before merge.
+F20 owns production PostgreSQL tuning (shared_buffers remains default128MB);
+F8 and spike S3 own document-scale indexed FTS/trigram under RLS.
