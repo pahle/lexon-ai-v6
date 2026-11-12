@@ -312,3 +312,28 @@ it repeats synthetic positive terms and uses the approved answer length
 distribution. The measured latency and vector-storage figures apply to this
 fixture only; they do not generalize to arbitrary document corpora. F8 and the
 S3 spike still own document-scale indexed search under RLS.
+
+## Linux CI gate miss — owner decision required
+
+The later normal Linux CI run [43157101686](https://github.com/pahle/lexon-ai-v6/actions/runs/43157101686)
+at `9f1c619460f7bc9a55a3a4b4b04c575658b91712` failed the same unchanged
+search performance assertion: stem p95 **360.011876 ms**, above 300 ms.
+The search test ran for 200.075 seconds within the full test suite. The suite
+reported 1,133 passed tests and one failure; Compose E2E passed. This is a
+separate environment/run from the retained local gate and does not replace
+its measurements. Task 13 acceptance is reopened pending owner direction;
+Task 14 work is stopped and preserved uncommitted.
+
+The harness wrote
+`test-results/f4-search/gate-2026-11-12T04-52-20.598Z-6907.jsonl`
+on the runner, but the unit/integration job has no artifact upload step and
+GitHub reports no retained artifacts for this run. Consequently the full CI
+plans, other classes' timings, sample rows and exact machine/database settings
+cannot be recovered from its logs. They are not inferred from local evidence.
+The local harness's Docker VM metadata is a literal description of the local
+machine; it must not be presented as verified CI hardware. A future evidence
+capture needs actual runner metadata and failure-path artifact retention.
+
+No optimization, RLS change, planner override, timeout increase, threshold
+change or manual CI retry was performed after discovering this miss. The owner
+must decide the next measurement or optimization scope before work resumes.

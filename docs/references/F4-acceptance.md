@@ -1,7 +1,9 @@
 # F4 acceptance evidence
 
-Status: implementation in progress. Tasks 1–9 accepted after review;
-Tasks 10–21 are pending. This is not F4 completion or visual approval.
+Status: stopped for owner decision after the Linux search performance gate
+miss. Tasks 1–12 are accepted; Task 13 has reviewed local evidence but reopened
+performance acceptance. Task 14 is uncommitted work in progress; Tasks 15–21
+are pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -704,6 +706,10 @@ and retained session records; lost private logs are not claimed as recovered
 originals. Completed tasks were not repeated.
 
 ## Task 13 — private history, search and feedback
+
+Linux CI at `9f1c619` later missed the unchanged gate: stem p95 360.01 ms.
+See the diagnostic’s Linux CI section for the stop and missing CI artifact
+evidence. The local results below remain valid only for the recorded local run.
 
 The owner-approved RLS and stored-vector amendments are implemented. Search
 uses generated English vectors derived from user text and canonical run output,
