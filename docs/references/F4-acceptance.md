@@ -1,9 +1,8 @@
 # F4 acceptance evidence
 
-Status: stopped for owner decision after the Linux search performance gate
-miss. Tasks 1–12 are accepted; Task 13 has reviewed local evidence but reopened
-performance acceptance. Task 14 is uncommitted work in progress; Tasks 15–21
-are pending. This is not F4 completion or visual approval.
+Status: implementation in progress. Tasks 1–13 are accepted after review and
+owner acceptance of the amended reference-runner search gate. Task 14 is
+resuming; Tasks 15–21 remain pending. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -707,18 +706,31 @@ originals. Completed tasks were not repeated.
 
 ## Task 13 — private history, search and feedback
 
-**STOP: the single isolated Linux measurement missed the gate.** Run
-[43175713326](https://github.com/pahle/lexon-ai-v6/actions/runs/43175713326)
-at `86ddad8` completed all 120 requests successfully, but p95 was 405.30 ms
-(stem), 401.93 ms (partial), 407.02 ms (article), and 227.88 ms (no-match).
-Task 13 performance acceptance remains open; Task 14 stays stopped for owner
-direction. No retry or optimization followed this miss.
+**Accepted by the owner (2026-11-12).** The gate is now p95 under 500 ms per
+class on GitHub-hosted ubuntu-24.04 4-vCPU reference hardware. Existing isolated
+Linux run [43175713326](https://github.com/pahle/lexon-ai-v6/actions/runs/43175713326)
+at `86ddad8` satisfies it: stem 405.30 ms, partial 401.93 ms, article
+407.02 ms, no-match 227.88 ms, 30 HTTP 200 samples per class. No rerun is made
+now. Historical artifacts preserve the original 300 ms failure; the final-head
+isolated run remains mandatory with the amended 500 ms threshold.
+
+The 300 ms value was an initial owner target, not a measured product
+requirement. The owner attributes the identical-code/plan gap to the reference
+runner's slower single-thread CPU; this is owner-accepted rationale rather than
+a controlled CPU experiment. The fixture represents an extreme long-term heavy
+user. Local Apple-silicon results below are informative only. Query, RLS,
+timeout, fixture, samples and plan assertions stay unchanged; no further F4
+search optimization is authorized. F20 owns production PostgreSQL tuning
+(shared_buffers remains default 128 MB); F8 / spike S3 owns indexed document-
+scale FTS/trigram under RLS.
 
 The [diagnostic](F4-search-query-plan-gap.md) compares both runs and records
 actual Linux hardware/settings, four owner-first RLS plans and all timings in
 [durable Linux evidence](F4-search-linux-gate-2026-11-12.jsonl). The earlier
 startup-only attempt is retained separately and has no latency samples.
-The local results below apply only to the recorded local run.
+Chats search UI is Task 15 and is not implemented yet: submit-triggered
+requests, visible loading and tested stale-response suppression are explicit
+acceptance requirements before that task can close. Task 14 resumes first.
 
 The owner-approved RLS and stored-vector amendments are implemented. Search
 uses generated English vectors derived from user text and canonical run output,
@@ -745,7 +757,7 @@ class has 30 sequential warm samples:
 | Article number (`1320`) | 235.36 | 251.33 | 254.98 |
 | No match                | 169.62 | 188.87 | 194.31 |
 
-All four p95 values satisfy the unchanged <300 ms gate with 2,000 owner chats,
+All four local p95 values satisfied the then-current <300 ms target with 2,000 owner chats,
 50,000 owner messages including long answers, and 1,000,002 other-owner messages.
 The benchmark ran on an Apple M4 / 16 GiB host and Docker Desktop Linux arm64
 VM with 10 CPUs / 8,217,059,328 bytes, PostgreSQL 17.11. Plans start from the

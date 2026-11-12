@@ -460,3 +460,28 @@ limitation; this is not F8/S3 document-scale search evidence.
 
 Work is stopped for the owner's decision. No further benchmark, optimization,
 threshold change, timeout change or Task 14 implementation follows this miss.
+
+## Owner acceptance and amended reference gate (2026-11-12)
+
+The owner accepts measured run `43175713326` as Task 13 Linux evidence and
+changes the gate to **p95 under 500 ms per class** on the GitHub-hosted
+ubuntu-24.04 **4-vCPU reference runner**. The existing p95 values
+405.30 / 401.93 / 407.02 / 227.88 ms all pass that amended requirement.
+No rerun is performed now; historical artifacts and their original 300 ms
+assertion failures remain unchanged. Local Apple-silicon runs are informative
+only. The mandatory final-head isolated run will apply the 500 ms threshold.
+
+Rationale: 300 ms was an initial owner target, not a measured product
+requirement. The owner attributes the gap on identical code and owner-first
+FORCE-RLS plans to the reference runner's slower single-thread CPU. This is
+owner-accepted rationale; these measurements did not independently isolate CPU
+speed as the cause. The fixture is an extreme long-term heavy user.
+Query, RLS, timeout, fixture, sample counts and plan assertions stay unchanged.
+No further search optimization is authorized in F4.
+
+Chats search is implemented in Task 15, so UX compliance is not yet claimed.
+Its acceptance now explicitly requires submit-triggered search, loading UI,
+and deferred-response tests proving superseded queries (including late errors,
+clear and tenant changes) cannot display out of order. Task 14 resumes first.
+Production PostgreSQL tuning, including default 128 MB shared_buffers, belongs
+to F20. Indexed FTS/trigram under RLS at document scale remains F8 / spike S3.

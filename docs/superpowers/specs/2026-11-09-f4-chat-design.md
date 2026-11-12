@@ -903,3 +903,19 @@ approved 163,840 estimated input bound. No stack revision.
   threshold; any miss stops for owner decision. Successful evidence resumes
   Task 14; a final-head run remains mandatory before handoff. Functional search
   tests remain in normal CI.
+
+- R40: Owner acceptance/gate amendment, 2026-11-12. The F4 representative
+  search gate is p95 **under 500 ms per class** on GitHub-hosted ubuntu-24.04
+  4-vCPU reference hardware; local Apple-silicon numbers are informative only.
+  Existing run `43175713326` is accepted as Task 13 Linux evidence without a
+  rerun. The 300 ms figure was an initial owner target, not a measured product
+  requirement. The owner attributes the gap on identical query/fixture and
+  owner-first FORCE-RLS plans to the reference runner's slower single-thread
+  CPU; this is accepted product rationale, not a controlled CPU experiment.
+  This fixture is an extreme long-term heavy user. Keep query, RLS, 10-second
+  timeout, fixture, 30 samples/class and plan assertions unchanged; no further
+  F4 search optimization. The final-head isolated run remains mandatory at
+  500 ms. Chats search (Task 15) runs on submit, shows loading and ignores stale
+  completions; test out-of-order responses before accepting that UI. F20 owns
+  production PostgreSQL tuning (shared_buffers is still default 128 MB).
+  F8 and spike S3 still own indexed document-scale FTS/trigram under RLS.
