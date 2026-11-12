@@ -23,12 +23,19 @@ function AnnouncementProbe({
   messageId = 'answer-1',
   text,
   running,
+  initialTextIsNew = false,
 }: {
   messageId?: string;
   text: string;
   running: boolean;
+  initialTextIsNew?: boolean;
 }) {
-  const announcement = useIncrementalAnnouncement(messageId, text, running);
+  const announcement = useIncrementalAnnouncement(
+    messageId,
+    text,
+    running,
+    initialTextIsNew,
+  );
   return announcement.active ? (
     <p aria-live="polite" aria-atomic="false">
       <span key={announcement.sequence}>{announcement.text}</span>
@@ -128,14 +135,46 @@ it('announces text received with completion and keeps the region until queued te
 it('does not announce loaded history, but announces text appended after a live mount', async () => {
   vi.useFakeTimers();
   const history = 'Previously streamed answer.';
-  const view = await render(<AnnouncementProbe text={history} running />);
+  const view = await render(
+    <AnnouncementProbe text={history} running initialTextIsNew={false} />,
+  );
   try {
     const region = view.container.querySelector('[aria-live="polite"]')!;
     expect(region.textContent).toBe('');
     await view.rerender(
-      <AnnouncementProbe text={`${history} New live text.`} running />,
+      <AnnouncementProbe
+        text={`${history} New live text.`}
+        running
+        initialTextIsNew={false}
+      />,
     );
     expect(region.textContent).toBe(' New live text.');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('announces the first text prefix when a new live message mounts with text', async () => {
+  vi.useFakeTimers();
+  const prefix = 'The first live answer chunk.';
+  const view = await render(
+    <AnnouncementProbe text={prefix} running initialTextIsNew />,
+  );
+  try {
+    expect(
+      view.container.querySelector('[aria-live="polite"]')?.textContent,
+    ).toBe(prefix);
+    await view.rerender(
+      <AnnouncementProbe
+        text={`${prefix} Second live chunk.`}
+        running
+        initialTextIsNew={false}
+      />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+    expect(
+      view.container.querySelector('[aria-live="polite"]')?.textContent,
+    ).toBe(' Second live chunk.');
   } finally {
     await view.unmount();
   }
@@ -174,6 +213,72 @@ it('discards pending text and timers when the selected message changes', async (
       />,
     );
     expect(region.textContent).toBe(' plus new text');
+  } finally {
+    await view.unmount();
+  }
+});
+
+for (const timerState of ['pending', 'drained'] as const) {
+  it(`rebases the cursor after same-message content resets with a ${timerState} timer`, async () => {
+    vi.useFakeTimers();
+    const view = await render(
+      <AnnouncementProbe messageId="same-answer" text="" running />,
+    );
+    try {
+      await view.rerender(
+        <AnnouncementProbe messageId="same-answer" text="Old answer" running />,
+      );
+      expect(
+        view.container.querySelector('[aria-live="polite"]')?.textContent,
+      ).toBe('Old answer');
+      if (timerState === 'drained')
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+      else expect(vi.getTimerCount()).toBe(1);
+
+      await view.rerender(
+        <AnnouncementProbe messageId="same-answer" text="" running />,
+      );
+      expect(
+        view.container.querySelector('[aria-live="polite"]')?.textContent,
+      ).toBe('');
+      expect(vi.getTimerCount()).toBe(0);
+      await view.rerender(
+        <AnnouncementProbe
+          messageId="same-answer"
+          text="New"
+          running={false}
+        />,
+      );
+      expect(
+        view.container.querySelector('[aria-live="polite"]')?.textContent,
+      ).toBe('New');
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+      expect(view.container.querySelector('[aria-live="polite"]')).toBeNull();
+    } finally {
+      await view.unmount();
+    }
+  });
+}
+
+it('rebases when same-message replacement text has a different prefix and is longer', async () => {
+  vi.useFakeTimers();
+  const view = await render(
+    <AnnouncementProbe messageId="same-answer" text="" running />,
+  );
+  try {
+    await view.rerender(
+      <AnnouncementProbe messageId="same-answer" text="Old answer" running />,
+    );
+    await view.rerender(
+      <AnnouncementProbe
+        messageId="same-answer"
+        text="Replacement answer is longer"
+        running={false}
+      />,
+    );
+    expect(
+      view.container.querySelector('[aria-live="polite"]')?.textContent,
+    ).toBe('Replacement answer is longer');
   } finally {
     await view.unmount();
   }

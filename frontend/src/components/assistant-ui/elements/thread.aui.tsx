@@ -253,9 +253,14 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
     const custom = (state.message.metadata as { custom?: unknown } | undefined)
       ?.custom;
     return custom && typeof custom === 'object'
-      ? (custom as { status?: unknown; feedback?: unknown })
+      ? (custom as {
+          status?: unknown;
+          feedback?: unknown;
+          loadedFromServer?: unknown;
+        })
       : undefined;
   });
+  const loadedFromServer = metadata?.loadedFromServer === true;
   const answerText = useAuiState((state) =>
     state.message.parts
       .filter((part) => part.type === 'text')
@@ -266,6 +271,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
     messageId,
     answerText,
     running,
+    running && !loadedFromServer,
   );
   if (editing)
     return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
@@ -404,12 +410,13 @@ export function useIncrementalAnnouncement(
   messageId: string,
   text: string,
   running: boolean,
+  initialTextIsNew = false,
 ): IncrementalAnnouncement {
   const queueRef = useRef<AnnouncementQueue | null>(null);
   if (queueRef.current?.messageId !== messageId) {
     queueRef.current = {
       messageId,
-      cursor: text.length,
+      cursor: initialTextIsNew ? 0 : text.length,
       latestText: text,
       running,
       sequence: 0,
@@ -428,6 +435,21 @@ export function useIncrementalAnnouncement(
   useEffect(() => {
     const queue = queueRef.current;
     if (!queue || queue.messageId !== messageId) return;
+    const contentWasReplaced =
+      text.length < queue.latestText.length ||
+      !text.startsWith(queue.latestText);
+    if (contentWasReplaced) {
+      if (queue.timer !== null) clearTimeout(queue.timer);
+      queue.timer = null;
+      queue.cursor = 0;
+      queue.sequence += 1;
+      setAnnouncement({
+        messageId,
+        text: '',
+        sequence: queue.sequence,
+        active: running,
+      });
+    }
     queue.latestText = text;
     queue.running = running;
 

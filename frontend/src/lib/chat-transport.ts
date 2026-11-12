@@ -31,6 +31,7 @@ export interface ChatMessageMetadata {
   readonly errorCode?: string | null;
   readonly feedback?: 'good' | 'bad' | null;
   readonly reasoningDurationMs?: number | null;
+  readonly loadedFromServer?: boolean;
   readonly chatOperation?: { readonly type: 'edit'; readonly sourceId: string };
 }
 

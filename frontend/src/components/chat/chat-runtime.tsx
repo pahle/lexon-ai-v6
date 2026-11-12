@@ -244,6 +244,7 @@ function toUIMessage(message: ChatMessage): ChatUIMessage {
       status: message.status,
       reasoningDurationMs: message.reasoningDurationMs,
       feedback: message.feedback,
+      loadedFromServer: true,
     },
   };
 }
