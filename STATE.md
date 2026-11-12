@@ -27,6 +27,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - **F6:** TenantGuard rejects bodies containing `userId`/`organizationId`/`orgId` keys on all workspace routes; project-member endpoints need a per-route allowance.
 
 - **F3 gap found in F4 brainstorming (2026-11-09):** no `usage_events` table; accounting lived only in `app.ai_attempts` (deleted with runs). F4 adds a content-free Usage ledger (one row per attempt, no FKs, RLS) as an engine contract revision. Review lesson: check named spec tables exist, not only behavior.
+- **F8/S3 (from F4 Task 13, 2026-11-12):** with FORCE RLS, FTS `@@` and pg_trgm operators are not LEAKPROOF, so the planner applies RLS quals first and does not use GIN. F4 accepted per-owner B-tree scans with measured p95 (<300 ms heavy-user target); F8 document-scale retrieval must solve indexed search under RLS (spike S3) without LEAKPROOF/SECURITY DEFINER bypasses.
 - **F4:** SSE hub over the F3 run streams; ChatTransport replaces the inert runtime.
 - **F5:** approval expiry; external tool adapters on the F3 idempotency modes.
 - **Before F8:** calibrate the token estimator with real usage.
