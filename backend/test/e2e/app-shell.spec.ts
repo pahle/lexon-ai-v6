@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 
-test('F2 shell keeps Home framed, collapses across reload, and renders scoped not-found routes', async ({
+test('F2 shell keeps New chat framed, collapses across reload, and renders scoped not-found routes', async ({
   page,
 }) => {
   const stack = descriptor();
@@ -40,8 +40,9 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   });
   const chatRequests: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname.includes('/api/chat')) {
-      chatRequests.push(request.url());
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/api/chat')) {
+      chatRequests.push(`${request.method()} ${url.pathname}${url.search}`);
     }
   });
   await page.goto(stack.frontendUrl + '/workspace');
@@ -64,7 +65,7 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await expect(
     page
       .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Home', exact: true }),
+      .getByRole('link', { name: 'New chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
   const message = page.getByRole('textbox', { name: 'Message input' });
   await expect(message).toBeEnabled();
@@ -81,7 +82,10 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await message.fill('Draft legal question');
   await expect(message).toHaveValue('Draft legal question');
   await expect(page.locator('[data-role="user"]')).toHaveCount(0);
-  expect(chatRequests).toEqual([]);
+  expect(chatRequests).toEqual([
+    'GET /api/chats/events',
+    'GET /api/chats?limit=6',
+  ]);
 
   const sidebarContainer = page.locator(
     '[data-slot="sidebar-container"]:visible',
@@ -179,7 +183,10 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
       page.getByRole('complementary', { name: 'Workspace navigation' }),
     ).toHaveCount(0);
   }
-  expect(chatRequests).toEqual([]);
+  expect(chatRequests).toEqual([
+    'GET /api/chats/events',
+    'GET /api/chats?limit=6',
+  ]);
 });
 
 test('F2 sidebar supports mobile Escape and closes after real navigation at 375px', async ({
@@ -310,7 +317,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
   await workspaceDialog
     .getByRole('navigation', { name: 'Primary navigation' })
-    .getByRole('link', { name: 'Home', exact: true })
+    .getByRole('link', { name: 'New chat', exact: true })
     .click();
   await expect(page).toHaveURL(/\/workspace$/);
   await page.getByRole('button', { name: 'Open navigation' }).click();
@@ -364,7 +371,7 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   );
   const nav = page.getByRole('navigation', { name: 'Primary navigation' });
   await expect(
-    nav.getByRole('link', { name: 'Home', exact: true }),
+    nav.getByRole('link', { name: 'New chat', exact: true }),
   ).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
   await expect(

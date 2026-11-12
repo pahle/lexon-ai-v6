@@ -8,8 +8,9 @@ export function PageHeader(_props: {
   title: string;
   actions?: ReactNode;
   visuallyHidden?: boolean;
+  showDivider?: boolean;
 }) {
-  const { title, actions, visuallyHidden = false } = _props;
+  const { title, actions, visuallyHidden = false, showDivider = true } = _props;
   const pathname = usePathname();
   const heading = useRef<HTMLHeadingElement>(null);
   const previousPath = useRef(pathname);
@@ -28,7 +29,7 @@ export function PageHeader(_props: {
       className={
         visuallyHidden
           ? 'sr-only'
-          : 'flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4'
+          : `flex flex-wrap items-center justify-between gap-4 ${showDivider ? 'border-b border-border pb-4' : ''}`
       }
     >
       <h1

@@ -51,6 +51,29 @@ it('uses the same-origin chat API and validates its persisted tree', async () =>
   );
 });
 
+it('searches with POST and exposes owner chat rename and permanent-delete routes', async () => {
+  const { createChatClient } = await import('../src/lib/chat-client.js');
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    void init;
+    return String(input).endsWith('/search')
+      ? Response.json({ items: [], pageInfo: { nextCursor: null } })
+      : new Response(null, { status: 204 });
+  });
+  const client = createChatClient({ baseUrl: '/api', fetch });
+  await client.search({ query: 'private term' });
+  await client.rename(chatId, { title: 'Renamed chat' });
+  await client.delete(chatId);
+  expect(
+    fetch.mock.calls.map(([url, init]) => [String(url), init?.method]),
+  ).toEqual([
+    ['/api/chats/search', 'POST'],
+    [`/api/chats/${chatId}`, 'PATCH'],
+    [`/api/chats/${chatId}`, 'DELETE'],
+  ]);
+  expect(fetch.mock.calls[0]?.[1]?.body).toContain('private term');
+  expect(fetch.mock.calls[0]?.[0]).not.toContain('private term');
+});
+
 it('invokes the browser fetch function with its Window receiver', async () => {
   const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
   const receivers: unknown[] = [];

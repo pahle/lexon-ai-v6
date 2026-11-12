@@ -10,9 +10,11 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
-import { useQueryClient } from '@tanstack/react-query';
-import { subscribeToChatInvalidations } from '@/lib/chat-title-invalidation';
 import { ArrowUpIcon, Brain as BrainIcon } from 'lucide-react';
+import { consumeChatSearchHighlight } from '@/lib/chat-search-highlight';
+import { ChatClientError } from '@/lib/chat-errors';
+import { WorkspaceNotFound } from '@/components/states/workspace-not-found';
+import { useWorkspace } from '@/components/shell/workspace-provider';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
@@ -41,25 +43,19 @@ function ChatViewSession({
   displayName,
   client,
   onNavigate,
-  orgId,
-  userId,
 }: ChatViewProps) {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const { setChatTitle } = useWorkspace();
   const [tree, setTree] = useState<ChatTree | null>(null);
   const [loading, setLoading] = useState(chatId !== undefined);
   const [loadError, setLoadError] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [text, setText] = useState('');
   const [effort, setEffort] = useState<'high' | 'max'>('high');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const bytes = promptByteLength(text);
-
-  useEffect(
-    () => subscribeToChatInvalidations(queryClient, { orgId, userId }),
-    [orgId, queryClient, userId],
-  );
 
   useEffect(() => {
     if (!chatId) return;
@@ -70,8 +66,10 @@ function ChatViewSession({
       .then((next) => {
         if (mounted) setTree(next);
       })
-      .catch(() => {
-        if (mounted) setLoadError(true);
+      .catch((error: unknown) => {
+        if (mounted && error instanceof ChatClientError && error.status === 404)
+          setNotFound(true);
+        else if (mounted) setLoadError(true);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -80,6 +78,46 @@ function ChatViewSession({
       mounted = false;
     };
   }, [chatId, client]);
+
+  useEffect(() => {
+    if (chatId && tree) setChatTitle(chatId, actorScope, tree.title);
+  }, [actorScope, chatId, setChatTitle, tree]);
+
+  useEffect(() => {
+    if (!chatId || loading || !tree) return;
+    const messageId = consumeChatSearchHighlight(chatId);
+    if (!messageId) return;
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-message-id="${CSS.escape(messageId)}"]`,
+      );
+      if (!target) return;
+      const reducedMotion = window.matchMedia(
+        '(prefers-reduced-motion: reduce)',
+      ).matches;
+      target.scrollIntoView({
+        behavior: reducedMotion ? 'auto' : 'smooth',
+        block: 'center',
+      });
+      target.dataset.searchHighlight = 'true';
+      target.classList.add(
+        'outline',
+        'outline-2',
+        'outline-ring',
+        'rounded-lg',
+      );
+      window.setTimeout(() => {
+        delete target.dataset.searchHighlight;
+        target.classList.remove(
+          'outline',
+          'outline-2',
+          'outline-ring',
+          'rounded-lg',
+        );
+      }, 2_000);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [chatId, loading, tree]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -121,6 +159,7 @@ function ChatViewSession({
         <div className="bg-muted h-4 w-4/5 animate-pulse rounded motion-reduce:animate-none" />
       </div>
     );
+  if (chatId && notFound) return <WorkspaceNotFound />;
   if (chatId && loadError)
     return (
       <p role="alert" className="p-6">

@@ -18,6 +18,7 @@ import {
 } from '../../lib/identity-client';
 import { identityApi } from '../organizations/page-state';
 import { transitionTenant } from '../../lib/tenant-queries';
+import { subscribeToChatInvalidations } from '../../lib/chat-title-invalidation';
 
 export type WorkspaceBootstrap =
   | { status: 'ready'; identity: IdentitySummary }
@@ -25,6 +26,8 @@ export type WorkspaceBootstrap =
 type WorkspaceStatus = WorkspaceBootstrap['status'] | 'loading';
 type WorkspaceContextValue = {
   identity: IdentitySummary | null;
+  chatTitle: { chatId: string; actorScope: string; title: string } | null;
+  setChatTitle: (chatId: string, actorScope: string, title: string) => void;
   status: WorkspaceStatus;
   transitioning: boolean;
   fallbackNotice: string | null;
@@ -112,6 +115,16 @@ export function WorkspaceProvider({
     message: string;
     securityLink?: boolean;
   } | null>(null);
+  const [chatTitle, setChatTitleState] = useState<{
+    chatId: string;
+    actorScope: string;
+    title: string;
+  } | null>(null);
+  const setChatTitle = useCallback(
+    (chatId: string, actorScope: string, title: string) =>
+      setChatTitleState({ chatId, actorScope, title }),
+    [],
+  );
 
   const publishVerifiedIdentity = useCallback(
     (verified: IdentitySummary, requestVersion?: number) => {
@@ -205,6 +218,19 @@ export function WorkspaceProvider({
     (!!identity &&
       nextAccess !== (committedIdentity ? accessKey(committedIdentity) : null));
   const transitioning = accessTransitioning || explicitTransitionPending;
+
+  useEffect(() => {
+    if (!identity || transitioning) return;
+    return subscribeToChatInvalidations(queryClient, {
+      orgId: identity.organization.id,
+      userId: identity.user.id,
+    });
+  }, [
+    identity?.organization.id,
+    identity?.user.id,
+    queryClient,
+    transitioning,
+  ]);
 
   useEffect(() => {
     const bootstrapIdentity =
@@ -423,6 +449,8 @@ export function WorkspaceProvider({
   const value = useMemo(
     () => ({
       identity: status === 'ready' && !transitioning ? identity : null,
+      chatTitle,
+      setChatTitle,
       status,
       transitioning,
       fallbackNotice,
@@ -433,6 +461,8 @@ export function WorkspaceProvider({
     }),
     [
       identity,
+      chatTitle,
+      setChatTitle,
       status,
       transitioning,
       fallbackNotice,

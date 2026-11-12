@@ -103,10 +103,17 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   const sendButton = page.getByRole('button', { name: 'Send message' });
   await expect(sendButton).toBeDisabled();
   await expect(composer).toHaveCSS('resize', 'none');
+  await mkdir('test-results/f4-chat', { recursive: true });
+  await page.screenshot({
+    path: 'test-results/f4-chat/task-14-newchat-desktop-light.png',
+    fullPage: true,
+  });
   const initialHeight = await composer.evaluate(
     (element) => element.getBoundingClientRect().height,
   );
-  await composer.fill('First line\nSecond line\nThird line');
+  await composer.fill(
+    'First line\nSecond line\nThird line\nFourth line\nFifth line\nSixth line\nSeventh line\nEighth line',
+  );
   await expect
     .poll(() =>
       composer.evaluate((element) => element.getBoundingClientRect().height),
@@ -117,11 +124,6 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await composer.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/workspace`);
   await composer.fill('');
-  await mkdir('test-results/f4-chat', { recursive: true });
-  await page.screenshot({
-    path: 'test-results/f4-chat/task-14-newchat-desktop-light.png',
-    fullPage: true,
-  });
   await new AxeBuilder({ page })
     .include('main')
     .analyze()
@@ -195,6 +197,7 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
     '[data-role="assistant"] p.sr-only[aria-live="polite"][aria-atomic="false"]',
   );
   await expect(announcementRegion).toHaveCount(1);
+  await expect(announcementRegion).not.toBeEmpty();
   const firstAnnouncement = (await announcementRegion.textContent())?.trim();
   expect(firstAnnouncement?.length).toBeGreaterThan(0);
   expect(firstAnnouncement?.length).toBeLessThanOrEqual(160);
@@ -202,6 +205,9 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect
     .poll(() => workerControl('status', runId))
     .toMatchObject({ secondAnswerBlocked: true, answerBlocked: false });
+  await expect
+    .poll(async () => (await announcementRegion.textContent())?.trim())
+    .not.toBe(firstAnnouncement);
   const secondAnnouncement = (await announcementRegion.textContent())?.trim();
   expect(secondAnnouncement?.length).toBeGreaterThan(0);
   expect(secondAnnouncement?.length).toBeLessThanOrEqual(160);

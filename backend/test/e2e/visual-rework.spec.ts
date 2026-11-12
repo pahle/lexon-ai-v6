@@ -813,8 +813,11 @@ test('F4 new-chat composer exposes its active input and no retired controls', as
   await expect(
     page.getByRole('button', { name: 'Send message' }),
   ).toBeDisabled();
+  const composer = page.locator('form').filter({
+    has: page.getByRole('textbox', { name: 'Message input' }),
+  });
   await expect(
-    page.getByRole('button', {
+    composer.getByRole('button', {
       name: /attachment|voice|audio|record|branch|sample|example/i,
     }),
   ).toHaveCount(0);

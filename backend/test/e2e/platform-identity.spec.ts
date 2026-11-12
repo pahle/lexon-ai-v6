@@ -183,7 +183,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         theme,
         'desktop',
         '.cache/f21-task6A/platform-admin',
-        'Home',
+        'New chat',
         true,
       );
       await captureShellReviewView(
@@ -192,7 +192,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         theme,
         'desktop',
         '.cache/f21-task6A/platform-admin',
-        'Home',
+        'New chat',
       );
     }
     for (const viewport of ['desktop', 'mobile'] as const) {
@@ -202,7 +202,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           'user-menu-open',
           theme,
           viewport,
-          'Home',
+          'New chat',
         );
       }
     }

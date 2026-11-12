@@ -1,10 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { ChatInvalidationEventSchema } from '@lexon/contracts';
+import {
+  chatListQueryKey,
+  chatThreadQueriesPrefix,
+  chatThreadQueryKey,
+  type ChatQueryScope,
+} from './chat-queries';
 
-export interface ChatInvalidationScope {
-  readonly orgId: string;
-  readonly userId: string;
-}
+export type ChatInvalidationScope = ChatQueryScope;
 
 export interface ChatInvalidationSource {
   onmessage: ((event: MessageEvent<string>) => void) | null;
@@ -13,20 +16,7 @@ export interface ChatInvalidationSource {
   close(): void;
 }
 
-export function chatListQueryKey(scope: ChatInvalidationScope) {
-  return ['tenant', scope.orgId, scope.userId, 'chats'] as const;
-}
-
-export function chatThreadQueryKey(
-  scope: ChatInvalidationScope,
-  chatId: string,
-) {
-  return ['tenant', scope.orgId, scope.userId, 'chat', chatId] as const;
-}
-
-export function chatThreadQueriesPrefix(scope: ChatInvalidationScope) {
-  return ['tenant', scope.orgId, scope.userId, 'chat'] as const;
-}
+export { chatListQueryKey, chatThreadQueriesPrefix, chatThreadQueryKey };
 
 export async function invalidateChatQueriesForEvent(
   queryClient: QueryClient,
@@ -79,12 +69,9 @@ export function subscribeToChatInvalidations(
       }
       lastRecoveryRefresh = now;
     }
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) }),
-      queryClient.invalidateQueries({
-        queryKey: chatThreadQueriesPrefix(scope),
-      }),
-    ]).catch(() => undefined);
+    void queryClient
+      .invalidateQueries({ queryKey: chatThreadQueriesPrefix(scope) })
+      .catch(() => undefined);
   };
   source.onopen = () => {
     if (!hasOpened) invalidateOwnerChats();

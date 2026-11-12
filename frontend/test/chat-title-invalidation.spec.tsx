@@ -52,8 +52,8 @@ it('subscribes with cookies and invalidates exact owner-scoped list and thread k
   expect(
     invalidateQueries.mock.calls.map(([filter]) => filter.queryKey),
   ).toEqual([
-    ['tenant', scope.orgId, scope.userId, 'chats'],
-    ['tenant', scope.orgId, scope.userId, 'chat', chatId],
+    ['tenant', scope.orgId, 'chat', scope.userId, 'list'],
+    ['tenant', scope.orgId, 'chat', scope.userId, 'thread', chatId],
   ]);
   dispose();
   expect(source!.close).toHaveBeenCalledOnce();
@@ -83,16 +83,14 @@ it('refreshes owner chat queries on EventSource open and error', async () => {
     return created;
   });
   source!.onopen!(new Event('open'));
-  await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(1));
   source!.onerror!(new Event('error'));
-  await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(4));
+  await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(2));
   expect(
     invalidateQueries.mock.calls.map(([filter]) => filter.queryKey),
   ).toEqual([
-    chatListQueryKey(scope),
-    ['tenant', scope.orgId, scope.userId, 'chat'],
-    chatListQueryKey(scope),
-    ['tenant', scope.orgId, scope.userId, 'chat'],
+    ['tenant', scope.orgId, 'chat', scope.userId],
+    ['tenant', scope.orgId, 'chat', scope.userId],
   ]);
   dispose();
   expect(source!.onopen).toBeNull();
@@ -176,14 +174,14 @@ it('cancels a throttled reconnect refresh when the subscription is disposed', as
     return created;
   });
   source!.onopen!(new Event('open'));
-  expect(invalidateQueries).toHaveBeenCalledTimes(2);
+  expect(invalidateQueries).toHaveBeenCalledTimes(1);
   source!.onerror!(new Event('error'));
-  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  expect(invalidateQueries).toHaveBeenCalledTimes(2);
   source!.onopen!(new Event('open'));
-  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  expect(invalidateQueries).toHaveBeenCalledTimes(2);
   dispose();
   await vi.advanceTimersByTimeAsync(15_000);
-  expect(invalidateQueries).toHaveBeenCalledTimes(4);
+  expect(invalidateQueries).toHaveBeenCalledTimes(2);
   vi.useRealTimers();
 });
 
@@ -219,6 +217,8 @@ it('tenant transition clears the owner-scoped chat cache subtree', async () => {
     createdAt: '2026-11-12T00:00:00Z',
   });
   expect(
-    client.getQueriesData({ queryKey: ['tenant', scope.orgId, scope.userId] }),
+    client.getQueriesData({
+      queryKey: ['tenant', scope.orgId, 'chat', scope.userId],
+    }),
   ).toEqual([]);
 });

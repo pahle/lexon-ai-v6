@@ -6,6 +6,7 @@ import { render, settle } from './render.js';
 
 const invalidationSubscribe = vi.hoisted(() => vi.fn(() => vi.fn()));
 const toastSpy = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+const setChatTitleSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -13,6 +14,9 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('../src/lib/chat-title-invalidation.js', () => ({
   subscribeToChatInvalidations: invalidationSubscribe,
+}));
+vi.mock('../src/components/shell/workspace-provider.js', () => ({
+  useWorkspace: () => ({ setChatTitle: setChatTitleSpy }),
 }));
 vi.mock('sonner', () => ({ toast: toastSpy }));
 beforeEach(() =>
@@ -241,7 +245,7 @@ it('blocks over-limit UTF-8 prompts while allowing the exact byte boundary', asy
   }
 });
 
-it('subscribes to title invalidations with the verified organization and user scope and disposes on unmount', async () => {
+it('does not create a duplicate per-thread title invalidation subscription', async () => {
   const cleanup = vi.fn();
   invalidationSubscribe.mockReturnValue(cleanup);
   const view = await render(
@@ -257,13 +261,10 @@ it('subscribes to title invalidations with the verified organization and user sc
   );
   try {
     await settle();
-    expect(invalidationSubscribe).toHaveBeenCalledWith(expect.anything(), {
-      orgId: 'tenant-α',
-      userId: 'user-β',
-    });
+    expect(invalidationSubscribe).not.toHaveBeenCalled();
   } finally {
     await view.unmount();
-    expect(cleanup).toHaveBeenCalledOnce();
+    expect(cleanup).not.toHaveBeenCalled();
   }
 });
 

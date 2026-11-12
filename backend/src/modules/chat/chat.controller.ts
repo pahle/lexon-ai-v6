@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Inject,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -22,6 +23,7 @@ import {
   ChatSearchRequestSchema,
   EditMessageInputSchema,
   RegenerateInputSchema,
+  RenameChatInputSchema,
   SendMessageInputSchema,
   SetChatFeedbackInputSchema,
   UuidSchema,
@@ -174,6 +176,20 @@ export class ChatController {
     const identity = currentVerifiedIdentity();
     return this.authorization.withActor(identity, (actor) =>
       this.chats.get(actor, UuidSchema.parse(chatId)),
+    );
+  }
+
+  @Patch(':chatId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  rename(
+    @Param('chatId') chatId: string,
+    @Body() value: unknown,
+  ): Promise<void> {
+    this.assertCookieOrigin();
+    const identity = currentVerifiedIdentity();
+    const input = RenameChatInputSchema.parse(value);
+    return this.authorization.withActor(identity, (actor) =>
+      this.chats.rename(actor, UuidSchema.parse(chatId), input.title),
     );
   }
 

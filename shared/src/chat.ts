@@ -132,6 +132,15 @@ export const ChatInvalidationEventSchema = z.strictObject({
 });
 export type ChatInvalidationEvent = z.infer<typeof ChatInvalidationEventSchema>;
 
+export const RenameChatInputSchema = z.strictObject({
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((value) => Array.from(value).length <= 120),
+});
+export type RenameChatInput = z.infer<typeof RenameChatInputSchema>;
+
 export const ChatSearchRequestSchema = z.strictObject({
   query: z.string().trim().min(1).max(500),
   cursor: z.string().min(1).max(256).optional(),
@@ -330,8 +339,14 @@ export type ChatAuditEvent = z.infer<typeof ChatAuditEventSchema>;
 export interface ChatApi {
   create(input: CreateChatInput): Promise<ChatMutationResult>;
   get(chatId: string): Promise<ChatTree>;
-  list(input?: { cursor?: string; limit?: number }): Promise<ChatPage>;
-  search(input: ChatSearchRequest): Promise<ChatSearchPage>;
+  list(
+    input?: { cursor?: string; limit?: number },
+    signal?: AbortSignal,
+  ): Promise<ChatPage>;
+  search(
+    input: Omit<ChatSearchRequest, 'limit'> & { limit?: number },
+    signal?: AbortSignal,
+  ): Promise<ChatSearchPage>;
   resolveSearchMatch(
     chatId: string,
     messageId: string,
@@ -348,4 +363,6 @@ export interface ChatApi {
     input: RegenerateInput,
   ): Promise<ChatMutationResult>;
   setViewedLeaf(chatId: string, input: ViewedLeafInput): Promise<void>;
+  rename(chatId: string, input: RenameChatInput): Promise<void>;
+  delete(chatId: string): Promise<void>;
 }

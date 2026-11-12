@@ -24,6 +24,7 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
     schema: z.ZodType<T> | null,
     method = 'GET',
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<T> {
     let response: Response;
     try {
@@ -31,7 +32,9 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         method,
         credentials: 'same-origin',
         cache: 'no-store',
-        signal: AbortSignal.timeout(10_000),
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+          : AbortSignal.timeout(10_000),
         ...(body !== undefined
           ? {
               headers: { 'content-type': 'application/json' },
@@ -70,13 +73,21 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         contracts.CreateChatInputSchema.parse(input),
       ),
     get: (chatId) => call(`/chats/${id(chatId)}`, contracts.ChatTreeSchema),
-    list: (input) => call(withPage('/chats', input), contracts.ChatPageSchema),
-    search: (input) =>
+    list: (input, signal) =>
+      call(
+        withPage('/chats', input),
+        contracts.ChatPageSchema,
+        'GET',
+        undefined,
+        signal,
+      ),
+    search: (input, signal) =>
       call(
         '/chats/search',
         contracts.ChatSearchPageSchema,
         'POST',
         contracts.ChatSearchRequestSchema.parse(input),
+        signal,
       ),
     resolveSearchMatch: (chatId, messageId) =>
       call(
@@ -119,5 +130,13 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         'PUT',
         contracts.ViewedLeafInputSchema.parse(input),
       ),
+    rename: (chatId, input) =>
+      call(
+        `/chats/${id(chatId)}`,
+        null,
+        'PATCH',
+        contracts.RenameChatInputSchema.parse(input),
+      ),
+    delete: (chatId) => call(`/chats/${id(chatId)}`, null, 'DELETE'),
   };
 }

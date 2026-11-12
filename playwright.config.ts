@@ -53,8 +53,18 @@ export default defineConfig({
     {
       name: 'chat-browser',
       timeout: 90000,
-      testMatch: 'backend/test/e2e/chat-thread.spec.ts',
-      use: { trace: 'off', video: 'off', screenshot: 'off' },
+      testMatch: [
+        'backend/test/e2e/chat-thread.spec.ts',
+        'backend/test/e2e/chat-history.spec.ts',
+      ],
+      use: {
+        trace: 'off',
+        video: 'off',
+        screenshot: 'off',
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+      },
     },
     {
       name: 'frontend-browser',
