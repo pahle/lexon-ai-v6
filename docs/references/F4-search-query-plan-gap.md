@@ -200,3 +200,112 @@ This is bounded evidence for the accepted per-owner chat-search fixture. It
 does not establish indexed full-text or trigram behavior under RLS at document
 scale; the separate F8 retrieval and S3 spike remain responsible for that
 scale requirement.
+
+## Task 13 review fixes and durable final gate (2026-11-12)
+
+The final review fix source is commit `ae13a980d905b7fd9ee4f796941c43216dc8f5d7`
+(`fix(chat): complete search review requirements`). The complete durable
+synthetic JSONL artifact is
+[F4-search-final-gate-2026-11-12.jsonl](F4-search-final-gate-2026-11-12.jsonl),
+SHA-256 `217539a3f4754d3b40f6570ea49d94752128f2be2573beb1354dc692364886f1`.
+The artifact contains the sanitized full nested plans, app-session settings,
+four plan records, 20 warmups, all 120 client request timings, migration
+measurements, and the performance summary. Its eight-file source manifest
+matches the producer commit exactly. Unlike the earlier JSONL referenced above,
+this copy is committed and contains no absolute workspace path. The old final
+gate above is retained as historical evidence; this run is the newest gate.
+
+### Corrected selection and safe snippets
+
+Message candidates now outrank a title candidate within the same chat, so a
+title cannot discard a matching message navigation target. Among messages the
+best score wins; equal scores use source order then message ID as stable ties.
+Title-only results still have no message target. Search prefix generation adds
+the prefix operator only to the final nonnumeric token; earlier tokens require
+their exact English-normalized lexemes. Numeric article tokens remain ordinary
+terms.
+
+For page rows only, the repository uses PostgreSQL 17 `ts_headline` with
+`HighlightAll=true` and per-request random start/stop markers. The service
+removes all marker pairs, uses the first actual highlighted span to build a
+plain-text excerpt of at most 500 UTF-16 code units, and returns offsets into
+that excerpt. This preserves original text, including markup-like strings; the
+returned content is text and must never be rendered as HTML. The lookahead row
+continues to have a null excerpt. PostgreSQL documents that `ts_headline`
+chooses matching fragments and supports custom markers; with `HighlightAll`
+the whole document is selected before application-side bounded trimming. See
+the official [PostgreSQL 17 text-search controls and headline safety notes](https://www.postgresql.org/docs/17/textsearch-controls.html#TEXTSEARCH-HEADLINE).
+
+The search regression now verifies title/message priority, nonfinal exact
+terms versus final-token prefixes, plural-to-singular stem snippets near the
+end of a long answer, offset correctness, multiple markers, hostile marker-like
+source text, deterministic message ID ties, an inactive-branch hit followed by
+branch resolution, and deletion between search and target resolution. Existing
+URL/cursor/error canaries remain. HTTP logging and OTel tests include a search
+query canary in a POST body and in unapproved span attributes. The repository
+has no Sentry SDK or Sentry sink in either backend or frontend; a Sentry-shaped
+synthetic object is tested against the existing generic log filter, and no
+actual Sentry integration is claimed. If a Sentry SDK is added later, it needs
+its own integration canary.
+
+### Plan shape and measurements
+
+Command: `pnpm exec vitest run --project backend-integration chat-search-performance.spec`
+— **1 file passed, 1 test passed**, duration 126.98 seconds. This final run used
+producer commit `ae13a980d905b7fd9ee4f796941c43216dc8f5d7`, PostgreSQL
+`17.11 (Debian 17.11-1.pgdg12+2)`, the same representative fixture (2,000
+owner chats/50,000 owner messages/24,000 canonical answer runs and 1,000,002
+other-tenant messages across 40,002 chats), `statement_timeout=10000 ms`, and
+`enable_seqscan=on`. Hardware and the other exact app-session settings are in
+the JSONL header/preflight records.
+
+The four retained nested plans each have 68 nodes. All executed as
+`lexon_app` with tenant org/user settings. `app.chats`, `app.chat_messages`,
+and `app.ai_runs` reported row security enabled and forced. The owner CTE
+contains the actual `chats_owner_activity` index subtree, with both `org_id`
+and `owner_user_id` in its index condition; catalog `pg_get_expr(indpred,...)`
+records the partial predicate `(deleted_at IS NULL)`. No whole-table
+sequential scan on chats, messages, or run outputs appeared. The plans used
+`chats_owner_activity`, `chat_messages_tree`, `chat_runs_org_id_run_id_key`,
+`chats_pkey`, `ai_runs_org_id_id_key`, and `ai_runs_pkey`; no vector GIN index
+was selected or created. The artifact preserves each nested node and its
+estimates, filters, index conditions, costs, settings, row-security proof,
+partial-index predicate, and planning/execution time.
+
+After 5 successful warmups per class, the final run recorded 30 successful API
+requests per class. All 120 returned HTTP 200; values below are client-side
+elapsed milliseconds:
+
+| Query class      | Samples | p50 ms | p95 ms | Maximum ms | Failures |
+| ---------------- | ------: | -----: | -----: | ---------: | -------: |
+| stem             |      30 | 257.64 | 268.31 |     275.24 |        0 |
+| partial          |      30 | 172.68 | 252.90 |     255.16 |        0 |
+| article (`1320`) |      30 | 172.66 | 179.85 |     180.30 |        0 |
+| no-match         |      30 | 109.42 | 113.00 |     113.12 |        0 |
+
+Every p95 remains below the owner-approved 300 ms target. Migration 0036 on
+the populated fixture took 2,866.78 ms for message vectors and 3,899.30 ms for
+answer vectors. Message relation bytes changed from 434,429,952 to 451,477,504
+(51,304,300 vector bytes; vector size p50/p95 87/89 bytes). Run relation
+bytes changed from 263,356,416 to 277,094,400 (45,818,400 vector bytes;
+p50/p95 67/67 bytes). `ANALYZE` ran after migration; direct writes to either
+generated vector were rejected.
+
+SHA-256 source manifest from the final measurement:
+
+| File                                                             | SHA-256                                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `backend/drizzle/0035_chat_search.sql`                           | `75bd1bd7f5a72c86cc13e3576a650d97dc7c0fea8f8c7e92117bd0c66f56f9ac` |
+| `backend/drizzle/0036_chat_search_vectors.sql`                   | `e3f78202877a994e58e6eeddafc5242856036a10b28ae9460f83462573e85239` |
+| `backend/src/infrastructure/db/chat-search.repository.ts`        | `29c5e54ba85992fb8c01ec596082f5106cf3cf5b8ae4ba62e5fdbd38ba5ed095` |
+| `backend/src/infrastructure/db/schema.ts`                        | `a53e6b1cf5ecdfc910725b6bf4e9b10a071746a88de1ec0a94ad3721120f2dd6` |
+| `backend/src/infrastructure/db/testing/chat-search-benchmark.ts` | `cc5a2c671a66f01556501f526d609853896c884622e4428968673c90bd10ae08` |
+| `backend/src/infrastructure/db/testing/chat-fixture.ts`          | `1566fd9ddf700d488bc841e637e94e200f1277cabb639d587b6f38c8014cda53` |
+| `backend/src/modules/chat/chat-search.service.ts`                | `09d16180eb20ec7963423851b8def3e066423e2f11da048df59d702e8c6ad195` |
+| `backend/test/integration/chat-search-performance.spec.ts`       | `d16ec396fdfa738d9422680ba716a84e0a172325a1229258545caf9c2842917e` |
+
+The final benchmark fixture remains intentionally bounded and compressible:
+it repeats synthetic positive terms and uses the approved answer length
+distribution. The measured latency and vector-storage figures apply to this
+fixture only; they do not generalize to arbitrary document corpora. F8 and the
+S3 spike still own document-scale indexed search under RLS.
