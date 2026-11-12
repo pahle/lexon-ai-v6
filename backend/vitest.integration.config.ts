@@ -1,8 +1,12 @@
-import { defineProject } from 'vitest/config';
+import { configDefaults, defineProject } from 'vitest/config';
 export default defineProject({
   test: {
     name: 'backend-integration',
     include: ['test/integration/**/*.spec.ts'],
+    exclude: [
+      ...configDefaults.exclude,
+      'test/integration/chat-search-performance.spec.ts',
+    ],
     globalSetup: [
       '../scripts/test/prepare-packages.ts',
       'test/setup/global-infrastructure.ts',

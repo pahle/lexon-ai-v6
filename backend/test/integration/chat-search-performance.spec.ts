@@ -1,15 +1,21 @@
 import { expect } from 'vitest';
 import * as os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import { explainChatSearch } from '../../src/infrastructure/db/testing/chat-search-benchmark.js';
+import {
+  formatSearchClassSummary,
+  selectPostgresContainerId,
+  summarizeSearchSamples,
+  whitelistRuntimeEvidence,
+} from '../../src/infrastructure/db/testing/chat-search-evidence.js';
 
 const queryTypes = [
   ['stem', 'agreements'],
@@ -23,69 +29,47 @@ test(
   'private search performance gate uses owner-first plans and stays under target',
   { timeout: 900_000 },
   async ({ services }) => {
-    const artifactPath = resolve(
-      testRoot,
-      'test-results/f4-search',
-      `gate-${new Date().toISOString().replaceAll(':', '-')}-${process.pid}.jsonl`,
-    );
+    const artifactPath = resolve(testRoot, 'test-results/f4-search/gate.jsonl');
     await mkdir(dirname(artifactPath), { recursive: true });
-    await writeFile(artifactPath, '', 'utf8');
+    try {
+      await readFile(artifactPath);
+    } catch {
+      await writeFile(
+        artifactPath,
+        `${JSON.stringify({ type: 'header', sourceHead: null, localRun: true })}\n`,
+        'utf8',
+      );
+    }
     const record = async (value: unknown) => {
       await appendFile(artifactPath, `${JSON.stringify(value)}\n`, 'utf8');
     };
-    const sourceFiles = [
-      'backend/drizzle/0035_chat_search.sql',
-      'backend/drizzle/0036_chat_search_vectors.sql',
-      'backend/src/infrastructure/db/chat-search.repository.ts',
-      'backend/src/infrastructure/db/schema.ts',
-      'backend/src/infrastructure/db/testing/chat-search-benchmark.ts',
-      'backend/src/infrastructure/db/testing/chat-fixture.ts',
-      'backend/src/modules/chat/chat-search.service.ts',
-      'backend/test/integration/chat-search-performance.spec.ts',
-    ];
-    const sourceHashes = Object.fromEntries(
-      await Promise.all(
-        sourceFiles.map(async (path) => [
-          path,
-          createHash('sha256')
-            .update(await readFile(resolve(testRoot, path)))
-            .digest('hex'),
-        ]),
-      ),
-    );
-    const hardware = {
-      platform: `${os.platform()} ${os.release()}`,
-      architecture: os.arch(),
-      cpuModel: os.cpus()[0]?.model,
-      cpuCount: os.cpus().length,
-      totalMemoryBytes: os.totalmem(),
-      dockerVm: {
-        cpuCount: 10,
-        memoryBytes: 8_217_059_328,
-        containerLimits: 'unlimited within Docker Desktop VM',
-      },
-    };
     await record({
-      type: 'header',
-      artifactPath,
-      testCommand:
-        'pnpm exec vitest run --project backend-integration chat-search-performance.spec',
+      type: 'benchmark-start',
       configuredApiStatementTimeoutMs: 10_000,
-      plannerSeqscanSetting: 'on',
-      hardware,
-      sourceHashes,
     });
-    const app = await createTestApi(
-      loadRuntimeConfig(
-        'api',
-        createAuthEnvironment(
-          services,
-          '/tmp/lexon-chat-search-performance-health.json',
-        ),
-      ),
-    );
-    const fixture = await createChatFixture(services);
+    let stage = 'postgres-metadata';
+    let app: Awaited<ReturnType<typeof createTestApi>> | undefined;
+    let fixture: Awaited<ReturnType<typeof createChatFixture>> | undefined;
     try {
+      await record({
+        type: 'runtime-evidence',
+        evidence: whitelistRuntimeEvidence(
+          await captureRuntimeEvidence(services.appUrl),
+        ),
+      });
+      stage = 'api-setup';
+      app = await createTestApi(
+        loadRuntimeConfig(
+          'api',
+          createAuthEnvironment(
+            services,
+            '/tmp/lexon-chat-search-performance-health.json',
+          ),
+        ),
+      );
+      stage = 'fixture-setup';
+      fixture = await createChatFixture(services);
+      stage = 'seed-and-measure';
       await app.listen(0, '127.0.0.1');
       const origin = await app.getUrl();
       const owner = await apiHeaders(app);
@@ -214,8 +198,6 @@ test(
           serverVersion.rows[0] as { server_version: string } | undefined
         )?.server_version,
         appSessionSettings: planSummaries[0]?.settings,
-        hardware,
-        sourceHashes,
       };
       await record({
         type: 'preflight',
@@ -294,19 +276,21 @@ test(
       }
 
       const metrics = Object.fromEntries(
-        [...timings.entries()].map(([name, samples]) => [
-          name,
-          samples.length === 30 &&
-          samples.every((sample) => sample.status === 200)
-            ? summarizeTimings(samples)
-            : {
-                samples: samples.length,
-                complete: false,
-                failedSamples: samples.filter((sample) => sample.status !== 200)
-                  .length,
-              },
-        ]),
+        queryTypes.map(([name]) => {
+          const samples = timings.get(name) ?? [];
+          return [
+            name,
+            {
+              ...summarizeSearchSamples(samples),
+              complete:
+                samples.length === 30 &&
+                samples.every((sample) => sample.status === 200),
+            },
+          ];
+        }),
       );
+      for (const [name] of queryTypes)
+        console.log(formatSearchClassSummary(name, metrics[name]!));
       await record({
         type: 'performance-summary',
         metrics,
@@ -324,23 +308,123 @@ test(
         queryTypes.length,
       );
       for (const [name, summary] of Object.entries(metrics)) {
-        expect(summary.samples, `${name} sample count`).toBe(30);
+        expect(summary.count, `${name} sample count`).toBe(30);
         expect(
-          'p95Ms' in summary,
+          summary.p95Ms,
           `${name} lacks a complete p95; see ${artifactPath}`,
-        ).toBe(true);
-        if ('p95Ms' in summary)
-          expect(
-            summary.p95Ms,
-            `${name} p95; see ${artifactPath}`,
-          ).toBeLessThan(300);
+        ).not.toBeNull();
+        expect(summary.p95Ms, `${name} p95; see ${artifactPath}`).toBeLessThan(
+          300,
+        );
       }
+    } catch (error) {
+      await record({
+        type: 'failure',
+        stage,
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
+      throw error;
     } finally {
-      await app.close();
-      await fixture.close();
+      await app?.close();
+      await fixture?.close();
     }
   },
 );
+
+async function captureRuntimeEvidence(appUrl: string) {
+  const dockerInfo = JSON.parse(
+    dockerOutput(['info', '--format', '{{json .}}']),
+  ) as Record<string, unknown>;
+  const mappedPort = Number(new URL(appUrl).port);
+  const listedContainers = dockerOutput([
+    'ps',
+    '--format',
+    '{{.ID}}\t{{.Ports}}',
+  ]);
+  const candidates = listedContainers
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [id, ports = ''] = line.split('\t');
+      return { id: id!, ports };
+    });
+  const containerId = selectPostgresContainerId(candidates, mappedPort);
+  const inspectRows = JSON.parse(
+    dockerOutput(['inspect', containerId]),
+  ) as Array<Record<string, unknown>>;
+  const inspect = inspectRows[0];
+  if (!inspect) throw new Error('PostgreSQL container inspection was empty');
+  const hostConfig = (inspect.HostConfig ?? {}) as Record<string, unknown>;
+  const config = (inspect.Config ?? {}) as Record<string, unknown>;
+  const cgroupValue = (name: string) => {
+    try {
+      return dockerOutput([
+        'exec',
+        containerId,
+        'cat',
+        `/sys/fs/cgroup/${name}`,
+      ]);
+    } catch {
+      return null;
+    }
+  };
+  const memoryLimit = cgroupValue('memory.max');
+  const pidsLimit = cgroupValue('pids.max');
+  const numericLimit = (value: string | null) =>
+    value && value !== 'max' && Number.isFinite(Number(value))
+      ? Number(value)
+      : null;
+  const cpus = os.cpus();
+  return {
+    runner: {
+      image: process.env.F4_RUNNER_IMAGE ?? null,
+      imageOS: process.env.ImageOS ?? null,
+      imageVersion: process.env.ImageVersion ?? null,
+      platform: `${os.platform()} ${os.release()}`,
+      architecture: os.arch(),
+      cpuModel: cpus[0]?.model ?? null,
+      cpuCount: cpus.length,
+      totalMemoryBytes: os.totalmem(),
+    },
+    docker: {
+      serverVersion: dockerInfo.ServerVersion,
+      cpuCount: dockerInfo.NCPU,
+      memoryBytes: dockerInfo.MemTotal,
+      cgroupDriver: dockerInfo.CgroupDriver,
+      cgroupVersion: dockerInfo.CgroupVersion,
+    },
+    postgres: {
+      image: config.Image,
+      hostConfig: {
+        memoryBytes: hostConfig.Memory,
+        nanoCpus: hostConfig.NanoCpus,
+        cpuQuota: hostConfig.CpuQuota,
+        cpuPeriod: hostConfig.CpuPeriod,
+        cpuShares: hostConfig.CpuShares,
+        cpusetCpus: hostConfig.CpusetCpus,
+        pidsLimit: hostConfig.PidsLimit,
+      },
+      cgroups: {
+        cpuMax: cgroupValue('cpu.max'),
+        memoryMaxBytes: numericLimit(memoryLimit),
+        cpusetCpusEffective: cgroupValue('cpuset.cpus.effective'),
+        pidsMax: numericLimit(pidsLimit),
+      },
+    },
+  };
+}
+
+function dockerOutput(args: string[]): string {
+  try {
+    return execFileSync('docker', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
+    }).trim();
+  } catch {
+    throw new Error('Docker resource metadata could not be collected');
+  }
+}
 
 async function readIdentity(
   origin: string,
