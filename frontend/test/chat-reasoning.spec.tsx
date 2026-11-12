@@ -33,3 +33,16 @@ it('renders no timing label for a finished answer whose persisted duration is nu
     await view.unmount();
   }
 });
+
+it('shows measured duration without expandable content when a private summary is absent', async () => {
+  const view = await render(
+    <PersistedReasoning summary={null} durationMs={2_300} />,
+  );
+  try {
+    expect(view.container.textContent).toContain('Thought for 2 seconds');
+    expect(view.container.querySelector('button')).toBeNull();
+    expect(view.container.textContent).not.toContain('summary');
+  } finally {
+    await view.unmount();
+  }
+});

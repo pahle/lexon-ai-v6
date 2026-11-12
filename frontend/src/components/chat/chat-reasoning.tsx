@@ -20,6 +20,14 @@ export function PersistedReasoning({
 }) {
   const [open, setOpen] = useState(false);
   if (summary === null) {
+    if (durationMs !== null && !running) {
+      const seconds = Math.round(durationMs / 1000);
+      return (
+        <p className="text-muted-foreground my-3 text-sm">
+          Thought for {seconds} {seconds === 1 ? 'second' : 'seconds'}
+        </p>
+      );
+    }
     return running ? (
       <span
         role="status"

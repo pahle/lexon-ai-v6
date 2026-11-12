@@ -13,8 +13,35 @@ export function MarkdownText({
 }: Partial<TextMessagePartProps> & { readonly source?: string }) {
   const components: Components = {
     img: () => null,
+    h1: ({ children }) => (
+      <h1 className="mt-6 mb-3 font-serif text-2xl font-semibold tracking-tight first:mt-0">
+        {children}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 className="mt-6 mb-3 font-serif text-xl font-semibold tracking-tight first:mt-0">
+        {children}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 className="mt-5 mb-2 font-serif text-lg font-semibold tracking-tight first:mt-0">
+        {children}
+      </h3>
+    ),
     p: ({ children }: ComponentPropsWithoutRef<'p'>) => (
       <p className="my-3 first:mt-0 last:mb-0">{children}</p>
+    ),
+    ul: ({ children }) => (
+      <ul className="my-3 ms-6 list-disc space-y-1">{children}</ul>
+    ),
+    ol: ({ children }) => (
+      <ol className="my-3 ms-6 list-decimal space-y-1">{children}</ol>
+    ),
+    li: ({ children }) => <li className="ps-1">{children}</li>,
+    blockquote: ({ children }) => (
+      <blockquote className="border-border text-muted-foreground my-4 border-s-2 ps-4">
+        {children}
+      </blockquote>
     ),
     a: ({ children, href, ...attributes }: ComponentPropsWithoutRef<'a'>) =>
       href === undefined ? (

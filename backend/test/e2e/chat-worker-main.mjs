@@ -160,18 +160,30 @@ function createScriptedGateway() {
       const held = prompt.includes('[runtime-proof:hold]');
       let releasePrefix;
       let releaseSuffix;
+      let releaseAnswer;
+      let releaseSecondAnswer;
       const prefixGate = new Promise((resolve) => {
         releasePrefix = resolve;
       });
       const suffixGate = new Promise((resolve) => {
         releaseSuffix = resolve;
       });
+      const answerGate = new Promise((resolve) => {
+        releaseAnswer = resolve;
+      });
+      const secondAnswerGate = new Promise((resolve) => {
+        releaseSecondAnswer = resolve;
+      });
       runs.set(runId, {
         blocked: false,
         prefixBlocked: held,
+        answerBlocked: false,
+        secondAnswerBlocked: false,
         released: false,
         releasePrefix,
         releaseSuffix,
+        releaseAnswer,
+        releaseSecondAnswer,
       });
 
       yield {
@@ -179,7 +191,16 @@ function createScriptedGateway() {
         generationId: `e2e-${runId}`,
         provider: 'lexon-e2e-scripted',
       };
-      if (prompt.includes('[runtime-proof:reasoning]')) {
+      if (prompt.includes('[task14:preview]')) {
+        yield { type: 'reasoning-start', attemptId };
+        yield {
+          type: 'reasoning-summary-delta',
+          attemptId,
+          text: 'The clause shifts open-ended responsibility to the supplier.\n\n- Cap direct damages.\n- Exclude indirect loss.\n\n![remote summary image](https://remote.invalid/summary.png)',
+        };
+        yield { type: 'reasoning-end', attemptId, durationMs: 2_300 };
+        await new Promise((resolve) => setTimeout(resolve, 450));
+      } else if (prompt.includes('[runtime-proof:reasoning]')) {
         yield { type: 'reasoning-start', attemptId };
         yield {
           type: 'reasoning-summary-delta',
@@ -187,8 +208,19 @@ function createScriptedGateway() {
           text: 'Synthetic reasoning summary.',
         };
         yield { type: 'reasoning-end', attemptId, durationMs: 17 };
+      } else if (prompt.includes('[task14:raw-duration]')) {
+        yield { type: 'reasoning-start', attemptId };
+        yield { type: 'reasoning-end', attemptId, durationMs: 2_300 };
       }
-      if (held) {
+      if (held && prompt.includes('[task14:preview]')) {
+        await prefixGate;
+        const run = runs.get(runId);
+        if (run) {
+          run.prefixBlocked = false;
+          run.blocked = false;
+        }
+      }
+      if (held && !prompt.includes('[task14:preview]')) {
         await prefixGate;
         const run = runs.get(runId);
         if (run) run.prefixBlocked = false;
@@ -222,19 +254,40 @@ function createScriptedGateway() {
         };
         return;
       } else {
-        const answer = prompt.includes('[runtime-proof:reasoning]')
-          ? 'Reasoned synthetic answer.'
-          : prompt.includes('[runtime-proof:error]')
-            ? 'Try again succeeded.'
-            : prompt.includes('[runtime-proof:edit]')
-              ? 'Edited answer.'
-              : prompt.includes('[runtime-proof:regenerate]')
-                ? `Sibling answer ${count}.`
-                : `Scripted answer: ${prompt.replace(/\[runtime-proof:[^\]]+\]/g, '').trim()}`;
-        const parts = held
-          ? []
-          : [...answer].map((text) => ({ type: 'text', text }));
-        for (const part of parts) yield part;
+        const answer = prompt.includes('[task14:preview]')
+          ? '## Liability review\n\nThe supplier accepts **uncapped direct liability** in section 8.\n\n- Add a fee-based cap.\n- Exclude consequential and indirect damages.\n- Keep the carve-outs narrow and explicit.\n\n![remote answer image](https://remote.invalid/answer.png)\n\nSee the [contract text](https://example.test/contract).'
+          : prompt.includes('[task14:byte-boundary]')
+            ? 'Accepted exact 16,384-byte prompt.'
+            : prompt.includes('[runtime-proof:reasoning]')
+              ? 'Reasoned synthetic answer.'
+              : prompt.includes('[runtime-proof:error]')
+                ? 'Try again succeeded.'
+                : prompt.includes('[runtime-proof:edit]')
+                  ? 'Edited answer.'
+                  : prompt.includes('[runtime-proof:regenerate]')
+                    ? `Sibling answer ${count}.`
+                    : `Scripted answer: ${prompt.replace(/\[runtime-proof:[^\]]+\]/g, '').trim()}`;
+        const parts = [...answer].map((text) => ({ type: 'text', text }));
+        if (prompt.includes('[task14:preview]')) {
+          for (let index = 0; index < answer.length; index += 24) {
+            yield { type: 'text', text: answer.slice(index, index + 24) };
+            if (held && index === 0) {
+              const run = runs.get(runId);
+              if (run) run.answerBlocked = true;
+              await answerGate;
+              if (run) run.answerBlocked = false;
+            }
+            if (held && index === 24) {
+              const run = runs.get(runId);
+              if (run) run.secondAnswerBlocked = true;
+              await secondAnswerGate;
+              if (run) run.secondAnswerBlocked = false;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 16));
+          }
+        } else {
+          for (const part of parts) yield part;
+        }
       }
 
       yield { type: 'usage', usage: { inputTokens: 4, outputTokens: 4 } };
@@ -269,6 +322,8 @@ const control = createServer((socket) => {
         ![
           'status',
           'release-prefix',
+          'release-answer',
+          'release-second-answer',
           'release',
           'cursor',
           'trim',
@@ -323,12 +378,18 @@ const control = createServer((socket) => {
       }
       if (op === 'release-prefix' && run && run.prefixBlocked)
         run.releasePrefix();
+      if (op === 'release-answer' && run && run.answerBlocked)
+        run.releaseAnswer();
+      if (op === 'release-second-answer' && run && run.secondAnswerBlocked)
+        run.releaseSecondAnswer();
       socket.end(
         JSON.stringify(
           run
             ? {
                 blocked: run.blocked,
                 prefixBlocked: run.prefixBlocked,
+                answerBlocked: run.answerBlocked,
+                secondAnswerBlocked: run.secondAnswerBlocked,
                 released: run.released,
               }
             : null,

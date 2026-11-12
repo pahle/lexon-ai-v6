@@ -7,7 +7,7 @@ it('drops unsafe HTML, javascript links, and remote images without fetching them
   const view = await render(
     <MarkdownText
       source={
-        'Safe text\n\n<img src="https://remote.invalid/pixel"><script>run()</script> [open](javascript:alert(1))'
+        'Safe text\n\n![remote image](https://remote.invalid/pixel)\n\n<img src="https://remote.invalid/html-pixel"><script>run()</script> [open](javascript:alert(1))'
       }
     />,
   );
@@ -18,6 +18,29 @@ it('drops unsafe HTML, javascript links, and remote images without fetching them
     expect(requests).not.toHaveBeenCalled();
   } finally {
     requests.mockRestore();
+    await view.unmount();
+  }
+});
+
+it('keeps heading hierarchy and visible ordered and unordered list markers', async () => {
+  const view = await render(
+    <MarkdownText
+      source={
+        '## Liability review\n\n- Cap damages\n- Exclude indirect loss\n\n1. Define a cap\n2. Narrow exceptions'
+      }
+    />,
+  );
+  try {
+    expect(view.container.querySelector('h2')?.className).toContain(
+      'font-serif',
+    );
+    expect(view.container.querySelector('ul')?.className).toContain(
+      'list-disc',
+    );
+    expect(view.container.querySelector('ol')?.className).toContain(
+      'list-decimal',
+    );
+  } finally {
     await view.unmount();
   }
 });

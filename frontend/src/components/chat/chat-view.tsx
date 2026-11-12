@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button';
 import { Thread } from '@/components/assistant-ui/elements/thread.aui';
 import { ChatRuntime } from './chat-runtime';
 import type { ChatApi, ChatTree } from '@lexon/contracts';
@@ -11,18 +12,11 @@ import { toast } from 'sonner';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { useQueryClient } from '@tanstack/react-query';
 import { subscribeToChatInvalidations } from '@/lib/chat-title-invalidation';
+import { ArrowUpIcon, Brain as BrainIcon } from 'lucide-react';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
-export function ChatView({
-  chatId,
-  actorScope,
-  displayName,
-  client,
-  onNavigate,
-  orgId,
-  userId,
-}: {
+type ChatViewProps = {
   readonly chatId?: string;
   readonly actorScope: string;
   readonly displayName: string;
@@ -30,7 +24,26 @@ export function ChatView({
   readonly orgId: string;
   readonly userId: string;
   readonly onNavigate?: (path: string) => void;
-}) {
+};
+
+export function ChatView(props: ChatViewProps) {
+  return (
+    <ChatViewSession
+      key={`${props.actorScope}:${props.chatId ?? 'new'}`}
+      {...props}
+    />
+  );
+}
+
+function ChatViewSession({
+  chatId,
+  actorScope,
+  displayName,
+  client,
+  onNavigate,
+  orgId,
+  userId,
+}: ChatViewProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [tree, setTree] = useState<ChatTree | null>(null);
@@ -174,27 +187,36 @@ export function ChatView({
             rows={3}
             className="max-h-48 min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"
           />
-          <div className="flex items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-3">
-              <button
+          <div className="flex flex-nowrap items-center justify-between gap-3 pt-2">
+            <div className="flex min-w-0 flex-nowrap items-center gap-3">
+              <Button
                 type="button"
+                variant={effort === 'max' ? 'secondary' : 'outline'}
+                size="sm"
+                className="rounded-full"
                 aria-label="Deep thinking"
                 aria-pressed={effort === 'max'}
                 onClick={() => setEffort(effort === 'max' ? 'high' : 'max')}
-                className="rounded-lg px-2 py-1 text-sm hover:bg-muted"
               >
-                Deep thinking
-              </button>
-              <span className="text-muted-foreground text-xs">
-                {MAX_PROMPT_BYTES - bytes} bytes left
-              </span>
+                <BrainIcon aria-hidden="true" /> Deep thinking
+              </Button>
+              {bytes >= MAX_PROMPT_BYTES - 512 && bytes <= MAX_PROMPT_BYTES ? (
+                <span className="text-muted-foreground shrink-0 whitespace-nowrap text-xs">
+                  {MAX_PROMPT_BYTES - bytes} bytes left
+                </span>
+              ) : null}
             </div>
-            <Button
+            <TooltipIconButton
+              tooltip="Send message"
               type="submit"
               disabled={!text.trim() || bytes > MAX_PROMPT_BYTES || sending}
+              variant="default"
+              size="icon"
+              className="size-9 shrink-0 rounded-full"
+              aria-label="Send message"
             >
-              {sending ? 'Sending…' : 'Send'}
-            </Button>
+              <ArrowUpIcon className="size-4" />
+            </TooltipIconButton>
           </div>
         </div>
         {bytes > MAX_PROMPT_BYTES ? (

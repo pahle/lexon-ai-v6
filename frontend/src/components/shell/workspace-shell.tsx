@@ -9,6 +9,7 @@ import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
 import { SettingsDialog } from '../settings/settings-dialog';
+import { usePathname } from 'next/navigation';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
 function SkipLink() {
@@ -38,6 +39,9 @@ export function WorkspaceShell({
     refreshIdentity,
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const isChatSurface =
+    pathname === '/workspace' || /^\/chats\/[0-9a-f-]{36}$/i.test(pathname);
   const sidebarState = useOptionalSidebar();
   const isMobile = sidebarState?.isMobile ?? false;
   const sidebarCollapsed = sidebarState?.state === 'collapsed';
@@ -90,7 +94,13 @@ export function WorkspaceShell({
       <>
         <SkipLink />
         {sidebar && sidebarState ? sidebar : null}
-        <SidebarInset id="main" tabIndex={-1} className="min-w-0">
+        <SidebarInset
+          id="main"
+          tabIndex={-1}
+          className={
+            isChatSurface ? 'h-dvh max-h-dvh min-h-0 min-w-0' : 'min-w-0'
+          }
+        >
           {sidebar && sidebarState ? (
             <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
               <div className="flex items-center gap-2 px-4">
@@ -113,7 +123,7 @@ export function WorkspaceShell({
             </header>
           ) : null}
           <div className="flex min-h-0 flex-1">
-            <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
               {sidebar && !sidebarState ? (
                 <aside aria-label="Workspace navigation" className="shrink-0">
                   {sidebar}

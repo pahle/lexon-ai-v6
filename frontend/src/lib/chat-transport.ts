@@ -29,6 +29,7 @@ export interface LexonChatTransportOptions {
 export interface ChatMessageMetadata {
   readonly status?: string;
   readonly errorCode?: string | null;
+  readonly feedback?: 'good' | 'bad' | null;
   readonly reasoningDurationMs?: number | null;
   readonly chatOperation?: { readonly type: 'edit'; readonly sourceId: string };
 }

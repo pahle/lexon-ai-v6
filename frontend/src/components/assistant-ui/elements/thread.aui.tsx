@@ -21,6 +21,7 @@ import {
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  Brain as BrainIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -29,14 +30,35 @@ import {
   RefreshCwIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
+  XIcon,
 } from 'lucide-react';
 import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
   useState,
   type ClipboardEvent,
   type DragEvent,
   type FC,
   type FormEvent,
 } from 'react';
+
+const EditFocusContext = createContext<{
+  readonly target: {
+    sourceId: string;
+    parentId: string | null;
+    waitForReplacement: boolean;
+  } | null;
+  readonly setTarget: (
+    target: {
+      sourceId: string;
+      parentId: string | null;
+      waitForReplacement: boolean;
+    } | null,
+  ) => void;
+}>({ target: null, setTarget: () => {} });
 
 export type ThreadProps = {
   displayName: string;
@@ -81,67 +103,78 @@ export const Thread: FC<ThreadProps> = ({
   reconnecting = false,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
+  const [editFocusTarget, setEditFocusTarget] = useState<{
+    sourceId: string;
+    parentId: string | null;
+    waitForReplacement: boolean;
+  } | null>(null);
+  const editFocus = useMemo(
+    () => ({ target: editFocusTarget, setTarget: setEditFocusTarget }),
+    [editFocusTarget],
+  );
 
   return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
-      style={{
-        ['--thread-max-width' as string]: '44rem',
-        ['--composer-bg' as string]:
-          'color-mix(in oklab, var(--color-muted) 30%, transparent)',
-        ['--composer-radius' as string]: '1rem',
-        ['--composer-padding' as string]: '8px',
-      }}
-    >
-      <ThreadPrimitive.Viewport
-        turnAnchor="top"
-        data-slot="aui_thread-viewport"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+    <EditFocusContext.Provider value={editFocus}>
+      <ThreadPrimitive.Root
+        className="aui-root aui-thread-root bg-background @container flex min-h-0 min-w-0 flex-1 flex-col"
+        style={{
+          ['--thread-max-width' as string]: '44rem',
+          ['--composer-bg' as string]:
+            'color-mix(in oklab, var(--color-muted) 30%, transparent)',
+          ['--composer-radius' as string]: '1rem',
+          ['--composer-padding' as string]: '8px',
+        }}
       >
-        <div
-          className={cn(
-            'mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4',
-            isEmpty && 'justify-center',
-          )}
+        <ThreadPrimitive.Viewport
+          turnAnchor="top"
+          data-slot="aui_thread-viewport"
+          className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
-          <AuiIf condition={isNewChatView}>
-            <ThreadWelcome displayName={displayName} />
-          </AuiIf>
-          <AuiIf condition={isHistoryLoadingView}>
-            <ThreadHistorySkeleton />
-          </AuiIf>
-          {reconnecting ? (
-            <p
-              role="status"
-              aria-live="polite"
-              className="text-muted-foreground mb-3 text-sm"
-            >
-              Reconnecting…
-            </p>
-          ) : null}
-
           <div
-            data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden"
-          >
-            <ThreadPrimitive.Messages>
-              {() => <ThreadMessage onFeedback={onFeedback} />}
-            </ThreadPrimitive.Messages>
-          </div>
-
-          <ThreadPrimitive.ViewportFooter
             className={cn(
-              'aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
-              !isEmpty &&
-                'sticky bottom-0 mt-auto rounded-t-(--composer-radius)',
+              'mx-auto flex min-h-0 w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4',
+              isEmpty && 'justify-center',
             )}
           >
-            <ThreadScrollToBottom />
-            <Composer effort={effort} onEffortChange={onEffortChange} />
-          </ThreadPrimitive.ViewportFooter>
-        </div>
-      </ThreadPrimitive.Viewport>
-    </ThreadPrimitive.Root>
+            <AuiIf condition={isNewChatView}>
+              <ThreadWelcome displayName={displayName} />
+            </AuiIf>
+            <AuiIf condition={isHistoryLoadingView}>
+              <ThreadHistorySkeleton />
+            </AuiIf>
+            {reconnecting ? (
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-muted-foreground mb-3 text-sm"
+              >
+                Reconnecting…
+              </p>
+            ) : null}
+
+            <div
+              data-slot="aui_message-group"
+              className="mb-14 flex flex-col gap-y-6 empty:hidden"
+            >
+              <ThreadPrimitive.Messages>
+                {() => <ThreadMessage onFeedback={onFeedback} />}
+              </ThreadPrimitive.Messages>
+            </div>
+
+            <ThreadPrimitive.ViewportFooter
+              className={cn(
+                'aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
+                !isEmpty &&
+                  'sticky bottom-0 mt-auto rounded-t-(--composer-radius)',
+              )}
+            >
+              <ThreadScrollToBottom />
+              <Composer effort={effort} onEffortChange={onEffortChange} />
+            </ThreadPrimitive.ViewportFooter>
+          </div>
+        </ThreadPrimitive.Viewport>
+      </ThreadPrimitive.Root>
+    </EditFocusContext.Provider>
   );
 };
 
@@ -170,32 +203,87 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       null,
   );
   const durationMs = useAuiState((state) => {
-    const value = (
-      state.message.metadata as { reasoningDurationMs?: unknown } | undefined
-    )?.reasoningDurationMs;
+    const metadata = state.message.metadata as { custom?: unknown } | undefined;
+    const custom = metadata?.custom;
+    const value =
+      custom && typeof custom === 'object'
+        ? (custom as { reasoningDurationMs?: unknown }).reasoningDurationMs
+        : undefined;
     return typeof value === 'number' ? value : null;
   });
   const running = useAuiState(
     (state) => state.message.status?.type === 'running',
   );
-  const metadata = useAuiState(
-    (state) => state.message.metadata as { status?: unknown } | undefined,
+  const assistantStatus = useAuiState((state) => state.message.status);
+  const editing = useAuiState((state) => state.message.composer.isEditing);
+  const messagePosition = useAuiState((state) =>
+    state.thread.messages.findIndex((message) => message.id === messageId),
   );
+  const parentId = useAuiState((state) => state.message.parentId);
+  const threadRunning = useAuiState((state) => state.thread.isRunning);
+  const editFocus = useContext(EditFocusContext);
+  useEffect(() => {
+    if (
+      editing ||
+      threadRunning ||
+      role !== 'user' ||
+      messagePosition < 0 ||
+      editFocus.target?.parentId !== parentId ||
+      editFocus.target.waitForReplacement ===
+        (editFocus.target.sourceId === messageId)
+    )
+      return;
+    requestAnimationFrame(() => {
+      const button = document.querySelector<HTMLButtonElement>(
+        `[data-message-id="${messageId}"] [aria-label="Edit message"]`,
+      );
+      button?.focus();
+      if (button === document.activeElement) editFocus.setTarget(null);
+    });
+  }, [
+    editFocus,
+    editing,
+    messageId,
+    messagePosition,
+    parentId,
+    role,
+    threadRunning,
+  ]);
+  const metadata = useAuiState((state) => {
+    const custom = (state.message.metadata as { custom?: unknown } | undefined)
+      ?.custom;
+    return custom && typeof custom === 'object'
+      ? (custom as { status?: unknown; feedback?: unknown })
+      : undefined;
+  });
+  const answerText = useAuiState((state) =>
+    state.message.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join(''),
+  );
+  const announcement = useIncrementalAnnouncement(
+    messageId,
+    answerText,
+    running,
+  );
+  if (editing)
+    return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
   return (
     <MessagePrimitive.Root
       data-slot={`aui_${role}-message-root`}
       data-role={role}
+      data-message-id={messageId}
       className={cn(
-        'text-foreground px-2 leading-relaxed wrap-break-word',
-        role === 'user' &&
-          'ms-auto max-w-[80%] rounded-2xl bg-muted px-4 py-2.5',
+        'group/turn text-foreground px-2 leading-relaxed wrap-break-word',
+        role === 'user' && 'ms-auto max-w-[80%] px-0',
       )}
     >
       {role === 'assistant' ? (
         <PersistedReasoning
           summary={summary}
           durationMs={durationMs}
-          running={running && summary === null}
+          running={running}
         />
       ) : null}
       {role === 'assistant' && running ? (
@@ -203,34 +291,103 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
           Lexon is responding.
         </span>
       ) : null}
-      <div aria-live="off">
+      <div
+        className={cn(role === 'user' && 'rounded-2xl bg-muted px-4 py-2.5')}
+        aria-live="off"
+      >
         <MessagePrimitive.Parts
           components={{ Text: MarkdownText, Reasoning: () => null }}
         />
       </div>
-      {role === 'assistant' && metadata?.status === 'stopped' ? (
+      {role === 'assistant' &&
+      (metadata?.status === 'cancelled' ||
+        (assistantStatus?.type === 'incomplete' &&
+          assistantStatus.reason === 'cancelled')) ? (
         <span className="text-muted-foreground text-xs">Stopped</span>
       ) : null}
-      {role === 'assistant' ? (
-        <AssistantActions messageId={messageId} onFeedback={onFeedback} />
-      ) : (
-        <UserEditAction />
-      )}
-      {role === 'user' ? <BranchPicker /> : null}
-      <MessagePrimitive.Error>
+      {role === 'assistant' && metadata?.status === 'failed' ? (
         <div
           role="alert"
           className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
         >
           The response could not be completed.{' '}
-          <ActionBarPrimitive.Reload className="underline">
+          <ActionBarPrimitive.Reload
+            aria-label="Try again"
+            className="underline"
+          >
             Try again
           </ActionBarPrimitive.Reload>
         </div>
+      ) : null}
+      <MessagePrimitive.Error>
+        {metadata?.status === 'failed' ? null : (
+          <div
+            role="alert"
+            className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
+          >
+            The response could not be completed.{' '}
+            <ActionBarPrimitive.Reload
+              aria-label="Try again"
+              className="underline"
+            >
+              Try again
+            </ActionBarPrimitive.Reload>
+          </div>
+        )}
       </MessagePrimitive.Error>
+      {running && role === 'assistant' ? (
+        <p className="sr-only" aria-live="polite" aria-atomic="false">
+          {announcement}
+        </p>
+      ) : null}
+      {role === 'assistant' ? (
+        <AssistantActions
+          messageId={messageId}
+          feedback={
+            metadata?.feedback === 'good' || metadata?.feedback === 'bad'
+              ? metadata.feedback
+              : null
+          }
+          onFeedback={onFeedback}
+        />
+      ) : (
+        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
+          <UserEditAction />
+          <BranchPicker />
+        </div>
+      )}
+      {role === 'assistant' ? (
+        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
+          <BranchPicker />
+        </div>
+      ) : null}
     </MessagePrimitive.Root>
   );
 };
+
+function useIncrementalAnnouncement(
+  messageId: string,
+  text: string,
+  running: boolean,
+) {
+  const cursor = useRef({ messageId, length: text.length });
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    if (cursor.current.messageId !== messageId) {
+      cursor.current = { messageId, length: text.length };
+      setAnnouncement('');
+      return;
+    }
+    if (!running || text.length <= cursor.current.length) {
+      cursor.current.length = text.length;
+      return;
+    }
+    const delta = text.slice(cursor.current.length);
+    cursor.current.length = text.length;
+    setAnnouncement(delta.slice(0, 160));
+  }, [messageId, running, text]);
+  return announcement;
+}
 
 const ThreadScrollToBottom: FC = () => (
   <ThreadPrimitive.ScrollToBottom
@@ -259,22 +416,24 @@ const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
 
 const AssistantActions: FC<{
   messageId: string;
+  feedback: 'good' | 'bad' | null;
   onFeedback?: ThreadProps['onFeedback'];
-}> = ({ messageId, onFeedback }) => {
-  const [rating, setRating] = useState<'good' | 'bad' | null>(null);
+}> = ({ messageId, feedback, onFeedback }) => {
+  const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
+  useEffect(() => setRating(feedback), [feedback]);
   const copied = useAuiState((state) => state.message.isCopied);
   const submitFeedback = (next: 'good' | 'bad') => {
-    void Promise.resolve(onFeedback?.(messageId, next)).then(() =>
-      setRating(next),
-    );
+    void Promise.resolve(onFeedback?.(messageId, next))
+      .then(() => setRating(next))
+      .catch(() => {});
   };
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
-      className="text-muted-foreground mt-2 flex items-center gap-1"
+      className="text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100"
     >
       <ActionBarPrimitive.Copy
-        className="rounded-md p-1.5 hover:bg-muted"
+        className="size-9 rounded-md p-2 hover:bg-muted"
         aria-label="Copy answer"
       >
         {copied ? (
@@ -288,7 +447,7 @@ const AssistantActions: FC<{
         aria-label="Good answer"
         aria-pressed={rating === 'good'}
         onClick={() => submitFeedback('good')}
-        className="rounded-md p-1.5 hover:bg-muted aria-pressed:bg-accent"
+        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
       >
         <ThumbsUpIcon className="size-4" />
       </button>
@@ -297,12 +456,12 @@ const AssistantActions: FC<{
         aria-label="Bad answer"
         aria-pressed={rating === 'bad'}
         onClick={() => submitFeedback('bad')}
-        className="rounded-md p-1.5 hover:bg-muted aria-pressed:bg-accent"
+        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
       >
         <ThumbsDownIcon className="size-4" />
       </button>
       <ActionBarPrimitive.Reload
-        className="rounded-md p-1.5 hover:bg-muted"
+        className="size-9 rounded-md p-2 hover:bg-muted"
         aria-label="Regenerate answer"
       >
         <RefreshCwIcon className="size-4" />
@@ -314,7 +473,7 @@ const AssistantActions: FC<{
 const UserEditAction = () => (
   <ActionBarPrimitive.Root hideWhenRunning className="mt-1">
     <ActionBarPrimitive.Edit
-      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+      className="size-9 rounded-md p-2 text-muted-foreground hover:bg-muted"
       aria-label="Edit message"
     >
       <PencilIcon className="size-4" />
@@ -322,11 +481,17 @@ const UserEditAction = () => (
   </ActionBarPrimitive.Root>
 );
 
-const BranchPicker = () => (
-  <BranchPickerPrimitive.Root className="text-muted-foreground mt-1 inline-flex items-center gap-1 text-xs">
+const BranchPicker: FC<{ className?: string }> = ({ className }) => (
+  <BranchPickerPrimitive.Root
+    hideWhenSingleBranch
+    className={cn(
+      'text-muted-foreground inline-flex items-center gap-1 text-sm',
+      className,
+    )}
+  >
     <BranchPickerPrimitive.Previous
       aria-label="Previous branch"
-      className="rounded p-1 hover:bg-muted"
+      className="size-9 rounded-md p-2 hover:bg-muted"
     >
       <ChevronLeftIcon className="size-3.5" />
     </BranchPickerPrimitive.Previous>
@@ -335,12 +500,87 @@ const BranchPicker = () => (
     </span>
     <BranchPickerPrimitive.Next
       aria-label="Next branch"
-      className="rounded p-1 hover:bg-muted"
+      className="size-9 rounded-md p-2 hover:bg-muted"
     >
       <ChevronRightIcon className="size-3.5" />
     </BranchPickerPrimitive.Next>
   </BranchPickerPrimitive.Root>
 );
+
+const ThreadEditComposer: FC<{
+  messageId: string;
+  parentId: string | null;
+}> = ({ messageId, parentId }) => {
+  const [tooLong, setTooLong] = useState(false);
+  const editFocus = useContext(EditFocusContext);
+  const validateAndArmEdit = (event: { preventDefault: () => void }) => {
+    const input = document.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Edit message input"]',
+    );
+    const invalid = promptByteLength(input?.value ?? '') > MAX_PROMPT_BYTES;
+    setTooLong(invalid);
+    if (invalid) event.preventDefault();
+    else
+      editFocus.setTarget({
+        sourceId: messageId,
+        parentId,
+        waitForReplacement: true,
+      });
+  };
+  return (
+    <ComposerPrimitive.Root
+      className="my-2 flex flex-col gap-2"
+      onSubmit={validateAndArmEdit}
+    >
+      <ComposerPrimitive.Input
+        aria-label="Edit message input"
+        autoFocus
+        rows={3}
+        addAttachmentOnPaste={false}
+        submitMode="none"
+        className="border-input bg-background focus-visible:ring-ring min-h-20 w-full resize-y rounded-lg border px-3 py-2 outline-none focus-visible:ring-2"
+      />
+      {tooLong ? (
+        <p role="alert" className="text-destructive text-sm">
+          Messages can be up to 16,384 bytes.
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <ComposerPrimitive.Send
+          render={
+            <Button
+              aria-label="Save edit"
+              size="sm"
+              onClick={validateAndArmEdit}
+            >
+              Save
+            </Button>
+          }
+        />
+        <ComposerPrimitive.Cancel
+          render={
+            <Button
+              type="button"
+              aria-label="Cancel edit"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                editFocus.setTarget({
+                  sourceId: messageId,
+                  parentId,
+                  waitForReplacement: false,
+                })
+              }
+            >
+              <XIcon aria-hidden="true" />
+              Cancel
+            </Button>
+          }
+        />
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
 
 const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   effort = 'high',
@@ -348,11 +588,10 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
 }) => {
   const running = useAuiState((state) => state.thread.isRunning);
   const composerText = useAuiState((state) => state.composer.text);
-  const [tooLong, setTooLong] = useState(false);
+  const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    const invalid = promptByteLength(composerText) > MAX_PROMPT_BYTES;
-    setTooLong(invalid);
-    if (invalid) event.preventDefault();
+    if (promptByteLength(composerText) > MAX_PROMPT_BYTES)
+      event.preventDefault();
   };
   return (
     <ComposerPrimitive.Root
@@ -375,16 +614,17 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           enterKeyHint="send"
           aria-label="Message input"
         />
-        <div className="aui-composer-action-wrapper relative flex items-center justify-between">
+        <div className="aui-composer-action-wrapper relative flex flex-nowrap items-center justify-between gap-3">
           <Button
             type="button"
-            variant="ghost"
+            variant={effort === 'max' ? 'secondary' : 'outline'}
             size="sm"
+            className="shrink-0 whitespace-nowrap"
             aria-label="Deep thinking"
             aria-pressed={effort === 'max'}
             onClick={() => onEffortChange?.(effort === 'max' ? 'high' : 'max')}
           >
-            Deep thinking
+            <BrainIcon aria-hidden="true" /> Deep thinking
           </Button>
           {running ? (
             <ChatComposerCancel
@@ -401,6 +641,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   tooltip="Send message"
                   side="bottom"
                   type="button"
+                  disabled={tooLong}
                   variant="default"
                   size="icon"
                   className="aui-composer-send size-7 rounded-full"
@@ -418,6 +659,9 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           </p>
         ) : null}
       </div>
+      <p className="text-muted-foreground mt-3 text-center text-xs">
+        Lexon can make mistakes. Verify important legal information.
+      </p>
     </ComposerPrimitive.Root>
   );
 };

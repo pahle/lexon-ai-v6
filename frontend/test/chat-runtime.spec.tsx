@@ -94,6 +94,18 @@ it('routes the visible composer Stop control through server cancellation before 
   const runId = '44444444-4444-4444-8444-444444444444';
   const stopOrder: string[] = [];
   let bodyCancelled = false;
+  let observedStatus: { type: string; reason?: string } | null | undefined;
+  function PublicStateProbe() {
+    const status = useAuiState(
+      (state) =>
+        state.thread.messages.find((message) => message.id === assistantId)
+          ?.status,
+    );
+    useEffect(() => {
+      observedStatus = status;
+    }, [status]);
+    return null;
+  }
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === `/api/runs/${runId}/cancel`) {
@@ -157,6 +169,7 @@ it('routes the visible composer Stop control through server cancellation before 
           <ComposerPrimitive.Root>
             <ChatComposerCancel>Stop</ChatComposerCancel>
           </ComposerPrimitive.Root>
+          <PublicStateProbe />
         </ThreadPrimitive.Root>
       </ChatRuntime>,
     );
@@ -179,6 +192,10 @@ it('routes the visible composer Stop control through server cancellation before 
   );
   expect(bodyCancelled).toBe(true);
   expect(stopOrder).toEqual(['server-cancel', 'stream-abort']);
+  expect(observedStatus).toMatchObject({
+    type: 'incomplete',
+    reason: 'cancelled',
+  });
   await act(async () => root.unmount());
   vi.stubGlobal('fetch', originalFetch);
 });

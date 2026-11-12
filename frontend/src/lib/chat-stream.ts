@@ -435,7 +435,12 @@ function chunksFromFrame(
       ];
     case 'status':
       state.status = item.status;
-      return [];
+      return [
+        {
+          type: 'message-metadata',
+          messageMetadata: { status: item.status },
+        },
+      ];
     case 'text-start':
       return [{ type: 'text-start', id: item.id }];
     case 'text-delta':

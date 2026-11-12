@@ -18,7 +18,7 @@ export default function ChatPage() {
   if (!/^[0-9a-f-]{36}$/i.test(chatId)) notFound();
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader title="Chat" />
+      <PageHeader title="Chat" visuallyHidden />
       <ChatView
         chatId={chatId}
         actorScope={`${identity.organization.id}:${identity.user.id}`}

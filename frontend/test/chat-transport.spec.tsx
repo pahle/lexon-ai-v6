@@ -447,6 +447,31 @@ it('regenerates the explicitly selected server answer when the public adapter om
   });
 });
 
+it('propagates terminal cancellation status into message metadata', async () => {
+  const { createChatUIMessageStream } =
+    await import('../src/lib/chat-stream.js');
+  const frames = [
+    { version: 1, type: 'start', runId, messageId: assistantId },
+    { version: 1, type: 'status', runId, status: 'cancelled' },
+    { version: 1, type: 'finish', runId },
+  ];
+  const response = new Response(
+    frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(''),
+    { headers: { 'content-type': 'text/event-stream' } },
+  );
+  const reader = createChatUIMessageStream(response).getReader();
+  const chunks: unknown[] = [];
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    chunks.push(result.value);
+  }
+  expect(chunks).toContainEqual({
+    type: 'message-metadata',
+    messageMetadata: { status: 'cancelled' },
+  });
+});
+
 it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', async () => {
   const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
   const frames = [

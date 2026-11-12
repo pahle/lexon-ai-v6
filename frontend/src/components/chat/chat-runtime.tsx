@@ -135,8 +135,8 @@ function ChatRuntimeSession({
 
   const stop = useCallback(async () => {
     await transport.stopRun();
-    await chat.stop();
-  }, [chat.stop, transport]);
+    runtime.thread.cancelRun();
+  }, [runtime.thread, transport]);
   const onStopReadyCallback = useCallback(() => {
     onStopReadyRef.current?.(stop);
   }, [stop]);
@@ -243,6 +243,7 @@ function toUIMessage(message: ChatMessage): ChatUIMessage {
     metadata: {
       status: message.status,
       reasoningDurationMs: message.reasoningDurationMs,
+      feedback: message.feedback,
     },
   };
 }
