@@ -522,9 +522,22 @@ if the chosen HTTP query form would otherwise expose them (builder choice:
 
 Search spans titles, all user messages, and canonical assistant answer text,
 including inactive branches; not reasoning. English FTS and pg_trgm combine
-ranked lexical and partial/article-number matches. Use GIN-supported candidates
-and EXPLAIN ANALYZE with RLS enabled and representative data. Do not disable RLS
-or force index scans to manufacture acceptable evidence. Highlight snippets are
+ranked lexical and partial/article-number matches. The owner amendment of
+2026-11-12 requires owner-scoped B-tree-first plans with RLS enabled, and no
+whole-table sequential scans of chats, messages or run outputs. Keep GIN indexes
+only when a measured plan uses them. Do not disable RLS, mark vendor functions
+or operators LEAKPROOF, introduce SECURITY DEFINER or other bypassing search
+paths, or force plans to manufacture acceptable evidence.
+
+The performance fixture has one owner with 2,000 chats and 50,000 messages,
+including long answers, alongside at least 1,000,000 messages belonging to other
+tenants/users. Measure at least 30 warm queries each for a stemmed word, partial
+term, article number such as `1320`, and no-match. Assert actual owner-first plan
+shape and record p50/p95/max, hardware, PostgreSQL settings and source revision.
+Heavy-owner p95 must be under 300 ms; a miss stops implementation for the owner's
+decision. The diagnostic and measurements are committed in
+`docs/references/F4-search-query-plan-gap.md`. This F4 per-owner scan does not
+satisfy F8 retrieval or spike S3's document-scale indexed-search requirements. Highlight snippets are
 plain text with validated offsets/text segments, never ts_headline HTML rendered
 as HTML. Test stemming, numeric article terms, partials, accents/Unicode, hostile
 HTML, pagination, cross-owner candidates, and deletion during search.
@@ -844,3 +857,16 @@ approved 163,840 estimated input bound. No stack revision.
 - R34: On 2026-11-11, checked the pinned public [assistant-ui AI SDK runtime](https://www.assistant-ui.com/docs/runtimes/ai-sdk/overview) and installed `@assistant-ui/ai-sdk@0.0.16` option/source. `useAISDKRuntime` publicly supports `joinStrategy: "none"`; its default `"concat-content"` groups consecutive assistant SDK messages into one visible message. A real Caddy send/edit/send run exposed joined parts from an earlier edited assistant; the adapter uses `"none"`, keeping one visible assistant per persisted assistant node. The final real-browser test compares every visible role/ID with the PostgreSQL selected ancestor path after branch switch, reload, nonroot edit, root edit, and another send. All five runtime criteria pass; see [F4 runtime proof](../../references/F4-runtime-proof.md). No new dependency.
 - R35: On 2026-11-11, the expanded Caddy proof passed 3/3 scenarios. A prior browser-path mismatch happened when the test fixture began another edit/send after PostgreSQL had completed a run but before the public runtime had consumed its terminal stream frame. The fixture now disables edit/regenerate actions while `thread.isRunning`, and the proof waits for runtime idle before each next mutation. A focused real-runtime test holds a partial answer and open response body, verifies those controls remain disabled until terminal `finish`, and confirms terminal cleanup settles the runtime and cancels the underlying reader. The final full browser sequence then matches the complete server-selected ancestor path; no adapter incompatibility or server-tree defect was established by the earlier overlap. No new dependency.
 - R36: Fix round 1 addressed four review findings on 2026-11-11. Focused failing tests showed that bare assistant-ui composer Cancel only disconnected its stream, rapid viewed-leaf writes could be invoked concurrently, malformed snapshot ordering could advance recovery cursor state, and throwing storage cleanup could interrupt terminal delivery. The fixes add a server-first `ChatComposerCancel` wrapper, serialize viewed-leaf PUT invocations and gate sends on persistence, validate snapshot part/operation ordering and identities before prefix/cursor advancement, and make recovery-key removal best-effort. The Caddy fixture exercises the same visible Stop wrapper used by product consumers. Its final scenario independently reads the tenant-owned PostgreSQL tree with the `lexon_app` role and transaction-local `app.org_id`/`app.user_id`, then compares viewed leaf, IDs, parent IDs, roles, run statuses, and per-row text equality booleans with the authorized API tree. Current run: `pnpm test:e2e -- --project chat-runtime-proof` 3/3; focused frontend runtime/transport tests 31/31; frontend/backend typechecks and `pnpm lint` (99 boundary/presentation checks) pass. The independent query returns no message text. See [F4 runtime proof](../../references/F4-runtime-proof.md) for all five criteria and expiry qualification. No new dependency or stack revision.
+
+- R37: Owner amendment, 2026-11-12. Verified PostgreSQL 17
+  [row security](https://www.postgresql.org/docs/17/ddl-rowsecurity.html),
+  [security barriers](https://www.postgresql.org/docs/17/rules-privileges.html),
+  and [`pg_proc`](https://www.postgresql.org/docs/17/catalog-pg-proc.html).
+  Live PostgreSQL 17.11 catalog and RLS-on plans found non-leakproof FTS/trigram
+  operators and owner/chat B-tree paths instead of GIN. The owner approved the
+  bounded per-owner performance gate above, retaining strict RLS and removing
+  unused GIN indexes. F8 retrieval and spike S3 must solve indexed FTS and
+  trigram search under RLS at document scale; F4's per-owner scan is not that
+  evidence. Before/after plans and measurements belong in the
+  [diagnostic](../../references/F4-search-query-plan-gap.md); no latency result
+  is assumed until the representative fixture is measured.
