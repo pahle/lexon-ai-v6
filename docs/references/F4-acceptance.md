@@ -816,3 +816,38 @@ announcement-only follow-ups `a712334` and `846cd65` passed scoped spec and
 quality re-review. Final verification reports 249 frontend tests, both package
 typechecks, lint and formatting passing. They do not change the captured layout.
 Task 14 is ready for informal owner feedback; Task 15 remains gated.
+
+## Informal Task 14 owner feedback (2026-11-12)
+
+The owner compared prototype 01, 03, 05, 06 and 21 and accepts the overall
+layout, action bar, reasoning summary block, disclaimer, dark mode and mobile.
+Task 15 may start, subject to the separate current search CI gate stop below.
+This is informal checkpoint feedback, not Task 19 formal approval.
+
+Before or alongside Task 15, implement with regression tests:
+
+1. Until first answer text exists, show “Thinking…” even if a reasoning-end
+   signal has arrived. Show “Thought for N seconds” only after answer text
+   starts, consistently live/reloaded. Test reasoning ended with no answer yet.
+2. Disable Send for empty and whitespace-only text in both new-chat and thread
+   composers. Test both paths and the transition back to nonempty input.
+3. Remove the new-chat textarea native resize grip; grow automatically.
+4. Use a round Stop button with a square icon in the Send position, accessible
+   name “Stop generating”. Preserve the real pointer cancellation regression.
+5. While answering, use composer placeholder “Lexon is answering…”.
+6. Answer Markdown headings use body sans semibold. Georgia remains for page
+   headlines such as the welcome greeting.
+
+Task 19 screenshots must show realistic synthetic names, plausible legal
+questions and answers, and no visible test-control markers. Keep control data
+out of user-visible text rather than hiding it only in screenshots.
+
+### New head CI gate stop
+
+Automatic isolated search run `43232959421` at `8fe012d` missed the amended
+500 ms gate: stem p95 530.60 ms, partial 536.09 ms; article 385.63 ms and
+no-match 220.65 ms passed. All 120 requests succeeded; complete evidence and
+plans are in the [diagnostic](F4-search-query-plan-gap.md). This was discovered
+while processing the owner feedback above. No optimization or retry followed.
+Task 15 is held under the previously agreed stop-on-miss rule pending direction.
+The six UI corrections are recorded but not yet implemented.

@@ -485,3 +485,36 @@ and deferred-response tests proving superseded queries (including late errors,
 clear and tenant changes) cannot display out of order. Task 14 resumes first.
 Production PostgreSQL tuning, including default 128 MB shared_buffers, belongs
 to F20. Indexed FTS/trigram under RLS at document scale remains F8 / spike S3.
+
+## Automatic Task 14 head run — amended gate miss (2026-11-12)
+
+The preview push changed the Markdown lockfile, matching the dedicated job's
+relevant-file filters. Automatic run
+[43232959421](https://github.com/pahle/lexon-ai-v6/actions/runs/43232959421)
+measured `8fe012d4081eb3e971e3f578e88e9d5214a8d05b` once. It missed
+the amended **under-500-ms** gate in two classes. No manual dispatch or retry
+was performed. The owner-accepted earlier run remains historically accepted;
+it does not establish that this later head passed.
+
+| Class    | Accepted run 43175713326 p95 ms | Task 14 head p50 ms | Task 14 head p95 ms | Task 14 head max ms |
+| -------- | ------------------------------: | ------------------: | ------------------: | ------------------: |
+| Stem     |                          405.30 |              520.43 |          **530.60** |              535.96 |
+| Partial  |                          401.93 |              365.31 |          **536.09** |              541.68 |
+| Article  |                          407.02 |              365.85 |              385.63 |              399.21 |
+| No match |                          227.88 |              213.01 |              220.65 |              225.51 |
+
+All 120 measured requests returned HTTP 200, 30 per class. The retained
+[157-record head artifact](F4-search-task14-head-2026-11-12.jsonl) includes
+all samples and four nested plans; SHA-256
+`3e8e5885ccb4ca3e9f875968629dde77f88ffe930211c71604c6934a92263c5d`.
+GitHub artifact ID is `13951876576`. The controller verified all 22 source
+hashes against the producer and recomputed per-class statistics. Plans retain
+the owner index and enabled/forced tenant RLS, with no whole-table sequential
+scans of chats/messages/runs. Query, timeout, fixture and threshold are unchanged.
+
+Actual runner: ubuntu-24.04 / image 20261101.360.1, AMD EPYC 7763, 4 available
+CPUs, 16,760,344,576 bytes RAM. This is the same reported CPU model as the
+accepted isolated run. The variation therefore cannot be attributed solely to
+a different CPU model from these measurements; cause is unestablished.
+No further optimization, threshold amendment or measured retry is authorized.
+Task 15 is held for owner direction under the existing stop-on-miss rule.
