@@ -60,9 +60,9 @@ test('the isolated search workflow captures automatic triggers and failure evide
     'utf8',
   );
   assert.match(workflow, /workflow_dispatch:/u);
-  assert.match(workflow, /pull_request:/u);
   assert.match(workflow, /push:/u);
-  assert.match(workflow, /branches:\s*\n\s+- main/u);
+  assert.doesNotMatch(workflow, /pull_request:/u);
+  assert.doesNotMatch(workflow, /branches:/u);
   assert.match(workflow, /ubuntu-24\.04/u);
   assert.match(workflow, /chat-search\*\.spec\.ts/u);
   assert.match(workflow, /backend\/drizzle\/\*chat\*search\*\.sql/u);
@@ -90,19 +90,17 @@ test('the isolated search workflow captures automatic triggers and failure evide
   assert.doesNotMatch(workflow, /pnpm test(?:\s|$)/u);
 });
 
-test('PR evidence checks out and names artifacts by the source head SHA', () => {
+test('push and manual evidence checks out and names artifacts by github.sha', () => {
   const workflow = readFileSync(
     '.github/workflows/f4-search-benchmark.yml',
     'utf8',
   );
+  assert.match(workflow, /ref:\s*\$\{\{\s*github\.sha\s*\}\}/u);
   assert.match(
     workflow,
-    /ref:\s*\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+    /name: f4-search-benchmark-\$\{\{\s*github\.sha\s*\}\}/u,
   );
-  assert.match(
-    workflow,
-    /name: f4-search-benchmark-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
-  );
+  assert.doesNotMatch(workflow, /github\.event\.pull_request\.head\.sha/u);
 });
 
 test('evidence initializes immediately after checkout and before tool setup', () => {
@@ -127,15 +125,16 @@ test('evidence initializes immediately after checkout and before tool setup', ()
   assert.ok(initializeIndex < nodeSetupIndex);
 });
 
-test('search route and contract files trigger the benchmark on PRs and main pushes', () => {
+test('search route and contract files share the all-branch push path filter', () => {
   const workflow = readFileSync(
     '.github/workflows/f4-search-benchmark.yml',
     'utf8',
   );
+  assert.equal(workflow.split('paths:').length - 1, 1);
   for (const path of [
     'backend/src/modules/chat/chat.controller.ts',
     'shared/src/chat.ts',
     'shared/src/index.ts',
   ])
-    assert.equal(workflow.split(`- '${path}'`).length - 1, 2);
+    assert.equal(workflow.split(`- '${path}'`).length - 1, 1);
 });
