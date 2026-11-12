@@ -893,3 +893,13 @@ approved 163,840 estimated input bound. No stack revision.
   measurement evidence. The same 30-sample-per-class and under-300-ms p95 gate
   remains, with a stop on any miss. Implementation research and measured results
   must verify these APIs; this note records the approved decision, not a passed gate.
+
+- R39: Owner isolation/evidence amendment, 2026-11-12, after the normal Linux
+  suite reported stem p95 360.01 ms while the separate local run was under
+  300 ms. Move the representative search benchmark out of normal tests into an
+  isolated, relevant-path/manual CI layer. Always retain JSONL plus real runner
+  and container metadata, and print a summary table. The first isolated Linux
+  evidence run is single-shot, with unchanged query/RLS/timeout/fixture and
+  threshold; any miss stops for owner decision. Successful evidence resumes
+  Task 14; a final-head run remains mandatory before handoff. Functional search
+  tests remain in normal CI.
