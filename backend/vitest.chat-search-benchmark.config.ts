@@ -4,11 +4,7 @@ export default defineConfig({
   root: import.meta.dirname,
   test: {
     include: ['test/integration/chat-search-performance.spec.ts'],
-    globalSetup: [
-      'test/setup/search-benchmark-evidence.ts',
-      '../scripts/test/prepare-packages.ts',
-      'test/setup/global-infrastructure.ts',
-    ],
+    globalSetup: ['test/setup/search-benchmark-global-setup.ts'],
     testTimeout: 900_000,
     hookTimeout: 60_000,
     maxWorkers: 1,

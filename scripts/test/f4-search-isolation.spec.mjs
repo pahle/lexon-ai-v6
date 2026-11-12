@@ -40,8 +40,18 @@ test('the dedicated selection discovers only the representative benchmark', () =
   );
   assert.match(
     config,
-    /globalSetup:\s*\[\s*'test\/setup\/search-benchmark-evidence\.ts',\s*'\.\.\/scripts\/test\/prepare-packages\.ts'/u,
+    /globalSetup:\s*\[\s*'test\/setup\/search-benchmark-global-setup\.ts'\s*\]/u,
   );
+  const setup = readFileSync(
+    'backend/test/setup/search-benchmark-global-setup.ts',
+    'utf8',
+  );
+  const initializeEvidence = setup.indexOf('initializeSearchEvidence();');
+  const preparePackages = setup.indexOf('await preparePackages();');
+  const loadInfrastructure = setup.indexOf("'./global-infrastructure.js'");
+  assert.ok(initializeEvidence >= 0);
+  assert.ok(preparePackages > initializeEvidence);
+  assert.ok(loadInfrastructure > preparePackages);
 });
 
 test('the isolated search workflow captures automatic triggers and failure evidence', () => {
