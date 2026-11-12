@@ -521,8 +521,20 @@ if the chosen HTTP query form would otherwise expose them (builder choice:
 `POST /api/chats/search`, replacing the search variant of GET above).
 
 Search spans titles, all user messages, and canonical assistant answer text,
-including inactive branches; not reasoning. English FTS and pg_trgm combine
-ranked lexical and partial/article-number matches. The owner amendment of
+including inactive branches; not reasoning. The second owner amendment uses
+STORED generated `tsvector` columns with explicit `english` configuration for
+user text and canonical run output. These are generated derived index data,
+never an independently writable answer body. Queries match the stored vectors,
+without per-row `to_tsvector`. Safely built FTS prefix queries supply body partials
+(last-token prefix); article numbers such as `1320` use ordinary FTS tokens.
+pg_trgm is restricted to short chat titles, never message or answer bodies.
+Stems, partial words, article numbers and title partials retain behavior tests.
+Select the best message per chat and page of chats before generating snippets
+and offsets, bounded to the page size. A statement timeout produces safe HTTP
+503 or 504 and the fixed English message `Search took too long. Try more specific words.`
+Complete plans and each request timing are persisted incrementally to test-output
+files, not stdout; the four classes run sequentially. The diagnostic records
+stored-vector sizes and measured migration cost, without a timeout increase. The owner amendment of
 2026-11-12 requires owner-scoped B-tree-first plans with RLS enabled, and no
 whole-table sequential scans of chats, messages or run outputs. Keep GIN indexes
 only when a measured plan uses them. Do not disable RLS, mark vendor functions
@@ -870,3 +882,14 @@ approved 163,840 estimated input bound. No stack revision.
   evidence. Before/after plans and measurements belong in the
   [diagnostic](../../references/F4-search-query-plan-gap.md); no latency result
   is assumed until the representative fixture is measured.
+
+- R38: Owner optimization amendment, 2026-11-12. PostgreSQL 17
+  [generated columns](https://www.postgresql.org/docs/17/ddl-generated-columns.html),
+  [text-search tables](https://www.postgresql.org/docs/17/textsearch-tables.html),
+  and [query controls](https://www.postgresql.org/docs/17/textsearch-controls.html)
+  govern stored explicit-English vectors and safe prefix queries. The owner
+  approved body FTS prefixes in place of body trigram similarity, retained title
+  trigrams, page-only snippet work, specific safe timeout responses, and file-based
+  measurement evidence. The same 30-sample-per-class and under-300-ms p95 gate
+  remains, with a stop on any miss. Implementation research and measured results
+  must verify these APIs; this note records the approved decision, not a passed gate.
