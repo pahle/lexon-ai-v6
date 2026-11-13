@@ -3,7 +3,10 @@ import type { ToolSet } from 'ai';
 import { ModelAllowlistSchema } from './model-allowlist.js';
 import { createOpenRouterProvider } from './openrouter-provider.js';
 import { createReasoningFilteredFetch } from './reasoning-filter.js';
-import { createProviderSseObserver } from './provider-sse-observer.js';
+import {
+  createProviderSseObserver,
+  type ProviderReasoningKind,
+} from './provider-sse-observer.js';
 import { mapProviderError } from './provider-errors.js';
 import { validateRealModelPrerequisites } from './real-model-prerequisites.js';
 import {
@@ -25,6 +28,8 @@ export interface RealModelGatewayOptions {
   readonly attestation?: string | undefined;
   readonly fetch?: typeof fetch | undefined;
   readonly reasoningClock?: (() => number) | undefined;
+  readonly onReasoningKind?:
+    ((kind: ProviderReasoningKind) => void) | undefined;
   readonly priceCeiling?: {
     readonly prompt: number;
     readonly completion: number;
@@ -68,6 +73,9 @@ async function* generate(
   const observer = createProviderSseObserver({
     attemptId: input.attemptId ?? 'attempt-unscoped',
     ...(options.reasoningClock ? { now: options.reasoningClock } : {}),
+    ...(options.onReasoningKind
+      ? { onReasoningKind: options.onReasoningKind }
+      : {}),
     onEvent: (event) => metadataQueue.push({ event }),
   });
   let sdkStreamError: ReturnType<typeof mapProviderError> | undefined;

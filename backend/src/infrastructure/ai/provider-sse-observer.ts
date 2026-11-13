@@ -14,6 +14,9 @@ export type ProviderReasoningSignal =
       readonly durationMs: number | null;
     };
 
+export type ProviderReasoningKind =
+  'summary' | 'raw' | 'encrypted' | 'unclassifiable';
+
 export interface ProviderSseObserver {
   readonly attemptId: string;
   readonly observe: (event: unknown) => Promise<unknown>;
@@ -27,6 +30,7 @@ type ProjectedEnvelope = Record<string, unknown> & {
 export function createProviderSseObserver(options: {
   readonly attemptId: string;
   readonly now?: () => number;
+  readonly onReasoningKind?: (kind: ProviderReasoningKind) => void;
   readonly onEvent: (event: ProviderReasoningSignal) => void | Promise<void>;
 }): ProviderSseObserver {
   const now = options.now ?? (() => performance.now());
@@ -46,6 +50,7 @@ export function createProviderSseObserver(options: {
     if (!isRecord(value)) return safeFailureFrame();
     if (isRecord(value.error)) return safeErrorFrame();
 
+    observeRawReasoningKinds(value, options.onReasoningKind);
     const envelope = projectEnvelope(value);
     if (!envelope) return safeFailureFrame();
     const choice = envelope.choices[0];
@@ -128,6 +133,34 @@ export function createProviderSseObserver(options: {
       }
     },
   };
+}
+
+function observeRawReasoningKinds(
+  value: Record<string, unknown>,
+  onKind: ((kind: ProviderReasoningKind) => void) | undefined,
+): void {
+  if (!onKind || !Array.isArray(value.choices)) return;
+  const choice = value.choices[0];
+  if (!isRecord(choice) || !isRecord(choice.delta)) return;
+  const delta = choice.delta;
+
+  if (Object.hasOwn(delta, 'reasoning')) onKind('unclassifiable');
+  if (!Object.hasOwn(delta, 'reasoning_details')) return;
+  if (!Array.isArray(delta.reasoning_details)) {
+    onKind('unclassifiable');
+    return;
+  }
+
+  for (const detail of delta.reasoning_details) {
+    if (!isRecord(detail) || typeof detail.type !== 'string') {
+      onKind('unclassifiable');
+      continue;
+    }
+    if (detail.type === 'reasoning.summary') onKind('summary');
+    else if (detail.type === 'reasoning.text') onKind('raw');
+    else if (detail.type === 'reasoning.encrypted') onKind('encrypted');
+    else onKind('unclassifiable');
+  }
 }
 
 function projectEnvelope(

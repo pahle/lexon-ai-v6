@@ -287,6 +287,182 @@ describe('invocation-wide real evaluation budget', () => {
     expect(JSON.stringify(report)).not.toContain('Synthetic answer.');
   });
 
+  it('opts into bounded chat high/max cases without raising the legacy real-eval ceiling', async () => {
+    const requests: Request[] = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      requests.push(request);
+      const requestText = await request.clone().text();
+      if (requests.length === 1)
+        return new Response('synthetic provider unavailable', { status: 503 });
+      if (requestText.includes('approval-protected fixture write'))
+        return new Response(
+          [
+            'data: {"id":"synthetic-approval","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"synthetic-call","type":"function","function":{"name":"fixture-write-approval","arguments":"{\\"value\\":\\"synthetic\\"}"}}]},"finish_reason":null}]}\n\n',
+            'data: {"id":"synthetic-approval","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.00001}}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      return new Response(
+        [
+          'data: {"id":"synthetic-chat-generation","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{"content":"Synthetic bounded answer."},"finish_reason":null}]}\n\n',
+          'data: {"id":"synthetic-chat-generation","model":"openai/gpt-6-luna","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":4,"total_tokens":20,"cost":0.00001}}\n\n',
+          'data: [DONE]\n\n',
+        ].join(''),
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    };
+    const report = await runRealEvaluations(
+      Object.assign(
+        {
+          budgetUsd: '0.10',
+          maxRequests: 16,
+          maxOutputTokens: 512,
+          maxEstimatedInputTokens: 16384,
+          priceCeiling: {
+            inputPerMillion: '0.25',
+            outputPerMillion: '1.00',
+          },
+          timeoutMs: 300000,
+          fetch: fakeFetch,
+          services: inject('evaluationServices'),
+          env: {
+            OPENROUTER_API_KEY: 'test-only-key',
+            LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: new Date()
+              .toISOString()
+              .slice(0, 10),
+            LEXON_REAL_EVAL_ALLOCATION_ATTESTED:
+              '0.10-usd-dedicated-no-other-consumers',
+          },
+        },
+        { includeChatCases: true },
+      ),
+    );
+
+    expect(report.cases.map((item) => item.caseId)).toEqual([
+      'complete',
+      'hostile-context',
+      'approval',
+      'chat-high',
+      'chat-max',
+    ]);
+    expect(requests.length).toBeLessThanOrEqual(16);
+    expect(requests.length).toBe(6);
+    expect(report.unknownAttemptCount).toBe(0);
+    expect(report.knownCostUsd).toBe('0.00005');
+
+    const observed = await Promise.all(
+      requests.map(async (request) => ({
+        body: (await request.clone().json()) as {
+          max_tokens?: number;
+          reasoning?: { effort?: string };
+          messages?: readonly {
+            role?: string;
+            content?: string | readonly { text?: string }[];
+          }[];
+          provider?: Record<string, unknown>;
+        },
+      })),
+    );
+    const chatRequests = observed.filter(
+      ({ body }) =>
+        body.reasoning?.effort === 'high' || body.reasoning?.effort === 'max',
+    );
+    expect(chatRequests).toHaveLength(2);
+    expect(
+      chatRequests.map(({ body }) => ({
+        effort: body.reasoning?.effort,
+        max_tokens: body.max_tokens,
+      })),
+    ).toEqual([
+      { effort: 'high', max_tokens: 16384 },
+      { effort: 'max', max_tokens: 32768 },
+    ]);
+    for (const { body } of observed) {
+      expect(body.provider).toMatchObject({
+        only: ['azure/us'],
+        order: ['azure/us'],
+        allow_fallbacks: false,
+        zdr: true,
+        data_collection: 'deny',
+        max_price: { prompt: 0.25, completion: 1.0 },
+      });
+      if (!body.reasoning) expect(body.max_tokens).toBeLessThanOrEqual(512);
+    }
+    for (const { body } of chatRequests) {
+      const system = body.messages?.find(
+        (message) => message.role === 'system',
+      );
+      const user = body.messages?.find((message) => message.role === 'user');
+      const systemText = Array.isArray(system?.content)
+        ? system.content.map((part) => part.text ?? '').join('\n')
+        : (system?.content ?? '');
+      expect(systemText).toContain(
+        'Answer in the language of the latest user message unless the user requests another language.',
+      );
+      expect(systemText).toContain('Focus on Indonesian legal work.');
+      expect(systemText).toContain(
+        'Never invent sources, case numbers, or quotations.',
+      );
+      expect(systemText).toContain(
+        'Never claim to have read documents, searched, or researched.',
+      );
+      expect(user?.content).toBe(
+        body.reasoning?.effort === 'high'
+          ? 'Synthetic Indonesian legal research question for the high-effort profile: identify the general legal framework for a fictional contract notice dispute without citing sources.'
+          : 'Synthetic Indonesian legal research question for the maximum-effort profile: explain the same fictional contract notice dispute and identify what must be checked against official sources.',
+      );
+    }
+    expect(Object.keys(report).sort()).toEqual([
+      'cases',
+      'knownCostUsd',
+      'unknownAttemptCount',
+    ]);
+    expect(JSON.stringify(report)).not.toContain('Synthetic bounded answer.');
+    expect(JSON.stringify(report)).not.toContain(
+      'Synthetic Indonesian legal research question',
+    );
+  });
+
+  it('does not let chat opt-in raise the global real-eval output ceiling', async () => {
+    let fetchCount = 0;
+    await expect(
+      runRealEvaluations(
+        Object.assign(
+          {
+            budgetUsd: '0.10',
+            maxRequests: 16,
+            maxOutputTokens: 16384,
+            maxEstimatedInputTokens: 16384,
+            priceCeiling: {
+              inputPerMillion: '0.25',
+              outputPerMillion: '1.00',
+            },
+            timeoutMs: 300000,
+            fetch: async () => {
+              fetchCount += 1;
+              return new Response();
+            },
+            env: {
+              OPENROUTER_API_KEY: 'test-only-key',
+              LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: new Date()
+                .toISOString()
+                .slice(0, 10),
+              LEXON_REAL_EVAL_ALLOCATION_ATTESTED:
+                '0.10-usd-dedicated-no-other-consumers',
+            },
+          },
+          { includeChatCases: true },
+        ),
+      ),
+    ).rejects.toThrow(
+      'Real evaluation limits exceed the approved invocation envelope',
+    );
+    expect(fetchCount).toBe(0);
+  });
+
   it('scores an unsolicited approval-case completion as zero and keeps the CLI report minimal', async () => {
     let requestCount = 0;
     const report = await runRealEvaluations({

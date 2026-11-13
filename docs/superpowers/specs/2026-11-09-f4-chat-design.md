@@ -746,6 +746,12 @@ account/admin API calls were performed during this research.
   Caddy validation/incremental behavior and exact k6 pin: verify before their
   implementation tasks. No invented successful compatibility claim.
 
+### Task 17 pinned-source follow-up — 2026-11-14
+
+The installed `@openrouter/ai-sdk-provider@3.1.0` serializer (`dist/index.js`, `convertToOpenRouterChatMessages`, lines 3691–3718) emits system text as a text-part array and a single user text part as a plain string without cache control. Smoke tests assert the real wire shape and normalize captured messages back to semantic text before estimator comparison. The source is primary version-matched evidence; the [official API reference](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request?explorer=true) is a reference link, not a claimed direct documentation read during this follow-up. AI SDK remains 7.0.159.
+
+The unchanged exact-decimal invocation budget is backend-owned and exposed to evals only through the existing public evaluation entry. No new dependency or pin is added. The smoke reports allowlist-declared region separately from normalized observed provider; neither proves physical processing region. Tooling evidence and the pending real-measurement gate are recorded in [the Task 17 report](../../references/F4-task-17-report.md).
+
 ## Builder check
 
 A fresh software-engineering builder reviewed the draft without implementing

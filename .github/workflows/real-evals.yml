@@ -21,7 +21,7 @@ jobs:
           node-version: 24.22.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Run bounded score-only synthetic evaluations
+      - name: Run bounded score-only F3 and chat high/max synthetic evaluations
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: ${{ vars.LEXON_OPENROUTER_ZDR_ONLY_VERIFIED }}

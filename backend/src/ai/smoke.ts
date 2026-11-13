@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runChatSmoke } from './chat-smoke.js';
 import {
   createRealModelGateway,
   ModelAllowlistSchema,
+  validateRealModelPrerequisites,
 } from '../infrastructure/ai/index.js';
 import type {
   ModelEvent,
@@ -21,13 +23,21 @@ export interface RunAiSmokeOptions {
   readonly env: Record<string, string | undefined>;
   readonly write: (chunk: string) => void;
   readonly fetch?: typeof globalThis.fetch;
+  readonly argv?: readonly string[];
 }
 
 export async function runAiSmoke({
   env,
   write,
   fetch,
+  argv = [],
 }: RunAiSmokeOptions): Promise<number> {
+  const chatArguments = argv.length ? parseSmokeArguments(argv) : undefined;
+  if (argv.length && !chatArguments) {
+    write('AI smoke arguments are invalid.\n');
+    return 1;
+  }
+
   let route: ReturnType<typeof ModelAllowlistSchema.parse>['models'][number];
   try {
     if (!env.OPENROUTER_API_KEY) {
@@ -47,6 +57,18 @@ export async function runAiSmoke({
     if (!attestation) {
       write(`${PREREQUISITES_MESSAGE}\n`);
       return 1;
+    }
+    validateRealModelPrerequisites(env);
+    if (chatArguments) {
+      return await runChatSmoke({
+        route,
+        key: env.OPENROUTER_API_KEY,
+        attestation,
+        efforts: chatArguments.efforts,
+        samples: chatArguments.samples,
+        write,
+        ...(fetch ? { fetch } : {}),
+      });
     }
     const gateway = createRealModelGateway({
       allowlist,
@@ -114,6 +136,48 @@ export async function runAiSmoke({
     else write('AI smoke status=failed\n');
     return 1;
   }
+}
+
+type SmokeEffort = 'high' | 'max';
+
+function parseSmokeArguments(
+  argv: readonly string[],
+):
+  | { readonly efforts: readonly SmokeEffort[]; readonly samples: number }
+  | undefined {
+  if (!argv.length) return undefined;
+
+  const values = new Map<string, string>();
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (
+      (flag !== '--profile' && flag !== '--efforts' && flag !== '--samples') ||
+      value === undefined ||
+      values.has(flag)
+    )
+      return undefined;
+    values.set(flag, value);
+  }
+
+  const profile = values.get('--profile');
+  const efforts = values.get('--efforts')?.split(',');
+  const samples = values.get('--samples');
+  if (
+    values.size === 3 &&
+    profile === 'chat' &&
+    efforts !== undefined &&
+    efforts.length > 0 &&
+    efforts.every((effort) => effort === 'high' || effort === 'max') &&
+    new Set(efforts).size === efforts.length &&
+    samples !== undefined &&
+    /^[1-2]$/.test(samples)
+  )
+    return {
+      efforts: efforts as SmokeEffort[],
+      samples: Number(samples),
+    };
+  return undefined;
 }
 
 async function readOutcome(

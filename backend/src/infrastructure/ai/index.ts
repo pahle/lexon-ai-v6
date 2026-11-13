@@ -30,6 +30,7 @@ export {
   MAX_REASONING_SUMMARY_BYTES,
 } from './provider-sse-observer.js';
 export type {
+  ProviderReasoningKind,
   ProviderReasoningSignal,
   ProviderSseObserver,
 } from './provider-sse-observer.js';

@@ -1,6 +1,17 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { PlatformVersionService } from '../modules/platform/index.js';
+import { CHAT_PROFILES } from '../modules/chat/index.js';
+export {
+  InvocationBudget,
+  formatUsd,
+  parseUsd,
+  reservationUsd,
+} from '../modules/usage/index.js';
+export const REAL_EVALUATION_CHAT_OUTPUT_LIMITS = Object.freeze({
+  high: CHAT_PROFILES.chat.reasoning.outputLimits.high,
+  max: CHAT_PROFILES.chat.reasoning.outputLimits.max,
+});
 import { EvaluationModule } from './evaluation.module.js';
 import type {
   EvaluationContext,

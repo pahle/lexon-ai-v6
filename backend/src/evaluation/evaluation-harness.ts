@@ -57,6 +57,8 @@ import { stepJobId } from '../modules/chat/step-job-id.js';
 import type { JobEnvelope } from '../infrastructure/db/index.js';
 import {
   ApprovalService,
+  CHAT_PROFILES,
+  CHAT_HISTORY_CONTEXT_ID,
   CancelService,
   RunRegistry,
   RunService,
@@ -91,6 +93,7 @@ const scenarioIds = new Set([
   'replay',
   'unknown-attempt',
 ]);
+const realChatScenarioIds = new Set(['chat-high', 'chat-max']);
 
 export async function createEvaluationHarness(
   options: EvaluationHarnessOptions,
@@ -148,7 +151,11 @@ export async function createEvaluationHarness(
     const capacityConfig = readAiConfig({});
     const authorization = new RunAuthorizationService();
     const realMode = options.fixtureSet === 'real';
-    const profiles = [...scenarioIds].map((scenarioId) =>
+    const profileIds = [
+      ...scenarioIds,
+      ...(realMode ? realChatScenarioIds : []),
+    ];
+    const profiles = profileIds.map((scenarioId) =>
       profileFor(
         scenarioId,
         realMode,
@@ -173,6 +180,17 @@ export async function createEvaluationHarness(
             ];
           },
         },
+        ...(realMode
+          ? [
+              {
+                id: CHAT_HISTORY_CONTEXT_ID,
+                version: 1,
+                async collect() {
+                  return [];
+                },
+              },
+            ]
+          : []),
       ],
       tools: [
         {
@@ -425,7 +443,10 @@ export async function createEvaluationHarness(
       actors: tenantActors,
       async start(actor, input: EvaluationStartInput) {
         const index = requireActor(actor, actorIndices);
-        if (!scenarioIds.has(input.scenarioId))
+        if (
+          !scenarioIds.has(input.scenarioId) &&
+          !(realMode && realChatScenarioIds.has(input.scenarioId))
+        )
           throw new Error('Unknown evaluation scenario');
         const run = await withActorScope(
           actor,
@@ -436,6 +457,7 @@ export async function createEvaluationHarness(
             runService.start(runActor, {
               profileId: `eval-${input.scenarioId}`,
               prompt: input.prompt,
+              ...(input.effort ? { effort: input.effort } : {}),
             }),
         );
         scenarios.set(run.runId, input.scenarioId);
@@ -798,6 +820,8 @@ function profileFor(
   realMode = false,
   includeChatInstructions = false,
 ): RunProfile {
+  if (realMode && realChatScenarioIds.has(scenarioId))
+    return { ...CHAT_PROFILES.chat, id: `eval-${scenarioId}` };
   const budget = scenarioId === 'budget' ? 130 : realMode ? 50_000 : 10_000;
   const output = scenarioId === 'budget' ? 128 : realMode ? 512 : 100;
   return {
@@ -865,6 +889,9 @@ async function* guardedRealGeneration(
     reservation = await options.requestPolicy.reserve({
       estimatedInputTokens: estimateInputTokens(input).inputTokens,
       maxOutputTokens: input.maxOutputTokens,
+      ...(input.effort === 'high' || input.effort === 'max'
+        ? { effort: input.effort }
+        : {}),
     });
   } catch {
     reservation = { id: '', allowed: false };

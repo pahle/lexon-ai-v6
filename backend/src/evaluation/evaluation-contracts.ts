@@ -74,6 +74,7 @@ export interface EvaluationRealRequestPolicy {
   reserve(input: {
     readonly estimatedInputTokens: number;
     readonly maxOutputTokens: number;
+    readonly effort?: 'high' | 'max';
   }): Promise<{ readonly id: string; readonly allowed: boolean }>;
   settle(input: {
     readonly id: string;
@@ -101,6 +102,7 @@ export type EvaluationHarnessOptions =
 export interface EvaluationStartInput {
   readonly scenarioId: string;
   readonly prompt: string;
+  readonly effort?: 'high' | 'max';
 }
 
 export interface EvaluationRun {

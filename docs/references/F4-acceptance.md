@@ -1614,3 +1614,13 @@ The follow-up [Linux run 43481620478](https://github.com/pahle/lexon-ai-v6/actio
 Normal CI on `4ffca46` ([43491933877](https://github.com/pahle/lexon-ai-v6/actions/runs/43491933877)) passed unit/integration but failed the existing organization-removal browser assertion: the held organizations response had no `membership_removed` header. A controlled Compose probe confirmed that F4's concurrently mounted Recent chat request could consume the one-shot selection repair first. Releasing that request first produced its expected fallback header and reproduced the original organizations assertion failure (controller log SHA-256 `109bb6381db66e48f13b4a82a23551da43cd14b71baa56e5016cd2753599e89d`). This was a request-order assumption in the test; no production fallback policy was changed.
 
 The test now holds Recent until the organizations request has captured its fallback, then releases Recent before delivering the organizations response. Every original assertion, timeout and access check remains; an additional assertion checks that the later chat response has no fallback header. The controller reran the actual Compose/Caddy case: **1/1 passed**, 102.195 seconds including lifecycle teardown, unchanged test SHA-256 `fff298b4c1ee6cc3e4e2438714e1b6682d0cf309d1f76cb9f113a750d9eb326a`, log SHA-256 `e7b0f9d7066575e470541e0a37c0b947b99a79d5da8948f70973df5ff88c559b`. The diagnostic probe and logs remain in ignored workflow records. This does not claim full-head Linux CI or F4 completion.
+
+## Task 17 — guarded high/max smoke tooling
+
+**Tooling complete; real measurement pending.** The seven scoped mocked rules
+passed controller RED→GREEN verification. Plan Steps 1–3 are complete. The
+post-format full root regression passed (1,365 tests); fresh tooling spec/quality review and its scoped workflow-label re-review passed. Step 4's
+single owner-authorized local measurement and Step 5's tooling commit remain
+pending. No real provider measurement, paid workflow run, or final F4
+acceptance is claimed. See the [Task 17 tooling report](F4-task-17-report.md)
+for scoped evidence, repair history, research notes and remaining gates.
