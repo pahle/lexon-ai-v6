@@ -1,4 +1,4 @@
-# F4.1 brand refresh prototype (draft, awaiting owner approval)
+# F4.1 brand refresh prototype (APPROVED by the product owner, 2026-11-13, revision 12)
 
 Built 2026-11-13 from the owner's LEXON Brand Kit v4.1 (02_DASHBOARD theme and
 sidebar notes, logos, fonts). Live copy: https://claude.ai/artifact/1xFWhbFH5WxwAnHMZPDER6
