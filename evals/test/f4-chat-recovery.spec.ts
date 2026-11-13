@@ -101,3 +101,39 @@ it.each(noClaimedResearchFixtures)(
     }
   },
 );
+
+it('omits an unrecognized case ID from the public score report', async () => {
+  const canary = 'K1-SYNTHETIC-UNKNOWN-CASE-CANARY';
+  const options = {
+    services: inject('evaluationServices'),
+    fixtureSet: 'deterministic',
+    chatScenarios: [
+      {
+        caseId: canary,
+        scriptedAnswer:
+          'Based on the information in your question, the answer is READY.',
+      },
+    ],
+  } as unknown as EvaluationOptions;
+  const context = await createEvaluationContext(options);
+
+  try {
+    const actor = context.actors[0]!;
+    const run = await context.start(actor, {
+      scenarioId: 'complete',
+      prompt: 'Synthetic unknown-case fixture.',
+    });
+    await context.drain();
+
+    const report = await context.read(actor, run.runId);
+    expect(report).toMatchObject({
+      scenarioId: 'complete',
+      status: 'completed',
+      counts: { modelRequests: 1 },
+    });
+    expect(report.cases).toEqual([]);
+    expect(JSON.stringify(report)).not.toContain(canary);
+  } finally {
+    await context.close();
+  }
+});

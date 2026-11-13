@@ -168,6 +168,8 @@ function safeScoreReport(
         ? report.safeCode
         : null,
     counts,
-    cases: report.cases.map(({ caseId, score }) => ({ caseId, score })),
+    cases: report.cases
+      .filter(({ caseId }) => caseId === 'chat-no-claimed-research')
+      .map(({ caseId, score }) => ({ caseId, score })),
   };
 }

@@ -1234,3 +1234,25 @@ This establishes actual instruction delivery and version persistence for the
 configured synthetic chat evaluation, not real-model policy compliance or
 completion of Task 16. Runtime case validation, other policy/context/privacy
 and recovery proofs remain pending.
+
+### Recovery rule 04 — public case-ID allowlist
+
+The controller verified that Phase A changed only the recovery eval test. Its
+negative fixture uses an explicitly invalid runtime case ID containing a
+synthetic canary, starts a real deterministic run, and requires completed status
+and one model request before inspecting the safe report. Controller RED
+observed the canary reflected in `cases` instead of `[]`: **1 failed, 3 passed**.
+Only then was a filter for the currently supported case ID authorized in the
+public evaluation entry. The controller checked that single-file diff and the
+unchanged test hash, then ran GREEN: **4/4 passed**. Backend/eval typechecks and
+targeted lint/format checks passed.
+
+Ignored evidence: `recovery/phase-04-controller-red-observed.log` SHA-256
+`f206767c27b6cc7ac0f52833d9d0cb6b202187558211aaf22609fee932b0ae06`;
+`recovery/phase-04-controller-green.log` SHA-256
+`66b42c3d41ad4114a1810ef652b4b929d6e2143a6039375cd31676919e30bc76`.
+JSON records contain actual commands/exits and matching test hashes. An earlier
+incorrect name filter skipped all cases; its log is retained as nonqualifying
+evidence. Whole small-file execution supplied the actual RED/GREEN evidence.
+This proves only unknown-ID omission; it does not establish other validation
+or remaining Task 16 privacy/recovery requirements.
