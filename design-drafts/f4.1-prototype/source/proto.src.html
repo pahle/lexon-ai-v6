@@ -295,9 +295,11 @@ function lqMount(el){
    orbit:(i,t)=>{const sd=seed[i],a=sd.ph+t*2.6*sd.w,r=(4.2+1.6*Math.sin(i*1.7))*(1+.12*Math.sin(t*2.1+sd.ph));return[10+r*Math.cos(a),10+r*Math.sin(a)*.92];},
    swarm:(i,t)=>{const sd=seed[i];return[10+5.6*Math.sin(1.3*t*sd.w+sd.ph)*Math.cos(.7*t+sd.j*3),10+5.6*Math.sin(1.9*t*sd.w+sd.ph*1.3)];},
    spiral:(i,t)=>{const f=i/K,a=f*9.5+t*(2.8-1.4*f),r=1.2+6.2*f*(1+.15*Math.sin(t*1.8));return[10+r*Math.cos(a),10+r*Math.sin(a)];},
+   scatter:(i,t)=>{const sd=seed[i];return[sd.ax+1.7*Math.sin(t*1.1*sd.w+sd.ph)+.9*Math.sin(t*1.9+sd.j*6),sd.ay+1.7*Math.cos(t*.9*sd.w+sd.ph*1.4)+.9*Math.sin(t*1.5+sd.j*4)];},
    figure8:(i,t)=>{const sd=seed[i],a=t*1.9+i/K*Math.PI*2;return[10+6*Math.sin(a),10+3.6*Math.sin(2*a)+.6*Math.sin(t*3+sd.ph)];}
   };
   const PATK=Object.keys(PAT);
+  const reseed=()=>seed.forEach(sd=>{sd.ax=3.5+Math.random()*13;sd.ay=3.5+Math.random()*13;sd.ph=Math.random()*Math.PI*2;});
   let idx=0, cur=build(LQ_SCENES[0]);
   if(reduce){return;}
   const anim=(dur,fn)=>new Promise(res=>{const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/dur);fn(k);if(k<1&&el.isConnected)requestAnimationFrame(step);else res();};requestAnimationFrame(step);});
@@ -313,10 +315,12 @@ function lqMount(el){
       const a=sample(cur.paths); const nidx=(idx+1)%LQ_SCENES.length; const nsc=LQ_SCENES[nidx]; const nxt=build(nsc); nxt.g.style.opacity='0'; const b=sample(nxt.paths); svg.appendChild(nxt.g);
       dots.forEach(d=>svg.appendChild(d));
       // dissolve: lines fade while dots appear on them
-      await anim(320,k=>{cur.g.style.opacity=String(1-smooth(k));dots.forEach((d,i)=>{d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.62*seed[i].rr*k));});});
+      { const L=cur.paths.map(p=>p.getTotalLength()); cur.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];});
+        await anim(1000,k=>{const e=smooth(k); cur.paths.forEach((p,i)=>{p.style.strokeDashoffset=String(-L[i]*e);}); if(cur.acc)cur.acc.style.opacity=String(1-e);
+          dots.forEach((d,i)=>{const on=smooth(Math.max(0,Math.min(1,(k-i/K*.7)/.3)));d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.62*seed[i].rr*on));d.setAttribute('fill-opacity','.9');});}); }
       cur.g.remove();
       // play: dots leave the shape, swirl in a random pattern for a while, then settle onto the next shape
-      { const pat=PAT[PATK[Math.floor(Math.random()*PATK.length)]]; const tPlay=1800+Math.random()*700, tIn=650, tOut=850, T=tIn+tPlay+tOut;
+      { reseed(); const pat=PAT[PATK[Math.floor(Math.random()*PATK.length)]]; const tPlay=1600+Math.random()*2800, tIn=1200, tOut=1500, T=tIn+tPlay+tOut;
         await anim(T,k=>{const ms=k*T, ts=ms/1000;
           dots.forEach((d,i)=>{const sw=pat(i,ts); const di=i/K*.25;
             let x,y,r;
@@ -326,7 +330,7 @@ function lqMount(el){
             r=.62*seed[i].rr*(ms>tIn&&ms<tIn+tPlay?1+.25*Math.sin(ts*4+seed[i].ph):1);
             d.setAttribute('cx',x.toFixed(3));d.setAttribute('cy',y.toFixed(3));d.setAttribute('r',r.toFixed(3));d.setAttribute('fill-opacity',(.55+.45*seed[i].rr/1.25).toFixed(2));});}); }
       // reform: next shape draws through the dots, dots shrink
-      nxt.g.style.opacity='1'; const di=drawIn(nxt,nsc.draw); await anim(Math.min(500,nsc.draw),k=>{dots.forEach((d,i)=>d.setAttribute('r',String(.62*seed[i].rr*(1-smooth(k)))));}); await di;
+      nxt.g.style.opacity='1'; const di=drawIn(nxt,Math.round(nsc.draw*1.4)); await anim(Math.round(nsc.draw*1.2),k=>{dots.forEach((d,i)=>d.setAttribute('r',String(.62*seed[i].rr*(1-smooth(k)))));}); await di;
       cur=nxt; idx=nidx;
     }
   })();
