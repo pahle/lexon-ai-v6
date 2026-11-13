@@ -91,6 +91,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 - OpenRouter setup confirmed by PO (2026-11-09): ZDR only, no Safety Retention, training/discount off, workspace "Lexon" I/O logging off; dedicated CI key US$0.10 as Actions secret; attestation variables set; dev key in local .env (a dev key was exposed in a chat screenshot and revoked the same day; new key with a credit limit). Regional routing (EU/US) needs OpenRouter Business: input for P8.
 
+- Brand kit v4.1 (2026-11-13, PO): white surfaces, Ink #1A1718, Merah Segel #B3202A (primary only), EB Garamond headlines, Inter body, TeX Gyre Bonum for legal quotes, sidebar-07 IA (Tools: Assistant/Tabular Review/Editor; Matters). Plan: new slice **F4.1 brand refresh** after F4 merges (LEX-DS-001 v3.0, re-prototype all screens, visual gate, new goldens). PO decisions: UI stays **English**; Claude derives a **dark palette** from the kit for PO approval; F4 Task 19 approves layout/states, **Task 20 golden lock moves to F4.1**. Ask PO to re-upload the kit zip when F4.1 starts (scratchpad copy is ephemeral). Flagged to PO: kit's "stored in Indonesia" claim needs P8 (hosting + model processing is Azure US via ZDR), and "deleted is permanent" conflicts with backup window W (F18).
+
 ## Lessons learned (apply to every brief)
 
 - **Design before implementation.** Copying shadcn blocks 1:1 gives demo
