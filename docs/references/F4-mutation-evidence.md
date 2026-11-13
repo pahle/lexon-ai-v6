@@ -1,12 +1,6 @@
 # F4 compensating mutation evidence
 
-Status: backend and controlled frontend/mobile mutation demonstrations passed;
-Task 16A awaits fresh review and main acceptance. This records
-the owner-required compensation for earlier tests-after work in Tasks 5, 8, 13
-and 15. It does not rewrite that history or claim those implementations were
-RED-first. The backend measurement below is accepted. All 35 frontend unit and
-both mobile demonstrations have completed with assertion RED and restored GREEN;
-Task 16A awaits fresh review and main acceptance.
+Status: complete; main accepted Task 16A on 2026-11-14 after fresh spec and quality review and a scoped provenance correction re-review. The four backend scopes and aggregate exceed 80; all 35 frontend unit and two real Compose demonstrations have actual assertion RED and restored GREEN. This compensates for earlier tests-after work in Tasks 5, 8, 13 and 15 without rewriting that chronology. Final F4 handoff gates remain outstanding.
 
 ## Backend scope and baseline
 
@@ -125,9 +119,9 @@ retain the demonstrations and provenance.
 
 All production source remained unchanged at `5509e249b40b76cb0e4a3d08341900f238e9fcbe`.
 The latest root lint (99 passed), workspace types, full format checks and full
-root regression passed; the final documentation formatting check and fresh
-review are still required. These controlled demonstrations do not complete Task
-16A or replace security, runtime or integration evidence.
+root regression passed. Final documentation formatting and the fresh task
+review with scoped re-review also passed. Main accepted Task 16A; these
+demonstrations do not replace security, runtime or integration evidence.
 
 The pure-policy score does not establish PostgreSQL RLS, triggers or content-write
 fences. Existing cross-tenant/no-context negatives and real integration/browser
