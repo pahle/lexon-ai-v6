@@ -7,6 +7,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui';
 import { ChatRuntime } from './chat-runtime';
 import type { ChatApi, ChatTree } from '@lexon/contracts';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
@@ -15,6 +16,7 @@ import { consumeChatSearchHighlight } from '@/lib/chat-search-highlight';
 import { ChatClientError } from '@/lib/chat-errors';
 import { WorkspaceNotFound } from '@/components/states/workspace-not-found';
 import { useWorkspace } from '@/components/shell/workspace-provider';
+import { chatListQueryKey } from '@/lib/chat-queries';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
@@ -42,10 +44,13 @@ function ChatViewSession({
   actorScope,
   displayName,
   client,
+  orgId,
+  userId,
   onNavigate,
 }: ChatViewProps) {
   const router = useRouter();
-  const { setChatTitle } = useWorkspace();
+  const queryClient = useQueryClient();
+  const { setChatTitle, chatTitleRefreshVersion } = useWorkspace();
   const [tree, setTree] = useState<ChatTree | null>(null);
   const [loading, setLoading] = useState(chatId !== undefined);
   const [loadError, setLoadError] = useState(false);
@@ -82,6 +87,20 @@ function ChatViewSession({
   useEffect(() => {
     if (chatId && tree) setChatTitle(chatId, actorScope, tree.title);
   }, [actorScope, chatId, setChatTitle, tree]);
+
+  useEffect(() => {
+    if (!chatId || chatTitleRefreshVersion === 0) return;
+    let current = true;
+    void client
+      .get(chatId)
+      .then((next) => {
+        if (current) setChatTitle(chatId, actorScope, next.title);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [actorScope, chatId, chatTitleRefreshVersion, client, setChatTitle]);
 
   useEffect(() => {
     if (!chatId || loading || !tree) return;
@@ -133,6 +152,9 @@ function ChatViewSession({
           requestId: crypto.randomUUID(),
           text: value,
           effort,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: chatListQueryKey({ orgId, userId }),
         });
         setText('');
         setEffort('high');

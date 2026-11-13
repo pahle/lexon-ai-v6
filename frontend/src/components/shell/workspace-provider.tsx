@@ -26,6 +26,7 @@ export type WorkspaceBootstrap =
 type WorkspaceStatus = WorkspaceBootstrap['status'] | 'loading';
 type WorkspaceContextValue = {
   identity: IdentitySummary | null;
+  chatTitleRefreshVersion: number;
   chatTitle: { chatId: string; actorScope: string; title: string } | null;
   setChatTitle: (chatId: string, actorScope: string, title: string) => void;
   status: WorkspaceStatus;
@@ -120,6 +121,7 @@ export function WorkspaceProvider({
     actorScope: string;
     title: string;
   } | null>(null);
+  const [chatTitleRefreshVersion, setChatTitleRefreshVersion] = useState(0);
   const setChatTitle = useCallback(
     (chatId: string, actorScope: string, title: string) =>
       setChatTitleState({ chatId, actorScope, title }),
@@ -221,10 +223,15 @@ export function WorkspaceProvider({
 
   useEffect(() => {
     if (!identity || transitioning) return;
-    return subscribeToChatInvalidations(queryClient, {
-      orgId: identity.organization.id,
-      userId: identity.user.id,
-    });
+    return subscribeToChatInvalidations(
+      queryClient,
+      {
+        orgId: identity.organization.id,
+        userId: identity.user.id,
+      },
+      undefined,
+      () => setChatTitleRefreshVersion((version) => version + 1),
+    );
   }, [
     identity?.organization.id,
     identity?.user.id,
@@ -449,6 +456,7 @@ export function WorkspaceProvider({
   const value = useMemo(
     () => ({
       identity: status === 'ready' && !transitioning ? identity : null,
+      chatTitleRefreshVersion,
       chatTitle,
       setChatTitle,
       status,
@@ -461,6 +469,7 @@ export function WorkspaceProvider({
     }),
     [
       identity,
+      chatTitleRefreshVersion,
       chatTitle,
       setChatTitle,
       status,

@@ -287,12 +287,19 @@ export function AppSidebar() {
               <RecentChats
                 client={chatClient}
                 scope={chatScope}
+                onNavigate={requestNavigationFocus}
+                onCloseMobile={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
                 {...(currentChatId ? { currentChatId } : {})}
               />
             ) : null}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
                   render={
                     <Link
                       href="/chats"

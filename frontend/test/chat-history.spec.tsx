@@ -319,6 +319,250 @@ it('keeps delete confirmation open and retryable when the server refuses deletio
   wrapped.client.clear();
 });
 
+it('keeps row-owned refusal feedback and retry controls after optimistic unmount', async () => {
+  let reject!: (error: Error) => void;
+  const api = {
+    list: vi
+      .fn()
+      .mockResolvedValue(page([{ ...item(1, 'Refused row'), id: chatId }])),
+    delete: vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<void>((_resolve, no) => (reject = no)),
+      )
+      .mockResolvedValueOnce(undefined),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<RecentChats client={api} scope={scope} />);
+  const key = chatListQueryKey(scope, 6);
+  wrapped.client.setQueryData(
+    key,
+    page([{ ...item(1, 'Refused row'), id: chatId }]),
+  );
+  const view = await render(wrapped.node);
+  await settle();
+  const rowAction = view.container.querySelector(
+    '[aria-label="Chat actions for Refused row"]',
+  ) as HTMLButtonElement;
+  await act(async () => rowAction.click());
+  await act(async () =>
+    (
+      document.body.querySelector(
+        '[data-slot="dropdown-menu-item"]:last-child',
+      ) as HTMLElement
+    ).click(),
+  );
+  await act(async () =>
+    (
+      document.body.querySelector(
+        'button[data-slot="alert-dialog-action"]',
+      ) as HTMLButtonElement
+    ).click(),
+  );
+  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledOnce());
+  await settle();
+  expect((wrapped.client.getQueryData(key) as ChatPage).items).toEqual([]);
+  expect(
+    view.container.querySelector('[aria-label="Chat actions for Refused row"]'),
+  ).toBeNull();
+  await act(async () => reject(new Error('offline')));
+  await settle();
+  await act(
+    async () => await new Promise((resolve) => setTimeout(resolve, 150)),
+  );
+  const refusalDialog = document.body.querySelector('[role="alertdialog"]');
+  const refusalText = refusalDialog?.textContent ?? '';
+  const refusalOpen = refusalDialog?.hasAttribute('data-open') === true;
+  const retry = refusalDialog?.querySelector(
+    'button[data-slot="alert-dialog-action"]',
+  ) as HTMLButtonElement | null;
+  const cancel = refusalDialog?.querySelector(
+    'button[data-slot="alert-dialog-cancel"]',
+  );
+  if (retry) {
+    await act(async () => retry.click());
+    await vi.waitFor(() => expect(api.delete).toHaveBeenCalledTimes(2));
+  }
+  await view.unmount();
+  wrapped.client.clear();
+  expect(refusalText).toContain('The chat could not be deleted');
+  expect(refusalOpen).toBe(true);
+  expect(retry).toBeTruthy();
+  expect(cancel).toBeTruthy();
+});
+
+it('restores only failed chat A after concurrent chat B deletion succeeds', async () => {
+  let rejectA!: (error: Error) => void;
+  const chatB = '00000000-0000-4000-8000-000000000012';
+  const api = {
+    delete: vi.fn((id: string) =>
+      id === chatId
+        ? new Promise<void>((_resolve, no) => (rejectA = no))
+        : Promise.resolve(),
+    ),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    <>
+      <ChatDeleteDialog
+        chatId={chatId}
+        title="Chat A"
+        client={api}
+        scope={scope}
+      />
+      <ChatDeleteDialog
+        chatId={chatB}
+        title="Chat B"
+        client={api}
+        scope={scope}
+      />
+    </>,
+  );
+  const key = chatListQueryKey(scope, 6);
+  const searchKey = chatSearchQueryKey(scope, 'chat');
+  const a = { ...item(1, 'Chat A'), id: chatId };
+  const b = { ...item(2, 'Chat B'), id: chatB };
+  wrapped.client.setQueryData(key, page([a, b]));
+  wrapped.client.setQueryData(searchKey, {
+    items: [a, b].map((record) => ({
+      chatId: record.id,
+      title: record.title,
+      messageId: null,
+      excerpt: record.title,
+      matchStart: 0,
+      matchEnd: 4,
+      updatedAt: record.updatedAt,
+    })),
+    pageInfo: { nextCursor: null },
+  });
+  const view = await render(wrapped.node);
+  const triggers = Array.from(view.container.querySelectorAll('button')).filter(
+    (button) => button.textContent?.trim() === 'Delete',
+  );
+  await act(async () => triggers[0]!.click());
+  await act(async () =>
+    (
+      document.body.querySelectorAll(
+        'button[data-slot="alert-dialog-action"]',
+      )[0] as HTMLButtonElement
+    ).click(),
+  );
+  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledWith(chatId));
+  await act(async () => triggers[1]!.click());
+  await act(async () =>
+    document.body
+      .querySelectorAll<HTMLButtonElement>(
+        'button[data-slot="alert-dialog-action"]',
+      )
+      [
+        document.body.querySelectorAll(
+          'button[data-slot="alert-dialog-action"]',
+        ).length - 1
+      ]!.click(),
+  );
+  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledWith(chatB));
+  await settle();
+  await act(async () => rejectA(new Error('Chat A refused')));
+  await settle();
+  const listIds = (wrapped.client.getQueryData(key) as ChatPage).items.map(
+    (entry) => entry.id,
+  );
+  const searchIds = (
+    wrapped.client.getQueryData(searchKey) as {
+      items: Array<{ chatId: string }>;
+    }
+  ).items.map((entry) => entry.chatId);
+  await view.unmount();
+  wrapped.client.clear();
+  expect(listIds).toEqual([chatId]);
+  expect(searchIds).toEqual([chatId]);
+});
+
+it('preserves concurrent rename and refreshed search data when restoring a refused delete', async () => {
+  let reject!: (error: Error) => void;
+  const chatB = '00000000-0000-4000-8000-000000000012';
+  const api = {
+    delete: vi.fn(() => new Promise<void>((_resolve, no) => (reject = no))),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    <ChatDeleteDialog
+      chatId={chatId}
+      title="Chat A"
+      client={api}
+      scope={scope}
+    />,
+  );
+  const key = chatListQueryKey(scope, 6);
+  const searchKey = chatSearchQueryKey(scope, 'chat');
+  const a = { ...item(1, 'Chat A'), id: chatId };
+  const b = { ...item(2, 'Chat B'), id: chatB };
+  wrapped.client.setQueryData(key, page([a, b]));
+  const searchPage = (title: string, excerpt: string) => ({
+    items: [
+      {
+        chatId: chatB,
+        title,
+        messageId: null,
+        excerpt,
+        matchStart: 0,
+        matchEnd: 4,
+        updatedAt: b.updatedAt,
+      },
+    ],
+    pageInfo: { nextCursor: null },
+  });
+  wrapped.client.setQueryData(searchKey, {
+    items: [a, b].map((record) => ({
+      chatId: record.id,
+      title: record.title,
+      messageId: null,
+      excerpt: record.title,
+      matchStart: 0,
+      matchEnd: 4,
+      updatedAt: record.updatedAt,
+    })),
+    pageInfo: { nextCursor: null },
+  });
+  const view = await render(wrapped.node);
+  const deleteTrigger = Array.from(
+    view.container.querySelectorAll('button'),
+  ).find((button) => button.textContent?.trim() === 'Delete');
+  await act(async () => deleteTrigger?.click());
+  await act(async () =>
+    (
+      document.body.querySelector(
+        'button[data-slot="alert-dialog-action"]',
+      ) as HTMLButtonElement
+    ).click(),
+  );
+  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledOnce());
+  wrapped.client.setQueryData(key, page([{ ...b, title: 'Renamed Chat B' }]));
+  wrapped.client.setQueryData(
+    searchKey,
+    searchPage('Renamed Chat B', 'new search excerpt'),
+  );
+  await act(async () => reject(new Error('Chat A refused')));
+  await settle();
+  const current = wrapped.client.getQueryData(key) as ChatPage;
+  const currentSearch = wrapped.client.getQueryData(searchKey) as {
+    items: Array<{ chatId: string; title: string; excerpt: string }>;
+  };
+  const currentItems = current.items;
+  const searchItems = currentSearch.items;
+  await view.unmount();
+  wrapped.client.clear();
+  expect(currentItems.find((entry) => entry.id === chatId)).toBeDefined();
+  expect(currentItems.find((entry) => entry.id === chatB)?.title).toBe(
+    'Renamed Chat B',
+  );
+  expect(searchItems).toEqual([
+    expect.objectContaining({
+      chatId: chatB,
+      title: 'Renamed Chat B',
+      excerpt: 'new search excerpt',
+    }),
+    expect.objectContaining({ chatId: chatId, title: 'Chat A' }),
+  ]);
+});
+
 it('sends the user to New chat after the server accepts current-chat deletion', async () => {
   pathState.current = `/chats/${chatId}`;
   window.history.replaceState({}, '', `/chats/${chatId}`);

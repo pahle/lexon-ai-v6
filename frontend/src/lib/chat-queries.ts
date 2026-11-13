@@ -53,11 +53,34 @@ export function removeChatSearchResults(
   queryClient: QueryClient,
   scope: ChatQueryScope,
   chatId: string,
-) {
-  updateChatSearchResults(queryClient, scope, (page) => ({
-    ...page,
-    items: page.items.filter((item) => item.chatId !== chatId),
-  }));
+): () => void {
+  const removedByQuery = queryClient
+    .getQueriesData<ChatSearchPage>({
+      queryKey: chatSearchQueriesPrefix(scope),
+    })
+    .map(([queryKey, page]) => {
+      const removed =
+        page?.items.filter((item) => item.chatId === chatId) ?? [];
+      if (page)
+        queryClient.setQueryData(queryKey, {
+          ...page,
+          items: page.items.filter((item) => item.chatId !== chatId),
+        });
+      return { queryKey, removed };
+    });
+  return () => {
+    for (const { queryKey, removed } of removedByQuery) {
+      const current = queryClient.getQueryData<ChatSearchPage>(queryKey);
+      if (!current) continue;
+      const items = [...current.items];
+      for (const item of removed) {
+        if (items.some((currentItem) => currentItem.chatId === item.chatId))
+          continue;
+        items.push(item);
+      }
+      queryClient.setQueryData(queryKey, { ...current, items });
+    }
+  };
 }
 
 function updateChatSearchResults(

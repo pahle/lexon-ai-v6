@@ -7,6 +7,7 @@ import { render, settle } from './render.js';
 const invalidationSubscribe = vi.hoisted(() => vi.fn(() => vi.fn()));
 const toastSpy = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const setChatTitleSpy = vi.hoisted(() => vi.fn());
+const workspaceState = vi.hoisted(() => ({ chatTitleRefreshVersion: 0 }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -16,10 +17,15 @@ vi.mock('../src/lib/chat-title-invalidation.js', () => ({
   subscribeToChatInvalidations: invalidationSubscribe,
 }));
 vi.mock('../src/components/shell/workspace-provider.js', () => ({
-  useWorkspace: () => ({ setChatTitle: setChatTitleSpy }),
+  useWorkspace: () => ({
+    setChatTitle: setChatTitleSpy,
+    chatTitleRefreshVersion: workspaceState.chatTitleRefreshVersion,
+  }),
 }));
 vi.mock('sonner', () => ({ toast: toastSpy }));
-beforeEach(() =>
+beforeEach(() => {
+  workspaceState.chatTitleRefreshVersion = 0;
+  setChatTitleSpy.mockClear();
   vi.stubGlobal(
     'ResizeObserver',
     class ResizeObserver {
@@ -27,8 +33,8 @@ beforeEach(() =>
       unobserve() {}
       disconnect() {}
     },
-  ),
-);
+  );
+});
 afterEach(() => vi.unstubAllGlobals());
 
 function wrapped(node: ReactNode) {
@@ -128,6 +134,51 @@ it('creates a server chat only after an accepted text send and navigates to its 
   } finally {
     await view.unmount();
   }
+});
+
+it('refreshes the mounted thread title after the workspace title event', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const tree = (title: string) => ({
+    id: chatId,
+    title,
+    messages: [],
+    viewedLeafId: null,
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:00.000Z',
+  });
+  const get = vi
+    .fn()
+    .mockResolvedValueOnce(tree('Initial title'))
+    .mockResolvedValueOnce(tree('Updated title'));
+  const client = { get };
+  const thread = () =>
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    );
+  const view = await render(thread());
+  await settle();
+  expect(setChatTitleSpy).toHaveBeenLastCalledWith(
+    chatId,
+    'org:user',
+    'Initial title',
+  );
+  workspaceState.chatTitleRefreshVersion = 1;
+  await view.rerender(thread());
+  await settle();
+  expect(get).toHaveBeenCalledTimes(2);
+  expect(setChatTitleSpy).toHaveBeenLastCalledWith(
+    chatId,
+    'org:user',
+    'Updated title',
+  );
+  await view.unmount();
 });
 
 it('keeps Deep thinking selected when the server rejects the initial send', async () => {

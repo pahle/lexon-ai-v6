@@ -17,9 +17,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   chatListQueryKey,
-  chatSearchQueriesPrefix,
   chatThreadQueriesPrefix,
   removeChatSearchResults,
+  type ChatListItem,
   type ChatQueryScope,
 } from '@/lib/chat-queries';
 import { isTenantScopeCurrent } from '@/lib/tenant-queries';
@@ -68,15 +68,17 @@ export function ChatDeleteDialog({
     setFailed(false);
     const prefix = chatThreadQueriesPrefix(scope);
     await queryClient.cancelQueries({ queryKey: prefix });
-    const snapshots = queryClient.getQueriesData({ queryKey: prefix });
-    const searchSnapshots = queryClient.getQueriesData({
-      queryKey: chatSearchQueriesPrefix(scope),
-    });
-    queryClient.setQueriesData(
-      { queryKey: chatListQueryKey(scope) },
-      (data: unknown) => removeFromList(data, chatId),
-    );
-    removeChatSearchResults(queryClient, scope, chatId);
+    const removedLists = queryClient
+      .getQueriesData({ queryKey: chatListQueryKey(scope) })
+      .map(([queryKey, data]) => {
+        const removed: RemovedListEntry[] = [];
+        queryClient.setQueryData(
+          queryKey,
+          removeFromList(data, chatId, [], removed),
+        );
+        return { queryKey, removed };
+      });
+    const restoreSearch = removeChatSearchResults(queryClient, scope, chatId);
     try {
       await client.delete(chatId);
       if (!isTenantScopeCurrent(queryClient, scope)) return;
@@ -90,10 +92,13 @@ export function ChatDeleteDialog({
         router.replace('/workspace');
     } catch {
       if (!isTenantScopeCurrent(queryClient, scope)) return;
-      for (const [queryKey, data] of snapshots)
-        queryClient.setQueryData(queryKey, data);
-      for (const [queryKey, data] of searchSnapshots)
-        queryClient.setQueryData(queryKey, data);
+      for (const { queryKey, removed } of removedLists) {
+        if (!removed.length) continue;
+        queryClient.setQueryData(queryKey, (current: unknown) =>
+          restoreFromList(current, removed),
+        );
+      }
+      restoreSearch();
       if (mounted.current) setFailed(true);
     } finally {
       if (mounted.current && isTenantScopeCurrent(queryClient, scope))
@@ -151,21 +156,71 @@ export function ChatDeleteDialog({
   );
 }
 
-function removeFromList(data: unknown, chatId: string): unknown {
+type RemovedListEntry = {
+  readonly pagePath: number[];
+  readonly index: number;
+  readonly item: ChatListItem;
+};
+
+function removeFromList(
+  data: unknown,
+  chatId: string,
+  pagePath: number[],
+  removed: RemovedListEntry[],
+): unknown {
   if (!data || typeof data !== 'object') return data;
   if ('pages' in data && Array.isArray(data.pages)) {
     const record = data as { pages: unknown[]; pageParams: unknown[] };
     return {
       ...record,
-      pages: record.pages.map((page) => removeFromList(page, chatId)),
+      pages: record.pages.map((page, index) =>
+        removeFromList(page, chatId, [...pagePath, index], removed),
+      ),
     };
   }
   if ('items' in data && Array.isArray(data.items)) {
-    const record = data as { items: { id?: string }[]; [key: string]: unknown };
+    const record = data as { items: ChatListItem[]; [key: string]: unknown };
+    record.items.forEach((item, index) => {
+      if (item.id === chatId) removed.push({ pagePath, index, item });
+    });
     return {
       ...record,
       items: record.items.filter((item) => item.id !== chatId),
     };
+  }
+  return data;
+}
+
+function restoreFromList(
+  data: unknown,
+  removed: readonly RemovedListEntry[],
+  pagePath: number[] = [],
+): unknown {
+  if (!data || typeof data !== 'object') return data;
+  if ('pages' in data && Array.isArray(data.pages)) {
+    const record = data as { pages: unknown[]; pageParams: unknown[] };
+    return {
+      ...record,
+      pages: record.pages.map((page, index) =>
+        restoreFromList(page, removed, [...pagePath, index]),
+      ),
+    };
+  }
+  if ('items' in data && Array.isArray(data.items)) {
+    const record = data as { items: ChatListItem[]; [key: string]: unknown };
+    const items = [...record.items];
+    for (const entry of removed) {
+      if (
+        entry.pagePath.length !== pagePath.length ||
+        !entry.pagePath.every(
+          (index, position) => index === pagePath[position],
+        ) ||
+        items.some((item) => item.id === entry.item.id)
+      )
+        continue;
+      items.splice(Math.min(entry.index, items.length), 0, entry.item);
+    }
+    return { ...record, items };
   }
   return data;
 }

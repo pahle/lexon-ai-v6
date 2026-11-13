@@ -54,6 +54,7 @@ export function ChatHistory({
   scope: ChatQueryScope;
   currentChatId?: string;
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<ChatListItem | null>(null);
   const query = useInfiniteQuery({
     queryKey: chatListQueryKey(scope, 20),
     initialPageParam: undefined as string | undefined,
@@ -65,25 +66,51 @@ export function ChatHistory({
     getNextPageParam: (page) => page.pageInfo.nextCursor ?? undefined,
   });
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
-  if (query.isPending) return <p role="status">Loading chats…</p>;
+  const deleteDialog = deleteTarget ? (
+    <ChatDeleteDialog
+      chatId={deleteTarget.id}
+      title={deleteTarget.title}
+      client={client}
+      scope={scope}
+      open
+      onOpenChange={(open) => {
+        if (!open) setDeleteTarget(null);
+      }}
+    />
+  ) : null;
+  if (query.isPending)
+    return (
+      <>
+        <p role="status">Loading chats…</p>
+        {deleteDialog}
+      </>
+    );
   if (query.isError)
-    return <p role="alert">Chats could not be loaded. Refresh to try again.</p>;
+    return (
+      <>
+        <p role="alert">Chats could not be loaded. Refresh to try again.</p>
+        {deleteDialog}
+      </>
+    );
   if (!items.length)
     return (
-      <Empty className="h-80 flex-none border-0">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <MessageSquareText aria-hidden="true" />
-          </EmptyMedia>
-          <EmptyTitle>No chats yet</EmptyTitle>
-          <EmptyDescription>
-            Your conversations will appear here.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button render={<Link href="/workspace" />}>New chat</Button>
-        </EmptyContent>
-      </Empty>
+      <>
+        <Empty className="h-80 flex-none border-0">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MessageSquareText aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>No chats yet</EmptyTitle>
+            <EmptyDescription>
+              Your conversations will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button render={<Link href="/workspace" />}>New chat</Button>
+          </EmptyContent>
+        </Empty>
+        {deleteDialog}
+      </>
     );
   const groups = groupChatsByDate(items);
   return (
@@ -101,6 +128,7 @@ export function ChatHistory({
                   client={client}
                   scope={scope}
                   current={item.id === currentChatId}
+                  onDelete={setDeleteTarget}
                 />
               </li>
             ))}
@@ -117,6 +145,7 @@ export function ChatHistory({
           {query.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
         </Button>
       ) : null}
+      {deleteDialog}
     </div>
   );
 }
@@ -125,54 +154,92 @@ export function RecentChats({
   client,
   scope,
   currentChatId,
+  onNavigate,
+  onCloseMobile,
 }: {
   client: ChatApi;
   scope: ChatQueryScope;
   currentChatId?: string;
+  onNavigate?: () => void;
+  onCloseMobile?: () => void;
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<ChatListItem | null>(null);
   const query = useQuery({
     queryKey: chatListQueryKey(scope, 6),
     queryFn: ({ signal }) => client.list({ limit: 6 }, signal),
   });
+  const deleteDialog = deleteTarget ? (
+    <ChatDeleteDialog
+      chatId={deleteTarget.id}
+      title={deleteTarget.title}
+      client={client}
+      scope={scope}
+      open
+      onOpenChange={(open) => {
+        if (!open) setDeleteTarget(null);
+      }}
+    />
+  ) : null;
   if (query.isPending)
     return (
-      <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
-        Loading recent chats…
-      </p>
+      <>
+        <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
+          Loading recent chats…
+        </p>
+        {deleteDialog}
+      </>
     );
   if (query.isError)
     return (
-      <p role="alert" className="px-2.5 py-2 text-sm">
-        Recent chats could not be loaded.
-      </p>
+      <>
+        <p role="alert" className="px-2.5 py-2 text-sm">
+          Recent chats could not be loaded.
+        </p>
+        {deleteDialog}
+      </>
     );
   if (!query.data.items.length)
     return (
-      <p className="px-2.5 py-2 text-sm text-muted-foreground">
-        No recent chats.
-      </p>
+      <>
+        <p className="px-2.5 py-2 text-sm text-muted-foreground">
+          No recent chats.
+        </p>
+        {deleteDialog}
+      </>
     );
   return (
-    <SidebarMenu>
-      {query.data.items.map((item) => (
-        <SidebarMenuItem key={item.id}>
-          <SidebarMenuButton
-            isActive={item.id === currentChatId}
-            aria-current={item.id === currentChatId ? 'page' : undefined}
-            tooltip={item.title}
-            render={<Link href={`/chats/${item.id}`} />}
-          >
-            <span className="truncate">{item.title}</span>
-          </SidebarMenuButton>
-          <ChatHistoryActions
-            item={item}
-            client={client}
-            scope={scope}
-            sidebar
-          />
-        </SidebarMenuItem>
-      ))}
-    </SidebarMenu>
+    <>
+      <SidebarMenu>
+        {query.data.items.map((item) => (
+          <SidebarMenuItem key={item.id}>
+            <SidebarMenuButton
+              isActive={item.id === currentChatId}
+              aria-current={item.id === currentChatId ? 'page' : undefined}
+              tooltip={item.title}
+              onClick={onCloseMobile}
+              render={
+                <Link
+                  href={`/chats/${item.id}`}
+                  onNavigate={() => {
+                    if (item.id !== currentChatId) onNavigate?.();
+                  }}
+                />
+              }
+            >
+              <span className="truncate">{item.title}</span>
+            </SidebarMenuButton>
+            <ChatHistoryActions
+              item={item}
+              client={client}
+              scope={scope}
+              sidebar
+              onDelete={() => setDeleteTarget(item)}
+            />
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+      {deleteDialog}
+    </>
   );
 }
 
@@ -181,11 +248,13 @@ function ChatHistoryRow({
   client,
   scope,
   current,
+  onDelete,
 }: {
   item: ChatListItem;
   client: ChatApi;
   scope: ChatQueryScope;
   current: boolean;
+  onDelete: (item: ChatListItem) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const queryClient = useQueryClient();
@@ -223,6 +292,7 @@ function ChatHistoryRow({
         client={client}
         scope={scope}
         onRename={() => setRenaming(true)}
+        onDelete={() => onDelete(item)}
       />
     </div>
   );
@@ -252,16 +322,17 @@ function ChatHistoryActions({
   client,
   scope,
   onRename,
+  onDelete,
   sidebar = false,
 }: {
   item: ChatListItem;
   client: ChatApi;
   scope: ChatQueryScope;
   onRename?: () => void;
+  onDelete: () => void;
   sidebar?: boolean;
 }) {
   const [renaming, setRenaming] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
   if (renaming)
     return (
@@ -309,23 +380,11 @@ function ChatHistoryActions({
           <Pencil aria-hidden="true" data-icon="inline-start" />
           Rename
         </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => setDeleteOpen(true)}
-        >
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <Trash2 aria-hidden="true" data-icon="inline-start" />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
-      <ChatDeleteDialog
-        chatId={item.id}
-        title={item.title}
-        client={client}
-        scope={scope}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        showTrigger={false}
-      />
     </DropdownMenu>
   );
 }

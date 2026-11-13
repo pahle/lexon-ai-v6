@@ -115,12 +115,99 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   const historyAxe = await new AxeBuilder({ page }).include('main').analyze();
   expect(historyAxe.violations.map((violation) => violation.id)).toEqual([]);
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  const openNavigation = page.getByRole('button', { name: 'Open navigation' });
+  await openNavigation.click();
+  const mobileSidebar = page.getByRole('dialog', { name: 'Sidebar' });
+  const mobileRecentLink = mobileSidebar
+    .getByRole('group', { name: 'Recent chats' })
+    .getByRole('link', { name: /Bagaimana upaya hukum/ })
+    .first();
+  const mobileRecentHref = await mobileRecentLink.getAttribute('href');
+  expect(mobileRecentHref).not.toBeNull();
+  await mobileRecentLink.click();
+  await expect(page).toHaveURL(`${stack.publicUrl}${mobileRecentHref}`);
+  const recentSheetClosed = await expect(mobileSidebar)
+    .toBeHidden({ timeout: 1000 })
+    .then(() => true)
+    .catch(async () => {
+      await mobileSidebar
+        .getByRole('button', { name: 'Close navigation', exact: true })
+        .click();
+      return false;
+    });
+  const recentHeading = page.locator('#main h1');
+  const recentHeadingFocused = await expect
+    .poll(() =>
+      recentHeading.evaluate((heading) => document.activeElement === heading),
+    )
+    .toBe(true)
+    .then(() => true)
+    .catch(() => false);
+  await openNavigation.click();
+  await mobileSidebar
+    .getByRole('link', { name: 'View all chats', exact: true })
+    .click();
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
+  const viewAllSheetClosed = await expect(mobileSidebar)
+    .toBeHidden({ timeout: 1000 })
+    .then(() => true)
+    .catch(async () => {
+      await mobileSidebar
+        .getByRole('button', { name: 'Close navigation', exact: true })
+        .click();
+      return false;
+    });
+  const viewAllHeadingFocused = await expect
+    .poll(() =>
+      page
+        .getByRole('heading', { name: 'Chats' })
+        .evaluate((heading) => document.activeElement === heading),
+    )
+    .toBe(true)
+    .then(() => true)
+    .catch(() => false);
+  await page.goto(`${stack.publicUrl}${mobileRecentHref}`);
+  await expect(breadcrumb).toContainText(/Chats.+/);
+  await expect(breadcrumb).not.toContainText('Mobile title event update');
+  const mobileChatId = new URL(mobileRecentHref!, stack.publicUrl).pathname
+    .split('/')
+    .at(-1)!;
+  const eventTitleResponse = await page.request.patch(
+    `${stack.apiUrl}/api/chats/${mobileChatId}`,
+    {
+      headers: { ...headers, 'content-type': 'application/json' },
+      data: { title: 'Mobile title event update' },
+    },
+  );
+  expect(eventTitleResponse.status()).toBe(204);
+  const titleUpdatedInMountedThread = await expect(breadcrumb)
+    .toContainText('Mobile title event update')
+    .then(() => true)
+    .catch(() => false);
+  expect({
+    recentSheetClosed,
+    recentHeadingFocused,
+    viewAllSheetClosed,
+    viewAllHeadingFocused,
+    titleUpdatedInMountedThread,
+  }).toEqual({
+    recentSheetClosed: true,
+    recentHeadingFocused: true,
+    viewAllSheetClosed: true,
+    viewAllHeadingFocused: true,
+    titleUpdatedInMountedThread: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${stack.publicUrl}/chats`);
+
   await recentAction.focus();
   await page.keyboard.press('Enter');
   const renameMenuItem = page.getByRole('menuitem', { name: 'Rename' });
   const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete' });
   await expect(renameMenuItem).toBeVisible();
   await expect(deleteMenuItem).toBeVisible();
+  await expect(page.getByRole('menu')).toHaveCSS('opacity', '1');
   await expect(deleteMenuItem).toHaveAttribute('data-variant', 'destructive');
   await expect(deleteMenuItem.locator('svg')).toBeVisible();
   await page.screenshot({
@@ -164,11 +251,7 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   });
   await page.emulateMedia({ colorScheme: 'light' });
 
-  const latestRecentLink = recent
-    .getByRole('link', {
-      name: /Bagaimana upaya hukum/,
-    })
-    .first();
+  const latestRecentLink = recent.locator(`a[href="/chats/${secondChatId}"]`);
   const latestRecentRow = latestRecentLink.locator('xpath=..');
   const latestRecentAction = latestRecentRow.locator('button');
   const latestHref = await latestRecentLink.getAttribute('href');
@@ -304,4 +387,169 @@ test('Chats history supports submit search, inline rename, permanent delete and 
       });
     }
   }
+});
+
+test('search opens an inactive message branch, scrolls and highlights it, while title search preserves that branch', async ({
+  page,
+}) => {
+  test.setTimeout(45_000);
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Branch Search Proof',
+    email: `branch-search-${randomUUID()}@example.test`,
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
+
+  const chatId = randomUUID();
+  const rootUserId = randomUUID();
+  const rootAssistantId = randomUUID();
+  const inactiveUserId = randomUUID();
+  const inactiveAssistantId = randomUUID();
+  const rootRunId = randomUUID();
+  const inactiveRunId = randomUUID();
+  const timestamp = new Date().toISOString();
+  let viewedLeafId = rootAssistantId;
+  let searchMode: 'inactive' | 'title' = 'inactive';
+  const resolvedMatches: string[] = [];
+  const tree = () => ({
+    id: chatId,
+    title: 'Branch fixture',
+    messages: [
+      {
+        id: rootUserId,
+        role: 'user',
+        parentId: null,
+        text: 'Root question',
+        effort: 'high',
+        createdAt: timestamp,
+      },
+      {
+        id: rootAssistantId,
+        role: 'assistant',
+        parentId: rootUserId,
+        runId: rootRunId,
+        text: 'Root branch answer',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: timestamp,
+      },
+      {
+        id: inactiveUserId,
+        role: 'user',
+        parentId: null,
+        text: 'A message from the inactive branch',
+        effort: 'high',
+        createdAt: timestamp,
+      },
+      {
+        id: inactiveAssistantId,
+        role: 'assistant',
+        parentId: inactiveUserId,
+        runId: inactiveRunId,
+        text: 'Inactive branch answer',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: timestamp,
+      },
+    ],
+    viewedLeafId,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  await page.addInitScript(() => {
+    const native = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = function (...args) {
+      this.dataset.scrollIntoViewCalled = 'true';
+      native?.apply(this, args);
+    };
+  });
+  await page.route('**/api/chats/search', async (route) => {
+    const messageId = searchMode === 'inactive' ? inactiveUserId : null;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            chatId,
+            title: 'Branch fixture',
+            messageId,
+            excerpt:
+              searchMode === 'inactive'
+                ? 'A message from the inactive branch'
+                : 'Branch fixture',
+            matchStart: 0,
+            matchEnd: 6,
+            updatedAt: timestamp,
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      }),
+    });
+  });
+  await page.route(
+    `**/api/chats/${chatId}/search-match/${inactiveUserId}`,
+    async (route) => {
+      resolvedMatches.push(inactiveUserId);
+      viewedLeafId = inactiveAssistantId;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          leafId: inactiveAssistantId,
+          messageId: inactiveUserId,
+        }),
+      });
+    },
+  );
+  await page.route(`**/api/chats/${chatId}`, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(tree()),
+    });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${stack.publicUrl}/chats`);
+  const search = page.getByRole('textbox', { name: 'Search chats' });
+  await search.fill('inactive');
+  await search.press('Enter');
+  await page.getByRole('button', { name: /Branch fixture/ }).click();
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats/${chatId}`);
+  await expect.poll(() => resolvedMatches.length).toBe(1);
+  expect(viewedLeafId).toBe(inactiveAssistantId);
+  const target = page.locator(`[data-message-id="${inactiveUserId}"]`);
+  await expect(target).toBeVisible();
+  await expect(target).toBeInViewport({ ratio: 0.5 });
+  await expect(target).toHaveAttribute('data-scroll-into-view-called', 'true');
+  await expect(target).toHaveAttribute('data-search-highlight', 'true');
+  await expect
+    .poll(() => target.getAttribute('data-search-highlight'), {
+      timeout: 3_000,
+    })
+    .toBeNull();
+
+  searchMode = 'title';
+  await page.goto(`${stack.publicUrl}/chats`);
+  const titleSearch = page.getByRole('textbox', { name: 'Search chats' });
+  await titleSearch.fill('Branch fixture');
+  await titleSearch.press('Enter');
+  await page.getByRole('button', { name: /Branch fixture/ }).click();
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats/${chatId}`);
+  await expect(
+    page.locator(`[data-message-id="${inactiveUserId}"]`),
+  ).toBeVisible();
+  expect(resolvedMatches).toEqual([inactiveUserId]);
+  expect(viewedLeafId).toBe(inactiveAssistantId);
 });

@@ -169,6 +169,11 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await composer.press('Enter');
   await expect(page).toHaveURL(/\/chats\/[0-9a-f-]{36}$/i);
   const chatId = new URL(page.url()).pathname.split('/').at(-1)!;
+  await expect(
+    page
+      .getByRole('group', { name: 'Recent chats' })
+      .locator(`a[href="/chats/${chatId}"]`),
+  ).toBeVisible();
   const runId = await latestRunId(page, stack.apiUrl, chatId, headers);
   await expect
     .poll(() => workerControl('status', runId))

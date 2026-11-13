@@ -45,6 +45,7 @@ export function subscribeToChatInvalidations(
     url: string,
     options: EventSourceInit,
   ) => ChatInvalidationSource = (url, options) => new EventSource(url, options),
+  onChatInvalidated?: (chatId: string | null) => void,
 ): () => void {
   const source = createSource('/api/chats/events', { withCredentials: true });
   let lastRecoveryRefresh: number | undefined;
@@ -90,6 +91,8 @@ export function subscribeToChatInvalidations(
     } catch {
       return;
     }
+    const parsed = ChatInvalidationEventSchema.safeParse(payload);
+    if (parsed.success) onChatInvalidated?.(parsed.data.chatId);
     void invalidateChatQueriesForEvent(queryClient, scope, payload).catch(
       () => undefined,
     );

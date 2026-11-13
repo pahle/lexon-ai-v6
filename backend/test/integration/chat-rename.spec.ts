@@ -56,12 +56,24 @@ test('chat rename route trims, limits and keeps owner and tenant authorization',
     });
     expect((await tree.json()).title).toBe('Owner title');
 
+    const boundaryTitle = 'B'.repeat(120);
+    const boundary = await fetch(`${origin}/api/chats/${chatId}`, {
+      method: 'PATCH',
+      headers: { ...owner, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: boundaryTitle }),
+    });
+    expect(boundary.status, await boundary.clone().text()).toBe(204);
+
     const tooLong = await fetch(`${origin}/api/chats/${chatId}`, {
       method: 'PATCH',
-      headers: owner,
+      headers: { ...owner, 'content-type': 'application/json' },
       body: JSON.stringify({ title: '😀'.repeat(121) }),
     });
     expect(tooLong.status).toBe(400);
+    const unchanged = await fetch(`${origin}/api/chats/${chatId}`, {
+      headers: owner,
+    });
+    expect((await unchanged.json()).title).toBe(boundaryTitle);
 
     const hidden = await fetch(`${origin}/api/chats/${chatId}`, {
       method: 'PATCH',
