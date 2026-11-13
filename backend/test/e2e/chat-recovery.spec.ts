@@ -23,6 +23,17 @@ async function workerControl(
   } | null;
 }
 
+async function publicApiHealthStatus(publicUrl: string): Promise<number> {
+  try {
+    const response = await fetch(`${publicUrl}/api/health`, {
+      signal: AbortSignal.timeout(2_000),
+    });
+    return response.status;
+  } catch {
+    return 0;
+  }
+}
+
 async function safeSseFrames(page: Page) {
   return page.evaluate(() => {
     const recoveryWindow = window as Window & {
@@ -39,46 +50,7 @@ async function safeSseFrames(page: Page) {
   });
 }
 
-test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
-  page,
-}) => {
-  test.setTimeout(240_000);
-  const stack = descriptor();
-  const authHeaders = await authenticateApi(page.request, {
-    name: 'Compose SIGKILL recovery identity',
-  });
-  const chatId = randomUUID();
-  const seedUserMessageId = randomUUID();
-  const seed = await page.request.post(`${stack.apiUrl}/api/chats`, {
-    headers: { ...authHeaders, 'content-type': 'application/json' },
-    data: {
-      chatId,
-      userMessageId: seedUserMessageId,
-      requestId: randomUUID(),
-      text: 'Compose worker recovery seed',
-      effort: 'high',
-    },
-  });
-  expect(seed.status()).toBe(201);
-  await expect
-    .poll(
-      async () => {
-        const response = await page.request.get(
-          `${stack.apiUrl}/api/chats/${chatId}`,
-          { headers: authHeaders },
-        );
-        if (!response.ok()) return undefined;
-        const tree = (await response.json()) as {
-          messages: Array<{ role: string; status?: string }>;
-        };
-        return tree.messages
-          .filter((message) => message.role === 'assistant')
-          .at(-1)?.status;
-      },
-      { timeout: 60_000 },
-    )
-    .toBe('completed');
-
+async function observeRunEvents(page: Page) {
   const eventRequests: Array<{
     runId: string;
     lastEventId?: string;
@@ -210,6 +182,86 @@ test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
       return response;
     };
   });
+  return { eventRequests, eventResponses };
+}
+
+async function expectCompleteResetSnapshot(page: Page) {
+  await expect
+    .poll(
+      async () =>
+        (await safeSseFrames(page)).some(
+          (frame) => frame.type === 'snapshot-end',
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+  const frames = await safeSseFrames(page);
+  const snapshotStart = frames.find((frame) => frame.type === 'snapshot-start');
+  const snapshotEnd = frames.find((frame) => frame.type === 'snapshot-end');
+  expect(snapshotStart?.reset).toBe(true);
+  expect(typeof snapshotStart?.partCount).toBe('number');
+  expect(snapshotEnd?.partCount).toBe(snapshotStart?.partCount);
+  const partIndices = [
+    ...new Set(
+      frames
+        .filter(
+          (frame) =>
+            frame.type === 'snapshot-part' &&
+            typeof frame.partIndex === 'number',
+        )
+        .map((frame) => frame.partIndex!),
+    ),
+  ].sort((left, right) => left - right);
+  expect(partIndices).toEqual(
+    Array.from({ length: snapshotStart!.partCount! }, (_, index) => index),
+  );
+}
+
+test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const stack = descriptor();
+  const authHeaders = await authenticateApi(page.request, {
+    name: 'Compose SIGKILL recovery identity',
+  });
+  const chatId = randomUUID();
+  const seedUserMessageId = randomUUID();
+  const seed = await page.request.post(`${stack.apiUrl}/api/chats`, {
+    headers: { ...authHeaders, 'content-type': 'application/json' },
+    data: {
+      chatId,
+      userMessageId: seedUserMessageId,
+      requestId: randomUUID(),
+      text: 'Compose worker recovery seed',
+      effort: 'high',
+    },
+  });
+  expect(seed.status()).toBe(201);
+  const seedMutation = (await seed.json()) as { runId: string };
+  expect(seedMutation.runId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `${stack.apiUrl}/api/chats/${chatId}`,
+          { headers: authHeaders },
+        );
+        if (!response.ok()) return undefined;
+        const tree = (await response.json()) as {
+          messages: Array<{ role: string; status?: string }>;
+        };
+        return tree.messages
+          .filter((message) => message.role === 'assistant')
+          .at(-1)?.status;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('completed');
+
+  const { eventRequests, eventResponses } = await observeRunEvents(page);
 
   let workerContainerId: string | undefined;
   try {
@@ -243,7 +295,11 @@ test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
             .filter((message) => message.role === 'user')
             .at(-1);
           const latestAssistant = tree.messages
-            .filter((message) => message.role === 'assistant')
+            .filter(
+              (message) =>
+                message.role === 'assistant' &&
+                message.runId !== seedMutation.runId,
+            )
             .at(-1);
           activeRunId =
             latestUser && latestAssistant?.parentId === latestUser.id
@@ -406,47 +462,7 @@ test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
         ),
       )
       .toBe(true);
-    await expect
-      .poll(async () => {
-        const frames = await safeSseFrames(page);
-        return frames.some(
-          (frame) => frame.type === 'snapshot-start' && frame.reset === true,
-        );
-      })
-      .toBe(true);
-    await expect
-      .poll(
-        async () =>
-          (await safeSseFrames(page)).some(
-            (frame) => frame.type === 'snapshot-end',
-          ),
-        { timeout: 30_000 },
-      )
-      .toBe(true);
-    const replayFrames = await safeSseFrames(page);
-    const snapshotStart = replayFrames.find(
-      (frame) => frame.type === 'snapshot-start',
-    );
-    const snapshotEnd = replayFrames.find(
-      (frame) => frame.type === 'snapshot-end',
-    );
-    expect(snapshotStart?.reset).toBe(true);
-    expect(typeof snapshotStart?.partCount).toBe('number');
-    expect(snapshotEnd?.partCount).toBe(snapshotStart?.partCount);
-    const receivedPartIndices = [
-      ...new Set(
-        replayFrames
-          .filter(
-            (frame) =>
-              frame.type === 'snapshot-part' &&
-              typeof frame.partIndex === 'number',
-          )
-          .map((frame) => frame.partIndex!),
-      ),
-    ].sort((left, right) => left - right);
-    expect(receivedPartIndices).toEqual(
-      Array.from({ length: snapshotStart!.partCount! }, (_, index) => index),
-    );
+    await expectCompleteResetSnapshot(page);
     await expect(assistant).toHaveAttribute(
       'data-text-content',
       authoritativeCheckpointText,
@@ -515,6 +531,331 @@ test('recovers a held answer after SIGKILL and restart of ai-worker', async ({
         workerContainerId,
       ]).catch(() => 'false');
       if (running !== 'true') await docker(['start', workerContainerId]);
+    }
+  }
+});
+
+test('recovers a held answer through Caddy after Backend API restart', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const stack = descriptor();
+  const authHeaders = await authenticateApi(page.request, {
+    name: 'Backend restart recovery identity',
+  });
+  const chatId = randomUUID();
+  const seed = await page.request.post(`${stack.apiUrl}/api/chats`, {
+    headers: { ...authHeaders, 'content-type': 'application/json' },
+    data: {
+      chatId,
+      userMessageId: randomUUID(),
+      requestId: randomUUID(),
+      text: 'Backend restart recovery seed',
+      effort: 'high',
+    },
+  });
+  expect(seed.status()).toBe(201);
+  const seedMutation = (await seed.json()) as { runId: string };
+  expect(seedMutation.runId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `${stack.apiUrl}/api/chats/${chatId}`,
+          { headers: authHeaders },
+        );
+        if (!response.ok()) return undefined;
+        const tree = (await response.json()) as {
+          messages: Array<{ role: string; status?: string }>;
+        };
+        return tree.messages
+          .filter((message) => message.role === 'assistant')
+          .at(-1)?.status;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('completed');
+
+  const { eventRequests, eventResponses } = await observeRunEvents(page);
+  const workerContainerId = await containerId('ai-worker');
+  expect(
+    await docker([
+      'inspect',
+      '--format',
+      '{{.State.Running}}',
+      workerContainerId,
+    ]),
+  ).toBe('true');
+  let apiContainerId: string | undefined;
+  let activeRunId: string | undefined;
+  try {
+    await page.goto(`${stack.publicUrl}/e2e/chat-runtime?chatId=${chatId}`);
+    await expect(
+      page.getByRole('heading', { name: 'Runtime proof' }),
+    ).toBeVisible();
+    await page
+      .getByRole('textbox', { name: 'Message' })
+      .fill('[runtime-proof:hold]');
+    await page.getByRole('button', { name: 'Send' }).click();
+
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `${stack.apiUrl}/api/chats/${chatId}`,
+            { headers: authHeaders },
+          );
+          if (!response.ok()) return undefined;
+          const tree = (await response.json()) as {
+            messages: Array<{
+              id: string;
+              parentId: string | null;
+              role: string;
+              runId?: string;
+            }>;
+          };
+          const latestUser = tree.messages
+            .filter((message) => message.role === 'user')
+            .at(-1);
+          const latestAssistant = tree.messages
+            .filter(
+              (message) =>
+                message.role === 'assistant' &&
+                message.runId !== seedMutation.runId,
+            )
+            .at(-1);
+          activeRunId =
+            latestUser && latestAssistant?.parentId === latestUser.id
+              ? latestAssistant.runId
+              : undefined;
+          return activeRunId;
+        },
+        { timeout: 60_000 },
+      )
+      .toBeTruthy();
+    if (!activeRunId) throw new Error('The held run has no server run ID');
+
+    await expect
+      .poll(() => workerControl('status', activeRunId!), {
+        timeout: 60_000,
+      })
+      .toMatchObject({ prefixBlocked: true });
+    await expect
+      .poll(() =>
+        eventResponses.some(
+          (event) => event.runId === activeRunId && event.status === 200,
+        ),
+      )
+      .toBe(true);
+    await workerControl('release-prefix', activeRunId);
+    const assistant = page.locator('[data-role="assistant"]').last();
+    await expect(assistant).toHaveAttribute(
+      'data-text-content',
+      'Answer prefix — ',
+    );
+    await expect
+      .poll(() => workerControl('status', activeRunId!))
+      .toMatchObject({ blocked: true, released: false });
+
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `${stack.apiUrl}/api/chats/${chatId}`,
+            { headers: authHeaders },
+          );
+          if (!response.ok()) return undefined;
+          const tree = (await response.json()) as {
+            messages: Array<{ role: string; runId?: string; text: string }>;
+          };
+          const latestAssistant = tree.messages
+            .filter((message) => message.role === 'assistant')
+            .at(-1);
+          return latestAssistant
+            ? { runId: latestAssistant.runId, text: latestAssistant.text }
+            : undefined;
+        },
+        { timeout: 30_000 },
+      )
+      .toEqual({ runId: activeRunId, text: 'Answer prefix — ' });
+
+    const actorScope = await page
+      .getByTestId('seed-inspection')
+      .getAttribute('data-actor-scope');
+    if (!actorScope)
+      throw new Error('The proof page did not expose its actor scope');
+    const recoveryKey = `lexon-chat-recovery:${actorScope}:${chatId}`;
+    const recoveryCursor = await page.evaluate((key) => {
+      const stored = sessionStorage.getItem(key);
+      return stored
+        ? (JSON.parse(stored) as { cursor?: string }).cursor
+        : undefined;
+    }, recoveryKey);
+    expect(recoveryCursor).toMatch(/^[1-9]\d{0,8}:\d{1,20}-\d{1,10}$/);
+
+    apiContainerId = await containerId('api');
+    const apiStartedAtBefore = await docker([
+      'inspect',
+      '--format',
+      '{{.State.StartedAt}}',
+      apiContainerId,
+    ]);
+    await docker(['restart', apiContainerId]);
+    await expect
+      .poll(
+        () =>
+          docker([
+            'inspect',
+            '--format',
+            '{{.State.StartedAt}}',
+            apiContainerId!,
+          ]),
+        { timeout: 60_000 },
+      )
+      .not.toBe(apiStartedAtBefore);
+    await expect
+      .poll(() => publicApiHealthStatus(stack.publicUrl), {
+        timeout: 120_000,
+        intervals: [1_000, 2_000, 5_000],
+      })
+      .toBe(200);
+    expect(await containerId('ai-worker')).toBe(workerContainerId);
+    expect(
+      await docker([
+        'inspect',
+        '--format',
+        '{{.State.Running}}',
+        workerContainerId,
+      ]),
+    ).toBe('true');
+    await expect
+      .poll(() => workerControl('status', activeRunId!))
+      .toMatchObject({ blocked: true, released: false });
+
+    const checkpointResponse = await page.request.get(
+      `${stack.apiUrl}/api/chats/${chatId}`,
+      { headers: authHeaders },
+    );
+    expect(checkpointResponse.status()).toBe(200);
+    const checkpointTree = (await checkpointResponse.json()) as {
+      messages: Array<{ role: string; runId?: string; text: string }>;
+    };
+    const checkpoint = checkpointTree.messages
+      .filter((message) => message.role === 'assistant')
+      .at(-1);
+    expect(checkpoint?.runId).toBe(activeRunId);
+    expect(checkpoint?.text).toBe('Answer prefix — ');
+    const checkpointText = checkpoint!.text;
+
+    const reconnectRequestCount = eventRequests.length;
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Runtime proof' }),
+    ).toBeVisible();
+    await expect
+      .poll(() => eventRequests.length, { timeout: 30_000 })
+      .toBeGreaterThan(reconnectRequestCount);
+    const reconnectRequest = eventRequests
+      .filter((event) => event.runId === activeRunId)
+      .at(-1);
+    expect(reconnectRequest?.lastEventId).toBe(recoveryCursor);
+    expect(reconnectRequest?.recovery).toBe('snapshot');
+    await expect
+      .poll(() =>
+        eventResponses.some(
+          (event) =>
+            event.runId === activeRunId &&
+            event.status === 200 &&
+            event.recoveryResult === 'snapshot',
+        ),
+      )
+      .toBe(true);
+    await expectCompleteResetSnapshot(page);
+    await expect(
+      page.locator('[data-role="assistant"]').last(),
+    ).toHaveAttribute('data-text-content', checkpointText);
+
+    expect(await containerId('ai-worker')).toBe(workerContainerId);
+    await expect
+      .poll(() => workerControl('status', activeRunId!))
+      .toMatchObject({ blocked: true, released: false });
+    const releaseState = await workerControl('release', activeRunId);
+    expect(releaseState?.released).toBe(true);
+
+    let completedText: string | undefined;
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `${stack.apiUrl}/api/chats/${chatId}`,
+            { headers: authHeaders },
+          );
+          if (!response.ok()) return undefined;
+          const tree = (await response.json()) as {
+            messages: Array<{
+              role: string;
+              status?: string;
+              text: string;
+            }>;
+          };
+          const completed = tree.messages.filter(
+            (message) =>
+              message.role === 'assistant' &&
+              message.status === 'completed' &&
+              message.text === 'Answer prefix — answer suffix.',
+          );
+          completedText = completed[0]?.text;
+          return completed.length;
+        },
+        { timeout: 120_000 },
+      )
+      .toBe(1);
+    const assistantAfterRestart = page
+      .locator('[data-role="assistant"]')
+      .last();
+    await expect(assistantAfterRestart).toHaveAttribute(
+      'data-text-content',
+      'Answer prefix — answer suffix.',
+    );
+    expect(completedText).toBe('Answer prefix — answer suffix.');
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Runtime proof' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-role="assistant"]').last(),
+    ).toHaveAttribute('data-text-content', 'Answer prefix — answer suffix.');
+  } finally {
+    try {
+      if (activeRunId) {
+        const state = await workerControl('status', activeRunId);
+        if (state?.prefixBlocked)
+          await workerControl('release-prefix', activeRunId);
+        const afterPrefix = state?.prefixBlocked
+          ? await workerControl('status', activeRunId)
+          : state;
+        if (afterPrefix?.blocked && !afterPrefix.released)
+          await workerControl('release', activeRunId);
+      }
+    } finally {
+      if (apiContainerId) {
+        const apiState = await docker([
+          'inspect',
+          '--format',
+          '{{.State.Status}}',
+          apiContainerId,
+        ]).catch(() => 'unknown');
+        if (apiState === 'exited' || apiState === 'created')
+          await docker(['start', apiContainerId]);
+        await expect
+          .poll(() => publicApiHealthStatus(stack.publicUrl), {
+            timeout: 120_000,
+            intervals: [1_000, 2_000, 5_000],
+          })
+          .toBe(200);
+      }
     }
   }
 });
