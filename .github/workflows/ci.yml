@@ -12,6 +12,7 @@ on:
         type: choice
         options:
           - compare
+          - capture
           - update
         default: compare
 permissions:
@@ -74,17 +75,42 @@ jobs:
         run: |
           visual_status="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(JSON.parse(readFileSync("docs/references/F2.1-visual/approval.json", "utf8")).status)')"
           printf 'status=%s\n' "$visual_status" >> "$GITHUB_OUTPUT"
+      - name: Record visual audit freshness marker
+        if: github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        run: |
+          node -e 'const { mkdirSync, writeFileSync } = require("node:fs"); const path = ".cache/f4-f21-baseline-audit/start-epoch-ms.txt"; mkdirSync(".cache/f4-f21-baseline-audit", { recursive: true }); writeFileSync(path, `${Date.now()}\n`);'
       - name: Full Compose browser API and topology layer
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ inputs.visual_mode }}" = "update" ]; then
               LEXON_VISUAL_MODE=update pnpm test:e2e --update-snapshots
+            elif [ "${{ inputs.visual_mode }}" = "capture" ]; then
+              LEXON_VISUAL_MODE=capture pnpm test:e2e
             else
               LEXON_VISUAL_MODE=compare pnpm test:e2e
             fi
           else
             pnpm test:e2e
           fi
+      - name: Write fresh visual audit manifest
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        run: |
+          marker="$(cat .cache/f4-f21-baseline-audit/start-epoch-ms.txt)"
+          node scripts/test/visual-capture-manifest.mjs --not-before "$marker" --output .cache/f4-f21-baseline-audit/manifest.json
+      - name: Upload F2.1 manual capture audit
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f4-f21-baseline-audit-${{ github.sha }}
+          path: |
+            docs/references/F2.1-visual/review/*.png
+            .cache/f4-f21-baseline-audit/start-epoch-ms.txt
+            .cache/f4-f21-baseline-audit/manifest.json
+            docs/references/F2.1-visual/index.json
+            docs/references/F2.1-visual/approval.json
+            docs/references/F2.1-visual/baseline-manifest.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Upload F4 chat preview captures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
