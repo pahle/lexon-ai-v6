@@ -59,6 +59,7 @@ export default defineConfig({
       testMatch: [
         'backend/test/e2e/chat-thread.spec.ts',
         'backend/test/e2e/chat-history.spec.ts',
+        'backend/test/e2e/chat-accessibility.spec.ts',
       ],
       use: {
         trace: 'off',

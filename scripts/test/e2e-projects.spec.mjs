@@ -138,3 +138,19 @@ test('chat-runtime-proof discovers the Compose worker crash recovery test', () =
     'chat-runtime-proof omitted the SIGKILL recovery scenario',
   );
 });
+
+test('chat-browser discovers the dedicated chat accessibility suite', () => {
+  const cli = fileURLToPath(
+    new URL('../../node_modules/@playwright/test/cli.js', import.meta.url),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'test', '--list', '--project', 'chat-browser'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(
+    result.stdout.includes('chat-accessibility.spec.ts'),
+    'chat-browser omitted chat-accessibility.spec.ts from test discovery',
+  );
+});
