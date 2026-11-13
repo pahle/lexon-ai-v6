@@ -9,6 +9,7 @@ import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai';
 import { createChatClient } from '@/lib/chat-client';
 import { chatClientError, ChatClientError } from '@/lib/chat-errors';
 import { createChatUIMessageStream } from '@/lib/chat-stream';
+import { notifyIdentityFallbackHint } from '@/lib/identity-client';
 
 const CURSOR_PATTERN = /^[1-9]\d{0,8}:\d{1,20}-\d{1,10}$/;
 const STORAGE_PREFIX = 'lexon-chat-recovery:';
@@ -266,6 +267,15 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     } catch {
       releaseRequest();
       throw new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503);
+    }
+    if (
+      expectedGeneration === this.generation &&
+      !this.closed &&
+      notifyIdentityFallbackHint(response)
+    ) {
+      await response.body?.cancel().catch(() => {});
+      releaseRequest();
+      throw new ChatClientError('AI_ACCESS_REVOKED', response.status);
     }
     if (!response.ok) {
       releaseRequest();

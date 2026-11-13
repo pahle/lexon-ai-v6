@@ -130,6 +130,266 @@ it('ignores an unknown identity fallback header on a valid chat page', async () 
   }
 });
 
+it.each([
+  { reason: 'membership_removed', status: 200 },
+  { reason: 'selection_repaired', status: 200 },
+  { reason: 'membership_removed', status: 404 },
+  { reason: 'selection_repaired', status: 404 },
+] as const)(
+  'rejects active stream response with fallback reason $reason and status $status',
+  async ({ reason, status }) => {
+    const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+    const { IDENTITY_FALLBACK_HINT_EVENT } =
+      await import('../src/lib/identity-client.js');
+    const validSse = [
+      {
+        version: 1,
+        type: 'snapshot-start',
+        reset: true,
+        snapshot: {
+          runId,
+          messageId: assistantId,
+          attemptId: null,
+          generation: null,
+          revision: 0,
+          eventId: null,
+          status: 'completed',
+          errorCode: null,
+          reasoningDurationMs: null,
+        },
+        partCount: 0,
+        operationCount: 0,
+      },
+      { version: 1, type: 'snapshot-end', partCount: 0, operationCount: 0 },
+    ]
+      .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+      .join('');
+    const bodyText =
+      status === 200
+        ? validSse
+        : JSON.stringify({
+            error: { code: 'AI_ACCESS_REVOKED', message: 'safe' },
+          });
+    const bodyBytes = new TextEncoder().encode(bodyText);
+    let bodyCancelled = false;
+    let bodyPulls = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          bodyPulls++;
+          controller.enqueue(bodyBytes);
+          controller.close();
+        },
+        cancel() {
+          bodyCancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const fetch = vi.fn(
+      async () =>
+        new Response(body, {
+          status,
+          headers: {
+            'content-type':
+              status === 200 ? 'text/event-stream' : 'application/json',
+            'x-lexon-fallback-reason': reason,
+            ...(status === 200
+              ? { 'x-lexon-stream-recovery-result': 'snapshot' }
+              : {}),
+          },
+        }),
+    );
+    const streamStates: string[] = [];
+    const hints: unknown[] = [];
+    const onFallbackHint = (event: Event) => {
+      hints.push((event as CustomEvent<unknown>).detail);
+    };
+    window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+    const transport = new LexonChatTransport({
+      baseUrl: '/api',
+      chatId,
+      actorScope: 'tenant-1:user-1',
+      initialRunId: runId,
+      fetch,
+      onStreamState: (state) => streamStates.push(state),
+    });
+    let streamReader: ReadableStreamDefaultReader<unknown> | undefined;
+    const chunkTypes: string[] = [];
+
+    try {
+      const [result] = await Promise.allSettled([
+        transport.reconnectToStream({ chatId, headers: {} }),
+      ]);
+      if (result?.status === 'fulfilled' && result.value) {
+        streamReader =
+          result.value.getReader() as ReadableStreamDefaultReader<unknown>;
+        while (true) {
+          const next = await streamReader.read();
+          if (next.done) break;
+          if (
+            typeof next.value === 'object' &&
+            next.value !== null &&
+            'type' in next.value
+          )
+            chunkTypes.push(String(next.value.type));
+        }
+      }
+      expect.soft(hints).toEqual([{ reason }]);
+      expect.soft(result?.status).toBe('rejected');
+      if (result?.status === 'rejected')
+        expect.soft(result.reason).toMatchObject({ code: 'AI_ACCESS_REVOKED' });
+      expect.soft(bodyCancelled).toBe(true);
+      expect.soft(bodyPulls).toBe(0);
+      expect.soft(chunkTypes).toEqual([]);
+      expect.soft(streamStates).not.toContain('connected');
+    } finally {
+      transport.close();
+      await streamReader?.cancel().catch(() => {});
+      window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+    }
+  },
+);
+
+it('preserves normal active streaming for an unknown fallback header', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const { IDENTITY_FALLBACK_HINT_EVENT } =
+    await import('../src/lib/identity-client.js');
+  const frames = [
+    {
+      version: 1,
+      type: 'snapshot-start',
+      reset: true,
+      snapshot: {
+        runId,
+        messageId: assistantId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        status: 'completed',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+      partCount: 0,
+      operationCount: 0,
+    },
+    { version: 1, type: 'snapshot-end', partCount: 0, operationCount: 0 },
+  ];
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(''),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+            'x-lexon-fallback-reason': 'untrusted-value',
+          },
+        },
+      ),
+  );
+  const streamStates: string[] = [];
+  const hints: unknown[] = [];
+  const onFallbackHint = (event: Event) => {
+    hints.push((event as CustomEvent<unknown>).detail);
+  };
+  window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    initialRunId: runId,
+    fetch,
+    onStreamState: (state) => streamStates.push(state),
+  });
+
+  try {
+    const stream = await transport.reconnectToStream({ chatId, headers: {} });
+    expect(stream).not.toBeNull();
+    if (!stream) throw new Error('Expected the normal stream to be preserved');
+    const reader = stream.getReader();
+    const chunkTypes: string[] = [];
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      chunkTypes.push(next.value.type);
+    }
+    expect(hints).toEqual([]);
+    expect(chunkTypes).toContain('finish');
+    expect(streamStates).toEqual(['reconnecting', 'connected']);
+  } finally {
+    transport.close();
+    window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+  }
+});
+
+it('does not hint for a recognized stream fallback response received after close', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const { IDENTITY_FALLBACK_HINT_EVENT } =
+    await import('../src/lib/identity-client.js');
+  let resolveFetch: ((response: Response) => void) | undefined;
+  let resolveStarted: (() => void) | undefined;
+  const fetchStarted = new Promise<void>((resolve) => {
+    resolveStarted = resolve;
+  });
+  const fetch = vi.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+        resolveStarted?.();
+      }),
+  );
+  let bodyCancelled = false;
+  let bodyPulls = 0;
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull() {
+        bodyPulls++;
+      },
+      cancel() {
+        bodyCancelled = true;
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const hints: unknown[] = [];
+  const onFallbackHint = (event: Event) => {
+    hints.push((event as CustomEvent<unknown>).detail);
+  };
+  window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    initialRunId: runId,
+    fetch,
+  });
+
+  try {
+    const opening = transport.reconnectToStream({ chatId, headers: {} });
+    await fetchStarted;
+    transport.close();
+    resolveFetch?.(
+      new Response(body, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+          'x-lexon-fallback-reason': 'membership_removed',
+        },
+      }),
+    );
+    const [result] = await Promise.allSettled([opening]);
+    expect(result?.status).toBe('rejected');
+    expect(hints).toEqual([]);
+    expect(bodyCancelled).toBe(true);
+    expect(bodyPulls).toBe(0);
+  } finally {
+    transport.close();
+    window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+  }
+});
+
 it('searches with POST and exposes owner chat rename and permanent-delete routes', async () => {
   const { createChatClient } = await import('../src/lib/chat-client.js');
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
