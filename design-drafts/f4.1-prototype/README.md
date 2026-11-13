@@ -48,3 +48,9 @@ three pillars catching light, two steps) → Pilcrow ¶ → again. Each mark dra
 breaks into 18 dots, the dots travel on staggered arcs to points sampled on the next mark,
 and the next mark draws through them. Reduced motion: static §. `screens/fm-strip.png`
 shows 24 frames at 0.5 s.
+
+## Revision 8 (2026-11-13): dots play between marks
+Between marks the dots no longer fly straight: they gather (0.65 s), swirl in a randomly
+chosen pattern for 1.8-2.5 s (orbit, swarm, spiral, figure-8), then settle onto the next
+mark (0.85 s, staggered). 26 smaller dots with varied size/opacity, smoothstep easing,
+continuous positions (no jumps). Full cycle about 25 s.

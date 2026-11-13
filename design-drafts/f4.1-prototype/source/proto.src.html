@@ -282,13 +282,22 @@ function lqMount(el){
   if(el.__lq) return; el.__lq=1;
   const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','0 0 20 20'); el.appendChild(svg);
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const K=18, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  const K=26, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
   const build=(sc)=>{const g=document.createElementNS(NS,'g');g.setAttribute('fill','none');g.setAttribute('stroke','currentColor');g.setAttribute('stroke-linecap','round');g.setAttribute('stroke-linejoin','round');g.setAttribute('stroke-width','1.5');
     const paths=sc.p.map((d,i)=>{const pa=document.createElementNS(NS,'path');pa.setAttribute('d',d);if(sc.dim&&sc.dim.includes(i))pa.setAttribute('stroke-opacity','.4');g.appendChild(pa);return pa;});
     let acc=null; if(sc.accent){acc=document.createElementNS(NS,'path');acc.setAttribute('d',sc.accent);acc.setAttribute('stroke-width','3.8');acc.setAttribute('stroke-opacity','.35');g.appendChild(acc);}
     svg.appendChild(g); return {g,paths,acc};};
   const sample=(paths)=>{const L=paths.map(p=>p.getTotalLength());const tot=L.reduce((a,b)=>a+b,0);const pts=[];for(let k=0;k<K;k++){let d=(k+.5)/K*tot,i=0;while(d>L[i]&&i<L.length-1){d-=L[i];i++;}const q=paths[i].getPointAtLength(Math.min(d,L[i]));pts.push([q.x,q.y]);}return pts;};
   const dots=[];for(let k=0;k<K;k++){const c=document.createElementNS(NS,'circle');c.setAttribute('r','0');c.setAttribute('fill','currentColor');svg.appendChild(c);dots.push(c);}
+  const seed=Array.from({length:K},(_,i)=>({ph:Math.random()*Math.PI*2,rr:.75+Math.random()*.5,w:.8+Math.random()*.5,j:Math.random()}));
+  const smooth=t=>t*t*(3-2*t);
+  const PAT={
+   orbit:(i,t)=>{const sd=seed[i],a=sd.ph+t*2.6*sd.w,r=(4.2+1.6*Math.sin(i*1.7))*(1+.12*Math.sin(t*2.1+sd.ph));return[10+r*Math.cos(a),10+r*Math.sin(a)*.92];},
+   swarm:(i,t)=>{const sd=seed[i];return[10+5.6*Math.sin(1.3*t*sd.w+sd.ph)*Math.cos(.7*t+sd.j*3),10+5.6*Math.sin(1.9*t*sd.w+sd.ph*1.3)];},
+   spiral:(i,t)=>{const f=i/K,a=f*9.5+t*(2.8-1.4*f),r=1.2+6.2*f*(1+.15*Math.sin(t*1.8));return[10+r*Math.cos(a),10+r*Math.sin(a)];},
+   figure8:(i,t)=>{const sd=seed[i],a=t*1.9+i/K*Math.PI*2;return[10+6*Math.sin(a),10+3.6*Math.sin(2*a)+.6*Math.sin(t*3+sd.ph)];}
+  };
+  const PATK=Object.keys(PAT);
   let idx=0, cur=build(LQ_SCENES[0]);
   if(reduce){return;}
   const anim=(dur,fn)=>new Promise(res=>{const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/dur);fn(k);if(k<1&&el.isConnected)requestAnimationFrame(step);else res();};requestAnimationFrame(step);});
@@ -304,12 +313,20 @@ function lqMount(el){
       const a=sample(cur.paths); const nidx=(idx+1)%LQ_SCENES.length; const nsc=LQ_SCENES[nidx]; const nxt=build(nsc); nxt.g.style.opacity='0'; const b=sample(nxt.paths); svg.appendChild(nxt.g);
       dots.forEach(d=>svg.appendChild(d));
       // dissolve: lines fade while dots appear on them
-      await anim(220,k=>{cur.g.style.opacity=String(1-k);dots.forEach((d,i)=>{d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.85*k));});});
+      await anim(320,k=>{cur.g.style.opacity=String(1-smooth(k));dots.forEach((d,i)=>{d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.62*seed[i].rr*k));});});
       cur.g.remove();
-      // travel: dots fly on gentle arcs, staggered
-      await anim(720,k=>{dots.forEach((d,i)=>{const s0=i/K*.35,kk=ease(Math.max(0,Math.min(1,(k-s0)/.65)));const mx=(a[i][0]+b[i][0])/2+(i%2?2.2:-2.2),my=(a[i][1]+b[i][1])/2+(i%3-1)*2.2;const x=(1-kk)*(1-kk)*a[i][0]+2*(1-kk)*kk*mx+kk*kk*b[i][0],y=(1-kk)*(1-kk)*a[i][1]+2*(1-kk)*kk*my+kk*kk*b[i][1];d.setAttribute('cx',x);d.setAttribute('cy',y);});});
+      // play: dots leave the shape, swirl in a random pattern for a while, then settle onto the next shape
+      { const pat=PAT[PATK[Math.floor(Math.random()*PATK.length)]]; const tPlay=1800+Math.random()*700, tIn=650, tOut=850, T=tIn+tPlay+tOut;
+        await anim(T,k=>{const ms=k*T, ts=ms/1000;
+          dots.forEach((d,i)=>{const sw=pat(i,ts); const di=i/K*.25;
+            let x,y,r;
+            if(ms<tIn){const q=smooth(Math.min(1,Math.max(0,(ms/tIn-di*.4)/(1-di*.4))));x=a[i][0]+(sw[0]-a[i][0])*q;y=a[i][1]+(sw[1]-a[i][1])*q;}
+            else if(ms<tIn+tPlay){x=sw[0];y=sw[1];}
+            else{const q=smooth(Math.min(1,Math.max(0,((ms-tIn-tPlay)/tOut-di)/(1-di))));x=sw[0]+(b[i][0]-sw[0])*q;y=sw[1]+(b[i][1]-sw[1])*q;}
+            r=.62*seed[i].rr*(ms>tIn&&ms<tIn+tPlay?1+.25*Math.sin(ts*4+seed[i].ph):1);
+            d.setAttribute('cx',x.toFixed(3));d.setAttribute('cy',y.toFixed(3));d.setAttribute('r',r.toFixed(3));d.setAttribute('fill-opacity',(.55+.45*seed[i].rr/1.25).toFixed(2));});}); }
       // reform: next shape draws through the dots, dots shrink
-      nxt.g.style.opacity='1'; const di=drawIn(nxt,nsc.draw); await anim(Math.min(500,nsc.draw),k=>{dots.forEach(d=>d.setAttribute('r',String(.85*(1-k))));}); await di;
+      nxt.g.style.opacity='1'; const di=drawIn(nxt,nsc.draw); await anim(Math.min(500,nsc.draw),k=>{dots.forEach((d,i)=>d.setAttribute('r',String(.62*seed[i].rr*(1-smooth(k)))));}); await di;
       cur=nxt; idx=nidx;
     }
   })();
