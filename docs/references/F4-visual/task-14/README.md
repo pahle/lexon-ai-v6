@@ -1,22 +1,36 @@
-# Task 14 informal thread preview
+# Task 14 — refreshed informal preview
 
-Captured through local Linux Compose/Caddy with the scripted model at source
-`7707b45`; PNG, deviceScaleFactor 1. Stable files overwrite in place.
-This is not Task 19 formal visual approval.
+The owner gave informal feedback on 2026-11-12. These stable PNG filenames were
+refreshed by the main session on 2026-11-13 after the six corrections, using
+source `49118830b63511ed6e0bf73d0d3a3e8f21ddfe41` and the local Compose/Caddy mock-model
+stack. No real model was called. [Producer, dimensions and hashes](index.json).
 
-Main session rendered the preview independently (1/1 browser test passed) and
-visually compared new-chat frames with `prototype/01-new-chat.png`, completed
-light/dark answer frames with `prototype/06-answer-complete.png` and
-`prototype/21-answer-dark.png`, and expanded summary with
-`prototype/05-reasoning-open.png`. Token/component sizes follow base-nova;
-synthetic content and timing differ. No raw reasoning or real model call.
+The main session ran the affected three browser flows independently: **3/3
+passed (17.1 seconds)**. The previous source `164ccca` also passed the full
+six-case chat-browser project independently (38.9 seconds). These source
+revisions and results are distinct. This is informal feedback evidence, not
+Task 19 formal approval or Linux golden baselines.
 
-The old Home/Conversations sidebar and generic Home/Chat breadcrumb remain
-pending Task 15 navigation/history wiring. The fixture prompt visibly includes
-test-control markers; these are synthetic test data, not product controls.
-Markdown headings use the existing brand font and lists retain markers.
-Mobile wraps text within the viewport and keeps the composer/disclaimer visible.
+The six corrections are present: Thinking before answer text; disabled
+whitespace-only Send; automatic textarea growth without a resize grip; a
+round Stop control with square icon; the running placeholder; and sans
+semibold answer headings. The named no-answer reasoning regression is also
+covered by component tests.
 
-Announcement-only follow-ups through `846cd65` passed scoped spec and quality
-review and do not change the captured layout. Owner feedback is required before
-Task 15. This preview is ready for that informal checkpoint.
+| State            | Desktop light                            | Desktop dark                            | Mobile light                            | Mobile dark                            |
+| ---------------- | ---------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------- |
+| New chat         | [PNG](task-14-newchat-desktop-light.png) | [PNG](task-14-newchat-desktop-dark.png) | [PNG](task-14-newchat-mobile-light.png) | [PNG](task-14-newchat-mobile-dark.png) |
+| Completed answer | [PNG](task-14-answer-desktop-light.png)  | [PNG](task-14-answer-desktop-dark.png)  | [PNG](task-14-answer-mobile-light.png)  | [PNG](task-14-answer-mobile-dark.png)  |
+
+- [Thinking before answer text](task-14-streaming-desktop-light.png)
+- [Expanded reasoning summary](task-14-reasoning-expanded-desktop-light.png)
+
+Main comparison references: `01-new-chat.png`, `03-thinking.png`,
+`05-reasoning-open.png`, `06-answer-complete.png` and `21-answer-dark.png` in
+`docs/design/f4-prototype/screens/`. The sidebar now includes Task 15 navigation.
+Fixture names and prompt-control strings remain visible in this diagnostic
+thread set. Task 19 must use realistic synthetic legal content with no visible
+control markers, as the owner required. Actual copy interaction and a visible
+reconnect state are not established by these captures.
+
+The separate [Task 15 preview](../task-15/README.md) has its own owner feedback gate.

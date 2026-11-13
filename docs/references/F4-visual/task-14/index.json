@@ -1,49 +1,70 @@
 {
-  "producer": "7707b45",
-  "command": "pnpm test:e2e --project chat-browser --grep 'new chat accepts'",
-  "status": "main visually compared; spec and quality review passed; awaiting informal owner feedback",
+  "producer": "49118830b63511ed6e0bf73d0d3a3e8f21ddfe41",
+  "capturedAt": "2026-11-13",
+  "command": "pnpm test:e2e --project chat-browser --grep 'Chats history|new chat accepts a prompt|inactive message branch'",
+  "result": "3 passed (17.1s)",
+  "status": "Task14 owner corrections rechecked by main; informal evidence only, not Task19 approval",
   "deviceScaleFactor": 1,
   "files": [
     {
       "file": "task-14-answer-desktop-dark.png",
-      "sha256": "9ea9c8054adb3069ced9b4bdd41e0fdd7d70fdbc5411d5c22f43c63df6168819"
+      "sha256": "938675f559be4c38a20afd964be3ea129d6bff958d569915c0304f1bb8b3595f",
+      "width": 1440,
+      "height": 900
     },
     {
       "file": "task-14-answer-desktop-light.png",
-      "sha256": "13205373ff7b117cb9851a6fae46f9a0d4baf9fc16b66661447ad1dd6779b13e"
+      "sha256": "d7cb3674f67a889fe1ee6a1e704ac50606ace7259af8391b7997c20c319dfad9",
+      "width": 1440,
+      "height": 900
     },
     {
       "file": "task-14-answer-mobile-dark.png",
-      "sha256": "69dae4165e545cc3e804fb6850ebf0506d9c5a84984f9ad806490df9b09c158d"
+      "sha256": "881c737db4aacfb3af19c791b7e04e8abf258354e40816684c8af3092a791edb",
+      "width": 390,
+      "height": 844
     },
     {
       "file": "task-14-answer-mobile-light.png",
-      "sha256": "fde06edddb5dd5882ddd3cb05bfd27d32f576c6d58ffdb83d2f155d76b72aa82"
+      "sha256": "7dc24fbb27f961857a2e99786807cdc8339b759cb5696e70526b230501fe6cf9",
+      "width": 390,
+      "height": 844
     },
     {
       "file": "task-14-newchat-desktop-dark.png",
-      "sha256": "9aae752b43e0b97f8960c9620538fe01f89bc0877398e0c30b7a4ad00984e6a5"
+      "sha256": "7fa27a655b24dd5e1e5f93677491675821138c86d18dc0da492ff75f080c8740",
+      "width": 1440,
+      "height": 900
     },
     {
       "file": "task-14-newchat-desktop-light.png",
-      "sha256": "cf2b3f8c798e7db7afba4b1857a132df53fddaefbb2268f6f2998420da0e91ed"
+      "sha256": "d279abc364380e39e5e266fb3cae6e662251cc43cf489a24054498aca79f2881",
+      "width": 1440,
+      "height": 900
     },
     {
       "file": "task-14-newchat-mobile-dark.png",
-      "sha256": "c6b23e35e57f67706a2230cc4b1276d5f5beb5646c24513c7afbc08dec01cfbc"
+      "sha256": "f465c56d7263c908f28147f282084b4f92782ab5cf5613dfaedc17a420b622c1",
+      "width": 390,
+      "height": 844
     },
     {
       "file": "task-14-newchat-mobile-light.png",
-      "sha256": "beb57c184e5c2775531c27ca645dad4a5f185f9eed1a12ab94fd5da069e9f380"
+      "sha256": "002456daafb484d965ff0aa9b713819c819e1a29573c67bb17c3a1be1be52276",
+      "width": 390,
+      "height": 844
     },
     {
       "file": "task-14-reasoning-expanded-desktop-light.png",
-      "sha256": "219c17e8b27316016bf20fa22f1cd6cf097a7a63ab298a9c31c9158ce8923fa6"
+      "sha256": "8cf82952ed53e8f201d99ec528b463407076cf79d4aeeafcf527dcc803488eef",
+      "width": 1440,
+      "height": 900
     },
     {
       "file": "task-14-streaming-desktop-light.png",
-      "sha256": "2d93856792f64d93a4c12d24d3522d42d70ba54cff5b554f132162d1e7c78333"
+      "sha256": "d054f3a7e2df825d725bcdb01b47d7a5ebe104a22747c339ada91b89360c4617",
+      "width": 1440,
+      "height": 900
     }
-  ],
-  "reviewedHead": "846cd65"
+  ]
 }

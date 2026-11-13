@@ -938,3 +938,52 @@ accessibility, and E2E tests, must still pass. This amendment does not authorize
 skipping, weakening, replacing, or redirecting existing comparisons. The known
 F2.1 Home comparison mismatch remains an unresolved F4 verification issue;
 deferring new goldens does not make that failure pass.
+
+## Task 15 — reviewed implementation and informal owner gate
+
+Source range `fb30328..8047ff7` includes initial implementation and three
+review corrections (`164ccca`, `4911883`, `8047ff7`). Fresh scoped re-reviews
+closed the implementation findings; the historical tests-first exception above
+remains open for owner disposition. Task 15 is ready for informal feedback,
+not marked fully accepted or complete. Task 16 has not started.
+
+The main session independently rendered through Compose/Caddy and visually
+compared the affected states with prototype screens 14–20 and 23. The
+[ten-image Task 15 preview](F4-visual/task-15/README.md) records exact producer,
+hashes, named comparison references, differences and fixture limitations.
+The corrected [Task 14 preview](F4-visual/task-14/README.md) is refreshed
+separately at its recorded producer; its six owner corrections are retained.
+These informal sets do not replace Task 19 formal approval.
+
+Observed main-session browser results:
+
+- `164ccca`: full `pnpm test:e2e --project chat-browser`, **6/6 passed
+  (38.9 seconds)**, covering history, branch targeting, new chat, edit/regenerate,
+  measured private reasoning, and failed/stopped answers.
+- `4911883`: affected history/new-chat/inactive-branch flows, **3/3 passed
+  (17.1 seconds)**.
+- `8047ff7`: final history/rename preview flow, **1/1 passed (7.7 seconds)**.
+
+These are separate source-specific results, not a claim of a final-head full
+suite pass. Implementer evidence includes the eight-file workspace/tenant/chat
+regression set (91 tests), round-two history/thread tests (34), final history
+tests (20), frontend types/lint/format checks, and the real Testcontainers
+rename integration check. The backend boundary assertion now supplies JSON
+content type, accepts 120 characters, rejects 121 and verifies the title is
+unchanged after refusal.
+
+Review corrections cover mobile sheet close/focus, mounted-title event refresh,
+immediate Recent after creation, row-owned/last-row deletion refusal and retry,
+concurrent mutation-safe rollback, late initial-title response fencing, and
+inline Recent rename replacing its linked label. Search has explicit submit,
+loading, pagination and stale result/error suppression. The rendered
+inactive-branch/highlight proof uses browser-route fixtures, so it establishes
+client behavior; do not describe it as independent real-database persistence
+evidence.
+
+Linux CI on the pushed preview head remains a separate verification step.
+The previously observed F3 lease-renewal test failure and unchanged F2.1 Home
+golden mismatch remain recorded issues until current-head evidence or a
+reviewed correction resolves them. Task 20's deferral does not waive either
+existing test coverage or baseline checks. No real-model smoke, paid eval or
+final-head isolated load/search evidence is claimed here.
