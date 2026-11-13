@@ -553,3 +553,139 @@ test('search opens an inactive message branch, scrolls and highlights it, while 
   expect(resolvedMatches).toEqual([inactiveUserId]);
   expect(viewedLeafId).toBe(inactiveAssistantId);
 });
+
+test('workspace navigation order and keyboard access survive collapsed sidebar state', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Ayu Wardani',
+    email: `navigation-history-${randomUUID()}@example.test`,
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
+
+  const chatId = randomUUID();
+  const created = await page.request.post(`${stack.apiUrl}/api/chats`, {
+    headers,
+    data: {
+      chatId,
+      userMessageId: randomUUID(),
+      requestId: randomUUID(),
+      text: 'Bagaimana kewajiban para pihak dalam perjanjian kerja sama?',
+      effort: 'high',
+    },
+  });
+  expect(created.status()).toBe(201);
+  const title = 'Perjanjian kerja sama';
+  const renamed = await page.request.patch(
+    `${stack.apiUrl}/api/chats/${chatId}`,
+    {
+      headers: { ...headers, 'content-type': 'application/json' },
+      data: { title },
+    },
+  );
+  expect(renamed.status()).toBe(204);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${stack.publicUrl}/workspace`);
+  const workspaceSidebar = page.getByRole('complementary', {
+    name: 'Workspace navigation',
+  });
+  const primary = workspaceSidebar.getByRole('navigation', {
+    name: 'Primary navigation',
+  });
+  const newChat = primary.getByRole('link', { name: 'New chat', exact: true });
+  const chats = primary.getByRole('link', { name: 'Chats', exact: true });
+  const recentGroup = workspaceSidebar.getByRole('group', {
+    name: 'Recent chats',
+  });
+  const recentLink = recentGroup.getByRole('link', {
+    name: title,
+    exact: true,
+  });
+
+  await expect(newChat).toHaveAttribute('href', '/workspace');
+  await expect(newChat).toHaveAttribute('aria-current', 'page');
+  await expect(chats).toHaveAttribute('href', '/chats');
+  await expect(chats).not.toHaveAttribute('aria-current', 'page');
+  await expect(recentLink).toHaveAttribute('href', `/chats/${chatId}`);
+  const primaryHrefs = await primary
+    .getByRole('link')
+    .evaluateAll((links) =>
+      links.map((link) => (link as HTMLAnchorElement).getAttribute('href')),
+    );
+  expect(primaryHrefs).toEqual(['/workspace', '/chats']);
+  const recentFollowsPrimary = await primary.evaluate((nav) => {
+    const recent = document.querySelector(
+      '[role="group"][aria-label="Recent chats"]',
+    );
+    return Boolean(
+      recent &&
+      nav.compareDocumentPosition(recent) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+  expect(recentFollowsPrimary).toBe(true);
+  const sidebarRoutes = await workspaceSidebar
+    .getByRole('link')
+    .evaluateAll((links) =>
+      links.map((link) => ({
+        name: link.textContent?.trim() ?? '',
+        href: (link as HTMLAnchorElement).getAttribute('href') ?? '',
+      })),
+    );
+  expect(
+    sidebarRoutes.some(
+      ({ name, href }) =>
+        /home|conversations/i.test(name) ||
+        /\/(home|conversations)(\/|$)/.test(href),
+    ),
+  ).toBe(false);
+
+  await newChat.focus();
+  await page.keyboard.press('Tab');
+  await expect(chats).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
+  await expect(chats).toHaveAttribute('aria-current', 'page');
+  await chats.focus();
+  await page.keyboard.press('Tab');
+  await expect(recentLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats/${chatId}`);
+  await expect(recentLink).toHaveAttribute('aria-current', 'page');
+  await expect(newChat).not.toHaveAttribute('aria-current', 'page');
+  await expect(chats).not.toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await expect(recentGroup).toHaveCount(0);
+  await expect(newChat).toBeVisible();
+  await expect(chats).toBeVisible();
+  await expect(newChat).toHaveAttribute('href', '/workspace');
+  await expect(chats).toHaveAttribute('href', '/chats');
+  await newChat.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/workspace`);
+  await newChat.focus();
+  await page.keyboard.press('Tab');
+  await expect(chats).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
+  await expect(recentGroup).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
+  await expect(recentGroup).toBeVisible();
+  await expect(recentLink).toHaveAttribute('href', `/chats/${chatId}`);
+  await chats.focus();
+  await page.keyboard.press('Tab');
+  await expect(recentLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`${stack.publicUrl}/chats/${chatId}`);
+  await expect(recentLink).toHaveAttribute('aria-current', 'page');
+  await expect(newChat).not.toHaveAttribute('aria-current', 'page');
+  await expect(chats).not.toHaveAttribute('aria-current', 'page');
+});
