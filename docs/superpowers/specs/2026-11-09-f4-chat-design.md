@@ -999,3 +999,7 @@ needed. Task 16A must retain **break 80**, publish exact actual mutated files
 and per-module results, and document any exclusion for owner review. This
 research supports configuration, not a claim of compatibility or passing
 mutation evidence before an actual run.
+
+## Research addendum — initial-fetch invalidation (2026-11-13)
+
+Read the [official TanStack Query v5 invalidation guide](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation) and inspected installed `@tanstack/react-query` / query-core `5.105.0`, `src/query.ts` `fetch` and success-state handling. Invalidation marks a query stale and refetches active observers, but a no-data initial fetch reuses its in-flight promise; its stale response can then clear invalidation. Controller tests reproduced this with real QueryClient/QueryObserver for list/thread invalidation and initial thread-stream opening. Cancel the scoped in-flight query before the existing invalidation/refetch, retaining the same owner/org keys and reconnect throttle. This explains the deterministic reproduced race; the exact cause of the intermittent Linux browser observation is not inferred solely from it. No dependency change or timeout increase is required.

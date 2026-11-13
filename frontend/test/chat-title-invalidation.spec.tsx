@@ -15,10 +15,8 @@ const scope = {
 const chatId = '00000000-0000-4000-8000-000000000003';
 
 it('subscribes with cookies and invalidates exact owner-scoped list and thread keys', async () => {
-  const invalidateQueries = vi.fn(
-    async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
-  );
-  const queryClient = { invalidateQueries } as unknown as QueryClient;
+  const queryClient = new QueryClient();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
   let source:
     | {
         onmessage: ((event: MessageEvent<string>) => void) | null;
@@ -50,20 +48,19 @@ it('subscribes with cookies and invalidates exact owner-scoped list and thread k
   );
   await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(2));
   expect(
-    invalidateQueries.mock.calls.map(([filter]) => filter.queryKey),
+    invalidateQueries.mock.calls.map(([filter]) => filter?.queryKey),
   ).toEqual([
     ['tenant', scope.orgId, 'chat', scope.userId, 'list'],
     ['tenant', scope.orgId, 'chat', scope.userId, 'thread', chatId],
   ]);
   dispose();
   expect(source!.close).toHaveBeenCalledOnce();
+  queryClient.clear();
 });
 
 it('refreshes owner chat queries on EventSource open and error', async () => {
-  const invalidateQueries = vi.fn(
-    async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
-  );
-  const queryClient = { invalidateQueries } as unknown as QueryClient;
+  const queryClient = new QueryClient();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
   let source:
     | {
         onmessage: ((event: MessageEvent<string>) => void) | null;
@@ -87,7 +84,7 @@ it('refreshes owner chat queries on EventSource open and error', async () => {
   source!.onerror!(new Event('error'));
   await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(2));
   expect(
-    invalidateQueries.mock.calls.map(([filter]) => filter.queryKey),
+    invalidateQueries.mock.calls.map(([filter]) => filter?.queryKey),
   ).toEqual([
     ['tenant', scope.orgId, 'chat', scope.userId],
     ['tenant', scope.orgId, 'chat', scope.userId],
@@ -95,6 +92,7 @@ it('refreshes owner chat queries on EventSource open and error', async () => {
   dispose();
   expect(source!.onopen).toBeNull();
   expect(source!.onerror).toBeNull();
+  queryClient.clear();
 });
 
 it('refetches after reconnect when an invalidation may have been missed offline', async () => {
@@ -149,12 +147,119 @@ it('refetches after reconnect when an invalidation may have been missed offline'
   vi.useRealTimers();
 });
 
+it.each([
+  { label: 'chat list', key: chatListQueryKey(scope), trigger: 'event' },
+  {
+    label: 'chat thread',
+    key: chatThreadQueryKey(scope, chatId),
+    trigger: 'event',
+  },
+  {
+    label: 'chat thread on initial open',
+    key: chatThreadQueryKey(scope, chatId),
+    trigger: 'open',
+  },
+] as const)(
+  'refreshes an initial in-flight $label after invalidation',
+  async ({ key, trigger }) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const otherScope = {
+      orgId: '00000000-0000-4000-8000-000000000011',
+      userId: '00000000-0000-4000-8000-000000000012',
+    };
+    const otherKey =
+      key.length === chatListQueryKey(scope).length
+        ? chatListQueryKey(otherScope)
+        : chatThreadQueryKey(otherScope, chatId);
+    queryClient.setQueryData(otherKey, ['other tenant']);
+    let serverTitle = 'Old server title';
+    let resolveInitialFetch: ((title: string) => void) | undefined;
+    let resolveInitialStarted: (() => void) | undefined;
+    const initialStarted = new Promise<void>((resolve) => {
+      resolveInitialStarted = resolve;
+    });
+    const initialFetch = new Promise<string>((resolve) => {
+      resolveInitialFetch = resolve;
+    });
+    let queryCount = 0;
+    const observer = new QueryObserver(queryClient, {
+      queryKey: key,
+      queryFn: async () => {
+        queryCount++;
+        if (queryCount === 1) {
+          resolveInitialStarted?.();
+          return initialFetch;
+        }
+        return serverTitle;
+      },
+      staleTime: Infinity,
+    });
+    const stopObserving = observer.subscribe(() => {});
+    let source:
+      | {
+          onmessage: ((event: MessageEvent<string>) => void) | null;
+          onopen: ((event: Event) => void) | null;
+          onerror: ((event: Event) => void) | null;
+          close: () => void;
+        }
+      | undefined;
+    const receivedInvalidation = vi.fn();
+    const dispose = subscribeToChatInvalidations(
+      queryClient,
+      scope,
+      () => {
+        const created = {
+          onmessage: null,
+          onopen: null,
+          onerror: null,
+          close: vi.fn(),
+        };
+        source = created;
+        return created;
+      },
+      receivedInvalidation,
+    );
+
+    try {
+      await initialStarted;
+      expect(observer.getCurrentResult().data).toBeUndefined();
+      serverTitle = 'Updated server title';
+      if (trigger === 'event') {
+        source!.onmessage!(
+          new MessageEvent('message', {
+            data: JSON.stringify({
+              version: 1,
+              type: 'chat.invalidated',
+              chatId,
+            }),
+          }),
+        );
+        expect(receivedInvalidation).toHaveBeenCalledWith(chatId);
+      } else source!.onopen!(new Event('open'));
+
+      resolveInitialFetch?.('Old server title');
+      await vi.waitFor(() =>
+        expect(observer.getCurrentResult().data).toBe('Updated server title'),
+      );
+      expect(observer.getCurrentResult().data).toBe('Updated server title');
+      expect(queryCount).toBeGreaterThan(1);
+      expect(queryClient.getQueryData(otherKey)).toEqual(['other tenant']);
+      expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(false);
+    } finally {
+      resolveInitialFetch?.('Old server title');
+      dispose();
+      stopObserving();
+      queryClient.clear();
+    }
+  },
+);
+
 it('cancels a throttled reconnect refresh when the subscription is disposed', async () => {
   vi.useFakeTimers();
-  const invalidateQueries = vi.fn(
-    async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
-  );
-  const queryClient = { invalidateQueries } as unknown as QueryClient;
+  const queryClient = new QueryClient();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
   let source:
     | {
         onmessage: ((event: MessageEvent<string>) => void) | null;
@@ -183,13 +288,12 @@ it('cancels a throttled reconnect refresh when the subscription is disposed', as
   await vi.advanceTimersByTimeAsync(15_000);
   expect(invalidateQueries).toHaveBeenCalledTimes(2);
   vi.useRealTimers();
+  queryClient.clear();
 });
 
 it('rejects malformed or content-bearing invalidations', async () => {
-  const invalidateQueries = vi.fn(
-    async (filters: { queryKey: readonly unknown[] }) => filters.queryKey,
-  );
-  const client = { invalidateQueries } as unknown as QueryClient;
+  const client = new QueryClient();
+  const invalidateQueries = vi.spyOn(client, 'invalidateQueries');
   await expect(
     invalidateChatQueriesForEvent(client, scope, {
       version: 1,
@@ -199,6 +303,7 @@ it('rejects malformed or content-bearing invalidations', async () => {
     }),
   ).resolves.toBe(false);
   expect(invalidateQueries).not.toHaveBeenCalled();
+  client.clear();
 });
 
 it('tenant transition clears the owner-scoped chat cache subtree', async () => {

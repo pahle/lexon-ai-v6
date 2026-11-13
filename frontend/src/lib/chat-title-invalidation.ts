@@ -18,6 +18,15 @@ export interface ChatInvalidationSource {
 
 export { chatListQueryKey, chatThreadQueriesPrefix, chatThreadQueryKey };
 
+function cancelAndInvalidate(
+  queryClient: QueryClient,
+  queryKey: readonly unknown[],
+): Promise<void> {
+  const cancellation = queryClient.cancelQueries({ queryKey });
+  const invalidation = queryClient.invalidateQueries({ queryKey });
+  return Promise.all([cancellation, invalidation]).then(() => undefined);
+}
+
 export async function invalidateChatQueriesForEvent(
   queryClient: QueryClient,
   scope: ChatInvalidationScope,
@@ -26,13 +35,13 @@ export async function invalidateChatQueriesForEvent(
   const parsed = ChatInvalidationEventSchema.safeParse(payload);
   if (!parsed.success) return false;
   const invalidations = [
-    queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) }),
-    queryClient.invalidateQueries({
-      queryKey:
-        parsed.data.chatId === null
-          ? chatThreadQueriesPrefix(scope)
-          : chatThreadQueryKey(scope, parsed.data.chatId),
-    }),
+    cancelAndInvalidate(queryClient, chatListQueryKey(scope)),
+    cancelAndInvalidate(
+      queryClient,
+      parsed.data.chatId === null
+        ? chatThreadQueriesPrefix(scope)
+        : chatThreadQueryKey(scope, parsed.data.chatId),
+    ),
   ];
   await Promise.all(invalidations);
   return true;
@@ -70,9 +79,9 @@ export function subscribeToChatInvalidations(
       }
       lastRecoveryRefresh = now;
     }
-    void queryClient
-      .invalidateQueries({ queryKey: chatThreadQueriesPrefix(scope) })
-      .catch(() => undefined);
+    void cancelAndInvalidate(queryClient, chatThreadQueriesPrefix(scope)).catch(
+      () => undefined,
+    );
   };
   source.onopen = () => {
     if (!hasOpened) invalidateOwnerChats();
