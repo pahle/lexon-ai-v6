@@ -18,7 +18,28 @@
   "exactPixelMatches": 34,
   "existingComparisonPasses": 62,
   "existingComparisonFailures": 20,
-  "retired": [],
+  "retired": [
+    "home-desktop-light",
+    "home-desktop-dark",
+    "home-mobile-light",
+    "home-mobile-dark",
+    "provisioning-desktop-light",
+    "provisioning-desktop-dark",
+    "organization-switcher-open-desktop-light",
+    "organization-switcher-open-desktop-dark",
+    "organization-switcher-open-mobile-light",
+    "organization-switcher-open-mobile-dark",
+    "user-menu-open-desktop-light",
+    "user-menu-open-desktop-dark",
+    "user-menu-open-mobile-light",
+    "user-menu-open-mobile-dark",
+    "sidebar-header-expanded-desktop-light",
+    "sidebar-header-expanded-desktop-dark",
+    "sidebar-header-expanded-mobile-light",
+    "sidebar-header-expanded-mobile-dark",
+    "sidebar-header-collapsed-desktop-light",
+    "sidebar-header-collapsed-desktop-dark"
+  ],
   "images": [
     {
       "id": "sign-in-desktop-light",
@@ -312,7 +333,36 @@
       "baselineSha256": "fa0e0350c6e1147c0e8a49ad96e552d330c844a31484a03d3884f799d9f07bd2",
       "currentSha256": "56bbb8790a1820d4955d96ec43fcaa941174fa9e81872e23ae23bed53986a271",
       "diffImage": "diff/home-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "home-desktop-dark",
@@ -326,7 +376,36 @@
       "baselineSha256": "bb42c5a9abd17ae7e82573d09979b42616b04bf707c2aeb00f3cedd7d764ba87",
       "currentSha256": "6efddef6d988cb46245ab491acafe08f4ebf9d38b7c6f49369f0f2ef794a4e40",
       "diffImage": "diff/home-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "home-mobile-light",
@@ -340,7 +419,31 @@
       "baselineSha256": "96ab3df6269828b07fc68b18131909e976cc75d5110926d7c7923acbb006bed3",
       "currentSha256": "f9dd38188277939f7c3c250259ac237b197ea234f794ff6cae23ef869b47fa91",
       "diffImage": "diff/home-mobile-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "breadcrumb",
+          "rect": [60, 20, 136, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [28, 308, 366, 414],
+          "differentPixels": 12085
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [28, 388, 362, 548],
+          "differentPixels": 22983
+        },
+        {
+          "name": "disclaimer",
+          "rect": [44, 550, 348, 584],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "home-mobile-dark",
@@ -354,7 +457,31 @@
       "baselineSha256": "a79b5d7927362bbb583936160200f1f365d1a0cc913bfd39875245ee01f30934",
       "currentSha256": "72b9878fd35dde06400933389634e92fb6f243223928beda5670b0945ea6724a",
       "diffImage": "diff/home-mobile-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "breadcrumb",
+          "rect": [60, 20, 136, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [28, 308, 366, 414],
+          "differentPixels": 12188
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [28, 388, 362, 548],
+          "differentPixels": 35186
+        },
+        {
+          "name": "disclaimer",
+          "rect": [44, 550, 348, 584],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "profile-desktop-light",
@@ -704,7 +831,16 @@
       "baselineSha256": "2f920d77a6f46f3d7529dcb0f5f4de5b737bcc6f73228d04bd31a1cbc1753647",
       "currentSha256": "93427540e46c42eec34dc643b4c9ca74e1cf94e172822977791347d834fd7962",
       "diffImage": "diff/provisioning-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 19669
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "provisioning-desktop-dark",
@@ -718,7 +854,16 @@
       "baselineSha256": "b4babc0bc8de749a1b181f1c46386d9d3575e20361f556a72eba69689aca8656",
       "currentSha256": "1cec3984a4f4b0644c8632961577c2af12caf4183243eb0a7963ff035c93e7ac",
       "diffImage": "diff/provisioning-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 19644
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "provisioning-mobile-light",
@@ -760,7 +905,36 @@
       "baselineSha256": "3f040bdf8a7271961fe9f79a1ea5e65eda8998e7cdb5aea63ac9beb5c6e2fce1",
       "currentSha256": "396c30483782e13b404e00b2ce175f937a13d30c7c4123927ab57282952d3e09",
       "diffImage": "diff/organization-switcher-open-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 0
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "organization-switcher-open-desktop-dark",
@@ -774,7 +948,36 @@
       "baselineSha256": "9c70054f27de67475235c8c3bbd87f81505190517fc229492aa2b0bb8f273c38",
       "currentSha256": "6218e5fabd9bcb25c03cf094f0ceb5565573915f2288e685b0f37cc5bfd955b3",
       "diffImage": "diff/organization-switcher-open-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 0
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "organization-switcher-open-mobile-light",
@@ -788,7 +991,31 @@
       "baselineSha256": "d1a3aa493a1173afe40c14f56bae5ab1712804432ea3a9dd4be990cf99c83a2c",
       "currentSha256": "a0b265894f440bc056d138a1871978469c1769a967ab9e0f64fe49bbd02fd49f",
       "diffImage": "diff/organization-switcher-open-mobile-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 2120
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5041
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "organization-switcher-open-mobile-dark",
@@ -802,7 +1029,31 @@
       "baselineSha256": "0f935f91a06e03857c7033d0e336392b99101e6a34d91af1ca1875f7ad8f882e",
       "currentSha256": "e96ea5e1dd7ba258d2d69aa0e03744c2e253f3c5fa430b63cccdd306f1c5beaf",
       "diffImage": "diff/organization-switcher-open-mobile-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 2093
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5268
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "user-menu-open-desktop-light",
@@ -816,7 +1067,36 @@
       "baselineSha256": "32007ef7d55da87700e1fd09dd6c7fc58bef7df34746a301b30a2b6a56cef1a1",
       "currentSha256": "a7a3ee30475a461e821b1282235c3f1d4039aee758d8be72fe329ad495ad8196",
       "diffImage": "diff/user-menu-open-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 4285
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 15165
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "user-menu-open-desktop-dark",
@@ -830,7 +1110,36 @@
       "baselineSha256": "0d68facef241ff1d42ffc5c1c6a2604a0829ac7cfcff044ed86ecd7a89e67566",
       "currentSha256": "cc291d5a673e42f0e51dfac701468c52b2534808e07f193cac6f7559399f1cb2",
       "diffImage": "diff/user-menu-open-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 4258
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 15276
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "user-menu-open-mobile-light",
@@ -844,7 +1153,31 @@
       "baselineSha256": "c13e5ebaed0a6f5f5aeb91265a9b8de930336cff7dfebb892fcfe625e5eba40c",
       "currentSha256": "28d55331cf6a122c973e7e7f0d9b292f45aa9684e65abdd505b096f8a42f26d8",
       "diffImage": "diff/user-menu-open-mobile-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 4285
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5676
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "user-menu-open-mobile-dark",
@@ -858,7 +1191,31 @@
       "baselineSha256": "55bdf1baa3be37d80572f08729d5f389d6f406382644d1b593df27ea9d9e33ae",
       "currentSha256": "dfe6153dab7a70a08b02890e004ede85d79442cd2def4bbc671ce9b78c9ca11d",
       "diffImage": "diff/user-menu-open-mobile-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 4258
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5900
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sign-in-field-errors-desktop-light",
@@ -1096,7 +1453,36 @@
       "baselineSha256": "fa0e0350c6e1147c0e8a49ad96e552d330c844a31484a03d3884f799d9f07bd2",
       "currentSha256": "56bbb8790a1820d4955d96ec43fcaa941174fa9e81872e23ae23bed53986a271",
       "diffImage": "diff/sidebar-header-expanded-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sidebar-header-expanded-desktop-dark",
@@ -1110,7 +1496,36 @@
       "baselineSha256": "bb42c5a9abd17ae7e82573d09979b42616b04bf707c2aeb00f3cedd7d764ba87",
       "currentSha256": "6efddef6d988cb46245ab491acafe08f4ebf9d38b7c6f49369f0f2ef794a4e40",
       "diffImage": "diff/sidebar-header-expanded-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sidebar-header-expanded-mobile-light",
@@ -1124,7 +1539,31 @@
       "baselineSha256": "464b03ef020d272a8de95753db2cc805c9883f354ab3bfbe205e79cd66e991ff",
       "currentSha256": "e8df80816804727f729f9b8bc85edff325d0f9223f3c6f7174026de1a10b3356",
       "diffImage": "diff/sidebar-header-expanded-mobile-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5041
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sidebar-header-expanded-mobile-dark",
@@ -1138,7 +1577,31 @@
       "baselineSha256": "86fd92d22265bda26bdd19dc34381df6a489045084a15ab312483ad273544695",
       "currentSha256": "c934f35863e5d2c569a62cc4c66650140e70113731991327c1db9c2a00db2b97",
       "diffImage": "diff/sidebar-header-expanded-mobile-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5268
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sidebar-header-collapsed-desktop-light",
@@ -1152,7 +1615,36 @@
       "baselineSha256": "7163473c6a4e0d4dcd9f4844956b01ff0bb3ae050c67cf3558f8979a45df1921",
       "currentSha256": "d047b4fd790610fd954086a735928a7cd10eaa9d3e4f78fb21ce5867272c09f1",
       "diffImage": "diff/sidebar-header-collapsed-desktop-light.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 56, 40, 120],
+          "differentPixels": 305
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [108, 12, 184, 40],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [356, 332, 940, 436],
+          "differentPixels": 14248
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [356, 416, 1132, 588],
+          "differentPixels": 58561
+        },
+        {
+          "name": "disclaimer",
+          "rect": [560, 580, 932, 604],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     },
     {
       "id": "sidebar-header-collapsed-desktop-dark",
@@ -1166,7 +1658,41 @@
       "baselineSha256": "a4eedbc137adc7888f1527b4dc551f5552ff5ec4c65da09735f10f4905c360fc",
       "currentSha256": "fce957e87272f908860817c1d55aa7cfc1f8dfa544e9fcfd81145dbacee298b8",
       "diffImage": "diff/sidebar-header-collapsed-desktop-dark.png",
-      "retired": false
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 56, 40, 120],
+          "differentPixels": 305
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [108, 12, 184, 40],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [356, 332, 940, 436],
+          "differentPixels": 14354
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [356, 416, 1132, 588],
+          "differentPixels": 93127
+        },
+        {
+          "name": "disclaimer",
+          "rect": [560, 580, 932, 604],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
     }
-  ]
+  ],
+  "ownerAmendment": {
+    "date": "2026-11-13",
+    "reference": "F4-acceptance.md#owner-approved-retirement-of-exactly-20-f21-assertions",
+    "replacementSlice": "F4.1"
+  }
 }

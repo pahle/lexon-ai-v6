@@ -1009,3 +1009,29 @@ Read the [official TanStack Query v5 invalidation guide](https://tanstack.com/qu
 The [WHATWG EventSource interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface) (Living Standard updated 2026-11-12, read 2026-11-13) exposes message/open/error callbacks and close, with no response-header accessor. Lexon's installed native EventSource consumer therefore cannot observe F1's HTTP fallback hint. A real integration test confirmed that a first post-removal `/api/chats/events` request repairs selection and returns `membership_removed` in the header, but previously emitted no corresponding data frame.
 
 The background invalidation stream now has a separate strict, content-free `identity-fallback` frame: version, finite reason and the already-verified actor's organization UUID only. The controller derives it from the guard's **response** header; the service emits it after connection admission. It is not a run-stream or persisted conversation event. The client validates the frame, publishes the existing F1 identity hint, and closes a subscription whose captured org differs. F1 still re-verifies identity before any tenant transition; this adds no authority, organization-selection policy or RLS exception. Existing ordinary invalidation and recovery limits remain.
+
+## Owner execution and visual-evidence amendment (2026-11-13)
+
+The owner authorized retiring exactly the twenty failing F2.1 screenshot
+assertions (two navigation-only Provisioning desktop and eighteen class C
+Home/menu/sidebar views), including F4's approved breadcrumb, welcome/composer
+hierarchy, attachment removal, Deep thinking and disclaimer. Main per-image
+visual comparison and exact RGB checks found zero changed pixels outside those
+semantic regions; see the [complete audit](../../references/F4-f21-baseline-audit.md).
+Keep the other 62 screenshot assertions and all functional/axe checks unchanged;
+no tolerance changes or replacement goldens. All 82 original artifacts remain
+immutable. F4.1 replaces every retired baseline.
+
+Task19's formal set includes New chat, organization switcher open, user menu
+open, expanded and collapsed sidebar in both themes and both viewports (mobile
+sheet open/closed). Main compares the full realistic-content set against the
+prototype and records deviations, then continues to21. Owner review happens
+with the final PR, superseding the intermediate Task19 stop.
+
+Routine in-scope choices are executed and explained in acceptance. Task17 local
+high/max smoke is authorized only via direct process env-file loading, at most
+four requests/USD0.10 with the existing guard, no retries for better numbers or
+admin APIs, safe report fields only. Never read/print/copy/log dotenv or keys;
+secret output stops execution and is deleted before owner notification. No
+paid CI evaluation dispatch or other paid calls are authorized. Structural
+controller-observed RED-first controls and final branch review remain.
