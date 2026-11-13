@@ -20,3 +20,9 @@ elevated floating composer (soft shadow, pill toggles, round send) with a fade o
 the thread and a scroll-to-latest button; reading-first answers (no bubble, 68ch,
 line-height 1.75), animated Lexon mark while thinking/streaming (reduced-motion safe).
 Personal workspace shows the Lexon monogram in the switcher.
+
+## Revision 3 (2026-11-13): PO feedback
+Wider layout (thread and composer 880px), no breadcrumb header (sidebar toggle left,
+floating New chat / actions pill right), starter prompts as one row of short pills with
+no "Try asking" label. Our reasoning display (Thought for N seconds + collapsible summary) stays.
+Starter pills insert a short editable template into the composer; they never auto-send.

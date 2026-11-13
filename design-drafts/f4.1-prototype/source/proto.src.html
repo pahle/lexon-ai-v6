@@ -73,11 +73,11 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .btn.primary{background:var(--primary);color:var(--pfg)}.btn.outline{border:1px solid var(--input);background:var(--bg)}.btn.ghost{color:var(--mfg)}
 .btn.danger{background:var(--deep);color:#fff}.btn.lg{height:40px;padding:0 16px}.btn.full{width:100%}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;overflow:hidden}
-.thread{width:100%;max-width:760px;padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px}
+.thread{width:100%;max-width:880px;padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px}
 .um{align-self:flex-end;max-width:80%;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .ubub{background:var(--bubble);border-radius:20px;padding:12px 18px;line-height:1.6;font-size:16px}
 .am{display:flex;flex-direction:column;gap:12px;font-size:16px;line-height:1.75}
-.am p{max-width:68ch}
+.am p{max-width:none}
 .mark{width:22px;height:22px;display:inline-block}
 .mark.live{animation:seal 1.4s ease-in-out infinite}
 @keyframes seal{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.55}}
@@ -85,7 +85,7 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .tcard2{border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .tcard2 .th{display:flex;align-items:center;justify-content:space-between;color:var(--mfg);font-size:14px}
 .scrolldown{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;width:36px;height:36px;border-radius:999px;background:var(--bg);box-shadow:0 0 0 1px var(--border),0 6px 16px -6px rgba(8,6,6,.25);display:flex;align-items:center;justify-content:center;color:var(--mfg);z-index:5}
-.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:720px}
+.chips{display:flex;flex-wrap:nowrap;gap:8px;justify-content:center}
 .chip{all:unset;cursor:pointer;font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--fg)}
 .chip:hover{background:var(--accent)}
 .am p{margin:0 0 8px}.am ol,.am ul{margin:0 0 8px;padding-left:22px}.am li{margin:3px 0}
@@ -100,12 +100,12 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .bar .lb{all:unset;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:6px;font-size:13px;cursor:pointer}
 .bar .lb:hover{background:var(--accent);color:var(--fg)}.bar .on{color:var(--redtext)}
 .branch{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--mfg)}
-.cw{width:100%;max-width:768px;padding:0 24px 14px;flex:none;position:relative}
+.cw{width:100%;max-width:880px;padding:0 24px 14px;flex:none;position:relative}
 .cw:before{content:'';position:absolute;left:0;right:0;top:-40px;height:40px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none}
 .home .cw:before{display:none}
 .comp{border:1px solid var(--border);border-radius:20px;background:var(--bg);padding:16px 14px 12px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px -14px rgba(8,6,6,.22),0 2px 6px -2px rgba(8,6,6,.06)}
 .comp:focus-within{border-color:var(--input)}
-.comp textarea{border:0;outline:none;resize:none;background:transparent;font-size:16px;padding:2px 4px;min-height:48px}
+.comp textarea{border:0;outline:none;resize:none;background:transparent;font-size:16px;padding:4px 4px;min-height:56px}
 .comp textarea::placeholder{color:var(--mfg)}
 .crow{display:flex;justify-content:space-between;align-items:center}
 .pill{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:999px;border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;color:var(--mfg)}
@@ -210,7 +210,7 @@ function sidebar(S,c){
   <div style="margin-top:auto;position:relative"><button class="nb big"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">Senior Associate</span></span><span style="color:var(--mfg)">${sv('chev')}</span></button>${userMenu}</div>
  </aside>`;
 }
-const topbar=t=>`<header class="top"><button class="ib" aria-label="Toggle sidebar">${sv('panel')}</button><div class="vsep"></div><nav aria-label="Breadcrumb" class="crumb">${t}</nav></header>`;
+const topbar=t=>`<header class="top" style="justify-content:space-between"><button class="ib" aria-label="Toggle sidebar">${sv('panel')}</button><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">${t.replace(/<[^>]+>/g,' ')}</span><div style="display:flex;gap:2px;padding:3px;border-radius:999px;box-shadow:0 0 0 1px var(--border),0 4px 12px -6px rgba(8,6,6,.18);background:var(--bg)"><button class="ib" style="border-radius:999px" aria-label="New chat">${sv('plus')}</button><button class="ib" style="border-radius:999px" aria-label="Chat actions">${sv('dots')}</button></div></header>`;
 function composer({deep=false,streaming=false,text='',mobile=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
@@ -239,7 +239,7 @@ function thread(S){
  return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${['streaming','reconnect'].includes(S)?`<div class="scrolldown" aria-label="Scroll to latest">${sv('down2',18)}</div>`:''}${c}</div>${toast}</div>`;
 }
 function home(S){const deep=S==='deep';const text=deep?'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.':'';
- return `<div class="main home">${topbar('<b>New chat</b>')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em;display:flex;align-items:center;gap:14px"><img src="${MONO}" alt="" style="width:38px;height:38px">Good morning, Ayu</h1></div>${composer({deep,text})}<div style="display:flex;flex-direction:column;align-items:center;gap:10px"><div style="font-size:13px;color:var(--mfg)">Try asking</div><div class="chips"><button class="chip">Explain the validity conditions in Article 1320 KUHPerdata</button><button class="chip">Compare PKWT and PKWTT after the Job Creation Law</button><button class="chip">What does UU PDP require for cross-border transfers?</button></div></div></div></div>`;}
+ return `<div class="main home">${topbar('<b>New chat</b>')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em;display:flex;align-items:center;gap:14px"><img src="${MONO}" alt="" style="width:38px;height:38px">Good morning, Ayu</h1></div>${composer({deep,text})}<div class="chips" style="margin-top:14px"><button class="chip">Explain an article</button><button class="chip">Compare two rules</button><button class="chip">Check a clause</button><button class="chip">Summarize a regulation</button></div></div></div>`;}
 function history(S){const q=S==='search'?'wanprestasi':S==='noresults'?'hak tanggungan':'';let l='';
  if(S==='empty') l=`<div class="empty"><div class="ic">${sv('chats',20)}</div><h2>No chats yet</h2><p style="margin:0">Start a new chat to ask Lexon about a contract, a regulation, or a case.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}New chat</button></div>`;
  else if(S==='noresults') l=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No chats match “hak tanggungan”</h2><p style="margin:0">Search looks in chat titles and messages. Try other words.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
