@@ -6,8 +6,8 @@ export interface EvaluationServices {
 
 export interface EvaluationScoreReport {
   readonly cases: ReadonlyArray<{
-    readonly caseId: string;
-    readonly score: number;
+    readonly caseId: 'chat-no-claimed-research';
+    readonly score: 0 | 1;
   }>;
   readonly scenarioId: string;
   readonly score: number;
@@ -18,6 +18,10 @@ export interface EvaluationScoreReport {
 }
 
 export interface EvaluationEngineReport {
+  readonly cases: ReadonlyArray<{
+    readonly caseId: 'chat-no-claimed-research';
+    readonly score: 0 | 1;
+  }>;
   readonly scenarioId: string;
   readonly score: number;
   readonly status:
@@ -50,6 +54,10 @@ export interface EvaluationEngine {
 export interface EvaluationOptions {
   readonly services: EvaluationServices;
   readonly fixtureSet: 'deterministic';
+  readonly chatScenarios?: ReadonlyArray<{
+    readonly caseId: 'chat-no-claimed-research';
+    readonly scriptedAnswer: string;
+  }>;
 }
 
 export interface EvaluationRealRequestPolicy {

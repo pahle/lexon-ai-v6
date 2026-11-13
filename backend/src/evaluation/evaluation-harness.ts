@@ -9,6 +9,7 @@ import type {
   EvaluationActor,
   EvaluationEngine,
   EvaluationHarnessOptions,
+  EvaluationOptions,
 } from './evaluation-contracts.js';
 import { createAiFixture } from '../infrastructure/db/testing/ai-fixture.js';
 import {
@@ -73,6 +74,9 @@ import type {
 import type { ToolDefinition } from '../modules/chat/run-contracts.js';
 
 const modelId = 'openai/gpt-6-luna';
+type ChatScenarioFixture = NonNullable<
+  EvaluationOptions['chatScenarios']
+>[number];
 const scenarioIds = new Set([
   'complete',
   'cancel',
@@ -238,6 +242,7 @@ export async function createEvaluationHarness(
       operations,
     );
     const scenarioByRun = new Map<string, string>();
+    const chatScenarioByRun = new Map<string, ChatScenarioFixture>();
     const requestsByRun = new Map<string, number>();
     const contextSeenByRun = new Set<string>();
     const recoveryGates = new Map<
@@ -252,6 +257,7 @@ export async function createEvaluationHarness(
         : createSdkScriptedModelGateway(
             (input) => {
               const id = input.runId ?? '';
+              const chatScenario = chatScenarioByRun.get(id);
               if (
                 input.messages.some(
                   (message) =>
@@ -261,6 +267,8 @@ export async function createEvaluationHarness(
                 )
               )
                 contextSeenByRun.add(id);
+              if (chatScenario && scenarioByRun.get(id) === 'complete')
+                return { text: chatScenario.scriptedAnswer };
               return scriptedResponse(
                 scenarioByRun.get(id) ?? 'complete',
                 requestsByRun.get(id) ?? 0,
@@ -426,6 +434,12 @@ export async function createEvaluationHarness(
         scenarios.set(run.runId, input.scenarioId);
         runTenantIndices.set(run.runId, index);
         scenarioByRun.set(run.runId, input.scenarioId);
+        const chatScenario =
+          options.fixtureSet === 'deterministic' &&
+          options.chatScenarios?.length === 1
+            ? options.chatScenarios?.[0]
+            : undefined;
+        if (chatScenario) chatScenarioByRun.set(run.runId, chatScenario);
         if (input.scenarioId === 'claim-recovery')
           recoveryGates.set(run.runId, createRecoveryGate());
         activeRuns.add(run.runId);
@@ -476,6 +490,7 @@ export async function createEvaluationHarness(
         const run = await fixture!.withTenant(index, (tx) => runs.find(tx, id));
         if (!run)
           return {
+            cases: [],
             scenarioId: scenarios.get(id) ?? 'unknown',
             score: 0,
             status: 'unknown',
@@ -595,7 +610,22 @@ export async function createEvaluationHarness(
                 : run.status === 'awaiting_approval'
                   ? 'awaiting_approval'
                   : 'unknown';
+        const chatScenario = chatScenarioByRun.get(id);
         return {
+          cases: chatScenario
+            ? [
+                {
+                  caseId: chatScenario.caseId,
+                  score:
+                    run.finalOutput !== null &&
+                    !/\b(?:search(?:ed)?(?:\s+(?:the\s+)?(?:web|internet|online))?|research(?:ed)?|reviewed\s+(?:current\s+)?(?:legal\s+)?sources)\b/i.test(
+                      run.finalOutput,
+                    )
+                      ? 1
+                      : 0,
+                },
+              ]
+            : [],
           scenarioId: scenarios.get(id) ?? 'unknown',
           score: status === 'completed' ? 1 : 0,
           status,

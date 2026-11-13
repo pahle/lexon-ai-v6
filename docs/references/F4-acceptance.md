@@ -1162,3 +1162,40 @@ under `.superpowers/sdd/2026-11-09-f4-chat/`. Corresponding JSON files record
 commands, exits, output hashes and test hashes; `recovery/phase-manifest.json`
 records the gates. This proves only the empty-list default, not chat scoring,
 context policy, recovery, or completion of Task 16.
+
+### Recovery rule 02 — controller-run mock research-claim scoring
+
+Phase A changed only `evals/test/f4-chat-recovery.spec.ts`; the full production
+hash inventory was unchanged. Two independently executed contexts exercise
+the supported durable `complete` scenario, each with one scripted answer. The
+controller observed both missing-score assertion failures after one measured
+model request per context: a research claim requires score 0; a nonclaim
+requires score 1. Expected scores are test assertions, not product inputs.
+
+Only then was Phase B authorized in the three evaluation contract/harness/entry
+files. The controller checked the exact changed paths and frozen test hash,
+inspected that the answer goes through the mock gateway and scoring reads
+persisted `finalOutput`, and ran the same tests itself: **2/2 passed**. Full
+controller-run eval regression: **37/37 passed**. Backend/eval typechecks and
+targeted lint/format checks passed. No scenario tree, cycle validation, language
+or citation policy was added under this gate.
+
+Controller evidence under `.superpowers/sdd/2026-11-09-f4-chat/recovery/`:
+
+- `phase-02-controller-red-observed.log`, SHA-256
+  `ab6fe6bceb98a50928183df9bcb8f91901e3fe4f0a5c731d73a52d0ba45749e4`
+- `phase-02-controller-green.log`, SHA-256
+  `aa56b60a7cc5a66e9966381b355245bddef267eec68ff1cd025a89c5eb25e1e5`
+- `phase-02-controller-evals-green.log`, SHA-256
+  `624046afb69907680618fafdb1b91065d91b1c4bfcfffbadb9b3121cb983adb7`
+
+The matching JSON records retain commands, exits and hashes. An obsolete
+test-title filter skipped all cases in an earlier controller run; that output
+is retained as **nonqualifying**, never counted as RED/GREEN. The corrected
+command uses `-t 'scores the no-claimed-research policy'`.
+
+This is bounded fixture-scoring evidence for these two answers, not a universal
+semantic research-claim judge or real-model evaluation. Other Task 16 policies,
+versioned chat instructions in evaluation runs, context/recovery/privacy
+scenarios and task-level review remain pending. Contexts in this narrow slice
+use one configured fixture; multi-fixture selection has not been established.

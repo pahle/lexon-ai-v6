@@ -168,6 +168,6 @@ function safeScoreReport(
         ? report.safeCode
         : null,
     counts,
-    cases: [],
+    cases: report.cases.map(({ caseId, score }) => ({ caseId, score })),
   };
 }
