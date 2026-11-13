@@ -390,6 +390,68 @@ it('keeps row-owned refusal feedback and retry controls after optimistic unmount
   expect(cancel).toBeTruthy();
 });
 
+it('keeps the last history row refusal dialog mounted through the empty state', async () => {
+  let reject!: (error: Error) => void;
+  const historyItem = { ...item(1, 'Last history row'), id: chatId };
+  const api = {
+    list: vi.fn().mockResolvedValue(page([historyItem])),
+    delete: vi.fn(
+      () =>
+        new Promise<void>((_resolve, no) => {
+          reject = no;
+        }),
+    ),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<ChatHistory client={api} scope={scope} />);
+  const key = chatListQueryKey(scope, 20);
+  wrapped.client.setQueryData(key, {
+    pages: [page([historyItem])],
+    pageParams: [undefined],
+  });
+  const view = await render(wrapped.node);
+  await settle();
+  await act(async () =>
+    view.container
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="Chat actions for Last history row"]',
+      )!
+      .click(),
+  );
+  await act(async () =>
+    (
+      document.body.querySelector(
+        '[data-slot="dropdown-menu-item"][data-variant="destructive"]',
+      ) as HTMLElement
+    ).click(),
+  );
+  await act(async () =>
+    (
+      document.body.querySelector(
+        'button[data-slot="alert-dialog-action"]',
+      ) as HTMLButtonElement
+    ).click(),
+  );
+  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledOnce());
+  await settle();
+  expect(view.container.textContent).toContain('No chats yet');
+  expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+  await act(async () => reject(new Error('offline')));
+  await settle();
+  await act(
+    async () => await new Promise((resolve) => setTimeout(resolve, 150)),
+  );
+  const dialog = document.body.querySelector('[role="alertdialog"]');
+  expect(dialog?.textContent).toContain('The chat could not be deleted');
+  expect(
+    dialog?.querySelector('button[data-slot="alert-dialog-action"]'),
+  ).toBeTruthy();
+  expect(
+    dialog?.querySelector('button[data-slot="alert-dialog-cancel"]'),
+  ).toBeTruthy();
+  await view.unmount();
+  wrapped.client.clear();
+});
+
 it('restores only failed chat A after concurrent chat B deletion succeeds', async () => {
   let rejectA!: (error: Error) => void;
   const chatB = '00000000-0000-4000-8000-000000000012';

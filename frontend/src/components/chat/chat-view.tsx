@@ -8,7 +8,7 @@ import { ChatRuntime } from './chat-runtime';
 import type { ChatApi, ChatTree } from '@lexon/contracts';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { ArrowUpIcon, Brain as BrainIcon } from 'lucide-react';
@@ -51,6 +51,8 @@ function ChatViewSession({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setChatTitle, chatTitleRefreshVersion } = useWorkspace();
+  const titleRequestVersion = useRef(0);
+  const observedTitleRefreshVersion = useRef(chatTitleRefreshVersion);
   const [tree, setTree] = useState<ChatTree | null>(null);
   const [loading, setLoading] = useState(chatId !== undefined);
   const [loadError, setLoadError] = useState(false);
@@ -65,11 +67,16 @@ function ChatViewSession({
   useEffect(() => {
     if (!chatId) return;
     let mounted = true;
+    const requestVersion = ++titleRequestVersion.current;
     setLoading(true);
     void client
       .get(chatId)
       .then((next) => {
-        if (mounted) setTree(next);
+        if (mounted) {
+          setTree(next);
+          if (requestVersion === titleRequestVersion.current)
+            setChatTitle(chatId, actorScope, next.title);
+        }
       })
       .catch((error: unknown) => {
         if (mounted && error instanceof ChatClientError && error.status === 404)
@@ -82,19 +89,22 @@ function ChatViewSession({
     return () => {
       mounted = false;
     };
-  }, [chatId, client]);
+  }, [actorScope, chatId, client, setChatTitle]);
 
   useEffect(() => {
-    if (chatId && tree) setChatTitle(chatId, actorScope, tree.title);
-  }, [actorScope, chatId, setChatTitle, tree]);
-
-  useEffect(() => {
-    if (!chatId || chatTitleRefreshVersion === 0) return;
+    if (
+      !chatId ||
+      chatTitleRefreshVersion === observedTitleRefreshVersion.current
+    )
+      return;
+    observedTitleRefreshVersion.current = chatTitleRefreshVersion;
     let current = true;
+    const requestVersion = ++titleRequestVersion.current;
     void client
       .get(chatId)
       .then((next) => {
-        if (current) setChatTitle(chatId, actorScope, next.title);
+        if (current && requestVersion === titleRequestVersion.current)
+          setChatTitle(chatId, actorScope, next.title);
       })
       .catch(() => undefined);
     return () => {

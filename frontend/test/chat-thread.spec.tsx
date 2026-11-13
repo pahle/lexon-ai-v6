@@ -181,6 +181,68 @@ it('refreshes the mounted thread title after the workspace title event', async (
   await view.unmount();
 });
 
+it('does not let a delayed initial tree overwrite a newer title refresh', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const tree = (title: string) => ({
+    id: chatId,
+    title,
+    messages: [],
+    viewedLeafId: null,
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:00.000Z',
+  });
+  let resolveInitial!: (value: ReturnType<typeof tree>) => void;
+  let resolveRefresh!: (value: ReturnType<typeof tree>) => void;
+  const get = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof tree>>((resolve) => {
+          resolveInitial = resolve;
+        }),
+    )
+    .mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof tree>>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+  const client = { get };
+  const thread = () =>
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    );
+  const view = await render(thread());
+  await settle();
+  expect(get).toHaveBeenCalledTimes(1);
+  workspaceState.chatTitleRefreshVersion = 1;
+  await view.rerender(thread());
+  await settle();
+  expect(get).toHaveBeenCalledTimes(2);
+  await act(async () => resolveRefresh(tree('Updated title')));
+  await settle();
+  expect(setChatTitleSpy).toHaveBeenLastCalledWith(
+    chatId,
+    'org:user',
+    'Updated title',
+  );
+  await act(async () => resolveInitial(tree('Initial title')));
+  await settle();
+  expect(setChatTitleSpy).toHaveBeenLastCalledWith(
+    chatId,
+    'org:user',
+    'Updated title',
+  );
+  await view.unmount();
+});
+
 it('keeps Deep thinking selected when the server rejects the initial send', async () => {
   const client = { create: vi.fn().mockRejectedValue(new Error('rejected')) };
   const view = await render(

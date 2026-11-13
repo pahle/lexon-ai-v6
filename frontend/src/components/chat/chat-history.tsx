@@ -73,6 +73,7 @@ export function ChatHistory({
       client={client}
       scope={scope}
       open
+      showTrigger={false}
       onOpenChange={(open) => {
         if (!open) setDeleteTarget(null);
       }}
@@ -80,21 +81,21 @@ export function ChatHistory({
   ) : null;
   if (query.isPending)
     return (
-      <>
+      <div className="contents">
         <p role="status">Loading chats…</p>
         {deleteDialog}
-      </>
+      </div>
     );
   if (query.isError)
     return (
-      <>
+      <div className="contents">
         <p role="alert">Chats could not be loaded. Refresh to try again.</p>
         {deleteDialog}
-      </>
+      </div>
     );
   if (!items.length)
     return (
-      <>
+      <div className="contents">
         <Empty className="h-80 flex-none border-0">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -110,41 +111,43 @@ export function ChatHistory({
           </EmptyContent>
         </Empty>
         {deleteDialog}
-      </>
+      </div>
     );
   const groups = groupChatsByDate(items);
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-col gap-5">
-      {groups.map((group) => (
-        <section key={group.label} aria-label={group.label}>
-          <h2 className="text-muted-foreground mb-2 px-3 text-sm font-medium">
-            {group.label}
-          </h2>
-          <ul className="flex flex-col gap-1">
-            {group.items.map((item) => (
-              <li key={item.id}>
-                <ChatHistoryRow
-                  item={item}
-                  client={client}
-                  scope={scope}
-                  current={item.id === currentChatId}
-                  onDelete={setDeleteTarget}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-      {query.hasNextPage ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={query.isFetchingNextPage}
-          onClick={() => void query.fetchNextPage()}
-        >
-          {query.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
-        </Button>
-      ) : null}
+    <div className="contents">
+      <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-col gap-5">
+        {groups.map((group) => (
+          <section key={group.label} aria-label={group.label}>
+            <h2 className="text-muted-foreground mb-2 px-3 text-sm font-medium">
+              {group.label}
+            </h2>
+            <ul className="flex flex-col gap-1">
+              {group.items.map((item) => (
+                <li key={item.id}>
+                  <ChatHistoryRow
+                    item={item}
+                    client={client}
+                    scope={scope}
+                    current={item.id === currentChatId}
+                    onDelete={setDeleteTarget}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {query.hasNextPage ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={query.isFetchingNextPage}
+            onClick={() => void query.fetchNextPage()}
+          >
+            {query.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
+          </Button>
+        ) : null}
+      </div>
       {deleteDialog}
     </div>
   );
@@ -175,6 +178,7 @@ export function RecentChats({
       client={client}
       scope={scope}
       open
+      showTrigger={false}
       onOpenChange={(open) => {
         if (!open) setDeleteTarget(null);
       }}
