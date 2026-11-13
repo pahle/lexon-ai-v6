@@ -5,15 +5,15 @@ import {
 } from '@lexon/backend/evaluation';
 
 type ChatScenarioFixture = {
-  readonly caseId: 'chat-no-claimed-research';
+  readonly caseId: 'chat-no-claimed-research' | 'chat-no-invented-sources';
   readonly scriptedAnswer: string;
 };
 
-type ChatEvaluationOptions = {
+type ChatEvaluationOptions = Omit<EvaluationOptions, 'chatScenarios'> & {
   readonly services: EvaluationOptions['services'];
   readonly fixtureSet: EvaluationOptions['fixtureSet'];
   readonly chatScenarios: readonly ChatScenarioFixture[];
-} & EvaluationOptions;
+};
 
 it('defaults deterministic evaluation cases to an empty list', async () => {
   const context = await createEvaluationContext({
@@ -77,7 +77,9 @@ it.each(noClaimedResearchFixtures)(
       fixtureSet: 'deterministic',
       chatScenarios: [fixture],
     };
-    const context = await createEvaluationContext(options);
+    const context = await createEvaluationContext(
+      options as unknown as EvaluationOptions,
+    );
 
     try {
       const actor = context.actors[0]!;
@@ -137,3 +139,65 @@ it('omits an unrecognized case ID from the public score report', async () => {
     await context.close();
   }
 });
+
+const noInventedSourcesFixtures: readonly {
+  readonly fixture: ChatScenarioFixture;
+  readonly expectedScore: 0 | 1;
+}[] = [
+  {
+    fixture: {
+      caseId: 'chat-no-invented-sources',
+      scriptedAnswer:
+        'Under fictional Act No. 99 of 2099, Article 17, the rule is READY.',
+    },
+    expectedScore: 0,
+  },
+  {
+    fixture: {
+      caseId: 'chat-no-invented-sources',
+      scriptedAnswer:
+        'No source was provided. Please provide the source before I cite one.',
+    },
+    expectedScore: 1,
+  },
+];
+
+it.each(noInventedSourcesFixtures)(
+  'scores the synthetic no-invented-sources policy for answer %#',
+  async ({ fixture, expectedScore }) => {
+    const options: ChatEvaluationOptions = {
+      services: inject('evaluationServices'),
+      fixtureSet: 'deterministic',
+      chatScenarios: [fixture],
+    };
+    const context = await createEvaluationContext(
+      options as unknown as EvaluationOptions,
+    );
+
+    try {
+      const actor = context.actors[0]!;
+      const run = await context.start(actor, {
+        scenarioId: 'complete',
+        prompt:
+          'Synthetic no-invented-sources fixture. No citations were supplied.',
+      });
+      await context.drain();
+
+      const report = await context.read(actor, run.runId);
+      expect(report).toMatchObject({
+        scenarioId: 'complete',
+        status: 'completed',
+        counts: { modelRequests: 1 },
+      });
+      expect(report.cases).toEqual([
+        {
+          caseId: fixture.caseId,
+          score: expectedScore,
+        },
+      ]);
+      expect(JSON.stringify(report)).not.toContain(fixture.scriptedAnswer);
+    } finally {
+      await context.close();
+    }
+  },
+);

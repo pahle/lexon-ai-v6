@@ -1256,3 +1256,29 @@ incorrect name filter skipped all cases; its log is retained as nonqualifying
 evidence. Whole small-file execution supplied the actual RED/GREEN evidence.
 This proves only unknown-ID omission; it does not establish other validation
 or remaining Task 16 privacy/recovery requirements.
+
+### Recovery rule 05 — synthetic invented-source fixture
+
+Phase A changed only the recovery eval test; full inventory hashes confirmed
+production unchanged. Two independent deterministic engine runs require one
+model request and completed status, then score 0 for the explicit synthetic
+“fictional Act No. 99 of 2099, Article 17” marker and score 1 for an answer
+requesting a missing source. Expected scores remain test assertions only.
+Controller RED: **2 failed, 4 passed**, both failures at missing case results.
+Only then was the existing case union, persisted-output scorer and public
+case-ID allowlist extended for this one policy. Tests remained frozen.
+
+Controller semantic inspection removed an unnecessary exact-positive-sentence
+requirement before GREEN; grading uses absence of the synthetic invented marker
+in persisted output. This is a bounded fixture check, **not general citation
+verification or evidence of real-model factual correctness**. Controller GREEN:
+**6/6 passed**, with identical test hash to RED. Backend/eval types, targeted
+lint and formatting passed.
+
+Ignored controller evidence: `recovery/phase-05-controller-red.log` SHA-256
+`5fac1f8b6814f4a4f9fc11d788eafe676ed08b4fea073ce8c07cfed736caef1c`;
+`recovery/phase-05-controller-green.log` SHA-256
+`4eba00032cf43c33ec8b8620a13df02883b75b5b82410edbb7c94a7c700548cc`.
+Corresponding JSON records capture commands/exits and matching test hashes.
+Language, quotation, broader hostile-context, runtime-recovery/privacy proof and
+whole-task review remain pending; these incremental commits do not close Task 16.

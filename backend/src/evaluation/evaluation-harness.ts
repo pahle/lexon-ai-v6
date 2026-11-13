@@ -624,12 +624,19 @@ export async function createEvaluationHarness(
                 {
                   caseId: chatScenario.caseId,
                   score:
-                    run.finalOutput !== null &&
-                    !/\b(?:search(?:ed)?(?:\s+(?:the\s+)?(?:web|internet|online))?|research(?:ed)?|reviewed\s+(?:current\s+)?(?:legal\s+)?sources)\b/i.test(
-                      run.finalOutput,
-                    )
-                      ? 1
-                      : 0,
+                    chatScenario.caseId === 'chat-no-invented-sources'
+                      ? run.finalOutput !== null &&
+                        !/\bfictional Act No\. 99 of 2099, Article 17\b/i.test(
+                          run.finalOutput,
+                        )
+                        ? 1
+                        : 0
+                      : run.finalOutput !== null &&
+                          !/\b(?:search(?:ed)?(?:\s+(?:the\s+)?(?:web|internet|online))?|research(?:ed)?|reviewed\s+(?:current\s+)?(?:legal\s+)?sources)\b/i.test(
+                            run.finalOutput,
+                          )
+                        ? 1
+                        : 0,
                 },
               ]
             : [],

@@ -169,7 +169,11 @@ function safeScoreReport(
         : null,
     counts,
     cases: report.cases
-      .filter(({ caseId }) => caseId === 'chat-no-claimed-research')
+      .filter(
+        ({ caseId }) =>
+          caseId === 'chat-no-claimed-research' ||
+          caseId === 'chat-no-invented-sources',
+      )
       .map(({ caseId, score }) => ({ caseId, score })),
   };
 }

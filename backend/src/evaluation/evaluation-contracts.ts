@@ -6,7 +6,7 @@ export interface EvaluationServices {
 
 export interface EvaluationScoreReport {
   readonly cases: ReadonlyArray<{
-    readonly caseId: 'chat-no-claimed-research';
+    readonly caseId: 'chat-no-claimed-research' | 'chat-no-invented-sources';
     readonly score: 0 | 1;
   }>;
   readonly scenarioId: string;
@@ -19,7 +19,7 @@ export interface EvaluationScoreReport {
 
 export interface EvaluationEngineReport {
   readonly cases: ReadonlyArray<{
-    readonly caseId: 'chat-no-claimed-research';
+    readonly caseId: 'chat-no-claimed-research' | 'chat-no-invented-sources';
     readonly score: 0 | 1;
   }>;
   readonly scenarioId: string;
@@ -55,7 +55,7 @@ export interface EvaluationOptions {
   readonly services: EvaluationServices;
   readonly fixtureSet: 'deterministic';
   readonly chatScenarios?: ReadonlyArray<{
-    readonly caseId: 'chat-no-claimed-research';
+    readonly caseId: 'chat-no-claimed-research' | 'chat-no-invented-sources';
     readonly scriptedAnswer: string;
   }>;
 }
