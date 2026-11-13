@@ -545,10 +545,11 @@ The stop-on-miss rule now applies only to blocking failures. Preserve every
 run's measurements, runner/container metadata, complete plans and always-upload
 artifacts, with the numeric policy recorded for trend comparisons.
 
-| Run           | Blocking gate under new policy                                                  | 500 ms target          |
-| ------------- | ------------------------------------------------------------------------------- | ---------------------- |
-| `43175713326` | PASS (all120 success; plans/RLS pass; p95 405.30 / 401.93 / 407.02 / 227.88 ms) | All classes pass       |
-| `43232959421` | PASS (all120 success; plans/RLS pass; p95 530.60 / 536.09 / 385.63 / 220.65 ms) | WARN: stem and partial |
+| Run                                                                                        | Blocking gate under new policy                                                  | 500 ms target          |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ---------------------- |
+| `43175713326`                                                                              | PASS (all120 success; plans/RLS pass; p95 405.30 / 401.93 / 407.02 / 227.88 ms) | All classes pass       |
+| `43232959421`                                                                              | PASS (all120 success; plans/RLS pass; p95 530.60 / 536.09 / 385.63 / 220.65 ms) | WARN: stem and partial |
+| [`43473304680`](https://github.com/pahle/lexon-ai-v6/actions/runs/43473304680) (`7cc9554`) | PASS (all120 success; plans/RLS pass; p95 531.17 / 514.48 / 383.31 / 217.75 ms) | WARN: stem and partial |
 
 These are owner-accepted assessments under the new policy, not rewrites of the
 historical job conclusions or JSONL artifacts. Do not rerun these jobs. The
@@ -600,3 +601,14 @@ settings are in the artifact. `shared_buffers` remains 128 MB. This differing
 runner is recorded for trend context, not an isolated causal explanation.
 The mandatory final-head run still applies before handoff; this intermediate
 result is not final-head evidence for tasks that have not landed yet.
+
+## Task 16A head automatic isolated Linux run (2026-11-14)
+
+The search-test change triggered one isolated run on `7cc9554507ccecfe043dcc6543212592c5124195`: [run 43473304680](https://github.com/pahle/lexon-ai-v6/actions/runs/43473304680). All 120 measured requests returned HTTP 200 and all four classes pass the blocking gate. Stem and partial exceed the non-blocking 500 ms target; no optimization or rerun was made. This is intermediate evidence, not the mandatory final-head run. Full plans, runner/PostgreSQL metadata and individual samples are retained in [the unchanged JSONL artifact](F4-search-task16a-head-2026-11-14.jsonl), SHA-256 `fffab5074f16e400fb72036a0e5b84ad795564cc6181cf567810dfd979af530b`.
+
+| Class    | Samples | p50 ms | p95 ms | max ms |
+| -------- | ------- | ------ | ------ | ------ |
+| Stem     | 30      | 512.13 | 531.17 | 537.04 |
+| Partial  | 30      | 505.50 | 514.48 | 517.23 |
+| Article  | 30      | 363.02 | 383.31 | 384.91 |
+| No match | 30      | 208.44 | 217.75 | 218.71 |

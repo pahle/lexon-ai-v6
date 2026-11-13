@@ -739,9 +739,11 @@ account/admin API calls were performed during this research.
 ### Research outcomes still pending
 
 - Five-condition runtime proof and fallback decision: not run; record before UI.
-- Real high/max smoke: owner-run gated task; no samples yet, no case frequencies
-  or measured budgets claimed. Record each case/sample count per effort, measured
-  input ratio and known/unknown provider observations when available.
+- Real high/max smoke: one owner-authorized local invocation completed four
+  samples (two each at high and max); see the [safe smoke report](../../references/F4-smoke.json).
+  This short fixed-prompt run is not full-history calibration and does not
+  establish frequencies beyond these samples. Full-history calibration remains
+  pending before large-document context work.
 - Actual base-nova registry components, Markdown renderer transitive versions,
   Caddy validation/incremental behavior and exact k6 pin: verify before their
   implementation tasks. No invented successful compatibility claim.
@@ -750,7 +752,13 @@ account/admin API calls were performed during this research.
 
 The installed `@openrouter/ai-sdk-provider@3.1.0` serializer (`dist/index.js`, `convertToOpenRouterChatMessages`, lines 3691–3718) emits system text as a text-part array and a single user text part as a plain string without cache control. Smoke tests assert the real wire shape and normalize captured messages back to semantic text before estimator comparison. The source is primary version-matched evidence; the [official API reference](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request?explorer=true) is a reference link, not a claimed direct documentation read during this follow-up. AI SDK remains 7.0.159.
 
-The unchanged exact-decimal invocation budget is backend-owned and exposed to evals only through the existing public evaluation entry. No new dependency or pin is added. The smoke reports allowlist-declared region separately from normalized observed provider; neither proves physical processing region. Tooling evidence and the pending real-measurement gate are recorded in [the Task 17 report](../../references/F4-task-17-report.md).
+The unchanged exact-decimal invocation budget is backend-owned and exposed to evals only through the existing public evaluation entry. No new dependency or pin is added. The smoke reports allowlist-declared region separately from normalized observed provider; neither proves physical processing region. Tooling and real-measurement evidence are recorded in [the Task 17 report](../../references/F4-task-17-report.md).
+
+### Task 17 real-smoke observations — 2026-11-14
+
+This supersedes earlier pending-smoke status notes. The single owner-authorized local invocation sampled two calls per effort, all succeeded, total USD 0.00120428. High observed one unclassifiable case and one none/no-signal case; max observed two unclassifiable cases. Three samples had measured reasoning timing; the no-signal sample did not. Other case counts are unobserved in this tiny sample, not evidence of absence. No raw provider payload or reasoning content was retained. See [the safe report](../../references/F4-smoke.json).
+
+The estimator returned 2,181 input tokens versus 187 reported, ratio 11.663101604278076, on each short synthetic input. Retain the approved high/max output and run limits: the fixed overhead and four short-input samples cannot calibrate full 131,072-byte history or ceiling-sized legal answers. Full-history calibration remains an F8 prerequisite. Actual observed provider was Azure; US is the allowlist declaration, not physical-region proof/P8. The owner verified account prerequisites on 2026-11-09; no account/admin endpoint was called. All four authorized requests are consumed, with no further paid invocation authorized.
 
 ## Builder check
 

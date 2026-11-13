@@ -1615,12 +1615,10 @@ Normal CI on `4ffca46` ([43491933877](https://github.com/pahle/lexon-ai-v6/actio
 
 The test now holds Recent until the organizations request has captured its fallback, then releases Recent before delivering the organizations response. Every original assertion, timeout and access check remains; an additional assertion checks that the later chat response has no fallback header. The controller reran the actual Compose/Caddy case: **1/1 passed**, 102.195 seconds including lifecycle teardown, unchanged test SHA-256 `fff298b4c1ee6cc3e4e2438714e1b6682d0cf309d1f76cb9f113a750d9eb326a`, log SHA-256 `e7b0f9d7066575e470541e0a37c0b947b99a79d5da8948f70973df5ff88c559b`. The diagnostic probe and logs remain in ignored workflow records. This does not claim full-head Linux CI or F4 completion.
 
-## Task 17 — guarded high/max smoke tooling
+## Task 17 — guarded high/max smoke
 
-**Tooling complete; real measurement pending.** The seven scoped mocked rules
-passed controller RED→GREEN verification. Plan Steps 1–3 are complete. The
-post-format full root regression passed (1,365 tests); fresh tooling spec/quality review and its scoped workflow-label re-review passed. Step 4's
-single owner-authorized local measurement and Step 5's tooling commit remain
-pending. No real provider measurement, paid workflow run, or final F4
-acceptance is claimed. See the [Task 17 tooling report](F4-task-17-report.md)
-for scoped evidence, repair history, research notes and remaining gates.
+Tooling spec/quality review and scoped workflow-label re-review passed. The controller's root regression passed **1,365 tests across 198 files**, with lint (99 boundary checks), types, build and formatting passing. The [Task 17 report](F4-task-17-report.md) records each controller-observed RED/GREEN gate, corrected fixture history and existing warning noise. Tooling was committed and pushed as `d7de4a0` before the real measurement.
+
+Under the owner's standing authorization, one local process loaded `.env` only through Node's `--env-file` option and completed **four requests for USD 0.00120428**. No key or environment value was opened, copied, printed or logged by agent tools; no raw content is in the [safe evidence](F4-smoke.json). The operator's account-verification date is **2026-11-09**. All outcomes succeeded; observed provider was Azure and configured region was US, with physical region still unverified for P8. No account/admin endpoint or paid GitHub workflow was called. The four-request authorization is exhausted; no further paid calls or reruns are authorized by it.
+
+High observed one unclassifiable and one no-signal case; max observed two unclassifiable cases. Timing was measured in three samples and absent in the no-signal sample. The report records actual token counts and per-effort sample counts; unobserved buckets are not evidence of absence. The short-input estimated/reported ratio was **11.663101604278076** (2,181/187 on each call). The approved conservative output/run limits stay unchanged: this does not calibrate full history or ceiling-sized answers. Calibration before F8, P8 physical-region review and F17 unknown-cost reconciliation remain follow-ups. Measurement-stage spec/quality review and scoped wording re-review passed; the separate evidence commit completes Task 17. Tooling producer `d7de4a0` also passed both Linux CI layers in [run 43502304046](https://github.com/pahle/lexon-ai-v6/actions/runs/43502304046). No F4 completion or final-head evidence is claimed.

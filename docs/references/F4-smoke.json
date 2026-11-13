@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "profileVersion": 1,
+  "instructionVersion": "chat.instructions.v1",
+  "maximumAllocationUsd": "0.10",
+  "requestLimit": 4,
+  "declaredRegion": "us",
+  "knownCostUsd": "0.00120428",
+  "reservedUsd": "0",
+  "efforts": [
+    {
+      "effort": "high",
+      "requestedSamples": 2,
+      "completedSamples": 2,
+      "caseCounts": {
+        "summary-only": 0,
+        "raw-only": 0,
+        "encrypted-only": 0,
+        "mixed": 0,
+        "none/no-signal": 1,
+        "unclassifiable": 1
+      },
+      "samples": [
+        {
+          "case": "unclassifiable",
+          "estimatedInputTokens": 2181,
+          "inputTokens": 187,
+          "inputRatio": "11.663101604278076",
+          "outputTokens": 362,
+          "reasoningOutputTokens": 283,
+          "costUsd": "0.00021967",
+          "finishReason": "stop",
+          "timingMeasured": true,
+          "provider": "azure",
+          "providerOutcome": "succeeded"
+        },
+        {
+          "case": "none/no-signal",
+          "estimatedInputTokens": 2181,
+          "inputTokens": 187,
+          "inputRatio": "11.663101604278076",
+          "outputTokens": 71,
+          "reasoningOutputTokens": 0,
+          "costUsd": "0.00005962",
+          "finishReason": "stop",
+          "timingMeasured": false,
+          "provider": "azure",
+          "providerOutcome": "succeeded"
+        }
+      ]
+    },
+    {
+      "effort": "max",
+      "requestedSamples": 2,
+      "completedSamples": 2,
+      "caseCounts": {
+        "summary-only": 0,
+        "raw-only": 0,
+        "encrypted-only": 0,
+        "mixed": 0,
+        "none/no-signal": 0,
+        "unclassifiable": 2
+      },
+      "samples": [
+        {
+          "case": "unclassifiable",
+          "estimatedInputTokens": 2181,
+          "inputTokens": 187,
+          "inputRatio": "11.663101604278076",
+          "outputTokens": 773,
+          "reasoningOutputTokens": 710,
+          "costUsd": "0.00044572",
+          "finishReason": "stop",
+          "timingMeasured": true,
+          "provider": "azure",
+          "providerOutcome": "succeeded"
+        },
+        {
+          "case": "unclassifiable",
+          "estimatedInputTokens": 2181,
+          "inputTokens": 187,
+          "inputRatio": "11.663101604278076",
+          "outputTokens": 834,
+          "reasoningOutputTokens": 753,
+          "costUsd": "0.00047927",
+          "finishReason": "stop",
+          "timingMeasured": true,
+          "provider": "azure",
+          "providerOutcome": "succeeded"
+        }
+      ]
+    }
+  ]
+}

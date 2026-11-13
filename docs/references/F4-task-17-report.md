@@ -1,13 +1,11 @@
 # F4 Task 17 — guarded high/max smoke tooling
 
-**Status:** tooling rules 1–7 passed the scoped controller mock runs. The
-formatted source passed the controller's full root regression and fresh tooling spec/quality review. The authorized local real measurement has not run; Task 17 and F4 are
-not complete.
+**Status:** Task 17 complete after tooling and measurement-stage spec/quality review, including both scoped documentation corrections. The evidence commit preserves four successful authorized requests and the remaining calibration limits. F4's load, visual and final handoff gates remain pending.
 
 This work adds a validated `ai:smoke -- --profile chat --efforts high,max
 --samples 2` path, retains the no-argument F3 `READY` path, and adds opt-in
 `chat-high`/`chat-max` cases to the existing manual real-evaluation CLI. Library
-calls remain F3-only unless `includeChatCases: true` is passed. The manual workflow execution policy is unchanged; its step label now identifies the bounded F3 and chat high/max cases. No paid workflow, account API, admin API or real provider request was used.
+calls remain F3-only unless `includeChatCases: true` is passed. The manual workflow execution policy is unchanged; its step label now identifies the bounded F3 and chat high/max cases. The tooling phase made no real-provider requests. Later, one owner-authorized local invocation completed four real-provider requests; no paid workflow was dispatched and no account/admin calls were made.
 
 ## Implemented tooling
 
@@ -97,15 +95,9 @@ root verification and will append its results.
 | First-party implementation move: `evals/src/real-evals.ts` → `backend/src/modules/usage/invocation-budget.ts`; re-exports through `backend/src/modules/usage/index.ts` and `backend/src/evaluation/index.ts` | Workspace source, checked 2026-11-14                                       | Reuse the exact decimal budget implementation through the backend public evaluation entry; no backend-to-evals dependency, algorithm rewrite or new package.                                                                                                                                        |
 | `backend/config/model-allowlist.json` and `backend/src/ai/chat-smoke.ts`                                                                                                                                     | Reviewed allowlist entry, checked 2026-11-14                               | Report `declaredRegion: "us"` from route configuration and report observed `provider: "azure"` separately. This is not physical-region verification.                                                                                                                                                |
 
-## Remaining gates
+## Measurement-stage status
 
-Only tooling plan Steps 1–3 are checked complete. Step 4's single owner-authorized
-local high/max measurement is now authorized to proceed after the tooling commit. If permitted then, it must use
-Node `--env-file=.env` without opening, printing or copying that file; at most
-four requests and USD 0.10 total; no retry for better results; no account/admin
-calls. No measurements or statistical conclusions are recorded here. Step 5,
-the tooling commit, also remains pending. No final F4, final-head CI, load,
-visual, search-gate or branch-review completion is claimed.
+Tooling commit `d7de4a038a46e1a577b88fd5c8e70caa581b5f06` was reviewed, pushed and rebuilt before the single authorized invocation. Four requests have now consumed the entire request authorization; no further paid calls or reruns are permitted under this allocation. Measurement-stage spec and quality review passed, including the scoped correction of stale tooling-phase wording. The separate evidence commit closes Task 17. Full-history calibration, the final-head load/search/CI runs, visual set and branch review are separate later gates.
 
 ## Main-controller full verification
 
@@ -113,7 +105,7 @@ On the formatted test files, `pnpm test` passed **1,365/1,365 tests across 198 f
 
 The formatter initially omitted `chat-smoke.ts`. The controller subsequently formatted that file and verified that its TypeScript printer output with comments removed was identical before and after; no behavior changed. The full regression above precedes this final whitespace-only change. The three formatted test hashes above were unchanged during that regression. The extracted `InvocationBudget` class remains byte-identical to the previous eval-owned class, SHA-256 `ec90641c75392b588d205188403a43253bd6a98471bde4bc821ae4f143b444c3`.
 
-Normal Linux CI on the separate preceding source head `17b3300` passed both layers in [run 43496842972](https://github.com/pahle/lexon-ai-v6/actions/runs/43496842972). That is not CI evidence for the uncommitted Task 17 tooling. No real measurement, paid workflow dispatch or environment-file read has occurred.
+Normal Linux CI on the separate preceding source head `17b3300` passed both layers in [run 43496842972](https://github.com/pahle/lexon-ai-v6/actions/runs/43496842972). That run predates Task 17 tooling and is not evidence for its code. At that tooling checkpoint no real measurement or environment-file loading had occurred. The subsequent authorized measurement below loaded the file only through Node, without opening or displaying it through agent tools. No paid workflow was dispatched.
 
 ## Tooling review follow-up
 
@@ -121,4 +113,21 @@ The fresh review approved code quality but identified the plan-required workflow
 
 Full workspace formatting passed in 5.582 seconds, output SHA-256 `bcbbedc28a1be9a32136a7398668c0d79161a6706dfa2fe78d78ae115050b006`. The moved `parseUsd`, `formatUsd` and `reservationUsd` functions were also compared against the original and are unchanged apart from their export declarations.
 
-The main session accepts the tooling stage after fresh spec and quality approval, including scoped fix-round review. Task 17 overall remains pending the authorized local measurement and safe evidence commit.
+The main session accepts the tooling stage after fresh spec and quality approval, including scoped fix-round review. The subsequent authorized local measurement and reviewed safe evidence below close Task 17.
+
+## Authorized real measurement — 2026-11-14
+
+The account prerequisite is the owner's **2026-11-09** verification: ZDR only with no Safety Retention, logging/training/discount options off and a limited development key. The main session passed `.env` only through Node's `--env-file` option. It did not open, read, copy or display that file or any key. One invocation on producer `d7de4a038a46e1a577b88fd5c8e70caa581b5f06` completed **4/4 requests**, all with outcome `succeeded` and finish reason `stop`, for **USD 0.00120428**, with zero held reservation. No retry for better samples, account setting change, admin endpoint or paid GitHub evaluation was used.
+
+The closed-schema validated [safe report](F4-smoke.json), SHA-256 `e1d201878e53eb3441619d9f328aabf0214d4b92a879e5ae70b552002c68cb35`, contains no prompts, answer/reasoning bodies, raw errors, keys or generation IDs. Stderr was empty. Observed provider was `azure` on all four samples; configured `declaredRegion` was `us`. This does not verify physical processing region or satisfy production P8.
+
+| Effort | Successful samples | Observed cases                     | Measured timing present | Reported output / reasoning tokens, per sample | Known cost USD |
+| ------ | ------------------ | ---------------------------------- | ----------------------- | ---------------------------------------------- | -------------- |
+| high   | 2/2                | 1 unclassifiable; 1 none/no-signal | 1/2                     | 362 / 283; 71 / 0                              | 0.00027929     |
+| max    | 2/2                | 2 unclassifiable                   | 2/2                     | 773 / 710; 834 / 753                           | 0.00092499     |
+
+Summary-only, raw-only, encrypted-only and mixed were not reliably observed in these four samples. Zero observed counts do not establish that a case is unsupported or absent; three samples were deliberately classified as unclassifiable. No raw provider payload was retained to reinterpret them. All classes, including typed encrypted, mixed, late and no-signal cases, remain independently covered by mocks. The no-signal sample recorded no measured timing.
+
+Each call estimated **2,181 input tokens** and reported **187**, an estimated/reported ratio of **11.663101604278076**. The fixed estimator overhead materially affects this short prompt. This is measured short-input evidence, not calibration of 131,072-byte history or legal answers near the output ceiling. Keep high/max output limits **16,384/32,768** and run budgets **360,448/393,216** unchanged; full-history calibration remains incomplete and must precede F8's large document context. F17 retains unknown-attempt cost reconciliation; these four known outcomes do not close that follow-up.
+
+Linux CI on tooling producer `d7de4a0` passed both unit/integration and Compose E2E in [run 43502304046](https://github.com/pahle/lexon-ai-v6/actions/runs/43502304046). Final-head F4 evidence remains a later gate. Measurement-stage review and scoped wording re-review passed; no further paid requests were made.
