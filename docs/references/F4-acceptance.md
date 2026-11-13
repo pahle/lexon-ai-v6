@@ -890,3 +890,51 @@ Task 14 corrections or Task 15. The **final-head isolated run remains mandatory*
 the owner will review its numbers against the 500 ms target before merge.
 F20 owns production PostgreSQL tuning (shared_buffers remains default128MB);
 F8 and spike S3 own document-scale indexed FTS/trigram under RLS.
+
+## Task 15 — implementation review in progress
+
+The initial implementation is committed locally as `a64b139`; it is not accepted
+or pushed yet. The main session independently ran
+`pnpm test:e2e --project chat-browser --grep 'Chats history|new chat accepts a prompt'`
+at that source: **2/2 passed (9.9 seconds)**. This also rendered the six Task 14
+corrections. It does not establish that Linux CI or all Task 15 requirements pass.
+
+The fresh task review found four implementation defects: mobile Recent/View all
+navigation leaves the sheet open; an open thread's title is not subscribed to
+invalidation; row-owned delete refusal loses its actionable confirmation; and
+whole-scope delete rollback can undo another concurrent mutation. They remain
+in the fix cycle. Menu screenshot settling, accurate API length-boundary
+coverage, and actual inactive-branch search target/highlight evidence also need
+verification before the preview gate. The previous F2.1 Home golden remains
+unchanged; its reconciliation belongs to the Task 19/20 approval process.
+
+**Tests-first process exception, pending owner disposition:** several Task 15
+history, controller/client, and cross-surface cache changes preceded their
+behavior tests. Some visual assertions were written before source changes but
+first executed afterward. Later passing tests provide regression coverage;
+they cannot establish a historical RED-first sequence. This conflicts with
+`AGENTS.md`: “TDD: no production code without a failing test first.” The
+implementation report retains the actual chronology. Corrective production
+changes require an observed failing regression before the fix. No claim of
+full TDD compliance is made, and the exception requires owner disposition at
+the Task 15 feedback gate before Task 16.
+
+Inherited Docker `InvalidDefaultArgInFrom` and conflicting color-environment
+warnings are tracked for final review; the validation log is not warning-free.
+No real model, paid evaluation, account-setting change, or `.env` access was
+part of this task. The informal Task 15 preview does not replace Task 19's
+formal visual approval.
+
+## Owner amendment — Task 20 deferred to F4.1 (2026-11-13)
+
+The owner will introduce a brand refresh slice, F4.1, which replaces the visual
+design. Task 20 (locking Linux CI golden baselines) moves out of F4 into F4.1
+to avoid locking baselines twice. It is deferred, not completed.
+
+Task 19 stays in F4: produce the full visual review set and obtain explicit
+owner approval of layout, content, navigation, and states. Task 15 and its
+feedback gate are unchanged. Existing F2.1 baselines, plus functional,
+accessibility, and E2E tests, must still pass. This amendment does not authorize
+skipping, weakening, replacing, or redirecting existing comparisons. The known
+F2.1 Home comparison mismatch remains an unresolved F4 verification issue;
+deferring new goldens does not make that failure pass.
