@@ -10,3 +10,13 @@ sidebar notes, logos, fonts). Live copy: https://claude.ai/artifact/1xFWhbFH5Wxw
 - IA: sidebar-07 with English labels: Tools > Assistant (New chat, Chats); Recent; Matters group arrives with F6.
 - Destructive: outline elsewhere; Merah Segel Deep #8E1A22 only for the confirm button in dialogs.
 - Rebuild: `python3 -I source/build.py <dir with proto.src.html and assets>`; render: `node source/shoot.cjs <dir>`.
+
+## Revision 2 (2026-11-13): PO asked for a less rigid chat UX
+
+UX principles (our own words; behavior studied on the dirty side only, nothing copied):
+inset sidebar with the content as a rounded card on the sidebar canvas; no hard header
+border; centered new-chat start with brand mark, serif greeting and starter prompts;
+elevated floating composer (soft shadow, pill toggles, round send) with a fade over
+the thread and a scroll-to-latest button; reading-first answers (no bubble, 68ch,
+line-height 1.75), animated Lexon mark while thinking/streaming (reduced-motion safe).
+Personal workspace shows the Lexon monogram in the switcher.

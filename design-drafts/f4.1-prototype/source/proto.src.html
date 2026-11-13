@@ -39,10 +39,11 @@ button,input,textarea{font:inherit;color:inherit}
 .picker a:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
 .stage{overflow:hidden;border-radius:10px;box-shadow:0 0 0 1px var(--input)}
 body.shot .stage{border-radius:0;box-shadow:none}
-.app{width:1440px;height:900px;display:flex;position:relative;overflow:hidden;background:var(--bg);transform-origin:0 0}
+.app{width:1440px;height:900px;display:flex;position:relative;overflow:hidden;background:var(--sidebar);transform-origin:0 0}
+.app.mobile,.app.plain{background:var(--bg)}
 .app.mobile{width:390px;height:844px}
 /* sidebar-07 */
-.sb{width:256px;flex:none;background:var(--sidebar);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;padding:8px;gap:4px;position:relative}
+.sb{width:256px;flex:none;background:var(--sidebar);display:flex;flex-direction:column;padding:8px;gap:4px;position:relative}
 .sb.icon{width:49px}
 .nb{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;overflow:hidden;position:relative;color:var(--fg)}
 .nb:hover{background:var(--sb-accent)}.nb.on{background:var(--sb-accent);font-weight:500}
@@ -61,8 +62,9 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .mi:hover{background:var(--accent)}.ml{padding:6px 8px;font-size:12px;color:var(--mfg)}.msep{height:1px;background:var(--border);margin:4px -4px}
 .kbd{margin-left:auto;font-size:12px;color:var(--mfg);letter-spacing:.04em}
 /* main */
-.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
-.top{height:64px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--border)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative;background:var(--bg);margin:8px 8px 8px 0;border-radius:12px;box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(8,6,6,.04);overflow:hidden}
+.app.mobile .main{margin:0;border-radius:0;box-shadow:none}
+.top{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px}
 .ib{all:unset;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;cursor:pointer;color:var(--mfg)}
 .ib:hover{background:var(--accent);color:var(--fg)}
 .vsep{width:1px;height:16px;background:var(--border)}
@@ -71,10 +73,21 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .btn.primary{background:var(--primary);color:var(--pfg)}.btn.outline{border:1px solid var(--input);background:var(--bg)}.btn.ghost{color:var(--mfg)}
 .btn.danger{background:var(--deep);color:#fff}.btn.lg{height:40px;padding:0 16px}.btn.full{width:100%}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;overflow:hidden}
-.thread{width:100%;max-width:768px;padding:28px 24px 0;display:flex;flex-direction:column;gap:28px}
+.thread{width:100%;max-width:760px;padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px}
 .um{align-self:flex-end;max-width:80%;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.ubub{background:var(--bubble);border-radius:16px;padding:12px 18px;line-height:1.55;font-size:16px}
-.am{display:flex;flex-direction:column;gap:10px;font-size:16px;line-height:1.65}
+.ubub{background:var(--bubble);border-radius:20px;padding:12px 18px;line-height:1.6;font-size:16px}
+.am{display:flex;flex-direction:column;gap:12px;font-size:16px;line-height:1.75}
+.am p{max-width:68ch}
+.mark{width:22px;height:22px;display:inline-block}
+.mark.live{animation:seal 1.4s ease-in-out infinite}
+@keyframes seal{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.55}}
+@media (prefers-reduced-motion:reduce){.mark.live{animation:none}}
+.tcard2{border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.tcard2 .th{display:flex;align-items:center;justify-content:space-between;color:var(--mfg);font-size:14px}
+.scrolldown{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;width:36px;height:36px;border-radius:999px;background:var(--bg);box-shadow:0 0 0 1px var(--border),0 6px 16px -6px rgba(8,6,6,.25);display:flex;align-items:center;justify-content:center;color:var(--mfg);z-index:5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:720px}
+.chip{all:unset;cursor:pointer;font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--fg)}
+.chip:hover{background:var(--accent)}
 .am p{margin:0 0 8px}.am ol,.am ul{margin:0 0 8px;padding-left:22px}.am li{margin:3px 0}
 .am h3{font-family:var(--sans);font-size:16px;margin:6px 0 4px;font-weight:600}
 .who{display:flex;align-items:center;gap:8px;font-size:14px}
@@ -83,18 +96,21 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .tbody{border-left:2px solid var(--input);padding:2px 0 2px 14px;color:var(--mfg);font-size:14px;line-height:1.6}
 .shim{background:linear-gradient(90deg,var(--mfg),var(--fg),var(--mfg));-webkit-background-clip:text;background-clip:text;color:transparent}
 .caret{display:inline-block;width:8px;height:17px;background:var(--fg);vertical-align:-3px;border-radius:2px;margin-left:2px}
-.bar{display:flex;align-items:center;gap:2px;color:var(--mfg);margin-left:-6px}
+.bar{display:flex;align-items:center;gap:2px;color:var(--mfg);margin-left:-8px;margin-top:-4px}
 .bar .lb{all:unset;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:6px;font-size:13px;cursor:pointer}
 .bar .lb:hover{background:var(--accent);color:var(--fg)}.bar .on{color:var(--redtext)}
 .branch{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--mfg)}
-.cw{width:100%;max-width:768px;padding:12px 24px 14px;flex:none}
-.comp{border:1px solid var(--input);border-radius:16px;background:var(--bg);padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(26,23,24,.04)}
+.cw{width:100%;max-width:768px;padding:0 24px 14px;flex:none;position:relative}
+.cw:before{content:'';position:absolute;left:0;right:0;top:-40px;height:40px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none}
+.home .cw:before{display:none}
+.comp{border:1px solid var(--border);border-radius:20px;background:var(--bg);padding:16px 14px 12px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px -14px rgba(8,6,6,.22),0 2px 6px -2px rgba(8,6,6,.06)}
+.comp:focus-within{border-color:var(--input)}
 .comp textarea{border:0;outline:none;resize:none;background:transparent;font-size:16px;padding:2px 4px;min-height:48px}
 .comp textarea::placeholder{color:var(--mfg)}
 .crow{display:flex;justify-content:space-between;align-items:center}
-.pill{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--input);font-size:13px;font-weight:500;cursor:pointer;color:var(--mfg)}
+.pill{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:999px;border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;color:var(--mfg)}
 .pill[aria-pressed=true]{background:var(--tint);border-color:var(--redtext);color:var(--redtext)}
-.send{all:unset;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:var(--primary);color:var(--pfg);cursor:pointer}
+.send{all:unset;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:var(--primary);color:var(--pfg);cursor:pointer}
 .send[aria-disabled=true]{opacity:.4;cursor:not-allowed}
 .disc{text-align:center;font-size:12px;color:var(--mfg);margin-top:8px}
 .alert{border:1px solid var(--redtext);background:var(--flag);border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;font-size:14px}
@@ -168,7 +184,7 @@ const I={
  shield:'<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>'
 };
 const sv=(n,s=16,x='')=>`<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${x}>${I[n]}</svg>`;
-const STATES=['signin','signin-errors','newchat','deep','thinking','streaming','reasoning','thread','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile'];
+const STATES=['personal','signin','signin-errors','newchat','deep','thinking','streaming','reasoning','thread','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile'];
 const chats=['Syarat sah perjanjian (Pasal 1320)','Due diligence checklist for PT acquisition','PKWT vs PKWTT after the Job Creation Law','Force majeure clause, supply agreement','Wanprestasi remedies and damages','Data transfer under UU PDP Article 56'];
 const Q1='Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?';
 const A1=`<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu perikatan.</li><li><b>Suatu hal tertentu</b> sebagai objek perjanjian.</li><li><b>Suatu sebab yang halal</b>.</li></ol><h3>Akibat jika syarat tidak terpenuhi</h3><ul><li>Syarat 1 dan 2 adalah <b>syarat subjektif</b>. Jika tidak terpenuhi, perjanjian <b>dapat dibatalkan</b> atas permintaan pihak yang dirugikan.</li><li>Syarat 3 dan 4 adalah <b>syarat objektif</b>. Jika tidak terpenuhi, perjanjian <b>batal demi hukum</b>, dianggap tidak pernah ada.</li></ul>`;
@@ -183,10 +199,10 @@ function sidebar(S,c){
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
    rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span><span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
    rec+=`<button class="nb" style="color:var(--mfg)">${sv('dots')}<span class="t">View all chats</span></button>`;}
- const orgMenu=S==='org'?`<div class="menu" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px;background:var(--sb-accent);color:var(--fg)">AW</span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
+ const orgMenu=S==='org'?`<div class="menu" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;border-radius:6px;background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:15px;height:15px"></span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
  const userMenu=S==='user'?`<div class="menu" role="menu" style="bottom:0;left:calc(100% + 8px);min-width:240px"><div style="display:flex;gap:8px;align-items:center;padding:6px 8px"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">ayu@hukum-nusantara.co.id</span></span></div><div class="msep"></div><button class="mi">${sv('gear')}Settings<span class="kbd">Ctrl ,</span></button><div class="msep"></div><button class="mi">${sv('out')}Sign out</button></div>`:'';
  return `<aside class="sb" aria-label="Sidebar">
-  <div style="position:relative"><button class="nb big"><span class="ini">HN</span><span class="two"><span class="a">Hukum Nusantara</span><span class="b">12 members</span></span><span style="color:var(--mfg)">${sv('chev')}</span></button>${orgMenu}</div>
+  <div style="position:relative"><button class="nb big">${S==='personal'?`<span class="ini" style="background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:20px;height:20px"></span><span class="two"><span class="a">Personal</span><span class="b">Your private workspace</span></span>`:`<span class="ini">HN</span><span class="two"><span class="a">Hukum Nusantara</span><span class="b">12 members</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${orgMenu}</div>
   <div class="glabel">Tools</div>
   <button class="nb ${!c.page&&!c.home?'':''}">${sv('chats')}<span class="t" style="font-weight:500">Assistant</span>${sv('down2',16,'style="color:var(--mfg)"')}</button>
   <div class="sub"><button class="nb ${c.home?'on':''}"><span class="t">New chat</span><span class="kbd">Ctrl Alt N</span></button><button class="nb ${c.page?'on':''}"><span class="t">Chats</span></button></div>
@@ -199,7 +215,7 @@ function composer({deep=false,streaming=false,text='',mobile=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
 }
-const who=(label,open=null)=>`<div class="who"><img src="${MONO}" alt=""><b>Lexon</b>${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
+const who=(label,open=null,live=false)=>`<div class="who"><img class="mark ${live?'live':''}" src="${MONO}" alt="">${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
 const abar=({fb=null,copied=false,branch=false}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="lb ${copied?'on':''}">${sv(copied?'check':'copy',15)}${copied?'Copied':'Copy'}</button><button class="lb ${fb==='up'?'on':''}" aria-label="Good response" aria-pressed="${fb==='up'}">${sv('up',15,fb==='up'?'fill="currentColor"':'')}</button><button class="lb" aria-label="Bad response">${sv('down',15)}</button><button class="lb">${sv('regen',15)}Regenerate</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
@@ -208,22 +224,22 @@ const crumbT=`<span>Assistant</span>${sv('right',14)}<b>Syarat sah perjanjian (P
 function thread(S){
  let b='',c=composer(),toast='';
  switch(S){
-  case 'thinking': b=um(Q1)+`<div class="am">${who('<span class="shim">Thinking…</span>',false)}</div>`; c=composer({streaming:true}); break;
-  case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
+  case 'thinking': b=um(Q1)+`<div class="am">${who('<span class="shim">Thinking…</span>',null,true)}</div>`; c=composer({streaming:true}); break;
+  case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;
   case 'edit': b=`<div class="edit"><textarea aria-label="Edit message">Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.</textarea><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn outline">Cancel</button><button class="btn primary">Send</button></div></div><div class="am" style="opacity:.5">${who('Thought for 14 seconds',false)}${A1}</div>`; break;
   case 'branch': b=um('Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.',{branch:true,show:true})+`<div class="am">${who('Thought for 6 seconds',false)}${A1b}${abar()}</div>`; break;
   case 'stopped': b=um(Q1)+`<div class="am">${who('Thought for 9 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu</li></ol><div class="note">${sv('square',14)}Stopped</div>${abar()}</div>`; break;
   case 'error': b=um(Q1)+`<div class="am">${who('',null)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="alert" role="alert">${sv('alert',18,'style="color:var(--redtext);flex:none;margin-top:1px"')}<div style="flex:1"><div class="ttl">The answer could not be completed</div><div style="color:var(--mfg);margin-top:2px">The AI service is temporarily unavailable. Your message is saved; try again in a moment.</div></div><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div></div>`; break;
-  case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="note" role="status">${sv('wifi',14)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
+  case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="note" role="status">${sv('wifi',14)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
   case 'loading': b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; break;
   default: b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar()}</div>`;
  }
- return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${c}</div>${toast}</div>`;
+ return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${['streaming','reconnect'].includes(S)?`<div class="scrolldown" aria-label="Scroll to latest">${sv('down2',18)}</div>`:''}${c}</div>${toast}</div>`;
 }
 function home(S){const deep=S==='deep';const text=deep?'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.':'';
- return `<div class="main">${topbar('<span>Assistant</span>'+sv('right',14)+'<b>New chat</b>')}<div class="view" style="justify-content:center;gap:28px;padding-bottom:40px"><div style="width:100%;max-width:768px;padding:0 24px;display:flex;flex-direction:column;gap:6px"><div class="rule">Assistant</div><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:44px;letter-spacing:-.01em">Welcome, Ayu</h1><p style="margin:0;color:var(--mfg);font-size:16px">Ask about a contract, a regulation, or a case. Every answer names its legal basis so you can check it.</p></div>${composer({deep,text})}</div></div>`;}
+ return `<div class="main home">${topbar('<b>New chat</b>')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em;display:flex;align-items:center;gap:14px"><img src="${MONO}" alt="" style="width:38px;height:38px">Good morning, Ayu</h1></div>${composer({deep,text})}<div style="display:flex;flex-direction:column;align-items:center;gap:10px"><div style="font-size:13px;color:var(--mfg)">Try asking</div><div class="chips"><button class="chip">Explain the validity conditions in Article 1320 KUHPerdata</button><button class="chip">Compare PKWT and PKWTT after the Job Creation Law</button><button class="chip">What does UU PDP require for cross-border transfers?</button></div></div></div></div>`;}
 function history(S){const q=S==='search'?'wanprestasi':S==='noresults'?'hak tanggungan':'';let l='';
  if(S==='empty') l=`<div class="empty"><div class="ic">${sv('chats',20)}</div><h2>No chats yet</h2><p style="margin:0">Start a new chat to ask Lexon about a contract, a regulation, or a case.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}New chat</button></div>`;
  else if(S==='noresults') l=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No chats match “hak tanggungan”</h2><p style="margin:0">Search looks in chat titles and messages. Try other words.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
@@ -245,11 +261,11 @@ function settings(S){const app=S==='appearance';
 function mobile(){return `<div class="main"><header class="top" style="height:56px"><button class="ib" aria-label="Open sidebar">${sv('panel')}</button><div class="vsep"></div><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Syarat sah perjanjian</span></header><div class="view"><div style="flex:1;width:100%;overflow:hidden"><div class="thread" style="padding:20px 16px 0;gap:22px">${um('Apa saja syarat sahnya perjanjian menurut KUHPerdata?')}<div class="am" style="font-size:15px">${who('Thought for 14 seconds',false)}${A1}</div></div></div>${composer({mobile:true})}</div></div>`;}
 function render(){
  const S=(qs.get('s')||location.hash.slice(1)||'newchat'); const st=STATES.includes(S)?S:'newchat';
- const c={home:['newchat','deep'].includes(st),page:['history','search','noresults','empty'].includes(st),active:'a',menu:st==='menu'?'b':null,rename:st==='rename'?'b':null,none:st==='empty'};
+ const c={home:['newchat','deep','personal'].includes(st),page:['history','search','noresults','empty'].includes(st),active:'a',menu:st==='menu'?'b':null,rename:st==='rename'?'b':null,none:st==='empty'};
  let inner;
  if(st==='signin'||st==='signin-errors') inner=`<div class="app">${signin(st)}</div>`;
  else if(st==='mobile') inner=`<div class="app mobile">${mobile()}</div>`;
- else { let m=c.home?home(st):c.page?history(st):(['settings','appearance','org','user','collapsed'].includes(st)?thread('thread'):thread(st));
+ else { let m=c.home?home(st==='personal'?'newchat':st):c.page?history(st):(['settings','appearance','org','user','collapsed'].includes(st)?thread('thread'):thread(st));
    inner=`<div class="app">${sidebar(st,c)}${m}${st==='delete'?`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dt"><h2 id="dt">Delete this chat?</h2><p>“Due diligence checklist for PT acquisition” and all its messages will be permanently deleted. This cannot be undone.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn danger">Delete chat</button></div></div>`:''}${['settings','appearance'].includes(st)?settings(st):''}</div>`; }
  const picker=isShot?'':`<nav class="picker" aria-label="Prototype states"><b>State</b>${STATES.map(k=>`<a class="${k===st?'cur':''}" href="#${k}">${k}</a>`).join('')}<span style="margin-left:auto;display:flex;gap:6px"><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a></span></nav>`;
  document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;fit();
