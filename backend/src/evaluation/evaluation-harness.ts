@@ -51,6 +51,7 @@ import { JobExecutor } from '../modules/platform/job-executor.js';
 import { OutboxDispatcher } from '../modules/platform/outbox-dispatcher.js';
 import { JobRegistry } from '../modules/platform/job-registry.js';
 import { AttemptService } from '../modules/usage/index.js';
+import { CHAT_INSTRUCTIONS } from '../modules/chat/chat-instructions.js';
 import { recordAiTestToolEffect } from '../infrastructure/db/testing/ai-fixture.js';
 import { stepJobId } from '../modules/chat/step-job-id.js';
 import type { JobEnvelope } from '../infrastructure/db/index.js';
@@ -148,7 +149,13 @@ export async function createEvaluationHarness(
     const authorization = new RunAuthorizationService();
     const realMode = options.fixtureSet === 'real';
     const profiles = [...scenarioIds].map((scenarioId) =>
-      profileFor(scenarioId, realMode),
+      profileFor(
+        scenarioId,
+        realMode,
+        !realMode &&
+          scenarioId === 'complete' &&
+          options.chatScenarios?.length === 1,
+      ),
     );
     const registry = new RunRegistry();
     registry.register({
@@ -762,7 +769,11 @@ export async function createEvaluationHarness(
   }
 }
 
-function profileFor(scenarioId: string, realMode = false): RunProfile {
+function profileFor(
+  scenarioId: string,
+  realMode = false,
+  includeChatInstructions = false,
+): RunProfile {
   const budget = scenarioId === 'budget' ? 130 : realMode ? 50_000 : 10_000;
   const output = scenarioId === 'budget' ? 128 : realMode ? 512 : 100;
   return {
@@ -775,6 +786,7 @@ function profileFor(scenarioId: string, realMode = false): RunProfile {
     maxIterations: 3,
     tokenBudget: budget,
     maxOutputTokens: output,
+    ...(includeChatInstructions ? { instructions: CHAT_INSTRUCTIONS } : {}),
     contextBudgets:
       scenarioId === 'hostile-context' ? { 'hostile-context': 256 } : {},
     capabilities:

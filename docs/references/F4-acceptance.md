@@ -1199,3 +1199,38 @@ semantic research-claim judge or real-model evaluation. Other Task 16 policies,
 versioned chat instructions in evaluation runs, context/recovery/privacy
 scenarios and task-level review remain pending. Contexts in this narrow slice
 use one configured fixture; multi-fixture selection has not been established.
+
+### Recovery rule 03 — actual evaluation instructions and stored version
+
+Phase A added only
+`backend/test/integration/f4-evaluation-instructions.spec.ts`; the controller
+verified production hashes were unchanged. Call-through spies observe the real
+scripted gateway input and actual `AiRunRepository.find` row, without a new
+product inspection API. The controller-run RED independently failed exact
+system instructions and stored `instructionVersion` assertions, while the
+model-request count passed. Only then was the evaluation harness authorized
+to attach existing `CHAT_INSTRUCTIONS` to the deterministic chat-fixture
+profile. The existing RunService snapshot persists the version. No direct
+database write, new policy or validation rule was introduced.
+
+Controller evidence in the ignored recovery records:
+
+- `phase-03-controller-red.log`: two expected behavioral assertion failures,
+  SHA-256 `179adc4fc53b178cb4d8d08a8a55289a035a007bf58699dc969f4b8c34579ff4`.
+- `phase-03-controller-green.log`: same test hash, **1/1 passed**, SHA-256
+  `cf469dc8d74ed6c07090ace6ab11b7525a061d049cb22b90a86a28453741a9a7`.
+- Typecheck then exposed a test-spy `this` annotation omission. Production was
+  frozen while only that annotation was repaired. The controller temporarily
+  restored the pre-rule harness and reconfirmed both behavioral REDs with the
+  typed test, then restored implementation bytes exactly. That failure log is
+  `phase-03-controller-typed-red.log`, SHA-256
+  `9b8b6f5420db7bc58907022dfd0dbe521ae4d656ae1d070448b158647dccf5fd`.
+- Final controller-run instructions integration plus eval regression:
+  **38/38 passed across five files**, with backend/eval types, targeted lint
+  and formatting passing. `phase-03-controller-regression-green.log` SHA-256
+  `4309f87f70fae441533d575c758dc5639ac282a8f2f50bd131fe512f51b311f7`.
+
+This establishes actual instruction delivery and version persistence for the
+configured synthetic chat evaluation, not real-model policy compliance or
+completion of Task 16. Runtime case validation, other policy/context/privacy
+and recovery proofs remain pending.
