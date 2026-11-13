@@ -1081,3 +1081,48 @@ Frozen source paths: `backend/src/evaluation/evaluation-contracts.ts`,
 `backend/src/evaluation/chat-scenarios.ts`; test paths:
 `backend/test/integration/chat-context.spec.ts` and `evals/test/f4-chat.spec.ts`.
 The ignored Task 16 report/log and frozen diff retain the exact chronology.
+
+## Owner-authorized Task 16 recovery — structural controls (2026-11-13)
+
+This is the **second consecutive tests-after violation**, following Task 15.
+The instruction-only RED checkpoint did not prevent implementation of untested
+additional rules. The owner authorized a clean recovery, not another exception.
+
+The frozen work is archived outside product sources in ignored workflow records:
+`.superpowers/sdd/2026-11-09-f4-chat/audit/task-16-frozen-2026-11-13/`.
+`manifest.json` records the base commit, six file paths and SHA-256 hashes;
+`tracked.patch` SHA-256 is
+`ee17bd7ae670d3579f2342361ed526427af51744c15dff788ea1d6679e8b4cd2`.
+The archive also preserves exact file snapshots and the original report/RED log.
+It is an audit record, not input to the fresh agent. The fresh agent receives no
+archived code/report and may not copy code from it.
+
+Only the six uncommitted Task 16 source/test paths listed in the preceding
+section were discarded. Tracked files were restored from HEAD, untracked Task 16
+files removed after hash-verified archival. The committed HEAD remained
+`9561feb`; the worktree was clean immediately after recovery. Earlier committed
+work was not changed. This preserves the violation's history rather than
+rewriting it.
+
+Recovered Task 16 and every remaining production change in Tasks 17–21 use
+per-rule **Phase A / controller RED / Phase B / controller GREEN** gates, also
+applied to Task 16A's compensating evidence work:
+
+- Phase A permits only that rule's tests. The controller checks all changed
+  and untracked paths and verifies production hashes did not change. The agent
+  stops; it does not implement or advance to another rule.
+- The controller runs the test itself, records command/output/exit and hashes,
+  and requires an expected behavioral assertion failure. Setup/import/typing
+  errors do not count. Already-passing behavior is regression coverage and
+  authorizes no production change.
+- Phase B permits only the minimal implementation for the verified rule within
+  explicit paths. Each additional rule needs a separate Phase A/RED gate.
+- The controller inspects the implementation diff, reruns the test itself and
+  records GREEN before the next rule. Any production change without its recorded
+  controller-observed RED is reverted, retaining an audit record.
+
+This replaces the failed instruction-only control. Task reports reference the
+controller's immutable per-rule evidence logs and phase manifest. Agent-reported
+RED/GREEN does not satisfy the gate. Required task reviews and owner smoke/visual
+checkpoints remain. No Task 16 recovery implementation or passing mutation score
+is claimed by this control description.
