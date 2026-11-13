@@ -46,6 +46,23 @@ const fullReload = vi.hoisted(() => vi.fn());
 const beginExplicitTransition = vi.hoisted(() => vi.fn());
 const finishExplicitTransition = vi.hoisted(() => vi.fn());
 const refreshIdentity = vi.hoisted(() => vi.fn(async () => {}));
+async function sidebarFetch(input: RequestInfo | URL) {
+  const requestUrl = new URL(
+    input instanceof Request ? input.url : String(input),
+    window.location.origin,
+  );
+  if (requestUrl.pathname === '/api/chats')
+    return Response.json({ items: [], pageInfo: { nextCursor: null } });
+  return Response.json({
+    version: 1,
+    id: identity.user.id,
+    name: identity.user.name,
+    email: identity.user.email,
+    emailVerified: true,
+    twoFactorEnabled: true,
+    onboardingCompleted: true,
+  });
+}
 async function openNavigationGroup(container: HTMLElement, title: string) {
   const trigger = container.querySelector<HTMLButtonElement>(
     `nav button[aria-label="Toggle ${title} navigation"]`,
@@ -76,17 +93,7 @@ vi.mock('next/navigation', () => ({
 
 test('sidebar shows only eligible Lexon navigation and safe user identity', async () => {
   workspace.identity = identity;
-  vi.stubGlobal('fetch', async () =>
-    Response.json({
-      version: 1,
-      id: identity.user.id,
-      name: identity.user.name,
-      email: identity.user.email,
-      emailVerified: true,
-      twoFactorEnabled: true,
-      onboardingCompleted: true,
-    }),
-  );
+  vi.stubGlobal('fetch', sidebarFetch);
   vi.stubGlobal('innerWidth', 1280);
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -115,15 +122,18 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
       'nav[aria-label="Primary navigation"] a',
     ),
   ];
-  expect(links.map((link) => link.textContent?.trim())).toEqual([
-    'Home',
-    'Platform',
+  expect(
+    links.map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
+  ).toEqual([
+    ['New chat', '/workspace'],
+    ['Chats', '/chats'],
+    ['Platform', '/platform/provisioning'],
   ]);
   expect(
     links
       .filter((link) => link.getAttribute('aria-current') === 'page')
       .map((link) => link.textContent?.trim()),
-  ).toEqual(['Home']);
+  ).toEqual(['New chat']);
   const activeLink = links.find(
     (link) => link.getAttribute('aria-current') === 'page',
   )!;
@@ -170,14 +180,17 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
   ).toContain('Personal Owner');
-  expect(view.container.textContent).toContain('No conversations yet.');
-  const conversationList = view.container.querySelector(
-    '[role="group"][aria-label="Conversations"]',
+  expect(view.container.textContent).toContain('No recent chats.');
+  const recentGroup = view.container.querySelector(
+    '[role="group"][aria-label="Recent chats"]',
   );
-  expect(conversationList?.querySelector('p')?.textContent).toBe(
-    'No conversations yet.',
-  );
-  expect(conversationList?.querySelector('button')).toBeNull();
+  expect(recentGroup?.querySelector('p')?.textContent).toBe('No recent chats.');
+  expect(
+    [...(recentGroup?.querySelectorAll('a') ?? [])].map((link) => [
+      link.textContent?.trim(),
+      link.getAttribute('href'),
+    ]),
+  ).toEqual([['View all chats', '/chats']]);
   expect(view.container.textContent).not.toContain('private-personal-slug');
   expect(view.container.textContent).not.toContain('Hidden personal name');
   expect(
@@ -213,9 +226,9 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   await settle();
   expect(organizationTrigger.hasAttribute('data-popup-open')).toBe(true);
   expect(
-    view.container.querySelector('[role="group"][aria-label="Conversations"]'),
+    view.container.querySelector('[role="group"][aria-label="Recent chats"]'),
   ).toBeNull();
-  expect(view.container.textContent).not.toContain('No conversations yet.');
+  expect(view.container.textContent).not.toContain('No recent chats.');
   expect(
     view.container.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
   ).toContain('LEXON-mark-tile-seal-micro.svg');
@@ -240,7 +253,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ),
   );
   await settle();
-  expect(view.container.textContent).toContain('No conversations yet.');
+  expect(view.container.textContent).toContain('No recent chats.');
   await act(async () =>
     (
       view.container.querySelector(
@@ -303,17 +316,7 @@ test('every active team role gets organization settings; only platform admins ge
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }));
-  vi.stubGlobal('fetch', async () =>
-    Response.json({
-      version: 1,
-      id: identity.user.id,
-      name: identity.user.name,
-      email: identity.user.email,
-      emailVerified: true,
-      twoFactorEnabled: true,
-      onboardingCompleted: true,
-    }),
-  );
+  vi.stubGlobal('fetch', sidebarFetch);
   for (const organization of [
     { ...identity.organization, kind: 'team' as const, name: 'Lexon Team' },
     {
@@ -353,10 +356,21 @@ test('every active team role gets organization settings; only platform admins ge
         'nav[aria-label="Primary navigation"] a',
       ),
     ];
-    expect(links.map((link) => link.textContent?.trim())).toEqual([
-      'Home',
-      'Platform',
+    expect(
+      links.map((link) => [
+        link.textContent?.trim(),
+        link.getAttribute('href'),
+      ]),
+    ).toEqual([
+      ['New chat', '/workspace'],
+      ['Chats', '/chats'],
+      ['Platform', '/platform/provisioning'],
     ]);
+    expect(
+      links
+        .filter((link) => link.getAttribute('aria-current') === 'page')
+        .map((link) => link.textContent?.trim()),
+    ).toEqual(['New chat']);
     if (organization.kind === 'team') {
       expect(view.container.querySelector('a[href*="/settings/"]')).toBeNull();
     }
@@ -393,8 +407,11 @@ test('every active team role gets organization settings; only platform admins ge
       ...view.container.querySelectorAll(
         'nav[aria-label="Primary navigation"] a',
       ),
-    ].map((link) => link.textContent?.trim()),
-  ).toEqual(['Home']);
+    ].map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
+  ).toEqual([
+    ['New chat', '/workspace'],
+    ['Chats', '/chats'],
+  ]);
   expect(view.container.textContent).not.toContain('Organization settings');
   expect(view.container.textContent).not.toContain('Platform');
   await view.unmount();
@@ -869,17 +886,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
       role: 'admin',
     },
   };
-  vi.stubGlobal('fetch', async () =>
-    Response.json({
-      version: 1,
-      id: identity.user.id,
-      name: identity.user.name,
-      email: identity.user.email,
-      emailVerified: true,
-      twoFactorEnabled: true,
-      onboardingCompleted: true,
-    }),
-  );
+  vi.stubGlobal('fetch', sidebarFetch);
   vi.stubGlobal('innerWidth', 767);
   const mediaListeners: Array<() => void> = [];
   vi.stubGlobal('matchMedia', () => ({
@@ -905,7 +912,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-  expect(document.body.textContent).toContain('No conversations yet.');
+  expect(document.body.textContent).toContain('No recent chats.');
   const mobileOrganizationTrigger = document.body.querySelector(
     'button[aria-label^="Organization: Mobile team"]',
   );
@@ -997,17 +1004,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }));
-  vi.stubGlobal('fetch', async () =>
-    Response.json({
-      version: 1,
-      id: identity.user.id,
-      name: identity.user.name,
-      email: identity.user.email,
-      emailVerified: true,
-      twoFactorEnabled: true,
-      onboardingCompleted: true,
-    }),
-  );
+  vi.stubGlobal('fetch', sidebarFetch);
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <SidebarProvider>
