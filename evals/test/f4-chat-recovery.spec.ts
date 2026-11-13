@@ -5,8 +5,12 @@ import {
 } from '@lexon/backend/evaluation';
 
 type ChatScenarioFixture = {
-  readonly caseId: 'chat-no-claimed-research' | 'chat-no-invented-sources';
+  readonly caseId:
+    | 'chat-no-claimed-research'
+    | 'chat-no-invented-sources'
+    | 'chat-answer-language';
   readonly scriptedAnswer: string;
+  readonly prompt?: string;
 };
 
 type ChatEvaluationOptions = Omit<EvaluationOptions, 'chatScenarios'> & {
@@ -180,6 +184,91 @@ it.each(noInventedSourcesFixtures)(
         scenarioId: 'complete',
         prompt:
           'Synthetic no-invented-sources fixture. No citations were supplied.',
+      });
+      await context.drain();
+
+      const report = await context.read(actor, run.runId);
+      expect(report).toMatchObject({
+        scenarioId: 'complete',
+        status: 'completed',
+        counts: { modelRequests: 1 },
+      });
+      expect(report.cases).toEqual([
+        {
+          caseId: fixture.caseId,
+          score: expectedScore,
+        },
+      ]);
+      expect(JSON.stringify(report)).not.toContain(fixture.scriptedAnswer);
+    } finally {
+      await context.close();
+    }
+  },
+);
+
+const answerLanguageFixtures: readonly {
+  readonly fixture: ChatScenarioFixture & { readonly prompt: string };
+  readonly expectedScore: 0 | 1;
+}[] = [
+  {
+    fixture: {
+      caseId: 'chat-answer-language',
+      prompt:
+        'Please briefly explain whether the tenant must give written notice before ending this fictional warehouse lease.',
+      scriptedAnswer:
+        'Yes. In this fictional warehouse lease example, the tenant must give written notice before ending the lease.',
+    },
+    expectedScore: 1,
+  },
+  {
+    fixture: {
+      caseId: 'chat-answer-language',
+      prompt:
+        'Please briefly explain whether the tenant must give written notice before ending this fictional warehouse lease.',
+      scriptedAnswer:
+        'Ya. Dalam contoh sewa gudang fiktif ini, penyewa harus memberi pemberitahuan tertulis sebelum mengakhiri sewa.',
+    },
+    expectedScore: 0,
+  },
+  {
+    fixture: {
+      caseId: 'chat-answer-language',
+      prompt:
+        'Tolong jelaskan secara singkat apakah penyewa perlu memberi pemberitahuan tertulis sebelum mengakhiri sewa gudang fiktif ini.',
+      scriptedAnswer:
+        'Ya. Dalam contoh sewa gudang fiktif ini, penyewa perlu memberi pemberitahuan tertulis sebelum mengakhiri sewa.',
+    },
+    expectedScore: 1,
+  },
+  {
+    fixture: {
+      caseId: 'chat-answer-language',
+      prompt:
+        'Tolong jelaskan secara singkat apakah penyewa perlu memberi pemberitahuan tertulis sebelum mengakhiri sewa gudang fiktif ini.',
+      scriptedAnswer:
+        'Yes. In this fictional warehouse lease example, the tenant must give written notice before ending the lease.',
+    },
+    expectedScore: 0,
+  },
+];
+
+it.each(answerLanguageFixtures)(
+  'scores the answer-language fixture for case %#',
+  async ({ fixture, expectedScore }) => {
+    const options: ChatEvaluationOptions = {
+      services: inject('evaluationServices'),
+      fixtureSet: 'deterministic',
+      chatScenarios: [fixture],
+    };
+    const context = await createEvaluationContext(
+      options as unknown as EvaluationOptions,
+    );
+
+    try {
+      const actor = context.actors[0]!;
+      const run = await context.start(actor, {
+        scenarioId: 'complete',
+        prompt: fixture.prompt,
       });
       await context.drain();
 

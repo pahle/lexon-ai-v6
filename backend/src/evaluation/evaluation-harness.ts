@@ -631,12 +631,28 @@ export async function createEvaluationHarness(
                         )
                         ? 1
                         : 0
-                      : run.finalOutput !== null &&
-                          !/\b(?:search(?:ed)?(?:\s+(?:the\s+)?(?:web|internet|online))?|research(?:ed)?|reviewed\s+(?:current\s+)?(?:legal\s+)?sources)\b/i.test(
-                            run.finalOutput,
-                          )
-                        ? 1
-                        : 0,
+                      : chatScenario.caseId === 'chat-answer-language'
+                        ? run.finalOutput !== null &&
+                          ((/\b(?:please|whether|tenant|must|written|notice|before|lease)\b/i.test(
+                            run.inputText,
+                          ) &&
+                            /\b(?:yes|tenant|must|written|notice|before|lease)\b/i.test(
+                              run.finalOutput,
+                            )) ||
+                            (/\b(?:tolong|apakah|penyewa|perlu|memberi|pemberitahuan|tertulis|sebelum|mengakhiri|sewa)\b/i.test(
+                              run.inputText,
+                            ) &&
+                              /\b(?:ya|penyewa|perlu|memberi|pemberitahuan|tertulis|sebelum|mengakhiri|sewa)\b/i.test(
+                                run.finalOutput,
+                              )))
+                          ? 1
+                          : 0
+                        : run.finalOutput !== null &&
+                            !/\b(?:search(?:ed)?(?:\s+(?:the\s+)?(?:web|internet|online))?|research(?:ed)?|reviewed\s+(?:current\s+)?(?:legal\s+)?sources)\b/i.test(
+                              run.finalOutput,
+                            )
+                          ? 1
+                          : 0,
                 },
               ]
             : [],

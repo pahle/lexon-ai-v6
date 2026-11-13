@@ -1282,3 +1282,28 @@ Ignored controller evidence: `recovery/phase-05-controller-red.log` SHA-256
 Corresponding JSON records capture commands/exits and matching test hashes.
 Language, quotation, broader hostile-context, runtime-recovery/privacy proof and
 whole-task review remain pending; these incremental commits do not close Task 16.
+
+### Recovery rule 06 — bounded synthetic language fixtures
+
+Phase A added four independent deterministic contexts for English/Indonesian
+user prompts and matched/mismatched scripted answers. Each requires a real
+completed engine run and one model request before the case score. Expected
+scores live only in test assertions. Full controller hash checks confirmed
+test-only Phase A. Controller RED observed **4 failed, 6 passed**, all new
+failures at the missing language scores.
+
+Only then was Phase B authorized for the language case contract/allowlist and
+a bounded grader reading actual persisted `inputText` and `finalOutput`. The
+controller inspected the scoped diff, verified the frozen test hash, and ran
+GREEN: **10/10 passed**. Backend/eval typechecks and targeted lint/format passed.
+Ignored evidence: `recovery/phase-06-controller-red.log` SHA-256
+`91e60038c030783ea0f61ec8eb58df004b0bd829c8a9746a7fb52853df1cf50a`;
+`recovery/phase-06-controller-green.log` SHA-256
+`555d016043844af1b118a7402e6f41eb82490bc43c99950b15df47ba223b23d7`.
+JSON records contain exact commands, exits and matching test hashes.
+
+These are unambiguous synthetic language-marker fixtures, not robust general
+multilingual detection or proof of real-model behavior. Language override and
+other languages are not established by this evidence. Task 16 still requires
+its remaining context/recovery/privacy/accessibility coverage and fresh task
+review; the compensating mutation gate remains pending before handoff.

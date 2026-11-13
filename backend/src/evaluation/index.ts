@@ -172,7 +172,8 @@ function safeScoreReport(
       .filter(
         ({ caseId }) =>
           caseId === 'chat-no-claimed-research' ||
-          caseId === 'chat-no-invented-sources',
+          caseId === 'chat-no-invented-sources' ||
+          caseId === 'chat-answer-language',
       )
       .map(({ caseId, score }) => ({ caseId, score })),
   };
