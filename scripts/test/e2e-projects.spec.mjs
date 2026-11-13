@@ -116,3 +116,25 @@ test('case-insensitive exact and mixed wildcard selectors match installed Playwr
     );
   }
 });
+
+test('chat-runtime-proof discovers the Compose worker crash recovery test', () => {
+  const cli = fileURLToPath(
+    new URL('../../node_modules/@playwright/test/cli.js', import.meta.url),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'test', '--list', '--project', 'chat-runtime-proof'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(
+    result.stdout.includes('chat-recovery.spec.ts'),
+    'chat-runtime-proof omitted chat-recovery.spec.ts from test discovery',
+  );
+  assert.ok(
+    result.stdout.includes(
+      'recovers a held answer after SIGKILL and restart of ai-worker',
+    ),
+    'chat-runtime-proof omitted the SIGKILL recovery scenario',
+  );
+});

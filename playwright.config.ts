@@ -47,7 +47,10 @@ export default defineConfig({
     {
       name: 'chat-runtime-proof',
       timeout: 90000,
-      testMatch: 'backend/test/e2e/chat-runtime-proof.spec.ts',
+      testMatch: [
+        'backend/test/e2e/chat-runtime-proof.spec.ts',
+        'backend/test/e2e/chat-recovery.spec.ts',
+      ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },
     {
