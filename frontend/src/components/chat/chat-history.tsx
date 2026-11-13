@@ -215,35 +215,83 @@ export function RecentChats({
     <>
       <SidebarMenu>
         {query.data.items.map((item) => (
-          <SidebarMenuItem key={item.id}>
-            <SidebarMenuButton
-              isActive={item.id === currentChatId}
-              aria-current={item.id === currentChatId ? 'page' : undefined}
-              tooltip={item.title}
-              onClick={onCloseMobile}
-              render={
-                <Link
-                  href={`/chats/${item.id}`}
-                  onNavigate={() => {
-                    if (item.id !== currentChatId) onNavigate?.();
-                  }}
-                />
-              }
-            >
-              <span className="truncate">{item.title}</span>
-            </SidebarMenuButton>
-            <ChatHistoryActions
-              item={item}
-              client={client}
-              scope={scope}
-              sidebar
-              onDelete={() => setDeleteTarget(item)}
-            />
-          </SidebarMenuItem>
+          <RecentChatRow
+            key={item.id}
+            item={item}
+            client={client}
+            scope={scope}
+            current={item.id === currentChatId}
+            {...(onNavigate ? { onNavigate } : {})}
+            {...(onCloseMobile ? { onCloseMobile } : {})}
+            onDelete={() => setDeleteTarget(item)}
+          />
         ))}
       </SidebarMenu>
       {deleteDialog}
     </>
+  );
+}
+
+function RecentChatRow({
+  item,
+  client,
+  scope,
+  current,
+  onNavigate,
+  onCloseMobile,
+  onDelete,
+}: {
+  item: ChatListItem;
+  client: ChatApi;
+  scope: ChatQueryScope;
+  current: boolean;
+  onNavigate?: () => void;
+  onCloseMobile?: () => void;
+  onDelete: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const queryClient = useQueryClient();
+  if (renaming)
+    return (
+      <SidebarMenuItem>
+        <ChatRename
+          chatId={item.id}
+          title={item.title}
+          client={client}
+          scope={scope}
+          onCancel={() => setRenaming(false)}
+          onSaved={(title) => {
+            setRenaming(false);
+            finishChatRename(queryClient, scope, item.id, title);
+          }}
+        />
+      </SidebarMenuItem>
+    );
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={current}
+        aria-current={current ? 'page' : undefined}
+        tooltip={item.title}
+        onClick={onCloseMobile}
+        render={
+          <Link
+            href={`/chats/${item.id}`}
+            onNavigate={() => {
+              if (!current) onNavigate?.();
+            }}
+          />
+        }
+      >
+        <span className="truncate">{item.title}</span>
+      </SidebarMenuButton>
+      <ChatHistoryActions
+        item={item}
+        sidebar
+        onRename={() => setRenaming(true)}
+        onDelete={onDelete}
+      />
+    </SidebarMenuItem>
   );
 }
 
@@ -272,10 +320,7 @@ function ChatHistoryRow({
         onCancel={() => setRenaming(false)}
         onSaved={(title) => {
           setRenaming(false);
-          renameChatSearchResults(queryClient, scope, item.id, title);
-          void queryClient.invalidateQueries({
-            queryKey: chatListQueryKey(scope),
-          });
+          finishChatRename(queryClient, scope, item.id, title);
         }}
       />
     );
@@ -293,13 +338,21 @@ function ChatHistoryRow({
       </time>
       <ChatHistoryActions
         item={item}
-        client={client}
-        scope={scope}
         onRename={() => setRenaming(true)}
         onDelete={() => onDelete(item)}
       />
     </div>
   );
+}
+
+function finishChatRename(
+  queryClient: ReturnType<typeof useQueryClient>,
+  scope: ChatQueryScope,
+  chatId: string,
+  title: string,
+) {
+  renameChatSearchResults(queryClient, scope, chatId, title);
+  void queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) });
 }
 
 function formatActivityDate(value: string) {
@@ -323,38 +376,15 @@ function formatActivityDate(value: string) {
 
 function ChatHistoryActions({
   item,
-  client,
-  scope,
   onRename,
   onDelete,
   sidebar = false,
 }: {
   item: ChatListItem;
-  client: ChatApi;
-  scope: ChatQueryScope;
-  onRename?: () => void;
+  onRename: () => void;
   onDelete: () => void;
   sidebar?: boolean;
 }) {
-  const [renaming, setRenaming] = useState(false);
-  const queryClient = useQueryClient();
-  if (renaming)
-    return (
-      <ChatRename
-        chatId={item.id}
-        title={item.title}
-        client={client}
-        scope={scope}
-        onCancel={() => setRenaming(false)}
-        onSaved={(title) => {
-          setRenaming(false);
-          renameChatSearchResults(queryClient, scope, item.id, title);
-          void queryClient.invalidateQueries({
-            queryKey: chatListQueryKey(scope),
-          });
-        }}
-      />
-    );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -378,9 +408,7 @@ function ChatHistoryActions({
         <MoreHorizontal aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => (onRename ? onRename() : setRenaming(true))}
-        >
+        <DropdownMenuItem onClick={onRename}>
           <Pencil aria-hidden="true" data-icon="inline-start" />
           Rename
         </DropdownMenuItem>

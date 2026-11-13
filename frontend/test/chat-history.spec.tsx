@@ -124,6 +124,80 @@ it('loads exactly six owner-scoped Recent chats', async () => {
   wrapped.client.clear();
 });
 
+it('replaces the Recent title link with its inline editor and restores or saves it', async () => {
+  let serverTitle = 'Original recent title';
+  const api = {
+    list: vi.fn(async () =>
+      page([{ ...item(1, serverTitle), id: chatId, title: serverTitle }]),
+    ),
+    rename: vi.fn(async (_id: string, input: { title: string }) => {
+      serverTitle = input.title;
+    }),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<RecentChats client={api} scope={scope} />);
+  const view = await render(wrapped.node);
+  await settle();
+  const row = () =>
+    view.container.querySelector('[data-slot="sidebar-menu-item"]')!;
+  const titleLink = () =>
+    row().querySelector('a[href="/chats/' + chatId + '"]');
+  const startRename = async () => {
+    await act(async () =>
+      row()
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Chat actions for Original recent title"]',
+        )!
+        .click(),
+    );
+    await act(async () =>
+      (
+        document.body.querySelector(
+          '[data-slot="dropdown-menu-item"]',
+        ) as HTMLElement
+      ).click(),
+    );
+  };
+
+  expect(titleLink()?.textContent).toBe('Original recent title');
+  await startRename();
+  expect(titleLink()).toBeNull();
+  const cancelInput = row().querySelector<HTMLInputElement>(
+    'input[aria-label="Chat title"]',
+  )!;
+  await act(async () =>
+    cancelInput.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  expect(titleLink()?.textContent).toBe('Original recent title');
+  expect(row().querySelector('input[aria-label="Chat title"]')).toBeNull();
+
+  await startRename();
+  const input = row().querySelector<HTMLInputElement>(
+    'input[aria-label="Chat title"]',
+  )!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, 'Saved recent title');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    input.form!.dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    );
+  });
+  await settle();
+  expect(api.rename).toHaveBeenCalledWith(chatId, {
+    title: 'Saved recent title',
+  });
+  expect(titleLink()?.textContent).toBe('Saved recent title');
+  await view.unmount();
+  wrapped.client.clear();
+});
+
 it('loads cursor pages and groups Chats history by activity date', async () => {
   const today = item(1, 'Today chat');
   const older = {
