@@ -31,3 +31,11 @@ Starter pills insert a short editable template into the composer; they never aut
 Answers carry no avatar/monogram. Thinking indicator candidates (state `loaders`):
 A column from the L's three pillars (cap + 3 pillars + base, light travelling across the pillars),
 B highlighter (stabilo) band sliding across "Thinking…", C pen arc spinner. All reduced-motion safe.
+
+## Revision 6 (2026-11-13): loader family
+Owner wants a family of hand-drawn-feeling thinking animations (inspired by the idea of
+Claude's varied marks; no Anthropic assets used). Six Lexon loaders, pure SVG/CSS, 20px in
+UI and 72px preview (state `loaders`): Writing (signature stroke), Paper (page turn + lines),
+Seal (stamp + inked ring, brand "cap"), Section marks (§ ¶ ⁂ † morph in EB Garamond),
+Column (L's three pillars), Highlighter (stabilo over lines). One per turn; later slices may
+tie them to activity (drafting, reading documents, approvals). Reduced motion: static frame.

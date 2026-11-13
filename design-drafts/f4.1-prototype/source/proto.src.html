@@ -96,6 +96,38 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .ld-arc circle{animation:dash 1.5s ease-in-out infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes dash{0%{stroke-dasharray:1 40;stroke-dashoffset:0}50%{stroke-dasharray:22 40;stroke-dashoffset:-6}100%{stroke-dasharray:22 40;stroke-dashoffset:-32}}
+
+/* ===== Lexon loader family (owner request): hand-drawn feel, one per turn ===== */
+.lx{--c:var(--redtext);display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;position:relative;color:var(--c)}
+.lx.xl{width:72px;height:72px}
+.lx svg{width:100%;height:100%;overflow:visible}
+/* 1 Pen: a signature stroke writes itself, nib follows */
+.lx-pen .ink{stroke-dasharray:46;stroke-dashoffset:46;animation:write 1.8s cubic-bezier(.5,0,.3,1) infinite}
+@keyframes write{0%{stroke-dashoffset:46;opacity:1}60%{stroke-dashoffset:0;opacity:1}85%{stroke-dashoffset:0;opacity:0}100%{stroke-dashoffset:46;opacity:0}}
+.lx-pen .base{opacity:.35}
+/* 2 Paper: pages turn over a document */
+.lx-page .flip{transform-origin:5px 10px;animation:turn 1.6s cubic-bezier(.6,0,.3,1) infinite}
+@keyframes turn{0%{transform:scaleX(1)}45%{transform:scaleX(-1)}55%{transform:scaleX(-1);opacity:1}70%{opacity:0}100%{transform:scaleX(-1);opacity:0}}
+.lx-page .ln{stroke-dasharray:8;stroke-dashoffset:8;animation:lines 1.6s ease-out infinite}
+.lx-page .ln:nth-of-type(2){animation-delay:.12s}.lx-page .ln:nth-of-type(3){animation-delay:.24s}
+@keyframes lines{0%,20%{stroke-dashoffset:8}55%,100%{stroke-dashoffset:0}}
+/* 3 Seal: a stamp presses, the ring inks in, then releases (brand "cap") */
+.lx-seal .stamp{transform-origin:10px 10px;animation:press 1.7s cubic-bezier(.5,0,.2,1) infinite}
+@keyframes press{0%{transform:translateY(-4px) scale(1.15);opacity:0}30%{transform:translateY(0) scale(1);opacity:1}70%{opacity:1}100%{opacity:0}}
+.lx-seal .ring{stroke-dasharray:44;stroke-dashoffset:44;animation:ring 1.7s ease-out infinite}
+@keyframes ring{0%,28%{stroke-dashoffset:44}60%,100%{stroke-dashoffset:0}}
+/* 4 Section: legal glyphs morph (§ ¶ ⁂ †) like a hand flipping marks */
+.lx-glyph span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:19px;line-height:1;opacity:0;animation:glyph 3.2s infinite}
+.lx.xl.lx-glyph span{font-size:66px}
+.lx-glyph span:nth-child(2){animation-delay:.8s}.lx-glyph span:nth-child(3){animation-delay:1.6s}.lx-glyph span:nth-child(4){animation-delay:2.4s}
+@keyframes glyph{0%{opacity:0;transform:rotate(-25deg) scale(.6)}6%{opacity:1;transform:rotate(0) scale(1)}20%{opacity:1;transform:rotate(4deg) scale(1)}26%,100%{opacity:0;transform:rotate(25deg) scale(.6)}}
+/* 5 Column: the L's three pillars catch the light (existing A) */
+.lx-col .p{animation:pil 1.2s ease-in-out infinite}.lx-col .p2{animation-delay:.18s}.lx-col .p3{animation-delay:.36s}
+/* 6 Highlight: a stabilo pass over lines of text */
+.lx-mark .hl{transform-origin:left;animation:hl 1.6s cubic-bezier(.6,0,.3,1) infinite}
+@keyframes hl{0%{transform:scaleX(0);opacity:.9}55%{transform:scaleX(1);opacity:.9}80%,100%{transform:scaleX(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.lx *{animation:none!important;opacity:1!important;stroke-dashoffset:0!important;transform:none!important}.lx-glyph span:not(:first-child){opacity:0!important}}
+
 @media (prefers-reduced-motion:reduce){.mark.live,.ld-col i,.ld-sweep:before,.ld-arc,.ld-arc circle{animation:none}.ld-col i{opacity:.6}.ld-sweep:before{width:100%;transform:none}}
 .tcard2{border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .tcard2 .th{display:flex;align-items:center;justify-content:space-between;color:var(--mfg);font-size:14px}
@@ -230,6 +262,17 @@ function composer({deep=false,streaming=false,text='',mobile=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
 }
+
+const LXL={
+ pen:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="base" d="M2 16.5h16" stroke-width="1.2"/><path class="ink" d="M2.5 13c2-5 3.6-7.4 4.6-5.6.9 1.6-1 5-.1 5.6 1 .7 2.6-3.6 4-3.4 1.2.2.3 3 1.4 3.1 1.3.1 2.3-2.6 4.9-2.7" stroke-width="1.6"/></svg>`,
+ page:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4"><path d="M5 3h7l3 3v11H5z"/><path class="ln" d="M7.5 9h5"/><path class="ln" d="M7.5 11.5h5"/><path class="ln" d="M7.5 14h3.5"/><path class="flip" d="M5 3h5v14H5z" fill="var(--bg)"/></svg>`,
+ seal:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round"><circle class="ring" cx="10" cy="10" r="7" stroke-width="1.5"/><g class="stamp"><circle cx="10" cy="10" r="4.4" stroke-width="1.2" stroke-dasharray="1.6 1.6"/><path d="M8.2 10.2l1.3 1.3 2.4-2.8" stroke-width="1.5"/></g></svg>`,
+ glyph:`<span>§</span><span>¶</span><span>⁂</span><span>†</span>`,
+ col:`<svg viewBox="0 0 20 20" fill="currentColor"><rect x="4" y="3.5" width="12" height="1.6" rx=".8"/><rect class="p" x="6.6" y="6.2" width="1.6" height="8.6" rx=".8"/><rect class="p p2" x="9.2" y="6.2" width="1.6" height="8.6" rx=".8"/><rect class="p p3" x="11.8" y="6.2" width="1.6" height="8.6" rx=".8"/><rect x="4" y="15.9" width="12" height="1.6" rx=".8"/></svg>`,
+ mark:`<svg viewBox="0 0 20 20" fill="none" stroke-linecap="round"><path d="M3 6h14M3 10h14M3 14h9" stroke="var(--mfg)" stroke-width="1.3"/><rect class="hl" x="2" y="8.2" width="16" height="3.6" rx="1.2" fill="currentColor" opacity=".35"/></svg>`
+};
+const LXN={pen:'Writing',page:'Paper',seal:'Seal',glyph:'Section marks',col:'Column',mark:'Highlighter'};
+const lxl=(k,xl=false)=>`<span class="lx lx-${k}${xl?' xl':''}" aria-hidden="true">${LXL[k]}</span>`;
 const LOADER={col:'<span class="ld" aria-hidden="true"><span class="ld-col"><i></i><i></i><i></i></span></span>',arc:'<span class="ld" aria-hidden="true"><svg class="ld-arc" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--redtext)" stroke-width="1.75" stroke-linecap="round"/></svg></span>'};
 const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?LOADER[kind]||'':''}${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
@@ -240,8 +283,8 @@ const crumbT=`<span>Assistant</span>${sv('right',14)}<b>Syarat sah perjanjian (P
 function thread(S){
  let b='',c=composer(),toast='';
  switch(S){
-  case 'thinking': b=um(Q1)+`<div class="am">${who('<span class="shim">Thinking…</span>',null,true)}</div>`; c=composer({streaming:true}); break;
-  case 'loaders': b=um(Q1)+`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">${[['A · Column (from the L’s three pillars)',who('<span class="shim">Thinking…</span>',null,true,'col')],['B · Highlighter sweep (brand stabilo)','<div class="who"><span class="ld-sweep" style="position:relative;z-index:0">Thinking…</span></div>'],['C · Pen arc',who('<span class="shim">Thinking…</span>',null,true,'arc')]].map(([t,h])=>`<div class="tcard2" style="padding:18px"><div style="font-size:12px;color:var(--mfg);margin-bottom:12px">${t}</div>${h}</div>`).join('')}</div>`; c=composer({streaming:true}); break;
+  case 'thinking': b=um(Q1)+`<div class="am"><div class="who">${lxl('glyph')}<span class="shim">Thinking…</span></div></div>`; c=composer({streaming:true}); break;
+  case 'loaders': b=`<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-family:var(--serif);font-weight:400;font-size:28px">Thinking indicators</h2><p style="margin:0;color:var(--mfg)">One family of small hand-drawn motions. Each answer picks one; later slices can tie them to the activity (writing while drafting, paper while reading documents, seal for approvals).</p></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">${Object.keys(LXL).map(k=>`<div class="tcard2" style="padding:18px;align-items:flex-start;gap:14px"><div style="display:flex;align-items:center;justify-content:center;width:100%;height:96px;background:var(--muted);border-radius:10px">${lxl(k,true)}</div><div style="font-size:13px;font-weight:600">${LXN[k]}</div><div class="who">${lxl(k)}<span class="shim">Thinking…</span></div></div>`).join('')}</div>`; break;
   case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;
