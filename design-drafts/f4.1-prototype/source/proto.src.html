@@ -283,57 +283,71 @@ function lqMount(el){
   if(el.__lq) return; el.__lq=1;
   const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','0 0 20 20'); el.appendChild(svg);
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const K=26, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  const K=26, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, smooth=t=>t*t*(3-2*t), clamp=t=>Math.max(0,Math.min(1,t));
+  const seed=Array.from({length:K},()=>({ph:Math.random()*6.28,rr:.75+Math.random()*.5,w:.8+Math.random()*.5,j:Math.random(),ax:10,ay:10}));
+  const reseed=()=>seed.forEach(sd=>{sd.ax=3.5+Math.random()*13;sd.ay=3.5+Math.random()*13;sd.ph=Math.random()*6.28;});
+  const PAT={
+   scatter:(i,t)=>{const sd=seed[i];return[sd.ax+1.7*Math.sin(t*1.1*sd.w+sd.ph)+.9*Math.sin(t*1.9+sd.j*6),sd.ay+1.7*Math.cos(t*.9*sd.w+sd.ph*1.4)+.9*Math.sin(t*1.5+sd.j*4)];},
+   orbit:(i,t)=>{const sd=seed[i],a=sd.ph+t*2.2*sd.w,r=(4.2+1.6*Math.sin(i*1.7))*(1+.12*Math.sin(t*2.1+sd.ph));return[10+r*Math.cos(a),10+r*Math.sin(a)*.92];},
+   swarm:(i,t)=>{const sd=seed[i];return[10+5.6*Math.sin(1.1*t*sd.w+sd.ph)*Math.cos(.6*t+sd.j*3),10+5.6*Math.sin(1.6*t*sd.w+sd.ph*1.3)];},
+   spiral:(i,t)=>{const f=i/K,a=f*9.5+t*(2.4-1.2*f),r=1.2+6.2*f*(1+.15*Math.sin(t*1.8));return[10+r*Math.cos(a),10+r*Math.sin(a)];},
+   figure8:(i,t)=>{const sd=seed[i],a=t*1.6+i/K*6.28;return[10+6*Math.sin(a),10+3.6*Math.sin(2*a)+.6*Math.sin(t*3+sd.ph)];}
+  };
+  const PATK=Object.keys(PAT), pick=(not)=>{let k;do{k=PATK[Math.floor(Math.random()*PATK.length)];}while(k===not);return k;};
+  const dots=[];for(let k=0;k<K;k++){const c=document.createElementNS(NS,'circle');c.setAttribute('r','0');c.setAttribute('fill','currentColor');svg.appendChild(c);dots.push(c);}
+  const pos=Array.from({length:K},()=>[10,10]), rad=Array(K).fill(0);
+  const paint=()=>dots.forEach((d,i)=>{d.setAttribute('cx',pos[i][0].toFixed(3));d.setAttribute('cy',pos[i][1].toFixed(3));d.setAttribute('r',Math.max(0,rad[i]).toFixed(3));d.setAttribute('fill-opacity',(.55+.45*seed[i].rr/1.25).toFixed(2));});
   const build=(sc)=>{const g=document.createElementNS(NS,'g');g.setAttribute('fill','none');g.setAttribute('stroke','currentColor');g.setAttribute('stroke-linecap','round');g.setAttribute('stroke-linejoin','round');g.setAttribute('stroke-width',String(sc.sw||1.5));if(sc.fillAfter){g.setAttribute('fill','currentColor');g.setAttribute('fill-opacity','0');}
     const paths=sc.p.map((d,i)=>{const pa=document.createElementNS(NS,'path');pa.setAttribute('d',d);if(sc.dim&&sc.dim.includes(i))pa.setAttribute('stroke-opacity','.4');g.appendChild(pa);return pa;});
     let acc=null; if(sc.accent){acc=document.createElementNS(NS,'path');acc.setAttribute('d',sc.accent);acc.setAttribute('stroke-width','3.8');acc.setAttribute('stroke-opacity','.35');g.appendChild(acc);}
-    svg.appendChild(g); return {g,paths,acc};};
+    svg.insertBefore(g,dots[0]); const o={g,paths,acc,sc}; return o;};
   const sample=(paths)=>{const L=paths.map(p=>p.getTotalLength());const tot=L.reduce((a,b)=>a+b,0);const pts=[];for(let k=0;k<K;k++){let d=(k+.5)/K*tot,i=0;while(d>L[i]&&i<L.length-1){d-=L[i];i++;}const q=paths[i].getPointAtLength(Math.min(d,L[i]));pts.push([q.x,q.y]);}return pts;};
-  const dots=[];for(let k=0;k<K;k++){const c=document.createElementNS(NS,'circle');c.setAttribute('r','0');c.setAttribute('fill','currentColor');svg.appendChild(c);dots.push(c);}
-  const seed=Array.from({length:K},(_,i)=>({ph:Math.random()*Math.PI*2,rr:.75+Math.random()*.5,w:.8+Math.random()*.5,j:Math.random()}));
-  const smooth=t=>t*t*(3-2*t);
-  const PAT={
-   orbit:(i,t)=>{const sd=seed[i],a=sd.ph+t*2.6*sd.w,r=(4.2+1.6*Math.sin(i*1.7))*(1+.12*Math.sin(t*2.1+sd.ph));return[10+r*Math.cos(a),10+r*Math.sin(a)*.92];},
-   swarm:(i,t)=>{const sd=seed[i];return[10+5.6*Math.sin(1.3*t*sd.w+sd.ph)*Math.cos(.7*t+sd.j*3),10+5.6*Math.sin(1.9*t*sd.w+sd.ph*1.3)];},
-   spiral:(i,t)=>{const f=i/K,a=f*9.5+t*(2.8-1.4*f),r=1.2+6.2*f*(1+.15*Math.sin(t*1.8));return[10+r*Math.cos(a),10+r*Math.sin(a)];},
-   scatter:(i,t)=>{const sd=seed[i];return[sd.ax+1.7*Math.sin(t*1.1*sd.w+sd.ph)+.9*Math.sin(t*1.9+sd.j*6),sd.ay+1.7*Math.cos(t*.9*sd.w+sd.ph*1.4)+.9*Math.sin(t*1.5+sd.j*4)];},
-   figure8:(i,t)=>{const sd=seed[i],a=t*1.9+i/K*Math.PI*2;return[10+6*Math.sin(a),10+3.6*Math.sin(2*a)+.6*Math.sin(t*3+sd.ph)];}
-  };
-  const PATK=Object.keys(PAT);
-  const reseed=()=>seed.forEach(sd=>{sd.ax=3.5+Math.random()*13;sd.ay=3.5+Math.random()*13;sd.ph=Math.random()*Math.PI*2;});
-  let idx=0, cur=build(LQ_SCENES[0]);
-  if(reduce){return;}
-  const anim=(dur,fn)=>new Promise(res=>{const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/dur);fn(k);if(k<1&&el.isConnected)requestAnimationFrame(step);else res();};requestAnimationFrame(step);});
-  const drawIn=(o,dur)=>{const L=o.paths.map(p=>p.getTotalLength());o.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];p.style.strokeDashoffset=L[i];});if(o.acc){const la=o.acc.getTotalLength();o.acc.style.strokeDasharray=la;o.acc.style.strokeDashoffset=la;}
-    const n=o.paths.length;return anim(dur,k=>{o.paths.forEach((p,i)=>{const s0=i/n*.45,kk=Math.max(0,Math.min(1,(k-s0)/(1-.45+.0001)));p.style.strokeDashoffset=L[i]*(1-ease(kk));});});};
-  const hold=async(o,sc)=>{ if(o.acc){const la=o.acc.getTotalLength();await anim(700,k=>{o.acc.style.strokeDashoffset=la*(1-ease(k));});await anim(250,()=>{});}
-    else if(sc.shimmer){await anim(1100,k=>{sc.shimmer.forEach((i,j)=>{const ph=(k*2-j*.25);o.paths[i].setAttribute('stroke-opacity',String(.35+.65*Math.max(0,Math.sin(Math.PI*Math.max(0,Math.min(1,ph))))));});});sc.shimmer.forEach(i=>o.paths[i].setAttribute('stroke-opacity','1'));}
-    else if(sc.fillAfter){await anim(700,k=>o.g.setAttribute('fill-opacity',String(smooth(k))));await anim(900,()=>{});}
-    else await anim(650,()=>{}); };
+  const st={finishing:false,done:false,live:null};
+  // anim resolves early with false when finish() is requested (unless uninterruptible)
+  const anim=(dur,fn,hard=false)=>new Promise(res=>{const t0=performance.now();const step=t=>{if(!el.isConnected)return res(false);if(st.finishing&&!hard)return res(false);const k=Math.min(1,(t-t0)/dur);fn(k,t-t0);if(k<1)requestAnimationFrame(step);else res(true);};requestAnimationFrame(step);});
+  const drawIn=(o,dur,hard)=>{const L=o.paths.map(p=>p.getTotalLength());o.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];p.style.strokeDashoffset=L[i];});if(o.acc){const la=o.acc.getTotalLength();o.acc.style.strokeDasharray=la;o.acc.style.strokeDashoffset=la;}
+    const n=o.paths.length;return anim(dur,k=>{o.paths.forEach((p,i)=>{const s0=i/n*.45,kk=clamp((k-s0)/(1-.45+.0001));p.style.strokeDashoffset=L[i]*(1-ease(kk));});},hard);};
+  const hold=async(o)=>{const sc=o.sc;
+    if(o.acc){const la=o.acc.getTotalLength();if(!await anim(900,k=>{o.acc.style.strokeDashoffset=la*(1-ease(k));}))return false;return anim(400,()=>{});}
+    if(sc.shimmer){const r=await anim(1400,k=>{sc.shimmer.forEach((i,j)=>{const ph=(k*2-j*.25);o.paths[i].setAttribute('stroke-opacity',String(.35+.65*Math.max(0,Math.sin(Math.PI*clamp(ph)))));});});sc.shimmer.forEach(i=>o.paths[i].setAttribute('stroke-opacity','1'));return r;}
+    if(sc.fillAfter){if(!await anim(800,k=>o.g.setAttribute('fill-opacity',String(smooth(k)))))return false;return anim(1100,()=>{});}
+    return anim(900,()=>{});};
+  // shape -> dots: the line un-writes while dots appear behind it
+  const dissolve=async(o,dur,hard)=>{const a=sample(o.paths);const L=o.paths.map(p=>p.getTotalLength());o.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];});const f0=Number(o.g.getAttribute('fill-opacity')||0);
+    await anim(dur,k=>{const e=smooth(k);o.paths.forEach((p,i)=>{p.style.strokeDashoffset=String(-L[i]*e);});if(o.acc)o.acc.style.opacity=String(1-e);if(o.sc.fillAfter)o.g.setAttribute('fill-opacity',String(f0*Math.max(0,1-e*2)));
+      for(let i=0;i<K;i++){const on=smooth(clamp((k-i/K*.7)/.3));pos[i]=[a[i][0],a[i][1]];rad[i]=.62*seed[i].rr*on;}paint();},hard);
+    o.g.remove(); if(st.live===o)st.live=null;};
+  // dots wander: random patterns, blended, at least 10 s
+  const play=async(ms)=>{reseed();let cur=pick(),nxt=null,blendStart=-1;const start=pos.map(p=>p.slice());const tIn=1300;let next=3500+Math.random()*1500;
+    return anim(ms,(k,el)=>{const ts=el/1000;
+      if(el>next&&blendStart<0){nxt=pick(cur);blendStart=el;}
+      let bl=0;if(blendStart>=0){bl=smooth(clamp((el-blendStart)/1600));if(bl>=1){cur=nxt;nxt=null;blendStart=-1;next=el+3500+Math.random()*1500;bl=0;}}
+      for(let i=0;i<K;i++){let p=PAT[cur](i,ts);if(nxt){const q=PAT[nxt](i,ts);p=[p[0]+(q[0]-p[0])*bl,p[1]+(q[1]-p[1])*bl];}
+        const di=i/K*.3,qin=smooth(clamp((el/tIn-di)/(1-di)));pos[i]=[start[i][0]+(p[0]-start[i][0])*qin,start[i][1]+(p[1]-start[i][1])*qin];rad[i]=.62*seed[i].rr*(1+.2*Math.sin(ts*3.5+seed[i].ph));}
+      paint();});};
+  // dots -> shape: dots settle onto the next shape, which draws through them
+  const settle=async(sc,hard,slow=1)=>{const o=build(sc);o.g.style.opacity='0';const b=sample(o.paths);const from=pos.map(p=>p.slice()),r0=rad.slice();const tOut=1600*slow;
+    if(!await anim(tOut,k=>{for(let i=0;i<K;i++){const di=i/K*.35,q=smooth(clamp((k-di)/(1-di)));pos[i]=[from[i][0]+(b[i][0]-from[i][0])*q,from[i][1]+(b[i][1]-from[i][1])*q];rad[i]=r0[i]+(.62*seed[i].rr-r0[i])*q;}paint();},hard)){o.g.remove();return null;}
+    o.g.style.opacity='1';st.live=o;const di=drawIn(o,Math.round(sc.draw*1.4),hard);await anim(Math.round(sc.draw*1.2),k=>{for(let i=0;i<K;i++)rad[i]=.62*seed[i].rr*(1-smooth(k));paint();},hard);await di;return o;};
+  // shuffle bag: every round starts with the Lexon mark, then all other marks once in random order
+  const LOGO=LQ_SCENES[0], REST=LQ_SCENES.slice(1);
+  const round=()=>{const r=REST.slice();for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return [LOGO,...r];};
+  let cur=build(LOGO); st.live=cur;
+  if(reduce){cur.g.setAttribute('fill-opacity','1');el.__lqFinish=()=>{};return;}
+  // finish(): from any phase, gather into the Lexon mark and stop
+  el.__lqFinish=async()=>{if(st.finishing)return;st.finishing=true;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    svg.querySelectorAll('g').forEach(g=>{if(!st.live||g!==st.live.g)g.remove();});
+    const v=st.live; if(v&&v.g.isConnected){ if(v.sc===LOGO){await drawIn(v,500,true);await anim(500,k=>v.g.setAttribute('fill-opacity',String(Math.max(Number(v.g.getAttribute('fill-opacity')||0),smooth(k)))),true);for(let i=0;i<K;i++)rad[i]=0;paint();st.done=true;return;} await dissolve(v,800,true); }
+    const o=await settle(LOGO,true,.8);if(o){await anim(700,k=>o.g.setAttribute('fill-opacity',String(smooth(k))),true);}st.done=true;};
   (async function loop(){
-    await drawIn(cur,LQ_SCENES[0].draw);
-    while(el.isConnected){
-      const sc=LQ_SCENES[idx]; await hold(cur,sc);
-      const a=sample(cur.paths); const nidx=(idx+1)%LQ_SCENES.length; const nsc=LQ_SCENES[nidx]; const nxt=build(nsc); nxt.g.style.opacity='0'; const b=sample(nxt.paths); svg.appendChild(nxt.g);
-      dots.forEach(d=>svg.appendChild(d));
-      // dissolve: lines fade while dots appear on them
-      { const L=cur.paths.map(p=>p.getTotalLength()); cur.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];});
-        await anim(1000,k=>{const e=smooth(k); cur.paths.forEach((p,i)=>{p.style.strokeDashoffset=String(-L[i]*e);}); if(cur.acc)cur.acc.style.opacity=String(1-e); if(cur.g.getAttribute('fill-opacity')!==null&&cur.g.getAttribute('fill')==='currentColor')cur.g.setAttribute('fill-opacity',String(Math.max(0,1-e*2)));
-          dots.forEach((d,i)=>{const on=smooth(Math.max(0,Math.min(1,(k-i/K*.7)/.3)));d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.62*seed[i].rr*on));d.setAttribute('fill-opacity','.9');});}); }
-      cur.g.remove();
-      // play: dots leave the shape, swirl in a random pattern for a while, then settle onto the next shape
-      { reseed(); const pat=PAT[PATK[Math.floor(Math.random()*PATK.length)]]; const tPlay=1600+Math.random()*2800, tIn=1200, tOut=1500, T=tIn+tPlay+tOut;
-        await anim(T,k=>{const ms=k*T, ts=ms/1000;
-          dots.forEach((d,i)=>{const sw=pat(i,ts); const di=i/K*.25;
-            let x,y,r;
-            if(ms<tIn){const q=smooth(Math.min(1,Math.max(0,(ms/tIn-di*.4)/(1-di*.4))));x=a[i][0]+(sw[0]-a[i][0])*q;y=a[i][1]+(sw[1]-a[i][1])*q;}
-            else if(ms<tIn+tPlay){x=sw[0];y=sw[1];}
-            else{const q=smooth(Math.min(1,Math.max(0,((ms-tIn-tPlay)/tOut-di)/(1-di))));x=sw[0]+(b[i][0]-sw[0])*q;y=sw[1]+(b[i][1]-sw[1])*q;}
-            r=.62*seed[i].rr*(ms>tIn&&ms<tIn+tPlay?1+.25*Math.sin(ts*4+seed[i].ph):1);
-            d.setAttribute('cx',x.toFixed(3));d.setAttribute('cy',y.toFixed(3));d.setAttribute('r',r.toFixed(3));d.setAttribute('fill-opacity',(.55+.45*seed[i].rr/1.25).toFixed(2));});}); }
-      // reform: next shape draws through the dots, dots shrink
-      nxt.g.style.opacity='1'; const di=drawIn(nxt,Math.round(nsc.draw*1.4)); await anim(Math.round(nsc.draw*1.2),k=>{dots.forEach((d,i)=>d.setAttribute('r',String(.62*seed[i].rr*(1-smooth(k)))));}); await di;
-      cur=nxt; idx=nidx;
+    let order=round(), idx=0;
+    if(!await drawIn(cur,LOGO.draw))return;
+    while(el.isConnected&&!st.finishing){
+      if(!await hold(cur))return;
+      await dissolve(cur,1100); if(st.finishing){cur=null;return;}
+      if(!await play(10000+Math.random()*4000)){cur=null;return;}
+      idx++; if(idx>=order.length){order=round();idx=0;}
+      const o=await settle(order[idx]); if(!o){cur=null;return;} cur=o;
     }
   })();
 }
@@ -360,7 +374,7 @@ function thread(S){
  let b='',c=composer(),toast='';
  switch(S){
   case 'thinking': b=um(Q1)+`<div class="am"><div class="who">${lq()}<span class="shim">Thinking…</span></div></div>`; c=composer({streaming:true}); break;
-  case 'loaders': b=`<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-family:var(--serif);font-weight:400;font-size:28px">Thinking indicator</h2><p style="margin:0;color:var(--mfg)">One continuous motion: each mark is drawn, breaks into dots, the dots travel, and they re-form the next mark. Sequence: ${LQ_SCENES.map(x=>x.n).join(' → ')} → again.</p></div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px"><div class="tcard2" style="align-items:center;justify-content:center;height:280px;background:var(--muted);border:0">${lq(true)}</div><div class="tcard2" style="justify-content:center;gap:18px;padding:24px"><div style="font-size:13px;color:var(--mfg)">Actual size in a chat</div><div class="who">${lq()}<span class="shim">Thinking…</span></div><div class="who" style="font-size:15px">${lq()}<span class="shim">Reading the question…</span></div></div></div>`; break;
+  case 'loaders': b=`<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-family:var(--serif);font-weight:400;font-size:28px">Thinking indicator</h2><p style="margin:0;color:var(--mfg)">One continuous motion: each mark is drawn, breaks into dots, the dots travel, and they re-form the next mark. Each round starts with the Lexon mark, then every other mark once in a shuffled order (${LQ_SCENES.slice(1).map(x=>x.n).join(', ')}). Between marks the dots wander for 10–14 s. When the answer finishes, the motion gathers into the Lexon mark.</p></div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px"><div class="tcard2" style="align-items:center;justify-content:center;height:280px;background:var(--muted);border:0">${lq(true)}</div><div class="tcard2" style="justify-content:center;gap:18px;padding:24px"><div style="font-size:13px;color:var(--mfg)">Actual size in a chat</div><div class="who">${lq()}<span class="shim">Thinking…</span></div><div class="who" style="font-size:15px">${lq()}<span class="shim">Reading the question…</span></div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn outline" onclick="document.querySelectorAll('.lq').forEach(e=>e.__lqFinish&&e.__lqFinish())">Simulate answer finished</button><button class="btn ghost" onclick="render()">Restart</button></div></div></div>`; break;
   case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;

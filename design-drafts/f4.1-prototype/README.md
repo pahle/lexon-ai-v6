@@ -65,3 +65,13 @@ fade over 1.2x its draw time. New `scatter` pattern: dots spread to random ancho
 The official monogram (micro, seal) opens the sequence: its outline draws, the shape fills
 to the solid mark, holds, then un-writes into dots. Sequence: Lexon → § → Writing → Paper →
 Highlighter → Column → ¶ → again.
+
+## Revision 11 (2026-11-13): shuffle bag, long dot play, finish into the Lexon mark
+- Order: every round starts with the Lexon mark, then all other marks exactly once in a
+  shuffled order (no mark is skipped), then a new shuffled round.
+- Dots wander 10-14 s between marks, switching patterns every 3.5-5 s with a 1.6 s blend.
+- Finish API: when the answer finishes, from any phase the current mark un-writes into dots
+  (if a mark is showing), the dots settle onto the Lexon mark, its outline draws and fills
+  (about 3 s), and the motion stops. `screens/finish-strip.png` shows both cases.
+- Open question for the PO: after finishing, does the mark stay next to "Thought for N
+  seconds" or fade out (answers otherwise carry no monogram)?
