@@ -73,5 +73,5 @@ Highlighter → Column → ¶ → again.
 - Finish API: when the answer finishes, from any phase the current mark un-writes into dots
   (if a mark is showing), the dots settle onto the Lexon mark, its outline draws and fills
   (about 3 s), and the motion stops. `screens/finish-strip.png` shows both cases.
-- Open question for the PO: after finishing, does the mark stay next to "Thought for N
-  seconds" or fade out (answers otherwise carry no monogram)?
+- PO decision (2026-11-13): the finished Lexon mark STAYS on every completed answer, next to
+  "Thought for N seconds"; while an answer runs the morphing indicator takes its place.
