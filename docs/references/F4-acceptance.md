@@ -1335,3 +1335,9 @@ chat fixture only executes for `complete`. It remains open for its own
 controller-observed test-first correction. The reviewer also suggested clearer
 grader dispatch as a Minor maintainability follow-up. No full Task 16 approval
 is claimed.
+
+#### Task 16 recovery Rule 08 — evaluation fixture attribution review fix
+
+The scoped partial review found that a non-chat replay scenario could acquire a chat policy score without executing its configured answer. Phase A changed only the evaluation test. The controller observed replay complete with two model requests, one effect and one replay, followed by the expected failing assertion: `cases` contained a passing chat case instead of `[]` (10 other tests passed). Only then was Phase B authorized: one complete-scenario condition at fixture registration, matching the existing gateway path.
+
+Controller evidence: `.superpowers/sdd/2026-11-09-f4-chat/recovery/phase-08-controller-red.log` (SHA-256 `8118a9425eefca23c4f4d8b369f10cccb9ff65978e087cdcc0e773be063d4670`), followed by `phase-08-controller-green.log` (SHA-256 `2b1e8e03e8cd5c4df5756c1c48b15c20902a02a493e5cfc1ac0f1c874b0f7d88`), 11/11 passing with identical test SHA-256 `213f2dbe52b8b271b95d4d54473c841a91a5d16996bcd7d667c48f577e5b453c`. Full inventory checks confirmed Phase A touched only the test and Phase B only the named harness file; backend/eval typechecks and targeted lint/format checks passed. This fixes partial-review I1; Task 16 overall remains in progress. The nested-grader readability suggestion M1 remains recorded for final review.

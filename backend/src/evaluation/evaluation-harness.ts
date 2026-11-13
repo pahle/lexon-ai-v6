@@ -442,6 +442,7 @@ export async function createEvaluationHarness(
         runTenantIndices.set(run.runId, index);
         scenarioByRun.set(run.runId, input.scenarioId);
         const chatScenario =
+          input.scenarioId === 'complete' &&
           options.fixtureSet === 'deterministic' &&
           options.chatScenarios?.length === 1
             ? options.chatScenarios?.[0]

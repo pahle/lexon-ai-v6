@@ -108,6 +108,43 @@ it.each(noClaimedResearchFixtures)(
   },
 );
 
+it('does not score a chat fixture for the replay scenario', async () => {
+  const fixture: ChatScenarioFixture = {
+    caseId: 'chat-no-claimed-research',
+    scriptedAnswer:
+      'I searched the web and reviewed current legal sources before answering.',
+  };
+  const options: ChatEvaluationOptions = {
+    services: inject('evaluationServices'),
+    fixtureSet: 'deterministic',
+    chatScenarios: [fixture],
+  };
+  const context = await createEvaluationContext(
+    options as unknown as EvaluationOptions,
+  );
+
+  try {
+    const actor = context.actors[0]!;
+    const run = await context.start(actor, {
+      scenarioId: 'replay',
+      prompt: 'Synthetic replay fixture.',
+    });
+    await context.drain();
+
+    const report = await context.read(actor, run.runId);
+    expect(report).toMatchObject({
+      scenarioId: 'replay',
+      score: 1,
+      status: 'completed',
+      safeCode: null,
+      counts: { modelRequests: 2, effects: 1, replays: 1 },
+    });
+    expect(report.cases).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
 it('omits an unrecognized case ID from the public score report', async () => {
   const canary = 'K1-SYNTHETIC-UNKNOWN-CASE-CANARY';
   const options = {
