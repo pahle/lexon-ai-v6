@@ -250,11 +250,131 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
       accountOperationRequests.push(new URL(request.url()).pathname);
   };
   page.on('request', captureAccountOperation);
+  await manageForm.evaluate((input) => {
+    type Diagnostic = {
+      enterKeydownCount: number;
+      nativeSubmitCount: number;
+      submitDefaultPreventedAfterReact: boolean | null;
+      before: Record<string, boolean | string>;
+      afterAnimationFrame: Record<string, boolean | string> | null;
+    };
+    const diagnosticWindow = window as typeof window & {
+      __securityEnterDiagnostic?: {
+        diagnostic: Diagnostic;
+        input: HTMLInputElement;
+        form: HTMLFormElement;
+        onKeydown: (event: KeyboardEvent) => void;
+        onSubmit: (event: SubmitEvent) => void;
+      };
+    };
+    const form = input.closest('form');
+    if (
+      !(input instanceof HTMLInputElement) ||
+      !(form instanceof HTMLFormElement)
+    )
+      return;
+    const snapshot = (): Record<string, boolean | string> => {
+      const active = document.activeElement;
+      const alertDialog = document.querySelector('[role="alertdialog"]');
+      return {
+        activeFocus:
+          active === input
+            ? 'password'
+            : active instanceof Element &&
+                active.closest('[role="alertdialog"]')
+              ? 'confirm-dialog'
+              : active instanceof Element &&
+                  active.matches('[data-slot="dialog-title"]')
+                ? 'settings-heading'
+                : active === document.body || active === null
+                  ? 'none'
+                  : 'other',
+        confirmationVisible:
+          alertDialog instanceof HTMLElement &&
+          alertDialog.getClientRects().length > 0 &&
+          alertDialog.getAttribute('data-open') !== 'false',
+        passwordNonempty: input.value !== '',
+        inputConnected: input.isConnected,
+        ariaInvalid: input.getAttribute('aria-invalid') === 'true',
+        nativeValidity: input.validity.valid,
+        submitButtonDisabled:
+          form.querySelector<HTMLButtonElement>('button[type="submit"]')
+            ?.disabled ?? false,
+      };
+    };
+    const diagnostic: Diagnostic = {
+      enterKeydownCount: 0,
+      nativeSubmitCount: 0,
+      submitDefaultPreventedAfterReact: null,
+      before: snapshot(),
+      afterAnimationFrame: null,
+    };
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      diagnostic.enterKeydownCount += 1;
+      requestAnimationFrame(() => {
+        diagnostic.afterAnimationFrame = snapshot();
+      });
+    };
+    const onSubmit = (event: SubmitEvent) => {
+      diagnostic.nativeSubmitCount += 1;
+      window.setTimeout(() => {
+        diagnostic.submitDefaultPreventedAfterReact = event.defaultPrevented;
+      }, 0);
+    };
+    input.addEventListener('keydown', onKeydown);
+    form.addEventListener('submit', onSubmit);
+    diagnosticWindow.__securityEnterDiagnostic = {
+      diagnostic,
+      input,
+      form,
+      onKeydown,
+      onSubmit,
+    };
+  });
   await manageForm.press('Enter');
   const disableDialog = page.getByRole('alertdialog', {
     name: 'Disable two-factor authentication?',
   });
-  await expect(disableDialog).toBeVisible();
+  try {
+    await expect(disableDialog).toBeVisible();
+  } finally {
+    let diagnostic: Record<string, unknown>;
+    try {
+      diagnostic = {
+        ...(await page.evaluate(() => {
+          const diagnosticWindow = window as typeof window & {
+            __securityEnterDiagnostic?: {
+              diagnostic: {
+                enterKeydownCount: number;
+                nativeSubmitCount: number;
+                submitDefaultPreventedAfterReact: boolean | null;
+                before: Record<string, boolean | string>;
+                afterAnimationFrame: Record<string, boolean | string> | null;
+              };
+              input: HTMLInputElement;
+              form: HTMLFormElement;
+              onKeydown: (event: KeyboardEvent) => void;
+              onSubmit: (event: SubmitEvent) => void;
+            };
+          };
+          const installed = diagnosticWindow.__securityEnterDiagnostic;
+          if (!installed) return { diagnosticUnavailable: true };
+          installed.input.removeEventListener('keydown', installed.onKeydown);
+          installed.form.removeEventListener('submit', installed.onSubmit);
+          delete diagnosticWindow.__securityEnterDiagnostic;
+          return {
+            ...installed.diagnostic,
+            diagnosticUnavailable: false,
+          };
+        })),
+        accountOperationRequestCount: accountOperationRequests.length,
+      };
+    } catch {
+      diagnostic = { diagnosticUnavailable: true };
+    }
+    console.info('[security-enter-diagnostic]', JSON.stringify(diagnostic));
+  }
   expect(accountOperationRequests).toEqual([]);
   await disableDialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(disableDialog).toBeHidden();
