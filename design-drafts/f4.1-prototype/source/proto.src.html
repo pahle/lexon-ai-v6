@@ -270,6 +270,7 @@ function composer({deep=false,streaming=false,text='',mobile=false}={}){
 
 
 const LQ_SCENES=[
+ {n:'Lexon',p:['M 4.27 1.405 H 11.734 V 2.217 C 10.606 2.283 10.2 2.613 9.671 3.952 H 6.334 C 5.805 2.613 5.398 2.283 4.27 2.217 Z', 'M 6.553 4.413 H 9.451 V 15.587 H 6.553 Z', 'M 4.27 17.783 C 5.398 17.717 5.805 17.387 6.334 16.048 H 9.671 C 10.066 16.773 11.12 17.475 12.305 17.783 C 13.952 17.87 15.688 16.544 16.676 15.368 L 17.398 15.974 L 17.442 18.595 H 4.27 Z'],fillAfter:true,sw:1.1,draw:1300},
  {n:'Section',p:['M12.6 4.6c-1.4-1.3-4.8-1-4.8 1.2 0 2.7 5.6 2.5 5.6 5.3 0 1.5-1.4 2.3-2.9 2.3','M7.4 15.4c1.4 1.3 4.8 1 4.8-1.2 0-2.7-5.6-2.5-5.6-5.3 0-1.5 1.4-2.3 2.9-2.3'],draw:900},
  {n:'Writing',p:['M2 16.5h16','M2.5 13c2-5 3.6-7.4 4.6-5.6.9 1.6-1 5-.1 5.6 1 .7 2.6-3.6 4-3.4 1.2.2.3 3 1.4 3.1 1.3.1 2.3-2.6 4.9-2.7'],dim:[0],draw:1200},
  {n:'Paper',p:['M5 3h7l3 3v11H5z','M12 3v3h3','M7.5 9.2h5','M7.5 11.7h5','M7.5 14.2h3.5'],draw:1000},
@@ -283,7 +284,7 @@ function lqMount(el){
   const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','0 0 20 20'); el.appendChild(svg);
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const K=26, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-  const build=(sc)=>{const g=document.createElementNS(NS,'g');g.setAttribute('fill','none');g.setAttribute('stroke','currentColor');g.setAttribute('stroke-linecap','round');g.setAttribute('stroke-linejoin','round');g.setAttribute('stroke-width','1.5');
+  const build=(sc)=>{const g=document.createElementNS(NS,'g');g.setAttribute('fill','none');g.setAttribute('stroke','currentColor');g.setAttribute('stroke-linecap','round');g.setAttribute('stroke-linejoin','round');g.setAttribute('stroke-width',String(sc.sw||1.5));if(sc.fillAfter){g.setAttribute('fill','currentColor');g.setAttribute('fill-opacity','0');}
     const paths=sc.p.map((d,i)=>{const pa=document.createElementNS(NS,'path');pa.setAttribute('d',d);if(sc.dim&&sc.dim.includes(i))pa.setAttribute('stroke-opacity','.4');g.appendChild(pa);return pa;});
     let acc=null; if(sc.accent){acc=document.createElementNS(NS,'path');acc.setAttribute('d',sc.accent);acc.setAttribute('stroke-width','3.8');acc.setAttribute('stroke-opacity','.35');g.appendChild(acc);}
     svg.appendChild(g); return {g,paths,acc};};
@@ -307,6 +308,7 @@ function lqMount(el){
     const n=o.paths.length;return anim(dur,k=>{o.paths.forEach((p,i)=>{const s0=i/n*.45,kk=Math.max(0,Math.min(1,(k-s0)/(1-.45+.0001)));p.style.strokeDashoffset=L[i]*(1-ease(kk));});});};
   const hold=async(o,sc)=>{ if(o.acc){const la=o.acc.getTotalLength();await anim(700,k=>{o.acc.style.strokeDashoffset=la*(1-ease(k));});await anim(250,()=>{});}
     else if(sc.shimmer){await anim(1100,k=>{sc.shimmer.forEach((i,j)=>{const ph=(k*2-j*.25);o.paths[i].setAttribute('stroke-opacity',String(.35+.65*Math.max(0,Math.sin(Math.PI*Math.max(0,Math.min(1,ph))))));});});sc.shimmer.forEach(i=>o.paths[i].setAttribute('stroke-opacity','1'));}
+    else if(sc.fillAfter){await anim(700,k=>o.g.setAttribute('fill-opacity',String(smooth(k))));await anim(900,()=>{});}
     else await anim(650,()=>{}); };
   (async function loop(){
     await drawIn(cur,LQ_SCENES[0].draw);
@@ -316,7 +318,7 @@ function lqMount(el){
       dots.forEach(d=>svg.appendChild(d));
       // dissolve: lines fade while dots appear on them
       { const L=cur.paths.map(p=>p.getTotalLength()); cur.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];});
-        await anim(1000,k=>{const e=smooth(k); cur.paths.forEach((p,i)=>{p.style.strokeDashoffset=String(-L[i]*e);}); if(cur.acc)cur.acc.style.opacity=String(1-e);
+        await anim(1000,k=>{const e=smooth(k); cur.paths.forEach((p,i)=>{p.style.strokeDashoffset=String(-L[i]*e);}); if(cur.acc)cur.acc.style.opacity=String(1-e); if(cur.g.getAttribute('fill-opacity')!==null&&cur.g.getAttribute('fill')==='currentColor')cur.g.setAttribute('fill-opacity',String(Math.max(0,1-e*2)));
           dots.forEach((d,i)=>{const on=smooth(Math.max(0,Math.min(1,(k-i/K*.7)/.3)));d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.62*seed[i].rr*on));d.setAttribute('fill-opacity','.9');});}); }
       cur.g.remove();
       // play: dots leave the shape, swirl in a random pattern for a while, then settle onto the next shape

@@ -60,3 +60,8 @@ Shape → dots: the line un-writes along its length over 1.0 s while dots appear
 Gather 1.2 s; play 1.6-4.4 s random; settle 1.5 s; next mark draws at 1.4x speed while dots
 fade over 1.2x its draw time. New `scatter` pattern: dots spread to random anchors and drift
 (re-randomized each transition), joining orbit, swarm, spiral, figure-8.
+
+## Revision 10 (2026-11-13): Lexon mark joins the sequence
+The official monogram (micro, seal) opens the sequence: its outline draws, the shape fills
+to the solid mark, holds, then un-writes into dots. Sequence: Lexon → § → Writing → Paper →
+Highlighter → Column → ¶ → again.
