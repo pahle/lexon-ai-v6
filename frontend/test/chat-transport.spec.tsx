@@ -51,6 +51,85 @@ it('uses the same-origin chat API and validates its persisted tree', async () =>
   );
 });
 
+it.each(['membership_removed', 'selection_repaired'] as const)(
+  'does not accept a chat page after the identity fallback hint %s',
+  async (reason) => {
+    const { createChatClient } = await import('../src/lib/chat-client.js');
+    const { IDENTITY_FALLBACK_HINT_EVENT } =
+      await import('../src/lib/identity-client.js');
+    const fetch = vi.fn(async () =>
+      Response.json(
+        {
+          items: [
+            {
+              id: chatId,
+              title: 'Employment contract',
+              updatedAt: '2026-11-11T00:00:01.000Z',
+              lastMessageAt: null,
+            },
+          ],
+          pageInfo: { nextCursor: null },
+        },
+        { headers: { 'x-lexon-fallback-reason': reason } },
+      ),
+    );
+    const client = createChatClient({ baseUrl: '/api', fetch });
+    const hints: unknown[] = [];
+    const onFallbackHint = (event: Event) => {
+      hints.push((event as CustomEvent<unknown>).detail);
+    };
+    window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+
+    try {
+      const [result] = await Promise.allSettled([client.list()]);
+      expect.soft(hints).toEqual([{ reason }]);
+      expect.soft(result?.status).toBe('rejected');
+      if (result?.status === 'rejected')
+        expect.soft(result.reason).toMatchObject({ code: 'AI_ACCESS_REVOKED' });
+    } finally {
+      window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+    }
+  },
+);
+
+it('ignores an unknown identity fallback header on a valid chat page', async () => {
+  const { createChatClient } = await import('../src/lib/chat-client.js');
+  const { IDENTITY_FALLBACK_HINT_EVENT } =
+    await import('../src/lib/identity-client.js');
+  const fetch = vi.fn(async () =>
+    Response.json(
+      {
+        items: [
+          {
+            id: chatId,
+            title: 'Employment contract',
+            updatedAt: '2026-11-11T00:00:01.000Z',
+            lastMessageAt: null,
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      },
+      { headers: { 'x-lexon-fallback-reason': 'untrusted-value' } },
+    ),
+  );
+  const client = createChatClient({ baseUrl: '/api', fetch });
+  const hints: unknown[] = [];
+  const onFallbackHint = (event: Event) => {
+    hints.push((event as CustomEvent<unknown>).detail);
+  };
+  window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+
+  try {
+    await expect(client.list()).resolves.toMatchObject({
+      items: [{ id: chatId, title: 'Employment contract' }],
+      pageInfo: { nextCursor: null },
+    });
+    expect(hints).toEqual([]);
+  } finally {
+    window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onFallbackHint);
+  }
+});
+
 it('searches with POST and exposes owner chat rename and permanent-delete routes', async () => {
   const { createChatClient } = await import('../src/lib/chat-client.js');
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

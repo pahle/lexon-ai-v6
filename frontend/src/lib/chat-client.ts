@@ -2,6 +2,7 @@ import { z } from 'zod';
 import * as contracts from '@lexon/contracts';
 import type { ChatApi } from '@lexon/contracts';
 import { chatClientError, ChatClientError } from './chat-errors';
+import { notifyIdentityFallbackHint } from './identity-client';
 
 export interface ChatClientOptions {
   readonly baseUrl: string;
@@ -45,6 +46,8 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
     } catch {
       throw new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503);
     }
+    if (notifyIdentityFallbackHint(response))
+      throw new ChatClientError('AI_ACCESS_REVOKED', response.status);
     if (!response.ok) throw await chatClientError(response);
     if (schema === null) return undefined as T;
     try {
