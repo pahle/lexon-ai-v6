@@ -189,13 +189,18 @@ it('exposes deterministic durable engine controls and safe score reports', async
     });
     await context.drain();
     const report = await context.read(actor, run.runId);
-    expect(Object.keys(report).sort()).toEqual([
+    const reportWithCases = report as typeof report & {
+      cases: ReadonlyArray<{ caseId: string; score: number }>;
+    };
+    expect(Object.keys(reportWithCases).sort()).toEqual([
+      'cases',
       'counts',
       'safeCode',
       'scenarioId',
       'score',
       'status',
     ]);
+    expect(reportWithCases.cases).toEqual([]);
     expect(report).toMatchObject({
       scenarioId: 'complete',
       status: 'completed',
@@ -291,12 +296,14 @@ it('strips hostile model and tool content from scenario score reports', async ()
     );
     expect(JSON.stringify(report)).not.toContain('secret.invalid');
     expect(Object.keys(report).sort()).toEqual([
+      'cases',
       'counts',
       'safeCode',
       'scenarioId',
       'score',
       'status',
     ]);
+    expect(report.cases).toEqual([]);
     expect(report).toMatchObject({
       status: 'awaiting_approval',
       counts: { operations: 2, effects: 0 },

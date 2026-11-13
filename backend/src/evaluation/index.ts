@@ -168,5 +168,6 @@ function safeScoreReport(
         ? report.safeCode
         : null,
     counts,
+    cases: [],
   };
 }

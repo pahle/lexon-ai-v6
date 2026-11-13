@@ -67,7 +67,7 @@ import type { RunActor } from '../modules/identity-access/run-actor.js';
 import { RequestIdentity } from '../modules/identity-access/request-identity.js';
 import { currentVerifiedIdentity } from '../modules/identity-access/identity.types.js';
 import type {
-  EvaluationScoreReport,
+  EvaluationEngineReport,
   EvaluationStartInput,
 } from './evaluation-contracts.js';
 import type { ToolDefinition } from '../modules/chat/run-contracts.js';
@@ -628,7 +628,7 @@ export async function createEvaluationHarness(
             postOperationCompletionAttempts:
               usageLedger.postOperationCompletionAttempts,
           },
-        } satisfies EvaluationScoreReport;
+        } satisfies EvaluationEngineReport;
       },
       async drain(timeoutMs = 20_000) {
         if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1)
@@ -1044,7 +1044,7 @@ function requireActor(
 
 function isSafeCode(
   value: string | null,
-): value is NonNullable<EvaluationScoreReport['safeCode']> {
+): value is NonNullable<EvaluationEngineReport['safeCode']> {
   return Boolean(value && /^AI_[A-Z0-9_]{1,48}$/.test(value));
 }
 

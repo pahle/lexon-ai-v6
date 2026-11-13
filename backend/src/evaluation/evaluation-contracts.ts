@@ -5,6 +5,19 @@ export interface EvaluationServices {
 }
 
 export interface EvaluationScoreReport {
+  readonly cases: ReadonlyArray<{
+    readonly caseId: string;
+    readonly score: number;
+  }>;
+  readonly scenarioId: string;
+  readonly score: number;
+  readonly status:
+    'completed' | 'failed' | 'cancelled' | 'awaiting_approval' | 'unknown';
+  readonly safeCode: string | null;
+  readonly counts: Readonly<Record<string, number>>;
+}
+
+export interface EvaluationEngineReport {
   readonly scenarioId: string;
   readonly score: number;
   readonly status:
@@ -29,7 +42,7 @@ export interface EvaluationEngine {
     actor: EvaluationActor,
     input: { runId: string; approved: boolean },
   ): Promise<void>;
-  read(actor: EvaluationActor, runId: string): Promise<EvaluationScoreReport>;
+  read(actor: EvaluationActor, runId: string): Promise<EvaluationEngineReport>;
   drain(timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
 }

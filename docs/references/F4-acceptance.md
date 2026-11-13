@@ -1126,3 +1126,39 @@ controller's immutable per-rule evidence logs and phase manifest. Agent-reported
 RED/GREEN does not satisfy the gate. Required task reviews and owner smoke/visual
 checkpoints remain. No Task 16 recovery implementation or passing mutation score
 is claimed by this control description.
+
+### Recovery rule 01 — controller-observed cycle
+
+Rule: public deterministic evaluation reports expose an empty `cases` array
+when there are no chat-specific case scores. Phase A was limited to
+`evals/test/f4-chat-recovery.spec.ts` and the existing safe-report assertions in
+`evals/test/f3-engine.spec.ts`. The controller compared the full 1,602-file
+tracked/nonignored hash inventory and verified that only these tests changed.
+
+The controller ran:
+
+```text
+pnpm exec vitest run --project evals evals/test/f3-engine.spec.ts evals/test/f4-chat-recovery.spec.ts -t 'defaults deterministic evaluation cases|exposes deterministic durable engine controls'
+```
+
+RED: exit 1, two behavioral assertion failures—missing `cases` report key and
+`expected undefined to deeply equal []`. No setup/import/typing failure counted.
+Only then was Phase B authorized for the three existing evaluation
+contract/harness/public-entry files. The controller verified test hashes
+remained unchanged and independently ran the same command: exit 0, **2/2 pass**.
+A subsequent test-only compatibility adjustment updated the other existing
+hostile-report exact-key assertion, preserving its privacy assertions; production
+hashes were unchanged during that adjustment. The full controller-run eval
+project then passed **35/35**. Backend/eval typechecks and targeted lint/style
+checks passed.
+
+Private immutable evidence: `recovery/phase-01-controller-red-final.log`
+(SHA-256 `dd776a66cc287fcc3e7898e43133e8759320bb74a7fb5aa2f50fa18f44cb9997`),
+`recovery/phase-01-controller-green.log`
+(SHA-256 `becafd000752370325c96354d12c16efefca59517fb1914d9d929d1cc39be687`),
+and `recovery/phase-01-controller-evals-green.log`
+(SHA-256 `a0713daf85d9b94bb9cdca2ac32aea5a17ad799e4785067e4a27559bcccdf1a2`)
+under `.superpowers/sdd/2026-11-09-f4-chat/`. Corresponding JSON files record
+commands, exits, output hashes and test hashes; `recovery/phase-manifest.json`
+records the gates. This proves only the empty-list default, not chat scoring,
+context policy, recovery, or completion of Task 16.
