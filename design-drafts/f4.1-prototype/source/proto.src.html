@@ -81,7 +81,22 @@ body.shot .stage{border-radius:0;box-shadow:none}
 .mark{width:22px;height:22px;display:inline-block}
 .mark.live{animation:seal 1.4s ease-in-out infinite}
 @keyframes seal{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.55}}
-@media (prefers-reduced-motion:reduce){.mark.live{animation:none}}
+/* Thinking indicators (no logo): A = column of three pillars from the L construction; B = highlighter sweep; C = pen arc */
+.ld{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none}
+.ld-col{position:relative;display:inline-flex;gap:2.5px;align-items:stretch;height:11px;padding:0 1.5px}
+.ld-col:before,.ld-col:after{content:"";position:absolute;left:-1px;right:-1px;height:1.5px;background:var(--redtext);border-radius:1px}
+.ld-col:before{top:-3px}.ld-col:after{bottom:-3px}
+.ld-col i{display:block;width:1.75px;background:var(--redtext);border-radius:1px;animation:pil 1.2s ease-in-out infinite}
+.ld-col i:nth-child(2){animation-delay:.18s}.ld-col i:nth-child(3){animation-delay:.36s}
+@keyframes pil{0%,100%{opacity:.18}40%{opacity:1}}
+.ld-sweep{position:relative;color:var(--mfg);overflow:hidden;padding:0 2px}
+.ld-sweep:before{content:"";position:absolute;left:0;top:50%;height:.55em;width:45%;background:color-mix(in srgb,var(--primary) 26%,transparent);border-radius:3px;z-index:-1;animation:sweep 1.5s cubic-bezier(.6,0,.4,1) infinite}
+@keyframes sweep{0%{transform:translateX(-110%)}100%{transform:translateX(240%)}}
+.ld-arc{animation:spin 1s linear infinite}
+.ld-arc circle{animation:dash 1.5s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dash{0%{stroke-dasharray:1 40;stroke-dashoffset:0}50%{stroke-dasharray:22 40;stroke-dashoffset:-6}100%{stroke-dasharray:22 40;stroke-dashoffset:-32}}
+@media (prefers-reduced-motion:reduce){.mark.live,.ld-col i,.ld-sweep:before,.ld-arc,.ld-arc circle{animation:none}.ld-col i{opacity:.6}.ld-sweep:before{width:100%;transform:none}}
 .tcard2{border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .tcard2 .th{display:flex;align-items:center;justify-content:space-between;color:var(--mfg);font-size:14px}
 .scrolldown{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;width:36px;height:36px;border-radius:999px;background:var(--bg);box-shadow:0 0 0 1px var(--border),0 6px 16px -6px rgba(8,6,6,.25);display:flex;align-items:center;justify-content:center;color:var(--mfg);z-index:5}
@@ -184,7 +199,7 @@ const I={
  shield:'<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>'
 };
 const sv=(n,s=16,x='')=>`<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${x}>${I[n]}</svg>`;
-const STATES=['personal','signin','signin-errors','newchat','deep','thinking','streaming','reasoning','thread','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile'];
+const STATES=['loaders','personal','signin','signin-errors','newchat','deep','thinking','streaming','reasoning','thread','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile'];
 const chats=['Syarat sah perjanjian (Pasal 1320)','Due diligence checklist for PT acquisition','PKWT vs PKWTT after the Job Creation Law','Force majeure clause, supply agreement','Wanprestasi remedies and damages','Data transfer under UU PDP Article 56'];
 const Q1='Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?';
 const A1=`<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu perikatan.</li><li><b>Suatu hal tertentu</b> sebagai objek perjanjian.</li><li><b>Suatu sebab yang halal</b>.</li></ol><h3>Akibat jika syarat tidak terpenuhi</h3><ul><li>Syarat 1 dan 2 adalah <b>syarat subjektif</b>. Jika tidak terpenuhi, perjanjian <b>dapat dibatalkan</b> atas permintaan pihak yang dirugikan.</li><li>Syarat 3 dan 4 adalah <b>syarat objektif</b>. Jika tidak terpenuhi, perjanjian <b>batal demi hukum</b>, dianggap tidak pernah ada.</li></ul>`;
@@ -215,7 +230,8 @@ function composer({deep=false,streaming=false,text='',mobile=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
 }
-const who=(label,open=null,live=false)=>`<div class="who"><img class="mark ${live?'live':''}" src="${MONO}" alt="">${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
+const LOADER={col:'<span class="ld" aria-hidden="true"><span class="ld-col"><i></i><i></i><i></i></span></span>',arc:'<span class="ld" aria-hidden="true"><svg class="ld-arc" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--redtext)" stroke-width="1.75" stroke-linecap="round"/></svg></span>'};
+const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?LOADER[kind]||'':''}${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
 const abar=({fb=null,copied=false,branch=false}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="lb ${copied?'on':''}">${sv(copied?'check':'copy',15)}${copied?'Copied':'Copy'}</button><button class="lb ${fb==='up'?'on':''}" aria-label="Good response" aria-pressed="${fb==='up'}">${sv('up',15,fb==='up'?'fill="currentColor"':'')}</button><button class="lb" aria-label="Bad response">${sv('down',15)}</button><button class="lb">${sv('regen',15)}Regenerate</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
@@ -225,6 +241,7 @@ function thread(S){
  let b='',c=composer(),toast='';
  switch(S){
   case 'thinking': b=um(Q1)+`<div class="am">${who('<span class="shim">Thinking…</span>',null,true)}</div>`; c=composer({streaming:true}); break;
+  case 'loaders': b=um(Q1)+`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">${[['A · Column (from the L’s three pillars)',who('<span class="shim">Thinking…</span>',null,true,'col')],['B · Highlighter sweep (brand stabilo)','<div class="who"><span class="ld-sweep" style="position:relative;z-index:0">Thinking…</span></div>'],['C · Pen arc',who('<span class="shim">Thinking…</span>',null,true,'arc')]].map(([t,h])=>`<div class="tcard2" style="padding:18px"><div style="font-size:12px;color:var(--mfg);margin-bottom:12px">${t}</div>${h}</div>`).join('')}</div>`; c=composer({streaming:true}); break;
   case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;

@@ -26,3 +26,8 @@ Wider layout (thread and composer 880px), no breadcrumb header (sidebar toggle l
 floating New chat / actions pill right), starter prompts as one row of short pills with
 no "Try asking" label. Our reasoning display (Thought for N seconds + collapsible summary) stays.
 Starter pills insert a short editable template into the composer; they never auto-send.
+
+## Revision 5 (2026-11-13): no monogram on answers; thinking indicator options
+Answers carry no avatar/monogram. Thinking indicator candidates (state `loaders`):
+A column from the L's three pillars (cap + 3 pillars + base, light travelling across the pillars),
+B highlighter (stabilo) band sliding across "Thinking…", C pen arc spinner. All reduced-motion safe.
