@@ -1,5 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { ChatInvalidationEventSchema } from '@lexon/contracts';
+import {
+  ChatIdentityFallbackEventSchema,
+  ChatInvalidationEventSchema,
+} from '@lexon/contracts';
+import { publishIdentityFallbackHint } from './identity-client';
 import {
   chatListQueryKey,
   chatThreadQueriesPrefix,
@@ -61,7 +65,19 @@ export function subscribeToChatInvalidations(
   let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
   let hasOpened = false;
   let needsRecoveryRefresh = false;
+  let disposed = false;
+  const closeSource = () => {
+    if (disposed) return;
+    disposed = true;
+    if (recoveryTimer !== undefined) clearTimeout(recoveryTimer);
+    recoveryTimer = undefined;
+    source.onmessage = null;
+    source.onopen = null;
+    source.onerror = null;
+    source.close();
+  };
   const invalidateOwnerChats = (recovery = false) => {
+    if (disposed) return;
     const now = Date.now();
     if (recovery) {
       const elapsed =
@@ -84,20 +100,29 @@ export function subscribeToChatInvalidations(
     );
   };
   source.onopen = () => {
+    if (disposed) return;
     if (!hasOpened) invalidateOwnerChats();
     else if (needsRecoveryRefresh) invalidateOwnerChats(true);
     hasOpened = true;
     needsRecoveryRefresh = false;
   };
   source.onerror = () => {
+    if (disposed) return;
     needsRecoveryRefresh = true;
     invalidateOwnerChats(true);
   };
   source.onmessage = (event) => {
+    if (disposed) return;
     let payload: unknown;
     try {
       payload = JSON.parse(event.data) as unknown;
     } catch {
+      return;
+    }
+    const identityFallback = ChatIdentityFallbackEventSchema.safeParse(payload);
+    if (identityFallback.success) {
+      publishIdentityFallbackHint(identityFallback.data.reason);
+      if (identityFallback.data.orgId !== scope.orgId) closeSource();
       return;
     }
     const parsed = ChatInvalidationEventSchema.safeParse(payload);
@@ -106,11 +131,5 @@ export function subscribeToChatInvalidations(
       () => undefined,
     );
   };
-  return () => {
-    if (recoveryTimer !== undefined) clearTimeout(recoveryTimer);
-    source.onmessage = null;
-    source.onopen = null;
-    source.onerror = null;
-    source.close();
-  };
+  return closeSource;
 }

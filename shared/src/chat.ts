@@ -125,6 +125,16 @@ export const ChatPageSchema = z.strictObject({
 });
 export type ChatPage = z.infer<typeof ChatPageSchema>;
 
+export const ChatIdentityFallbackEventSchema = z.strictObject({
+  version: z.literal(1),
+  type: z.literal('identity-fallback'),
+  reason: z.enum(['membership_removed', 'selection_repaired']),
+  orgId: uuid,
+});
+export type ChatIdentityFallbackEvent = z.infer<
+  typeof ChatIdentityFallbackEventSchema
+>;
+
 export const ChatInvalidationEventSchema = z.strictObject({
   version: z.literal(1),
   type: z.literal('chat.invalidated'),

@@ -89,6 +89,109 @@ test('an unknown stream recovery mode is rejected before SSE admission', async (
   }
 });
 
+test('a repaired identity on the first chat SSE request is announced in its first data frame', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-identity-fallback-health.json',
+      ),
+    ),
+  );
+  const organizations = createOrganizationInspector({
+    migratorUrl: services.migratorUrl,
+  });
+  const controller = new AbortController();
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const member = await apiHeaders(app);
+    const peer = await apiHeaders(app);
+    const identity = async (headers: Record<string, string>) =>
+      (await (await fetch(`${origin}/api/identity`, { headers })).json()) as {
+        user: { id: string };
+        organization: { id: string };
+      };
+    const personalOrgId = (await identity(member)).organization.id;
+    const memberId = (await identity(member)).user.id;
+    const peerId = (await identity(peer)).user.id;
+    const team = await organizations.seedTeam([memberId, peerId]);
+    const selected = await fetch(`${origin}/api/organizations/active`, {
+      method: 'POST',
+      headers: { ...member, 'content-type': 'application/json' },
+      body: JSON.stringify({ organizationId: team.id }),
+    });
+    expect(selected.status).toBe(200);
+    await organizations.mutateMember(
+      team.members.find(({ userId }) => userId === memberId)!.id,
+      'delete',
+    );
+
+    const response = await fetch(`${origin}/api/chats/events`, {
+      headers: member,
+      signal: controller.signal,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-lexon-fallback-reason')).toBe(
+      'membership_removed',
+    );
+    reader = response.body!.getReader();
+    const readFirstDataPayload = async (): Promise<unknown> => {
+      const decoder = new TextDecoder();
+      let buffered = '';
+      for (;;) {
+        const { value, done } = await reader!.read();
+        if (done) return undefined;
+        buffered += decoder.decode(value, { stream: true });
+        const frames = buffered.split('\n\n');
+        buffered = frames.pop() ?? '';
+        for (const frame of frames) {
+          const dataLine = frame
+            .split('\n')
+            .find((line) => line.startsWith('data: '));
+          if (!dataLine) continue;
+          try {
+            return JSON.parse(dataLine.slice(6)) as unknown;
+          } catch {
+            return undefined;
+          }
+        }
+      }
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const firstPayload = await Promise.race([
+      readFirstDataPayload(),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), 500);
+      }),
+    ]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+    const payload =
+      typeof firstPayload === 'object' && firstPayload !== null
+        ? (firstPayload as Record<string, unknown>)
+        : {};
+    expect(payload).toMatchObject({
+      version: 1,
+      type: 'identity-fallback',
+      reason: 'membership_removed',
+      orgId: personalOrgId,
+    });
+    expect(Object.keys(payload).sort()).toEqual(
+      ['orgId', 'reason', 'type', 'version'].sort(),
+    );
+  } finally {
+    controller.abort();
+    await reader?.cancel().catch(() => {});
+    await app.close();
+    await organizations.close();
+  }
+});
+
 test('an in-flight old publication cannot recreate a deleted stream after guard expiry', async ({
   services,
 }) => {

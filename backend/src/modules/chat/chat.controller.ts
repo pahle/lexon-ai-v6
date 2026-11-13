@@ -20,6 +20,7 @@ import type { RuntimeConfig } from '../../config/runtime-config.js';
 import { RUNTIME_CONFIG } from '../../config/config.module.js';
 import {
   CreateChatInputSchema,
+  ChatIdentityFallbackEventSchema,
   ChatSearchRequestSchema,
   EditMessageInputSchema,
   RegenerateInputSchema,
@@ -101,10 +102,17 @@ export class ChatController {
     });
     await this.authorization.withActor(identity, async (actor) => {
       try {
+        const identityFallback = ChatIdentityFallbackEventSchema.safeParse({
+          version: 1,
+          type: 'identity-fallback',
+          reason: response.getHeader('x-lexon-fallback-reason'),
+          orgId: actor.orgId,
+        });
         subscription = await this.events.connectChatInvalidations(
           actor,
           sink,
           identity,
+          identityFallback.success ? identityFallback.data : undefined,
         );
         if (disconnected || response.destroyed || response.writableEnded)
           await subscription.close();

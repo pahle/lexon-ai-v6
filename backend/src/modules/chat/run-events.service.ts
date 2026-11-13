@@ -3,6 +3,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
   ChatInvalidationEventSchema,
+  type ChatIdentityFallbackEvent,
   type ChatSnapshot,
   type ChatStreamRecoveryMode,
 } from '@lexon/contracts';
@@ -142,6 +143,7 @@ export class RunEventsService {
     actor: RunActor,
     sink: SseSink,
     identity: VerifiedIdentity,
+    identityFallback?: ChatIdentityFallbackEvent,
   ): Promise<Subscription> {
     this.authorization.assertLiveActor(actor);
     const { orgId, userId } = actor;
@@ -265,6 +267,18 @@ export class RunEventsService {
         throw new NotFoundException();
       }
       sink.write({ data: ': connected' });
+      if (
+        identityFallback &&
+        !sink.write({ data: JSON.stringify(identityFallback) })
+      ) {
+        const drained = await sink
+          .drain(TITLE_INVALIDATION_DRAIN_MS)
+          .catch(() => false);
+        if (!drained) {
+          await close('slow-client');
+          return { close: () => close() };
+        }
+      }
       heartbeat = setInterval(() => {
         if (closed || delivering || invalidateAll || pendingChatIds.size > 0)
           return;

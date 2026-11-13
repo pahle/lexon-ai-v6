@@ -16,17 +16,22 @@ function fallbackReasonFromHeader(value: string | null) {
     : undefined;
 }
 
+export function publishIdentityFallbackHint(
+  reason: IdentityFallbackReason,
+): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(IDENTITY_FALLBACK_HINT_EVENT, { detail: { reason } }),
+  );
+}
+
 export function notifyIdentityFallbackHint(
   response: Response,
 ): IdentityFallbackReason | undefined {
   const reason = fallbackReasonFromHeader(
     response.headers.get('x-lexon-fallback-reason'),
   );
-  if (reason && typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent(IDENTITY_FALLBACK_HINT_EVENT, { detail: { reason } }),
-    );
-  }
+  if (reason) publishIdentityFallbackHint(reason);
   return reason;
 }
 

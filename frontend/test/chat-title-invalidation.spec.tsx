@@ -6,6 +6,7 @@ import {
   invalidateChatQueriesForEvent,
   subscribeToChatInvalidations,
 } from '../src/lib/chat-title-invalidation.js';
+import { IDENTITY_FALLBACK_HINT_EVENT } from '../src/lib/identity-client.js';
 import { transitionTenant } from '../src/lib/tenant-queries.js';
 
 const scope = {
@@ -13,6 +14,191 @@ const scope = {
   userId: '00000000-0000-4000-8000-000000000002',
 };
 const chatId = '00000000-0000-4000-8000-000000000003';
+
+it.each(['membership_removed', 'selection_repaired'] as const)(
+  'hints and retires the old subscription for cross-organization fallback %s',
+  async (reason) => {
+    const queryClient = new QueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+    const targetScope = {
+      orgId: '00000000-0000-4000-8000-000000000004',
+      userId: scope.userId,
+    };
+    const sources: Array<{
+      onmessage: ((event: MessageEvent<string>) => void) | null;
+      onopen: ((event: Event) => void) | null;
+      onerror: ((event: Event) => void) | null;
+      close: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createSource = () => {
+      const source = {
+        onmessage: null,
+        onopen: null,
+        onerror: null,
+        close: vi.fn(),
+      };
+      sources.push(source);
+      return source;
+    };
+    const hints: unknown[] = [];
+    const onHint = (event: Event) =>
+      hints.push((event as CustomEvent<unknown>).detail);
+    window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+    const disposeOld = subscribeToChatInvalidations(queryClient, scope, () =>
+      createSource(),
+    );
+
+    try {
+      sources[0]!.onmessage!(
+        new MessageEvent('message', {
+          data: JSON.stringify({
+            version: 1,
+            type: 'identity-fallback',
+            reason,
+            orgId: targetScope.orgId,
+          }),
+        }),
+      );
+      expect.soft(hints).toEqual([{ reason }]);
+      expect.soft(sources[0]!.close).toHaveBeenCalledOnce();
+      expect.soft(sources[0]!.onmessage).toBeNull();
+      expect.soft(invalidateQueries).not.toHaveBeenCalled();
+
+      const disposeNew = subscribeToChatInvalidations(
+        queryClient,
+        targetScope,
+        () => createSource(),
+      );
+      try {
+        sources[1]!.onmessage!(
+          new MessageEvent('message', {
+            data: JSON.stringify({
+              version: 1,
+              type: 'chat.invalidated',
+              chatId,
+            }),
+          }),
+        );
+        await vi.waitFor(() =>
+          expect(invalidateQueries).toHaveBeenCalledTimes(2),
+        );
+        expect(
+          invalidateQueries.mock.calls.map(([filter]) => filter?.queryKey),
+        ).toEqual([
+          ['tenant', targetScope.orgId, 'chat', targetScope.userId, 'list'],
+          [
+            'tenant',
+            targetScope.orgId,
+            'chat',
+            targetScope.userId,
+            'thread',
+            chatId,
+          ],
+        ]);
+      } finally {
+        disposeNew();
+      }
+    } finally {
+      disposeOld();
+      queryClient.clear();
+      window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+    }
+  },
+);
+
+it.each([
+  {
+    label: 'unknown reason',
+    reason: 'not-a-reason',
+    orgId: '00000000-0000-4000-8000-000000000004',
+  },
+  {
+    label: 'invalid organization ID',
+    reason: 'membership_removed',
+    orgId: 'not-a-uuid',
+  },
+  {
+    label: 'extra content',
+    reason: 'membership_removed',
+    orgId: '00000000-0000-4000-8000-000000000004',
+    title: 'must not be accepted',
+  },
+] as const)('ignores identity fallback with $label', async (payload) => {
+  const queryClient = new QueryClient();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+  const source = {
+    onmessage: null as ((event: MessageEvent<string>) => void) | null,
+    onopen: null as ((event: Event) => void) | null,
+    onerror: null as ((event: Event) => void) | null,
+    close: vi.fn(),
+  };
+  const hints: unknown[] = [];
+  const onHint = (event: Event) =>
+    hints.push((event as CustomEvent<unknown>).detail);
+  window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => source,
+  );
+
+  try {
+    source.onmessage!(
+      new MessageEvent('message', {
+        data: JSON.stringify({
+          version: 1,
+          type: 'identity-fallback',
+          ...payload,
+        }),
+      }),
+    );
+    expect(hints).toEqual([]);
+    expect(source.close).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
+  } finally {
+    dispose();
+    queryClient.clear();
+    window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+  }
+});
+
+it('hints for a same-organization fallback without closing the current subscription', () => {
+  const queryClient = new QueryClient();
+  const source = {
+    onmessage: null as ((event: MessageEvent<string>) => void) | null,
+    onopen: null as ((event: Event) => void) | null,
+    onerror: null as ((event: Event) => void) | null,
+    close: vi.fn(),
+  };
+  const hints: unknown[] = [];
+  const onHint = (event: Event) =>
+    hints.push((event as CustomEvent<unknown>).detail);
+  window.addEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => source,
+  );
+
+  try {
+    source.onmessage!(
+      new MessageEvent('message', {
+        data: JSON.stringify({
+          version: 1,
+          type: 'identity-fallback',
+          reason: 'selection_repaired',
+          orgId: scope.orgId,
+        }),
+      }),
+    );
+    expect(hints).toEqual([{ reason: 'selection_repaired' }]);
+    expect(source.close).not.toHaveBeenCalled();
+  } finally {
+    dispose();
+    queryClient.clear();
+    window.removeEventListener(IDENTITY_FALLBACK_HINT_EVENT, onHint);
+  }
+});
 
 it('subscribes with cookies and invalidates exact owner-scoped list and thread keys', async () => {
   const queryClient = new QueryClient();
