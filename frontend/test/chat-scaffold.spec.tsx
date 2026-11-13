@@ -25,6 +25,7 @@ afterEach(() => vi.unstubAllGlobals());
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/workspace',
+  useSearchParams: () => new URLSearchParams(''),
 }));
 vi.mock('../src/lib/chat-title-invalidation.js', () => ({
   subscribeToChatInvalidations: () => () => undefined,
