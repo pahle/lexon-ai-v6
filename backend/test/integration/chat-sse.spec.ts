@@ -13,6 +13,7 @@ import {
 } from '../../src/infrastructure/queue/stream-hub.js';
 import { SseConnectionRegistry } from '../../src/infrastructure/queue/sse-connection-registry.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
+import { createSelectionInspector } from '../../src/infrastructure/db/testing/selection-fixture.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
   AiRunRepository,
@@ -1174,6 +1175,95 @@ test('revoking the request session closes its existing run event stream', async 
     controller.abort();
     await reader?.cancel().catch(() => {});
     await app.close();
+  }
+});
+
+test('expiring the request cookie session closes its existing run event stream', async ({
+  services,
+}) => {
+  const environment = createSseAuthEnvironment(
+    services,
+    '/tmp/lexon-chat-sse-expiry-health.json',
+  );
+  const app = await createTestApi(loadRuntimeConfig('api', environment));
+  const inspector = createSelectionInspector(services);
+  const controller = new AbortController();
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: randomUUID(),
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'Close the stream after cookie expiry',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const response = await fetch(`${origin}/api/runs/${runId}/events`, {
+      headers,
+      signal: controller.signal,
+    });
+    expect(response.status).toBe(200);
+    reader = response.body!.getReader();
+    await readUntilReader(reader, 'snapshot-end', false);
+
+    const sessionsResponse = await fetch(`${origin}/api/identity/sessions`, {
+      headers,
+    });
+    expect(sessionsResponse.status).toBe(200);
+    const sessions = (await sessionsResponse.json()) as Array<{
+      channel: string;
+      current: boolean;
+      id: string;
+    }>;
+    const currentSession = sessions.find((session) => session.current);
+    expect(currentSession).toMatchObject({ channel: 'cookie', current: true });
+    if (!currentSession)
+      throw new Error('Current cookie session was not listed');
+
+    await inspector.ageExpiry(currentSession.id, -1);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const eof = (async () => {
+      for (;;) {
+        const { done } = await reader!.read();
+        if (done) return true;
+      }
+    })().catch(() => false);
+    const closed = await Promise.race([
+      eof,
+      new Promise<boolean>((resolve) => {
+        timeout = setTimeout(() => resolve(false), 2_500);
+      }),
+    ]);
+    if (timeout) clearTimeout(timeout);
+    expect(closed).toBe(true);
+
+    const rejected = await fetch(`${origin}/api/runs/${runId}/events`, {
+      headers,
+      signal: AbortSignal.timeout(2_000),
+    });
+    expect(rejected.status).toBe(401);
+    expect(rejected.headers.get('content-type')).not.toContain(
+      'text/event-stream',
+    );
+    const safeError = await rejected.text();
+    expect(safeError).not.toContain('Close the stream after cookie expiry');
+    expect(safeError).not.toContain(runId);
+  } finally {
+    controller.abort();
+    await reader?.cancel().catch(() => {});
+    try {
+      await inspector.close();
+    } finally {
+      await app.close();
+    }
   }
 });
 
