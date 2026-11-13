@@ -983,3 +983,19 @@ Task 14 corrections or Task 15. The **final-head isolated run remains mandatory*
 the owner will review its numbers against the 500 ms target before merge.
 F20 owns production PostgreSQL tuning (shared_buffers remains default128MB);
 F8 and spike S3 own document-scale indexed FTS/trigram under RLS.
+
+## Research addendum — compensating mutation evidence (2026-11-13)
+
+Owner-required verification, not a new product feature. Checked the installed
+`@stryker-mutator/core` and `@stryker-mutator/vitest-runner` pins (`10.1.1`) and
+F1's `backend/stryker.identity.config.mjs` / dedicated Vitest config. The
+[official Vitest runner documentation](https://stryker-mutator.io/docs/stryker-js/vitest-runner/)
+(read 2026-11-13) supports a dedicated `vitest.configFile` and disabling related
+selection where tests call indirectly. The
+[configuration reference](https://stryker-mutator.io/docs/stryker-js/configuration/)
+(read 2026-11-13) documents explicit mutation scope, reporters and thresholds.
+Use the already installed runner; no dependency upgrade or installation is
+needed. Task 16A must retain **break 80**, publish exact actual mutated files
+and per-module results, and document any exclusion for owner review. This
+research supports configuration, not a claim of compatibility or passing
+mutation evidence before an actual run.
