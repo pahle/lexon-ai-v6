@@ -1020,6 +1020,56 @@ test('workspace home redirects incomplete users to onboarding', async () => {
   await view.unmount();
 });
 
+test('incomplete onboarding preserves security settings until they close, then redirects without rendering chat', async () => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    matches: false,
+    media,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+  const client = new QueryClient();
+  const incomplete = {
+    ...identity,
+    user: { ...identity.user, onboardingCompleted: false },
+  };
+  navigation.search = '?settings=security';
+  navigation.router.replace.mockClear();
+  const renderWorkspace = () => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: incomplete }}>
+        <WorkspaceShell>
+          <Workspace />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  let view: Awaited<ReturnType<typeof render>> | undefined;
+  try {
+    view = await render(renderWorkspace());
+
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(navigation.router.replace).not.toHaveBeenCalled();
+    expect(
+      view.container.querySelector('textarea[aria-label="Message input"]'),
+    ).toBeNull();
+
+    navigation.search = '';
+    await view.rerender(renderWorkspace());
+
+    expect(navigation.router.replace).toHaveBeenCalledWith('/onboarding');
+    expect(
+      view.container.querySelector('textarea[aria-label="Message input"]'),
+    ).toBeNull();
+  } finally {
+    if (view) await view.unmount();
+    vi.unstubAllGlobals();
+  }
+});
+
 test('onboarding identity does not render the optional sidebar', async () => {
   const client = new QueryClient();
   const incomplete = {
