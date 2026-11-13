@@ -4,8 +4,9 @@ Status: backend and controlled frontend/mobile mutation demonstrations passed;
 Task 16A awaits fresh review and main acceptance. This records
 the owner-required compensation for earlier tests-after work in Tasks 5, 8, 13
 and 15. It does not rewrite that history or claim those implementations were
-RED-first. The backend measurement below is accepted. Frontend deliberate-break
-evidence is still being collected, so Task 16A and Task 21 handoff are not complete.
+RED-first. The backend measurement below is accepted. All 35 frontend unit and
+both mobile demonstrations have completed with assertion RED and restored GREEN;
+Task 16A awaits fresh review and main acceptance.
 
 ## Backend scope and baseline
 
@@ -65,10 +66,12 @@ Across 409 mutants, 345 were killed, 11 timed out, 47 survived and 6 had no
 coverage. There were no excluded mutants, suppressions, scope changes, threshold
 changes or business-code changes. The compact
 [backend report](F4-mutation/backend-report.json) records source and final
-harness hashes and the raw report SHA-256
-`136e7cb0bd411c7eaa2e1a61cd8643b06e63b24ea29fd168ee3e1d5dbdfa3f95`.
-The checked controller log is
-[`phase-16a-16-controller-mutation.log`](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/phase-16a-16-controller-mutation.log).
+harness hashes and the final raw report SHA-256
+`eac660ffed96a13d446547d15537febe211d91c9ba25c6d813f675d1d26dc49d`.
+The checked final controller record and log are
+[`phase-16a-22-controller-mutation.json`](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/phase-16a-22-controller-mutation.json)
+and
+[`phase-16a-22-controller-mutation.log`](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/phase-16a-22-controller-mutation.log).
 
 Earlier aggregate measurements of 78.24%, 86.55% (StreamHub 78.21%) and 86.80%
 (StreamHub 79.49%) are retained only as intermediate history; they do not pass
@@ -85,8 +88,9 @@ stale requests and owner changes, paging/deduplication/cache synchronization,
 literal snippets, persisted branch targeting/scroll/two-second highlighting,
 Recent/history grouping and scoped keys, inline rename, concurrent deletion
 rollback and navigation safety, mounted title refresh, and mobile close/focus.
-Existing behavior tests and the browser layer remain; missing behavior coverage
-will be added before the corresponding deliberate break is accepted.
+Existing behavior tests and the browser layer remain. Missing behavior coverage
+identified during the controlled demonstrations was added before each
+corresponding deliberate break was accepted.
 
 ## Controlled frontend and mobile demonstrations
 
