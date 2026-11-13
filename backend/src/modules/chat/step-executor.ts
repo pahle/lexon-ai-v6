@@ -1564,7 +1564,7 @@ export class StepExecutor {
                 ? { errorCode: 'AI_ITERATION_LIMIT' as const }
                 : budgetExceeded
                   ? { errorCode: 'AI_BUDGET_EXCEEDED' as const }
-                  : unknown
+                  : unknown || finalOutcome.attemptOutcome === 'failed'
                     ? {
                         errorCode:
                           finalOutcome.safeCode ?? 'AI_PROVIDER_UNAVAILABLE',
