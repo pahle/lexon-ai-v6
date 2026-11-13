@@ -132,6 +132,32 @@ it('ignores older search results and errors after a newer submitted query', asyn
   await act(async () => first.reject(new Error('stale failure')));
   expect(view.container.textContent).toContain('New result');
   expect(view.container.textContent).not.toContain('stale failure');
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  await view.unmount();
+});
+
+it('does not let an older same-query submission replace the latest result', async () => {
+  const first = deferred<ChatSearchPage>();
+  const second = deferred<ChatSearchPage>();
+  const client = {
+    search: vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise),
+  } as unknown as ChatApi;
+  const view = await renderSearch(
+    <ChatSearch client={client} scope={scope} scopeKey="org:user" />,
+  );
+  await setSearchTerm(view.container, 'same query');
+  await submitSearch(view.container);
+  await submitSearch(view.container);
+  await act(async () => second.resolve(page('Latest same-query result')));
+  expect(view.container.textContent).toContain('Latest same-query result');
+
+  await act(async () => first.resolve(page('Older same-query result')));
+
+  expect(view.container.textContent).toContain('Latest same-query result');
+  expect(view.container.textContent).not.toContain('Older same-query result');
   await view.unmount();
 });
 
@@ -161,6 +187,9 @@ it('drops completed search results as soon as the owner scope changes', async ()
     'Private prior owner result',
   );
   expect(view.container.textContent).not.toContain('private query');
+  expect(
+    view.container.querySelector('input[aria-label="Search chats"]'),
+  ).toHaveProperty('value', '');
   await view.unmount();
 });
 
@@ -223,6 +252,52 @@ it('shows an Empty no-results state and Clear removes the search without another
   expect(view.container.textContent).not.toContain('No chats match');
   expect(view.container.querySelector('input')?.value).toBe('');
   expect(active).toHaveBeenLastCalledWith(false);
+  await view.unmount();
+});
+
+it('keeps the search empty after an in-flight result and rejection arrive after an empty submission', async () => {
+  const resultRequest = deferred<ChatSearchPage>();
+  const errorRequest = deferred<ChatSearchPage>();
+  const client = {
+    search: vi
+      .fn()
+      .mockReturnValueOnce(resultRequest.promise)
+      .mockReturnValueOnce(errorRequest.promise),
+  } as unknown as ChatApi;
+  const view = await renderSearch(
+    <ChatSearch client={client} scope={scope} scopeKey="org:user" />,
+  );
+  const submitEmptySearch = async () => {
+    await setSearchTerm(view.container, '');
+    await submitSearch(view.container);
+  };
+
+  await setSearchTerm(view.container, 'clear before result');
+  await submitSearch(view.container);
+  await submitEmptySearch();
+  expect(
+    view.container.querySelector('input[aria-label="Search chats"]'),
+  ).toHaveProperty('value', '');
+  await act(async () => resultRequest.resolve(page('Late result after clear')));
+  expect(view.container.textContent).not.toContain('Late result after clear');
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  expect(
+    view.container.querySelector('input[aria-label="Search chats"]'),
+  ).toHaveProperty('value', '');
+
+  await setSearchTerm(view.container, 'clear before rejection');
+  await submitSearch(view.container);
+  await submitEmptySearch();
+  await act(async () =>
+    errorRequest.reject(new Error('Late error after clear')),
+  );
+
+  expect(view.container.textContent).not.toContain('Late error after clear');
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  expect(
+    view.container.querySelector('input[aria-label="Search chats"]'),
+  ).toHaveProperty('value', '');
+  expect(view.container.textContent).not.toContain('Searching chats');
   await view.unmount();
 });
 
@@ -497,6 +572,7 @@ it('renders matched excerpt text literally and marks only the returned range', a
   await setSearchTerm(view.container, 'wanprestasi');
   await submitSearch(view.container);
   expect(view.container.querySelector('script')).toBeNull();
+  expect(view.container.textContent).toContain('<script>wanprestasi</script>');
   expect(view.container.querySelector('mark')?.textContent).toBe('wanprestasi');
   await view.unmount();
 });

@@ -1000,6 +1000,15 @@ and per-module results, and document any exclusion for owner review. This
 research supports configuration, not a claim of compatibility or passing
 mutation evidence before an actual run.
 
+Task 16A rechecked these exact installed versions on 2026-11-13; the runner
+declares Vitest >=2. The official configuration guide supports explicit source
+ranges, so StreamHub's complete pure-helper block is measured without claiming
+IO-orchestration coverage. The current [Vitest mocking guide](https://vitest.dev/guide/mocking.html)
+and [configuration reference](https://vitest.dev/config/) were read against
+installed 5.0.5 APIs. Dedicated unit selection and IO-only doubles preserve
+real behavior, and existing F1 configuration is the local precedent. No install
+or upgrade is needed.
+
 ## Research addendum — initial-fetch invalidation (2026-11-13)
 
 Read the [official TanStack Query v5 invalidation guide](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation) and inspected installed `@tanstack/react-query` / query-core `5.105.0`, `src/query.ts` `fetch` and success-state handling. Invalidation marks a query stale and refetches active observers, but a no-data initial fetch reuses its in-flight promise; its stale response can then clear invalidation. Controller tests reproduced this with real QueryClient/QueryObserver for list/thread invalidation and initial thread-stream opening. Cancel the scoped in-flight query before the existing invalidation/refetch, retaining the same owner/org keys and reconnect throttle. This explains the deterministic reproduced race; the exact cause of the intermittent Linux browser observation is not inferred solely from it. No dependency change or timeout increase is required.

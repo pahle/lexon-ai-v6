@@ -927,6 +927,12 @@ it('ignores a late rename success after the tenant scope changes', async () => {
 });
 
 it('ignores a late delete success after the tenant scope changes', async () => {
+  const originalUrl =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalPathState = pathState.current;
+  pathState.current = `/chats/${chatId}`;
+  window.history.replaceState({}, '', `/chats/${chatId}`);
+  replaceRoute.mockClear();
   let resolve!: () => void;
   const api = {
     delete: vi.fn(
@@ -936,34 +942,53 @@ it('ignores a late delete success after the tenant scope changes', async () => {
         }),
     ),
   } as unknown as ChatApi;
+  const onDeleted = vi.fn();
   const wrapped = withQueryClient(
     <ChatDeleteDialog
       chatId={chatId}
       title="Private chat"
       client={api}
       scope={scope}
+      onDeleted={onDeleted}
     />,
   );
+  const invalidateQueries = vi.spyOn(wrapped.client, 'invalidateQueries');
+  const removeQueries = vi.spyOn(wrapped.client, 'removeQueries');
   const view = await render(wrapped.node);
-  await act(async () => view.container.querySelector('button')?.click());
-  const confirm = document.body.querySelector(
-    'button[data-slot="alert-dialog-action"]',
-  ) as HTMLButtonElement;
-  await act(async () => confirm.click());
-  await vi.waitFor(() => expect(api.delete).toHaveBeenCalledOnce());
-  await transitionTenant(wrapped.client, {
-    version: 1,
-    id: '00000000-0000-4000-8000-000000000004',
-    name: 'Next organization',
-    slug: 'next-org',
-    kind: 'team',
-    state: 'active',
-    role: 'member',
-    require2fa: false,
-    createdAt: '2026-11-13T00:00:00Z',
-  });
-  await act(async () => resolve());
-  expect(replaceRoute).not.toHaveBeenCalledWith('/workspace');
-  await view.unmount();
-  wrapped.client.clear();
+  try {
+    await act(async () => view.container.querySelector('button')?.click());
+    const confirm = document.body.querySelector(
+      'button[data-slot="alert-dialog-action"]',
+    ) as HTMLButtonElement;
+    await act(async () => confirm.click());
+    await vi.waitFor(() => expect(api.delete).toHaveBeenCalledOnce());
+    await transitionTenant(wrapped.client, {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000004',
+      name: 'Next organization',
+      slug: 'next-org',
+      kind: 'team',
+      state: 'active',
+      role: 'member',
+      require2fa: false,
+      createdAt: '2026-11-13T00:00:00Z',
+    });
+    invalidateQueries.mockClear();
+    removeQueries.mockClear();
+    await act(async () => resolve());
+    await settle();
+
+    expect(replaceRoute).not.toHaveBeenCalledWith('/workspace');
+    expect(invalidateQueries).not.toHaveBeenCalled();
+    expect(removeQueries).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  } finally {
+    await view.unmount();
+    wrapped.client.clear();
+    invalidateQueries.mockRestore();
+    removeQueries.mockRestore();
+    pathState.current = originalPathState;
+    window.history.replaceState({}, '', originalUrl);
+    replaceRoute.mockClear();
+  }
 });

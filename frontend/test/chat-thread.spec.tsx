@@ -2,6 +2,7 @@ import { act, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatView } from '../src/components/chat/chat-view.js';
+import { rememberChatSearchHighlight } from '../src/lib/chat-search-highlight.js';
 import { render, settle } from './render.js';
 
 const invalidationSubscribe = vi.hoisted(() => vi.fn(() => vi.fn()));
@@ -502,6 +503,155 @@ it('renders a persisted answer through the proven runtime and saves feedback aga
     await view.unmount();
   }
 });
+
+it.each([
+  { reducedMotion: false, scrollBehavior: 'smooth' as const },
+  { reducedMotion: true, scrollBehavior: 'auto' as const },
+])(
+  'scrolls the loaded matched message and removes its highlight after two seconds (reduced motion: $reducedMotion)',
+  async ({ reducedMotion, scrollBehavior }) => {
+    const chatId = '11111111-1111-4111-8111-111111111111';
+    const userMessageId = '22222222-2222-4222-8222-222222222222';
+    const matchedMessageId = '33333333-3333-4333-8333-333333333333';
+    let resolveTree!: (tree: {
+      id: string;
+      title: string;
+      messages: Array<Record<string, unknown>>;
+      viewedLeafId: string;
+      createdAt: string;
+      updatedAt: string;
+    }) => void;
+    const response = new Promise<{
+      id: string;
+      title: string;
+      messages: Array<Record<string, unknown>>;
+      viewedLeafId: string;
+      createdAt: string;
+      updatedAt: string;
+    }>((resolve) => {
+      resolveTree = resolve;
+    });
+    const client = { get: vi.fn(() => response) };
+    const scrolledElements: HTMLElement[] = [];
+    const scrollCalls: Array<{
+      behavior?: ScrollBehavior;
+      block?: ScrollLogicalPosition;
+    }> = [];
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: function (
+        this: HTMLElement,
+        options?: {
+          behavior?: ScrollBehavior;
+          block?: ScrollLogicalPosition;
+        },
+      ) {
+        scrolledElements.push(this);
+        if (options) scrollCalls.push(options);
+      },
+    });
+    rememberChatSearchHighlight(chatId, matchedMessageId);
+    const view = await render(
+      wrapped(
+        <ChatView
+          chatId={chatId}
+          client={client as never}
+          actorScope="org:user"
+          displayName="Ada"
+          orgId="org-id"
+          userId="user-id"
+        />,
+      ),
+    );
+    try {
+      await settle();
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((media: string): MediaQueryList => ({
+          matches:
+            media === '(prefers-reduced-motion: reduce)' && reducedMotion,
+          media,
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => true,
+        })),
+      );
+      vi.useFakeTimers();
+      await act(async () => {
+        resolveTree({
+          id: chatId,
+          title: 'Search result fixture',
+          messages: [
+            {
+              id: userMessageId,
+              role: 'user',
+              parentId: null,
+              text: 'Find the approved clause',
+              effort: 'high',
+              createdAt: '2026-11-12T00:00:00.000Z',
+            },
+            {
+              id: matchedMessageId,
+              role: 'assistant',
+              parentId: userMessageId,
+              runId: '44444444-4444-4444-8444-444444444444',
+              text: 'The matched historical answer.',
+              status: 'completed',
+              reasoningSummary: null,
+              reasoningDurationMs: null,
+              feedback: null,
+              createdAt: '2026-11-12T00:00:01.000Z',
+            },
+          ],
+          viewedLeafId: matchedMessageId,
+          createdAt: '2026-11-12T00:00:00.000Z',
+          updatedAt: '2026-11-12T00:00:01.000Z',
+        });
+        await response;
+      });
+      const target = view.container.querySelector<HTMLElement>(
+        `[data-message-id="${matchedMessageId}"]`,
+      );
+      expect(target).not.toBeNull();
+      expect(target?.textContent).toContain('The matched historical answer.');
+      expect(target?.dataset.searchHighlight).toBeUndefined();
+
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(scrolledElements).toEqual([target]);
+      expect(scrollCalls).toEqual([
+        { behavior: scrollBehavior, block: 'center' },
+      ]);
+      expect(target?.dataset.searchHighlight).toBe('true');
+      expect(target?.classList.contains('outline')).toBe(true);
+
+      await act(async () => vi.advanceTimersByTimeAsync(1_999));
+      expect(target?.dataset.searchHighlight).toBe('true');
+      expect(target?.classList.contains('outline')).toBe(true);
+
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(target?.dataset.searchHighlight).toBeUndefined();
+      expect(target?.classList.contains('outline')).toBe(false);
+      expect(target?.classList.contains('outline-2')).toBe(false);
+      expect(target?.classList.contains('outline-ring')).toBe(false);
+      expect(target?.classList.contains('rounded-lg')).toBe(false);
+    } finally {
+      await view.unmount();
+      vi.useRealTimers();
+      if (originalScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          configurable: true,
+          value: originalScrollIntoView,
+        });
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+      }
+    }
+  },
+);
 
 it('renders persisted measured reasoning time through the public runtime when summary is absent', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';

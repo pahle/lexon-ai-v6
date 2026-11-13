@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "productionSourceHead": "5509e249b40b76cb0e4a3d08341900f238e9fcbe",
+  "displayedOutput": "Playwright section only; Docker build/start logs omitted. Absolute isolated checkout path normalized. Raw full-log hashes retained.",
+  "demonstrations": [
+    {
+      "name": "mobile-close-recent-and-view-all",
+      "file": "frontend/src/components/shell/app-sidebar.tsx",
+      "test": "backend/test/e2e/chat-history.spec.ts",
+      "sourceSha256": "a5dd907e20ef957fd98c195900bed1c6bb35e4e2fe73895d83d32d28799d7b95",
+      "red": {
+        "command": [
+          "pnpm",
+          "test:e2e",
+          "--project=chat-browser",
+          "--grep",
+          "Chats history supports"
+        ],
+        "exitCode": 1,
+        "durationSeconds": 79.411,
+        "outputSha256": "7786ab3e14440fe02d3e3bc50771f6ef789685099ac779ec0d4d206283fa6ef8",
+        "controllerObserved": true,
+        "testSha256": "e0a0772f850001569affe8f3c39666b88b990b34600befcc2f723dce97d7fd12",
+        "testUnchanged": true
+      },
+      "restoredGreen": {
+        "command": [
+          "pnpm",
+          "test:e2e",
+          "--project=chat-browser",
+          "--grep",
+          "Chats history supports"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 46.166,
+        "outputSha256": "a46771562ac023051922e328c8611f26cc0d43f75dad179179ecd9f0d4d1b45d",
+        "controllerObserved": true,
+        "testSha256": "e0a0772f850001569affe8f3c39666b88b990b34600befcc2f723dce97d7fd12",
+        "testUnchanged": true
+      },
+      "sourceRestored": true,
+      "qualifiedRed": true,
+      "mutationDiff": "--- frontend/src/components/shell/app-sidebar.tsx\n+++ frontend/src/components/shell/app-sidebar.tsx\n@@ -68,7 +68,7 @@\n         tooltip={title}\n         isActive={active}\n         onClick={() => {\n-          if (isMobile) setOpenMobile(false);\n+          if (false) setOpenMobile(false);\n         }}\n         render={\n           <Link\n@@ -106,7 +106,7 @@\n                   isActive={current}\n                   aria-current={current ? 'page' : undefined}\n                   onClick={() => {\n-                    if (isMobile) setOpenMobile(false);\n+                    if (false) setOpenMobile(false);\n                   }}\n                   render={\n                     <Link\n@@ -229,7 +229,7 @@\n                   tooltip=\"New chat \u00b7 Ctrl+Alt+N / Cmd+Alt+N\"\n                   aria-current={pathname === '/workspace' ? 'page' : undefined}\n                   onClick={() => {\n-                    if (isMobile) setOpenMobile(false);\n+                    if (false) setOpenMobile(false);\n                   }}\n                   render={\n                     <Link\n@@ -250,7 +250,7 @@\n                   tooltip=\"Chats\"\n                   aria-current={pathname === '/chats' ? 'page' : undefined}\n                   onClick={() => {\n-                    if (isMobile) setOpenMobile(false);\n+                    if (false) setOpenMobile(false);\n                   }}\n                   render={\n                     <Link\n@@ -289,7 +289,7 @@\n                 scope={chatScope}\n                 onNavigate={requestNavigationFocus}\n                 onCloseMobile={() => {\n-                  if (isMobile) setOpenMobile(false);\n+                  if (false) setOpenMobile(false);\n                 }}\n                 {...(currentChatId ? { currentChatId } : {})}\n               />\n@@ -298,7 +298,7 @@\n               <SidebarMenuItem>\n                 <SidebarMenuButton\n                   onClick={() => {\n-                    if (isMobile) setOpenMobile(false);\n+                    if (false) setOpenMobile(false);\n                   }}\n                   render={\n                     <Link\n",
+      "redOutput": "Running 1 test using 1 worker\n\n(node:5062) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2718  1 [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found (15.9s)\n\n\n  1) [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found \n\n    Error: expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 3\n    + Received  + 3\n\n      Object {\n        \"recentHeadingFocused\": true,\n    -   \"recentSheetClosed\": true,\n    +   \"recentSheetClosed\": false,\n        \"titleUpdatedInMountedThread\": true,\n    -   \"viewAllHeadingFocused\": true,\n    -   \"viewAllSheetClosed\": true,\n    +   \"viewAllHeadingFocused\": false,\n    +   \"viewAllSheetClosed\": false,\n      }\n\n      192 |     viewAllHeadingFocused,\n      193 |     titleUpdatedInMountedThread,\n    > 194 |   }).toEqual({\n          |      ^\n      195 |     recentSheetClosed: true,\n      196 |     recentHeadingFocused: true,\n      197 |     viewAllSheetClosed: true,\n        at <isolated-worktree>/backend/test/e2e/chat-history.spec.ts:194:6\n\n    Error Context: test-results/backend-test-e2e-chat-hist-9f194-lete-and-in-shell-not-found-chat-browser/error-context.md\n\n  1 failed\n    [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found \n/Users/pahle/.nvm/versions/node/v24.22.1/bin/node failed (1)\n\u2009ELIFECYCLE\u2009 Command failed with exit code 1.\n",
+      "greenOutput": "Running 1 test using 1 worker\n\n(node:5915) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2713  1 [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found (6.7s)\n\n  1 passed (7.3s)\n"
+    },
+    {
+      "name": "mobile-focus-recent-and-view-all",
+      "file": "frontend/src/components/shell/app-sidebar.tsx",
+      "test": "backend/test/e2e/chat-history.spec.ts",
+      "sourceSha256": "a5dd907e20ef957fd98c195900bed1c6bb35e4e2fe73895d83d32d28799d7b95",
+      "red": {
+        "command": [
+          "pnpm",
+          "test:e2e",
+          "--project=chat-browser",
+          "--grep",
+          "Chats history supports"
+        ],
+        "exitCode": 1,
+        "durationSeconds": 87.796,
+        "outputSha256": "00d55e118f2f104401db1da67b9407c809381e7b4247365a9425c3851a745a8d",
+        "controllerObserved": true,
+        "testSha256": "e0a0772f850001569affe8f3c39666b88b990b34600befcc2f723dce97d7fd12",
+        "testUnchanged": true
+      },
+      "restoredGreen": {
+        "command": [
+          "pnpm",
+          "test:e2e",
+          "--project=chat-browser",
+          "--grep",
+          "Chats history supports"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 49.8,
+        "outputSha256": "0dd9022405ebe07a162f18005a5a35c16da7103964c0bc160e4d0cd6e47dc849",
+        "controllerObserved": true,
+        "testSha256": "e0a0772f850001569affe8f3c39666b88b990b34600befcc2f723dce97d7fd12",
+        "testUnchanged": true
+      },
+      "sourceRestored": true,
+      "qualifiedRed": true,
+      "mutationDiff": "--- frontend/src/components/shell/app-sidebar.tsx\n+++ frontend/src/components/shell/app-sidebar.tsx\n@@ -171,7 +171,7 @@\n       finishMobileNavigation();\n     }\n   }, [finishMobileNavigation, pathname]);\n-  const requestNavigationFocus = () => {\n+  const requestNavigationFocus = () => { if (isMobile) return;\n     requestRouteHeadingFocus();\n     if (isMobile && !mobileNavigation.current) {\n       mobileNavigation.current = {\n",
+      "redOutput": "Running 1 test using 1 worker\n\n(node:6908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2718  1 [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found (23.1s)\n\n\n  1) [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found \n\n    Error: expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 2\n    + Received  + 2\n\n      Object {\n    -   \"recentHeadingFocused\": true,\n    +   \"recentHeadingFocused\": false,\n        \"recentSheetClosed\": true,\n        \"titleUpdatedInMountedThread\": true,\n    -   \"viewAllHeadingFocused\": true,\n    +   \"viewAllHeadingFocused\": false,\n        \"viewAllSheetClosed\": true,\n      }\n\n      192 |     viewAllHeadingFocused,\n      193 |     titleUpdatedInMountedThread,\n    > 194 |   }).toEqual({\n          |      ^\n      195 |     recentSheetClosed: true,\n      196 |     recentHeadingFocused: true,\n      197 |     viewAllSheetClosed: true,\n        at <isolated-worktree>/backend/test/e2e/chat-history.spec.ts:194:6\n\n    Error Context: test-results/backend-test-e2e-chat-hist-9f194-lete-and-in-shell-not-found-chat-browser/error-context.md\n\n  1 failed\n    [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found \n/Users/pahle/.nvm/versions/node/v24.22.1/bin/node failed (1)\n\u2009ELIFECYCLE\u2009 Command failed with exit code 1.\n",
+      "greenOutput": "Running 1 test using 1 worker\n\n(node:7895) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2713  1 [chat-browser] \u203a backend/test/e2e/chat-history.spec.ts:8:1 \u203a Chats history supports submit search, inline rename, permanent delete and in-shell not-found (8.0s)\n\n  1 passed (8.6s)\n"
+    }
+  ]
+}
