@@ -1,0 +1,69 @@
+/*
+ * Tema Lexon untuk shadcn/ui (Tailwind v4).
+ * Tempel ke app/globals.css, menggantikan blok :root bawaan shadcn.
+ * Blok "@theme inline" bawaan shadcn tidak perlu diubah.
+ * Hanya mode terang. Mode gelap dashboard belum didesain.
+ *
+ * Nilai warna sama dengan LEXON-Logo-Final-2026/05_BRAND_SYSTEM/design-tokens.css.
+ */
+
+:root {
+  --radius: 0.625rem;                    /* rounded-md menjadi 8 px, sama dengan tombol di desain */
+
+  --background: #FFFFFF;                 /* White: permukaan aplikasi */
+  --foreground: #1A1718;                 /* Ink: teks */
+
+  --card: #FFFFFF;
+  --card-foreground: #1A1718;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1718;
+
+  --primary: #B3202A;                    /* Merah Segel: tombol utama, sakelar aktif */
+  --primary-foreground: #FFFFFF;         /* kontras 6,65 : 1 */
+
+  --secondary: #F5F4F4;                  /* Surface */
+  --secondary-foreground: #1A1718;
+  --muted: #F5F4F4;
+  --muted-foreground: #6B6567;           /* Muted */
+  --accent: #F2F1F1;                     /* latar saat hover */
+  --accent-foreground: #1A1718;
+
+  --destructive: #8E1A22;                /* Merah Segel Deep. Lihat catatan di bawah. */
+
+  --border: #ECEAEA;                     /* Line Soft */
+  --input: #DDDADA;
+  --ring: #B3202A;                       /* cincin fokus */
+
+  --chart-1: #B3202A;
+  --chart-2: #1A1718;
+  --chart-3: #6B6567;
+  --chart-4: #9A9495;
+  --chart-5: #DDDADA;
+
+  --sidebar: #F5F4F4;                    /* Surface */
+  --sidebar-foreground: #1A1718;
+  --sidebar-primary: #1A1718;            /* kotak logo di TeamSwitcher */
+  --sidebar-primary-foreground: #FFFFFF; /* White */
+  --sidebar-accent: #ECEAEA;             /* item menu aktif dan hover */
+  --sidebar-accent-foreground: #1A1718;
+  --sidebar-border: #E6E4E4;
+  --sidebar-ring: #B3202A;
+}
+
+/*
+ * Warna khusus Lexon yang tidak punya padanan di shadcn.
+ * Dipakai untuk nomor rujukan, sorotan kutipan, sel yang ditandai, dan lacak perubahan.
+ */
+:root {
+  --lexon-tint: #F7E6E8;                 /* latar nomor rujukan dan sorotan */
+  --lexon-flag: #FBF1F2;                 /* latar sel tabel yang ditandai */
+  --lexon-deleted: #9A9495;              /* teks yang dicoret */
+  --lexon-doc: 'TeX Gyre Bonum', 'Bookman Old Style', Georgia, serif; /* kutipan teks hukum */
+}
+
+/*
+ * Catatan soal --destructive
+ * Merah sudah menjadi warna utama Lexon, jadi tombol hapus tidak bisa dibedakan lewat warna saja.
+ * Untuk tindakan yang merusak, pakai Button variant="outline" dengan teks yang jelas ("Hapus dokumen")
+ * dan dialog konfirmasi. Simpan variant="destructive" untuk tombol di dalam dialog konfirmasi itu.
+ */
