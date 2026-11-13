@@ -312,7 +312,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   const mobileBreadcrumb = page.getByRole('navigation', {
     name: 'breadcrumb',
   });
-  await expect(mobileBreadcrumb).toContainText('Home');
+  await expect(mobileBreadcrumb).toContainText('New chat');
   await expect(
     mobileBreadcrumb.getByRole('link', { name: 'Settings', exact: true }),
   ).toHaveCount(0);
@@ -1288,7 +1288,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'home', theme);
-  await captureTask9Variants(page, 'home', 'Home');
+  await captureTask9Variants(page, 'home', 'New chat');
   for (const viewport of ['desktop', 'mobile'] as const) {
     if (viewport === 'mobile') {
       await page.setViewportSize({ width: 390, height: 844 });
@@ -1301,7 +1301,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         'sidebar-header-expanded',
         theme,
         viewport,
-        'Home',
+        'New chat',
       );
     if (viewport === 'mobile') await page.keyboard.press('Escape');
   }
@@ -1313,7 +1313,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       'sidebar-header-collapsed-desktop',
       theme,
       'desktop',
-      'Home',
+      'New chat',
     );
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
