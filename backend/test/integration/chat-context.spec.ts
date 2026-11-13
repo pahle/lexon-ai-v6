@@ -135,6 +135,18 @@ test('history context follows only the immutable assistant parent path and exclu
     const priorRun = await createRun('Earlier user question');
     await fixture.chat.linkAnswer(0, chat.id, priorRun.id);
     await fixture.chat.setRunOutput(0, priorRun.id, 'Terminal partial answer');
+    const reasoningCanary = 'must stay fenced';
+    const reasoningDurationMs = 3000;
+    const reasoningWrites = await fixture.chat.directReasoningWrites(
+      0,
+      priorRun.id,
+    );
+    expect(reasoningWrites.run).toBe(1);
+    const seededPriorRun = await fixture.database.withTenant(tenant, (tx) =>
+      new AiRunRepository().find(tx, priorRun.id),
+    );
+    expect(seededPriorRun?.reasoningSummary).toBe(reasoningCanary);
+    expect(seededPriorRun?.reasoningDurationMs).toBe(reasoningDurationMs);
     expect(await fixture.chat.transitionStatus(0, priorRun.id)).toBe(true);
     await fixture.chat.insertAssistant(0, {
       chatId: chat.id,
@@ -194,6 +206,13 @@ test('history context follows only the immutable assistant parent path and exclu
     const joined = pieces.map((piece) => piece.text).join('\n');
     expect(joined).toContain('Earlier user question');
     expect(joined).toContain('Terminal partial answer');
+    expect(joined).not.toContain(reasoningCanary);
+    const serializedContext = JSON.stringify(pieces);
+    expect(serializedContext).not.toContain(reasoningCanary);
+    expect(serializedContext).not.toContain('reasoningSummary');
+    expect(serializedContext).not.toContain('reasoningDurationMs');
+    expect(serializedContext).not.toContain('reasoning_summary');
+    expect(serializedContext).not.toContain('reasoning_duration_ms');
     expect(pieces.map((piece) => piece.label)).toContain(
       'chat history assistant cancelled',
     );

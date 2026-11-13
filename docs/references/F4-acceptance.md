@@ -1307,3 +1307,31 @@ multilingual detection or proof of real-model behavior. Language override and
 other languages are not established by this evidence. Task 16 still requires
 its remaining context/recovery/privacy/accessibility coverage and fresh task
 review; the compensating mutation gate remains pending before handoff.
+
+### Recovery rule 07 — persisted reasoning excluded from prior context
+
+The tests-only phase seeds an earlier assistant run using the existing fixture
+helper, verifies the reasoning summary and duration through the real public
+repository read, then inspects `ChatHistoryContextProvider.collect`. Visible
+prior answer text is retained, while the distinct stored reasoning canary and
+reasoning metadata fields are absent. Existing branch, cancelled-partial and
+budget assertions remain intact.
+
+Controller observation: **3/3 passed on existing production code**. This is
+regression evidence, **not RED**, and authorized no production change. The
+controller corrected a test-only private helper import through the existing
+fixture API rather than weakening the database boundary rule; types, lint and
+format checks passed. No production file changed.
+
+Ignored `recovery/phase-07-controller-regression.log` SHA-256:
+`3b2dd38e565cf6487c4ad74ac289e412c73c8033834fa6d70b1c6b8da419900c`.
+The JSON record retains the exact command, exit and test hash before a final
+format-only adjustment. This proof concerns the real context-provider output;
+it is not independently a full crash/restart or model-network privacy proof.
+
+A scoped review of recovered evaluation rules 01–06 found one Important issue:
+non-complete scenarios can acquire chat case results even though the configured
+chat fixture only executes for `complete`. It remains open for its own
+controller-observed test-first correction. The reviewer also suggested clearer
+grader dispatch as a Minor maintainability follow-up. No full Task 16 approval
+is claimed.
