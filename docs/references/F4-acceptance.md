@@ -987,3 +987,58 @@ golden mismatch remain recorded issues until current-head evidence or a
 reviewed correction resolves them. Task 20's deferral does not waive either
 existing test coverage or baseline checks. No real-model smoke, paid eval or
 final-head isolated load/search evidence is claimed here.
+
+## Task 15 owner acceptance and compensating evidence requirement (2026-11-13)
+
+The owner accepts Task 15's informal structure and states: Chats, highlighted
+search, no results, empty history, Recent menu, inline rename, delete
+confirmation, and dark theme. Visual polish is out of scope because F4.1 will
+rebuild the visual design. This is checkpoint feedback, not Task 19 formal
+approval. Task 16 may proceed.
+
+Carry into Task 19: a **solid destructive** Delete chat confirmation button
+matching prototype 16; empty-state copy **“Start a new chat to ask Lexon about
+a contract, a regulation, or a case.”**; realistic synthetic screenshot content
+in place of all diagnostic titles, generated emails and “Scripted answer”.
+
+The owner accepts the historical tests-first exception as a recorded deviation.
+Retain the original chronology in this file; do not rewrite it as compliance.
+Acceptance is conditional on compensating evidence before Task 21 handoff:
+
+- Targeted backend Stryker run following F1's dedicated config precedent,
+  installed core/runner 10.1.1 and **break 80**. Record exact files, per-module
+  scores, counts, command, producer and report artifacts. Initial inventory
+  locations are `backend/src/modules/chat/chat-search.service.ts` (cursor and
+  snippet functions), `backend/src/modules/chat/chat-history-context.ts`
+  (context selection), `backend/src/infrastructure/db/ai-chat-resource.repository.ts`
+  (resource/deletion-fence policy) and
+  `backend/src/infrastructure/queue/stream-hub.ts` (SSE replay/cursor decisions).
+  This is a planned scope inventory, **not mutation evidence or a completed
+  run**. Record exact final mutated files if pure logic needs extraction,
+  preserving real production call paths. SQL/RLS fences require integration
+  proof as well; a pure-logic score does not establish database enforcement.
+  Any scoped module below 80 requires missing behavior tests, observed RED
+  against broken behavior, and a rerun. No lowered threshold or mutant exclusion
+  without a written reason the owner can review.
+- Task 15 frontend history/cache and controller changes require a rule-by-rule
+  behavior-test inventory. Fill missing cases and deliberately break each rule
+  reversibly; record the mutation, covering command, assertion failure output
+  and exit status, then restore source and verify GREEN. Frontend Stryker is
+  not configured. Compilation/setup errors are not qualifying failures.
+- From Task 16 onward, every report includes actual failing-test output before
+  the implementation commit. Tests-after is a blocker that stops the task,
+  not another accepted note. Main checks the RED evidence before authorizing
+  production edits.
+
+Task 16A in the plan owns the compensating evidence. It is pending and blocks
+Task 21 handoff; no score or historical compliance is claimed here.
+
+CI on `dd31b54`: [isolated search](https://github.com/pahle/lexon-ai-v6/actions/runs/43354598506)
+passed; [normal CI](https://github.com/pahle/lexon-ai-v6/actions/runs/43354604099)
+failed. Unit/integration reported 1208 passing and three sidebar failures
+(stale Home/navigation/empty-text expectations). Compose reported five failures:
+app-shell request ordering/count, organization membership fallback evidence,
+platform user-menu screenshot, stale Home breadcrumb, and stale Home capture
+helper. The existing visual baselines remain required and unchanged. These
+failures require diagnosis; owner acceptance of the preview does not assert
+that CI passes.
