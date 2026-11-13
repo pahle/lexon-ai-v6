@@ -1052,3 +1052,32 @@ The controller verified the producer's 22 hashes and recomputed p95. Runner and
 full trend context are in the [search diagnostic](F4-search-query-plan-gap.md#task-15-pushed-head-trend--2026-11-13).
 No retry or further search optimization was run. Final-head isolated evidence
 remains pending.
+
+## Task 16 — stopped by strict tests-first gate (2026-11-13)
+
+The first tests-only checkpoint observed a missing `report.cases` failure, with
+34 existing eval tests passing. After review, the backend's existing context
+integration test was extended to inspect the actual gateway's versioned chat
+instructions and untrusted-context wrapper; that regression passed (3 tests).
+The controller authorized only the typed deterministic scenario/report slice.
+
+During that slice, production changes introduced linked-tree traversal,
+cycle/missing-parent validation, scenario validation, and actual prompt/output
+scoring. The eval test was also rewritten to the new typed scenario/tree
+interface. The implementer confirmed those additional rules had **no observed
+pre-implementation failing output**. The original missing-report-field RED does
+not establish RED-first evidence for them. A post-edit eval run was interrupted
+when the controller froze the work; it is not a passing or qualifying RED result.
+
+Per the owner's Task 16 onward rule, this is a **blocker that stops Task 16**,
+not another accepted provenance note. The uncommitted production/test slice is
+preserved for review and has not been committed or pushed. No retrospective
+RED claim is made. No Task 16A implementation, Task 17 smoke, or later task has
+started. Resumption requires an owner decision; the earlier Task 15 exception
+is not treated as authorization for this violation.
+
+Frozen source paths: `backend/src/evaluation/evaluation-contracts.ts`,
+`backend/src/evaluation/evaluation-harness.ts`, `backend/src/evaluation/index.ts`,
+`backend/src/evaluation/chat-scenarios.ts`; test paths:
+`backend/test/integration/chat-context.spec.ts` and `evals/test/f4-chat.spec.ts`.
+The ignored Task 16 report/log and frozen diff retain the exact chronology.
