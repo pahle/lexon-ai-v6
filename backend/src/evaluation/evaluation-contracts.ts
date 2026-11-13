@@ -60,6 +60,7 @@ export interface EvaluationEngine {
 export interface EvaluationOptions {
   readonly services: EvaluationServices;
   readonly fixtureSet: 'deterministic';
+  /** At most one fixture per context; use separate contexts to evaluate a batch. */
   readonly chatScenarios?: ReadonlyArray<{
     readonly caseId:
       | 'chat-no-claimed-research'

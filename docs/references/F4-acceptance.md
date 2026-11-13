@@ -2,7 +2,7 @@
 
 Status: implementation in progress. Tasks 1–13 are accepted after review and
 owner acceptance of the amended reference-runner search gate. Tasks 14–15 have
-owner-accepted informal previews; Task 16 is in controlled recovery. Tasks
+owner-accepted informal previews; Task 16 has passed controlled recovery and final task review. Tasks
 16A–19 and 21 remain pending; Task 20 is deferred to F4.1. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
@@ -1578,3 +1578,13 @@ Content-free phase markers were added only to the existing evaluation scenario, 
 The paused-worker case now reports only fixed-name child events, status/version/sequence/safe error code and allowlisted fixture generation outcomes at the existing boundaries. Type preflight caught a nullable diagnostic field and was repaired in test code before runtime observation. Main focused run passed: replacement completed at run version 2/next sequence 2, error code null; attempts were unknown then succeeded, and the resumed old worker failed its stale claim without an extra effect. Log SHA-256 `1258affccc48192abf1052a85446b119bdfdaeb6b6e307114b1e9efc06f414d7`, frozen test SHA-256 `8c3013965c504ac4b08165f5a6a33c3d67d38e425be1c73031a7ff15a7b7cc43`. It also passed in the full root run. Existing output/attempt/stream assertions, pause order, 1-second test lease and waits remain unchanged. These diagnostics do not establish the older CI failure's cause or authorize a production lease change.
 
 All controller JSON/logs and phase reports are under ignored `.superpowers/sdd/2026-11-09-f4-chat/recovery/`. Task 16 final scoped spec/quality review is still required before acceptance; Task 16A mutation evidence and all later handoff gates remain pending.
+
+#### Task 16 final review and cardinality correction (Rule 32)
+
+Fresh whole-Task-16 review of 9986616..28f6274 found one P2: multiple deterministic chat fixtures were accepted but silently disabled chat instructions/scoring. Routine contract choice: reject more than one fixture at public context creation and document one context per case; undefined/empty/default and singleton behavior stay compatible. This preserves the existing fixture flow and prevents a misleading generic pass without adding a selection API.
+
+Phase A changed only the public-entry eval test with valid real test services and cleanup for an unexpectedly created context. The controller's first CLI filter matched zero tests; that run is explicitly not RED, GREEN or coverage and authorized no source change. The corrected exact test then failed as expected because the public promise resolved instead of rejecting: log SHA-256 f4a9de1c4ae95a62e6d0973dea560f09e309e4fa5cb9601fd82091653c0f5199. Only then did Phase B add the pre-setup guard and public contract comment. Full file-inventory gates passed. All 12 tests in the covering file passed with the identical frozen test SHA-256 ebf83892f56d108efddb4f5432685c3449f12958e32564effbf58544ddda77e5; GREEN log SHA-256 f14c3f5a0f3d1fececdec283a3afd98c2fedcc9d11be5e95b2080ef8adefbbac. The scoped re-review marked the P2 addressed and spec/quality pass, with no new finding.
+
+The full local suite after this correction passed 1248/1248 across 192 files in 195.933 seconds, log SHA-256 1990e79ffc0280e842c3c035fee5f6c05e546430ce0f609a1674ed02e51ea500. Root lint and workspace typecheck passed; the changed backend/eval packages build and formatting are checked before the completion commit. Earlier chat runtime/browser evidence remains 14/14, including actual expiry and Caddy recovery; this isolated public-evaluation guard does not change chat runtime code. Main accepts Task 16 after reviewing the fresh verdicts and controller evidence. Task 16A's compensating mutation work and later smoke/load/visual/final-head gates remain required; no final F4 or owner visual approval is claimed.
+
+Completion checks for the Rule 32 correction: root lint, workspace types, backend/eval package builds and full formatting all passed. The prior checkpoint 28f6274 also passed Linux unit/integration and full normal Compose E2E in [run 43453524248](https://github.com/pahle/lexon-ai-v6/actions/runs/43453524248), covering the title correction, new real expiry case and preserved legacy comparisons. That CI predates the small cardinality guard; its next push and the final-head jobs remain distinct evidence.

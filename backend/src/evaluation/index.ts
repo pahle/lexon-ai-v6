@@ -64,6 +64,14 @@ export function createEvaluationContext(
 export async function createEvaluationContext(
   options?: EvaluationHarnessOptions,
 ): Promise<{ version: string; close(): Promise<void> } | EvaluationContext> {
+  if (
+    options?.fixtureSet === 'deterministic' &&
+    (options.chatScenarios?.length ?? 0) > 1
+  ) {
+    throw new Error(
+      'Deterministic chat evaluations accept at most one scenario per context',
+    );
+  }
   const context = await NestFactory.createApplicationContext(EvaluationModule, {
     logger: false,
     abortOnError: false,

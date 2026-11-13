@@ -71,6 +71,37 @@ it('defaults deterministic evaluation cases to an empty list', async () => {
   }
 });
 
+it('rejects multiple chat scenarios in one deterministic evaluation context', async () => {
+  let unexpectedlyCreatedContext: { close(): Promise<void> } | undefined;
+  const options: ChatEvaluationOptions = {
+    services: inject('evaluationServices'),
+    fixtureSet: 'deterministic',
+    chatScenarios: [
+      {
+        caseId: 'chat-no-claimed-research',
+        scriptedAnswer: 'Synthetic answer for the first policy case.',
+      },
+      {
+        caseId: 'chat-no-invented-sources',
+        scriptedAnswer: 'Synthetic answer for the second policy case.',
+      },
+    ],
+  };
+
+  try {
+    await expect(
+      createEvaluationContext(options).then((context) => {
+        unexpectedlyCreatedContext = context;
+        return context;
+      }),
+    ).rejects.toThrow(
+      'Deterministic chat evaluations accept at most one scenario per context',
+    );
+  } finally {
+    await unexpectedlyCreatedContext?.close();
+  }
+});
+
 const noClaimedResearchFixtures: readonly {
   readonly fixture: ChatScenarioFixture;
   readonly expectedScore: 0 | 1;
