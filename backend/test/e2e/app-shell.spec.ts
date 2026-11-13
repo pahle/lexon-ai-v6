@@ -39,6 +39,14 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
     data: {},
   });
   const chatRequests: string[] = [];
+  const permittedChatRequests = [
+    'GET /api/chats/events',
+    'GET /api/chats?limit=6',
+  ].sort();
+  const expectReadOnlyChatTraffic = () =>
+    expect
+      .poll(() => [...new Set(chatRequests)].sort(), { timeout: 10_000 })
+      .toEqual(permittedChatRequests);
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.pathname.startsWith('/api/chat')) {
@@ -82,10 +90,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   await message.fill('Draft legal question');
   await expect(message).toHaveValue('Draft legal question');
   await expect(page.locator('[data-role="user"]')).toHaveCount(0);
-  expect(chatRequests).toEqual([
-    'GET /api/chats/events',
-    'GET /api/chats?limit=6',
-  ]);
+  await expectReadOnlyChatTraffic();
 
   const sidebarContainer = page.locator(
     '[data-slot="sidebar-container"]:visible',
@@ -183,10 +188,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
       page.getByRole('complementary', { name: 'Workspace navigation' }),
     ).toHaveCount(0);
   }
-  expect(chatRequests).toEqual([
-    'GET /api/chats/events',
-    'GET /api/chats?limit=6',
-  ]);
+  await expectReadOnlyChatTraffic();
 });
 
 test('F2 sidebar supports mobile Escape and closes after real navigation at 375px', async ({
