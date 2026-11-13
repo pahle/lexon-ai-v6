@@ -39,3 +39,12 @@ UI and 72px preview (state `loaders`): Writing (signature stroke), Paper (page t
 Seal (stamp + inked ring, brand "cap"), Section marks (§ ¶ ⁂ † morph in EB Garamond),
 Column (L's three pillars), Highlighter (stabilo over lines). One per turn; later slices may
 tie them to activity (drafting, reading documents, approvals). Reduced motion: static frame.
+
+## Revision 7 (2026-11-13): one morphing thinking indicator
+PO: remove † and Seal, better Column, and transitions between marks instead of fade out/in.
+Implemented as one continuous sequence (SVG + small JS, ~13 s cycle):
+Section § → Writing → Paper → Highlighter → Column (courthouse: pediment, architrave,
+three pillars catching light, two steps) → Pilcrow ¶ → again. Each mark draws itself,
+breaks into 18 dots, the dots travel on staggered arcs to points sampled on the next mark,
+and the next mark draws through them. Reduced motion: static §. `screens/fm-strip.png`
+shows 24 frames at 0.5 s.

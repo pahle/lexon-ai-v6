@@ -97,6 +97,11 @@ body.shot .stage{border-radius:0;box-shadow:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes dash{0%{stroke-dasharray:1 40;stroke-dashoffset:0}50%{stroke-dasharray:22 40;stroke-dashoffset:-6}100%{stroke-dasharray:22 40;stroke-dashoffset:-32}}
 
+
+/* ===== Lexon morphing loader: shapes dissolve into dots that travel and re-form the next shape ===== */
+.lq{display:inline-flex;width:20px;height:20px;flex:none;color:var(--redtext)}
+.lq.xl{width:120px;height:120px}
+.lq svg{width:100%;height:100%;overflow:visible}
 /* ===== Lexon loader family (owner request): hand-drawn feel, one per turn ===== */
 .lx{--c:var(--redtext);display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;position:relative;color:var(--c)}
 .lx.xl{width:72px;height:72px}
@@ -263,6 +268,54 @@ function composer({deep=false,streaming=false,text='',mobile=false}={}){
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
 }
 
+
+const LQ_SCENES=[
+ {n:'Section',p:['M12.6 4.6c-1.4-1.3-4.8-1-4.8 1.2 0 2.7 5.6 2.5 5.6 5.3 0 1.5-1.4 2.3-2.9 2.3','M7.4 15.4c1.4 1.3 4.8 1 4.8-1.2 0-2.7-5.6-2.5-5.6-5.3 0-1.5 1.4-2.3 2.9-2.3'],draw:900},
+ {n:'Writing',p:['M2 16.5h16','M2.5 13c2-5 3.6-7.4 4.6-5.6.9 1.6-1 5-.1 5.6 1 .7 2.6-3.6 4-3.4 1.2.2.3 3 1.4 3.1 1.3.1 2.3-2.6 4.9-2.7'],dim:[0],draw:1200},
+ {n:'Paper',p:['M5 3h7l3 3v11H5z','M12 3v3h3','M7.5 9.2h5','M7.5 11.7h5','M7.5 14.2h3.5'],draw:1000},
+ {n:'Highlighter',p:['M3 6h14','M3 10h14','M3 14h9'],dim:[0,1,2],accent:'M3 10h14',draw:700},
+ {n:'Column',p:['M2.8 6.4 10 2.6l7.2 3.8','M3.6 7.6h12.8','M6.3 9.2v5.9','M10 9.2v5.9','M13.7 9.2v5.9','M4.3 16.3h11.4','M2.8 17.8h14.4'],shimmer:[2,3,4],draw:1000},
+ {n:'Pilcrow',p:['M14 3.6v12.8','M11 3.6v12.8','M14 3.6H9.6a3.3 3.3 0 0 0 0 6.6H11'],draw:800}
+];
+const NS='http://www.w3.org/2000/svg';
+function lqMount(el){
+  if(el.__lq) return; el.__lq=1;
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','0 0 20 20'); el.appendChild(svg);
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const K=18, ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  const build=(sc)=>{const g=document.createElementNS(NS,'g');g.setAttribute('fill','none');g.setAttribute('stroke','currentColor');g.setAttribute('stroke-linecap','round');g.setAttribute('stroke-linejoin','round');g.setAttribute('stroke-width','1.5');
+    const paths=sc.p.map((d,i)=>{const pa=document.createElementNS(NS,'path');pa.setAttribute('d',d);if(sc.dim&&sc.dim.includes(i))pa.setAttribute('stroke-opacity','.4');g.appendChild(pa);return pa;});
+    let acc=null; if(sc.accent){acc=document.createElementNS(NS,'path');acc.setAttribute('d',sc.accent);acc.setAttribute('stroke-width','3.8');acc.setAttribute('stroke-opacity','.35');g.appendChild(acc);}
+    svg.appendChild(g); return {g,paths,acc};};
+  const sample=(paths)=>{const L=paths.map(p=>p.getTotalLength());const tot=L.reduce((a,b)=>a+b,0);const pts=[];for(let k=0;k<K;k++){let d=(k+.5)/K*tot,i=0;while(d>L[i]&&i<L.length-1){d-=L[i];i++;}const q=paths[i].getPointAtLength(Math.min(d,L[i]));pts.push([q.x,q.y]);}return pts;};
+  const dots=[];for(let k=0;k<K;k++){const c=document.createElementNS(NS,'circle');c.setAttribute('r','0');c.setAttribute('fill','currentColor');svg.appendChild(c);dots.push(c);}
+  let idx=0, cur=build(LQ_SCENES[0]);
+  if(reduce){return;}
+  const anim=(dur,fn)=>new Promise(res=>{const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/dur);fn(k);if(k<1&&el.isConnected)requestAnimationFrame(step);else res();};requestAnimationFrame(step);});
+  const drawIn=(o,dur)=>{const L=o.paths.map(p=>p.getTotalLength());o.paths.forEach((p,i)=>{p.style.strokeDasharray=L[i];p.style.strokeDashoffset=L[i];});if(o.acc){const la=o.acc.getTotalLength();o.acc.style.strokeDasharray=la;o.acc.style.strokeDashoffset=la;}
+    const n=o.paths.length;return anim(dur,k=>{o.paths.forEach((p,i)=>{const s0=i/n*.45,kk=Math.max(0,Math.min(1,(k-s0)/(1-.45+.0001)));p.style.strokeDashoffset=L[i]*(1-ease(kk));});});};
+  const hold=async(o,sc)=>{ if(o.acc){const la=o.acc.getTotalLength();await anim(700,k=>{o.acc.style.strokeDashoffset=la*(1-ease(k));});await anim(250,()=>{});}
+    else if(sc.shimmer){await anim(1100,k=>{sc.shimmer.forEach((i,j)=>{const ph=(k*2-j*.25);o.paths[i].setAttribute('stroke-opacity',String(.35+.65*Math.max(0,Math.sin(Math.PI*Math.max(0,Math.min(1,ph))))));});});sc.shimmer.forEach(i=>o.paths[i].setAttribute('stroke-opacity','1'));}
+    else await anim(650,()=>{}); };
+  (async function loop(){
+    await drawIn(cur,LQ_SCENES[0].draw);
+    while(el.isConnected){
+      const sc=LQ_SCENES[idx]; await hold(cur,sc);
+      const a=sample(cur.paths); const nidx=(idx+1)%LQ_SCENES.length; const nsc=LQ_SCENES[nidx]; const nxt=build(nsc); nxt.g.style.opacity='0'; const b=sample(nxt.paths); svg.appendChild(nxt.g);
+      dots.forEach(d=>svg.appendChild(d));
+      // dissolve: lines fade while dots appear on them
+      await anim(220,k=>{cur.g.style.opacity=String(1-k);dots.forEach((d,i)=>{d.setAttribute('cx',a[i][0]);d.setAttribute('cy',a[i][1]);d.setAttribute('r',String(.85*k));});});
+      cur.g.remove();
+      // travel: dots fly on gentle arcs, staggered
+      await anim(720,k=>{dots.forEach((d,i)=>{const s0=i/K*.35,kk=ease(Math.max(0,Math.min(1,(k-s0)/.65)));const mx=(a[i][0]+b[i][0])/2+(i%2?2.2:-2.2),my=(a[i][1]+b[i][1])/2+(i%3-1)*2.2;const x=(1-kk)*(1-kk)*a[i][0]+2*(1-kk)*kk*mx+kk*kk*b[i][0],y=(1-kk)*(1-kk)*a[i][1]+2*(1-kk)*kk*my+kk*kk*b[i][1];d.setAttribute('cx',x);d.setAttribute('cy',y);});});
+      // reform: next shape draws through the dots, dots shrink
+      nxt.g.style.opacity='1'; const di=drawIn(nxt,nsc.draw); await anim(Math.min(500,nsc.draw),k=>{dots.forEach(d=>d.setAttribute('r',String(.85*(1-k))));}); await di;
+      cur=nxt; idx=nidx;
+    }
+  })();
+}
+const lq=(xl=false)=>`<span class="lq${xl?' xl':''}" aria-hidden="true"></span>`;
+new MutationObserver(()=>document.querySelectorAll('.lq').forEach(lqMount)).observe(document.getElementById('root'),{childList:true,subtree:true});
 const LXL={
  pen:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="base" d="M2 16.5h16" stroke-width="1.2"/><path class="ink" d="M2.5 13c2-5 3.6-7.4 4.6-5.6.9 1.6-1 5-.1 5.6 1 .7 2.6-3.6 4-3.4 1.2.2.3 3 1.4 3.1 1.3.1 2.3-2.6 4.9-2.7" stroke-width="1.6"/></svg>`,
  page:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4"><path d="M5 3h7l3 3v11H5z"/><path class="ln" d="M7.5 9h5"/><path class="ln" d="M7.5 11.5h5"/><path class="ln" d="M7.5 14h3.5"/><path class="flip" d="M5 3h5v14H5z" fill="var(--bg)"/></svg>`,
@@ -283,8 +336,8 @@ const crumbT=`<span>Assistant</span>${sv('right',14)}<b>Syarat sah perjanjian (P
 function thread(S){
  let b='',c=composer(),toast='';
  switch(S){
-  case 'thinking': b=um(Q1)+`<div class="am"><div class="who">${lxl('glyph')}<span class="shim">Thinking…</span></div></div>`; c=composer({streaming:true}); break;
-  case 'loaders': b=`<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-family:var(--serif);font-weight:400;font-size:28px">Thinking indicators</h2><p style="margin:0;color:var(--mfg)">One family of small hand-drawn motions. Each answer picks one; later slices can tie them to the activity (writing while drafting, paper while reading documents, seal for approvals).</p></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">${Object.keys(LXL).map(k=>`<div class="tcard2" style="padding:18px;align-items:flex-start;gap:14px"><div style="display:flex;align-items:center;justify-content:center;width:100%;height:96px;background:var(--muted);border-radius:10px">${lxl(k,true)}</div><div style="font-size:13px;font-weight:600">${LXN[k]}</div><div class="who">${lxl(k)}<span class="shim">Thinking…</span></div></div>`).join('')}</div>`; break;
+  case 'thinking': b=um(Q1)+`<div class="am"><div class="who">${lq()}<span class="shim">Thinking…</span></div></div>`; c=composer({streaming:true}); break;
+  case 'loaders': b=`<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-family:var(--serif);font-weight:400;font-size:28px">Thinking indicator</h2><p style="margin:0;color:var(--mfg)">One continuous motion: each mark is drawn, breaks into dots, the dots travel, and they re-form the next mark. Sequence: ${LQ_SCENES.map(x=>x.n).join(' → ')} → again.</p></div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px"><div class="tcard2" style="align-items:center;justify-content:center;height:280px;background:var(--muted);border:0">${lq(true)}</div><div class="tcard2" style="justify-content:center;gap:18px;padding:24px"><div style="font-size:13px;color:var(--mfg)">Actual size in a chat</div><div class="who">${lq()}<span class="shim">Thinking…</span></div><div class="who" style="font-size:15px">${lq()}<span class="shim">Reading the question…</span></div></div></div>`; break;
   case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;
