@@ -4,7 +4,7 @@ import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
 
 async function workerControl(
-  op: 'status' | 'release-prefix' | 'release',
+  op: 'status' | 'release-prefix' | 'release' | 'expire',
   runId: string,
 ) {
   const worker = await containerId('ai-worker');
@@ -20,6 +20,10 @@ async function workerControl(
     blocked?: boolean;
     prefixBlocked?: boolean;
     released?: boolean;
+    before?: number;
+    armed?: number;
+    hadPositiveTtl?: boolean;
+    remaining?: number;
   } | null;
 }
 
@@ -858,4 +862,296 @@ test('recovers a held answer through Caddy after Backend API restart', async ({
       }
     }
   }
+});
+
+test('recovers a completed answer from PostgreSQL after terminal stream expiry', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const stack = descriptor();
+  const authHeaders = await authenticateApi(page.request, {
+    name: 'Completed stream expiry identity',
+  });
+  const onboarding = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers: authHeaders, data: {} },
+  );
+  expect(onboarding.status()).toBe(204);
+  const identityResponse = await page.request.get(
+    `${stack.apiUrl}/api/identity`,
+    { headers: authHeaders },
+  );
+  expect(identityResponse.status()).toBe(200);
+  const identity = (await identityResponse.json()) as {
+    organization: { id: string };
+    user: { id: string };
+  };
+  const actorScope = `${identity.organization.id}:${identity.user.id}`;
+  const { eventRequests, eventResponses } = await observeRunEvents(page);
+
+  await page.goto(`${stack.publicUrl}/workspace`);
+  const composer = page.getByRole('textbox', { name: 'Message input' });
+  await composer.fill(
+    '[runtime-proof:hold] [task14:raw-duration] Summarize the limitation-of-liability clause and propose a balanced cap.',
+  );
+  await composer.press('Enter');
+  await expect(page).toHaveURL(/\/chats\/[0-9a-f-]{36}$/i);
+  const chatId = new URL(page.url()).pathname.split('/').at(-1)!;
+  let activeRunId: string | undefined;
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `${stack.apiUrl}/api/chats/${chatId}`,
+          { headers: authHeaders },
+        );
+        if (!response.ok()) return undefined;
+        const tree = (await response.json()) as {
+          messages: Array<{
+            id: string;
+            parentId: string | null;
+            role: string;
+            runId?: string;
+          }>;
+        };
+        const latestUser = tree.messages
+          .filter((message) => message.role === 'user')
+          .at(-1);
+        const latestAssistant = tree.messages
+          .filter((message) => message.role === 'assistant')
+          .at(-1);
+        activeRunId =
+          latestUser && latestAssistant?.parentId === latestUser.id
+            ? latestAssistant.runId
+            : undefined;
+        return activeRunId;
+      },
+      { timeout: 30_000 },
+    )
+    .toBeTruthy();
+  if (!activeRunId) throw new Error('The live answer has no server run ID');
+  await expect
+    .poll(() => workerControl('status', activeRunId!), { timeout: 30_000 })
+    .toMatchObject({ prefixBlocked: true });
+  await expect
+    .poll(() =>
+      eventResponses.some(
+        (event) => event.runId === activeRunId && event.status === 200,
+      ),
+    )
+    .toBe(true);
+  await workerControl('release-prefix', activeRunId);
+  const assistant = page.locator('[data-role="assistant"]').last();
+  await expect(assistant.locator('.aui-md')).toContainText('Answer prefix — ');
+  const prefixState = await workerControl('status', activeRunId);
+  expect(prefixState).toMatchObject({ blocked: true, released: false });
+  const recoveryKey = `lexon-chat-recovery:${actorScope}:${chatId}`;
+  const retainedCursor = await page.evaluate((key) => {
+    const stored = sessionStorage.getItem(key);
+    return stored
+      ? (JSON.parse(stored) as { cursor?: string }).cursor
+      : undefined;
+  }, recoveryKey);
+  expect(retainedCursor).toMatch(/^[1-9]\d{0,8}:\d{1,20}-\d{1,10}$/);
+
+  const releaseState = await workerControl('release', activeRunId);
+  expect(releaseState?.released).toBe(true);
+  let completedAssistant:
+    | {
+        id: string;
+        text: string;
+        reasoningSummary?: string | null;
+        reasoningDurationMs?: number | null;
+        status?: string;
+      }
+    | undefined;
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `${stack.apiUrl}/api/chats/${chatId}`,
+          { headers: authHeaders },
+        );
+        if (!response.ok()) return undefined;
+        const tree = (await response.json()) as {
+          messages: Array<{
+            id: string;
+            role: string;
+            text: string;
+            status?: string;
+            reasoningSummary?: string | null;
+            reasoningDurationMs?: number | null;
+          }>;
+        };
+        const completed = tree.messages.filter(
+          (message) =>
+            message.role === 'assistant' && message.status === 'completed',
+        );
+        completedAssistant = completed.at(-1);
+        return completed.length;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  expect(completedAssistant).toMatchObject({
+    status: 'completed',
+    reasoningSummary: null,
+    reasoningDurationMs: 2_300,
+  });
+  if (!completedAssistant) throw new Error('Expected a completed assistant');
+  expect(completedAssistant.text.length).toBeGreaterThan(0);
+  await expect(assistant.locator('.aui-md')).toHaveText(
+    completedAssistant.text,
+  );
+  await expect(assistant).toContainText('Thought for 2 seconds');
+  await expect(
+    assistant.getByRole('button', { name: 'Thought for 2 seconds' }),
+  ).toHaveCount(0);
+  await expect
+    .poll(() =>
+      safeSseFrames(page).then((frames) =>
+        frames.some(
+          (frame) => frame.runId === activeRunId && frame.type === 'finish',
+        ),
+      ),
+    )
+    .toBe(true);
+
+  const expiry = await workerControl('expire', activeRunId);
+  expect(expiry).toMatchObject({
+    before: 3,
+    armed: 3,
+    hadPositiveTtl: true,
+    remaining: 0,
+  });
+
+  const expiredTreeResponse = await page.request.get(
+    `${stack.apiUrl}/api/chats/${chatId}`,
+    { headers: authHeaders },
+  );
+  expect(expiredTreeResponse.status()).toBe(200);
+  const expiredTree = (await expiredTreeResponse.json()) as {
+    messages: Array<{
+      id: string;
+      role: string;
+      runId?: string;
+      status?: string;
+      text: string;
+      reasoningSummary?: string | null;
+      reasoningDurationMs?: number | null;
+    }>;
+  };
+  expect(
+    expiredTree.messages.filter((message) => message.role === 'assistant'),
+  ).toEqual([
+    expect.objectContaining({
+      id: completedAssistant.id,
+      runId: activeRunId,
+      status: 'completed',
+      text: completedAssistant.text,
+      reasoningSummary: null,
+      reasoningDurationMs: 2_300,
+    }),
+  ]);
+
+  const snapshotResponse = await page.evaluate(
+    async ({ runId, lastEventId }) => {
+      const response = await fetch(`/api/runs/${runId}/events`, {
+        headers: {
+          'last-event-id': lastEventId,
+          'x-lexon-stream-recovery': 'incremental',
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+      return {
+        status: response.status,
+        recoveryResult: response.headers.get('x-lexon-stream-recovery-result'),
+        body: await response.text(),
+      };
+    },
+    { runId: activeRunId, lastEventId: retainedCursor! },
+  );
+  expect(snapshotResponse.status).toBe(200);
+  expect(snapshotResponse.recoveryResult).toBe('snapshot');
+  const snapshotFrames = snapshotResponse.body
+    .split(/\r?\n\r?\n/)
+    .flatMap((block) => {
+      const data = block
+        .split(/\r?\n/)
+        .find((line) => line.startsWith('data: '))
+        ?.slice(6);
+      if (!data) return [];
+      try {
+        return [JSON.parse(data) as Record<string, unknown>];
+      } catch {
+        return [];
+      }
+    });
+  const snapshotStart = snapshotFrames.find(
+    (frame) => frame.type === 'snapshot-start',
+  );
+  expect(snapshotStart).toMatchObject({
+    reset: true,
+    snapshot: {
+      runId: activeRunId,
+      status: 'completed',
+      reasoningDurationMs: 2_300,
+    },
+  });
+  const snapshotEnd = snapshotFrames.find(
+    (frame) => frame.type === 'snapshot-end',
+  );
+  expect(snapshotEnd).toBeDefined();
+  const textSnapshot = snapshotFrames
+    .filter(
+      (frame) => frame.type === 'snapshot-part' && frame.partType === 'text',
+    )
+    .map((frame) => frame.text)
+    .join('');
+  const reasoningSnapshot = snapshotFrames.filter(
+    (frame) => frame.type === 'snapshot-part' && frame.partType === 'reasoning',
+  );
+  expect(textSnapshot).toBe(completedAssistant.text);
+  expect(reasoningSnapshot).toHaveLength(0);
+  expect(snapshotFrames.some((frame) => frame.type === 'finish')).toBe(true);
+
+  const expiryAfterReplay = await workerControl('expire', activeRunId);
+  expect(expiryAfterReplay).toMatchObject({
+    before: 0,
+    armed: 0,
+    remaining: 0,
+  });
+
+  await page.reload();
+  const reloadedAssistant = page.locator('[data-role="assistant"]');
+  await expect(reloadedAssistant).toHaveCount(1);
+  await expect(reloadedAssistant.locator('.aui-md')).toHaveText(
+    completedAssistant.text,
+  );
+  await expect(reloadedAssistant).toContainText('Thought for 2 seconds');
+  await expect(
+    reloadedAssistant.getByRole('button', { name: 'Thought for 2 seconds' }),
+  ).toHaveCount(0);
+  const afterReload = await page.request.get(
+    `${stack.apiUrl}/api/chats/${chatId}`,
+    { headers: authHeaders },
+  );
+  expect(afterReload.status()).toBe(200);
+  const afterReloadTree = (await afterReload.json()) as {
+    messages: Array<{ role: string; id: string; runId?: string }>;
+  };
+  const assistantMessages = afterReloadTree.messages.filter(
+    (message) => message.role === 'assistant',
+  );
+  expect(assistantMessages).toHaveLength(1);
+  expect(assistantMessages[0]).toMatchObject({
+    id: completedAssistant.id,
+    runId: activeRunId,
+  });
+  expect(
+    eventRequests.some(
+      (request) =>
+        request.runId === activeRunId && request.lastEventId === retainedCursor,
+    ),
+  ).toBe(true);
 });

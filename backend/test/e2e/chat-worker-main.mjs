@@ -329,6 +329,7 @@ const control = createServer((socket) => {
           'trim',
           'shape',
           'database-tree',
+          'expire',
         ].includes(op) ||
         typeof runId !== 'string' ||
         !uuidPattern.test(runId)
@@ -338,6 +339,30 @@ const control = createServer((socket) => {
         const tenant = JSON.parse(cursor);
         const result = await readTenantChatTree(runId, tenant);
         socket.end(JSON.stringify(result) + '\n');
+        return;
+      }
+      if (op === 'expire') {
+        const keys = ['events', 'guard', 'generation'].map(
+          (suffix) => `${config.queuePrefix}:{run-streams}:${runId}:${suffix}`,
+        );
+        const before = await streamInspector.exists(...keys);
+        const armedResults = await Promise.all(
+          keys.map((key) => streamInspector.pexpire(key, 500)),
+        );
+        const armed = armedResults.reduce((count, result) => count + result, 0);
+        const ttls = await Promise.all(
+          keys.map((key) => streamInspector.pttl(key)),
+        );
+        const hadPositiveTtl = before === 3 && ttls.every((ttl) => ttl > 0);
+        const deadline = Date.now() + 1_500;
+        let remaining = await streamInspector.exists(...keys);
+        while (remaining > 0 && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+          remaining = await streamInspector.exists(...keys);
+        }
+        socket.end(
+          JSON.stringify({ before, armed, hadPositiveTtl, remaining }) + '\n',
+        );
         return;
       }
       const run = runs.get(runId);

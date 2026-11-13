@@ -20,20 +20,37 @@ type ChatEvaluationOptions = Omit<EvaluationOptions, 'chatScenarios'> & {
 };
 
 it('defaults deterministic evaluation cases to an empty list', async () => {
+  const logPhase = (phase: string, elapsedMs = 0) =>
+    console.info(
+      '[f4-chat-recovery-timing]',
+      JSON.stringify({ phase, elapsedMs: Math.round(elapsedMs) }),
+    );
+  const contextStartedAt = performance.now();
+  logPhase('context:create:start');
   const context = await createEvaluationContext({
     services: inject('evaluationServices'),
     fixtureSet: 'deterministic',
   });
+  logPhase('context:create:complete', performance.now() - contextStartedAt);
 
   try {
     const actor = context.actors[0]!;
+    const startStartedAt = performance.now();
+    logPhase('run:start');
     const run = await context.start(actor, {
       scenarioId: 'complete',
       prompt: 'Reply with the single word READY.',
     });
+    logPhase('run:start:complete', performance.now() - startStartedAt);
+    const drainStartedAt = performance.now();
+    logPhase('run:drain');
     await context.drain();
+    logPhase('run:drain:complete', performance.now() - drainStartedAt);
 
+    const readStartedAt = performance.now();
+    logPhase('report:read');
     const report = await context.read(actor, run.runId);
+    logPhase('report:read:complete', performance.now() - readStartedAt);
     const reportWithCases = report as typeof report & {
       cases: ReadonlyArray<{ caseId: string; score: number }>;
     };
@@ -47,7 +64,10 @@ it('defaults deterministic evaluation cases to an empty list', async () => {
       counts: { modelRequests: 1 },
     });
   } finally {
+    const closeStartedAt = performance.now();
+    logPhase('context:close');
     await context.close();
+    logPhase('context:close:complete', performance.now() - closeStartedAt);
   }
 });
 

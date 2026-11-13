@@ -95,6 +95,7 @@ export function subscribeToChatInvalidations(
       }
       lastRecoveryRefresh = now;
     }
+    onChatInvalidated?.(null);
     void cancelAndInvalidate(queryClient, chatThreadQueriesPrefix(scope)).catch(
       () => undefined,
     );

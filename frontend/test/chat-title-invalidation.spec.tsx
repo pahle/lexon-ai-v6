@@ -281,6 +281,110 @@ it('refreshes owner chat queries on EventSource open and error', async () => {
   queryClient.clear();
 });
 
+it('publishes an owner-title recovery signal when the EventSource first opens', () => {
+  const queryClient = new QueryClient();
+  let source:
+    | {
+        onmessage: ((event: MessageEvent<string>) => void) | null;
+        onopen: ((event: Event) => void) | null;
+        onerror: ((event: Event) => void) | null;
+        close: ReturnType<typeof vi.fn>;
+      }
+    | undefined;
+  const callbackNotifications: Array<string | null> = [];
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => {
+      const created = {
+        onmessage: null,
+        onopen: null,
+        onerror: null,
+        close: vi.fn(),
+      };
+      source = created;
+      return created;
+    },
+    (invalidatedChatId) => callbackNotifications.push(invalidatedChatId),
+  );
+
+  try {
+    source!.onopen!(new Event('open'));
+    expect(callbackNotifications).toEqual([null]);
+    source!.onmessage!(
+      new MessageEvent('message', {
+        data: JSON.stringify({
+          version: 1,
+          type: 'chat.invalidated',
+          chatId,
+        }),
+      }),
+    );
+    expect(callbackNotifications).toEqual([null, chatId]);
+  } finally {
+    dispose();
+    queryClient.clear();
+  }
+});
+
+it('publishes coalesced reconnect recovery to the mounted title consumer', async () => {
+  vi.useFakeTimers();
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } },
+  });
+  let source:
+    | {
+        onmessage: ((event: MessageEvent<string>) => void) | null;
+        onopen: ((event: Event) => void) | null;
+        onerror: ((event: Event) => void) | null;
+        close: ReturnType<typeof vi.fn>;
+      }
+    | undefined;
+  const callbackNotifications: Array<string | null> = [];
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => {
+      const created = {
+        onmessage: null,
+        onopen: null,
+        onerror: null,
+        close: vi.fn(),
+      };
+      source = created;
+      return created;
+    },
+    (invalidatedChatId) => callbackNotifications.push(invalidatedChatId),
+  );
+
+  try {
+    source!.onopen!(new Event('open'));
+    expect(callbackNotifications).toEqual([null]);
+    source!.onerror!(new Event('error'));
+    expect(callbackNotifications).toEqual([null, null]);
+    source!.onopen!(new Event('open'));
+    expect(callbackNotifications).toEqual([null, null]);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(callbackNotifications).toEqual([null, null]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(callbackNotifications).toEqual([null, null, null]);
+
+    source!.onerror!(new Event('error'));
+    expect(callbackNotifications).toEqual([null, null, null]);
+    dispose();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(callbackNotifications).toEqual([null, null, null]);
+    expect(source!.close).toHaveBeenCalledOnce();
+    expect(source!.onopen).toBeNull();
+    expect(source!.onerror).toBeNull();
+  } finally {
+    dispose();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    queryClient.clear();
+  }
+});
+
 it('refetches after reconnect when an invalidation may have been missed offline', async () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
