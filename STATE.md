@@ -97,7 +97,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 ## Lessons learned (apply to every brief)
 
-- Codex SDD subagents repeatedly wrote code before tests in F4 (Tasks 5, 8, 13, 15). PO disposition: accepted as recorded deviation with compensating targeted Stryker mutation (break 80, F1 precedent) and frontend manual mutation evidence; strict RED-first evidence per task from Task 16. Future briefs: require RED evidence in every task report and a mutation gate for core logic from the start.
+- Codex SDD subagents repeatedly wrote code before tests in F4 (Tasks 5, 8, 13, 15). PO disposition: accepted as recorded deviation with compensating targeted Stryker mutation (break 80, F1 precedent) and frontend manual mutation evidence; strict RED-first evidence per task from Task 16. Task 16 violated again (caught before push); PO approved recovery with a structural control: per-rule two-phase dispatch (tests-only phase, controller-observed RED, then implementation), frozen diff archived but withheld from the new agent. Future briefs: require RED evidence in every task report and a mutation gate for core logic from the start.
 
 - **Design before implementation.** Copying shadcn blocks 1:1 gives demo
   quality: blocks have no password toggle, error states, or product IA.
