@@ -571,3 +571,32 @@ of either historical accepted run. Complete data is retained in
 [F4-search-policy-gate-2026-11-12.jsonl](F4-search-policy-gate-2026-11-12.jsonl).
 The controller checked producer source hashes against the recorded head.
 The final-head isolated run is still required; no final-head claim is made.
+
+## Task 15 pushed-head trend — 2026-11-13
+
+Automatic isolated [run 43354598506](https://github.com/pahle/lexon-ai-v6/actions/runs/43354598506)
+passed at `dd31b54894048b631a785c162be3df9730a89e9d`. This was triggered by
+relevant Task 15 files, not a manual retry. The [full JSONL artifact](F4-search-task15-head-2026-11-13.jsonl)
+contains 156 records; SHA-256
+`57266eff538f62881fdede4563e27c210135c82edd4e08947d7787c8e48eb59e`.
+
+| Class    | p50 ms | p95 ms | Max ms | Successful measured requests | Blocking / target |
+| -------- | -----: | -----: | -----: | ---------------------------: | ----------------- |
+| Stem     | 368.36 | 374.70 | 392.86 |                        30/30 | PASS / no warning |
+| Partial  | 271.61 | 363.34 | 364.09 |                        30/30 | PASS / no warning |
+| Article  | 280.76 | 289.49 | 303.42 |                        30/30 | PASS / no warning |
+| No match | 159.64 | 165.13 | 165.48 |                        30/30 | PASS / no warning |
+
+The controller independently verified all 22 producer source hashes, recomputed
+nearest-rank p95 from the 120 successful HTTP samples, and inspected all four
+plans: `chats_owner_activity` is used; the three tables retain enabled/FORCE
+RLS; there are no whole-table sequential scans on chats/messages/runs. No query,
+RLS, fixture, timeout or policy optimization was added for this run.
+
+Runner: ubuntu-24.04 image `20261111.127.1`, Intel Xeon 6975P-C, four CPUs,
+16,464,306,176 bytes RAM; Docker 28.0.4. PostgreSQL container has no explicit
+memory/CPU limit, effective CPUs 0–3; exact image, cgroups and application-session
+settings are in the artifact. `shared_buffers` remains 128 MB. This differing
+runner is recorded for trend context, not an isolated causal explanation.
+The mandatory final-head run still applies before handoff; this intermediate
+result is not final-head evidence for tasks that have not landed yet.

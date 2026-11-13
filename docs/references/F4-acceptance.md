@@ -1042,3 +1042,13 @@ platform user-menu screenshot, stale Home breadcrumb, and stale Home capture
 helper. The existing visual baselines remain required and unchanged. These
 failures require diagnosis; owner acceptance of the preview does not assert
 that CI passes.
+
+The Task 15 isolated search artifact is retained as
+[F4-search-task15-head-2026-11-13.jsonl](F4-search-task15-head-2026-11-13.jsonl):
+p95 stem/partial/article/no-match **374.70 / 363.34 / 289.49 / 165.13 ms**,
+120/120 measured HTTP successes, owner-first plans and FORCE RLS verified.
+All classes pass both the blocking 1,000 ms gate and non-blocking 500 ms target.
+The controller verified the producer's 22 hashes and recomputed p95. Runner and
+full trend context are in the [search diagnostic](F4-search-query-plan-gap.md#task-15-pushed-head-trend--2026-11-13).
+No retry or further search optimization was run. Final-head isolated evidence
+remains pending.
