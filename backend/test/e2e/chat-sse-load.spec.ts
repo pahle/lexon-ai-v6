@@ -69,10 +69,15 @@ type ControlSnapshot = {
       authUnavailable: number;
       other: number;
     };
+    connect: { entered: number; errors: Record<string, number> };
     ownership: { present: number; missing: number; errors: number };
     snapshot: { present: number; missing: number; errors: number };
     tenantTransaction: { timeouts: number; otherErrors: number };
   }>;
+  preServiceGetEvents: {
+    total: number;
+    byFailure: Record<string, number>;
+  };
 };
 
 async function dockerWithTimeout(
@@ -391,6 +396,7 @@ async function writeAdmissionDiagnostic(
           valkeyClientsByPurpose: snapshot.valkeyClientsByPurpose,
           closeReasons: snapshot.closeReasons,
           causeCounters: snapshot.causeCounters,
+          preServiceGetEvents: snapshot.preServiceGetEvents,
           apiMemoryBytes: snapshot.apiMemoryBytes,
           apiCpuMicros: snapshot.apiCpuMicros,
         }

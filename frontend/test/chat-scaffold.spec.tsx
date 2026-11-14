@@ -332,6 +332,248 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
   }
 });
 
+it('preserves the regenerated assistant sibling across canonical active and terminal refreshes on an edited branch', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const rootUserId = '22222222-2222-4222-8222-222222222222';
+  const originalAnswerId = '33333333-3333-4333-8333-333333333333';
+  const editedUserId = '44444444-4444-4444-8444-444444444444';
+  const editedAnswerId = '55555555-5555-4555-8555-555555555555';
+  const regeneratedAnswerId = '66666666-6666-4666-8666-666666666666';
+  const regeneratedRunId = '77777777-7777-4777-8777-777777777777';
+  const makeTree = (state: 'edited' | 'active' | 'terminal'): ChatTree => ({
+    id: chatId,
+    title: 'Edited branch fixture',
+    messages: [
+      {
+        id: rootUserId,
+        role: 'user',
+        parentId: null,
+        text: 'Original question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: originalAnswerId,
+        role: 'assistant',
+        parentId: rootUserId,
+        runId: '88888888-8888-4888-8888-888888888888',
+        text: 'Original answer',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+      {
+        id: editedUserId,
+        role: 'user',
+        parentId: null,
+        text: 'Edited question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:02.000Z',
+      },
+      {
+        id: editedAnswerId,
+        role: 'assistant',
+        parentId: editedUserId,
+        runId: '99999999-9999-4999-8999-999999999999',
+        text: 'Edited answer',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:03.000Z',
+      },
+      ...(state === 'edited'
+        ? []
+        : [
+            {
+              id: regeneratedAnswerId,
+              role: 'assistant' as const,
+              parentId: editedUserId,
+              runId: regeneratedRunId,
+              text: state === 'terminal' ? 'Regenerated answer' : '',
+              status:
+                state === 'terminal'
+                  ? ('completed' as const)
+                  : ('running' as const),
+              reasoningSummary: null,
+              reasoningDurationMs: null,
+              feedback: null,
+              createdAt: '2026-11-11T00:00:04.000Z',
+            },
+          ]),
+    ],
+    viewedLeafId: state === 'terminal' ? regeneratedAnswerId : editedAnswerId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:04.000Z',
+  });
+  const serverTree = makeTree('edited');
+  let regenerationStarted = false;
+  let terminalAvailable = false;
+  let activeRefreshes = 0;
+  let terminalRefreshes = 0;
+  const client = {
+    get: vi.fn(async () => {
+      if (!regenerationStarted) return serverTree;
+      if (!terminalAvailable) {
+        activeRefreshes += 1;
+        return makeTree('active');
+      }
+      terminalRefreshes += 1;
+      return makeTree('terminal');
+    }),
+  };
+  const encoder = new TextEncoder();
+  const streamBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const frames = [
+        {
+          version: 1,
+          type: 'start',
+          runId: regeneratedRunId,
+          messageId: regeneratedAnswerId,
+        },
+        {
+          version: 1,
+          type: 'text-start',
+          runId: regeneratedRunId,
+          id: 'regenerated-answer-text',
+        },
+        {
+          version: 1,
+          type: 'text-delta',
+          runId: regeneratedRunId,
+          id: 'regenerated-answer-text',
+          delta: 'Regenerated answer',
+        },
+      ];
+      for (const [index, frame] of frames.entries())
+        controller.enqueue(
+          encoder.encode(
+            `id: 1:1783814400000-${index}\ndata: ${JSON.stringify(frame)}\n\n`,
+          ),
+        );
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (
+      url.endsWith(`/messages/${editedAnswerId}/regenerate`) &&
+      init?.method === 'POST'
+    ) {
+      regenerationStarted = true;
+      return Response.json(
+        {
+          chatId,
+          userMessageId: editedUserId,
+          assistantMessageId: regeneratedAnswerId,
+          runId: regeneratedRunId,
+        },
+        { status: 201 },
+      );
+    }
+    if (url.endsWith(`/runs/${regeneratedRunId}/events`))
+      return new Response(streamBody, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    if (url.endsWith('/viewed-leaf') && init?.method === 'PUT')
+      return new Response(null, { status: 204 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="tenant-1:user-1"
+        displayName="Ada"
+        orgId="tenant-1"
+        userId="user-1"
+      />
+    </QueryClientProvider>,
+  );
+
+  try {
+    expect(view.container.textContent).toContain('Edited answer');
+
+    const regenerate = view.container
+      .querySelector(`[data-message-id="${editedAnswerId}"]`)
+      ?.querySelector<HTMLButtonElement>('[aria-label="Regenerate answer"]');
+    if (!regenerate)
+      throw new Error('The edited branch regenerate control is missing.');
+    await act(async () => regenerate.click());
+    expect(
+      fetch.mock.calls.some(
+        ([request, init]) =>
+          String(request).endsWith(`/messages/${editedAnswerId}/regenerate`) &&
+          init?.method === 'POST',
+      ),
+    ).toBe(true);
+    await vi.waitFor(
+      () => expect(view.container.textContent).toContain('Regenerated answer'),
+      { timeout: 2000 },
+    );
+    await vi.waitFor(() => expect(activeRefreshes).toBeGreaterThan(0), {
+      timeout: 2500,
+    });
+
+    terminalAvailable = true;
+    await vi.waitFor(() => expect(terminalRefreshes).toBeGreaterThan(0), {
+      timeout: 2500,
+    });
+    await vi.waitFor(() => {
+      const regeneratedMessage = view.container.querySelector(
+        `[data-message-id="${regeneratedAnswerId}"]`,
+      );
+      expect(regeneratedMessage).not.toBeNull();
+      expect(
+        regeneratedMessage?.querySelector('[aria-label="Previous branch"]'),
+      ).not.toBeNull();
+      expect(regeneratedMessage?.textContent).toContain('2 / 2');
+    });
+
+    const previousBranch = view.container.querySelector<HTMLButtonElement>(
+      `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
+    );
+    if (!previousBranch)
+      throw new Error('The regenerated assistant branch picker is missing.');
+    await act(async () => previousBranch.click());
+    await vi.waitFor(() => {
+      expect(view.container.textContent).toContain('Edited answer');
+      expect(view.container.textContent).not.toContain('Regenerated answer');
+    });
+
+    const nextBranch = view.container.querySelector<HTMLButtonElement>(
+      `[data-message-id="${editedAnswerId}"] [aria-label="Next branch"]`,
+    );
+    if (!nextBranch)
+      throw new Error('The edited assistant branch picker is missing.');
+    await act(async () => nextBranch.click());
+    await vi.waitFor(() => {
+      expect(view.container.textContent).toContain('Regenerated answer');
+      expect(view.container.textContent).not.toContain('Edited answer');
+    });
+    const selectedLeafWrites = fetch.mock.calls
+      .filter(
+        ([request, init]) =>
+          String(request).endsWith('/viewed-leaf') && init?.method === 'PUT',
+      )
+      .map(([, init]) => JSON.parse(String(init?.body)) as { leafId: string });
+    expect(selectedLeafWrites.map(({ leafId }) => leafId)).toContain(
+      regeneratedAnswerId,
+    );
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
 it('keeps off-branch run B active when run A finishes after canonical refresh', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';
   const userId = '22222222-2222-4222-8222-222222222222';
