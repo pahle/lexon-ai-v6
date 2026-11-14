@@ -85,7 +85,7 @@ function installChatRoutingProbe(testHttp) {
     res.sendStatus(204);
   });
 }
-const app = await createApi(config, {
+export const app = await createApi(config, {
   email: {
     send: async (message) => {
       const result = await mailer.send(message);

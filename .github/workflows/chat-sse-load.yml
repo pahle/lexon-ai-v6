@@ -1,0 +1,109 @@
+name: Chat SSE load
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/chat-sse-load.yml'
+      - 'backend/src/modules/chat/run*.ts'
+      - 'backend/src/modules/chat/step*.ts'
+      - 'backend/src/modules/chat/chat-profiles.ts'
+      - 'backend/src/infrastructure/queue/*.ts'
+      - 'backend/src/bootstrap/api.ts'
+      - 'backend/src/entrypoints/api/root.module.ts'
+      - 'backend/src/config/**'
+      - 'backend/test/load/**'
+      - 'backend/test/e2e/*load*'
+      - 'backend/test/e2e/chat-sse-load.spec.ts'
+      - 'backend/test/e2e/compose.chat-load.yml'
+      - 'backend/test/e2e/compose.chat-runtime-proof.yml'
+      - 'backend/test/e2e/chat-worker-main.mjs'
+      - 'backend/test/e2e/auth-api-main.mjs'
+      - 'backend/Dockerfile'
+      - 'docker-compose.yml'
+      - 'config/container-images.env'
+      - 'package.json'
+      - 'backend/package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'infra/Caddyfile'
+      - 'scripts/chat-load-paths.mjs'
+      - 'scripts/chat-load-evidence.mjs'
+      - 'scripts/e2e-projects.mjs'
+      - 'scripts/e2e.mjs'
+      - 'scripts/e2e-lifecycle.mjs'
+      - 'scripts/container-images.d.mts'
+      - 'scripts/compose-runner.mjs'
+      - 'scripts/compose-environment.mjs'
+      - 'scripts/container-images.mjs'
+      - 'scripts/test/chat-load-*.spec.mjs'
+      - 'scripts/test/fixtures/chat-load-*.mjs'
+      - 'scripts/test/chat-load-paths.spec.mjs'
+      - 'scripts/test/chat-load-evidence.spec.mjs'
+      - 'playwright.config.ts'
+      - 'shared/src/chat.ts'
+      - 'shared/src/ai-run.ts'
+      - 'shared/src/index.ts'
+permissions:
+  contents: read
+concurrency:
+  group: chat-sse-load-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  chat-sse-load:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: true
+      F4_RUNNER_IMAGE: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - name: Verify chat load trigger classification
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { shouldRunChatLoad } from './scripts/chat-load-paths.mjs';
+
+          const eventName = process.env.GITHUB_EVENT_NAME;
+          let changedPaths = [];
+          if (eventName === 'push') {
+            const before = process.env.PUSH_BEFORE ?? '';
+            const head = process.env.GITHUB_SHA;
+            const args = /^0+$/.test(before)
+              ? ['ls-tree', '-r', '--name-only', head]
+              : ['diff', '--name-only', before, head];
+            changedPaths = execFileSync('git', args, { encoding: 'utf8' })
+              .split(/\r?\n/u)
+              .filter(Boolean);
+          }
+          if (!shouldRunChatLoad({ eventName, changedPaths }))
+            throw new Error('GitHub trigger did not qualify for chat SSE load');
+          NODE
+      - run: pnpm install --frozen-lockfile
+      - name: Run isolated chat SSE load layer
+        run: pnpm test:load:chat
+      - name: Upload safe chat SSE load evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chat-sse-load-${{ github.sha }}
+          path: |
+            test-results/f4-chat-load/F4-sse-load.json
+            test-results/f4-chat-load/F4-stream-latency.json
+            test-results/f4-chat-load/failure.json
+            test-results/f4-chat-load/diagnostic.json
+          retention-days: 14
+          if-no-files-found: warn

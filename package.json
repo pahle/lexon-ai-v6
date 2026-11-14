@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project '!backend-integration'",
     "test:e2e": "node scripts/e2e.mjs",
+    "test:load:chat": "node scripts/chat-load-evidence.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "identity:setup-admin": "node scripts/setup-admin.mjs"

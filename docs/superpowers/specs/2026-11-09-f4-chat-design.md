@@ -835,6 +835,18 @@ Proceed to writing-plans; implementation still requires plan approval.
   256 for this measured run only. Record that configuration prominently; separate
   tests prove the production default 6 and oldest-connection eviction. Do not
   raise F3 run capacity or waive owner authorization to manufacture load evidence.
+  For implementation, the official [per-VU iterations](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/per-vu-iterations/),
+  [HTTP options](https://grafana.com/docs/k6/latest/javascript-api/k6-http/params/),
+  and [custom end-of-test summaries](https://grafana.com/docs/k6/latest/results-output/end-of-test/custom-summary/)
+  documentation were rechecked against the pinned k6 `2.3.0` image on
+  2026-11-14. They support one held HTTP request per VU, discarded response
+  bodies, and aggregate native completion/duration summaries; they do not
+  establish per-frame arrival. The official [Docker Compose environment
+  variable reference](https://docs.docker.com/compose/how-tos/environment-variables/envvars/)
+  was also checked for `COMPOSE_DISABLE_ENV_FILE=true`, used so Compose does
+  not implicitly load a root `.env` file. The local result and its limits are
+  recorded in the [Task 18 report](../../references/F4-task-18-report.md); it is
+  not final clean Linux evidence.
 - R22: F3's actual estimator was executed without a model request. The full
   ordinary-history illustration estimates 157,247 input tokens. A 163,840
   estimated-input bound and two-attempt formulas yield high 360,448 and max

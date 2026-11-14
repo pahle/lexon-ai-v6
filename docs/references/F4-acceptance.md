@@ -2,8 +2,10 @@
 
 Status: implementation in progress. Tasks 1–13 are accepted after review and
 owner acceptance of the amended reference-runner search gate. Tasks 14–15 have
-owner-accepted informal previews; Task 16 has passed controlled recovery and final task review. Tasks
-16A–19 and 21 remain pending; Task 20 is deferred to F4.1. This is not F4 completion or visual approval.
+owner-accepted informal previews; Tasks 16, 16A and 17 passed their task reviews.
+Task 18 implementation and local measurement are recorded, pending main review,
+evidence commit and exact-final-head Linux CI. Tasks 19 and 21 remain pending;
+Task 20 is deferred to F4.1. This is not F4 completion or visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -24,6 +26,10 @@ and delivered with the final ready PR. Stop for unresolved blocking issues and
 final handoff. No Task 19 visual approval is inferred.
 Normal Compose E2E remains on every PR push. Task 18 adds load dispatch and
 relevant-change selection; final-head S2 evidence remains mandatory.
+
+Task 18 local measurement is documented in the [Task 18 report](F4-task-18-report.md)
+and the safe [load](F4-sse-load.json) and [latency](F4-stream-latency.json)
+aggregates. It does not satisfy the required clean final-head Linux run.
 
 ## Task 1 — approved pins and Caddy development/E2E routing
 
@@ -1622,3 +1628,46 @@ Tooling spec/quality review and scoped workflow-label re-review passed. The cont
 Under the owner's standing authorization, one local process loaded `.env` only through Node's `--env-file` option and completed **four requests for USD 0.00120428**. No key or environment value was opened, copied, printed or logged by agent tools; no raw content is in the [safe evidence](F4-smoke.json). The operator's account-verification date is **2026-11-09**. All outcomes succeeded; observed provider was Azure and configured region was US, with physical region still unverified for P8. No account/admin endpoint or paid GitHub workflow was called. The four-request authorization is exhausted; no further paid calls or reruns are authorized by it.
 
 High observed one unclassifiable and one no-signal case; max observed two unclassifiable cases. Timing was measured in three samples and absent in the no-signal sample. The report records actual token counts and per-effort sample counts; unobserved buckets are not evidence of absence. The short-input estimated/reported ratio was **11.663101604278076** (2,181/187 on each call). The approved conservative output/run limits stay unchanged: this does not calibrate full history or ceiling-sized answers. Calibration before F8, P8 physical-region review and F17 unknown-cost reconciliation remain follow-ups. Measurement-stage spec/quality review and scoped wording re-review passed; the separate evidence commit completes Task 17. Tooling producer `d7de4a0` also passed both Linux CI layers in [run 43502304046](https://github.com/pahle/lexon-ai-v6/actions/runs/43502304046). No F4 completion or final-head evidence is claimed.
+
+## Task 18 — S2 500-connection load (local measurement; review pending)
+
+The isolated load harness and changed-path workflow now implement the approved
+profile. A real authenticated request path through Caddy held two owners in
+separate organizations at 250 subscribers each. The local 256 per-user cap was
+isolated to this project; default six and oldest-connection eviction remain
+separately qualified. F3 caps stayed 24 globally and 6 per organization. No
+public diagnostic endpoint, RLS bypass, paid model call, or exemption was used.
+
+On 2026-11-14, `env COMPOSE_DISABLE_ENV_FILE=true pnpm test:load:chat` passed in
+173.715 seconds on the local Darwin ARM64 Docker environment. Across 29 samples
+for 32.550 seconds, the API reported 500 hub subscriptions, 500 active leases,
+and 500 reader subscriptions at every sample. The settled reader connection
+counts were idle 1, one subscriber 2, plateau 2, teardown 1. API RSS peaked at
+266.738 MiB under the 1536 MiB/1 CPU limit; k6 memory peaked at 132.121 MiB
+under 2048 MiB/2 CPU. k6 completed 500 requests with HTTP 200, no errors or
+reconnects, one request per VU, and a minimum request duration of 38.525 seconds.
+Both held mock-run stream entry counts advanced from 3 to 6; these are Redis
+stream entry counts, not durable step sequences.
+
+Cold send-to-first-visible-answer-frame latency was 2136.85 ms. Three warm
+samples were 377.98, 972.22, and 945.98 ms; aggregate median was 959.10 ms and
+p95/max were 2136.85 ms. These values are descriptive and impose no latency
+gate. Full environment, provenance, failed attempts, and verification history
+are in the [Task 18 report](F4-task-18-report.md); safe aggregates are
+[F4-sse-load.json](F4-sse-load.json) and
+[F4-stream-latency.json](F4-stream-latency.json).
+
+This run records source head `267f24cde56cac1a96ab2de5fd02051e256522e6` with
+`sourceDirty: true`; its API image provenance is a local image-configuration
+digest, not a registry pull digest. It is local evidence only. Main review,
+evidence commit, and load plus normal CI on the exact clean final source head
+under Linux remain required. CI run [43504282456](https://github.com/pahle/lexon-ai-v6/actions/runs/43504282456)
+passed Compose E2E but had two unit timing assertion failures; focused unchanged
+local cases passed afterward. That CI run is not full Linux verification. Task
+18 remains pending acceptance until the main review and final-head gates close.
+The final controller regression passed 1,367 tests across 198 files in
+217.953 seconds (log SHA-256
+`c0a167585708987647f7c0eb6477eefc5756365687ee667603bcb6e9bd536a68`).
+All 258 Node tooling tests, root typecheck, build, format:check, and lint
+(including 99 boundary fixtures) also passed. Main review and final-head Linux
+verification remain pending.

@@ -1098,6 +1098,261 @@ test('a peer disconnect does not invalidate another same-session stream across r
   }
 });
 
+test('an admitted SSE lease renews while StreamHub subscription setup is pending', async ({
+  services,
+}) => {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-admission-heartbeat-health.json',
+      ),
+    ),
+  );
+  const redis = new Redis(services.valkey.streamsUrl);
+  const controller = new AbortController();
+  let releaseSubscription!: () => void;
+  let markSubscriptionStarted!: () => void;
+  const subscriptionGate = new Promise<void>((resolve) => {
+    releaseSubscription = resolve;
+  });
+  const subscriptionStarted = new Promise<void>((resolve) => {
+    markSubscriptionStarted = resolve;
+  });
+  let successfulRenewals = 0;
+  let pendingResponse: Promise<Response> | undefined;
+  let renewalSpy: ReturnType<typeof vi.spyOn> | undefined;
+  let subscribeSpy: ReturnType<typeof vi.spyOn> | undefined;
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as { user: { id: string } };
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: randomUUID(),
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'Keep an admitted SSE lease alive during stream setup',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const leaseKey = `${services.queuePrefix}:{sse-connections}:${identity.user.id}`;
+    const registry = app.get(SseConnectionRegistry);
+    const originalRenew = registry.renew.bind(registry);
+    renewalSpy = vi
+      .spyOn(registry, 'renew')
+      .mockImplementation(async (lease) => {
+        const renewed = await originalRenew(lease);
+        if (lease.userId === identity.user.id && renewed) successfulRenewals++;
+        return renewed;
+      });
+    const hub = app.get(StreamHub);
+    const originalSubscribe = hub.subscribe.bind(hub);
+    subscribeSpy = vi
+      .spyOn(hub, 'subscribe')
+      .mockImplementation(async (...args) => {
+        markSubscriptionStarted();
+        await subscriptionGate;
+        return originalSubscribe(...args);
+      });
+
+    pendingResponse = fetch(`${origin}/api/runs/${runId}/events`, {
+      headers,
+      signal: controller.signal,
+    });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const entered = await Promise.race([
+      subscriptionStarted.then(() => true),
+      new Promise<boolean>((resolve) => {
+        timeout = setTimeout(() => resolve(false), 5_000);
+      }),
+    ]);
+    if (timeout) clearTimeout(timeout);
+    expect(entered).toBe(true);
+    expect(await redis.zcard(leaseKey)).toBe(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 4_200));
+    expect(successfulRenewals).toBeGreaterThanOrEqual(2);
+
+    releaseSubscription();
+    const response = await pendingResponse;
+    expect(response.status).toBe(200);
+    if (!response.body) throw new Error('Run event stream body unavailable');
+    const reader = response.body.getReader();
+    try {
+      await readUntilReader(reader, 'snapshot-end', false);
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+    const releaseDeadline = Date.now() + 2_000;
+    while ((await redis.zcard(leaseKey)) !== 0 && Date.now() < releaseDeadline)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(await redis.zcard(leaseKey)).toBe(0);
+  } finally {
+    releaseSubscription();
+    controller.abort();
+    if (pendingResponse) await pendingResponse.catch(() => undefined);
+    subscribeSpy?.mockRestore();
+    renewalSpy?.mockRestore();
+    redis.disconnect();
+    await app.close();
+  }
+});
+
+test('an SSE lease keeps renewing while real session revalidation is pending', async ({
+  services,
+}) => {
+  const controller = new AbortController();
+  let releaseConnections!: () => void;
+  let markConnectionWaitStarted!: () => void;
+  const connectionGate = new Promise<void>((resolve) => {
+    releaseConnections = resolve;
+  });
+  const connectionWaitStarted = new Promise<void>((resolve) => {
+    markConnectionWaitStarted = resolve;
+  });
+  let successfulRenewals = 0;
+  let ownershipChecks = 0;
+  let holdAppConnections = true;
+  let pendingResponse: Promise<Response> | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let renewalSpy: ReturnType<typeof vi.spyOn> | undefined;
+  let ownershipSpy: ReturnType<typeof vi.spyOn> | undefined;
+  let restoreTenantMethod: (() => void) | undefined;
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createSseAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-sse-revalidation-heartbeat-health.json',
+      ),
+    ),
+  );
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as { user: { id: string } };
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId: randomUUID(),
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'Keep an established SSE lease alive during real revalidation',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { runId } = (await created.json()) as { runId: string };
+    const registry = app.get(SseConnectionRegistry);
+    const originalRenew = registry.renew.bind(registry);
+    renewalSpy = vi
+      .spyOn(registry, 'renew')
+      .mockImplementation(async (lease) => {
+        const renewed = await originalRenew(lease);
+        if (lease.userId === identity.user.id && renewed) successfulRenewals++;
+        return renewed;
+      });
+    const originalExists = AiRunRepository.prototype.existsForOwnedChat;
+    ownershipSpy = vi
+      .spyOn(AiRunRepository.prototype, 'existsForOwnedChat')
+      .mockImplementation(async function (this: AiRunRepository, ...args) {
+        ownershipChecks++;
+        return originalExists.apply(this, args);
+      });
+
+    pendingResponse = fetch(`${origin}/api/runs/${runId}/events`, {
+      headers,
+      signal: controller.signal,
+    });
+    const response = await pendingResponse;
+    expect(response.status).toBe(200);
+    if (!response.body) throw new Error('Run event stream body unavailable');
+    reader = response.body.getReader();
+    await readUntilReader(reader, 'snapshot-end', false);
+
+    const database = app.get(TenantDatabase);
+    const withTenantPort = database as unknown as {
+      withTenant: (...args: unknown[]) => Promise<unknown>;
+    };
+    const originalWithTenant = withTenantPort.withTenant;
+    let connectionGateEntered = false;
+    const previousWithTenant = Object.getOwnPropertyDescriptor(
+      database,
+      'withTenant',
+    );
+    Object.defineProperty(database, 'withTenant', {
+      configurable: true,
+      writable: true,
+      value: function (...args: unknown[]) {
+        if (holdAppConnections) {
+          if (!connectionGateEntered) {
+            connectionGateEntered = true;
+            markConnectionWaitStarted();
+          }
+          return connectionGate.then(() =>
+            Reflect.apply(originalWithTenant, database, args),
+          );
+        }
+        return Reflect.apply(originalWithTenant, database, args);
+      },
+    });
+    restoreTenantMethod = () => {
+      if (previousWithTenant)
+        Object.defineProperty(database, 'withTenant', previousWithTenant);
+      else delete (database as unknown as { withTenant?: unknown }).withTenant;
+    };
+
+    let deadline = Date.now() + 5_000;
+    let connectWaitStarted = false;
+    while (!connectWaitStarted && Date.now() < deadline) {
+      connectWaitStarted = await Promise.race([
+        connectionWaitStarted.then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 25)),
+      ]);
+    }
+    expect(connectWaitStarted).toBe(true);
+    deadline = Date.now() + 5_000;
+    while (successfulRenewals < 1 && Date.now() < deadline)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(successfulRenewals).toBeGreaterThanOrEqual(1);
+    expect(ownershipChecks).toBe(0);
+    const renewalsAtGate = successfulRenewals;
+
+    await new Promise((resolve) => setTimeout(resolve, 4_200));
+    expect(successfulRenewals - renewalsAtGate).toBeGreaterThanOrEqual(3);
+
+    holdAppConnections = false;
+    releaseConnections();
+    deadline = Date.now() + 5_000;
+    while (ownershipChecks < 1 && Date.now() < deadline)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(ownershipChecks).toBe(1);
+  } finally {
+    holdAppConnections = false;
+    releaseConnections();
+    restoreTenantMethod?.();
+    if (reader) await reader.cancel().catch(() => {});
+    controller.abort();
+    if (pendingResponse) await pendingResponse.catch(() => undefined);
+    ownershipSpy?.mockRestore();
+    renewalSpy?.mockRestore();
+    await app.close();
+  }
+});
+
 test('same-session snapshot-only subscribers share the bounded authorized PG reload', async ({
   services,
 }) => {

@@ -2,9 +2,9 @@ import {
   composeFilesForE2EProjects,
   resolveE2ESelection,
 } from './e2e-projects.mjs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
@@ -22,7 +22,12 @@ async function port() {
   return value;
 }
 const allocatedPorts = new Set();
-const { args, selectedProjects } = resolveE2ESelection(process.argv.slice(2));
+const { args, selectedProjects } = resolveE2ESelection(
+  process.argv.slice(2),
+  undefined,
+  { includeLoad: process.env.LEXON_CHAT_LOAD === '1' },
+);
+const captureChatLoad = selectedProjects.includes('chat-sse-load');
 const directory = await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
 const secret = () => randomBytes(24).toString('hex');
@@ -83,10 +88,11 @@ try {
     root,
     process.env.LEXON_VISUAL_DEV === '1',
   );
-  await withOwnedStack({
+  const loadEvidence = await withOwnedStack({
     project,
     directory,
     signal: controller.signal,
+    captureChatLoad,
     async start(signal) {
       await run('docker', composeArgs(project, ['config', '--quiet'], files), {
         env,
@@ -122,12 +128,20 @@ try {
           env: {
             ...process.env,
             LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+            LEXON_CHAT_LOAD: captureChatLoad ? '1' : '0',
             PLAYWRIGHT_NO_COPY_PROMPT: '1',
             COMPOSE_PROFILES: '',
           },
           signal,
         },
       );
+      if (captureChatLoad)
+        return JSON.parse(
+          await readFile(
+            join(directory, 'chat-load-observations.json'),
+            'utf8',
+          ),
+        );
     },
     down: () =>
       run(
@@ -141,8 +155,34 @@ try {
       ),
     remove: (directory) => rm(directory, { recursive: true, force: true }),
   });
+  if (captureChatLoad) {
+    const evidenceDirectory = resolve(
+      process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR ||
+        join(root, 'test-results/f4-chat-load'),
+    );
+    const { latency, ...aggregate } = loadEvidence;
+    await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
+    try {
+      await writeFile(
+        join(evidenceDirectory, 'F4-sse-load.json'),
+        `${JSON.stringify(aggregate, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+      await writeFile(
+        join(evidenceDirectory, 'F4-stream-latency.json'),
+        `${JSON.stringify(latency, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+    } catch (error) {
+      await Promise.all([
+        rm(join(evidenceDirectory, 'F4-sse-load.json'), { force: true }),
+        rm(join(evidenceDirectory, 'F4-stream-latency.json'), { force: true }),
+      ]);
+      throw error;
+    }
+  }
 } catch (error) {
-  console.error(error.message);
+  console.error(captureChatLoad ? 'Chat SSE load E2E failed.' : error.message);
   process.exitCode = 1;
 } finally {
   process.off('SIGINT', stop);

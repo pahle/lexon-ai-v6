@@ -1,3 +1,5 @@
+import { shouldRunChatLoad } from './chat-load-paths.mjs';
+
 export const E2E_PROJECTS = {
   backend: [
     'runtime-health',
@@ -29,17 +31,25 @@ export function composeFilesForE2EProjects(
   ];
   if (
     selectedProjects.includes('chat-runtime-proof') ||
-    selectedProjects.includes('chat-browser')
+    selectedProjects.includes('chat-browser') ||
+    selectedProjects.includes('chat-sse-load')
   )
     files.push(
       `${repositoryRoot}backend/test/e2e/compose.chat-runtime-proof.yml`,
     );
+  if (selectedProjects.includes('chat-sse-load'))
+    files.push(`${repositoryRoot}backend/test/e2e/compose.chat-load.yml`);
   if (visualDev)
     files.push(`${repositoryRoot}backend/test/e2e/compose.visual-dev.yml`);
   return files;
 }
 
-export function resolveE2ESelection(rawArgs, mappings = E2E_PROJECTS) {
+export function resolveE2ESelection(
+  rawArgs,
+  mappings = E2E_PROJECTS,
+  options = {},
+) {
+  const includeLoad = options.includeLoad ?? false;
   const args = rawArgs.filter((arg) => arg !== '--');
   let packageName;
   for (let index = 0; index < args.length; index += 1) {
@@ -79,9 +89,16 @@ export function resolveE2ESelection(rawArgs, mappings = E2E_PROJECTS) {
       args.push('--project', project);
 
   const allProjects = [...new Set(Object.values(mappings).flat())];
+  const loadAllowed =
+    includeLoad &&
+    (!Object.hasOwn(options, 'loadTrigger') ||
+      shouldRunChatLoad(options.loadTrigger));
+  const selectableProjects = loadAllowed
+    ? [...allProjects, 'chat-sse-load']
+    : allProjects;
   const selectedProjects =
     projectSelectors.length > 0
-      ? allProjects.filter((project) =>
+      ? selectableProjects.filter((project) =>
           projectSelectors.some((selector) =>
             matchesProject(project, selector),
           ),

@@ -99,5 +99,19 @@ export default defineConfig({
       testMatch: 'backend/test/e2e/api.spec.ts',
       grep: /evaluation export/,
     },
+    ...(process.env.LEXON_CHAT_LOAD === '1'
+      ? [
+          {
+            name: 'chat-sse-load',
+            timeout: 180_000,
+            testMatch: 'backend/test/e2e/chat-sse-load.spec.ts',
+            use: {
+              trace: 'off' as const,
+              video: 'off' as const,
+              screenshot: 'off' as const,
+            },
+          },
+        ]
+      : []),
   ],
 });

@@ -154,3 +154,48 @@ test('chat-browser discovers the dedicated chat accessibility suite', () => {
     'chat-browser omitted chat-accessibility.spec.ts from test discovery',
   );
 });
+
+test('chat SSE load selection is explicit opt-in in both CLI spellings', () => {
+  for (const args of [
+    ['--project', 'chat-sse-load'],
+    ['--project=chat-sse-load'],
+  ]) {
+    const selection = resolveE2ESelection(args, E2E_PROJECTS, {
+      includeLoad: true,
+    });
+    assert.deepEqual(selection.selectedProjects, ['chat-sse-load']);
+  }
+});
+
+test('chat SSE load stays outside default, package, and non-opt-in selection', () => {
+  const defaultSelection = resolveE2ESelection([]);
+  assert.deepEqual(defaultSelection.args, []);
+  assert.ok(!defaultSelection.selectedProjects.includes('chat-sse-load'));
+
+  const frontend = resolveE2ESelection(['--package', 'frontend']);
+  assert.ok(!frontend.selectedProjects.includes('chat-sse-load'));
+
+  for (const args of [
+    ['--project', 'chat-sse-load'],
+    ['--project=chat-sse-load'],
+  ]) {
+    const selection = resolveE2ESelection(args);
+    assert.ok(!selection.selectedProjects.includes('chat-sse-load'));
+  }
+});
+
+test('chat SSE load selects both chat runtime and load Compose overlays', () => {
+  const composeFiles = composeFilesForE2EProjects(
+    ['chat-sse-load'],
+    '/repository/',
+  );
+
+  assert.ok(
+    composeFiles.includes(
+      '/repository/backend/test/e2e/compose.chat-runtime-proof.yml',
+    ),
+  );
+  assert.ok(
+    composeFiles.includes('/repository/backend/test/e2e/compose.chat-load.yml'),
+  );
+});

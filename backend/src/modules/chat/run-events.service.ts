@@ -351,8 +351,8 @@ export class RunEventsService {
     let unsubscribeCancel: (() => Promise<void>) | undefined;
     let unbindCancel: (() => void) | undefined;
     let closed = false;
-    let checking = false;
-    let renewal: ReturnType<typeof setInterval> | undefined;
+    let renewingLease = false;
+    let checkingAuthorization = false;
     const close = async (
       reason?: 'slow-client' | 'revoked' | 'shutdown' | 'evicted',
     ): Promise<void> => {
@@ -373,6 +373,67 @@ export class RunEventsService {
       close: () => close('evicted'),
       shutdown: () => close('shutdown'),
     });
+    const checkAuthorization = () => {
+      if (closed || checkingAuthorization) return;
+      checkingAuthorization = true;
+      void (async () => {
+        const key = `${userId}|${runId}|${identity.channel}|${identity.sessionId}`;
+        let check = authorizationCache.get(key);
+        if (!check || check.expiresAt <= Date.now()) {
+          const entry: AuthorizationCheck = {
+            expiresAt: Number.POSITIVE_INFINITY,
+            pending: Promise.resolve(),
+          };
+          const pending = (async () => {
+            await this.revalidation.assert(identity, orgId);
+            const owned = await this.database.withTenant(
+              { orgId, userId },
+              (tx) => this.runs.existsForOwnedChat(tx, runId, userId),
+              { timeoutMs: 1000 },
+            );
+            if (!owned) throw new NotFoundException();
+          })().then(() => {
+            entry.expiresAt = Date.now() + 1000;
+            entry.cleanup = setTimeout(() => {
+              if (authorizationCache.get(key) === entry)
+                authorizationCache.delete(key);
+            }, 1000);
+            entry.cleanup.unref();
+          });
+          Object.assign(entry, { pending });
+          check = entry;
+          authorizationCache.set(key, entry);
+          void pending.catch(() => {
+            if (entry.cleanup) clearTimeout(entry.cleanup);
+            if (authorizationCache.get(key) === entry)
+              authorizationCache.delete(key);
+          });
+        }
+        await check.pending;
+      })()
+        .catch(() => close('revoked'))
+        .finally(() => {
+          checkingAuthorization = false;
+        });
+    };
+    const renewal = setInterval(() => {
+      const currentLease = lease;
+      if (closed || !currentLease || renewingLease) return;
+      renewingLease = true;
+      void this.registry
+        .renew(currentLease)
+        .then((current) => {
+          if (closed) return;
+          if (!current) return close('evicted');
+          lease = current;
+          checkAuthorization();
+        })
+        .catch(() => close('revoked'))
+        .finally(() => {
+          renewingLease = false;
+        });
+    }, 1000);
+    renewal.unref();
     try {
       unbindCancel = this.signals.bind(runId, { orgId, userId });
       const unsubscribe = await this.signals.subscribeDeletion(runId, () => {
@@ -457,53 +518,6 @@ export class RunEventsService {
         else await streamSubscription.close();
         throw new NotFoundException();
       }
-      renewal = setInterval(() => {
-        if (checking || closed || !lease) return;
-        checking = true;
-        void (async () => {
-          const current = await this.registry.renew(lease!);
-          if (!current) return close('evicted');
-          lease = current;
-          const key = `${userId}|${runId}|${identity.channel}|${identity.sessionId}`;
-          let check = authorizationCache.get(key);
-          if (!check || check.expiresAt <= Date.now()) {
-            const entry: AuthorizationCheck = {
-              expiresAt: Number.POSITIVE_INFINITY,
-              pending: Promise.resolve(),
-            };
-            const pending = (async () => {
-              await this.revalidation.assert(identity, orgId);
-              const owned = await this.database.withTenant(
-                { orgId, userId },
-                (tx) => this.runs.existsForOwnedChat(tx, runId, userId),
-                { timeoutMs: 1000 },
-              );
-              if (!owned) throw new NotFoundException();
-            })().then(() => {
-              entry.expiresAt = Date.now() + 1000;
-              entry.cleanup = setTimeout(() => {
-                if (authorizationCache.get(key) === entry)
-                  authorizationCache.delete(key);
-              }, 1000);
-              entry.cleanup.unref();
-            });
-            Object.assign(entry, { pending });
-            check = entry;
-            authorizationCache.set(key, entry);
-            void pending.catch(() => {
-              if (entry.cleanup) clearTimeout(entry.cleanup);
-              if (authorizationCache.get(key) === entry)
-                authorizationCache.delete(key);
-            });
-          }
-          await check.pending;
-        })()
-          .catch(() => close('revoked'))
-          .finally(() => {
-            checking = false;
-          });
-      }, 1000);
-      renewal.unref();
       return { close: () => close() };
     } catch (error) {
       await close();
