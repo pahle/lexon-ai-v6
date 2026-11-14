@@ -1,4 +1,5 @@
 import type { Provider } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import type { RuntimeConfig } from '../config/runtime-config.js';
 import {
   AiOperationRepository,
@@ -21,11 +22,24 @@ import {
 } from '../modules/chat/index.js';
 import { RunAuthorizationService } from '../modules/identity-access/index.js';
 import { AttemptService } from '../modules/usage/index.js';
+import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { ChatTitleService } from '../modules/chat/chat-title.service.js';
+import { RunService } from '../modules/chat/run.service.js';
+import { chatRunServiceProvider } from '../modules/chat/chat-runtime.providers.js';
+import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
+import { queueStepPermitPrefix } from '../infrastructure/queue/queue-producer.js';
 
 export function aiWorkerProviders(
   config: Extract<RuntimeConfig, { runtime: 'ai-worker' }>,
 ): Provider[] {
   return [
+    chatRunServiceProvider(config),
+    {
+      provide: ChatTitleService,
+      inject: [TenantDatabase, RunService],
+      useFactory: (db: TenantDatabase, runs: RunService) =>
+        new ChatTitleService(db, runs),
+    },
     {
       provide: CancelSignals,
       inject: [TenantDatabase, AiRunRepository],
@@ -33,6 +47,7 @@ export function aiWorkerProviders(
         new CancelSignals({
           url: config.valkey.streamsUrl,
           prefix: config.queuePrefix,
+          databaseUrl: config.database.appUrl,
           database: db,
           runs,
         }),
@@ -54,10 +69,23 @@ export function aiWorkerProviders(
                 { orgId: claim.orgId, userId: claim.userId },
                 (tx) => steps.streamActiveProof(tx, claim),
               ),
+            advanceStreamGeneration: (claim, observed) =>
+              db.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) => steps.advanceStreamGeneration(tx, claim, observed),
+                { timeoutMs: 500 },
+              ),
             authorizeTerminal: (claim) =>
               db.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
                 (tx) => steps.streamTerminalProof(tx, claim),
+              ),
+            advanceTerminalStreamGeneration: (claim, observed) =>
+              db.withTenant(
+                { orgId: claim.orgId, userId: claim.userId },
+                (tx) =>
+                  steps.advanceTerminalStreamGeneration(tx, claim, observed),
+                { timeoutMs: 500 },
               ),
             authorizeCommitted: (claim, event) =>
               db.withTenant(
@@ -85,6 +113,37 @@ export function aiWorkerProviders(
         }),
     },
     {
+      provide: ChatCleanupWorker,
+      inject: [TenantDatabase, RunStreams, PinoLogger],
+      useFactory: async (
+        db: TenantDatabase,
+        streams: RunStreams,
+        logger: PinoLogger,
+      ) =>
+        new ChatCleanupWorker(
+          db,
+          streams,
+          await StepPermitManager.create({
+            url: config.valkey.limiterUrl,
+            prefix: queueStepPermitPrefix(config.queuePrefix),
+          }),
+          undefined,
+          {
+            targetMs: config.chat.deleteTargetMs,
+            observer: {
+              record: (metric) =>
+                logger.info({
+                  event: 'chat_cleanup_metric',
+                  result: metric.event,
+                  phase: metric.phase,
+                  elapsedMs: metric.elapsedMs,
+                  overdueMs: metric.overdueMs,
+                }),
+            },
+          },
+        ),
+    },
+    {
       provide: StepExecutor,
       inject: [
         TenantDatabase,
@@ -96,6 +155,7 @@ export function aiWorkerProviders(
         MODEL_GATEWAY,
         RunStreams,
         CancelSignals,
+        ChatTitleService,
       ],
       useFactory: (
         db: TenantDatabase,
@@ -107,6 +167,7 @@ export function aiWorkerProviders(
         gateway: ModelGateway,
         streams: RunStreams,
         cancelSignals: CancelSignals,
+        chatTitles: ChatTitleService,
       ) => {
         const operations = new AiOperationRepository();
         const coordinator = new StepCoordinator(
@@ -132,6 +193,7 @@ export function aiWorkerProviders(
           gateway,
           streams,
           cancelSignals,
+          chatTitles,
         });
       },
     },

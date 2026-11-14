@@ -1,6 +1,17 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { PlatformVersionService } from '../modules/platform/index.js';
+import { CHAT_PROFILES } from '../modules/chat/index.js';
+export {
+  InvocationBudget,
+  formatUsd,
+  parseUsd,
+  reservationUsd,
+} from '../modules/usage/index.js';
+export const REAL_EVALUATION_CHAT_OUTPUT_LIMITS = Object.freeze({
+  high: CHAT_PROFILES.chat.reasoning.outputLimits.high,
+  max: CHAT_PROFILES.chat.reasoning.outputLimits.max,
+});
 import { EvaluationModule } from './evaluation.module.js';
 import type {
   EvaluationContext,
@@ -64,6 +75,14 @@ export function createEvaluationContext(
 export async function createEvaluationContext(
   options?: EvaluationHarnessOptions,
 ): Promise<{ version: string; close(): Promise<void> } | EvaluationContext> {
+  if (
+    options?.fixtureSet === 'deterministic' &&
+    (options.chatScenarios?.length ?? 0) > 1
+  ) {
+    throw new Error(
+      'Deterministic chat evaluations accept at most one scenario per context',
+    );
+  }
   const context = await NestFactory.createApplicationContext(EvaluationModule, {
     logger: false,
     abortOnError: false,
@@ -168,5 +187,13 @@ function safeScoreReport(
         ? report.safeCode
         : null,
     counts,
+    cases: report.cases
+      .filter(
+        ({ caseId }) =>
+          caseId === 'chat-no-claimed-research' ||
+          caseId === 'chat-no-invented-sources' ||
+          caseId === 'chat-answer-language',
+      )
+      .map(({ caseId, score }) => ({ caseId, score })),
   };
 }

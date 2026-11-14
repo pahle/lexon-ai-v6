@@ -9,6 +9,11 @@ import { StorageModule } from '../../infrastructure/storage/index.js';
 import { QueueModule } from '../../infrastructure/queue/index.js';
 import { HealthController } from '../../modules/platform/health.controller.js';
 import { DiagnosticController } from '../../modules/platform/diagnostic.controller.js';
+import { chatRuntimeProviders } from '../../modules/chat/chat-runtime.providers.js';
+import { chatApiProviders } from '../../modules/chat/chat-runtime.providers.js';
+import { ChatController } from '../../modules/chat/chat.controller.js';
+import { RunEventsController } from '../../modules/chat/run-events.controller.js';
+import { RunAuthorizationModule } from '../../modules/identity-access/index.js';
 @Module({})
 export class ApiRootModule {
   static forConfig(
@@ -39,9 +44,19 @@ export class ApiRootModule {
           url: config.valkey.queueUrl,
           prefix: config.queuePrefix,
         }),
+        RunAuthorizationModule,
       ],
-      providers: runtimeProviders(config, auth),
-      controllers: [HealthController, DiagnosticController],
+      providers: [
+        ...runtimeProviders(config, auth),
+        ...chatRuntimeProviders(),
+        ...chatApiProviders(config),
+      ],
+      controllers: [
+        HealthController,
+        DiagnosticController,
+        ChatController,
+        RunEventsController,
+      ],
     };
   }
 }

@@ -19,6 +19,9 @@ import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
 import { StepExecutor } from '../modules/chat/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
+import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { ChatTitleService } from '../modules/chat/chat-title.service.js';
+import { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export function runtimeProviders(
   config: RuntimeConfig,
   auth?: { check(): Promise<'up' | 'down'> },
@@ -63,6 +66,8 @@ export function runtimeProviders(
             prefix: config.queuePrefix,
           },
           new JobExecutor(db),
+          {},
+          db,
         ),
     });
   if (config.runtime === 'dispatcher')
@@ -80,13 +85,20 @@ export function runtimeProviders(
   const capacity = config.runtime === 'api' || config.runtime === 'ai-worker';
   const tokens: InjectionToken[] =
     config.runtime === 'api'
-      ? [QueueProducer, StoragePort]
+      ? [QueueProducer, StoragePort, StreamHub]
       : config.runtime === 'document-worker'
         ? [StoragePort]
         : config.runtime === 'ai-worker'
-          ? [QueueConsumer, StepExecutor, RunStreams, CancelSignals]
+          ? [
+              QueueConsumer,
+              StepExecutor,
+              RunStreams,
+              CancelSignals,
+              ChatTitleService,
+            ]
           : [QueueProducer, OutboxDispatcher];
   if (capacity) tokens.push(AiCapacityRepository);
+  if (config.runtime === 'ai-worker') tokens.push(ChatCleanupWorker);
   providers.push({
     provide: RuntimeLifecycle,
     inject: [TenantDatabase, HealthIndicators, PinoLogger, ...tokens],
@@ -103,6 +115,9 @@ export function runtimeProviders(
         | StepExecutor
         | RunStreams
         | CancelSignals
+        | StreamHub
+        | ChatCleanupWorker
+        | ChatTitleService
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -127,6 +142,13 @@ export function runtimeProviders(
         dependencies.find((x): x is RunStreams => x instanceof RunStreams),
         dependencies.find(
           (x): x is CancelSignals => x instanceof CancelSignals,
+        ),
+        dependencies.find((x): x is StreamHub => x instanceof StreamHub),
+        dependencies.find(
+          (x): x is ChatCleanupWorker => x instanceof ChatCleanupWorker,
+        ),
+        dependencies.find(
+          (x): x is ChatTitleService => x instanceof ChatTitleService,
         ),
       ),
   });

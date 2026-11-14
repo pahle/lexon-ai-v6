@@ -573,19 +573,64 @@ test('paused old worker cannot write after replacement commits a new fence', asy
     const streamKey = `${services.queuePrefix}:{run-streams}:${run.runId}:events`;
     const beforeRelease = await redis.xlen(streamKey);
     expect(beforeRelease).toBeGreaterThan(0);
+    const knownWorkerEvents = [
+      'worker-ready',
+      'model-responded-before-persistence',
+      'handler-failed',
+      'job-completed',
+    ];
+    console.info(
+      '[ai-worker-crash-diagnostic]',
+      JSON.stringify({
+        phase: 'replacement-completed-before-old-release',
+        oldEvents: old
+          .events()
+          .filter((event) => knownWorkerEvents.includes(event)),
+        replacementEvents: replacement
+          .events()
+          .filter((event) => knownWorkerEvents.includes(event)),
+      }),
+    );
     old.release();
     old.resume();
     await old.checkpoint('model-pause-released', 5000);
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(await redis.xlen(streamKey)).toBe(beforeRelease);
-    expect(await harness.inspect(tenant, run.runId)).toMatchObject({
+    const terminal = await harness.inspect(tenant, run.runId);
+    const attempts = await ai.withTenant(0, (tx) =>
+      new AiAttemptRepository().list(tx, run.runId),
+    );
+    console.info(
+      '[ai-worker-crash-diagnostic]',
+      JSON.stringify({
+        phase: 'final-state-after-old-resume',
+        run: terminal && {
+          status: terminal.status,
+          runVersion: terminal.runVersion,
+          nextSequence: terminal.nextSequence,
+          errorCode: terminal.errorCode,
+        },
+        oldEvents: old
+          .events()
+          .filter((event) => knownWorkerEvents.includes(event)),
+        replacementEvents: replacement
+          .events()
+          .filter((event) => knownWorkerEvents.includes(event)),
+        attempts: attempts.map(({ outcome, generationId }) => ({
+          outcome,
+          generationId:
+            typeof generationId === 'string' &&
+            ['old-generation', 'replacement-generation'].includes(generationId)
+              ? generationId
+              : 'other',
+        })),
+      }),
+    );
+    expect(terminal).toMatchObject({
       status: 'completed',
       partialOutput: 'replacement output',
       finalOutput: 'replacement output',
     });
-    const attempts = await ai.withTenant(0, (tx) =>
-      new AiAttemptRepository().list(tx, run.runId),
-    );
     expect(attempts.map((attempt) => attempt.outcome)).toEqual([
       'unknown',
       'succeeded',

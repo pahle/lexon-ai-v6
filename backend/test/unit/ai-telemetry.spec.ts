@@ -72,6 +72,7 @@ describe('AI telemetry privacy', () => {
     const tracer = createSafeAiTracer(provider.getTracer('test'));
     const promptSentinel = 'HOSTILE_PROMPT_SENTINEL';
     const secretSentinel = 'OPENROUTER_KEY_SENTINEL';
+    const searchQuerySentinel = 'PRIVATE_SEARCH_QUERY_CANARY';
 
     await tracer.withSpan(
       'ai.run',
@@ -81,9 +82,11 @@ describe('AI telemetry privacy', () => {
         status: 'failed',
         prompt: promptSentinel,
         apiKey: secretSentinel,
+        searchQuery: searchQuerySentinel,
       },
       async (span) => {
         span.setAttribute('error.message', promptSentinel);
+        span.setAttribute('query', searchQuerySentinel);
       },
     );
     await provider.forceFlush();
@@ -107,6 +110,7 @@ describe('AI telemetry privacy', () => {
     expect(serializedTelemetry).toContain('failed');
     expect(serializedTelemetry).not.toContain(promptSentinel);
     expect(serializedTelemetry).not.toContain(secretSentinel);
+    expect(serializedTelemetry).not.toContain(searchQuerySentinel);
     await provider.shutdown();
   });
 

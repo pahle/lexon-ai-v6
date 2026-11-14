@@ -14,8 +14,11 @@ import { useWorkspace } from './workspace-provider';
 
 type Crumb = { title: string; href?: string };
 
-function routeCrumbs(pathname: string): Crumb[] {
-  if (pathname === '/workspace') return [{ title: 'Home' }];
+function routeCrumbs(pathname: string, chatTitle = 'Chat'): Crumb[] {
+  if (pathname === '/workspace') return [{ title: 'New chat' }];
+  if (pathname === '/chats') return [{ title: 'Chats' }];
+  if (/^\/chats\/[0-9a-f-]{36}$/i.test(pathname))
+    return [{ title: 'Chats', href: '/chats' }, { title: chatTitle }];
   if (pathname === '/platform/provisioning')
     return [
       { title: 'Platform', href: '/platform/provisioning' },
@@ -32,13 +35,27 @@ function routeCrumbs(pathname: string): Crumb[] {
       { title: 'Platform', href: '/platform/provisioning' },
       { title: 'Account status' },
     ];
-  return [{ title: 'Home', href: '/workspace' }, { title: 'Page not found' }];
+  return [
+    { title: 'New chat', href: '/workspace' },
+    { title: 'Page not found' },
+  ];
 }
 
 export function WorkspaceBreadcrumb() {
   const pathname = usePathname() ?? '';
-  const { identity } = useWorkspace();
-  const crumbs = routeCrumbs(pathname);
+  const { identity, chatTitle } = useWorkspace();
+  const threadMatch = /^\/chats\/([0-9a-f-]{36})$/i.exec(pathname);
+  const actorScope = identity
+    ? `${identity.organization.id}:${identity.user.id}`
+    : '';
+  const title =
+    threadMatch &&
+    chatTitle &&
+    chatTitle.chatId === threadMatch[1] &&
+    chatTitle.actorScope === actorScope
+      ? chatTitle.title
+      : 'Chat';
+  const crumbs = routeCrumbs(pathname, title);
 
   // Org pages are gated by the same ready identity as the shell. Keep labels
   // generic so the breadcrumb never reveals a hidden personal organization.

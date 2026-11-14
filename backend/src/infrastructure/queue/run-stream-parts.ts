@@ -36,6 +36,8 @@ function encodeStreamPartsWithBudget(
 
   if (snapshot.type === 'text-delta')
     return splitText(snapshot, 'delta', snapshot.delta, maxBytes, maxParts);
+  if (snapshot.type === 'reasoning-delta')
+    return splitText(snapshot, 'delta', snapshot.delta, maxBytes, maxParts);
   if (snapshot.type === 'tool-input-delta')
     return splitText(
       snapshot,
@@ -152,7 +154,10 @@ function encodeToolInput(
 }
 
 function splitText(
-  event: Extract<RunStreamEvent, { type: 'text-delta' | 'tool-input-delta' }>,
+  event: Extract<
+    RunStreamEvent,
+    { type: 'text-delta' | 'reasoning-delta' | 'tool-input-delta' }
+  >,
   field: 'delta' | 'inputTextDelta',
   value: string,
   maxBytes: number,

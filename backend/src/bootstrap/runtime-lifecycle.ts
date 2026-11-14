@@ -19,7 +19,10 @@ import {
 } from '../infrastructure/telemetry/index.js';
 import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
 import { StepExecutor } from '../modules/chat/index.js';
+import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
+import { ChatTitleService } from '../modules/chat/chat-title.service.js';
 import type { PinoLogger } from 'nestjs-pino';
+import type { StreamHub } from '../infrastructure/queue/stream-hub.js';
 export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
   #closed = false;
   #abort = new AbortController();
@@ -38,6 +41,9 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly stepExecutor?: StepExecutor,
     private readonly runStreams?: RunStreams,
     private readonly cancelSignals?: CancelSignals,
+    private readonly streamHub?: StreamHub,
+    private readonly chatCleanupWorker?: ChatCleanupWorker,
+    private readonly chatTitleService?: ChatTitleService,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
@@ -77,6 +83,17 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
               exhausted: (job) => this.stepExecutor!.exhausted(job),
             });
         }
+        if (this.chatCleanupWorker)
+          registry.register('chat.cleanup.v1', {
+            strategy: 'cleanup-work',
+            handle: (job) => this.chatCleanupWorker!.advance(job),
+          });
+        if (this.chatTitleService)
+          registry.register('chat.title.v1', {
+            strategy: 'short-transaction',
+            handle: async (tx, job) =>
+              this.chatTitleService!.startWithin(tx, job),
+          });
         await this.consumer.start(registry);
       }
       if (this.dispatcher)
@@ -127,7 +144,9 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     await this.#dispatchTask;
     await this.consumer?.close();
     await this.cancelSignals?.close();
+    await this.chatCleanupWorker?.close();
     await this.runStreams?.close();
+    await this.streamHub?.close();
     await this.producer?.close();
     await this.storage?.close();
     await this.db.close();

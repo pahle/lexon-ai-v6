@@ -1,4 +1,4 @@
-import type { JobEnvelope, TenantJobHandler } from '../db/index.js';
+import type { JobEnvelope, TenantJobHandler, StepClaim } from '../db/index.js';
 import type { StepPermit } from './step-permits.js';
 
 export type DurableJobResult =
@@ -7,6 +7,7 @@ export type DurableJobResult =
 export interface DurableJobContext {
   readonly signal: AbortSignal;
   readonly permit: StepPermit;
+  readonly recordClaim?: (claim: StepClaim) => Promise<void>;
 }
 
 export type DurableJobHandler = (
@@ -15,6 +16,10 @@ export type DurableJobHandler = (
 ) => Promise<DurableJobResult>;
 
 export type QueueJobHandler =
+  | Readonly<{
+      strategy: 'cleanup-work';
+      handle: (job: JobEnvelope) => Promise<'pending' | 'complete'>;
+    }>
   | Readonly<{
       strategy: 'short-transaction';
       handle: TenantJobHandler;

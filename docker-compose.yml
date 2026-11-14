@@ -220,7 +220,10 @@ services:
     build:
       <<: *backend-build
       target: ai-worker
-    environment: *runtime-env
+    environment:
+      <<: *runtime-env
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: ${LEXON_OPENROUTER_ZDR_ONLY_VERIFIED:-}
     networks: [core, egress]
     depends_on: *runtime-dependencies
     healthcheck: *worker-health
@@ -266,7 +269,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       BACKEND_INTERNAL_URL: http://api:3001
-    ports: ['127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000']
+    ports: ['127.0.0.1:${FRONTEND_HOST_PORT:-3002}:3000']
     networks: [edge]
     mem_limit: 256m
     cpus: 0.5
@@ -285,6 +288,38 @@ services:
       timeout: 3s
       retries: 8
       start_period: 10s
+  caddy:
+    image: ${CADDY_IMAGE:?Use the manifest loader}
+    user: '1000:1000'
+    command: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+    ports: ['127.0.0.1:${PUBLIC_HOST_PORT:-3000}:8080']
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+    tmpfs:
+      - /data:rw,nosuid,nodev,noexec,size=16m,uid=1000,gid=1000,mode=0700
+      - /config:rw,nosuid,nodev,noexec,size=16m,uid=1000,gid=1000,mode=0700
+    networks: [edge]
+    mem_limit: 64m
+    cpus: 0.25
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          CMD,
+          caddy,
+          validate,
+          --config,
+          /etc/caddy/Caddyfile,
+          --adapter,
+          caddyfile,
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 8
 networks:
   edge:
     internal: false

@@ -312,7 +312,7 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   const mobileBreadcrumb = page.getByRole('navigation', {
     name: 'breadcrumb',
   });
-  await expect(mobileBreadcrumb).toContainText('Home');
+  await expect(mobileBreadcrumb).toContainText('New chat');
   await expect(
     mobileBreadcrumb.getByRole('link', { name: 'Settings', exact: true }),
   ).toHaveCount(0);
@@ -796,7 +796,7 @@ test('real API-authenticated Home captures Task 6A shell states', async ({
   }
 });
 
-test('inert Home composer controls render the published disabled opacity while remaining focusable', async ({
+test('F4 new-chat composer exposes its active input and no retired controls', async ({
   page,
 }) => {
   const stack = descriptor();
@@ -807,22 +807,20 @@ test('inert Home composer controls render the published disabled opacity while r
   );
   expect(onboarding.status()).toBe(204);
   await page.goto(stack.frontendUrl + '/workspace');
-  for (const selector of [
-    '.aui-composer-add-attachment',
-    '.aui-composer-send',
-  ]) {
-    const control = page.locator(selector);
-    await expect(control).toHaveAttribute('aria-disabled', 'true');
-    expect(
-      await control.evaluate((node) => getComputedStyle(node).opacity),
-    ).toBe('0.5');
-    expect(
-      await control.evaluate((node) => (node as HTMLElement).tabIndex),
-    ).toBeGreaterThanOrEqual(0);
-    expect(
-      await control.evaluate((node) => getComputedStyle(node).display),
-    ).not.toBe('none');
-  }
+  await expect(
+    page.getByRole('textbox', { name: 'Message input' }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeDisabled();
+  const composer = page.locator('form').filter({
+    has: page.getByRole('textbox', { name: 'Message input' }),
+  });
+  await expect(
+    composer.getByRole('button', {
+      name: /attachment|voice|audio|record|branch|sample|example/i,
+    }),
+  ).toHaveCount(0);
 });
 
 test('Task 6B auth state captures cover sign-in and secondary flows', async ({
@@ -1236,7 +1234,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       .click();
     await expect(secondOwnerPage).toHaveURL(/workspace/);
     await expect(
-      secondOwnerPage.getByRole('heading', { name: 'Home' }),
+      secondOwnerPage.getByRole('textbox', { name: 'Message input' }),
     ).toBeVisible();
     expect(
       await secondOwnerPage.evaluate(
@@ -1287,10 +1285,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   expect(requireTwoFactor).toBe(200);
 
   await page.goto(stack.frontendUrl + '/workspace');
-  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'home', theme);
-  await captureTask9Variants(page, 'home', 'Home');
+  await captureTask9Variants(page, 'home', 'New chat');
   for (const viewport of ['desktop', 'mobile'] as const) {
     if (viewport === 'mobile') {
       await page.setViewportSize({ width: 390, height: 844 });
@@ -1303,7 +1301,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         'sidebar-header-expanded',
         theme,
         viewport,
-        'Home',
+        'New chat',
       );
     if (viewport === 'mobile') await page.keyboard.press('Escape');
   }
@@ -1315,7 +1313,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       'sidebar-header-collapsed-desktop',
       theme,
       'desktop',
-      'Home',
+      'New chat',
     );
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();

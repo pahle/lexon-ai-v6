@@ -41,6 +41,36 @@ export default defineConfig({
     },
     { name: 'backend-api', testMatch: 'backend/test/e2e/api.spec.ts' },
     {
+      name: 'chat-routing',
+      testMatch: 'backend/test/e2e/chat-routing.spec.ts',
+    },
+    {
+      name: 'chat-runtime-proof',
+      timeout: 90000,
+      testMatch: [
+        'backend/test/e2e/chat-runtime-proof.spec.ts',
+        'backend/test/e2e/chat-recovery.spec.ts',
+      ],
+      use: { trace: 'off', video: 'off', screenshot: 'off' },
+    },
+    {
+      name: 'chat-browser',
+      timeout: 90000,
+      testMatch: [
+        'backend/test/e2e/chat-thread.spec.ts',
+        'backend/test/e2e/chat-history.spec.ts',
+        'backend/test/e2e/chat-accessibility.spec.ts',
+      ],
+      use: {
+        trace: 'off',
+        video: 'off',
+        screenshot: 'off',
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+      },
+    },
+    {
       name: 'frontend-browser',
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },
@@ -50,6 +80,17 @@ export default defineConfig({
         'backend/test/e2e/visual-rework.spec.ts',
         'backend/test/e2e/visual-comparison-regression.spec.ts',
       ],
+      use: {
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+        reducedMotion: 'reduce',
+      },
+    },
+    {
+      name: 'chat-visual',
+      testMatch: 'backend/test/e2e/chat-visual.spec.ts',
+      snapshotPathTemplate: '{testDir}/docs/references/F4-visual/{arg}{ext}',
       use: {
         deviceScaleFactor: 1,
         locale: 'en-US',
@@ -69,5 +110,19 @@ export default defineConfig({
       testMatch: 'backend/test/e2e/api.spec.ts',
       grep: /evaluation export/,
     },
+    ...(process.env.LEXON_CHAT_LOAD === '1'
+      ? [
+          {
+            name: 'chat-sse-load',
+            timeout: 180_000,
+            testMatch: 'backend/test/e2e/chat-sse-load.spec.ts',
+            use: {
+              trace: 'off' as const,
+              video: 'off' as const,
+              screenshot: 'off' as const,
+            },
+          },
+        ]
+      : []),
   ],
 });

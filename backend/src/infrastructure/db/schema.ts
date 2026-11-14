@@ -12,9 +12,12 @@ import {
   uniqueIndex,
   foreignKey,
   smallint,
+  customType,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 const ops = pgSchema('ops');
 const app = pgSchema('app');
+const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
 export const outbox = ops.table('outbox', {
   id: uuid().primaryKey(),
   type: text().notNull(),
@@ -81,6 +84,19 @@ export const aiRuns = app.table(
     }).notNull(),
     partialOutput: text('partial_output').notNull(),
     finalOutput: text('final_output'),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('english',coalesce(CASE WHEN status='completed' THEN final_output ELSE partial_output END,''))`,
+    ),
+    reasoningSummary: text('reasoning_summary'),
+    reasoningDurationMs: integer('reasoning_duration_ms'),
+    streamGeneration: bigint('stream_generation', { mode: 'number' }).notNull(),
+    streamSnapshotGeneration: bigint('stream_snapshot_generation', {
+      mode: 'number',
+    }).notNull(),
+    streamEventId: text('stream_event_id'),
+    streamAttemptId: uuid('stream_attempt_id'),
+    streamRevision: integer('stream_revision').notNull(),
+    streamResumable: boolean('stream_resumable').notNull(),
     errorCode: text('error_code'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
@@ -237,6 +253,33 @@ export const aiAttempts = app.table(
   ],
 );
 
+export const usageEvents = app.table('usage_events', {
+  attemptId: uuid('attempt_id').primaryKey(),
+  orgId: uuid('org_id').notNull(),
+  actorUserId: uuid('actor_user_id').notNull(),
+  runId: uuid('run_id').notNull(),
+  stepId: uuid('step_id').notNull(),
+  modelId: text('model_id').notNull(),
+  requestedProvider: text('requested_provider').notNull(),
+  observedProvider: text('observed_provider'),
+  profileId: text('profile_id').notNull(),
+  resolvedEffort: text('resolved_effort'),
+  estimatedInputTokens: integer('estimated_input_tokens').notNull(),
+  reservedInputTokens: integer('reserved_input_tokens').notNull(),
+  reservedOutputTokens: integer('reserved_output_tokens').notNull(),
+  estimatorVersion: text('estimator_version').notNull(),
+  instructionVersion: text('instruction_version'),
+  reportedInputTokens: integer('reported_input_tokens'),
+  reportedOutputTokens: integer('reported_output_tokens'),
+  cachedInputTokens: integer('cached_input_tokens'),
+  reasoningOutputTokens: integer('reasoning_output_tokens'),
+  costUsd: numeric('cost_usd'),
+  generationId: text('generation_id'),
+  outcome: text().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+});
+
 export const aiCheckpoints = app.table(
   'ai_checkpoints',
   {
@@ -247,6 +290,12 @@ export const aiCheckpoints = app.table(
     attemptId: uuid('attempt_id').notNull(),
     fence: bigint({ mode: 'number' }).notNull(),
     text: text().notNull(),
+    reasoningSummary: text('reasoning_summary'),
+    reasoningDurationMs: integer('reasoning_duration_ms'),
+    streamGeneration: bigint('stream_generation', { mode: 'number' }).notNull(),
+    streamEventId: text('stream_event_id'),
+    streamRevision: integer('stream_revision').notNull(),
+    streamResumable: boolean('stream_resumable').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -296,6 +345,118 @@ export const aiRunSlots = ops.table(
       name: 'ai_run_slots_run_fk',
       columns: [table.orgId, table.runId],
       foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const chats = app.table(
+  'chats',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    title: text().notNull(),
+    titleSource: text('title_source').notNull(),
+    titleVersion: integer('title_version').notNull(),
+    viewedLeafId: uuid('viewed_leaf_id'),
+    activeAnswerRunId: uuid('active_answer_run_id'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    lastActivityAt: timestamp('last_activity_at', {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chats_org_id_id').on(table.orgId, table.id),
+    index('chats_owner_activity').on(
+      table.orgId,
+      table.ownerUserId,
+      table.lastActivityAt,
+      table.id,
+    ),
+  ],
+);
+
+export const chatRuns = app.table(
+  'chat_runs',
+  {
+    orgId: uuid('org_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    kind: text().notNull(),
+    titleVersion: integer('title_version'),
+    sourceAnswerRunId: uuid('source_answer_run_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chat_runs_org_chat_run').on(
+      table.orgId,
+      table.chatId,
+      table.runId,
+    ),
+    uniqueIndex('chat_runs_org_run').on(table.orgId, table.runId),
+    foreignKey({
+      name: 'chat_runs_chat_fk',
+      columns: [table.orgId, table.chatId],
+      foreignColumns: [chats.orgId, chats.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_runs_run_fk',
+      columns: [table.orgId, table.runId],
+      foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_runs_source_answer_fk',
+      columns: [table.orgId, table.sourceAnswerRunId],
+      foreignColumns: [aiRuns.orgId, aiRuns.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const chatMessages = app.table(
+  'chat_messages',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    parentMessageId: uuid('parent_message_id'),
+    role: text().notNull(),
+    userText: text('user_text'),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('english',coalesce(user_text,''))`,
+    ),
+    effort: text(),
+    runId: uuid('run_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('chat_messages_org_chat_id').on(
+      table.orgId,
+      table.chatId,
+      table.id,
+    ),
+    uniqueIndex('chat_messages_org_run').on(table.orgId, table.runId),
+    index('chat_messages_tree').on(
+      table.orgId,
+      table.chatId,
+      table.createdAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'chat_messages_chat_fk',
+      columns: [table.orgId, table.chatId],
+      foreignColumns: [chats.orgId, chats.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_messages_parent_fk',
+      columns: [table.orgId, table.chatId, table.parentMessageId],
+      foreignColumns: [table.orgId, table.chatId, table.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'chat_messages_run_fk',
+      columns: [table.orgId, table.chatId, table.runId],
+      foreignColumns: [chatRuns.orgId, chatRuns.chatId, chatRuns.runId],
     }).onDelete('cascade'),
   ],
 );

@@ -140,7 +140,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     expect(onboarding.status()).toBe(204);
     markOperatorStage('onboarding completed');
     await page.goto(stack.frontendUrl + '/workspace');
-    await expect(page.locator('h1')).toHaveText('Home');
+    await expect(
+      page.getByRole('textbox', { name: 'Message input' }),
+    ).toBeVisible();
     const expandSidebar = page.getByRole('button', {
       name: 'Expand sidebar',
     });
@@ -181,7 +183,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         theme,
         'desktop',
         '.cache/f21-task6A/platform-admin',
-        'Home',
+        'New chat',
         true,
       );
       await captureShellReviewView(
@@ -190,7 +192,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         theme,
         'desktop',
         '.cache/f21-task6A/platform-admin',
-        'Home',
+        'New chat',
       );
     }
     for (const viewport of ['desktop', 'mobile'] as const) {
@@ -200,7 +202,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           'user-menu-open',
           theme,
           viewport,
-          'Home',
+          'New chat',
         );
       }
     }
@@ -229,7 +231,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     markOperatorStage('Task 9 provisioning captures complete');
     await page.goto(stack.frontendUrl + '/workspace');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+    await expect(
+      page.getByRole('textbox', { name: 'Message input' }),
+    ).toBeVisible();
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate(
         (value) => localStorage.setItem('theme', value),

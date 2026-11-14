@@ -366,6 +366,338 @@ test('pending approval defaults to capture and approved update requires explicit
   assert.match(readme, /approval\.json/);
 });
 
+test('approved retirement skips only the selected comparison baseline', () => {
+  withRetirementFixture(({ index, tempRoot, retirement }) => {
+    const retirementOptions = { retirements: retirement };
+    assert.equal(
+      assertIndexedArtifact(index, 'retired-view', tempRoot, {
+        mode: 'compare',
+        ...retirementOptions,
+      }),
+      null,
+    );
+    assert.equal(
+      assertIndexedArtifact(index, 'active-view', tempRoot, {
+        mode: 'compare',
+        ...retirementOptions,
+      }),
+      resolve(tempRoot, 'baseline/active-view.png'),
+    );
+  });
+});
+
+test('approved retirement does not alter capture or update artifact paths', () => {
+  withRetirementFixture(({ index, tempRoot, retirement }) => {
+    for (const [mode, expectedPath] of [
+      ['capture', 'review/retired-view.png'],
+      ['update', 'baseline/retired-view.png'],
+    ]) {
+      assert.equal(
+        assertIndexedArtifact(index, 'retired-view', tempRoot, {
+          mode,
+          retirements: retirement,
+        }),
+        resolve(tempRoot, expectedPath),
+      );
+    }
+  });
+});
+
+function withRetirementFixture(run) {
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'lexon-visual-retirement-'));
+  try {
+    const index = {
+      views: {
+        'retired-view': { path: 'review/retired-view.png' },
+        'active-view': { path: 'review/active-view.png' },
+      },
+    };
+    const baseline = pngFixture(16, 16);
+    const baselineSha256 = sha256(baseline);
+    mkdirSync(resolve(tempRoot, 'baseline'), { recursive: true });
+    mkdirSync(resolve(tempRoot, 'review'), { recursive: true });
+    writeFileSync(resolve(tempRoot, 'baseline/retired-view.png'), baseline);
+    writeFileSync(resolve(tempRoot, 'baseline/active-view.png'), baseline);
+    writeFileSync(resolve(tempRoot, 'review/retired-view.png'), baseline);
+    writeFileSync(resolve(tempRoot, 'review/active-view.png'), baseline);
+
+    const retirement = {
+      version: 1,
+      status: 'approved',
+      ownerApproval: { date: '2026-11-13', reference: 'owner approval record' },
+      replacementSlice: 'F4.1',
+      images: [
+        {
+          id: 'retired-view',
+          baselineSha256,
+          reason: 'The view is retired by the replacement slice.',
+          diff: 'The replacement removes this view from the comparison set.',
+          checkedRegions: [
+            { name: 'primary content panel', rect: [2, 2, 14, 14] },
+          ],
+          outsideApprovedRegions: 0,
+        },
+      ],
+    };
+    const withoutImageField = (field) => {
+      const image = { ...retirement.images[0] };
+      delete image[field];
+      return { ...retirement, images: [image] };
+    };
+    run({ index, tempRoot, retirement, withoutImageField });
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+const invalidRetirementCases = [
+  [
+    'unknown image ID',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        ...retirement.images,
+        { ...retirement.images[0], id: 'unknown-view' },
+      ],
+    }),
+  ],
+  [
+    'duplicate image ID',
+    (retirement) => ({
+      ...retirement,
+      images: [...retirement.images, { ...retirement.images[0] }],
+    }),
+  ],
+  [
+    'stale baseline hash',
+    (retirement) => ({
+      ...retirement,
+      images: [{ ...retirement.images[0], baselineSha256: '0'.repeat(64) }],
+    }),
+  ],
+  [
+    'blank reason',
+    (retirement) => ({
+      ...retirement,
+      images: [{ ...retirement.images[0], reason: '' }],
+    }),
+  ],
+  [
+    'missing reason',
+    (retirement, withoutImageField) => withoutImageField('reason'),
+  ],
+  [
+    'blank diff',
+    (retirement) => ({
+      ...retirement,
+      images: [{ ...retirement.images[0], diff: '' }],
+    }),
+  ],
+  [
+    'missing diff',
+    (retirement, withoutImageField) => withoutImageField('diff'),
+  ],
+  [
+    'empty checked regions',
+    (retirement) => ({
+      ...retirement,
+      images: [{ ...retirement.images[0], checkedRegions: [] }],
+    }),
+  ],
+  [
+    'missing checked regions',
+    (retirement, withoutImageField) => withoutImageField('checkedRegions'),
+  ],
+  [
+    'nonzero outside-approved-region count',
+    (retirement) => ({
+      ...retirement,
+      images: [{ ...retirement.images[0], outsideApprovedRegions: 1 }],
+    }),
+  ],
+  [
+    'invalid owner approval',
+    (retirement) => ({
+      ...retirement,
+      ownerApproval: { date: '2026-11-13', reference: '' },
+    }),
+  ],
+  [
+    'impossible approval month',
+    (retirement) => ({
+      ...retirement,
+      ownerApproval: { ...retirement.ownerApproval, date: '2026-99-99' },
+    }),
+  ],
+  [
+    'non-leap-year February 29 approval date',
+    (retirement) => ({
+      ...retirement,
+      ownerApproval: { ...retirement.ownerApproval, date: '2025-02-29' },
+    }),
+  ],
+  [
+    'negative checked-region coordinates',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            {
+              ...retirement.images[0].checkedRegions[0],
+              rect: [-1, 2, 14, 14],
+            },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'zero-width checked region',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            { ...retirement.images[0].checkedRegions[0], rect: [2, 2, 2, 14] },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'zero-height checked region',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            { ...retirement.images[0].checkedRegions[0], rect: [2, 2, 14, 2] },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'inverted horizontal checked-region axis',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            { ...retirement.images[0].checkedRegions[0], rect: [14, 2, 2, 14] },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'inverted vertical checked-region axis',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            { ...retirement.images[0].checkedRegions[0], rect: [2, 14, 14, 2] },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'fractional checked-region coordinates',
+    (retirement) => ({
+      ...retirement,
+      images: [
+        {
+          ...retirement.images[0],
+          checkedRegions: [
+            {
+              ...retirement.images[0].checkedRegions[0],
+              rect: [2.5, 2, 14, 14],
+            },
+          ],
+        },
+      ],
+    }),
+  ],
+  [
+    'unapproved status',
+    (retirement) => ({ ...retirement, status: 'awaiting-owner' }),
+  ],
+];
+
+for (const [caseName, invalidRecord] of invalidRetirementCases) {
+  test(`approved retirement rejects ${caseName}`, () => {
+    withRetirementFixture(
+      ({ index, tempRoot, retirement, withoutImageField }) => {
+        assert.throws(
+          () =>
+            assertIndexedArtifact(index, 'retired-view', tempRoot, {
+              mode: 'compare',
+              retirements: invalidRecord(retirement, withoutImageField),
+            }),
+          /retirement/i,
+        );
+      },
+    );
+  });
+}
+
+test('owner-amended screenshot retirements select exactly the audited comparison failures', () => {
+  const retirementPath = resolve(visualRoot, 'retirements.json');
+  assert.ok(
+    existsSync(retirementPath),
+    'Owner-amended screenshot retirement policy is required at docs/references/F2.1-visual/retirements.json.',
+  );
+  const retirement = JSON.parse(readFileSync(retirementPath, 'utf8'));
+  const audit = JSON.parse(
+    readFileSync(
+      resolve(root, 'docs/references/F4-f21-baseline-audit/index.json'),
+      'utf8',
+    ),
+  );
+  const failedImages = audit.images.filter(({ normal }) => normal === 'failed');
+  const passedImages = audit.images.filter(({ normal }) => normal === 'passed');
+  const retiredIds = retirement.images.map(({ id }) => id);
+  const failedIds = failedImages.map(({ id }) => id).sort();
+
+  assert.equal(failedImages.length, 20);
+  assert.equal(passedImages.length, 62);
+  assert.equal(retiredIds.length, 20);
+  assert.deepEqual([...retiredIds].sort(), failedIds);
+  assert.equal(
+    passedImages.some(({ id }) => retiredIds.includes(id)),
+    false,
+  );
+  assert.equal(retirement.replacementSlice, 'F4.1');
+
+  for (const image of retirement.images) {
+    const original = failedImages.find(({ id }) => id === image.id);
+    assert.equal(
+      image.baselineSha256,
+      original.baselineSha256,
+      `${image.id} preserves its audited baseline SHA-256`,
+    );
+    assert.equal(
+      image.outsideApprovedRegions,
+      0,
+      `${image.id} has no changes outside checked regions`,
+    );
+    assert.ok(image.reason?.trim(), `${image.id} has a retirement reason`);
+    assert.ok(image.diff?.trim(), `${image.id} has diff metadata`);
+    assert.ok(
+      Array.isArray(image.checkedRegions) && image.checkedRegions.length > 0,
+      `${image.id} has checked regions`,
+    );
+  }
+});
+
 test('approved visual records require a complete, hash-valid named baseline set', () => {
   const tempRoot = mkdtempSync(resolve(tmpdir(), 'lexon-approved-visual-'));
   try {

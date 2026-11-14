@@ -13,7 +13,8 @@ export class JobRegistry implements JobHandlerRegistry {
     if (
       !jobTypePattern.test(type) ||
       (handler.strategy !== 'short-transaction' &&
-        handler.strategy !== 'durable-step') ||
+        handler.strategy !== 'durable-step' &&
+        handler.strategy !== 'cleanup-work') ||
       typeof handler.handle !== 'function'
     )
       throw new Error('Invalid job registration');

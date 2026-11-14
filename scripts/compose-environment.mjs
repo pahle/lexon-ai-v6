@@ -13,7 +13,49 @@ export async function composeEnvironment(input, directory) {
     VALKEY_IMAGE: images.valkey,
     SEAWEEDFS_IMAGE: images.seaweedfs,
     MAILPIT_IMAGE: images.mailpit,
+    CADDY_IMAGE: images.caddy,
+    K6_IMAGE: images.k6,
   };
+  const hostPorts = [
+    ['API_HOST_PORT', env.API_HOST_PORT ?? '3001'],
+    ['FRONTEND_HOST_PORT', env.FRONTEND_HOST_PORT ?? '3002'],
+    ['PUBLIC_HOST_PORT', env.PUBLIC_HOST_PORT ?? '3000'],
+  ];
+  const seenHostPorts = new Map();
+  for (const [name, rawValue] of hostPorts) {
+    const rawPort = String(rawValue);
+    const numericPort = Number(rawPort);
+    if (
+      !/^\d{1,5}$/.test(rawPort) ||
+      numericPort > 65535 ||
+      (name === 'PUBLIC_HOST_PORT' && numericPort < 1)
+    )
+      throw new Error(`Invalid ${name}`);
+    const value = String(numericPort);
+    const previous = value === '0' ? undefined : seenHostPorts.get(value);
+    if (previous) {
+      const remediation =
+        previous === 'FRONTEND_HOST_PORT' &&
+        name === 'PUBLIC_HOST_PORT' &&
+        value === '3000'
+          ? ' Set FRONTEND_HOST_PORT=3002 or choose another diagnostic port.'
+          : ` Set ${name} to an unused loopback port.`;
+      throw new Error(
+        `Host port collision: ${previous} and ${name} both use ${value}.${remediation}`,
+      );
+    }
+    if (value !== '0') seenHostPorts.set(value, name);
+    env[name] = value;
+  }
+  const publicHostPort = env.PUBLIC_HOST_PORT;
+  env.PUBLIC_URL = env.PUBLIC_URL ?? `http://localhost:${publicHostPort}`;
+  const publicOrigin = new URL(env.PUBLIC_URL);
+  if (
+    publicOrigin.protocol !== 'http:' ||
+    publicOrigin.origin !== env.PUBLIC_URL
+  )
+    throw new Error('Invalid public URL');
+  env.AUTH_PUBLIC_ORIGIN = env.PUBLIC_URL;
   const required = [
     'POSTGRES_ADMIN_PASSWORD',
     'DATABASE_MIGRATOR_PASSWORD',

@@ -38,6 +38,7 @@ export interface ModelInput {
   readonly attemptId?: string;
   readonly model: string;
   readonly provider: string;
+  readonly effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   readonly messages: readonly ModelMessage[];
   readonly schemas?: Readonly<Record<string, JsonValue>>;
   readonly maxOutputTokens: number;
@@ -62,6 +63,17 @@ export type ModelEvent =
       readonly provider?: string;
     }
   | { readonly type: 'text'; readonly text: string }
+  | { readonly type: 'reasoning-start'; readonly attemptId: string }
+  | {
+      readonly type: 'reasoning-summary-delta';
+      readonly attemptId: string;
+      readonly text: string;
+    }
+  | {
+      readonly type: 'reasoning-end';
+      readonly attemptId: string;
+      readonly durationMs: number | null;
+    }
   | {
       readonly type: 'tool-proposal';
       readonly toolCallId: string;

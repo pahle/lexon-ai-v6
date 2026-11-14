@@ -1,12 +1,13 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  InvocationBudget,
+  REAL_EVALUATION_CHAT_OUTPUT_LIMITS,
+  parseUsd,
+  reservationUsd,
+} from '@lexon/backend/evaluation';
 
-type BudgetLimits = {
-  readonly budgetUsd: string;
-  readonly maxRequests: number;
-};
-
-type Reservation = { readonly amount: bigint };
+export { InvocationBudget } from '@lexon/backend/evaluation';
 
 export interface RealEvaluationOptions {
   readonly budgetUsd: string;
@@ -18,6 +19,7 @@ export interface RealEvaluationOptions {
     readonly outputPerMillion: string;
   };
   readonly timeoutMs: number;
+  readonly includeChatCases?: boolean;
   readonly fetch?: typeof fetch;
   readonly services?: {
     readonly postgresUrl: string;
@@ -65,116 +67,20 @@ const CASES = [
   },
 ] as const;
 
-const DECIMAL_SCALE = 10n ** 512n;
-
-export class InvocationBudget {
-  private readonly limit: bigint;
-  private readonly maxRequests: number;
-  private readonly reservations = new Set<Reservation>();
-  private reserved = 0n;
-  private known = 0n;
-  private unknownReportedOverlap = 0n;
-  private requests = 0;
-  private unknowns = 0;
-  private isStopped = false;
-
-  constructor(limits: BudgetLimits) {
-    this.limit = parseUsd(limits.budgetUsd);
-    this.maxRequests = limits.maxRequests;
-    if (
-      this.limit <= 0n ||
-      !Number.isSafeInteger(this.maxRequests) ||
-      this.maxRequests <= 0
-    )
-      throw new Error('invalid evaluation budget');
-  }
-
-  get reservedUsd(): string {
-    return formatUsd(this.reserved);
-  }
-
-  get knownCostUsd(): string {
-    return formatUsd(this.known);
-  }
-
-  get requestCount(): number {
-    return this.requests;
-  }
-
-  get unknownAttemptCount(): number {
-    return this.unknowns;
-  }
-
-  get stopped(): boolean {
-    return this.isStopped;
-  }
-
-  stop(): void {
-    this.isStopped = true;
-  }
-
-  async reserve(amountUsd: string): Promise<Reservation> {
-    const amount = parseUsd(amountUsd);
-    if (this.isStopped) throw new Error('evaluation budget stopped');
-    if (this.requests >= this.maxRequests) {
-      this.isStopped = true;
-      throw new Error('request limit');
-    }
-    if (
-      this.known + this.reserved - this.unknownReportedOverlap + amount >
-      this.limit
-    ) {
-      this.isStopped = true;
-      throw new Error('evaluation budget exceeded');
-    }
-    this.reserved += amount;
-    this.requests += 1;
-    const reservation: Reservation = { amount };
-    this.reservations.add(reservation);
-    return reservation;
-  }
-
-  settleUnknown(reservation: Reservation): void {
-    this.settle(reservation, null, true);
-  }
-
-  settleKnown(reservation: Reservation, actualUsd: string): void {
-    this.settle(reservation, actualUsd, false);
-  }
-
-  settle(
-    reservation: Reservation,
-    actualUsd: string | null,
-    unknownAttempt: boolean,
-  ): boolean {
-    if (!this.reservations.has(reservation)) return false;
-    this.reservations.delete(reservation);
-    let overrun = false;
-    if (actualUsd !== null) {
-      const actual = parseUsd(actualUsd);
-      this.known += actual;
-      if (unknownAttempt) {
-        this.unknownReportedOverlap +=
-          actual < reservation.amount ? actual : reservation.amount;
-      } else {
-        this.reserved -= reservation.amount;
-      }
-      overrun = actual > reservation.amount || this.exposure() > this.limit;
-      if (overrun) this.isStopped = true;
-    }
-    if (unknownAttempt) this.unknowns += 1;
-    return overrun;
-  }
-
-  recordKnownCost(amountUsd: string): void {
-    this.known += parseUsd(amountUsd);
-    if (this.exposure() > this.limit) this.isStopped = true;
-  }
-
-  private exposure(): bigint {
-    return this.known + this.reserved - this.unknownReportedOverlap;
-  }
-}
+const CHAT_CASES = [
+  {
+    caseId: 'chat-high',
+    effort: 'high',
+    prompt:
+      'Synthetic Indonesian legal research question for the high-effort profile: identify the general legal framework for a fictional contract notice dispute without citing sources.',
+  },
+  {
+    caseId: 'chat-max',
+    effort: 'max',
+    prompt:
+      'Synthetic Indonesian legal research question for the maximum-effort profile: explain the same fictional contract notice dispute and identify what must be checked against official sources.',
+  },
+] as const;
 
 export async function runRealEvaluations(
   options: RealEvaluationOptions = DEFAULT_OPTIONS,
@@ -234,12 +140,19 @@ export async function runRealEvaluations(
     async reserve(input: {
       estimatedInputTokens: number;
       maxOutputTokens: number;
+      effort?: 'high' | 'max';
     }) {
+      const outputLimit = input.effort
+        ? REAL_EVALUATION_CHAT_OUTPUT_LIMITS[input.effort]
+        : configured.maxOutputTokens;
+      const outputWithinProfileLimit = input.effort
+        ? input.maxOutputTokens === outputLimit
+        : input.maxOutputTokens <= outputLimit;
       if (
         timedOut ||
         budget.stopped ||
         input.estimatedInputTokens > configured.maxEstimatedInputTokens ||
-        input.maxOutputTokens > configured.maxOutputTokens
+        !outputWithinProfileLimit
       ) {
         budget.stop();
         return { id: '', allowed: false };
@@ -307,11 +220,15 @@ export async function runRealEvaluations(
       operations: number;
       effects: number;
     }[] = [];
-    for (const testCase of CASES) {
+    const cases = configured.includeChatCases
+      ? [...CASES, ...CHAT_CASES]
+      : CASES;
+    for (const testCase of cases) {
       if (budget.stopped || timedOut) break;
       const run = await context.start(actor, {
         scenarioId: testCase.caseId,
         prompt: testCase.prompt,
+        ...('effort' in testCase ? { effort: testCase.effort } : {}),
       });
       const remainingMs =
         configured.timeoutMs - (Date.now() - invocationStartedAt);
@@ -352,43 +269,15 @@ export async function runRealEvaluations(
   }
 }
 
-function reservationUsd(
-  inputTokens: number,
-  outputTokens: number,
-  inputPricePerMillion: string,
-  outputPricePerMillion: string,
-): string {
-  const input = BigInt(inputTokens) * parseUsd(inputPricePerMillion);
-  const output = BigInt(outputTokens) * parseUsd(outputPricePerMillion);
-  const denominator = 1_000_000n;
-  const total = input + output;
-  const rounded = (total + denominator - 1n) / denominator;
-  return formatUsd(rounded);
-}
-
-function parseUsd(value: string): bigint {
-  const match = /^(0|[1-9]\d*)(?:\.(\d{1,512}))?$/.exec(value);
-  if (!match) throw new Error('invalid USD amount');
-  return (
-    BigInt(match[1]!) * DECIMAL_SCALE +
-    BigInt((match[2] ?? '').padEnd(512, '0'))
-  );
-}
-
-function formatUsd(value: bigint): string {
-  const whole = value / DECIMAL_SCALE;
-  const fraction = (value % DECIMAL_SCALE)
-    .toString()
-    .padStart(512, '0')
-    .replace(/0+$/, '');
-  return fraction ? `${whole}.${fraction}` : String(whole);
-}
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
   try {
-    const report = await runRealEvaluations();
+    const report = await runRealEvaluations({
+      ...DEFAULT_OPTIONS,
+      includeChatCases: true,
+    });
     process.stdout.write(`${JSON.stringify(report)}\n`);
   } catch {
     process.stderr.write(

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
+import { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 import type {
   StepClaim,
   StepCommit,
@@ -67,6 +68,74 @@ function validLease(leaseMs: number): boolean {
 }
 
 export class AiStepRepository {
+  private readonly chatResources = new AiChatResourceRepository();
+  async deletedCancellationFacts(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<{ activeAttemptIds: string[]; purged?: boolean } | null> {
+    if (!validClaim(tx, claim)) return null;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ active_attempt_ids: string[] }>(
+      `SELECT active_attempt_ids FROM ops.ai_chat_deleted_cancel_facts($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    if (result.rows[0])
+      return { activeAttemptIds: result.rows[0].active_attempt_ids };
+    const purged = await client.query<{
+      active_attempt_ids: string[];
+      purged: boolean;
+    }>(
+      `SELECT active_attempt_ids,purged FROM ops.ai_chat_deleted_run_facts($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return purged.rows[0]?.purged
+      ? { activeAttemptIds: purged.rows[0].active_attempt_ids, purged: true }
+      : null;
+  }
+
+  async finalizeDeletedCancellation(
+    tx: TenantSession,
+    claim: StepClaim,
+  ): Promise<{ changed: boolean; activeAttemptIds: string[] }> {
+    if (!validClaim(tx, claim)) return { changed: false, activeAttemptIds: [] };
+    const { client } = requireSession(tx);
+    const result = await client.query<{
+      changed: boolean;
+      active_attempt_ids: string[];
+    }>(
+      `SELECT changed,active_attempt_ids FROM ops.ai_chat_finalize_deleted_cancel($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return {
+      changed: result.rows[0]?.changed === true,
+      activeAttemptIds: result.rows[0]?.active_attempt_ids ?? [],
+    };
+  }
+
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,
@@ -85,6 +154,7 @@ export class AiStepRepository {
         sequence: number;
         expectedVersion: number;
         fence: number;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -100,9 +170,10 @@ export class AiStepRepository {
       sequence: number;
       expected_version: number;
       fence: number;
+      stream_generation: number | string;
     }>(
       `SELECT r.status,r.run_version,r.next_sequence,s.id AS step_id,
-              s.sequence,s.expected_version,s.fence
+              s.sequence,s.expected_version,s.fence,r.stream_generation
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
          AND r.status=$9 AND r.run_version=$8
@@ -152,6 +223,7 @@ export class AiStepRepository {
           sequence: Number(row.sequence),
           expectedVersion: Number(row.expected_version),
           fence: Number(row.fence),
+          streamGeneration: Number(row.stream_generation),
         }
       : undefined;
   }
@@ -169,6 +241,7 @@ export class AiStepRepository {
         expectedVersion: number;
         fence: number;
         leaseUntil: Date;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -184,9 +257,10 @@ export class AiStepRepository {
       expected_version: number;
       fence: number;
       lease_until: Date;
+      stream_generation: number | string;
     }>(
-      `SELECT r.run_version,r.next_sequence,r.status,s.id AS step_id,s.sequence,
-              s.expected_version,s.fence,s.lease_until
+      `SELECT r.run_version,r.next_sequence,r.status,r.stream_generation,
+              s.id AS step_id,s.sequence,s.expected_version,s.fence,s.lease_until
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
          AND r.status IN ('queued','running','awaiting_approval','cancelling')
@@ -212,8 +286,35 @@ export class AiStepRepository {
           expectedVersion: Number(row.expected_version),
           fence: Number(row.fence),
           leaseUntil: row.lease_until,
+          streamGeneration: Number(row.stream_generation),
         }
       : undefined;
+  }
+
+  async advanceStreamGeneration(
+    tx: TenantSession,
+    claim: StepClaim,
+    observed: number,
+  ): Promise<number | undefined> {
+    if (
+      !validClaim(tx, claim) ||
+      !Number.isSafeInteger(observed) ||
+      observed < 0 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
+      !(await this.lockClaim(tx, claim))
+    )
+      return undefined;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ stream_generation: number | string }>(
+      `UPDATE app.ai_runs r SET stream_generation=CASE
+          WHEN r.stream_generation=$3 THEN r.stream_generation+1
+          ELSE r.stream_generation END
+       WHERE r.org_id=$1 AND r.id=$2 AND r.stream_generation>=$3
+       RETURNING stream_generation`,
+      [claim.orgId, claim.runId, observed],
+    );
+    const generation = result.rows[0]?.stream_generation;
+    return generation === undefined ? undefined : Number(generation);
   }
 
   async streamTerminalProof(
@@ -229,6 +330,7 @@ export class AiStepRepository {
         latestCommittedSequence: number;
         latestCommittedExpectedVersion: number;
         latestCommittedFence: number;
+        streamGeneration: number;
       }
     | undefined
   > {
@@ -244,11 +346,12 @@ export class AiStepRepository {
       latest_sequence: number | null;
       latest_expected_version: number | null;
       latest_fence: number | null;
+      stream_generation: number | string;
     }>(
       `SELECT r.status,r.run_version,r.next_sequence,
               s.id AS latest_step_id,s.sequence AS latest_sequence,
               s.expected_version AS latest_expected_version,s.fence AS latest_fence,
-              r.error_code
+              r.error_code,r.stream_generation
        FROM app.ai_runs r
        LEFT JOIN LATERAL (
          SELECT id,sequence,expected_version,fence FROM app.ai_steps s
@@ -294,7 +397,33 @@ export class AiStepRepository {
       latestCommittedSequence: Number(row.latest_sequence),
       latestCommittedExpectedVersion: Number(row.latest_expected_version),
       latestCommittedFence: Number(row.latest_fence),
+      streamGeneration: Number(row.stream_generation),
     };
+  }
+
+  async advanceTerminalStreamGeneration(
+    tx: TenantSession,
+    claim: TerminalStreamReference,
+    observed: number,
+  ): Promise<number | undefined> {
+    if (
+      !validTerminalReference(tx, claim) ||
+      !Number.isSafeInteger(observed) ||
+      observed < 0 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
+      !(await this.streamTerminalProof(tx, claim))
+    )
+      return undefined;
+    const { client } = requireSession(tx);
+    const result = await client.query<{ stream_generation: number | string }>(
+      `UPDATE app.ai_runs SET stream_generation=CASE
+         WHEN stream_generation=$3 THEN stream_generation+1 ELSE stream_generation END
+       WHERE org_id=$1 AND id=$2 AND status IN ('completed','failed','cancelled')
+         AND stream_generation >= $3 RETURNING stream_generation`,
+      [claim.orgId, claim.runId, observed],
+    );
+    const generation = result.rows[0]?.stream_generation;
+    return generation === undefined ? undefined : Number(generation);
   }
 
   async insertInitial(
@@ -395,7 +524,7 @@ export class AiStepRepository {
       stepId: string;
       fence: number;
     },
-  ): Promise<boolean> {
+  ): Promise<{ changed: boolean; unknownAttemptIds: string[] }> {
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
@@ -412,13 +541,16 @@ export class AiStepRepository {
         input.fence,
       ],
     );
-    if (result.rowCount !== 1) return false;
-    await client.query(
+    if (result.rowCount !== 1) return { changed: false, unknownAttemptIds: [] };
+    const attempts = await client.query<{ id: string }>(
       `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
       [scope.orgId, input.stepId, input.fence],
     );
-    return true;
+    return {
+      changed: true,
+      unknownAttemptIds: attempts.rows.map((row) => row.id),
+    };
   }
 
   /** Lock and revalidate the run before the step; locks remain held by the caller's transaction. */
@@ -461,7 +593,7 @@ export class AiStepRepository {
       expectedVersion: number;
       leaseMs: number;
     },
-  ): Promise<StepClaim | null> {
+  ): Promise<{ claim: StepClaim; unknownAttemptIds: string[] } | null> {
     const { client, ctx } = requireSession(tx);
     if (
       !ctx.userId ||
@@ -475,6 +607,8 @@ export class AiStepRepository {
       return null;
     const scope = buildAuthorizationPredicate(ctx);
     await this.lockTenantClaimGuard(tx);
+    if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
+      return null;
     const run = await client.query(
       `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
        AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
@@ -500,12 +634,14 @@ export class AiStepRepository {
     );
     if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
 
+    const unknownAttemptIds: string[] = [];
     if (current.state === 'claimed') {
-      await client.query(
+      const attempts = await client.query<{ id: string }>(
         `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-         WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+         WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
         [scope.orgId, current.id, current.fence],
       );
+      unknownAttemptIds.push(...attempts.rows.map((row) => row.id));
     }
     const claimed = await client.query<StepRow>(
       `UPDATE app.ai_steps SET state='claimed',fence=fence+1,
@@ -523,14 +659,17 @@ export class AiStepRepository {
     const row = claimed.rows[0];
     if (!row) return null;
     return {
-      runId: row.run_id,
-      orgId: row.org_id,
-      userId: ctx.userId,
-      stepId: row.id,
-      sequence: row.sequence,
-      expectedVersion: row.expected_version,
-      fence: Number(row.fence),
-      leaseUntil: row.lease_until!,
+      claim: {
+        runId: row.run_id,
+        orgId: row.org_id,
+        userId: ctx.userId,
+        stepId: row.id,
+        sequence: row.sequence,
+        expectedVersion: row.expected_version,
+        fence: Number(row.fence),
+        leaseUntil: row.lease_until!,
+      },
+      unknownAttemptIds,
     };
   }
 
@@ -552,6 +691,11 @@ export class AiStepRepository {
     await this.lockOrganizationClaimGuard(client, ctx.orgId);
   }
 
+  async lockResourceForRun(tx: TenantSession, runId: string): Promise<boolean> {
+    await this.lockTenantClaimGuard(tx);
+    return this.chatResources.lockLiveForRun(tx, runId);
+  }
+
   async renew(
     tx: TenantSession,
     claim: StepClaim,
@@ -560,6 +704,7 @@ export class AiStepRepository {
     if (
       !validClaim(tx, claim) ||
       !validLease(leaseMs) ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;
@@ -589,19 +734,48 @@ export class AiStepRepository {
   async checkpoint(
     tx: TenantSession,
     claim: StepClaim,
-    input: { attemptId: string; text: string },
+    input: {
+      attemptId: string;
+      text: string;
+      reasoningSummary?: string | null;
+      reasoningDurationMs?: number | null;
+      streamGeneration?: number;
+      streamEventId?: string | null;
+      streamRevision?: number;
+      streamResumable?: boolean;
+    },
   ): Promise<boolean> {
     if (
       !validClaim(tx, claim) ||
       !uuid.safeParse(input.attemptId).success ||
-      Buffer.byteLength(input.text, 'utf8') > 262144
+      Buffer.byteLength(input.text, 'utf8') > 262144 ||
+      Buffer.byteLength(input.reasoningSummary ?? '', 'utf8') > 16384 ||
+      (input.reasoningDurationMs !== undefined &&
+        input.reasoningDurationMs !== null &&
+        (!Number.isSafeInteger(input.reasoningDurationMs) ||
+          input.reasoningDurationMs < 0)) ||
+      (input.streamGeneration !== undefined &&
+        (!Number.isSafeInteger(input.streamGeneration) ||
+          input.streamGeneration < 0)) ||
+      (input.streamEventId != null && !/^\d+-\d+$/.test(input.streamEventId)) ||
+      (input.streamRevision !== undefined &&
+        (!Number.isSafeInteger(input.streamRevision) ||
+          input.streamRevision < 0)) ||
+      (input.streamResumable === true &&
+        (!(input.streamGeneration && input.streamGeneration > 0) ||
+          !input.streamEventId)) ||
+      !(await this.lockResourceForRun(tx, claim.runId))
     )
       return false;
     if (!(await this.lockClaim(tx, claim))) return false;
     const { client } = requireSession(tx);
-    const result = await client.query(
-      `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text)
+    const savepoint = 'ai_reasoning_checkpoint_pair';
+    await client.query(`SAVEPOINT ${savepoint}`);
+    try {
+      const result = await client.query(
+        `INSERT INTO app.ai_checkpoints(org_id,run_id,step_id,attempt_id,fence,text,reasoning_summary,reasoning_duration_ms,stream_generation,stream_event_id,stream_revision,stream_resumable)
        SELECT s.org_id,s.run_id,s.id,a.id,s.fence,$7
+         ,$9,$10,$11,$12,$13,$14
        FROM app.ai_steps s JOIN app.ai_attempts a ON a.org_id=s.org_id AND a.step_id=s.id
        JOIN app.ai_runs r ON r.org_id=s.org_id AND r.id=s.run_id
        WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$3 AND s.sequence=$4 AND s.expected_version=$5
@@ -610,25 +784,78 @@ export class AiStepRepository {
          AND ((r.run_version=$5 AND r.status IN ('queued','running','awaiting_approval')) OR
               (r.run_version=$5+1 AND r.status='cancelling'))
          AND a.id=$8 AND a.fence=s.fence AND a.active=true
-       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,created_at=clock_timestamp()
+       ON CONFLICT(step_id,fence) DO UPDATE SET text=EXCLUDED.text,attempt_id=EXCLUDED.attempt_id,
+         reasoning_summary=EXCLUDED.reasoning_summary,reasoning_duration_ms=EXCLUDED.reasoning_duration_ms,
+         stream_generation=EXCLUDED.stream_generation,stream_event_id=EXCLUDED.stream_event_id,
+         stream_revision=EXCLUDED.stream_revision,stream_resumable=EXCLUDED.stream_resumable,
+         created_at=clock_timestamp()
          WHERE app.ai_checkpoints.attempt_id=EXCLUDED.attempt_id OR EXISTS (
            SELECT 1 FROM app.ai_attempts prior
            WHERE prior.org_id=app.ai_checkpoints.org_id AND prior.id=app.ai_checkpoints.attempt_id
              AND prior.active=false
          )
        RETURNING id`,
-      [
-        claim.orgId,
-        claim.runId,
-        claim.stepId,
-        claim.sequence,
-        claim.expectedVersion,
-        claim.fence,
-        input.text,
-        input.attemptId,
-      ],
-    );
-    return result.rowCount === 1;
+        [
+          claim.orgId,
+          claim.runId,
+          claim.stepId,
+          claim.sequence,
+          claim.expectedVersion,
+          claim.fence,
+          input.text,
+          input.attemptId,
+          input.reasoningSummary ?? null,
+          input.reasoningDurationMs ?? null,
+          input.streamGeneration ?? 0,
+          input.streamEventId ?? null,
+          input.streamRevision ?? 0,
+          input.streamResumable ?? false,
+        ],
+      );
+      if (result.rowCount !== 1) {
+        await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+        return false;
+      }
+      const persisted = await client.query(
+        `UPDATE app.ai_runs r SET reasoning_summary=$3,reasoning_duration_ms=$4,
+          stream_snapshot_generation=$10,stream_event_id=$11,stream_attempt_id=$12,
+          stream_revision=$13,stream_resumable=$14,updated_at=clock_timestamp()
+       WHERE r.org_id=$1 AND r.id=$2 AND EXISTS (
+         SELECT 1 FROM app.ai_steps s JOIN app.ai_attempts a
+           ON a.org_id=s.org_id AND a.step_id=s.id AND a.run_id=s.run_id
+         WHERE s.org_id=$1 AND s.run_id=$2 AND s.id=$5 AND s.sequence=$6
+           AND s.expected_version=$7 AND s.fence=$8 AND s.state='claimed'
+           AND s.lease_until>clock_timestamp() AND a.id=$9 AND a.active=true
+       )`,
+        [
+          claim.orgId,
+          claim.runId,
+          input.reasoningSummary ?? null,
+          input.reasoningDurationMs ?? null,
+          claim.stepId,
+          claim.sequence,
+          claim.expectedVersion,
+          claim.fence,
+          input.attemptId,
+          input.streamGeneration ?? 0,
+          input.streamEventId ?? null,
+          input.attemptId,
+          input.streamRevision ?? 0,
+          input.streamResumable ?? false,
+        ],
+      );
+      if (persisted.rowCount !== 1) {
+        await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+        await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+        return false;
+      }
+      await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+      return true;
+    } catch (error) {
+      await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+      await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+      throw error;
+    }
   }
 
   async commitCancellation(
@@ -639,6 +866,7 @@ export class AiStepRepository {
     if (
       !validClaim(tx, claim) ||
       Buffer.byteLength(text, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;
@@ -668,9 +896,13 @@ export class AiStepRepository {
     tx: TenantSession,
     claim: StepClaim,
     text: string,
-  ): Promise<boolean> {
-    if (!validClaim(tx, claim) || Buffer.byteLength(text, 'utf8') > 262144)
-      return false;
+  ): Promise<{ changed: boolean; unknownAttemptIds: string[] }> {
+    if (
+      !validClaim(tx, claim) ||
+      Buffer.byteLength(text, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId))
+    )
+      return { changed: false, unknownAttemptIds: [] };
     const { client, ctx } = requireSession(tx);
     const scope = buildAuthorizationPredicate(ctx);
     const result = await client.query(
@@ -691,13 +923,16 @@ export class AiStepRepository {
         text,
       ],
     );
-    if (result.rowCount !== 1) return false;
-    await client.query(
+    if (result.rowCount !== 1) return { changed: false, unknownAttemptIds: [] };
+    const attempts = await client.query<{ id: string }>(
       `UPDATE app.ai_attempts SET active=false,outcome='unknown',settled_at=clock_timestamp()
-       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true`,
+       WHERE org_id=$1 AND step_id=$2 AND fence=$3 AND active=true RETURNING id`,
       [scope.orgId, claim.stepId, claim.fence],
     );
-    return true;
+    return {
+      changed: true,
+      unknownAttemptIds: attempts.rows.map((row) => row.id),
+    };
   }
 
   async commit(
@@ -717,6 +952,7 @@ export class AiStepRepository {
       Buffer.byteLength(commit.text, 'utf8') > 262144 ||
       typeof data !== 'string' ||
       Buffer.byteLength(data, 'utf8') > 262144 ||
+      !(await this.lockResourceForRun(tx, claim.runId)) ||
       !(await this.lockClaim(tx, claim))
     )
       return false;

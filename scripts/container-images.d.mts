@@ -1,5 +1,8 @@
 export function readContainerImages(
   path: string,
 ): Readonly<
-  Record<'node' | 'postgres' | 'valkey' | 'seaweedfs' | 'mailpit', string>
+  Record<
+    'node' | 'postgres' | 'valkey' | 'seaweedfs' | 'mailpit' | 'caddy' | 'k6',
+    string
+  >
 >;

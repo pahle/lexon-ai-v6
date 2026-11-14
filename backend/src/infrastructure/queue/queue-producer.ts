@@ -10,6 +10,10 @@ export interface QueueOptions {
   limiterUrl?: string;
   prefix: string;
 }
+/** Valkey prefix shared by worker permits and deletion cleanup. */
+export function queueStepPermitPrefix(prefix: string): string {
+  return `${prefix}:limiter`;
+}
 export const QUEUE_NAME = 'ai-interactive';
 export const QUEUE_NAMES: readonly JobQueue[] = ['ai-interactive', 'ai-batch'];
 export class QueueProducer {

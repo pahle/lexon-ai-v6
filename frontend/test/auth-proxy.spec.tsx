@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { NextRequest } from 'next/server';
+import nextConfig from '../next.config';
 import { config, proxy } from '../src/proxy';
 import { safeReturnPath } from '../src/lib/return-path';
 
@@ -100,6 +101,11 @@ test('matcher covers each shell root and its descendants', () => {
     '/sign-in',
     '/sign-up',
   ]);
+});
+
+test('Next middleware guards page routes while API routing belongs to Caddy', async () => {
+  expect(await nextConfig.rewrites?.()).toBeUndefined();
+  expect(config.matcher).not.toContain('/api/:path*');
 });
 
 test('retired organization URLs pass through without proxy auth redirection', () => {

@@ -1,0 +1,31 @@
+services:
+  api:
+    command: [node, backend/test/e2e/chat-load-api-main.mjs]
+    environment:
+      CHAT_SSE_CONNECTIONS_PER_USER: '256'
+    mem_limit: 1536m
+    cpus: 1
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+          cpus: '1.0'
+    volumes:
+      - ./backend/test/e2e/chat-load-api-main.mjs:/app/backend/test/e2e/chat-load-api-main.mjs:ro
+      - ./backend/test/e2e/chat-load-control.mjs:/app/backend/test/e2e/chat-load-control.mjs:ro
+  load-tool:
+    image: ${K6_IMAGE:?Use the manifest loader}
+    profiles: [chat-load]
+    entrypoint: [k6]
+    command: [version]
+    working_dir: /run/load
+    networks: [edge]
+    mem_limit: 2g
+    cpus: 2
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+    volumes:
+      - ./backend/test/load/chat-sse.js:/scripts/chat-sse.js:ro

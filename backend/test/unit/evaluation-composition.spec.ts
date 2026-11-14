@@ -10,12 +10,13 @@ import {
 } from '../../src/infrastructure/db/testing/test-infrastructure.js';
 import { PRODUCTION_ENGINE_REGISTRATIONS } from '../../src/modules/chat/run-registry.js';
 
-it('keeps production engine registries free of product fixtures', () => {
-  expect(PRODUCTION_ENGINE_REGISTRATIONS).toEqual({
-    profiles: [],
-    contexts: [],
-    tools: [],
-  });
+it('keeps production engine registries limited to approved product profiles', () => {
+  expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles.map(({ id }) => id)).toEqual([
+    'chat',
+    'chat-title',
+  ]);
+  expect(PRODUCTION_ENGINE_REGISTRATIONS.contexts).toEqual([]);
+  expect(PRODUCTION_ENGINE_REGISTRATIONS.tools).toEqual([]);
 });
 
 it('uses SeaweedFS accessKey credential syntax for generated S3 identities', () => {

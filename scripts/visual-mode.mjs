@@ -62,7 +62,7 @@ export function assertIndexedArtifact(
   index,
   id,
   directory,
-  { mode, baselineDirectory = 'baseline' },
+  { mode, baselineDirectory = 'baseline', retirements },
 ) {
   const view = index.views?.[id];
   if (!view) throw new Error(`Visual index has no entry for view "${id}".`);
@@ -92,7 +92,98 @@ export function assertIndexedArtifact(
       `Visual artifact for view "${id}" is missing: ${artifactPath}`,
     );
   }
+  if (mode === 'compare' && retirements !== undefined) {
+    validateRetirements(index, retirements, directory, baselineDirectory);
+    if (retirements.images.some((image) => image.id === id)) return null;
+  }
   return artifactPath;
+}
+
+function validateRetirements(index, record, directory, baselineDirectory) {
+  const approvalDate = new Date(record?.ownerApproval?.date);
+  if (
+    record?.version !== 1 ||
+    record.status !== 'approved' ||
+    !record.ownerApproval ||
+    typeof record.ownerApproval.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(record.ownerApproval.date) ||
+    typeof record.ownerApproval.reference !== 'string' ||
+    !record.ownerApproval.reference.trim() ||
+    !Number.isFinite(approvalDate.getTime()) ||
+    approvalDate.toISOString().slice(0, 10) !== record.ownerApproval.date ||
+    record.replacementSlice !== 'F4.1' ||
+    !Array.isArray(record.images) ||
+    record.images.length === 0
+  ) {
+    throw new Error('Visual retirement record is invalid or incomplete.');
+  }
+
+  const seen = new Set();
+  for (const image of record.images) {
+    if (!image || typeof image.id !== 'string') {
+      throw new Error('Visual retirement image is invalid or incomplete.');
+    }
+    const view = index.views?.[image.id];
+    if (!view || seen.has(image.id)) {
+      throw new Error(
+        `Visual retirement image "${image.id}" is unknown or duplicated.`,
+      );
+    }
+    seen.add(image.id);
+    assertReviewPath(image.id, view.path, directory, 'review');
+    const relativePath = view.path.replace(
+      /^review\//,
+      `${baselineDirectory}/`,
+    );
+    const artifactPath = resolve(directory, relativePath);
+    const artifactRoot = resolve(directory, baselineDirectory);
+    const safeRelativePath = relative(artifactRoot, artifactPath);
+    if (
+      safeRelativePath === '' ||
+      safeRelativePath.startsWith(`..${sep}`) ||
+      safeRelativePath === '..' ||
+      isAbsolute(safeRelativePath)
+    ) {
+      throw new Error(
+        `Visual retirement image "${image.id}" resolves outside ${baselineDirectory}/.`,
+      );
+    }
+    if (
+      !existsSync(artifactPath) ||
+      !/^[a-f0-9]{64}$/.test(image.baselineSha256) ||
+      createHash('sha256').update(readFileSync(artifactPath)).digest('hex') !==
+        image.baselineSha256
+    ) {
+      throw new Error(
+        `Visual retirement image "${image.id}" has a missing or stale baseline SHA-256.`,
+      );
+    }
+    if (
+      typeof image.reason !== 'string' ||
+      !image.reason.trim() ||
+      typeof image.diff !== 'string' ||
+      !image.diff.trim() ||
+      !Array.isArray(image.checkedRegions) ||
+      image.checkedRegions.length === 0 ||
+      image.checkedRegions.some(
+        (region) =>
+          typeof region?.name !== 'string' ||
+          !region.name.trim() ||
+          !Array.isArray(region.rect) ||
+          region.rect.length !== 4 ||
+          region.rect.some(
+            (coordinate) => !Number.isInteger(coordinate) || coordinate < 0,
+          ) ||
+          region.rect[2] <= region.rect[0] ||
+          region.rect[3] <= region.rect[1],
+      ) ||
+      image.outsideApprovedRegions !== 0
+    ) {
+      throw new Error(
+        `Visual retirement image "${image.id}" is invalid or incomplete.`,
+      );
+    }
+  }
 }
 
 export function assertApprovedVisualSet(

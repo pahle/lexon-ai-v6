@@ -16,6 +16,25 @@ function fallbackReasonFromHeader(value: string | null) {
     : undefined;
 }
 
+export function publishIdentityFallbackHint(
+  reason: IdentityFallbackReason,
+): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(IDENTITY_FALLBACK_HINT_EVENT, { detail: { reason } }),
+  );
+}
+
+export function notifyIdentityFallbackHint(
+  response: Response,
+): IdentityFallbackReason | undefined {
+  const reason = fallbackReasonFromHeader(
+    response.headers.get('x-lexon-fallback-reason'),
+  );
+  if (reason) publishIdentityFallbackHint(reason);
+  return reason;
+}
+
 export class IdentityClientError extends Error {
   constructor(
     readonly code: string,
@@ -78,16 +97,7 @@ export function buildIdentityClient(
       !serverCookie &&
       typeof window !== 'undefined'
     ) {
-      const reason = fallbackReasonFromHeader(
-        response.headers.get('x-lexon-fallback-reason'),
-      );
-      if (reason) {
-        window.dispatchEvent(
-          new CustomEvent(IDENTITY_FALLBACK_HINT_EVENT, {
-            detail: { reason },
-          }),
-        );
-      }
+      notifyIdentityFallbackHint(response);
     }
     if (!response.ok) {
       let code = 'AUTH_UNAVAILABLE';

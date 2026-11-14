@@ -1,0 +1,16 @@
+services:
+  ai-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?Use the manifest loader}
+      target: e2e-test-worker
+    command: [node, backend/test/e2e/chat-worker-main.mjs]
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?Use the manifest loader}
+      target: e2e-test-runtime

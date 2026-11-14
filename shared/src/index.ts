@@ -8,3 +8,4 @@ export * from './auth.js';
 export * from './organizations.js';
 export * from './security.js';
 export * from './ai-run.js';
+export * from './chat.js';

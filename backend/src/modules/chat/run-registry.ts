@@ -5,6 +5,7 @@ import type {
   RunProfile,
   ToolDefinition,
 } from './run-contracts.js';
+import { PRODUCTION_CHAT_PROFILES } from './chat-profiles.js';
 import {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
   DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
@@ -14,10 +15,21 @@ import {
 
 export const PRODUCTION_ENGINE_REGISTRATIONS: EngineRegistrations =
   Object.freeze({
-    profiles: Object.freeze([]),
+    profiles: PRODUCTION_CHAT_PROFILES,
     contexts: Object.freeze([]),
     tools: Object.freeze([]),
   });
+
+export function createProductionRunRegistry(
+  contexts: readonly ContextProvider[] = [],
+): RunRegistry {
+  const registry = new RunRegistry();
+  registry.register({
+    ...PRODUCTION_ENGINE_REGISTRATIONS,
+    contexts,
+  });
+  return registry;
+}
 
 export class RunRegistry {
   readonly #profiles = new Map<string, RunProfile>();
@@ -108,6 +120,43 @@ function validateProfile(profile: RunProfile): void {
   }
   if (profile.maxOutputTokens > profile.tokenBudget)
     throw new Error('Output exceeds token budget');
+  if (
+    profile.maxEstimatedInputTokens !== undefined &&
+    (!Number.isSafeInteger(profile.maxEstimatedInputTokens) ||
+      profile.maxEstimatedInputTokens < 1)
+  )
+    throw new Error('Invalid maximum estimated input');
+  if (profile.instructions) {
+    if (
+      !profile.instructions.id.trim() ||
+      !profile.instructions.version.trim() ||
+      typeof profile.instructions.text !== 'string' ||
+      Buffer.byteLength(JSON.stringify(profile.instructions.text), 'utf8') >
+        8192
+    )
+      throw new Error('Invalid trusted instructions');
+  }
+  if (profile.reasoning) {
+    const {
+      allowed,
+      default: defaultEffort,
+      outputLimits,
+      runBudgets,
+    } = profile.reasoning;
+    if (
+      !allowed.length ||
+      new Set(allowed).size !== allowed.length ||
+      !allowed.includes(defaultEffort) ||
+      allowed.some(
+        (effort) =>
+          !Number.isSafeInteger(outputLimits[effort]) ||
+          outputLimits[effort]! < 1 ||
+          !Number.isSafeInteger(runBudgets[effort]) ||
+          runBudgets[effort]! < outputLimits[effort]!,
+      )
+    )
+      throw new Error('Invalid reasoning policy');
+  }
   if (
     (profile.maxToolProposalsPerGeneration ??
       DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION) >

@@ -1,0 +1,70 @@
+{
+  "producer": "8047ff7435f6ee12d94d9c2655333b1fff9c61a8",
+  "capturedAt": "2026-11-13",
+  "command": "pnpm test:e2e --project chat-browser --grep 'Chats history'",
+  "result": "1 passed (7.7s)",
+  "deviceScaleFactor": 1,
+  "status": "main rendered and compared; informal owner feedback pending; historical TDD exception open",
+  "files": [
+    {
+      "file": "task-15-chat-actions-menu.png",
+      "sha256": "228c3fe2200a49993aac6277c2e78b82904ccab24a95361a05ac765eb3426fad",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chat-rename-inline.png",
+      "sha256": "a13120b7ed6379139ed4d8ef5102ec3a9192b8a90d9c90de67ccc77f2a643dee",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chats-empty-mobile.png",
+      "sha256": "8287fa747b11b2bac9db86bc2b1168790bbd742706daa4befd83fa6964aaf15b",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "task-15-chats-empty.png",
+      "sha256": "7d20c686678e04965464a430d134176a2450b656a269e69f798a589323ad4a3d",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chats-history-light.png",
+      "sha256": "8f676762db7939c313b6513673bba216d6aaf7cc3caf997b96f6d243c6ec19ce",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chats-no-results-light.png",
+      "sha256": "d371f048dbcbd6cd430c121914fe9c4fc6248c8763f0a287cae7ce7f86821dfc",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chats-search-dark.png",
+      "sha256": "bd897645240888b12aa0f3356a1b080977ad8eba310e96bcb6fc47e1daae5fd1",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-chats-search-light.png",
+      "sha256": "a27335224e1e964cb2df9b01a73092d3a5d7f3e4bb2219c79b3dd4e4e205e8ca",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-delete-confirm-current-chat.png",
+      "sha256": "0c0329b989dce4b84141a3661f49e8cb0dcd7d2bb8c65c15de44377a87dbe203",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "task-15-delete-confirm-search.png",
+      "sha256": "03f1c3207ea5f0bc44d761bc3ed9e491f80a9397c289bb4a4960b2e453b03fc6",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

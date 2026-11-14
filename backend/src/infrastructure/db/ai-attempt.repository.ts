@@ -128,7 +128,10 @@ export class AiAttemptRepository {
         Buffer.byteLength(record.generationId, 'utf8') > 256)
     )
       throw new Error('Invalid AI attempt');
-    if (!(await this.steps.lockClaim(tx, claim)))
+    if (
+      !(await this.steps.lockResourceForRun(tx, claim.runId)) ||
+      !(await this.steps.lockClaim(tx, claim))
+    )
       throw new Error('AI step claim lost');
     const { client } = requireSession(tx);
     const result = await client.query(

@@ -560,12 +560,13 @@ export async function createAiFixture(services: Services) {
            VALUES($1,$2,$3,1,1,'pending')`,
           [stepId, tenant.orgId, runId],
         );
-        const claim = await steps.claim(tx, {
+        const claimed = await steps.claim(tx, {
           runId,
           sequence: 1,
           expectedVersion: 1,
           leaseMs: 30000,
         });
+        const claim = claimed?.claim;
         if (!claim) throw new Error('AI fixture claim unavailable');
         if (options.activeAttempt) {
           const now = new Date();
@@ -662,12 +663,16 @@ export async function createAiFixture(services: Services) {
             'SELECT pg_backend_pid() AS pid',
           );
           takeoverStarted.resolve(backend.rows[0]!.pid);
-          return steps.claim(tx, {
-            runId: claim.runId,
-            sequence: claim.sequence,
-            expectedVersion: claim.expectedVersion,
-            leaseMs: 30_000,
-          });
+          return (
+            (
+              await steps.claim(tx, {
+                runId: claim.runId,
+                sequence: claim.sequence,
+                expectedVersion: claim.expectedVersion,
+                leaseMs: 30_000,
+              })
+            )?.claim ?? null
+          );
         });
         writerRetainedRunLock = await waitForPgLockWait(
           await takeoverStarted.promise,
@@ -720,12 +725,16 @@ export async function createAiFixture(services: Services) {
             'SELECT pg_backend_pid() AS pid',
           );
           takeoverStarted.resolve(backend.rows[0]!.pid);
-          return steps.claim(tx, {
-            runId: claim.runId,
-            sequence: claim.sequence,
-            expectedVersion: claim.expectedVersion,
-            leaseMs: 30_000,
-          });
+          return (
+            (
+              await steps.claim(tx, {
+                runId: claim.runId,
+                sequence: claim.sequence,
+                expectedVersion: claim.expectedVersion,
+                leaseMs: 30_000,
+              })
+            )?.claim ?? null
+          );
         });
         writerRetainedRunLock = await waitForPgLockWait(
           await takeoverStarted.promise,
@@ -828,8 +837,11 @@ export async function createAiFixture(services: Services) {
       leaseMs: number,
     ) {
       const tenant = tenants[index]!;
-      return database.withTenant(tenant, (tx) =>
-        steps.claim(tx, { runId, sequence, expectedVersion, leaseMs }),
+      return database.withTenant(
+        tenant,
+        async (tx) =>
+          (await steps.claim(tx, { runId, sequence, expectedVersion, leaseMs }))
+            ?.claim ?? null,
       );
     },
     async persistAttemptLifecycle(index: number, claim: StepClaim) {

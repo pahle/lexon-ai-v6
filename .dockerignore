@@ -23,3 +23,12 @@
 **/*.p12
 **/.DS_Store
 docs
+!backend/test/
+backend/test/**
+!backend/test/e2e/
+!backend/test/e2e/chat-worker-main.mjs
+!backend/test/e2e/chat-worker-control.mjs
+!frontend/test/
+frontend/test/**
+!frontend/test/fixtures/
+!frontend/test/fixtures/chat-runtime-proof.tsx

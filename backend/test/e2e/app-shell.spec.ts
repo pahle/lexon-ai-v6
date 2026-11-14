@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 
-test('F2 shell keeps Home framed, collapses across reload, and renders scoped not-found routes', async ({
+test('F2 shell keeps New chat framed, collapses across reload, and renders scoped not-found routes', async ({
   page,
 }) => {
   const stack = descriptor();
@@ -39,9 +39,18 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
     data: {},
   });
   const chatRequests: string[] = [];
+  const permittedChatRequests = [
+    'GET /api/chats/events',
+    'GET /api/chats?limit=6',
+  ].sort();
+  const expectReadOnlyChatTraffic = () =>
+    expect
+      .poll(() => [...new Set(chatRequests)].sort(), { timeout: 10_000 })
+      .toEqual(permittedChatRequests);
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname.includes('/api/chat')) {
-      chatRequests.push(request.url());
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/api/chat')) {
+      chatRequests.push(`${request.method()} ${url.pathname}${url.search}`);
     }
   });
   await page.goto(stack.frontendUrl + '/workspace');
@@ -64,45 +73,24 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
   await expect(
     page
       .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Home', exact: true }),
+      .getByRole('link', { name: 'New chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
   const message = page.getByRole('textbox', { name: 'Message input' });
   await expect(message).toBeEnabled();
   await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Send message' }),
-  ).toHaveAttribute('aria-disabled', 'true');
+  ).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'Add Attachment' }),
-  ).toHaveAttribute('aria-disabled', 'true');
-  const openTooltips = page.locator('[data-slot="tooltip-content"][data-open]');
-  await expect(openTooltips).toHaveCount(0);
-  await expect(page.getByText('No conversations yet.')).toBeVisible();
-
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /voice|audio|record/i }),
+  ).toHaveCount(0);
   await message.fill('Draft legal question');
-  await message.press('Enter');
-  await expect(message).toHaveValue('Draft legal question\n');
-  const send = page.getByRole('button', { name: 'Send message' });
-  await send.focus();
-  await expect(send).toBeFocused();
-  await expect(openTooltips).toHaveCount(1);
-  await expect(openTooltips).toContainText('Chat is coming soon');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Enter');
-  await send.click({ force: true });
-  await message.focus();
-  await expect(openTooltips).toHaveCount(0);
-  const attachment = page.getByRole('button', { name: 'Add Attachment' });
-  await attachment.focus();
-  await expect(attachment).toBeFocused();
-  await expect(openTooltips).toHaveCount(1);
-  await expect(openTooltips).toContainText('Chat is coming soon');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Enter');
-  await attachment.click({ force: true });
+  await expect(message).toHaveValue('Draft legal question');
   await expect(page.locator('[data-role="user"]')).toHaveCount(0);
-  await expect(page.getByText('New Thread')).toHaveCount(0);
-  expect(chatRequests).toEqual([]);
+  await expectReadOnlyChatTraffic();
 
   const sidebarContainer = page.locator(
     '[data-slot="sidebar-container"]:visible',
@@ -200,7 +188,7 @@ test('F2 shell keeps Home framed, collapses across reload, and renders scoped no
       page.getByRole('complementary', { name: 'Workspace navigation' }),
     ).toHaveCount(0);
   }
-  expect(chatRequests).toEqual([]);
+  await expectReadOnlyChatTraffic();
 });
 
 test('F2 sidebar supports mobile Escape and closes after real navigation at 375px', async ({
@@ -331,7 +319,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   const workspaceDialog = page.getByRole('dialog', { name: 'Sidebar' });
   await workspaceDialog
     .getByRole('navigation', { name: 'Primary navigation' })
-    .getByRole('link', { name: 'Home', exact: true })
+    .getByRole('link', { name: 'New chat', exact: true })
     .click();
   await expect(page).toHaveURL(/\/workspace$/);
   await page.getByRole('button', { name: 'Open navigation' }).click();
@@ -385,7 +373,7 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   );
   const nav = page.getByRole('navigation', { name: 'Primary navigation' });
   await expect(
-    nav.getByRole('link', { name: 'Home', exact: true }),
+    nav.getByRole('link', { name: 'New chat', exact: true }),
   ).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
   await expect(
@@ -399,6 +387,16 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   await page.keyboard.press('Enter');
   const createTeam = page.getByRole('menuitem', { name: 'Create a team' });
   await expect(createTeam).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const popup = document.querySelector(
+          '[data-testid="organization-popup"]',
+        );
+        return popup?.contains(document.activeElement) ?? false;
+      }),
+    )
+    .toBe(true);
   await page.keyboard.press('End');
   await expect(createTeam).toBeFocused();
   await expect(organization).toHaveAttribute('aria-expanded', 'true');
@@ -464,21 +462,15 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
   });
   await page.setViewportSize({ width: 768, height: 720 });
   await page.goto(`${stack.frontendUrl}/workspace`);
-  await expect(
-    page.getByRole('heading', { name: 'Home', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
   const composerInput = page.getByRole('textbox', { name: 'Message input' });
-  const attachment = page.getByRole('button', {
-    name: 'Add Attachment',
-    exact: true,
-  });
   const send = page.getByRole('button', {
     name: 'Send message',
     exact: true,
   });
   await expect(composerInput).toBeVisible();
-  await expect(attachment).toBeVisible();
   await expect(send).toBeVisible();
+  await expect(send).toBeDisabled();
   // This test-only structural aside checks desktop layout around RightPanel's
   // host; frontend/test/right-panel.spec.tsx verifies its actual mobile modal.
   await page.locator('[data-panel-host]').evaluate((host) => {
@@ -513,8 +505,12 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
           width: bounds.width,
         };
       };
-      const one = (selector: string, label: string) => {
-        const matches = document.querySelectorAll(selector);
+      const one = (
+        selector: string,
+        label: string,
+        root: ParentNode = document,
+      ) => {
+        const matches = root.querySelectorAll(selector);
         if (matches.length !== 1) {
           throw new Error(`Expected one ${label}, found ${matches.length}`);
         }
@@ -528,14 +524,12 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
         'workspace sidebar',
       );
       const main = rect(one('main#main', 'main'), 'main');
-      const content = rect(
-        one(
-          'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
-          'main content',
-        ),
+      const contentElement = one(
+        'main#main > div.flex.min-h-0.flex-1 > div.flex.min-w-0.flex-1',
         'main content',
       );
-      const headingElement = one('main#main h1', 'page heading');
+      const content = rect(contentElement, 'main content');
+      const headingElement = one('h2', 'page headline', contentElement);
       const heading = rect(headingElement, 'page heading');
       const textRange = document.createRange();
       textRange.selectNodeContents(headingElement);
@@ -546,10 +540,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
       const panel = rect(
         one('[data-panel-host] aside[aria-label="Details"]', 'test panel'),
         'test panel',
-      );
-      const attachment = rect(
-        one('button[aria-label="Add Attachment"]', 'attachment action'),
-        'attachment action',
       );
       const send = rect(
         one('button[aria-label="Send message"]', 'send action'),
@@ -565,7 +555,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
         panelWidth: panel.width,
         documentWidth: document.documentElement.scrollWidth,
         composer: rect(composer, 'message input'),
-        attachment,
         send,
         panelCount: panelHost.querySelectorAll('aside').length,
       };
@@ -586,7 +575,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
       snapshot.composer.right,
       'message input must not overlap the optional panel',
     ).toBeLessThanOrEqual(snapshot.panelLeft);
-    expect(snapshot.attachment.right).toBeLessThanOrEqual(snapshot.panelLeft);
     expect(snapshot.send.right).toBeLessThanOrEqual(snapshot.panelLeft);
   };
   assertGeometry(geometry);
@@ -609,7 +597,6 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     expect(overlappingGeometry.composer.right).toBeGreaterThan(
       overlappingGeometry.panelLeft,
     );
-    expect(overlappingGeometry.attachment).toEqual(geometry.attachment);
     expect(overlappingGeometry.send).toEqual(geometry.send);
     expect(() => assertGeometry(overlappingGeometry)).toThrow(
       /message input must not overlap the optional panel/,

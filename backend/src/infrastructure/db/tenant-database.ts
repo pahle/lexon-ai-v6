@@ -166,7 +166,7 @@ export class TenantDatabase {
           ]),
         );
       }
-      session = beginSession(client, context);
+      session = beginSession(client, context, this.#pool);
       const operation = Promise.resolve().then(() =>
         fn(session!, controller.signal),
       );

@@ -2,8 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef } from 'react';
-import { ChevronRight, Home, Shield, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  ChevronRight,
+  MessageSquarePlus,
+  MessagesSquare,
+  Shield,
+  X,
+} from 'lucide-react';
 import { useWorkspace } from './workspace-provider';
 import {
   Sidebar,
@@ -29,8 +36,10 @@ import {
 import { OrganizationMenu } from './organization-menu';
 import { UserMenu } from './user-menu';
 import { Button } from '../ui/button';
-import { ThreadList } from '../assistant-ui/elements/thread-list.aui';
+import { RecentChats } from '../chat/chat-history';
+import { createChatClient } from '../../lib/chat-client';
 import { requestRouteHeadingFocus } from './navigation-focus';
+import { shouldOpenNewChatShortcut } from '../../lib/chat-navigation';
 
 type Destination = { title: string; href: string };
 
@@ -121,6 +130,7 @@ function NavigationGroup({
 
 export function AppSidebar() {
   const { identity } = useWorkspace();
+  const router = useRouter();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const mobileNavigation = useRef<{
     from: string;
@@ -129,6 +139,20 @@ export function AppSidebar() {
     headingFocused: boolean;
   } | null>(null);
   const pathname = usePathname() ?? '';
+  const chatClient = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
+  const chatScope = identity
+    ? { orgId: identity.organization.id, userId: identity.user.id }
+    : null;
+  const currentChatId = /^\/chats\/([0-9a-f-]{36})$/i.exec(pathname)?.[1];
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!shouldOpenNewChatShortcut(event)) return;
+      event.preventDefault();
+      router.push('/workspace');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [router]);
   const finishMobileNavigation = useCallback(() => {
     const pending = mobileNavigation.current;
     if (!pending?.pathnameChanged || !pending.sheetClosed) return;
@@ -202,7 +226,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={pathname === '/workspace'}
-                  tooltip="Home"
+                  tooltip="New chat · Ctrl+Alt+N / Cmd+Alt+N"
                   aria-current={pathname === '/workspace' ? 'page' : undefined}
                   onClick={() => {
                     if (isMobile) setOpenMobile(false);
@@ -216,8 +240,29 @@ export function AppSidebar() {
                     />
                   }
                 >
-                  <Home aria-hidden="true" />
-                  <span>Home</span>
+                  <MessageSquarePlus aria-hidden="true" />
+                  <span>New chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname === '/chats'}
+                  tooltip="Chats"
+                  aria-current={pathname === '/chats' ? 'page' : undefined}
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                  render={
+                    <Link
+                      href="/chats"
+                      onNavigate={() => {
+                        if (pathname !== '/chats') requestNavigationFocus();
+                      }}
+                    />
+                  }
+                >
+                  <MessagesSquare aria-hidden="true" />
+                  <span>Chats</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {identity.platformAdmin ? (
@@ -236,9 +281,38 @@ export function AppSidebar() {
           </SidebarGroup>
         </nav>
         {state === 'expanded' || isMobile ? (
-          <SidebarGroup role="group" aria-label="Conversations">
-            <SidebarGroupLabel>Conversations</SidebarGroupLabel>
-            <ThreadList />
+          <SidebarGroup role="group" aria-label="Recent chats">
+            <SidebarGroupLabel>Recent</SidebarGroupLabel>
+            {chatScope ? (
+              <RecentChats
+                client={chatClient}
+                scope={chatScope}
+                onNavigate={requestNavigationFocus}
+                onCloseMobile={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
+                {...(currentChatId ? { currentChatId } : {})}
+              />
+            ) : null}
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                  render={
+                    <Link
+                      href="/chats"
+                      onNavigate={() => {
+                        if (pathname !== '/chats') requestNavigationFocus();
+                      }}
+                    />
+                  }
+                >
+                  <span>View all chats</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroup>
         ) : null}
       </SidebarContent>

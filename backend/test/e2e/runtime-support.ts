@@ -4,6 +4,7 @@ export interface E2EDescriptor {
   project: string;
   operatorEnvironmentPath: string;
   apiUrl: string;
+  publicUrl: string;
   frontendUrl: string;
 }
 export function descriptor(): E2EDescriptor {

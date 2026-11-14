@@ -1,0 +1,1698 @@
+{
+  "version": 1,
+  "sourceSha": "49ad2f95ed55ad95e74f16cafc3cf08d0634f6b0",
+  "runId": 43434198137,
+  "runUrl": "https://github.com/pahle/lexon-ai-v6/actions/runs/43434198137",
+  "capturedAt": "2026-11-13T13:41:49.487Z",
+  "environment": {
+    "os": "Linux 7.0.0-1017-azure (linux/x64)",
+    "browser": "Chromium 156.0.8078.4",
+    "playwright": "1.64.1",
+    "node": "v24.22.1",
+    "locale": "en-US",
+    "timezone": "Asia/Jakarta"
+  },
+  "freshnessMarkerEpochMs": 1794576669880,
+  "originalBaselineCount": 82,
+  "verifiedCurrentImageCount": 82,
+  "exactPixelMatches": 34,
+  "existingComparisonPasses": 62,
+  "existingComparisonFailures": 20,
+  "retired": [
+    "home-desktop-light",
+    "home-desktop-dark",
+    "home-mobile-light",
+    "home-mobile-dark",
+    "provisioning-desktop-light",
+    "provisioning-desktop-dark",
+    "organization-switcher-open-desktop-light",
+    "organization-switcher-open-desktop-dark",
+    "organization-switcher-open-mobile-light",
+    "organization-switcher-open-mobile-dark",
+    "user-menu-open-desktop-light",
+    "user-menu-open-desktop-dark",
+    "user-menu-open-mobile-light",
+    "user-menu-open-mobile-dark",
+    "sidebar-header-expanded-desktop-light",
+    "sidebar-header-expanded-desktop-dark",
+    "sidebar-header-expanded-mobile-light",
+    "sidebar-header-expanded-mobile-dark",
+    "sidebar-header-collapsed-desktop-light",
+    "sidebar-header-collapsed-desktop-dark"
+  ],
+  "images": [
+    {
+      "id": "sign-in-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "69b31d7f6a8b2dbf0f88e54f9c17377f0d5a3d86e0144c1b5cfc47e0f924d231",
+      "currentSha256": "69b31d7f6a8b2dbf0f88e54f9c17377f0d5a3d86e0144c1b5cfc47e0f924d231",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "4973f74d61c8a6c981792fecc5c6ca4e5c409ac027c0348ee62ffce4fbc4d2c3",
+      "currentSha256": "4973f74d61c8a6c981792fecc5c6ca4e5c409ac027c0348ee62ffce4fbc4d2c3",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "8c7c053ab664644999459e6a3dfce581a87ec0233a7a801874241644358e3b71",
+      "currentSha256": "8c7c053ab664644999459e6a3dfce581a87ec0233a7a801874241644358e3b71",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "38cd821a88b1b41ac744ef22030b6d4d4f36f69e5902b764bb71f735e9886819",
+      "currentSha256": "38cd821a88b1b41ac744ef22030b6d4d4f36f69e5902b764bb71f735e9886819",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-up-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "318bc7d766bdbe311b5b59925c7ef4090d8eb914cb40c0bb205301454885d869",
+      "currentSha256": "318bc7d766bdbe311b5b59925c7ef4090d8eb914cb40c0bb205301454885d869",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-up-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "a0137fb6ea1aa03f57ce41467581071a62d1122a6041b3084aa70ad234759f1e",
+      "currentSha256": "a0137fb6ea1aa03f57ce41467581071a62d1122a6041b3084aa70ad234759f1e",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-up-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "23ac52120f5e4d9bc265973c790e942d4146e3a8c06bd849e2bad6a36f9427a6",
+      "currentSha256": "23ac52120f5e4d9bc265973c790e942d4146e3a8c06bd849e2bad6a36f9427a6",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-up-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "03b7feabd3de20efcf1843c3f1acb6093d49027ba98acce3af360555c6cb2d24",
+      "currentSha256": "03b7feabd3de20efcf1843c3f1acb6093d49027ba98acce3af360555c6cb2d24",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "forgot-password-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "6ddf313f7a512beef3fcf8a1fc44e7633f5d3af8f2cc3642126ce5679992b6e1",
+      "currentSha256": "6ddf313f7a512beef3fcf8a1fc44e7633f5d3af8f2cc3642126ce5679992b6e1",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "forgot-password-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "dfd5d78ce8598ba764df28151db595ec5ab4ca481e1ee719fabffb53974e59b5",
+      "currentSha256": "dfd5d78ce8598ba764df28151db595ec5ab4ca481e1ee719fabffb53974e59b5",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "forgot-password-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "de1d496556bf3255f1dfc437716cd3455545ad02de042be82c42906391b06d0f",
+      "currentSha256": "de1d496556bf3255f1dfc437716cd3455545ad02de042be82c42906391b06d0f",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "forgot-password-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "575f021e94b003b3e1d370ceb0ab0ce7c513fd249ecbd532b03f3ac9982c3085",
+      "currentSha256": "575f021e94b003b3e1d370ceb0ab0ce7c513fd249ecbd532b03f3ac9982c3085",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "two-factor-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "0c75d1a183dc5e994fd5edcc913f8607ad76cec2f4df66ee1bb8031c554108c1",
+      "currentSha256": "0c75d1a183dc5e994fd5edcc913f8607ad76cec2f4df66ee1bb8031c554108c1",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "two-factor-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "213a48c22073e8cb7b7c9ba65407fdcb92ef5dba2bcd53f4bb2041d15aba4af1",
+      "currentSha256": "213a48c22073e8cb7b7c9ba65407fdcb92ef5dba2bcd53f4bb2041d15aba4af1",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "two-factor-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "7bf54502313d9f785f691d1c6c8fdbf39fd52927a38fa206fcaf5ac154a107cd",
+      "currentSha256": "7bf54502313d9f785f691d1c6c8fdbf39fd52927a38fa206fcaf5ac154a107cd",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "two-factor-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "56c48d139c67d2530087e987d85e8fb656234a0510df34e2b435e2c730f074c3",
+      "currentSha256": "56c48d139c67d2530087e987d85e8fb656234a0510df34e2b435e2c730f074c3",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "onboarding-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "bc2b9b139cd55dd725ef99226b7700c7f2f2aa473ca320a032b22b003d76db94",
+      "currentSha256": "bc2b9b139cd55dd725ef99226b7700c7f2f2aa473ca320a032b22b003d76db94",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "onboarding-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "60f0a6b8f77abc1d67172c6c510c394693cbb2b44548e541dfe89b42f37ae232",
+      "currentSha256": "60f0a6b8f77abc1d67172c6c510c394693cbb2b44548e541dfe89b42f37ae232",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "onboarding-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "a098d8378b650a37d74c6892e070e3bea7bc0f1985d11411473c5248e9337c46",
+      "currentSha256": "a098d8378b650a37d74c6892e070e3bea7bc0f1985d11411473c5248e9337c46",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "onboarding-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "27e532a62245227da4392e316c5984a6dc3c2373d0e5eff4fb6f2f3a22cdda97",
+      "currentSha256": "27e532a62245227da4392e316c5984a6dc3c2373d0e5eff4fb6f2f3a22cdda97",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "home-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 68423,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "fa0e0350c6e1147c0e8a49ad96e552d330c844a31484a03d3884f799d9f07bd2",
+      "currentSha256": "56bbb8790a1820d4955d96ec43fcaa941174fa9e81872e23ae23bed53986a271",
+      "diffImage": "diff/home-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "home-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 103097,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "bb42c5a9abd17ae7e82573d09979b42616b04bf707c2aeb00f3cedd7d764ba87",
+      "currentSha256": "6efddef6d988cb46245ab491acafe08f4ebf9d38b7c6f49369f0f2ef794a4e40",
+      "diffImage": "diff/home-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "home-mobile-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [31, 26, 358, 581],
+      "differentPixels": 30308,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "96ab3df6269828b07fc68b18131909e976cc75d5110926d7c7923acbb006bed3",
+      "currentSha256": "f9dd38188277939f7c3c250259ac237b197ea234f794ff6cae23ef869b47fa91",
+      "diffImage": "diff/home-mobile-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "breadcrumb",
+          "rect": [60, 20, 136, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [28, 308, 366, 414],
+          "differentPixels": 12085
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [28, 388, 362, 548],
+          "differentPixels": 22983
+        },
+        {
+          "name": "disclaimer",
+          "rect": [44, 550, 348, 584],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "home-mobile-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [31, 26, 358, 581],
+      "differentPixels": 42650,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "a79b5d7927362bbb583936160200f1f365d1a0cc913bfd39875245ee01f30934",
+      "currentSha256": "72b9878fd35dde06400933389634e92fb6f243223928beda5670b0945ea6724a",
+      "diffImage": "diff/home-mobile-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "breadcrumb",
+          "rect": [60, 20, 136, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [28, 308, 366, 414],
+          "differentPixels": 12188
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [28, 388, 362, 548],
+          "differentPixels": 35186
+        },
+        {
+          "name": "disclaimer",
+          "rect": [44, 550, 348, 584],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "profile-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "e59e0bda6793301c396f06da1c5f40f71b0007bd2c81af1c3beda5721ecc7d57",
+      "currentSha256": "8af9b82ebcd3682e80b1cf70096632a782cb97d2c14c2a78198d1b95c664fa93",
+      "diffImage": "diff/profile-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "profile-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "ff4d0611830f8ae82a80fe967f659260ac75e4bb9fd7243e0925b139ddf421e5",
+      "currentSha256": "776f3dfb2aa12bd3cdceee123ec987fcb743afe5447bc6c3c51ebc3a5e468978",
+      "diffImage": "diff/profile-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "profile-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "fe3dff332d09f7b91779302cee45a238789522cb7f87ea3033d3678005b5aeec",
+      "currentSha256": "ebde922302aa234d89ac9779509dff3ceec06a0e78e819270ffc6ef450db71c2",
+      "diffImage": "diff/profile-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "profile-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "9f5fbe3f871a311c0667e4d433ff0a9ea267ce4646d4919840bbc55e02546724",
+      "currentSha256": "32b303c9c5f4cd8b3347ca6780b8ad66187d31d75282fecad3ba3627e9c95cd1",
+      "diffImage": "diff/profile-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "security-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "dbc7cc8aadda7190e9b6eee88e38f3fdf8a04ece8bcf6517b53ef880983206aa",
+      "currentSha256": "46ff51ba5ceb5ae6f64d30ef33bc67839e7ea11204e564c3e3e08c30c02120bc",
+      "diffImage": "diff/security-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "security-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "651887525b0b373e814f0f7994961fa94f69cb384ebdc6d0157db7b8544f714a",
+      "currentSha256": "f31bc00ac9e2c48f4a3d9e0dc5f951199ae7374f6fccc93ee8a69d3ab6cb4b74",
+      "diffImage": "diff/security-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "security-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "905e4d6b079ba1c1cd151b85db5423b19c7ea33e423bb06729a7c69becd21719",
+      "currentSha256": "4da8b0adf49a41b4fb2a864790c0cc077ae67cebefad26d2ded568f3b7024984",
+      "diffImage": "diff/security-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "security-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "6ccb9ea3586bebe5840af47ee6ca8d26eee96258fbeb3dd1b4c9133dbc67bbee",
+      "currentSha256": "1f153b9596156a6d12096448aa5e74c428d3166b0c0db3787df81ae4f8b81155",
+      "diffImage": "diff/security-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "appearance-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "4bb0e41becb8d2bc470c559ba45b94967923e571f5166f20f950248813d36bf2",
+      "currentSha256": "29968e0d24b7a4b524bf6d82c96fd231af679292f71f117a27f4321a5cacb436",
+      "diffImage": "diff/appearance-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "appearance-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "d9baa8ee9edb68b6c1be61942eef775ed7fd63c4468dcb67c8a81b43b788d682",
+      "currentSha256": "abdaadf10000687c747535096c1ab18194d782db3c27f53a15b5e01d7dc37e9d",
+      "diffImage": "diff/appearance-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "appearance-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "1a05b1a94c3baf2920f6b3db1edbfaad3528c5954a0ec707a64bea1925894552",
+      "currentSha256": "1dd05e6086194a8a3cdd7d4a588d73b6441d6a490707986d6a39bf704747e8a4",
+      "diffImage": "diff/appearance-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "appearance-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "112d5c717649f515505f76e13572a847a603b7c8521dd82f9c75bdf26bf4f1a5",
+      "currentSha256": "46c5b84f9087edb4c9d131e5e4b278d2127b94a7d36bdc9eacf9bde35f1c66aa",
+      "diffImage": "diff/appearance-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "members-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "acf9dae681a489939cb54d363203555631d4f9e709c97fe8279fc92438736825",
+      "currentSha256": "621467d4dd8ed5ac770942474c983aa24d86b4a6cf8380bec86c93560cd84783",
+      "diffImage": "diff/members-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "members-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "0ea6792142e3a1644e9915facd02be0d03c560f9e6497416edf8de1ee4234aaf",
+      "currentSha256": "bfa7177a2f1612776b19df6b8385b6f3b854175c0d4c4596228c8d55db3d41ed",
+      "diffImage": "diff/members-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "members-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "12095dda947b37cf5c19c5029ac59eb6d6431dfc0247f544aab91bd4c793fe25",
+      "currentSha256": "8a0ec14568eac35ee54ed45fe8970c7877fc51e447d824c91f6c039866cc8ba7",
+      "diffImage": "diff/members-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "members-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "971377e6297189bfadb2bb5dfc257292edd3943e4b941c43afc89e4d57a611dd",
+      "currentSha256": "6117314926eec3af2191cd29883478e449ec21c46d177c324313d4b710c974cb",
+      "diffImage": "diff/members-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "invitations-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "9b979603c3b4c7a96290d5cfada7ff387bf10b9a6645064252786ca3e27e97fa",
+      "currentSha256": "68818b8a2965163af46cd81013774fb513f318f4571c5147ce3dc81740e1d094",
+      "diffImage": "diff/invitations-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "invitations-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "e92414ae654a13d058c4cd82ae1c7f3a808d974d59ad118b9405738fa8d6c659",
+      "currentSha256": "da2307fd3ee5661995075392661b0b5aab1cd45c5079be46c7d1bd0ca7b9cd8a",
+      "diffImage": "diff/invitations-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "invitations-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "2231dfeb01e6d446ee7699eca4d7949fe17685b9adb071af28d7651e649acd0c",
+      "currentSha256": "f3e914c451f97f7fc539f094ee4502a2d19f23a591b43ceefcb4f2ae4285625d",
+      "diffImage": "diff/invitations-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "invitations-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "42512ca3e71951c936d74740dfc0e305db4ecc6918e46047a572ed9e817ff561",
+      "currentSha256": "3c0a31395be95966b603db43fda63cb338d72c51a1cabdc81e1571612e906c27",
+      "diffImage": "diff/invitations-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "general-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "8222dce50cde1567eadf2d109a7c460313ef9867fa4efdf02a63c0ec85d65ef7",
+      "currentSha256": "f7ff4602c1041c1b3d18a6623810f8254b20bf621062ef78f8a6bd216ab35775",
+      "diffImage": "diff/general-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "general-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "bb15d507bd5f5a2cadcd165dc0861d2084f216abd474673b2a22ba38f10f09d8",
+      "currentSha256": "3cfb05ed386024f891fb4bc6b59fead3611dd958fd298ebc650be4033da3857f",
+      "diffImage": "diff/general-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "general-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "e5b84abfcb91c1863cd6a846b38affea059ed26a3e16aad6788f7b8a07383801",
+      "currentSha256": "28e92a447d22a99bb1c5f630f72fe81ab457af7638e989a7cc95739210e82d8a",
+      "diffImage": "diff/general-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "general-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "71ec33b33af461c3de776cac7f579e1e72611afddc69f19ab0fcebbba3def0ae",
+      "currentSha256": "0848166461754c7b55be4ce00e0bf0660f3446f6617c56a34904c9cdacc3f4ff",
+      "diffImage": "diff/general-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "provisioning-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [8, 112, 247, 369],
+      "differentPixels": 19669,
+      "size": [1440, 900],
+      "classification": "N",
+      "reason": "Navigation only; every changed pixel is inside the sidebar. Eligible under existing owner condition; not retired yet.",
+      "baselineSha256": "2f920d77a6f46f3d7529dcb0f5f4de5b737bcc6f73228d04bd31a1cbc1753647",
+      "currentSha256": "93427540e46c42eec34dc643b4c9ca74e1cf94e172822977791347d834fd7962",
+      "diffImage": "diff/provisioning-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 19669
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "provisioning-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [8, 112, 247, 369],
+      "differentPixels": 19644,
+      "size": [1440, 900],
+      "classification": "N",
+      "reason": "Navigation only; every changed pixel is inside the sidebar. Eligible under existing owner condition; not retired yet.",
+      "baselineSha256": "b4babc0bc8de749a1b181f1c46386d9d3575e20361f556a72eba69689aca8656",
+      "currentSha256": "1cec3984a4f4b0644c8632961577c2af12caf4183243eb0a7963ff035c93e7ac",
+      "diffImage": "diff/provisioning-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 19644
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "provisioning-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "60c8d003f00b632ad1aaa13cfc5ca1734bfe8b70b6f7ad879caa6ce3bba5019c",
+      "currentSha256": "60c8d003f00b632ad1aaa13cfc5ca1734bfe8b70b6f7ad879caa6ce3bba5019c",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "provisioning-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "cf83055fe1a311e1a94c7dc807203663dfce21dcd45b2c1d992c78b2632aace4",
+      "currentSha256": "cf83055fe1a311e1a94c7dc807203663dfce21dcd45b2c1d992c78b2632aace4",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "organization-switcher-open-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 112, 1232, 604],
+      "differentPixels": 67967,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "3f040bdf8a7271961fe9f79a1ea5e65eda8998e7cdb5aea63ac9beb5c6e2fce1",
+      "currentSha256": "396c30483782e13b404e00b2ce175f937a13d30c7c4123927ab57282952d3e09",
+      "diffImage": "diff/organization-switcher-open-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 0
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "organization-switcher-open-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 112, 1232, 604],
+      "differentPixels": 102616,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "9c70054f27de67475235c8c3bbd87f81505190517fc229492aa2b0bb8f273c38",
+      "currentSha256": "6218e5fabd9bcb25c03cf094f0ceb5565573915f2288e685b0f37cc5bfd955b3",
+      "diffImage": "diff/organization-switcher-open-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 0
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "organization-switcher-open-mobile-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 235, 367, 577],
+      "differentPixels": 12996,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "d1a3aa493a1173afe40c14f56bae5ab1712804432ea3a9dd4be990cf99c83a2c",
+      "currentSha256": "a0b265894f440bc056d138a1871978469c1769a967ab9e0f64fe49bbd02fd49f",
+      "diffImage": "diff/organization-switcher-open-mobile-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 2120
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5041
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "organization-switcher-open-mobile-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 235, 367, 577],
+      "differentPixels": 15746,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "0f935f91a06e03857c7033d0e336392b99101e6a34d91af1ca1875f7ad8f882e",
+      "currentSha256": "e96ea5e1dd7ba258d2d69aa0e03744c2e253f3c5fa430b63cccdd306f1c5beaf",
+      "diffImage": "diff/organization-switcher-open-mobile-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 2093
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5268
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "user-menu-open-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 69967,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "32007ef7d55da87700e1fd09dd6c7fc58bef7df34746a301b30a2b6a56cef1a1",
+      "currentSha256": "a7a3ee30475a461e821b1282235c3f1d4039aee758d8be72fe329ad495ad8196",
+      "diffImage": "diff/user-menu-open-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 4285
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 15165
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "user-menu-open-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 104646,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "0d68facef241ff1d42ffc5c1c6a2604a0829ac7cfcff044ed86ecd7a89e67566",
+      "currentSha256": "cc291d5a673e42f0e51dfac701468c52b2534808e07f193cac6f7559399f1cb2",
+      "diffImage": "diff/user-menu-open-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 4258
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 15276
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "user-menu-open-mobile-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 152, 367, 577],
+      "differentPixels": 15796,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "c13e5ebaed0a6f5f5aeb91265a9b8de930336cff7dfebb892fcfe625e5eba40c",
+      "currentSha256": "28d55331cf6a122c973e7e7f0d9b292f45aa9684e65abdd505b096f8a42f26d8",
+      "diffImage": "diff/user-menu-open-mobile-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 4285
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5676
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "user-menu-open-mobile-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 152, 367, 577],
+      "differentPixels": 18543,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "55bdf1baa3be37d80572f08729d5f389d6f406382644d1b593df27ea9d9e33ae",
+      "currentSha256": "dfe6153dab7a70a08b02890e004ede85d79442cd2def4bbc671ce9b78c9ca11d",
+      "diffImage": "diff/user-menu-open-mobile-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 4258
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5900
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sign-in-field-errors-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "1e91ac184f84cc750b203f0fb3f84cd4123a85daf3e18c052dcbaba8b6620cfe",
+      "currentSha256": "1e91ac184f84cc750b203f0fb3f84cd4123a85daf3e18c052dcbaba8b6620cfe",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-field-errors-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "df87959bb90e8041e6aa6520be31edcc1f82af8aaffa82ef53324ee9b0da12ec",
+      "currentSha256": "df87959bb90e8041e6aa6520be31edcc1f82af8aaffa82ef53324ee9b0da12ec",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-field-errors-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "7a677e5b2bb370033bc3b5e69685168c64094f0a306a66f8cc4f36662a44f5dc",
+      "currentSha256": "7a677e5b2bb370033bc3b5e69685168c64094f0a306a66f8cc4f36662a44f5dc",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-field-errors-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "2f5817085796072b7e8c42e173a5f9e59d8a332cb96e12fe00a4ad4ccfab4a53",
+      "currentSha256": "2f5817085796072b7e8c42e173a5f9e59d8a332cb96e12fe00a4ad4ccfab4a53",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-password-shown-loading-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "c16e189191060e7e4a2d752150ea2aa78234992311f52fdbc2c00d10c32d4854",
+      "currentSha256": "c16e189191060e7e4a2d752150ea2aa78234992311f52fdbc2c00d10c32d4854",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-password-shown-loading-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "a94f3dc846046a5cc6d185bfea3d20864d150972ed44ce861d920aa41bf98da9",
+      "currentSha256": "a94f3dc846046a5cc6d185bfea3d20864d150972ed44ce861d920aa41bf98da9",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-password-shown-loading-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "6439e3d759040614afa778814f7e9edb2b356c0e034b09bfbd72f731a585bfe7",
+      "currentSha256": "6439e3d759040614afa778814f7e9edb2b356c0e034b09bfbd72f731a585bfe7",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-password-shown-loading-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "4bcd33196286bb2021be4720227e417fafc17cc88a55e4e9d08258ea754e5bbf",
+      "currentSha256": "4bcd33196286bb2021be4720227e417fafc17cc88a55e4e9d08258ea754e5bbf",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-form-error-desktop-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "87ab02c49701c18c97782ac1cb628288528ce1cfa147ea6352fb326bfe5e306e",
+      "currentSha256": "87ab02c49701c18c97782ac1cb628288528ce1cfa147ea6352fb326bfe5e306e",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-form-error-desktop-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [1440, 900],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "2d22a5a2160d813c74cf84e4ce70d1fb1c9da0163031e0d90d9281250f828731",
+      "currentSha256": "2d22a5a2160d813c74cf84e4ce70d1fb1c9da0163031e0d90d9281250f828731",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-form-error-mobile-light",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "b8b72a16b1feae9bfff027d811b2bd0dd95c67eae7ef02209ded4aef64eba4f6",
+      "currentSha256": "b8b72a16b1feae9bfff027d811b2bd0dd95c67eae7ef02209ded4aef64eba4f6",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "sign-in-form-error-mobile-dark",
+      "exact": true,
+      "normal": "passed",
+      "bbox": null,
+      "differentPixels": 0,
+      "size": [390, 844],
+      "classification": "I",
+      "reason": "Pixel-identical; retain existing assertion.",
+      "baselineSha256": "3b8b4d1bb90c6ae9b32117eb11ddb7199f4363dcd442feda81616295509054f0",
+      "currentSha256": "3b8b4d1bb90c6ae9b32117eb11ddb7199f4363dcd442feda81616295509054f0",
+      "diffImage": null,
+      "retired": false
+    },
+    {
+      "id": "settings-saved-toast-desktop-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 585],
+      "differentPixels": 22518,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "10d023c1c1b72c2a4bbcba345c1905ebcb8698655fd8ed765b511009fe9c9051",
+      "currentSha256": "53a1e440216dd23d9fee8d3484d131b68648db656d26f1240f27c05446b0ed4f",
+      "diffImage": "diff/settings-saved-toast-desktop-light.png",
+      "retired": false
+    },
+    {
+      "id": "settings-saved-toast-desktop-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [6, 17, 1241, 584],
+      "differentPixels": 22673,
+      "size": [1440, 900],
+      "classification": "B",
+      "reason": "Navigation and a narrow blurred F4-composer background edge; Settings foreground is pixel-identical. Existing assertion passes and remains active.",
+      "baselineSha256": "fa8d994ad2b4f24770f7d82de34746adf88e0c5c98d8c627c7c0fb12d920138b",
+      "currentSha256": "6f5c20089bee2b65969bf3c6212b9337eacc9f238c41b6a695d12621289359fd",
+      "diffImage": "diff/settings-saved-toast-desktop-dark.png",
+      "retired": false
+    },
+    {
+      "id": "settings-saved-toast-mobile-light",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 1994,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "30991e8e66804b78a0716b4d4fd5b7ce770b466639eefcf964c1a1dd690d5569",
+      "currentSha256": "8c171ba92e972268d821d3392248e5f05322d47195e974931b8106442c4c4f26",
+      "diffImage": "diff/settings-saved-toast-mobile-light.png",
+      "retired": false
+    },
+    {
+      "id": "settings-saved-toast-mobile-dark",
+      "exact": false,
+      "normal": "passed",
+      "bbox": [56, 17, 136, 47],
+      "differentPixels": 2016,
+      "size": [390, 844],
+      "classification": "N",
+      "reason": "Blurred Home/New chat breadcrumb only; existing assertion passes and remains active.",
+      "baselineSha256": "20cdf3c6b33b7ce302393ae18f5a62f362a90565def8fb9cb86eb615c168246b",
+      "currentSha256": "5e21414142df17c72315bc102b6bbe44ee6d08e2e138f222a5fad7cb995700c3",
+      "diffImage": "diff/settings-saved-toast-mobile-dark.png",
+      "retired": false
+    },
+    {
+      "id": "sidebar-header-expanded-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 68423,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "fa0e0350c6e1147c0e8a49ad96e552d330c844a31484a03d3884f799d9f07bd2",
+      "currentSha256": "56bbb8790a1820d4955d96ec43fcaa941174fa9e81872e23ae23bed53986a271",
+      "diffImage": "diff/sidebar-header-expanded-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14350
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 57848
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sidebar-header-expanded-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 26, 1232, 604],
+      "differentPixels": 103097,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "bb42c5a9abd17ae7e82573d09979b42616b04bf707c2aeb00f3cedd7d764ba87",
+      "currentSha256": "6efddef6d988cb46245ab491acafe08f4ebf9d38b7c6f49369f0f2ef794a4e40",
+      "diffImage": "diff/sidebar-header-expanded-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 104, 248, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [320, 20, 390, 44],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [460, 340, 1050, 444],
+          "differentPixels": 14456
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [460, 424, 1236, 580],
+          "differentPixels": 92409
+        },
+        {
+          "name": "disclaimer",
+          "rect": [660, 588, 1040, 610],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sidebar-header-expanded-mobile-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 152, 367, 577],
+      "differentPixels": 14432,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "464b03ef020d272a8de95753db2cc805c9883f354ab3bfbe205e79cd66e991ff",
+      "currentSha256": "e8df80816804727f729f9b8bc85edff325d0f9223f3c6f7174026de1a10b3356",
+      "diffImage": "diff/sidebar-header-expanded-mobile-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 3556
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5041
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 9907
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1382
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sidebar-header-expanded-mobile-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 152, 367, 577],
+      "differentPixels": 17182,
+      "size": [390, 844],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "86fd92d22265bda26bdd19dc34381df6a489045084a15ab312483ad273544695",
+      "currentSha256": "c934f35863e5d2c569a62cc4c66650140e70113731991327c1db9c2a00db2b97",
+      "diffImage": "diff/sidebar-header-expanded-mobile-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 144, 284, 376],
+          "differentPixels": 3529
+        },
+        {
+          "name": "welcome hierarchy behind sheet",
+          "rect": [292, 308, 374, 444],
+          "differentPixels": 5268
+        },
+        {
+          "name": "composer behind sheet: attachment removed, Deep thinking",
+          "rect": [292, 384, 374, 580],
+          "differentPixels": 12677
+        },
+        {
+          "name": "disclaimer behind sheet",
+          "rect": [292, 548, 374, 588],
+          "differentPixels": 1403
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sidebar-header-collapsed-desktop-light",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 18, 1128, 596],
+      "differentPixels": 65172,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "7163473c6a4e0d4dcd9f4844956b01ff0bb3ae050c67cf3558f8979a45df1921",
+      "currentSha256": "d047b4fd790610fd954086a735928a7cd10eaa9d3e4f78fb21ce5867272c09f1",
+      "diffImage": "diff/sidebar-header-collapsed-desktop-light.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 56, 40, 120],
+          "differentPixels": 305
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [108, 12, 184, 40],
+          "differentPixels": 456
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [356, 332, 940, 436],
+          "differentPixels": 14248
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [356, 416, 1132, 588],
+          "differentPixels": 58561
+        },
+        {
+          "name": "disclaimer",
+          "rect": [560, 580, 932, 604],
+          "differentPixels": 2162
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    },
+    {
+      "id": "sidebar-header-collapsed-desktop-dark",
+      "exact": false,
+      "normal": "failed",
+      "bbox": [16, 18, 1128, 596],
+      "differentPixels": 99873,
+      "size": [1440, 900],
+      "classification": "C",
+      "reason": "Navigation plus F4 new-chat main-area changes (composer, Deep thinking, disclaimer and welcome placement); outside current navigation-only retirement scope.",
+      "baselineSha256": "a4eedbc137adc7888f1527b4dc551f5552ff5ec4c65da09735f10f4905c360fc",
+      "currentSha256": "fce957e87272f908860817c1d55aa7cfc1f8dfa544e9fcfd81145dbacee298b8",
+      "diffImage": "diff/sidebar-header-collapsed-desktop-dark.png",
+      "retired": true,
+      "checkedRegions": [
+        {
+          "name": "sidebar navigation",
+          "rect": [8, 56, 40, 120],
+          "differentPixels": 305
+        },
+        {
+          "name": "breadcrumb",
+          "rect": [108, 12, 184, 40],
+          "differentPixels": 481
+        },
+        {
+          "name": "welcome hierarchy",
+          "rect": [356, 332, 940, 436],
+          "differentPixels": 14354
+        },
+        {
+          "name": "composer: attachment removed, Deep thinking",
+          "rect": [356, 416, 1132, 588],
+          "differentPixels": 93127
+        },
+        {
+          "name": "disclaimer",
+          "rect": [560, 580, 932, 604],
+          "differentPixels": 2172
+        }
+      ],
+      "outsideApprovedRegions": 0,
+      "regionVerification": "Main-session visual comparison plus exact RGB pixel-union proof; half-open rectangles in source image coordinates, no masks applied to comparison."
+    }
+  ],
+  "ownerAmendment": {
+    "date": "2026-11-13",
+    "reference": "F4-acceptance.md#owner-approved-retirement-of-exactly-20-f21-assertions",
+    "replacementSlice": "F4.1"
+  }
+}

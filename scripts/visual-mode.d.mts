@@ -23,6 +23,20 @@ export type ApprovedVisualImage = {
   height: number;
   deviceScaleFactor: number;
 };
+export type VisualRetirementRecord = {
+  version: 1;
+  status: 'approved';
+  ownerApproval: { reference: string; date: string };
+  replacementSlice: 'F4.1';
+  images: {
+    id: string;
+    baselineSha256: string;
+    reason: string;
+    diff: string;
+    checkedRegions: { name: string; rect: [number, number, number, number] }[];
+    outsideApprovedRegions: 0;
+  }[];
+};
 export type ApprovedVisualRecord = {
   version: 1;
   status: 'approved';
@@ -79,8 +93,12 @@ export function assertIndexedArtifact(
   index: { views?: Record<string, { path: string }> },
   id: string,
   directory: string,
-  options: { mode: VisualMode; baselineDirectory?: string },
-): string;
+  options: {
+    mode: VisualMode;
+    baselineDirectory?: string;
+    retirements?: VisualRetirementRecord;
+  },
+): string | null;
 export function assertApprovedVisualSet(
   index: VisualIndex,
   approval: ApprovedVisualRecord,

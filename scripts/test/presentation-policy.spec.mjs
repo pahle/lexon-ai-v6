@@ -89,3 +89,36 @@ test('rejects frontend business handlers, server actions, and model calls', asyn
   );
   assert.deepEqual(health, []);
 });
+
+test('allows only the approved public chat runtime adapter and message types', async () => {
+  const runtimePath = new URL(
+    '../../frontend/src/components/chat/chat-runtime.tsx',
+    import.meta.url,
+  ).pathname;
+  const adapter = await lint(
+    runtimePath,
+    "import { useChat } from '@ai-sdk/react'; import { useAISDKRuntime } from '@assistant-ui/ai-sdk'; import type { UIMessage } from 'ai'; const chat = useChat({}); useAISDKRuntime(chat); const message: UIMessage = {} as UIMessage; void message;",
+  );
+  assert.deepEqual(adapter, []);
+
+  const modelCall = await lint(
+    runtimePath,
+    "import { generateText } from 'ai'; generateText({});",
+  );
+  assert.ok(
+    modelCall.some((message) => message.ruleId === 'lexon/server-boundary'),
+    `Direct model generation was not rejected: ${JSON.stringify(modelCall)}`,
+  );
+
+  const unrelatedFrontend = await lint(
+    new URL('../../frontend/src/components/other.tsx', import.meta.url)
+      .pathname,
+    "import { useChat } from '@ai-sdk/react';",
+  );
+  assert.ok(
+    unrelatedFrontend.some(
+      (message) => message.ruleId === 'lexon/server-boundary',
+    ),
+    `The runtime exception leaked into another component: ${JSON.stringify(unrelatedFrontend)}`,
+  );
+});

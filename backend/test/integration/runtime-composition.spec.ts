@@ -14,6 +14,9 @@ import { runtimeEnvironment } from '../setup/runtime-environment.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { dispatcherConnections } from '../../src/infrastructure/db/testing/dispatcher.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { ChatTitleService } from '../../src/modules/chat/chat-title.service.js';
+import { RunService } from '../../src/modules/chat/run.service.js';
+import { StepExecutor } from '../../src/modules/chat/index.js';
 
 test('API and dispatcher register no processors; standby is ready and lock loss is unready', async ({
   services,
@@ -150,6 +153,9 @@ test('AI worker boots without storage or provider secrets and closes its process
   );
   try {
     expect(app.get(QueueConsumer)).toBeInstanceOf(QueueConsumer);
+    expect(app.get(ChatTitleService)).toBeInstanceOf(ChatTitleService);
+    expect(app.get(RunService)).toBeInstanceOf(RunService);
+    expect(app.get(StepExecutor)).toBeInstanceOf(StepExecutor);
     expect('getHttpServer' in app).toBe(false);
     await expect
       .poll(

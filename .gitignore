@@ -18,3 +18,4 @@ test-results/
 **/.stryker-tmp/
 
 **/reports/mutation-identity/
+**/reports/mutation-chat/

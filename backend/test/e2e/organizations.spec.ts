@@ -498,15 +498,21 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   expect(protectedRoleRequests).toEqual([]);
   let releaseOrganizations!: () => void;
   let releaseIdentity!: () => void;
+  let releaseChats!: () => void;
   let organizationsStarted!: () => void;
   let identityStarted!: () => void;
+  let chatsStarted!: () => void;
   let organizationsFinished!: () => void;
   let identityFinished!: () => void;
+  let chatsFinished!: () => void;
   const organizationsGate = new Promise<void>((resolve) => {
     releaseOrganizations = resolve;
   });
   const identityGate = new Promise<void>((resolve) => {
     releaseIdentity = resolve;
+  });
+  const chatsGate = new Promise<void>((resolve) => {
+    releaseChats = resolve;
   });
   const organizationsRequestStarted = new Promise<void>((resolve) => {
     organizationsStarted = resolve;
@@ -514,14 +520,38 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   const identityRequestStarted = new Promise<void>((resolve) => {
     identityStarted = resolve;
   });
+  const chatsRequestStarted = new Promise<void>((resolve) => {
+    chatsStarted = resolve;
+  });
   const organizationsResponseFinished = new Promise<void>((resolve) => {
     organizationsFinished = resolve;
   });
   const identityResponseFinished = new Promise<void>((resolve) => {
     identityFinished = resolve;
   });
+  const chatsResponseFinished = new Promise<void>((resolve) => {
+    chatsFinished = resolve;
+  });
   const organizationsFallbackHeaders: Array<string | undefined> = [];
   const identityFallbackBodies: Array<string | undefined> = [];
+  const chatsFallbackHeaders: Array<string | undefined> = [];
+  await page.route(
+    (url) => url.pathname === '/api/chats',
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      chatsStarted();
+      await chatsGate;
+      try {
+        const response = await route.fetch();
+        chatsFallbackHeaders.push(
+          response.headers()['x-lexon-fallback-reason'],
+        );
+        await route.fulfill({ response });
+      } finally {
+        chatsFinished();
+      }
+    },
+  );
   await page.route(
     (url) => url.pathname === '/api/organizations',
     async (route) => {
@@ -533,6 +563,8 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
         organizationsFallbackHeaders.push(
           response.headers()['x-lexon-fallback-reason'],
         );
+        releaseChats();
+        await chatsResponseFinished;
         await route.fulfill({ response });
       } finally {
         organizationsFinished();
@@ -568,6 +600,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
   try {
     await page.goto(stack.frontendUrl + '/workspace');
     await organizationsRequestStarted;
+    await chatsRequestStarted;
     await expect(
       page.getByRole('button', { name: 'Organization: Ordinary team' }),
     ).toBeVisible();
@@ -594,6 +627,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     ).toBe(204);
     releaseOrganizations();
     await organizationsResponseFinished;
+    expect(chatsFallbackHeaders).toContain(undefined);
     await identityRequestStarted;
     releaseIdentity();
     await identityResponseFinished;
@@ -625,6 +659,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
       page.getByRole('menuitem', { name: 'Ordinary team', exact: true }),
     ).toHaveCount(0);
   } finally {
+    releaseChats();
     releaseOrganizations();
     releaseIdentity();
     await page.unrouteAll({ behavior: 'wait' });

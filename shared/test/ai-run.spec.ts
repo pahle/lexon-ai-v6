@@ -165,6 +165,38 @@ describe('run contracts', () => {
     ).toBe(true);
   });
 
+  it('validates strict title and cleanup jobs with ID-only payloads', () => {
+    const title = {
+      outboxId: '00000000-0000-4000-8000-000000000021',
+      type: 'chat.title.v1',
+      ctx,
+      payload: {
+        chatId: '00000000-0000-4000-8000-000000000022',
+        runId,
+      },
+    };
+    const cleanup = {
+      outboxId: '00000000-0000-4000-8000-000000000023',
+      type: 'chat.cleanup.v1',
+      ctx,
+      payload: { chatId: '00000000-0000-4000-8000-000000000022' },
+    };
+    expect(RunJobSchema.safeParse(title).success).toBe(true);
+    expect(RunJobSchema.safeParse(cleanup).success).toBe(true);
+    expect(
+      RunJobSchema.safeParse({
+        ...title,
+        payload: { ...title.payload, prompt: 'private user text' },
+      }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({
+        ...cleanup,
+        ctx: { orgId },
+      }).success,
+    ).toBe(false);
+  });
+
   it('covers all seven run statuses and finite safe codes', () => {
     expect(RunStatusSchema.options).toEqual([
       'queued',
@@ -187,6 +219,7 @@ describe('run contracts', () => {
       'AI_TOOL_TIMEOUT',
       'AI_TOOL_OUTCOME_UNKNOWN',
       'AI_CAPACITY_EXCEEDED',
+      'AI_OUTPUT_LIMIT',
       'AI_INTERNAL',
     ]);
     expect(RunErrorCodeSchema.safeParse('provider raw error').success).toBe(
@@ -219,6 +252,46 @@ describe('run contracts', () => {
         runId,
         status: 'running',
         rawError: 'unsafe provider details',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('decodes historical v1 events and v2 reasoning events without provider metadata', () => {
+    expect(
+      RunStreamEventSchema.safeParse({
+        version: 1,
+        type: 'text-delta',
+        runId,
+        id: 'text-1',
+        delta: 'historical',
+      }).success,
+    ).toBe(true);
+    for (const event of [
+      { version: 2, type: 'reasoning-start', runId, id: 'reasoning-1' },
+      {
+        version: 2,
+        type: 'reasoning-delta',
+        runId,
+        id: 'reasoning-1',
+        delta: 'summary fragment',
+      },
+      {
+        version: 2,
+        type: 'reasoning-end',
+        runId,
+        id: 'reasoning-1',
+        durationMs: null,
+      },
+    ])
+      expect(RunStreamEventSchema.safeParse(event).success).toBe(true);
+    expect(
+      RunStreamEventSchema.safeParse({
+        version: 2,
+        type: 'reasoning-delta',
+        runId,
+        id: 'reasoning-1',
+        delta: 'summary',
+        providerMetadata: { reasoning: 'raw payload' },
       }).success,
     ).toBe(false);
   });

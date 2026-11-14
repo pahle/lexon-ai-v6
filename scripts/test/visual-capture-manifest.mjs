@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
@@ -27,6 +27,32 @@ assert.equal(
   82,
   'Task 9 manifest includes exactly 82 indexed review PNGs.',
 );
+
+const freshnessIndex = process.argv.indexOf('--not-before');
+let notBefore;
+if (freshnessIndex >= 0) {
+  const value = process.argv[freshnessIndex + 1];
+  if (
+    typeof value !== 'string' ||
+    !/^[1-9]\d*$/.test(value) ||
+    !Number.isSafeInteger(Number(value))
+  )
+    throw new Error(
+      '--not-before must be a valid epoch millisecond timestamp.',
+    );
+  notBefore = Number(value);
+  const imageMtimes = await Promise.all(
+    reviewViews.map(async ([, view]) => {
+      try {
+        return (await stat(resolve(visualRoot, view.path))).mtimeMs;
+      } catch {
+        return undefined;
+      }
+    }),
+  );
+  if (imageMtimes.some((mtime) => mtime === undefined || mtime < notBefore))
+    throw new Error('Visual capture must be newer than --not-before.');
+}
 
 const browser = await chromium.launch({ headless: true });
 const images = {};

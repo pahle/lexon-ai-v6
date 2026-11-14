@@ -12,6 +12,7 @@ import { after, test } from 'node:test';
 import { ESLint } from 'eslint';
 import tseslint from 'typescript-eslint';
 import plugin from '../eslint/lexon-boundaries.mjs';
+import { classifyImport } from '../eslint/resolve-import.mjs';
 
 const cases = JSON.parse(
   readFileSync(new URL('./fixtures/boundaries/cases.json', import.meta.url)),
@@ -77,4 +78,30 @@ test('a root barrel cannot re-export a driver to evade ownership', async () => {
   });
   assert.equal(result.messages[0].ruleId, 'lexon/boundaries');
   assert.match(result.messages[0].message, /\[database-owner\]/);
+});
+
+test('allows only the E2E worker to query its own-tenant proof rows', () => {
+  const repositoryRoot = new URL('../../', import.meta.url).pathname.replace(
+    /\/$/,
+    '',
+  );
+  const classify = (file, names) =>
+    classifyImport({
+      root: repositoryRoot,
+      importer: join(repositoryRoot, file),
+      specifier: 'pg',
+      names,
+    });
+  assert.deepEqual(
+    classify('backend/test/e2e/chat-worker-main.mjs', ['Client']),
+    { allowed: true, ruleId: null },
+  );
+  assert.deepEqual(
+    classify('backend/test/e2e/chat-worker-main.mjs', ['Pool']),
+    { allowed: false, ruleId: 'database-owner' },
+  );
+  assert.deepEqual(
+    classify('backend/test/e2e/chat-worker-control.mjs', ['Client']),
+    { allowed: false, ruleId: 'database-owner' },
+  );
 });

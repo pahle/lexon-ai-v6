@@ -32,6 +32,28 @@ describe('encodeStreamParts', () => {
     ).toBe('🙂\\"'.repeat(3000));
   });
 
+  it('splits large reasoning summaries on UTF-8 code point boundaries within the event limit', () => {
+    const summary = 'café ⚖🙂'.repeat(3_000);
+    const parts = encodeStreamParts({
+      version: 2,
+      runId: base.runId,
+      type: 'reasoning-delta',
+      id: 'reasoning-part',
+      delta: summary,
+    });
+    expect(parts.every((part) => part.type === 'reasoning-delta')).toBe(true);
+    expect(
+      parts
+        .map((part) => (part.type === 'reasoning-delta' ? part.delta : ''))
+        .join(''),
+    ).toBe(summary);
+    expect(
+      parts.every(
+        (part) => Buffer.byteLength(JSON.stringify(part), 'utf8') <= 4096,
+      ),
+    ).toBe(true);
+  });
+
   it('keeps tool input fragments and available operation metadata', () => {
     const callId = 'sdk-call';
     const fragments = encodeStreamParts({

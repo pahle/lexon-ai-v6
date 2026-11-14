@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { z } from 'zod';
+import type { StepPermitOwner, StepPermitReference } from '../db/index.js';
 
 const orgIdSchema = z.uuid();
 const DEFAULT_LEASE_MS = 30_000;
@@ -16,8 +17,10 @@ export interface StepPermit {
   readonly orgId: string;
   readonly slot: number;
   readonly leaseMs: number;
+  readonly ownerReference: StepPermitOwner;
   renew(): Promise<StepPermitRenewal>;
   release(): Promise<boolean>;
+  releaseChecked(): Promise<'released' | 'lost' | 'unavailable'>;
 }
 
 export type StepPermitRenewal = 'renewed' | 'lost' | 'unavailable';
@@ -64,6 +67,32 @@ export class StepPermitManager {
     return this.#leaseMs;
   }
 
+  async releaseReference(
+    reference: StepPermitReference,
+  ): Promise<'released' | 'lost' | 'unavailable'> {
+    if (
+      !orgIdSchema.safeParse(reference.orgId).success ||
+      !Number.isSafeInteger(reference.slot) ||
+      reference.slot < 0 ||
+      reference.slot >= MAX_ORG_SLOTS ||
+      !orgIdSchema.safeParse(reference.runId).success ||
+      !orgIdSchema.safeParse(reference.stepId).success ||
+      !orgIdSchema.safeParse(reference.ownerToken).success ||
+      !Number.isSafeInteger(reference.sequence) ||
+      reference.sequence < 1 ||
+      !Number.isSafeInteger(reference.expectedVersion) ||
+      reference.expectedVersion < 1 ||
+      !Number.isSafeInteger(reference.fence) ||
+      reference.fence < 1
+    )
+      return 'lost';
+    return this.#releaseOwner(
+      reference.orgId,
+      reference.slot,
+      reference.ownerToken,
+    );
+  }
+
   async acquire(orgId: string): Promise<StepPermit | null> {
     if (!orgIdSchema.safeParse(orgId).success)
       throw new Error('Invalid step permit organization');
@@ -96,6 +125,7 @@ export class StepPermitManager {
       orgId,
       slot,
       leaseMs: this.#leaseMs,
+      ownerReference: Object.freeze({ orgId, slot, ownerToken: owner }),
       renew: async () => {
         if (released) return 'lost';
         try {
@@ -113,16 +143,37 @@ export class StepPermitManager {
           return 'unavailable';
         }
       },
+      releaseChecked: async () => {
+        if (released) return 'lost';
+        released = true;
+        return this.#releaseOwner(orgId, slot, owner);
+      },
       release: async () => {
         if (released) return false;
         released = true;
-        try {
-          return Number(await this.#client.call('DELIFEQ', key, owner)) === 1;
-        } catch {
-          return false;
-        }
+        return (await this.#releaseOwner(orgId, slot, owner)) === 'released';
       },
     });
+  }
+
+  async #releaseOwner(
+    orgId: string,
+    slot: number,
+    owner: string,
+  ): Promise<'released' | 'lost' | 'unavailable'> {
+    try {
+      return Number(
+        await this.#client.call(
+          'DELIFEQ',
+          `${this.#prefix}:${orgId}:${slot}`,
+          owner,
+        ),
+      ) === 1
+        ? 'released'
+        : 'lost';
+    } catch {
+      return 'unavailable';
+    }
   }
 }
 

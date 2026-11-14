@@ -4,6 +4,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   assertApprovedVisualSet,
+  assertIndexedArtifact,
   assertReviewArtifact,
   isSnapshotUpdateEnabled,
   resolveVisualMode,
@@ -804,12 +805,28 @@ export async function captureTask9ReviewView(
       });
       validatedApprovedSets.add(validationKey);
     }
-    await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {
-      animations: 'disabled',
-      caret: 'hide',
-      scale: 'css',
-      maxDiffPixelRatio: 0.001,
-    });
+    const artifactPath =
+      mode === 'compare'
+        ? assertIndexedArtifact(index, id, directory, {
+            mode,
+            retirements: JSON.parse(
+              await readFile(resolve(directory, 'retirements.json'), 'utf8'),
+            ),
+          })
+        : resolve(directory, `baseline/${id}.png`);
+    if (artifactPath !== null) {
+      await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+        maxDiffPixelRatio: 0.001,
+      });
+    } else {
+      await test.info().attach('visual-retirement', {
+        body: `Screenshot comparison retired by approved policy: ${id}`,
+        contentType: 'text/plain',
+      });
+    }
     if (view === 'organization-switcher-open' || view === 'user-menu-open') {
       await page.keyboard.press('Escape');
       if (viewport === 'mobile') await page.keyboard.press('Escape');

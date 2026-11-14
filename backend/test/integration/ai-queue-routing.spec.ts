@@ -4,9 +4,11 @@ import { expect, vi } from 'vitest';
 import { test } from '../setup/file-services.js';
 import {
   AiAttemptRepository,
+  ChatDeletionRepository,
   AiRunRepository,
   AiStepRepository,
   DispatcherSession,
+  isRunStepJob,
   OutboxRepository,
   TenantDatabase,
   type JobEnvelope,
@@ -18,11 +20,168 @@ import {
   QueueProducer,
 } from '../../src/infrastructure/queue/index.js';
 import { StepPermitManager } from '../../src/infrastructure/queue/step-permits.js';
+import { queueStepPermitPrefix } from '../../src/infrastructure/queue/queue-producer.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import { JobExecutor, JobRegistry } from '../../src/modules/platform/index.js';
 import { FaultProxy } from '../../src/infrastructure/queue/testing/fault-proxy.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
+import { ChatCleanupWorker } from '../../src/modules/chat/chat-cleanup.worker.js';
+import { createChatApiHarness } from '../setup/chat-api-harness.js';
+import { runtimeEnvironment } from '../setup/runtime-environment.js';
+import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
+import { runtimeProviders } from '../../src/bootstrap/runtime-providers.js';
+import { aiWorkerProviders } from '../../src/bootstrap/ai-worker-providers.js';
+import { RunStreams } from '../../src/infrastructure/queue/run-streams.js';
+
+test('queue consumers and cleanup share the limiter namespace', () => {
+  expect(queueStepPermitPrefix('lexon')).toBe('lexon:limiter');
+});
+
+test('production queue consumer permit is released by production cleanup wiring', async ({
+  services,
+}) => {
+  const harness = await createChatApiHarness(services);
+  const healthFile = `/tmp/lexon-production-permit-${randomUUID()}.json`;
+  const environment = runtimeEnvironment(services, healthFile);
+  environment.CHAT_DELETE_GRACE_MS = '25';
+  const config = loadRuntimeConfig('ai-worker', environment);
+  const consumerProvider = runtimeProviders(config).find(
+    (provider) =>
+      typeof provider === 'object' &&
+      provider !== null &&
+      'provide' in provider &&
+      provider.provide === QueueConsumer,
+  ) as { useFactory?: (...dependencies: unknown[]) => unknown } | undefined;
+  const cleanupProvider = aiWorkerProviders(config).find(
+    (provider) =>
+      typeof provider === 'object' &&
+      provider !== null &&
+      'provide' in provider &&
+      provider.provide === ChatCleanupWorker,
+  ) as { useFactory?: (...dependencies: unknown[]) => unknown } | undefined;
+  if (!consumerProvider?.useFactory || !cleanupProvider?.useFactory)
+    throw new Error('Production queue/cleanup providers unavailable');
+  const consumer = (await consumerProvider.useFactory(
+    harness.database,
+  )) as QueueConsumer;
+  const streams = new RunStreams({
+    url: config.valkey.streamsUrl,
+    prefix: config.queuePrefix,
+    authority: {
+      authorizeActive: async () => undefined,
+      advanceStreamGeneration: async (_claim, generation) => generation + 1,
+      authorizeTerminal: async () => undefined,
+      reconcile: async (entries) =>
+        entries.map(({ runId }) => ({ runId, state: 'missing' as const })),
+    },
+  });
+  const cleanup = (await cleanupProvider.useFactory(harness.database, streams, {
+    info: () => undefined,
+  } as never)) as ChatCleanupWorker;
+  const producer = new QueueProducer({
+    url: config.valkey.queueUrl,
+    limiterUrl: config.valkey.limiterUrl,
+    prefix: config.queuePrefix,
+  });
+  const queue = new Queue('ai-interactive', {
+    connection: { url: config.valkey.queueUrl },
+    prefix: config.queuePrefix,
+  });
+  const registry = new JobRegistry();
+  let signalReady!: () => void;
+  let unblockHandler!: () => void;
+  const acquired = new Promise<void>((resolve) => {
+    signalReady = resolve;
+  });
+  const waitForRelease = new Promise<void>((resolve) => {
+    unblockHandler = resolve;
+  });
+  let permitRenew: (() => Promise<unknown>) | undefined;
+  const deletionRepository = new ChatDeletionRepository();
+  try {
+    const actor = await harness.client.identity.user('Production permit owner');
+    const identity = (await (
+      await harness.client.identity.call('/identity', actor.headers)
+    ).json()) as { organization: { id: string } };
+    const ctx = { orgId: identity.organization.id, userId: actor.profile.id };
+    const chat = await harness.client.chat.createFor(ctx);
+    const { runId } = await harness.client.startAnswer(
+      ctx,
+      chat.id,
+      'production permit cleanup test',
+    );
+    await harness.associateStartedAnswer(ctx, chat.id, runId);
+    const job = harness.jobForAnswer(ctx, runId);
+    const claimResult = await harness.engine.dispatch(job);
+    expect(claimResult.kind).toBe('claimed');
+    if (claimResult.kind !== 'claimed') throw new Error('Expected step claim');
+    registry.register('run.start.v1', {
+      strategy: 'durable-step',
+      handle: async (_delivery, context) => {
+        permitRenew = () => context.permit.renew();
+        await context.recordClaim?.(claimResult.claim);
+        signalReady();
+        await waitForRelease;
+        return { kind: 'done' };
+      },
+    });
+    await consumer.start(registry);
+    await producer.enqueue(job, {
+      queue: 'ai-interactive',
+      priority: 1,
+      timeoutMs: 2_000,
+    });
+    await expect.poll(() => Boolean(permitRenew)).toBe(true);
+    await acquired;
+
+    await harness.database.withTenant(ctx, async (tx) => {
+      await new AiStepRepository().lockTenantClaimGuard(tx);
+      expect(await deletionRepository.request(tx, chat.id, 25)).toBe(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 35));
+    const [graceJob] = await harness.inspect.outbox(chat.id);
+    expect(graceJob).toBeDefined();
+    const envelope = {
+      outboxId: graceJob!.id,
+      type: 'chat.cleanup.v1',
+      ctx,
+      payload: { chatId: chat.id, phase: 'grace' },
+    } satisfies JobEnvelope;
+    expect(await cleanup.advance(envelope)).toBe('pending');
+    const dbPhase = (await harness.inspect.outbox(chat.id)).find(
+      (entry) => entry.payload.phase === 'purge_db',
+    );
+    expect(dbPhase).toBeDefined();
+    expect(
+      await cleanup.advance({
+        ...envelope,
+        outboxId: dbPhase!.id,
+        payload: { chatId: chat.id, phase: 'purge_db' },
+      }),
+    ).toBe('pending');
+    const valkeyPhase = (await harness.inspect.outbox(chat.id)).find(
+      (entry) => entry.payload.phase === 'purge_valkey',
+    );
+    expect(valkeyPhase).toBeDefined();
+    expect(
+      await cleanup.advance({
+        ...envelope,
+        outboxId: valkeyPhase!.id,
+        payload: { chatId: chat.id, phase: 'purge_valkey' },
+      }),
+    ).toBe('complete');
+    expect(await permitRenew?.()).toBe('lost');
+  } finally {
+    unblockHandler();
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await cleanup.close();
+    await streams.close();
+    await harness.close();
+  }
+});
 
 test('durable busy claims are delayed without consuming BullMQ failure attempts', async ({
   services,
@@ -88,6 +247,73 @@ test('durable busy claims are delayed without consuming BullMQ failure attempts'
     await producer.close();
     await queue.close();
     await database.close();
+  }
+});
+
+test('cleanup work is delayed without consuming a durable receipt or failure attempt', async ({
+  services,
+}) => {
+  const fixture = await createAiFixture(services);
+  const options = {
+    url: services.valkey.queueUrl,
+    limiterUrl: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:cleanup-work`,
+  };
+  const producer = new QueueProducer(options);
+  const queue = new Queue('ai-batch', {
+    connection: { url: options.url },
+    prefix: options.prefix,
+  });
+  const registry = new JobRegistry();
+  const jobId = randomUUID();
+  const pendingUntil = Date.now() + 500;
+  let calls = 0;
+  const consumer = new QueueConsumer(
+    options,
+    new JobExecutor(fixture.database),
+    {
+      lockDuration: 1000,
+      stalledInterval: 1000,
+      interactiveConcurrency: 1,
+      batchConcurrency: 1,
+      stepLeaseMs: 300,
+      busyRetryMs: 100,
+    },
+  );
+  registry.register('chat.cleanup.v1', {
+    strategy: 'cleanup-work',
+    handle: async () =>
+      ++calls && Date.now() < pendingUntil ? 'pending' : 'complete',
+  });
+  try {
+    await consumer.start(registry);
+    await producer.enqueue(
+      {
+        outboxId: jobId,
+        type: 'chat.cleanup.v1',
+        ctx: { orgId: randomUUID(), userId: randomUUID() },
+        payload: { chatId: randomUUID(), phase: 'purge_valkey' },
+      },
+      { queue: 'ai-batch', priority: 4, timeoutMs: 1000 },
+    );
+    await expect
+      .poll(async () => (await queue.getJob(jobId))?.getState())
+      .toBe('delayed');
+    expect((await queue.getJob(jobId))?.attemptsMade).toBe(0);
+    expect(await fixture.receiptCount(jobId)).toBe(0);
+    await expect
+      .poll(async () => (await queue.getJob(jobId))?.getState(), {
+        timeout: 5000,
+      })
+      .toBe('completed');
+    expect(calls).toBeGreaterThan(1);
+    expect((await queue.getJob(jobId))?.attemptsMade).toBe(1);
+    expect(await fixture.receiptCount(jobId)).toBe(0);
+  } finally {
+    await consumer.close();
+    await producer.close();
+    await queue.close();
+    await fixture.close();
   }
 });
 
@@ -884,8 +1110,7 @@ test('two held permits defer a third job for one organization while another orga
       resolveOrgB();
       return { kind: 'done' as const };
     }
-    if (job.type === 'platform.noop.v1')
-      throw new Error('Unexpected short transaction job');
+    if (!isRunStepJob(job)) throw new Error('Unexpected short transaction job');
     if (job.payload.sequence === 3) {
       thirdA++;
       return { kind: 'done' as const };
@@ -1059,6 +1284,40 @@ test('organization step permits are isolated, renew by owner, and expire after w
   } finally {
     await first?.release();
     await second?.release();
+    await replacement?.release();
+    await manager.close();
+  }
+});
+
+test('cleanup releases a persisted permit owner without releasing its replacement', async ({
+  services,
+}) => {
+  const manager = await StepPermitManager.create({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:permit-reference`,
+    leaseMs: 5000,
+  });
+  const orgId = randomUUID();
+  let first: Awaited<ReturnType<StepPermitManager['acquire']>> = null;
+  let replacement: Awaited<ReturnType<StepPermitManager['acquire']>> = null;
+  const claim = {
+    runId: randomUUID(),
+    sequence: 1,
+    expectedVersion: 1,
+    stepId: randomUUID(),
+    fence: 1,
+  };
+  try {
+    first = await manager.acquire(orgId);
+    expect(first).not.toBeNull();
+    const oldReference = { ...first!.ownerReference, ...claim };
+    expect(await manager.releaseReference(oldReference)).toBe('released');
+    replacement = await manager.acquire(orgId);
+    expect(replacement).not.toBeNull();
+    expect(await manager.releaseReference(oldReference)).toBe('lost');
+    expect(await replacement!.renew()).toBe('renewed');
+  } finally {
+    await first?.release();
     await replacement?.release();
     await manager.close();
   }

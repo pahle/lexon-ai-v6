@@ -1,6 +1,7 @@
 export {
   QueueProducer,
   QUEUE_NAME,
+  queueStepPermitPrefix,
   type QueueOptions,
 } from './queue-producer.js';
 export {
@@ -33,6 +34,17 @@ export {
   type TerminalStreamProof,
 } from './run-streams.js';
 export { CancelSignals, type CancelSignalsOptions } from './cancel-signals.js';
+export {
+  SseStreamReader,
+  type StreamEntry,
+  type StreamSubscription,
+} from './sse-stream-reader.js';
+export {
+  StreamHub,
+  type SseFrame,
+  type SseSink,
+  type Subscription,
+} from './stream-hub.js';
 export {
   StreamCapacity,
   RUN_STREAM_LIMITS,

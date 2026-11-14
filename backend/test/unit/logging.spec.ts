@@ -57,6 +57,18 @@ it('excludes secrets and content from serialized background logs and errors', ()
     },
     privateValue,
   );
+  const searchQueryCanary = 'PRIVATE_SEARCH_QUERY_CANARY';
+  logger.error({
+    event: 'http_request_failed',
+    sentry: {
+      request: {
+        method: 'POST',
+        url: '/api/chats/search',
+        data: { query: searchQueryCanary },
+      },
+      extra: { searchQuery: searchQueryCanary },
+    },
+  });
   logger
     .child({
       extra: { nested: privateValue },
@@ -66,11 +78,12 @@ it('excludes secrets and content from serialized background logs and errors', ()
     })
     .info(privateValue);
   expect(lines.join('')).not.toContain(privateValue);
+  expect(lines.join('')).not.toContain(searchQueryCanary);
   expect(JSON.parse(lines[0]!).jobId).toBe(
     '6da2c40c-2b9a-4d92-b52a-111cc548b389',
   );
   expect(JSON.parse(lines[2]!).fields).toEqual(['DATABASE_APP_URL']);
-  expect(JSON.parse(lines[3]!).requestId).toBe('request-child');
+  expect(JSON.parse(lines[4]!).requestId).toBe('request-child');
 });
 
 it('propagates safe request IDs and replaces invalid ones without logging headers or bodies', async () => {
@@ -98,6 +111,16 @@ it('propagates safe request IDs and replaces invalid ones without logging header
     });
     expect(response.headers.get('x-request-id')).toBe('request-123');
     await response.text();
+    const searchCanary = 'PRIVATE_SEARCH_QUERY_CANARY';
+    const search = await fetch(
+      `http://127.0.0.1:${address.port}/api/chats/search`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: searchCanary, limit: 10 }),
+      },
+    );
+    await search.text();
     const invalid = await fetch(url, {
       headers: { 'x-request-id': 'bad id PRIVATE_SENTINEL' },
     });
@@ -110,5 +133,6 @@ it('propagates safe request IDs and replaces invalid ones without logging header
     );
   }
   expect(lines.join('')).not.toContain('PRIVATE_SENTINEL');
+  expect(lines.join('')).not.toContain('PRIVATE_SEARCH_QUERY_CANARY');
   expect(lines.join('')).toContain('request-123');
 });

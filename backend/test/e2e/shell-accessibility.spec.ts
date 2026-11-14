@@ -252,8 +252,10 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
           ).toBeVisible();
           await expect(
             page.getByRole('button', { name: 'Send message' }),
-          ).toHaveAttribute('aria-disabled', 'true');
-          await expect(page.getByText('No conversations yet.')).toBeVisible();
+          ).toBeDisabled();
+          await expect(
+            page.getByRole('heading', { name: /^Welcome, / }),
+          ).toBeVisible();
           const messageInput = page.getByRole('textbox', {
             name: 'Message input',
           });

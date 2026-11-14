@@ -5,7 +5,7 @@ import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { Redis } from 'ioredis';
 import {
   consumeUiMessageChunks,
@@ -23,6 +23,10 @@ import {
   type JobEnvelope,
 } from '../../src/infrastructure/db/index.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import {
+  chatDeletionListenerPids,
+  terminateChatDeletionListeners,
+} from '../../src/infrastructure/db/testing/chat-deletion-listener.js';
 import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import { aiTestBackendPid } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
@@ -260,6 +264,14 @@ test('public cancel after lease expiry settles the active attempt before termina
         reservedOutputTokens: 100,
       },
     ]);
+    const usageEvents = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{ outcome: string }>(
+        'SELECT outcome FROM app.usage_events WHERE attempt_id=$1',
+        [attemptId],
+      );
+      return result.rows;
+    });
+    expect(usageEvents).toEqual([{ outcome: 'unknown' }]);
     expect(
       await ai.withTenant(0, (tx) =>
         new AiStepRepository().find(tx, { runId: run.id, sequence: 1 }),
@@ -359,6 +371,7 @@ test('database polling signals cancellation when no Valkey message arrives', asy
   const signals = new CancelSignals({
     url: proxy.url,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs,
   });
@@ -389,6 +402,210 @@ test('database polling signals cancellation when no Valkey message arrives', asy
   } finally {
     await signals.close();
     await proxy.close();
+    await ai.close();
+  }
+});
+
+test('deletion revocations multiplex run listeners over one process subscriber', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const firstRun = randomUUID();
+  const secondRun = randomUUID();
+  const seen: string[] = [];
+  let unsubscribeFirst: (() => Promise<void>) | undefined;
+  let unsubscribePeer: (() => Promise<void>) | undefined;
+  let unsubscribeOther: (() => Promise<void>) | undefined;
+  try {
+    unsubscribeFirst = await signals.subscribeDeletion(firstRun, () =>
+      seen.push('first'),
+    );
+    unsubscribePeer = await signals.subscribeDeletion(firstRun, () =>
+      seen.push('peer'),
+    );
+    unsubscribeOther = await signals.subscribeDeletion(secondRun, () =>
+      seen.push('other'),
+    );
+    const clients = String(await inspector.client('LIST'));
+    const owned = clients
+      .split('\n')
+      .filter((line) =>
+        line.includes(
+          `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+        ),
+      );
+    expect(owned).toHaveLength(1);
+    await unsubscribeFirst();
+    await signals.publishDeletion(firstRun);
+    await signals.publishDeletion(secondRun);
+    await expect.poll(() => seen.slice().sort()).toEqual(['other', 'peer']);
+    await unsubscribePeer();
+    await signals.publishDeletion(firstRun);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(seen).toEqual(['peer', 'other']);
+  } finally {
+    await unsubscribeFirst?.();
+    await unsubscribePeer?.();
+    await unsubscribeOther?.();
+    await signals.close();
+    await expect
+      .poll(async () =>
+        String(await inspector.client('LIST'))
+          .split('\n')
+          .filter((line) =>
+            line.includes(
+              `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+            ),
+          ),
+      )
+      .toHaveLength(0);
+    inspector.disconnect();
+    await ai.close();
+  }
+});
+
+test('deletion subscription fails closed if PostgreSQL LISTEN is lost during registration', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const runId = randomUUID();
+  let releaseSubscribe!: () => void;
+  let signalSubscribe!: () => void;
+  const subscribeHeld = new Promise<void>((resolve) => {
+    releaseSubscribe = resolve;
+  });
+  const atSubscribe = new Promise<void>((resolve) => {
+    signalSubscribe = resolve;
+  });
+  const originalOn = Redis.prototype.on;
+  const onSpy = vi.spyOn(Redis.prototype, 'on');
+  onSpy.mockImplementation(function (this: Redis, ...args) {
+    const result = originalOn.apply(this, args);
+    if (args[0] === 'message') {
+      vi.spyOn(this, 'subscribe').mockImplementation(async () => {
+        signalSubscribe();
+        await subscribeHeld;
+        return 1;
+      });
+    }
+    return result;
+  });
+  let unsubscribe: (() => Promise<void>) | undefined;
+  try {
+    const subscribing = signals.subscribeDeletion(runId, () => {});
+    await atSubscribe;
+    await expect
+      .poll(
+        async () => (await chatDeletionListenerPids(services.appUrl)).length,
+      )
+      .toBe(1);
+    expect(await terminateChatDeletionListeners(services.appUrl)).toBe(1);
+    await expect
+      .poll(
+        async () => (await chatDeletionListenerPids(services.appUrl)).length,
+      )
+      .toBe(0);
+    releaseSubscribe();
+    await expect(subscribing).rejects.toThrow(
+      'Deletion notification listener unavailable',
+    );
+    unsubscribe = await subscribing.catch(() => undefined);
+  } finally {
+    releaseSubscribe();
+    onSpy.mockRestore();
+    await unsubscribe?.();
+    await signals.close();
+    await ai.close();
+  }
+});
+
+test('deletion subscriber error fails listeners closed and replaces the single client', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const signals = new CancelSignals({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
+    database: ai.database,
+    runs: new AiRunRepository(),
+  });
+  const inspector = new Redis(services.valkey.streamsUrl);
+  const runId = randomUUID();
+  const clients: Redis[] = [];
+  const originalOn = Redis.prototype.on;
+  const onSpy = vi.spyOn(Redis.prototype, 'on');
+  onSpy.mockImplementation(function (this: Redis, ...args) {
+    if (args[0] === 'message') clients.push(this);
+    return originalOn.apply(this, args);
+  });
+  let unsubscribeFirst: (() => Promise<void>) | undefined;
+  let unsubscribeSecond: (() => Promise<void>) | undefined;
+  let firstClosed = 0;
+  let secondClosed = 0;
+  try {
+    unsubscribeFirst = await signals.subscribeDeletion(runId, () => {
+      firstClosed++;
+    });
+    expect(clients).toHaveLength(1);
+    const firstClient = clients[0]!;
+    firstClient.emit('error', new Error('simulated subscriber error'));
+    expect(firstClosed).toBe(1);
+    await expect
+      .poll(async () => {
+        const named = String(await inspector.client('LIST'))
+          .split('\n')
+          .filter((line) =>
+            line.includes(
+              `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+            ),
+          );
+        return named.length;
+      })
+      .toBe(0);
+
+    unsubscribeSecond = await signals.subscribeDeletion(runId, () => {
+      secondClosed++;
+    });
+    expect(clients).toHaveLength(2);
+    expect(
+      String(await inspector.client('LIST'))
+        .split('\n')
+        .filter((line) =>
+          line.includes(
+            `name=lexon-chat-deletion-revocations:${services.queuePrefix}`,
+          ),
+        ),
+    ).toHaveLength(1);
+    firstClient.emit(
+      'message',
+      `${services.queuePrefix}:ai-cancel:deleted:${runId}`,
+      runId,
+    );
+    expect(secondClosed).toBe(0);
+    await signals.publishDeletion(runId);
+    await expect.poll(() => secondClosed).toBe(1);
+  } finally {
+    await unsubscribeFirst?.();
+    await unsubscribeSecond?.();
+    await signals.close();
+    inspector.disconnect();
+    onSpy.mockRestore();
     await ai.close();
   }
 });
@@ -466,6 +683,7 @@ test('cancelling a streaming model aborts it and commits partial output once', a
   const runSignals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database: ai.database,
     runs: new AiRunRepository(),
   });
@@ -1042,6 +1260,7 @@ test('queue shutdown aborts a handler and waits for bounded cancellation poll cl
   const signals = new CancelSignals({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    databaseUrl: services.appUrl,
     database,
     runs: new AiRunRepository(),
   });

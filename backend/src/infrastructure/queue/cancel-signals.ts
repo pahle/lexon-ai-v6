@@ -1,6 +1,11 @@
 import { Redis } from 'ioredis';
 import { z } from 'zod';
-import type { AiRunRepository, TenantDatabase } from '../db/index.js';
+import {
+  PgNotificationListener,
+  type AiRunRepository,
+  type ChatTitleNotification,
+  type TenantDatabase,
+} from '../db/index.js';
 
 const runIdSchema = z.uuid();
 const POLL_INTERVAL_MS = 1000;
@@ -9,6 +14,7 @@ const DATABASE_POLL_TIMEOUT_MS = 500;
 export interface CancelSignalsOptions {
   readonly url: string;
   readonly prefix: string;
+  readonly databaseUrl: string;
   readonly database: TenantDatabase;
   readonly runs: AiRunRepository;
 }
@@ -17,10 +23,19 @@ export class CancelSignals {
   readonly #prefix: string;
   readonly #url: string;
   readonly #database: TenantDatabase;
+  readonly #databaseUrl: string;
   readonly #runs: AiRunRepository;
   readonly #publisher: Redis;
   readonly #contexts = new Map<string, { orgId: string; userId: string }>();
   readonly #closeSubscriptions = new Set<() => Promise<void>>();
+  #deletionSubscriber: Redis | undefined;
+  readonly #deletionListeners = new Map<string, Set<() => void>>();
+  readonly #chatTitleInvalidationListeners = new Set<{
+    readonly onNotification: (notification: ChatTitleNotification) => void;
+    readonly onUnavailable: () => void;
+  }>();
+  #databaseDeletionListener: PgNotificationListener | undefined;
+  #deletionOperations: Promise<void> = Promise.resolve();
 
   constructor(options: CancelSignalsOptions) {
     if (!/^[a-zA-Z0-9:_-]{1,80}$/.test(options.prefix))
@@ -28,6 +43,7 @@ export class CancelSignals {
     this.#prefix = `${options.prefix}:ai-cancel`;
     this.#url = options.url;
     this.#database = options.database;
+    this.#databaseUrl = options.databaseUrl;
     this.#runs = options.runs;
     this.#publisher = redis(options.url);
   }
@@ -64,6 +80,97 @@ export class CancelSignals {
     } catch {
       throw new Error('Cancellation signal unavailable');
     }
+  }
+
+  async publishDeletion(runId: string): Promise<void> {
+    if (!runIdSchema.safeParse(runId).success)
+      throw new Error('Invalid deletion revocation signal');
+    try {
+      if (this.#publisher.status === 'wait') await this.#publisher.connect();
+      await this.#publisher.publish(this.#deletionChannel(runId), runId);
+    } catch {
+      throw new Error('Deletion revocation signal unavailable');
+    }
+  }
+
+  async subscribeDeletion(
+    runId: string,
+    onDeleted: () => void,
+  ): Promise<() => Promise<void>> {
+    if (!runIdSchema.safeParse(runId).success)
+      throw new Error('Invalid deletion revocation subscription');
+    let active = true;
+    await this.#serializeDeletion(async () => {
+      const databaseListener = await this.#getDatabaseDeletionListener();
+      const subscriber = await this.#getDeletionSubscriber();
+      if (this.#databaseDeletionListener !== databaseListener)
+        throw new Error('Deletion notification listener unavailable');
+      const channel = this.#deletionChannel(runId);
+      let listeners = this.#deletionListeners.get(channel);
+      const first = !listeners;
+      if (!listeners) {
+        listeners = new Set();
+        this.#deletionListeners.set(channel, listeners);
+      }
+      listeners.add(onDeleted);
+      if (first) {
+        try {
+          await subscriber.subscribe(channel);
+        } catch {
+          listeners.delete(onDeleted);
+          this.#deletionListeners.delete(channel);
+          throw new Error('Deletion revocation subscription unavailable');
+        }
+        if (this.#databaseDeletionListener !== databaseListener) {
+          listeners.delete(onDeleted);
+          if (listeners.size === 0) this.#deletionListeners.delete(channel);
+          throw new Error('Deletion notification listener unavailable');
+        }
+      }
+    });
+    const unsubscribe = async () => {
+      if (!active) return;
+      active = false;
+      await this.#serializeDeletion(async () => {
+        const channel = this.#deletionChannel(runId);
+        const listeners = this.#deletionListeners.get(channel);
+        listeners?.delete(onDeleted);
+        if (listeners?.size === 0) {
+          this.#deletionListeners.delete(channel);
+          try {
+            await this.#deletionSubscriber?.unsubscribe(channel);
+          } catch {
+            // Shared subscriber remains owned until close().
+          }
+        }
+      });
+      this.#closeSubscriptions.delete(unsubscribe);
+    };
+    this.#closeSubscriptions.add(unsubscribe);
+    return unsubscribe;
+  }
+
+  async subscribeChatTitleInvalidations(
+    onNotification: (notification: ChatTitleNotification) => void,
+    onUnavailable: () => void,
+  ): Promise<() => Promise<void>> {
+    const listener = { onNotification, onUnavailable };
+    this.#chatTitleInvalidationListeners.add(listener);
+    try {
+      await this.#serializeDeletion(() => this.#getDatabaseDeletionListener());
+    } catch {
+      this.#chatTitleInvalidationListeners.delete(listener);
+      throw new Error('Chat invalidation listener unavailable');
+    }
+    let active = true;
+    const unsubscribe = async () => {
+      if (!active) return;
+      active = false;
+      this.#chatTitleInvalidationListeners.delete(listener);
+      this.#closeSubscriptions.delete(unsubscribe);
+    };
+    this.#closeSubscriptions.add(unsubscribe);
+    return unsubscribe;
   }
 
   async subscribe(
@@ -129,6 +236,14 @@ export class CancelSignals {
 
   async close(): Promise<void> {
     await Promise.all([...this.#closeSubscriptions].map((close) => close()));
+    await this.#serializeDeletion(async () => {
+      this.#deletionListeners.clear();
+      this.#deletionSubscriber?.disconnect();
+      this.#deletionSubscriber = undefined;
+      const databaseListener = this.#databaseDeletionListener;
+      this.#databaseDeletionListener = undefined;
+      await databaseListener?.close();
+    });
     this.#publisher.disconnect();
     this.#contexts.clear();
   }
@@ -136,11 +251,135 @@ export class CancelSignals {
   #channel(runId: string): string {
     return `${this.#prefix}:${runId}`;
   }
+
+  #deletionChannel(runId: string): string {
+    return `${this.#prefix}:deleted:${runId}`;
+  }
+
+  async #getDeletionSubscriber(): Promise<Redis> {
+    if (!this.#deletionSubscriber) {
+      const subscriber = redis(
+        this.#url,
+        true,
+        `lexon-chat-deletion-revocations:${this.#prefix}`,
+      );
+      const invalidate = () => this.#invalidateDeletionSubscriber(subscriber);
+      subscriber.on('close', invalidate);
+      subscriber.on('end', invalidate);
+      subscriber.on('error', invalidate);
+      subscriber.on('message', (channel: string, message: string) => {
+        if (this.#deletionSubscriber !== subscriber) return;
+        if (channel !== this.#deletionChannel(message)) return;
+        for (const listener of this.#deletionListeners.get(channel) ?? [])
+          listener();
+      });
+      this.#deletionSubscriber = subscriber;
+    }
+    const subscriber = this.#deletionSubscriber;
+    try {
+      if (subscriber.status === 'wait') await subscriber.connect();
+      if (subscriber.status !== 'ready')
+        throw new Error('Deletion revocation subscriber is not ready');
+    } catch {
+      subscriber.disconnect();
+      this.#invalidateDeletionSubscriber(subscriber);
+      throw new Error('Deletion revocation subscription unavailable');
+    }
+    return subscriber;
+  }
+
+  async #getDatabaseDeletionListener(): Promise<PgNotificationListener> {
+    if (!this.#databaseDeletionListener) {
+      const listener = new PgNotificationListener({
+        appUrl: this.#databaseUrl,
+        onNotification: (runId) => {
+          const channel = this.#deletionChannel(runId);
+          for (const onDeleted of this.#deletionListeners.get(channel) ?? [])
+            onDeleted();
+        },
+        onChatTitleNotification: (notification) => {
+          for (const subscriber of this.#chatTitleInvalidationListeners)
+            subscriber.onNotification(notification);
+        },
+        onUnavailable: () => {
+          if (this.#databaseDeletionListener !== listener) return;
+          this.#databaseDeletionListener = undefined;
+          const listeners = [...this.#deletionListeners.values()].flatMap(
+            (items) => [...items],
+          );
+          this.#deletionListeners.clear();
+          this.#deletionSubscriber?.disconnect();
+          this.#deletionSubscriber = undefined;
+          for (const onDeleted of listeners) {
+            try {
+              onDeleted();
+            } catch {
+              // Losing durable revocation transport fails each live stream closed.
+            }
+          }
+          const titleListeners = [...this.#chatTitleInvalidationListeners];
+          this.#chatTitleInvalidationListeners.clear();
+          for (const subscriber of titleListeners) {
+            try {
+              subscriber.onUnavailable();
+            } catch {
+              // Losing the invalidation transport closes local streams.
+            }
+          }
+        },
+      });
+      this.#databaseDeletionListener = listener;
+      try {
+        await listener.start();
+      } catch {
+        if (this.#databaseDeletionListener === listener)
+          this.#databaseDeletionListener = undefined;
+        throw new Error('Deletion notification listener unavailable');
+      }
+    }
+    return this.#databaseDeletionListener;
+  }
+
+  #invalidateDeletionSubscriber(subscriber: Redis): void {
+    if (this.#deletionSubscriber !== subscriber) return;
+    this.#deletionSubscriber = undefined;
+    const listeners = [...this.#deletionListeners.values()].flatMap((items) => [
+      ...items,
+    ]);
+    this.#deletionListeners.clear();
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch {
+        // Losing revocation transport fails each live stream closed.
+      }
+    }
+    subscriber.disconnect();
+  }
+
+  async #serializeDeletion<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#deletionOperations;
+    let release!: () => void;
+    this.#deletionOperations = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
 }
 
-function redis(url: string, lazyConnect = true): Redis {
+function redis(
+  url: string,
+  lazyConnect = true,
+  connectionName?: string,
+): Redis {
   const client = new Redis(url, {
     lazyConnect,
+    ...(connectionName ? { connectionName } : {}),
     enableOfflineQueue: false,
     maxRetriesPerRequest: 0,
     autoResendUnfulfilledCommands: false,

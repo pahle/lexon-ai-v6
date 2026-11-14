@@ -209,11 +209,15 @@ describe('run registry', () => {
     ).toThrow(/unsupported.*F3|F3.*unsupported/i);
   });
 
-  it('empty production registry', () => {
+  it('registers the approved production chat profiles without adding tools', () => {
     expect(PRODUCTION_ENGINE_REGISTRATIONS).toEqual({
-      profiles: [],
+      profiles: expect.arrayContaining([
+        expect.objectContaining({ id: 'chat', priority: 1 }),
+        expect.objectContaining({ id: 'chat-title', priority: 5 }),
+      ]),
       contexts: [],
       tools: [],
     });
+    expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles).toHaveLength(2);
   });
 });

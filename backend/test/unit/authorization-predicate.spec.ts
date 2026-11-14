@@ -1,5 +1,5 @@
-import { validateTenantContext } from '../../src/infrastructure/db/testing/tenant-context.js';
 import { expect, it } from 'vitest';
+import { validateTenantContext } from '../../src/infrastructure/db/testing/tenant-context.js';
 import { buildAuthorizationPredicate } from '../../src/infrastructure/db/index.js';
 
 it('always requires a valid organization for its filter', () => {
@@ -45,4 +45,27 @@ it('retains validated user context, omits absent user keys, and reports only inv
   expect(() =>
     validateTenantContext({ orgId: 'secret-org', userId: 'secret-user' }),
   ).toThrow(/^Invalid tenant context: orgId, userId$/);
+});
+
+it('owned chat authorization keeps owner and deletion scope in its predicate', () => {
+  expect(
+    buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: '11111111-1111-4111-8111-111111111111',
+      userId: '22222222-2222-4222-8222-222222222222',
+      excludeDeleted: true,
+    }),
+  ).toEqual({
+    orgId: '11111111-1111-4111-8111-111111111111',
+    userId: '22222222-2222-4222-8222-222222222222',
+    excludeDeleted: true,
+  });
+});
+
+it('legacy tenant authorization remains organization-only', () => {
+  expect(
+    buildAuthorizationPredicate({
+      orgId: '11111111-1111-4111-8111-111111111111',
+    }),
+  ).toEqual({ orgId: '11111111-1111-4111-8111-111111111111' });
 });

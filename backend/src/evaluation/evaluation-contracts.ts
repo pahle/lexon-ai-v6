@@ -5,6 +5,29 @@ export interface EvaluationServices {
 }
 
 export interface EvaluationScoreReport {
+  readonly cases: ReadonlyArray<{
+    readonly caseId:
+      | 'chat-no-claimed-research'
+      | 'chat-no-invented-sources'
+      | 'chat-answer-language';
+    readonly score: 0 | 1;
+  }>;
+  readonly scenarioId: string;
+  readonly score: number;
+  readonly status:
+    'completed' | 'failed' | 'cancelled' | 'awaiting_approval' | 'unknown';
+  readonly safeCode: string | null;
+  readonly counts: Readonly<Record<string, number>>;
+}
+
+export interface EvaluationEngineReport {
+  readonly cases: ReadonlyArray<{
+    readonly caseId:
+      | 'chat-no-claimed-research'
+      | 'chat-no-invented-sources'
+      | 'chat-answer-language';
+    readonly score: 0 | 1;
+  }>;
   readonly scenarioId: string;
   readonly score: number;
   readonly status:
@@ -29,7 +52,7 @@ export interface EvaluationEngine {
     actor: EvaluationActor,
     input: { runId: string; approved: boolean },
   ): Promise<void>;
-  read(actor: EvaluationActor, runId: string): Promise<EvaluationScoreReport>;
+  read(actor: EvaluationActor, runId: string): Promise<EvaluationEngineReport>;
   drain(timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
 }
@@ -37,12 +60,21 @@ export interface EvaluationEngine {
 export interface EvaluationOptions {
   readonly services: EvaluationServices;
   readonly fixtureSet: 'deterministic';
+  /** At most one fixture per context; use separate contexts to evaluate a batch. */
+  readonly chatScenarios?: ReadonlyArray<{
+    readonly caseId:
+      | 'chat-no-claimed-research'
+      | 'chat-no-invented-sources'
+      | 'chat-answer-language';
+    readonly scriptedAnswer: string;
+  }>;
 }
 
 export interface EvaluationRealRequestPolicy {
   reserve(input: {
     readonly estimatedInputTokens: number;
     readonly maxOutputTokens: number;
+    readonly effort?: 'high' | 'max';
   }): Promise<{ readonly id: string; readonly allowed: boolean }>;
   settle(input: {
     readonly id: string;
@@ -70,6 +102,7 @@ export type EvaluationHarnessOptions =
 export interface EvaluationStartInput {
   readonly scenarioId: string;
   readonly prompt: string;
+  readonly effort?: 'high' | 'max';
 }
 
 export interface EvaluationRun {

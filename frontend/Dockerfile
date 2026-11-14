@@ -17,6 +17,7 @@ COPY tsconfig.base.json ./
 COPY shared shared
 COPY frontend frontend
 RUN pnpm --filter @lexon/contracts build && pnpm --filter @lexon/frontend build
+RUN test ! -e /app/frontend/.next/server/app/e2e/chat-runtime
 
 FROM dependencies AS visual-dev
 ENV NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
@@ -35,3 +36,16 @@ COPY --from=build --chown=node:node /app/frontend/.next/static frontend/.next/st
 COPY --from=build --chown=node:node /app/frontend/public frontend/public
 USER node
 CMD ["node", "frontend/server.js"]
+
+FROM build AS e2e-test-build
+RUN rm -rf /app/frontend/.next
+COPY frontend/test/fixtures/chat-runtime-proof.tsx frontend/src/app/e2e/chat-runtime/page.tsx
+RUN pnpm --filter @lexon/frontend build
+
+FROM runtime AS e2e-test-runtime
+COPY --from=e2e-test-build --chown=node:node /app/frontend/.next/standalone ./
+COPY --from=e2e-test-build --chown=node:node /app/frontend/.next/static frontend/.next/static
+COPY --from=e2e-test-build --chown=node:node /app/frontend/public frontend/public
+CMD ["node", "frontend/server.js"]
+
+FROM runtime AS production

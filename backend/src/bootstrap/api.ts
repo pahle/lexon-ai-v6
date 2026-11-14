@@ -18,7 +18,10 @@ import {
 } from '../modules/platform/error.filter.js';
 export async function createApi(
   config: ApiConfig,
-  options: { email?: EmailPort } = {},
+  options: {
+    email?: EmailPort;
+    testOnlyHttpMiddleware?: (instance: unknown) => void;
+  } = {},
 ): Promise<INestApplication> {
   const identity = await createIdentityRuntime(config, options.email);
   let app: INestApplication | undefined;
@@ -54,6 +57,7 @@ export async function createApi(
     );
     app.useLogger(app.get(Logger));
     app.setGlobalPrefix('api');
+    options.testOnlyHttpMiddleware?.(app.getHttpAdapter().getInstance());
     app.useGlobalPipes(
       new StandardSchemaValidationPipe({
         exceptionFactory: (issues) =>

@@ -61,6 +61,7 @@ it('applies fixed route and privacy options to every request and preserves detai
   expect(fetchSpy).toHaveBeenCalledTimes(1);
   expect(request.model).toBe('openai/gpt-6-luna');
   expect(request.max_tokens).toBe(12);
+  expect(request).not.toHaveProperty('reasoning');
   expect(request.provider).toMatchObject({
     only: ['azure/us'],
     order: ['azure/us'],
@@ -87,6 +88,37 @@ it('applies fixed route and privacy options to every request and preserves detai
     type: 'outcome',
     outcome: { finishReason: 'stop', attemptOutcome: 'succeeded' },
   });
+});
+
+it('sends exact high and max reasoning settings without changing route privacy controls', async () => {
+  const requests: Request[] = [];
+  const fetchSpy = vi.fn<typeof fetch>(async (input, init) => {
+    requests.push(input instanceof Request ? input : new Request(input, init));
+    return streamResponse(0);
+  });
+  const gateway = createRealModelGateway({
+    allowlist,
+    key: 'test-only-key',
+    attestation: '2026-11-05',
+    fetch: fetchSpy,
+  });
+  for (const [effort, maxOutputTokens] of [
+    ['high', 16_384],
+    ['max', 32_768],
+  ] as const) {
+    await collect(gateway.generate({ ...input(), effort, maxOutputTokens }));
+    const request = await requests.at(-1)!.clone().json();
+    expect(request.reasoning).toMatchObject({ effort });
+    expect(request.max_tokens).toBe(maxOutputTokens);
+    expect(request.provider).toMatchObject({
+      only: ['azure/us'],
+      order: ['azure/us'],
+      zdr: true,
+      data_collection: 'deny',
+      allow_fallbacks: false,
+    });
+  }
+  expect(fetchSpy).toHaveBeenCalledTimes(2);
 });
 
 it('passes collected system context through the current SDK instructions option', async () => {

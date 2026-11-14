@@ -11,7 +11,15 @@ export function readContainerImages(path) {
       }),
   );
   const result = {};
-  for (const name of ['node', 'postgres', 'valkey', 'seaweedfs', 'mailpit']) {
+  for (const name of [
+    'node',
+    'postgres',
+    'valkey',
+    'seaweedfs',
+    'mailpit',
+    'caddy',
+    'k6',
+  ]) {
     const value = values.get(`${name.toUpperCase()}_IMAGE`);
     if (!value || !/^[\w./-]+:v?\d+[\w.-]*@sha256:[a-f0-9]{64}$/.test(value))
       throw new Error(`Image ${name} must have an exact tag and digest`);

@@ -1,4 +1,4 @@
-import { afterEach, test, expect, vi } from 'vitest';
+import { afterEach, beforeEach, test, expect, vi } from 'vitest';
 import { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -30,6 +30,12 @@ const navigation = vi.hoisted(() => ({
   router: { replace: vi.fn() },
 }));
 const signOut = vi.hoisted(() => vi.fn());
+class WorkspaceEventSourceMock {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  close() {}
+}
 vi.mock('../src/lib/auth-client', () => ({ authClient: { signOut } }));
 vi.mock('../src/lib/full-reload', () => ({ fullReload: vi.fn() }));
 vi.mock('../src/components/auth/account-security', () => ({
@@ -40,7 +46,9 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(navigation.search),
   useRouter: () => navigation.router,
 }));
+beforeEach(() => vi.stubGlobal('EventSource', WorkspaceEventSourceMock));
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
   navigation.path = '/workspace';
@@ -141,7 +149,7 @@ test('workspace shell composes one sidebar inset, one main, and a route breadcru
   ).not.toBeNull();
   expect(
     view.container.querySelector('[aria-label="breadcrumb"]')?.textContent,
-  ).toContain('Home');
+  ).toContain('New chat');
   expect(view.container.textContent).toContain('Workspace content');
   await view.unmount();
 });
@@ -223,7 +231,7 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
   const items = [...breadcrumb.querySelectorAll('ol > li')];
   expect(items).toHaveLength(1);
   expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'Home',
+    'New chat',
   );
   expect(breadcrumb.textContent).not.toContain('Private team name');
   expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
@@ -1010,6 +1018,56 @@ test('workspace home redirects incomplete users to onboarding', async () => {
   expect(navigation.router.replace).toHaveBeenCalledWith('/onboarding');
   expect(view.container.textContent).not.toContain('Create a team');
   await view.unmount();
+});
+
+test('incomplete onboarding preserves security settings until they close, then redirects without rendering chat', async () => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    matches: false,
+    media,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+  const client = new QueryClient();
+  const incomplete = {
+    ...identity,
+    user: { ...identity.user, onboardingCompleted: false },
+  };
+  navigation.search = '?settings=security';
+  navigation.router.replace.mockClear();
+  const renderWorkspace = () => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity: incomplete }}>
+        <WorkspaceShell>
+          <Workspace />
+        </WorkspaceShell>
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  let view: Awaited<ReturnType<typeof render>> | undefined;
+  try {
+    view = await render(renderWorkspace());
+
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(navigation.router.replace).not.toHaveBeenCalled();
+    expect(
+      view.container.querySelector('textarea[aria-label="Message input"]'),
+    ).toBeNull();
+
+    navigation.search = '';
+    await view.rerender(renderWorkspace());
+
+    expect(navigation.router.replace).toHaveBeenCalledWith('/onboarding');
+    expect(
+      view.container.querySelector('textarea[aria-label="Message input"]'),
+    ).toBeNull();
+  } finally {
+    if (view) await view.unmount();
+    vi.unstubAllGlobals();
+  }
 });
 
 test('onboarding identity does not render the optional sidebar', async () => {

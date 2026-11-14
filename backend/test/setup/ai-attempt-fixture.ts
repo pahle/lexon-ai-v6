@@ -34,6 +34,7 @@ export async function createAttemptHarness(
       withTenant<T>(work: (tx: TenantSession) => Promise<T>): Promise<T> {
         return ai.withTenant(0, work);
       },
+      withTenantClient: ai.withTenantSession.bind(ai, 0),
       async listAttempts() {
         return ai.withTenant(0, (tx) =>
           new AiAttemptRepository().list(tx, run.id),

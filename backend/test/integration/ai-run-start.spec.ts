@@ -20,6 +20,8 @@ import { stepJobId } from '../../src/modules/chat/step-job-id.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
 import { JobExecutor } from '../../src/modules/platform/job-executor.js';
 import { AttemptService } from '../../src/modules/usage/index.js';
+import { AuditService } from '../../src/modules/audit/audit.service.js';
+import { CHAT_PROFILES } from '../../src/modules/chat/chat-profiles.js';
 
 const model = 'openai/gpt-6-luna';
 const profile: RunProfile = {
@@ -176,6 +178,8 @@ test('live actor start atomically stores provenance, initial step and determinis
       queue: profile.queue,
       priority: profile.priority,
     });
+    expect(record?.resolvedConfig).not.toHaveProperty('resolvedEffort');
+    expect(record?.resolvedConfig).not.toHaveProperty('instructionVersion');
     expect(step).toMatchObject({
       sequence: 1,
       expectedVersion: 1,
@@ -198,14 +202,383 @@ test('live actor start atomically stores provenance, initial step and determinis
   }
 });
 
+test('AI_OUTPUT_LIMIT persists to run state and audit checks', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const { authorization, service } = runService(ai);
+    const { runId } = (await identityScope(tenant, authorization, (actor) =>
+      service.start(actor, {
+        profileId: profile.id,
+        prompt: 'Synthetic output limit persistence fixture.',
+      }),
+    )) as { runId: string };
+    await ai.withTenantSession(0, async (_tx, client) => {
+      await client.query(
+        "UPDATE app.ai_runs SET error_code='AI_OUTPUT_LIMIT' WHERE id=$1",
+        [runId],
+      );
+    });
+    await ai.withTenant(0, (tx) =>
+      new AuditService().append(tx, {
+        version: 1,
+        eventId: randomUUID(),
+        type: 'chat.run_finished.v1',
+        occurredAt: new Date().toISOString(),
+        outcome: 'failure',
+        orgId: tenant.orgId,
+        actorUserId: tenant.userId,
+        metadata: {
+          runId,
+          model,
+          provider: 'fixture-provider',
+          status: 'failed',
+          safeCode: 'AI_OUTPUT_LIMIT',
+        },
+      }),
+    );
+  } finally {
+    await ai.close();
+  }
+});
+
+test('chat profile resolves high and max budgets into immutable run snapshots', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const { authorization, service } = runService(ai, new OutboxRepository(), [
+      CHAT_PROFILES.chat,
+    ]);
+    const high = (await identityScope(tenant, authorization, (actor) =>
+      service.start(actor, { profileId: 'chat', prompt: 'High effort.' }),
+    )) as { runId: string };
+    const max = (await identityScope(tenant, authorization, (actor) =>
+      service.start(actor, {
+        profileId: 'chat',
+        prompt: 'Maximum effort.',
+        effort: 'max',
+      }),
+    )) as { runId: string };
+    const runs = new AiRunRepository();
+    const highRun = await ai.withTenant(0, (tx) => runs.find(tx, high.runId));
+    const maxRun = await ai.withTenant(0, (tx) => runs.find(tx, max.runId));
+    expect(highRun).toMatchObject({
+      inputBudgetTokens: 344_064,
+      outputBudgetTokens: 16_384,
+      resolvedConfig: {
+        resolvedEffort: 'high',
+        instructionVersion: 'chat.instructions.v1',
+        maxOutputTokens: 16_384,
+      },
+    });
+    expect(maxRun).toMatchObject({
+      inputBudgetTokens: 360_448,
+      outputBudgetTokens: 32_768,
+      resolvedConfig: {
+        resolvedEffort: 'max',
+        instructionVersion: 'chat.instructions.v1',
+        maxOutputTokens: 32_768,
+      },
+    });
+    const coordinator = new StepCoordinator(
+      ai.database,
+      new AiRunRepository(),
+      new AiStepRepository(),
+      new AttemptService(),
+      new OutboxRepository(),
+      new JobExecutor(ai.database),
+    );
+    const claimResult = await coordinator.claim({
+      outboxId: stepJobId(max.runId, 1),
+      type: 'run.start.v1',
+      ctx: tenant,
+      payload: { runId: max.runId, sequence: 1, expectedVersion: 1 },
+    });
+    expect(claimResult.kind).toBe('claimed');
+    if (claimResult.kind !== 'claimed') throw new Error('Fixture claim failed');
+    const claim = claimResult.claim;
+    const attemptId = randomUUID();
+    await ai.withTenant(0, (tx) =>
+      new AttemptService().reserve(tx, claim, {
+        attemptId,
+        modelInput: {
+          model,
+          provider: 'fixture-provider',
+          effort: 'max',
+          messages: [{ role: 'user', content: 'Synthetic max attempt.' }],
+          maxOutputTokens: 32_768,
+          signal: new AbortController().signal,
+        },
+        limits: {
+          maxAttemptsPerStep: 2,
+          tokenBudget: 393_216,
+          maxOutputTokens: 32_768,
+        },
+      }),
+    );
+    const ledger = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        resolved_effort: string | null;
+        instruction_version: string | null;
+      }>(
+        'SELECT resolved_effort,instruction_version FROM app.usage_events WHERE attempt_id=$1',
+        [attemptId],
+      );
+      return result.rows[0];
+    });
+    expect(ledger).toEqual({
+      resolved_effort: 'max',
+      instruction_version: 'chat.instructions.v1',
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('disallowed reasoning effort is rejected before run or audit writes', async ({
+  services,
+}) => {
+  const audit = createAuditInspector(services);
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const before = await audit.count('chat.run_started.v1');
+    const beforeRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    const { authorization, service } = runService(ai, new OutboxRepository(), [
+      CHAT_PROFILES.chat,
+    ]);
+    await identityScope(tenant, authorization, async (actor) => {
+      await expect(
+        service.start(actor, {
+          profileId: 'chat',
+          prompt: 'Do not send.',
+          effort: 'low',
+        }),
+      ).rejects.toThrow('AI run request denied');
+    });
+    expect(await ai.losingStartCounts(0)).toEqual({
+      runs: 0,
+      outbox: 0,
+      slots: 0,
+    });
+    const afterRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    expect(afterRows).toEqual(beforeRows);
+    expect(await audit.count('chat.run_started.v1')).toBe(before);
+  } finally {
+    await Promise.all([ai.close(), audit.close()]);
+  }
+});
+
+test('startWithin participates in caller rollback and rejects forged sessions', async ({
+  services,
+}) => {
+  const audit = createAuditInspector(services);
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const before = await audit.count('chat.run_started.v1');
+    const beforeRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    const { authorization, service } = runService(ai);
+    await identityScope(tenant, authorization, async (actor) => {
+      await expect(
+        ai.withTenant(0, async (tx) => {
+          await service.startWithin(tx, actor, {
+            profileId: profile.id,
+            prompt: 'Transaction rollback fixture.',
+          });
+          throw new Error('force outer transaction rollback');
+        }),
+      ).rejects.toThrow('force outer transaction rollback');
+      await expect(
+        service.startWithin(
+          {} as import('../../src/infrastructure/db/index.js').TenantSession,
+          actor,
+          { profileId: profile.id, prompt: 'Forged session.' },
+        ),
+      ).rejects.toThrow();
+    });
+    expect(await ai.losingStartCounts(0)).toEqual({
+      runs: 0,
+      outbox: 0,
+      slots: 0,
+    });
+    const afterRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    expect(afterRows).toEqual(beforeRows);
+    expect(await audit.count('chat.run_started.v1')).toBe(before);
+  } finally {
+    await Promise.all([ai.close(), audit.close()]);
+  }
+});
+
+test('startWithin stores a copied valid resource reference list in the run snapshot', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    await ai.capacity.configure(ai.capacityConfig);
+    const tenant = ai.tenants[0]!;
+    const { authorization, service } = runService(ai);
+    const originalIds: string[] = Array.from({ length: 32 }, () =>
+      randomUUID(),
+    );
+    originalIds[1] = originalIds[1]!.toUpperCase();
+    const expectedIds = originalIds.map((id) => id.toLowerCase());
+    await identityScope(tenant, authorization, async (actor) => {
+      await ai.withTenant(0, async (tx) => {
+        const result = await service.startWithin(tx, actor, {
+          profileId: profile.id,
+          prompt: 'Attach resource references to this run.',
+          resourceIds: originalIds,
+        });
+        originalIds[0] = randomUUID();
+        originalIds.push(randomUUID());
+        const run = await new AiRunRepository().find(tx, result.runId);
+        expect(
+          (run?.resolvedConfig as Record<string, unknown>).resourceIds,
+        ).toEqual(expectedIds);
+      });
+    });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('invalid, duplicate, and over-limit resource references create no run effects', async ({
+  services,
+}) => {
+  const audit = createAuditInspector(services);
+  const ai = await createAiFixture(services);
+  try {
+    const tenant = ai.tenants[0]!;
+    const beforeAudit = await audit.count('chat.run_started.v1');
+    const beforeRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    const { authorization, service } = runService(ai);
+    const duplicate = randomUUID();
+    const invalidResourceLists = [
+      ['not-a-uuid'],
+      [duplicate, duplicate.toUpperCase()],
+      Array.from({ length: 33 }, () => randomUUID()),
+    ];
+    await identityScope(tenant, authorization, async (actor) => {
+      for (const resourceIds of invalidResourceLists) {
+        await expect(
+          service.start(actor, {
+            profileId: profile.id,
+            prompt: 'Invalid resource reference list.',
+            resourceIds,
+          }),
+        ).rejects.toThrow('AI run request denied');
+      }
+    });
+    expect(await ai.losingStartCounts(0)).toEqual({
+      runs: 0,
+      outbox: 0,
+      slots: 0,
+    });
+    const afterRows = await ai.withTenantSession(0, async (_tx, client) => {
+      const result = await client.query<{
+        steps: string;
+        attempts: string;
+        usage_events: string;
+      }>(
+        `SELECT
+          (SELECT count(*)::text FROM app.ai_steps WHERE org_id=$1) AS steps,
+          (SELECT count(*)::text FROM app.ai_attempts WHERE org_id=$1) AS attempts,
+          (SELECT count(*)::text FROM app.usage_events WHERE org_id=$1) AS usage_events`,
+        [tenant.orgId],
+      );
+      return result.rows[0];
+    });
+    expect(afterRows).toEqual(beforeRows);
+    expect(await audit.count('chat.run_started.v1')).toBe(beforeAudit);
+  } finally {
+    await Promise.all([ai.close(), audit.close()]);
+  }
+});
+
 test('profile replacement after start cannot alter the persisted execution snapshot', async ({
   services,
 }) => {
   const ai = await createAiFixture(services);
   try {
     const tenant = ai.tenants[0]!;
+    const mutableInstructions = {
+      id: 'fixture.instructions',
+      version: 'fixture.instructions.v1',
+      text: 'Original trusted instruction.',
+    };
     const mutable = {
       ...structuredClone(profile),
+      instructions: mutableInstructions,
       compatibilityFacts: { routeHints: ['reviewed-only'] },
     } as RunProfile & { compatibilityFacts: { routeHints: string[] } };
     const { authorization, service } = runService(ai, new OutboxRepository(), [
@@ -220,6 +593,7 @@ test('profile replacement after start cannot alter the persisted execution snaps
     (mutable.contextBudgets as Record<string, number>).retrieval = 999;
     (mutable.capabilities as string[]).push('write:unexpected');
     (mutable as { queue: 'ai-interactive' | 'ai-batch' }).queue = 'ai-batch';
+    mutableInstructions.text = 'Changed after start.';
     mutable.compatibilityFacts.routeHints.push('mutated-later');
     const stored = await ai.withTenant(0, (tx) =>
       new AiRunRepository().find(tx, result.runId),
@@ -229,6 +603,11 @@ test('profile replacement after start cannot alter the persisted execution snaps
         contextBudgets: {},
         capabilities: [],
         compatibilityFacts: { routeHints: ['reviewed-only'] },
+        instructions: {
+          id: 'fixture.instructions',
+          version: 'fixture.instructions.v1',
+          text: 'Original trusted instruction.',
+        },
       },
       queue: 'ai-interactive',
       priority: 5,

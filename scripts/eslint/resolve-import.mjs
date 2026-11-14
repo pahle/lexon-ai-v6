@@ -104,12 +104,19 @@ const aiPackage = (value) =>
   value === '@openrouter/ai-sdk-provider' ||
   value.startsWith('@openrouter/ai-sdk-provider/');
 const clientAiNames = new Set([
+  'CreateUIMessage',
   'UIMessage',
   'UIMessagePart',
   'ChatTransport',
   'DefaultChatTransport',
   'AbstractChat',
   'ChatStatus',
+  'UIMessageChunk',
+]);
+const clientAiTypeFiles = new Set([
+  'frontend/src/components/chat/chat-runtime.tsx',
+  'frontend/src/lib/chat-transport.ts',
+  'frontend/src/lib/chat-stream.ts',
 ]);
 
 export function classifyImport({
@@ -178,15 +185,25 @@ export function classifyImport({
     source !== 'backend/src/entrypoints/api/main.ts'
   )
     return deny('auth-runtime-owner');
-  if (databasePackage(specifier) && !inDb) return deny('database-owner');
+  const e2eChatTreeReader =
+    source === 'backend/test/e2e/chat-worker-main.mjs' &&
+    specifier === 'pg' &&
+    names.length === 1 &&
+    names[0] === 'Client';
+  if (databasePackage(specifier) && !inDb && !e2eChatTreeReader)
+    return deny('database-owner');
   if (aiPackage(specifier) && !inAi && !testSource) {
     const client =
       owner === 'frontend' &&
+      clientAiTypeFiles.has(source) &&
       specifier === 'ai' &&
       typeOnly &&
       names.length > 0 &&
       names.every((name) => clientAiNames.has(name));
-    if (!client) return deny('ai-owner');
+    const runtimeAdapterTest =
+      source === 'frontend/test/chat-runtime.spec.tsx' &&
+      ['ai', '@ai-sdk/react', '@assistant-ui/ai-sdk'].includes(specifier);
+    if (!client && !runtimeAdapterTest) return deny('ai-owner');
   }
   if (
     owner === 'shared' &&
