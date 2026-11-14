@@ -99,6 +99,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 ## Lessons learned (apply to every brief)
 
+- F4 holistic review (2026-11-14, d4ae874): verdict merge; see reviews/F4-review.md. F5 brief must open with a chat client hardening task: single source of truth for the client tree and no 1 s full-tree polling during active runs.
+
 - F4 gate diagnosis (2026-11-14, ed873bf): the Chat SSE load workflow has never passed on a GitHub runner (runs 1-2 setup failures, 3-4 admission-startup 5xx); Task 18's 500-connection pass was local only, so it is not a fix-wave regression. Compose 'Previous branch' failure is a real frontend regression since 8f6cea3 (regenerated sibling not adopted; test waits on identical mock text). ai-execution 'renews through the bounded retry backoff' is an unchanged F3 test failing once (flaky timing). Future briefs: state where load gates must pass (local vs runner) and which workflows are required.
 
 - F4 slowdown causes (2026-11-14): real bugs found by gates (worth it); fix waves verified only with nearby tests then broke load/Compose on CI (extra 30-60 min loops); heavy evidence docs (acceptance >1,700 lines); usage-limit interruptions. Future briefs: run every affected gate locally before pushing (SSE change => local load; UI flow change => Compose E2E), concise per-task evidence (command, result, commit), batch review findings into one fix round, one agent session per phase.
