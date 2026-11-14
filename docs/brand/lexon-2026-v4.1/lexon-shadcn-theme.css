@@ -1,0 +1,67 @@
+/*
+ * Lexon theme for shadcn/ui (Tailwind v4), from the product owner's
+ * LEXON Brand Kit 2026 v4.1 (02_DASHBOARD/lexon-shadcn-theme.css).
+ * Values are unchanged; comments are translated to English.
+ * Light mode only in the kit. The dark mode values live in LEX-DS-001 v3.0.
+ */
+
+:root {
+  --radius: 0.625rem;                    /* rounded-md = 8px, as the buttons in the kit */
+
+  --background: #FFFFFF;                 /* White: app surface */
+  --foreground: #1A1718;                 /* Ink: text */
+
+  --card: #FFFFFF;
+  --card-foreground: #1A1718;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1718;
+
+  --primary: #B3202A;                    /* Merah Segel: primary button, active switch */
+  --primary-foreground: #FFFFFF;         /* contrast 6.65:1 */
+
+  --secondary: #F5F4F4;                  /* Surface */
+  --secondary-foreground: #1A1718;
+  --muted: #F5F4F4;
+  --muted-foreground: #6B6567;           /* Muted */
+  --accent: #F2F1F1;                     /* hover background */
+  --accent-foreground: #1A1718;
+
+  --destructive: #8E1A22;                /* Merah Segel Deep. See the note below. */
+
+  --border: #ECEAEA;                     /* Line Soft */
+  --input: #DDDADA;
+  --ring: #B3202A;                       /* focus ring */
+
+  --chart-1: #B3202A;
+  --chart-2: #1A1718;
+  --chart-3: #6B6567;
+  --chart-4: #9A9495;
+  --chart-5: #DDDADA;
+
+  --sidebar: #F5F4F4;                    /* Surface */
+  --sidebar-foreground: #1A1718;
+  --sidebar-primary: #1A1718;            /* logo tile in TeamSwitcher */
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #ECEAEA;             /* active and hovered menu item */
+  --sidebar-accent-foreground: #1A1718;
+  --sidebar-border: #E6E4E4;
+  --sidebar-ring: #B3202A;
+}
+
+/*
+ * Lexon colors with no shadcn equivalent.
+ * Used for reference numbers, quotation highlights, flagged cells, and tracked changes.
+ */
+:root {
+  --lexon-tint: #F7E6E8;                 /* background of reference numbers and highlights */
+  --lexon-flag: #FBF1F2;                 /* background of a flagged table cell */
+  --lexon-deleted: #9A9495;              /* struck-through text */
+  --lexon-doc: 'TeX Gyre Bonum', 'Bookman Old Style', Georgia, serif; /* legal quotations */
+}
+
+/*
+ * About --destructive
+ * Red is already Lexon's primary color, so a delete button cannot be told apart by color alone.
+ * For destructive actions use Button variant="outline" with explicit text ("Delete document")
+ * and a confirmation dialog. Keep variant="destructive" for the confirm button inside that dialog.
+ */
