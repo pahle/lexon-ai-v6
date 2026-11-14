@@ -3,9 +3,11 @@
 Status: implementation in progress. Tasks 1–13 are accepted after review and
 owner acceptance of the amended reference-runner search gate. Tasks 14–15 have
 owner-accepted informal previews; Tasks 16, 16A and 17 passed their task reviews.
-Task 18 implementation and local measurement are recorded, pending main review,
-evidence commit and exact-final-head Linux CI. Tasks 19 and 21 remain pending;
-Task 20 is deferred to F4.1. This is not F4 completion or visual approval.
+Task 18 implementation and local measurement are locally accepted after review;
+exact-final-head Linux CI remains pending. Task 19 visual evidence is complete
+with documented concerns; independent review and owner visual review with the
+ready PR remain pending. Task 21 remains pending; Task 20 is deferred to F4.1.
+This is not F4 completion or owner visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -1629,7 +1631,7 @@ Under the owner's standing authorization, one local process loaded `.env` only t
 
 High observed one unclassifiable and one no-signal case; max observed two unclassifiable cases. Timing was measured in three samples and absent in the no-signal sample. The report records actual token counts and per-effort sample counts; unobserved buckets are not evidence of absence. The short-input estimated/reported ratio was **11.663101604278076** (2,181/187 on each call). The approved conservative output/run limits stay unchanged: this does not calibrate full history or ceiling-sized answers. Calibration before F8, P8 physical-region review and F17 unknown-cost reconciliation remain follow-ups. Measurement-stage spec/quality review and scoped wording re-review passed; the separate evidence commit completes Task 17. Tooling producer `d7de4a0` also passed both Linux CI layers in [run 43502304046](https://github.com/pahle/lexon-ai-v6/actions/runs/43502304046). No F4 completion or final-head evidence is claimed.
 
-## Task 18 — S2 500-connection load (local measurement; review pending)
+## Task 18 — S2 500-connection load (local measurement; local review accepted)
 
 The isolated load harness and changed-path workflow now implement the approved
 profile. A real authenticated request path through Caddy held two owners in
@@ -1659,15 +1661,56 @@ are in the [Task 18 report](F4-task-18-report.md); safe aggregates are
 
 This run records source head `267f24cde56cac1a96ab2de5fd02051e256522e6` with
 `sourceDirty: true`; its API image provenance is a local image-configuration
-digest, not a registry pull digest. It is local evidence only. Main review,
-evidence commit, and load plus normal CI on the exact clean final source head
-under Linux remain required. CI run [43504282456](https://github.com/pahle/lexon-ai-v6/actions/runs/43504282456)
+digest, not a registry pull digest. It remains local evidence only. Local main
+review and evidence documentation are complete; load plus normal CI on the exact
+clean final source head under Linux remain required. CI run [43504282456](https://github.com/pahle/lexon-ai-v6/actions/runs/43504282456)
 passed Compose E2E but had two unit timing assertion failures; focused unchanged
 local cases passed afterward. That CI run is not full Linux verification. Task
-18 remains pending acceptance until the main review and final-head gates close.
+18 remains pending acceptance until the final-head Linux gate closes.
 The final controller regression passed 1,367 tests across 198 files in
 217.953 seconds (log SHA-256
 `c0a167585708987647f7c0eb6477eefc5756365687ee667603bcb6e9bd536a68`).
 All 258 Node tooling tests, root typecheck, build, format:check, and lint
 (including 99 boundary fixtures) also passed. Independent Task 18 spec/quality review approved implementation `664a45c`
 with no Critical or Important findings. Final-head Linux verification remains pending.
+
+## Task 19 — visual corrections and capture evidence (done with concerns)
+
+The controller has observed and accepted nine scoped behavior corrections.
+Rules 1–6, all 66 inventory mappings, the separate `chat-visual` project, and
+the deterministic authenticated-shell fixture are summarized in the ignored
+[Task 19 working report](../../.superpowers/sdd/2026-11-09-f4-chat/task-19-report.md).
+The transport cohort now covers bounded automatic same-run SSE GET reconnect
+after initial network/5xx failure, body error, or nonterminal EOF; prefix/cursor
+recovery; no mutation replay; denial/abort/close/finish stops; and downstream
+backpressure.
+
+| Rule                                                              | Controller evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Current status                                                                                                                                               |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 7 — bounded same-run automatic SSE reconnect                      | Qualified behavior [RED](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-RED-compatible.json), full transport [GREEN](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-GREEN-full.json), [scope](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-B-scope.json). Seven new cases failed with all 27 legacy tests passing; the unchanged transport file then passed 34/34.                                                                                                       | Controller unit behavior accepted. Real Caddy/backend API-restart and retained manual reload recovery proof passed in 15.6 seconds during capture attempt 6. |
+| 8 — logical-stream backpressure and cancellation                  | [RED](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule8-RED.json), full transport [GREEN](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule8-GREEN.json), [scope](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule8-B-scope.json). The controlled HWM-0 fixture observed all 18 frames prefetched before consumption, then at most two after the fix; full transport passed 35/35 with unchanged test hash.                                                                          | Controller unit behavior accepted.                                                                                                                           |
+| 9 — solid destructive confirmation in light/dark, including hover | Browser-computed CSS RED/GREEN are documented in the [Task 19 report](../../.superpowers/sdd/2026-11-09-f4-chat/task-19-report.md). RED after the light-theme hover transition settled expected opaque `rgb(180, 35, 24)`, received translucent `oklab(... / 0.2)`; test SHA `d9738610…` remained unchanged. Initial visual review separately found muted dark idle styling. The dialog-local opaque classes passed source scope; `chat-history.spec.tsx` passed 23/23. Browser GREEN passed in 93.292 s with the same test SHA. | Main verified the browser result and final capture show opaque destructive fill and matching foreground at rest and hover in both themes.                    |
+
+The first two Rule 7 controller failures were fixture setup errors: the fetch
+stub routed a new-chat POST incorrectly, then returned an undefined mutation
+field. The next full run also exposed test-state leakage from an old persisted
+cursor fixture. They remain in the record but are uncredited as behavior REDs:
+[route setup](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-RED.json),
+[second setup](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-RED-routed.json),
+and [cursor fixture](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/task-19-rule7-RED-legacy-compatible.json).
+Only the qualified Rule 7 RED above is credited.
+
+Capture attempt 6 passed the live API-restart and manual reload recovery proof.
+Attempt 12 completed from producer `110ad23`; the main session verified all 66
+image hashes, dimensions, DPR, and producer, compared every image with its
+prototype, and reviewed all ten inherited F2.1 references. The visual evidence
+is accepted with the differences recorded in `deviations.md`; this is not
+owner visual approval. Attempts 8–10 and the Rule 9 RED remain in the working
+report as history; attempt 12 corrected their capture/readiness issues and
+passed the final CSS checks. Prior controller gates passed: 329 frontend tests,
+35 transport tests, 259 tooling tests, lint (99 boundary checks), types, build,
+and formatting. Independent review, final-head Linux CI, Task 21, and owner
+visual review with the ready PR remain pending. Attempt 5 remains a genuine
+historical failure: the midstream disconnect occurred after the prefix, but the
+UI displayed its safe error instead of Reconnecting. Task 20 golden locking
+remains deferred to F4.1.

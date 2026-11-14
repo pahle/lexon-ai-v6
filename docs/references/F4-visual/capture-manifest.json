@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "status": "planned-not-captured",
-  "producerCommit": null,
+  "status": "main-compared-awaiting-owner-review-with-final-pr",
+  "producerCommit": "110ad236c800caf36489f16992a771bf744c5517",
   "command": "pnpm test:e2e --project chat-visual",
-  "capturedAt": null,
+  "capturedAt": "2026-11-14T04:23:25.879Z",
   "browser": "Chromium (Playwright 1.64.1)",
   "deviceScaleFactor": 1,
   "normalization": [
@@ -22,7 +22,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "854ca569590de537fca8f33d2b21c1bf7818419da5927995f1dbb3723cf37ff3"
     },
     {
       "id": "base-new-chat-desktop-dark",
@@ -32,7 +32,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "bb9feca368ffe3e1c8d92dd7f2b75bd5264715af43581c5c4b8a7785f003fc77"
     },
     {
       "id": "base-deep-thinking-on-desktop-light",
@@ -42,7 +42,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "a002af9e9c67731ee363bef3dec00fd0757e0a0c3e5c3694cbd7c476c3a1dca9"
     },
     {
       "id": "base-deep-thinking-on-desktop-dark",
@@ -52,7 +52,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "637c68d0f301be7bc335d47ca6ab505a5952fef2111a2c6c8025f30cf154ca12"
     },
     {
       "id": "base-thinking-desktop-light",
@@ -62,7 +62,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ba445bfc52aac96aec3476625969eb76f3015e337206521c76d62310cf0967a7"
     },
     {
       "id": "base-thinking-desktop-dark",
@@ -72,7 +72,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "c11f2cae47587da38c2b5b4b6219cdd78e5a7978a1868efec1b093c1a33e54e0"
     },
     {
       "id": "base-streaming-answer-desktop-light",
@@ -82,7 +82,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "8eebef4c60022c5656af6bf8d4a6a47d5b51884ddee29bcde946f289e4c56ca8"
     },
     {
       "id": "base-streaming-answer-desktop-dark",
@@ -92,7 +92,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "4c21db7370f25e5c9a7393843437577dfdbd7dc4b6717fbaa735ff2b252a177e"
     },
     {
       "id": "base-reasoning-open-desktop-light",
@@ -102,7 +102,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "2109a8b5599b497b9e40e8ceeaada758e104748c7ebeb1c38bdfa551a3e98d68"
     },
     {
       "id": "base-reasoning-open-desktop-dark",
@@ -112,7 +112,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "d09781bea51c908e4043ff6efa2d57c022d1670cd9bf76fc0c9b97c4882d2660"
     },
     {
       "id": "base-answer-complete-desktop-light",
@@ -122,7 +122,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "59033dcbb9f5409224867d4b1d4da7f2daed88bf5ff34db63caa55bf9c2902e4"
     },
     {
       "id": "base-answer-complete-desktop-dark",
@@ -132,7 +132,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ef537fc4fd62b7417f2edff7eae17cb4c90a1085ea6fa75b3c1f4fea33406261"
     },
     {
       "id": "base-copied-and-feedback-desktop-light",
@@ -142,7 +142,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "6fa6d49ac8360b11edc963d4af5859b47fb5da4f468880a239ca0ec5e7fe1673"
     },
     {
       "id": "base-copied-and-feedback-desktop-dark",
@@ -152,7 +152,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "c2e1c8902c4b40854a0f9e928ae61882139100b106beb8f44f7971fb35902979"
     },
     {
       "id": "base-edit-user-message-desktop-light",
@@ -162,7 +162,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "5a39bb797b648081cde51e26da806d8f4dba574e0365f511729527cb985f05d7"
     },
     {
       "id": "base-edit-user-message-desktop-dark",
@@ -172,7 +172,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "d7493443ecb53ef5047be20dd57f9ac3000a874f73fcceff1e4ce034408e2c25"
     },
     {
       "id": "base-edited-branch-desktop-light",
@@ -182,7 +182,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "e3a68b31aed572f82032dbefc83a3dbab7984d558a5b9c9e26f8a2c6f41ac5c7"
     },
     {
       "id": "base-edited-branch-desktop-dark",
@@ -192,7 +192,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "5749671ae8a56d52617db0160c584db36ef5651fd9ee1096d3bb55dd45a6e79a"
     },
     {
       "id": "base-stopped-desktop-light",
@@ -202,7 +202,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "64c0be11acfa45d101e24028592b93e67958fe711858fdc47ce2137de16bf30a"
     },
     {
       "id": "base-stopped-desktop-dark",
@@ -212,7 +212,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ddf0eb5018ebf0e230310a025bc4d11737aa198fc283bdd2cdd6afc284c404a0"
     },
     {
       "id": "base-run-error-desktop-light",
@@ -222,7 +222,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "f6529009176b44b23378bfa3ca66e56a5022e7120fe66c3331cbe0af92c7fab6"
     },
     {
       "id": "base-run-error-desktop-dark",
@@ -232,7 +232,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "5b998ec09a1f041da4111db9fea317d1e3f5c51e544b0317a2a839d908732126"
     },
     {
       "id": "base-reconnecting-desktop-light",
@@ -242,7 +242,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "a9c158e9746d1f28711ad1421df0ad03c93976d02b5989c42dc9d569b82ba122"
     },
     {
       "id": "base-reconnecting-desktop-dark",
@@ -252,7 +252,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "6342fad507bd6f90467a80f391458fc5cf5aa740c232b7f1e18ef3df5b6d7ce1"
     },
     {
       "id": "base-thread-loading-desktop-light",
@@ -262,7 +262,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "4050dbb1e78964ee09a5ec12769358c000787cedb1a3e5b3dd6bea92e65885e8"
     },
     {
       "id": "base-thread-loading-desktop-dark",
@@ -272,7 +272,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "791cd135fbd1346e10226b223468cecb0792d53ad59059fe6ad0af05891aa3fa"
     },
     {
       "id": "base-chat-actions-menu-desktop-light",
@@ -282,7 +282,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "a881d3dc598f9110baadc6c8f184c05937f4e16d3bf434a6d49700e318c4f56c"
     },
     {
       "id": "base-chat-actions-menu-desktop-dark",
@@ -292,7 +292,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "efcc5fd164d907dbd8f58cdff3677eea7d95d4fe51637e90229200f554664f3d"
     },
     {
       "id": "base-rename-inline-desktop-light",
@@ -302,7 +302,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "3549e5e157b23c68ecd4341db69f214391fbde0ed9a0aa56235e9eba25fd8fc2"
     },
     {
       "id": "base-rename-inline-desktop-dark",
@@ -312,7 +312,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "317a893dbde91d6cbdd9115e146e9da14648efaff9209e93c70ee63e939ba9a8"
     },
     {
       "id": "base-delete-confirm-desktop-light",
@@ -322,7 +322,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "d42b80686f15a03d2fb7c3fc078d7539c2276009b90a21c9a7bf728eca4ffd43"
     },
     {
       "id": "base-delete-confirm-desktop-dark",
@@ -332,7 +332,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "073eb73ea281949336c416bd2734e1e80e2789a96560caadaaa41d78444bf8a9"
     },
     {
       "id": "base-chats-history-desktop-light",
@@ -342,7 +342,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "622632f292f4010b0c32368fef2ea279d7f3a2f0ec9aedff645d1abff2f236dd"
     },
     {
       "id": "base-chats-history-desktop-dark",
@@ -352,7 +352,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "456f7098732aed501fed1ad6305f6b456de890167d480ca9534508b0e839e448"
     },
     {
       "id": "base-chats-search-desktop-light",
@@ -362,7 +362,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "12bdbf907c64f57147b31bd251e302739a6ff7b12b8d73f01e9a993062832f0b"
     },
     {
       "id": "base-chats-search-desktop-dark",
@@ -372,7 +372,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "99e6aebf90597a9f2237489cd6c1c0b49e01362becfc99ebe0773674ff777805"
     },
     {
       "id": "base-chats-no-results-desktop-light",
@@ -382,7 +382,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ba27c622732da86d5d896ff119691b2928cbb1678912414c5fdc750dca0d5918"
     },
     {
       "id": "base-chats-no-results-desktop-dark",
@@ -392,7 +392,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "a4e23896c196024f746b8d72836e40850a12beb547739cb52226fdb52acdffa5"
     },
     {
       "id": "base-chats-empty-desktop-light",
@@ -402,7 +402,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "347d73137bd13f57ef41ad7292c48b97bec3e6497e68b78ad2692816ad1b33a2"
     },
     {
       "id": "base-chats-empty-desktop-dark",
@@ -412,7 +412,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "9a8c8691299f943ee447ec10a16c8c815030690c9423de7ac9dddbcf5b2486ec"
     },
     {
       "id": "base-new-chat-mobile-light",
@@ -422,7 +422,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "5c23c69126c1edb136f051688c6e77e52869a4e7a02f457946e6740d74a7a40b"
     },
     {
       "id": "base-new-chat-mobile-dark",
@@ -432,7 +432,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "a33211fc07db719e6d224462ed353571939c4fd05ca816a9e1940df2c2335e76"
     },
     {
       "id": "base-answer-complete-mobile-light",
@@ -442,7 +442,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "cfe1ecbbd1049833d046c625f6a7cf8075e1ac8ef9c844c128272e0362b9f59e"
     },
     {
       "id": "base-answer-complete-mobile-dark",
@@ -452,7 +452,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "cebb78059c29b83fb29993ab9005935e912f22c14b1e2cb67abc277ba3c31d0a"
     },
     {
       "id": "base-chats-history-mobile-light",
@@ -462,7 +462,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "51c14493e9ac89b50bb8e3669740a011f254a64c122c63ebd5951145e1dfe9ed"
     },
     {
       "id": "base-chats-history-mobile-dark",
@@ -472,7 +472,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "d559556121c27b9c17b17423943eb163363eaacdb7789bfcfcad4a18c836f320"
     },
     {
       "id": "variant-no-signal-completion-desktop-light",
@@ -482,7 +482,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "56281d3c48a5e280d62cec960091d508eecac547006536bcbb39860691b3b3a1"
     },
     {
       "id": "variant-no-signal-completion-desktop-dark",
@@ -492,7 +492,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "e45a72f1ce4a5ceee9fd7ff1cf5c83869b50c39a118018587c9b71c1ac28712e"
     },
     {
       "id": "variant-measured-no-summary-completion-desktop-light",
@@ -502,7 +502,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "a6bcfb42c2ce28a93284b83b44d92552e6893e0d6844cbd4937e40ae99d0cce9"
     },
     {
       "id": "variant-measured-no-summary-completion-desktop-dark",
@@ -512,7 +512,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "fa310ba6965e6a438b9699667d5a1c1d0d264912db2a44520f1e36b141d94928"
     },
     {
       "id": "variant-matching-message-highlight-desktop-light",
@@ -522,7 +522,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "825545ec1774ba35e092b7229fb6af7e58ffa59047dcc1f418f36c28d0fd0120"
     },
     {
       "id": "variant-matching-message-highlight-desktop-dark",
@@ -532,7 +532,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ad8d980a87b61ee5e846e89f83ff5faea6fa157ee71e01ba6fed54fb1ec0b0be"
     },
     {
       "id": "variant-stopped-before-answer-desktop-light",
@@ -542,7 +542,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "ec9d2f60224d4bee6eb7069500e046a21049be9a30d28cb3ae3c26208d3e9037"
     },
     {
       "id": "variant-stopped-before-answer-desktop-dark",
@@ -552,7 +552,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "33c8c469a09c5f7897a457fb453186bf0d6a0d09405ac78923bc2b23e9e3c936"
     },
     {
       "id": "navigation-organization-switcher-open-desktop-light",
@@ -562,7 +562,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "2d49111799bbf7b4e815e8843278529e659ab24f10d8577cff55a0d441b28365"
     },
     {
       "id": "navigation-organization-switcher-open-desktop-dark",
@@ -572,7 +572,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "52b14d1755be0951a4a6a2bb68a348d1ed97ab340df011d48b846e0505b6ccd5"
     },
     {
       "id": "navigation-organization-switcher-open-mobile-light",
@@ -582,7 +582,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "087195b5e7b39f6831fd10bd4e4715c8d5b935be7e7befedf113f865540b389b"
     },
     {
       "id": "navigation-organization-switcher-open-mobile-dark",
@@ -592,7 +592,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "1ae6d50a0dbbf152254cdfbd6fdaa2cb81c817db4c1cd131f4c9d9da2b80bfb4"
     },
     {
       "id": "navigation-user-menu-open-desktop-light",
@@ -602,7 +602,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "f09a029421f7d569ed7151f126370a826bc88f28ef40eeadce70445a5b2eb265"
     },
     {
       "id": "navigation-user-menu-open-desktop-dark",
@@ -612,7 +612,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "46562ce3b74c20126af8e4d7279a9c629108cf9a51c0d92bb75fb6025b6b65a5"
     },
     {
       "id": "navigation-user-menu-open-mobile-light",
@@ -622,7 +622,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "caf73a22d99cb6b5d26244a7caf5539d01a396a1a83acef7f51eab8c82d05ae0"
     },
     {
       "id": "navigation-user-menu-open-mobile-dark",
@@ -632,7 +632,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "7cb167d27f133b560b507dde8fa13875c84e7f7e1347c27f73c0f5ee18101e2f"
     },
     {
       "id": "navigation-sidebar-expanded-mobile-light",
@@ -642,7 +642,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "fe02026461ff89ad8d1ead25338752f8377eb9bca9125278d3bf69c028ef53d3"
     },
     {
       "id": "navigation-sidebar-collapsed-desktop-light",
@@ -652,7 +652,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "df7794f62cbe61a2f89be0be190246c3eed1f6dbdc5a3db665f7e5a13ef980d5"
     },
     {
       "id": "navigation-sidebar-expanded-mobile-dark",
@@ -662,7 +662,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": null
+      "sha256": "eb470c3016eb1a556d9be34848ff3aa3fd9eba5de6f7f529332d3aa1d716eb0d"
     },
     {
       "id": "navigation-sidebar-collapsed-desktop-dark",
@@ -672,8 +672,16 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": null
+      "sha256": "4bbd1c0b0800744b2cebdfe858d67ee2e60421b8d0667120a7d7319f9769a2cd"
     }
   ],
-  "fixtureClock": "2026-11-14T04:00:00.000Z"
+  "fixtureClock": "2026-11-14T04:00:00.000Z",
+  "mainSessionComparison": {
+    "date": "2026-11-14",
+    "uniqueImages": 66,
+    "secondaryReferenceComparisons": 10,
+    "status": "compared-with-recorded-deviations",
+    "ownerApproval": false,
+    "evidenceOutputSha256": "53cb57cf21491ef041972d708f4b94a47734895aeb88d7e91d0774fbe6085ae7"
+  }
 }
