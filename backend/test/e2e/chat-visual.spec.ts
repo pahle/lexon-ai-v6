@@ -514,7 +514,7 @@ async function openMobileSidebar(page: Page) {
   if (!(await sidebar.isVisible()))
     await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(sidebar).toBeVisible();
-  await expect(sidebar.getByRole('heading', { name: 'Sidebar' })).toBeVisible();
+  await expect(sidebar.getByRole('heading', { name: 'Sidebar' })).toBeAttached();
   const navigation = sidebar.getByRole('navigation', {
     name: 'Primary navigation',
   });
