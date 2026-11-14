@@ -97,6 +97,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 - F4.1 prototype **approved by PO 2026-11-13** (rev 12, `design-drafts/f4.1-prototype/`, artifact https://claude.ai/artifact/1xFWhbFH5WxwAnHMZPDER6). Key decisions: inset sidebar-07 shell (English labels: Tools > Assistant > New chat/Chats; Recent), org initials tile, Lexon monogram for Personal workspace, no breadcrumb header (floating New chat/actions pill), wider 880px thread/composer, elevated composer with round send, short one-row starter pills (insert template, never auto-send), greeting serif without logo, reading-first answers, EB Garamond headlines; morphing thinking indicator (Lexon mark first each round, then shuffled §/Writing/Paper/Highlighter/Column(courthouse)/¶ each once; shape un-writes into 26 dots that wander 10-14 s in blended random patterns; on finish gathers into the Lexon mark which stays next to "Thought for N seconds" on every completed answer); reduced motion = static mark. Derived dark palette approved with the prototype. Job title profile field added. When F4 merges: copy design-drafts into main `docs/design/f4.1-prototype/` with the F4.1 brief (needs the kit's fonts/logos + licenses in `docs/brand/`).
 
+## Status 2026-11-14
+
+- F4 merged (#29, f2a73ce); PR #30 merged (e731ce0). F4.1 brief PR #31 (draft, c7b20c3): brief, LEX-DS-001 v3.0, docs/design/f4.1-prototype (38 screens + prototype.html), docs/brand/lexon-2026-v4.1. Next: PO reviews and merges #31, then a clean Claude Code session implements F4.1. F5 brief opens with chat client hardening.
+
 ## Lessons learned (apply to every brief)
 
 - F4 holistic review (2026-11-14, d4ae874): verdict merge; see reviews/F4-review.md. F5 brief must open with a chat client hardening task: single source of truth for the client tree and no 1 s full-tree polling during active runs.
