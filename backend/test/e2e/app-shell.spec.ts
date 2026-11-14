@@ -387,6 +387,16 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   await page.keyboard.press('Enter');
   const createTeam = page.getByRole('menuitem', { name: 'Create a team' });
   await expect(createTeam).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const popup = document.querySelector(
+          '[data-testid="organization-popup"]',
+        );
+        return popup?.contains(document.activeElement) ?? false;
+      }),
+    )
+    .toBe(true);
   await page.keyboard.press('End');
   await expect(createTeam).toBeFocused();
   await expect(organization).toHaveAttribute('aria-expanded', 'true');

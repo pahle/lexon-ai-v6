@@ -932,21 +932,46 @@ approved 163,840 estimated input bound. No stack revision.
   Task 14; a final-head run remains mandatory before handoff. Functional search
   tests remain in normal CI.
 
-- R40: Owner acceptance/gate amendment, 2026-11-12. The F4 representative
-  search gate is p95 **under 500 ms per class** on GitHub-hosted ubuntu-24.04
-  4-vCPU reference hardware; local Apple-silicon numbers are informative only.
-  Existing run `43175713326` is accepted as Task 13 Linux evidence without a
-  rerun. The 300 ms figure was an initial owner target, not a measured product
-  requirement. The owner attributes the gap on identical query/fixture and
-  owner-first FORCE-RLS plans to the reference runner's slower single-thread
-  CPU; this is accepted product rationale, not a controlled CPU experiment.
-  This fixture is an extreme long-term heavy user. Keep query, RLS, 10-second
-  timeout, fixture, 30 samples/class and plan assertions unchanged; no further
-  F4 search optimization. The final-head isolated run remains mandatory at
-  500 ms. Chats search (Task 15) runs on submit, shows loading and ignores stale
+- R40: Owner acceptance/gate amendment, 2026-11-12. At that point, the
+  representative search gate was p95 **under 500 ms per class** on GitHub-hosted
+  ubuntu-24.04 4-vCPU reference hardware; local Apple-silicon numbers were
+  informative only. Existing run `43175713326` was accepted as Task 13 Linux
+  evidence without a rerun. The 300 ms figure was an initial owner target, not a
+  measured product requirement. The owner attributed the gap on identical
+  query/fixture and owner-first FORCE-RLS plans to the reference runner's slower
+  single-thread CPU; this was accepted product rationale, not a controlled CPU
+  experiment. Keep query, RLS, 10-second timeout, fixture, 30 samples/class and
+  plan assertions unchanged; no further F4 search optimization. A later owner
+  amendment supersedes this as the blocking threshold; see R41 and the current
+  policy in [F4 search evidence](../../references/F4-search-query-plan-gap.md).
+  Chats search (Task 15) runs on submit, shows loading and ignores stale
   completions; test out-of-order responses before accepting that UI. F20 owns
-  production PostgreSQL tuning (shared_buffers is still default 128 MB).
-  F8 and spike S3 still own indexed document-scale FTS/trigram under RLS.
+  production PostgreSQL tuning (shared_buffers is still default 128 MB). F8 and
+  spike S3 still own indexed document-scale FTS/trigram under RLS.
+
+- R41: Task 21 evidence and research update, 2026-11-14. The later owner
+  amendment sets the blocking search gate to all 120 successful requests, valid
+  owner-first plans under enabled/FORCE RLS, no whole-table sequential scans,
+  and p95 **under 1,000 ms in every class**. The 500 ms p95 remains a
+  non-blocking review target; warn for a class above it. This preserves the
+  fixture, query, timeout, sample counts, and plan assertions, and does not
+  authorize performance optimization. The current policy and the intermediate
+  Task 21 trend are recorded in [F4 search evidence](../../references/F4-search-query-plan-gap.md).
+
+  On 2026-11-14, read Docker's official [Compose service environment
+  reference](https://docs.docker.com/reference/compose-file/services/#environment)
+  (Compose Specification; versionless reference). It supports service-level
+  environment maps and merge behavior; this supports mapping the two optional
+  provider values only on `ai-worker`, with empty defaults. Repo convention
+  keeps `docker-compose.yml`; no Compose pin or dependency changed.
+
+  The load CLI reuses its existing Node child-process `spawn` wrapper with
+  explicit argument arrays and environment. Node v24.22.1 is the installed
+  runtime. The current official [Node.js child-process reference](https://nodejs.org/api/child_process.html)
+  could not be fetched during Task 21 research, so no new Node API assumption was
+  introduced; the CLI adds only a call to the already-used `runPnpm` helper.
+  Controller RED/GREEN evidence and exact source commits are in
+  [F4 acceptance](../../references/F4-acceptance.md#task-21--whole-branch-verification-and-pr-handoff-in-progress).
 
 ## Informal Task 14 owner feedback (2026-11-12)
 

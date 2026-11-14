@@ -2,16 +2,24 @@
 
 Date: 2026-11-12
 
-## Acceptance
+## Current acceptance gate
 
-The owner-approved Task 13 amendment requires owner-scoped B-tree plans under
-real app-role RLS, no whole-table sequential scans of chats, messages, or run
-outputs, a heavy owner with 2,000 chats and 50,000 messages, and at least one
-million other-user messages. It requires 30 warm requests for each of four
-query classes (stem, partial, article 1320, and no-match), reporting p50, p95,
-and maximum; p95 must be below 300 ms. A miss stops work for owner direction.
-The approved amendment prohibits RLS bypasses, forced planner settings,
-LEAKPROOF changes, and SECURITY DEFINER search wrappers.
+The current owner-approved blocking gate requires owner-scoped B-tree plans
+under real app-role RLS, no whole-table sequential scans of chats, messages, or
+run outputs, a heavy owner with 2,000 chats and 50,000 messages, and at least
+one million other-user messages. All 120 measured requests must succeed (30 in
+each of stem, partial, article 1320, and no-match), with no timeout or 5xx;
+each class must have p95 below **1,000 ms**. Missing or incomplete evidence
+fails. The **500 ms per-class p95** is a non-blocking owner review target; a
+class above it is a warning, not a blocking failure. Local Apple-silicon
+measurements are informative only. The approved policy prohibits RLS bypasses,
+forced planner settings, LEAKPROOF changes, and SECURITY DEFINER search
+wrappers.
+
+The original 2026-11-12 300 ms stop target and the subsequent 500 ms target are
+preserved in the historical amendments below. They are superseded as blocking
+gates by the later owner decision recorded in
+[F4 acceptance](F4-acceptance.md#owner-amendment--blocking-gate-and-non-blocking-target-2026-11-12).
 
 The Task 13 migration adds no search GIN indexes. Earlier production-shaped
 candidate plans did not use them, so the unused GIN DDL was removed as directed
@@ -601,6 +609,29 @@ settings are in the artifact. `shared_buffers` remains 128 MB. This differing
 runner is recorded for trend context, not an isolated causal explanation.
 The mandatory final-head run still applies before handoff; this intermediate
 result is not final-head evidence for tasks that have not landed yet.
+
+## Task 21 intermediate Linux trend — 2026-11-14
+
+Automatic isolated run [43541121517](https://github.com/pahle/lexon-ai-v6/actions/runs/43541121517)
+used source head `20ac0e2931f431e6ae6a0118b6f833e94a5275da`. All 120 requests
+returned HTTP 200; the owner-first plans and enabled/FORCE RLS assertions passed.
+No whole-table sequential scan was observed. Nearest-rank p95 values from the
+safe aggregate are:
+
+| Class    |     p95 ms | Blocking gate (<1,000 ms) | Non-blocking target (<500 ms) |
+| -------- | ---------: | ------------------------- | ----------------------------- |
+| Stem     |  544.40376 | PASS                      | WARN                          |
+| Partial  | 536.227995 | PASS                      | WARN                          |
+| Article  | 376.866265 | PASS                      | PASS                          |
+| No match | 215.297268 | PASS                      | PASS                          |
+
+The unchanged safe JSONL aggregate is retained at
+[`gate.jsonl`](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/linux-search-43541121517/gate.jsonl).
+This intermediate run passes the blocking gate and warns on the two classes
+above the 500 ms review target. It does not replace the required single
+final-head isolated run after the remaining source changes and final review;
+that run must not be repeated to seek better numbers. Prior run history and
+their original dispositions above remain unchanged.
 
 ## Task 16A head automatic isolated Linux run (2026-11-14)
 

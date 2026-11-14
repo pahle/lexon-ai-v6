@@ -6,8 +6,10 @@ owner-accepted informal previews; Tasks 16, 16A and 17 passed their task reviews
 Task 18 implementation and local measurement are locally accepted after review;
 exact-final-head Linux CI remains pending. Task 19 visual evidence is complete
 with documented deviations and independent spec/quality approval; owner visual
-review with the ready PR remains pending. Task 21 remains pending; Task 20 is deferred to F4.1.
-This is not F4 completion or owner visual approval.
+review with the ready PR remains pending. Task 21's two controller-qualified
+readiness fixes and coverage self-audit are documented below; final-head CI,
+whole-branch review, and ready-PR handoff remain pending. Task 20 is deferred to
+F4.1. This is not F4 completion or owner visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
 [approved plan](../superpowers/plans/2026-11-09-f4-chat.md).
@@ -1721,3 +1723,74 @@ retained for F4.1: a recapture should invalidate nested comparison metadata as
 well as the top-level status. The current published set has matching image and
 comparison hashes; future captures explicitly downgrade their top-level status
 and require a new main-session comparison. No owner approval is inferred.
+
+## Task 21 — whole-branch verification and PR handoff (in progress)
+
+### Scoped readiness fixes
+
+Two readiness defects received structural test-only RED, controller inspection,
+minimal implementation, and controller GREEN. The frozen tests and safe
+controller records are retained under
+`.superpowers/sdd/2026-11-09-f4-chat/recovery/`.
+
+| Rule                             | RED evidence                                                                                                                                                                                                                                                                                                                   | Change and GREEN evidence                                                                                                                                                      | Scope / result                                                                                                                                                                                                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Compose provider environment | `task-21-rule1-RED.json` and `.log`; `node --test scripts/test/ai-worker-provider-env-compose.spec.mjs`, exit 1, 2/2 expected behavior failures; output SHA-256 `b1b274eefc673ecda17ae01b3bca8ce8769fcf13ab556f36d84a0ef4290c5222`; unchanged test SHA-256 `5e24c0d74c350eadb7520b2f950273f129d84e2bfe499b71911f130e13111450`. | `task-21-rule1-GREEN.json` and `.log`; 2/2 passed, exit 0, output SHA-256 `cee8a5cea08d4eef84ed93fc09fb4b15e8950dcc9e88523e6989e624f1c2f5c0`; same test SHA. Commit `8312ea4`. | Only `ai-worker` receives optional `OPENROUTER_API_KEY` and `LEXON_OPENROUTER_ZDR_ONLY_VERIFIED`, defaulting empty. Synthetic Compose inputs and boolean assertions; no `.env` read, real key, or model request.                                                                                                            |
+| 2 — load CLI prerequisites       | `task-21-rule2-RED.json` and `.log`; `node --test scripts/test/chat-load-command.spec.mjs`, exit 1, 4 expected behavior failures; output SHA-256 `e4b81def73725f5c45d2e31003137059593d91be409e6a95aaf75778d32188ef`; unchanged test SHA-256 `717e27bfd1f0eaf55275976598ebf88a592a33e1c741cf9207ce9256d686eb76`.                | `task-21-rule2-GREEN.json` and `.log`; 6/6 passed, exit 0, output SHA-256 `e88a89124296567e3a82b81c6e4174ed7386fbf3ed98985286bde6d0cbcfcf66`; same test SHA. Commit `f2c7d9d`. | Only `scripts/chat-load-evidence.mjs` changed: builds shared contracts before qualification; build failure records a safe qualification failure and stops before Vitest/E2E. Default-six qualification, marker timing, fresh-output and E2E failure guards remain tested. No threshold, load profile, lease, or RLS change. |
+
+Controller scoped format/diff checks passed for both changes. On source
+`f2c7d9d`, frozen install, build, typecheck, lint (99 boundary checks), Node
+tooling (262/262), root tests (1,382/198), and mock evals (48/4) passed; actual
+records are
+`recovery/task-21-frozen-install.json`,
+`recovery/task-21-final-{build,types,lint,tooling}.json` and matching `.log`
+files, plus `recovery/task-21-final-root-tests.json` and
+`recovery/task-21-final-evals.json`. The full Compose run on `f2c7d9d` completed
+in 359.444 seconds with exit 1: **68/74 passed, six failed**. The safe record is
+`recovery/task-21-final-compose.json`; log SHA-256 is
+`88f1cb1c618cad7d2a4ea60e3b0279820cb4ceccc7d622dec5a82426ac845c28` and the
+test hash was unchanged (`45801f9354f9e3a491ed81d563d2ea3ef3339dec21d8c856480056dfc7b4e01d`).
+Failures were one Task 6A keyboard-focus race at
+`backend/test/e2e/app-shell.spec.ts:391` and five retained Darwin screenshot
+comparisons. The safe contexts are under
+`recovery/task-21-local-compose-failures/`. Main added the approved test-only
+active-element-within-organization-popup poll before the existing `End` keypress;
+all original keyboard assertions, keypresses and timeouts remain. The focused
+controller rerun passed in 105.946 seconds total (2.3 seconds for the test);
+record `recovery/task-21-keyboard-fixture-GREEN.json`, log SHA-256
+`5b432425907819bf6426ad4ffe0072568b4545868386ff6ce85288cdedcb512b`. The frozen
+test file was unchanged. This closes the focused keyboard synchronization case;
+the earlier full Compose result remains 68/74 because it predates the fix.
+
+The five screenshot comparisons show typography width/weight differences; the
+cause is unconfirmed. UI source is unchanged from the Linux run at `8f6cea3`,
+which passed both CI jobs; platform/font variance remains a hypothesis, and
+final Linux baseline comparison is authoritative. Main preserved all six
+failure contexts and isolated captures, then restored the reviewed 66-image set
+and its index/manifest with exact hashes. The owner-retired scope remains
+exactly 20; the 62 prior passing assertions and all 82 original images remain
+unchanged. No failure is waived and no baseline or tolerance was changed.
+Intermediate normal Linux run
+[43558442730](https://github.com/pahle/lexon-ai-v6/actions/runs/43558442730)
+at `8f6cea3` passed both unit/integration and Compose E2E. It and the
+intermediate search run are not final-head verification. The latest search
+trend and current blocking/non-blocking assessment are in the
+[search-plan diagnostic](F4-search-query-plan-gap.md).
+The [final coverage crosswalk](F4-final-coverage.md) maps all 29 brief criteria,
+12 user flows, and owner amendments to task evidence or an explicit pending gate.
+
+Task 16A compensating mutation evidence is complete and reviewed. Task 17's
+four-request local smoke authorization is exhausted; no further paid calls,
+dotenv inspection, account API, or paid workflow is authorized. Task 19's
+66-image producer/capture review and independent review are accepted with
+recorded deviations; owner visual review remains with the final ready PR. Exactly
+20 F2.1 screenshot assertions are retired under the owner amendment, all 62
+passing assertions remain, and all 20 replacement baselines are deferred to
+F4.1. F8 calibration, P8 physical region, and F17 unknown-cost reconciliation
+remain deferred as already recorded.
+
+**Status: DONE_WITH_CONCERNS.** Still pending: final Linux baseline comparison
+for the five retained local screenshot mismatches, any needed exact-head full
+Compose rerun, exact-head normal Linux verification, final isolated search and
+S2 runs, final whole-branch review, and ready-PR handoff. Draft PR #29 is not
+marked ready and is not merged.
