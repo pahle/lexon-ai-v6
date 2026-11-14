@@ -566,7 +566,7 @@ async function openState(page: Page, baseUrl: string, state: string) {
         await expect(page.getByText('3 chats', { exact: true })).toBeVisible();
       } else {
         await expect(
-          page.getByRole('heading', { name: /No chats match/ }),
+          page.getByText('No chats match “hak tanggungan”', { exact: true }),
         ).toBeVisible();
       }
     }
