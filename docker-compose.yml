@@ -220,7 +220,10 @@ services:
     build:
       <<: *backend-build
       target: ai-worker
-    environment: *runtime-env
+    environment:
+      <<: *runtime-env
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: ${LEXON_OPENROUTER_ZDR_ONLY_VERIFIED:-}
     networks: [core, egress]
     depends_on: *runtime-dependencies
     healthcheck: *worker-health
