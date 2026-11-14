@@ -5,8 +5,8 @@ owner acceptance of the amended reference-runner search gate. Tasks 14–15 have
 owner-accepted informal previews; Tasks 16, 16A and 17 passed their task reviews.
 Task 18 implementation and local measurement are locally accepted after review;
 exact-final-head Linux CI remains pending. Task 19 visual evidence is complete
-with documented concerns; independent review and owner visual review with the
-ready PR remain pending. Task 21 remains pending; Task 20 is deferred to F4.1.
+with documented deviations and independent spec/quality approval; owner visual
+review with the ready PR remains pending. Task 21 remains pending; Task 20 is deferred to F4.1.
 This is not F4 completion or owner visual approval.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-09-f4-chat-design.md),
@@ -1714,3 +1714,10 @@ visual review with the ready PR remain pending. Attempt 5 remains a genuine
 historical failure: the midstream disconnect occurred after the prefix, but the
 UI displayed its safe error instead of Reconnecting. Task 20 golden locking
 remains deferred to F4.1.
+
+Task 19 independent review of `20ac0e2..5356894` approved spec compliance and
+code quality with no Critical or Important findings. One Minor follow-up is
+retained for F4.1: a recapture should invalidate nested comparison metadata as
+well as the top-level status. The current published set has matching image and
+comparison hashes; future captures explicitly downgrade their top-level status
+and require a new main-session comparison. No owner approval is inferred.
