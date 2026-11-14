@@ -629,6 +629,8 @@ async function openState(page: Page, baseUrl: string, state: string) {
     await toggle.hover();
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.move(0, 0);
+    await toggle.hover();
     await expect(page.getByRole('tooltip')).toBeVisible();
   }
   if (state === 'organization-switcher-open' || state === 'user-menu-open') {
