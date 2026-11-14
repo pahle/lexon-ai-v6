@@ -74,6 +74,8 @@ with the four Important fixes detailed in [the fix-wave receipt](F4-final-fixes.
 | Task 17 real-eval cap is not additional authorization for paid calls                    | Task 17 acceptance: no paid workflow dispatch; no further model call authorized                                                                               |
 | F8 calibration, P8 physical region, and F17 unknown-cost reconciliation remain deferred | Task 17 acceptance and Task 21 self-audit; no claim of resolution                                                                                             |
 
+The owner's bounded I2 follow-up authorizes one client run-identity repair with structural controller RED/GREEN and one repair-only review. Any further Important finding in that review requires a stop; final-head gates remain mandatory. See [scope and evidence](F4-final-fixes.md#owner-authorized-bounded-i2-identity-repair).
+
 ## Final handoff gates
 
 Task 21 readiness fixes have controller-observed structural RED/GREEN and are

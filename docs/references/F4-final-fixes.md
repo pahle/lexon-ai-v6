@@ -103,3 +103,15 @@ part of this wave.
 Original Minor findings remain explicit follow-ups: M1 executor/title lifecycle
 coupling, M2 inline grader readability, and M3 future recapture metadata
 invalidation. These are not represented as fixed by the four Important fixes.
+
+## Owner-authorized bounded I2 identity repair
+
+The first scoped re-review addressed I1/I3/I4 but confirmed an I2 successor-run race: delayed A finish could clear newer active B. On 2026-11-14 the owner authorized one bounded client repair, including reconnect/replay, with one repair-only review; any further Important finding stops work instead of starting another fix round. The backend one-active-answer invariant is unchanged.
+
+The decoder now carries terminal run identity from events and snapshot metadata before converting to generic SDK finish chunks. A captured A stream can settle without clearing B's active identity; mismatched A terminal event/snapshot replay cannot end B's stream. Only a terminal ID matching the current active run clears that identity, keeping Stop and conflicting-mutation locks attached to B.
+
+Final controller RED was **4 failed / 43 passed**, followed by **343/343 frontend GREEN** with identical frozen test hashes. The mounted test uses held canonical/cancel responses to force B-active then late-A ordering, verifies Stop targets B before/after A finish, preserves selected A and its nonempty draft, and unlocks only on authoritative B terminal. Event and terminal-snapshot replay regressions also prove B's own finish still settles normally.
+
+The initial fixture expected off-branch content to appear; it was corrected before implementation. A later pre-repair repeat exposed timing-dependent fixture coordination, which was replaced by explicit response barriers before the final RED/GREEN. Comment-only lint maintenance used restored pre-repair production and exact implementation restoration; no retrospective same-hash claim is made.
+
+Final RED log SHA-256: `370c0fd864e04dd27b373f02ac90c1e19a5c7409fc5a268dc44b8e4a5449e160`. Final GREEN log SHA-256: `4dd40069922c07b1999a3dce8f18e77b66c1f0c88d8ad8bb669d1d9fccb061df`. Complete controller receipts remain in ignored recovery records. Scoped approval and new exact-head hosted results remain mandatory and are tracked in PR #29. Earlier Linux unit/integration on `7c07fbb` passed 1,405 tests across 200 files, but Compose (73/74) and isolated SSE admission (270/500) failed; those results remain disclosed and do not qualify a new final head.

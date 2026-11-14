@@ -379,9 +379,16 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
           this.prefixProven = false;
           this.recoveryMode = 'snapshot';
         },
-        onTerminal: () => {
+        isTerminalRelevant: (terminalRunId) =>
+          terminalRunId === runId || terminalRunId === this.runId,
+        onTerminal: (terminalRunId) => {
           this.activeStreams.delete(stream);
-          if (expectedGeneration !== this.generation || this.closed) return;
+          if (
+            expectedGeneration !== this.generation ||
+            this.closed ||
+            terminalRunId !== this.runId
+          )
+            return;
           this.prefixProven = false;
           this.cursor = undefined;
           this.removeRecovery();

@@ -8,7 +8,8 @@ import { safeChatError } from './chat-errors';
 export interface ChatStreamHandlers {
   readonly onCursor?: (cursor: string) => void;
   readonly onPrefix?: () => void;
-  readonly onTerminal?: () => void;
+  readonly isTerminalRelevant?: (runId: string) => boolean;
+  readonly onTerminal?: (runId: string) => void;
   readonly onReset?: () => void;
   readonly onComplete?: () => void;
 }
@@ -17,7 +18,9 @@ type StreamState = {
   status?: string;
   messageId?: string;
   reasoningDurationMs?: number | null;
+  terminalRunId?: string;
   snapshot?: {
+    readonly runId: string;
     readonly generation: number | null;
     readonly eventId: string | null;
     readonly partCount: number;
@@ -80,7 +83,9 @@ export function createChatUIMessageStream(
     chunk: UIMessageChunk,
   ) => {
     if (chunk.type === 'finish') {
-      handlers.onTerminal?.();
+      const terminalRunId = state.terminalRunId;
+      delete state.terminalRunId;
+      if (terminalRunId) handlers.onTerminal?.(terminalRunId);
       controller.enqueue(chunk);
       stopped = true;
       complete();
@@ -226,6 +231,7 @@ function chunksFromFrame(
       state.messageId = frame.snapshot.messageId;
       state.reasoningDurationMs = frame.snapshot.reasoningDurationMs;
       state.snapshot = {
+        runId: frame.snapshot.runId,
         generation: frame.snapshot.generation,
         eventId: frame.snapshot.eventId,
         partCount: frame.partCount,
@@ -356,6 +362,15 @@ function chunksFromFrame(
         invalidateSnapshot(state);
         return [];
       }
+      const status = state.status;
+      const terminal = isTerminalStatus(status);
+      if (terminal && !isTerminalRelevant(current.runId, handlers)) {
+        delete state.snapshot;
+        state.invalidSnapshot = false;
+        delete state.status;
+        delete state.messageId;
+        return [];
+      }
       delete state.snapshot;
       state.invalidSnapshot = false;
       const expectedCursor =
@@ -366,12 +381,8 @@ function chunksFromFrame(
         handlers.onPrefix?.();
         handlers.onCursor?.(frameId);
       }
-      const status = state.status;
-      if (
-        status === 'completed' ||
-        status === 'failed' ||
-        status === 'cancelled'
-      )
+      if (terminal) {
+        state.terminalRunId = current.runId;
         return [
           {
             type: 'finish',
@@ -383,6 +394,7 @@ function chunksFromFrame(
                   : 'interrupted',
           },
         ];
+      }
     }
     return [];
   }
@@ -398,6 +410,12 @@ function chunksFromFrame(
     invalidateSnapshot(state);
     return [];
   }
+  const terminalRunId =
+    item.type === 'finish' ||
+    (item.type === 'status' && isTerminalStatus(item.status))
+      ? item.runId
+      : undefined;
+  if (terminalRunId && !isTerminalRelevant(terminalRunId, handlers)) return [];
   if (item.type !== 'reset' && frameId && isCursor(frameId))
     handlers.onCursor?.(frameId);
   switch (item.type) {
@@ -465,6 +483,7 @@ function chunksFromFrame(
     case 'error':
       return [{ type: 'error', errorText: safeChatError(item.code) }];
     case 'finish':
+      state.terminalRunId = item.runId;
       return [
         {
           type: 'finish',
@@ -479,6 +498,13 @@ function chunksFromFrame(
     default:
       return [];
   }
+}
+
+function isTerminalRelevant(
+  runId: string,
+  handlers: ChatStreamHandlers,
+): boolean {
+  return handlers.isTerminalRelevant?.(runId) ?? true;
 }
 
 function invalidateSnapshot(state: StreamState): void {

@@ -1143,3 +1143,7 @@ and implementation decisions are in [F4 final review fixes](../../references/F4-
   the existing mutation transaction and register a new migration; preserve
   existing validator security attributes and all other event routes. Injected
   append-failure tests establish rollback without a privilege or RLS bypass.
+
+### Bounded I2 run-identity follow-up — 2026-11-14
+
+Read current official [AI SDK transport](https://ai-sdk.dev/docs/ai-sdk-ui/transport), [stream protocols](https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol), and [resume streams](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-resume-streams) on 2026-11-14 against installed `ai@7.0.159` / `@ai-sdk/react@4.0.163`; also checked installed `@assistant-ui/react@0.15.33` / `@assistant-ui/ai-sdk@0.0.16` and its [v7 runtime guidance](https://www.assistant-ui.com/docs/runtimes/ai-sdk/v7). Lexon's strict event finish carries runId, and snapshot-start metadata identifies a snapshot's terminal run. Preserve that identity before generic UI finish conversion; captured stream settlement and current active-answer identity are distinct. This supports the owner-authorized bounded client guard and public runtime/reconnect/replay regressions without SDK internals, new dependencies or backend policy changes. [Controller evidence](../../references/F4-final-fixes.md#owner-authorized-bounded-i2-identity-repair) records the qualified sequence.

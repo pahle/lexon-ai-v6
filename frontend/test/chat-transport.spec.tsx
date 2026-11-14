@@ -991,6 +991,206 @@ it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', asyn
   expect(streamStates).toEqual(['reconnecting', 'connected']);
 });
 
+it('does not clear active B when delayed run A stream finishes', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const runA = '33333333-3333-4333-8333-333333333333';
+  const runB = '77777777-7777-4777-8777-777777777777';
+  let runAController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const runABody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      runAController = controller;
+      controller.enqueue(
+        new TextEncoder().encode(
+          [
+            { version: 1, type: 'start', runId: runA, messageId: assistantId },
+            { version: 1, type: 'text-start', runId: runA, id: 'answer-a' },
+            {
+              version: 1,
+              type: 'text-delta',
+              runId: runA,
+              id: 'answer-a',
+              delta: 'Answer A',
+            },
+          ]
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+        ),
+      );
+    },
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path === `/api/runs/${runA}/events`)
+      return new Response(runABody, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    if (path === `/api/runs/${runB}/events`)
+      return new Response(
+        `data: ${JSON.stringify({ version: 1, type: 'finish', runId: runB })}\n\n`,
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
+      );
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const activeIdentities: Array<string | undefined> = [];
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    initialRunId: runA,
+    fetch,
+    onRunId: (id) => activeIdentities.push(id),
+  });
+
+  try {
+    const original = await transport.reconnectToStream({ chatId });
+    if (!original) throw new Error('Run A stream did not open.');
+    const originalReader = original.getReader();
+    await originalReader.read();
+    await originalReader.read();
+    await originalReader.read();
+
+    transport.syncActiveRun(runB);
+    runAController?.enqueue(
+      new TextEncoder().encode(
+        `data: ${JSON.stringify({ version: 1, type: 'finish', runId: runA })}\n\n`,
+      ),
+    );
+    while (!(await originalReader.read()).done) {
+      // Drain the captured A stream through its own terminal chunk.
+    }
+    expect(activeIdentities).not.toContain(undefined);
+
+    const currentTerminal = await transport.reconnectToStream({ chatId });
+    if (!currentTerminal) throw new Error('Active run B was cleared by run A.');
+    const currentReader = currentTerminal.getReader();
+    while (!(await currentReader.read()).done) {
+      // Drain B's stream through its own terminal chunk.
+    }
+    expect(activeIdentities).toEqual([undefined]);
+    expect(fetch.mock.calls.map(([input]) => String(input))).toEqual([
+      `/api/runs/${runA}/events`,
+      `/api/runs/${runB}/events`,
+    ]);
+  } finally {
+    transport.close();
+  }
+});
+
+it.each(['finish-frame', 'terminal-snapshot'] as const)(
+  'ignores an A $terminal replayed on B until B emits its own terminal frame',
+  async (terminal) => {
+    const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+    const runA = '33333333-3333-4333-8333-333333333333';
+    const runB = '77777777-7777-4777-8777-777777777777';
+    const messageA = '55555555-5555-4555-8555-555555555555';
+    const messageB = '66666666-6666-4666-8666-666666666666';
+    let runBController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(`/api/runs/${runB}/events`);
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            runBController = controller;
+          },
+        }),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
+      );
+    });
+    const activeIdentities: Array<string | undefined> = [];
+    const transport = new LexonChatTransport({
+      baseUrl: '/api',
+      chatId,
+      actorScope: 'tenant-1:user-1',
+      initialRunId: runB,
+      fetch,
+      onRunId: (id) => activeIdentities.push(id),
+    });
+
+    try {
+      const replay = await transport.reconnectToStream({ chatId });
+      if (!replay) throw new Error('Run B replay stream did not open.');
+      const reader = replay.getReader();
+      const staleTerminalFrames =
+        terminal === 'finish-frame'
+          ? [{ version: 1, type: 'finish', runId: runA }]
+          : [
+              {
+                version: 1,
+                type: 'snapshot-start',
+                reset: true,
+                snapshot: {
+                  runId: runA,
+                  messageId: messageA,
+                  attemptId: null,
+                  generation: null,
+                  revision: 0,
+                  eventId: null,
+                  status: 'completed',
+                  errorCode: null,
+                  reasoningDurationMs: null,
+                },
+                partCount: 0,
+                operationCount: 0,
+              },
+              {
+                version: 1,
+                type: 'snapshot-end',
+                partCount: 0,
+                operationCount: 0,
+              },
+            ];
+      runBController?.enqueue(
+        new TextEncoder().encode(
+          [
+            ...staleTerminalFrames,
+            { version: 1, type: 'start', runId: runB, messageId: messageB },
+          ]
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+        ),
+      );
+      let sawBStart = false;
+      while (!sawBStart) {
+        const result = await reader.read();
+        if (result.done) throw new Error('Stale A terminal closed B replay.');
+        expect(result.value.type).not.toBe('finish');
+        if (
+          result.value.type === 'start' &&
+          result.value.messageId === messageB
+        )
+          sawBStart = true;
+      }
+      expect(activeIdentities).not.toContain(undefined);
+
+      runBController?.enqueue(
+        new TextEncoder().encode(
+          `data: ${JSON.stringify({ version: 1, type: 'finish', runId: runB })}\n\n`,
+        ),
+      );
+      const bTerminal = await reader.read();
+      expect(bTerminal.value).toMatchObject({ type: 'finish' });
+      expect((await reader.read()).done).toBe(true);
+      expect(activeIdentities).toEqual([undefined]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      transport.close();
+    }
+  },
+);
+
 it.each(['network error', 'HTTP 503'] as const)(
   'retries an initial events request after an accepted message when it gets a $failure',
   async (failure) => {

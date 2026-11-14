@@ -332,6 +332,312 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
   }
 });
 
+it('keeps off-branch run B active when run A finishes after canonical refresh', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const answerAId = '33333333-3333-4333-8333-333333333333';
+  const answerBId = '66666666-6666-4666-8666-666666666666';
+  const runA = '44444444-4444-4444-8444-444444444444';
+  const runB = '77777777-7777-4777-8777-777777777777';
+  const makeTree = (state: 'run-a' | 'run-b' | 'terminal-b'): ChatTree => {
+    const runBTerminal = state === 'terminal-b';
+    const messages: ChatTree['messages'][number][] = [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Question with two answer branches',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: answerAId,
+        role: 'assistant',
+        parentId: userId,
+        runId: runA,
+        text: state === 'run-a' ? '' : 'Completed answer A',
+        status: state === 'run-a' ? 'running' : 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+    ];
+    if (state !== 'run-a')
+      messages.push({
+        id: answerBId,
+        role: 'assistant',
+        parentId: userId,
+        runId: runB,
+        text: runBTerminal ? 'Completed answer B' : '',
+        status: runBTerminal ? 'completed' : 'running',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:02.000Z',
+      });
+    return {
+      id: chatId,
+      title: 'Delayed terminal identity fixture',
+      messages,
+      viewedLeafId: answerAId,
+      createdAt: '2026-11-11T00:00:00.000Z',
+      updatedAt: '2026-11-11T00:00:02.000Z',
+    };
+  };
+  const initialTree = makeTree('run-a');
+  const switchedTree = makeTree('run-b');
+  const terminalTree = makeTree('terminal-b');
+  let canonicalBAvailable = false;
+  let terminalBAvailable = false;
+  let bRefreshes = 0;
+  let activeBRefreshes = 0;
+  let canonicalBTreeReady = false;
+  let holdActiveBRefreshes = true;
+  let releaseCanonicalBTree: (() => void) | undefined;
+  const pendingActiveBRefreshes: Array<(tree: ChatTree) => void> = [];
+  const client = {
+    get: vi.fn(async () => {
+      if (terminalBAvailable) {
+        bRefreshes += 1;
+        return terminalTree;
+      }
+      if (!canonicalBAvailable) return initialTree;
+      activeBRefreshes += 1;
+      if (!canonicalBTreeReady)
+        return new Promise<ChatTree>((resolve) => {
+          releaseCanonicalBTree = () => {
+            canonicalBTreeReady = true;
+            resolve(switchedTree);
+          };
+        });
+      if (holdActiveBRefreshes)
+        return new Promise<ChatTree>((resolve) => {
+          pendingActiveBRefreshes.push(resolve);
+        });
+      return switchedTree;
+    }),
+  };
+  const encoder = new TextEncoder();
+  let streamAController:
+    ReadableStreamDefaultController<Uint8Array> | undefined;
+  const streamA = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamAController = controller;
+      controller.enqueue(
+        encoder.encode(
+          [
+            { version: 1, type: 'start', runId: runA, messageId: answerAId },
+            { version: 1, type: 'text-start', runId: runA, id: 'answer-a' },
+            {
+              version: 1,
+              type: 'text-delta',
+              runId: runA,
+              id: 'answer-a',
+              delta: 'Streaming answer A',
+            },
+          ]
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+        ),
+      );
+    },
+  });
+  let cancelCalls = 0;
+  let releaseFirstCancel: ((response: Response) => void) | undefined;
+  const firstCancelResponse = new Promise<Response>((resolve) => {
+    releaseFirstCancel = resolve;
+  });
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path === `/api/runs/${runA}/events`)
+      return new Response(streamA, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    if (path === `/api/runs/${runB}/cancel`) {
+      cancelCalls += 1;
+      if (cancelCalls === 1) return firstCancelResponse;
+      return new Response(null, { status: 204 });
+    }
+    if (path.endsWith('/viewed-leaf'))
+      return new Response(null, { status: 204 });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="tenant-1:user-1"
+        displayName="Ada"
+        orgId="tenant-1"
+        userId="user-1"
+      />
+    </QueryClientProvider>,
+  );
+
+  try {
+    await vi.waitFor(
+      () => expect(view.container.textContent).toContain('Streaming answer A'),
+      { timeout: 2000 },
+    );
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    if (!input) throw new Error('The public message composer did not render.');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value',
+      )!.set!.call(input, 'A nonempty follow-up');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    canonicalBAvailable = true;
+    await vi.waitFor(
+      () => expect(releaseCanonicalBTree).toBeTypeOf('function'),
+      {
+        timeout: 2000,
+      },
+    );
+    await act(async () => {
+      releaseCanonicalBTree?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(activeBRefreshes).toBe(1);
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).not.toBeNull();
+    expect(view.container.textContent).toContain('Streaming answer A');
+    expect(view.container.textContent).not.toContain('Completed answer A');
+    expect(view.container.textContent).not.toContain('Completed answer B');
+    expect(
+      fetch.mock.calls.some(([request]) =>
+        String(request).endsWith('/viewed-leaf'),
+      ),
+    ).toBe(false);
+
+    const stopBeforeLateA = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop generating"]',
+    );
+    if (!stopBeforeLateA)
+      throw new Error('Stop was not available for active run B.');
+    await act(async () => stopBeforeLateA.click());
+    await vi.waitFor(() => expect(cancelCalls).toBe(1), { timeout: 2000 });
+    expect(fetch.mock.calls.map(([request]) => String(request))).toContain(
+      `/api/runs/${runB}/cancel`,
+    );
+    await vi.waitFor(
+      () => expect(pendingActiveBRefreshes.length).toBeGreaterThan(0),
+      { timeout: 2500 },
+    );
+
+    await act(async () => {
+      streamAController?.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({ version: 1, type: 'status', runId: runA, status: 'completed' })}\n\ndata: ${JSON.stringify({ version: 1, type: 'finish', runId: runA })}\n\n`,
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).not.toBeNull();
+    expect(view.container.textContent).toContain('Streaming answer A');
+    expect(view.container.textContent).not.toContain('Completed answer A');
+    expect(view.container.textContent).not.toContain('Completed answer B');
+    expect(
+      fetch.mock.calls.some(([request]) =>
+        String(request).endsWith('/viewed-leaf'),
+      ),
+    ).toBe(false);
+    expect(
+      view.container.querySelector<HTMLButtonElement>(
+        '[aria-label="Send message"]',
+      ),
+    ).toBeNull();
+    for (const label of ['Edit message', 'Regenerate answer']) {
+      const control = view.container.querySelector<HTMLButtonElement>(
+        `[aria-label="${label}"]`,
+      );
+      expect(control === null || control.disabled).toBe(true);
+    }
+    const composerForm = input.closest('form');
+    if (!composerForm) throw new Error('The public composer form is missing.');
+    const submitted = new Event('submit', { bubbles: true, cancelable: true });
+    await act(async () => composerForm.dispatchEvent(submitted));
+    expect(submitted.defaultPrevented).toBe(true);
+    expect(
+      fetch.mock.calls.some(([request]) =>
+        String(request).endsWith('/messages'),
+      ),
+    ).toBe(false);
+    expect(bRefreshes).toBe(0);
+
+    const stopAfterLateA = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop generating"]',
+    );
+    if (!stopAfterLateA)
+      throw new Error('Stop was not available after run A finished.');
+    await act(async () => stopAfterLateA.click());
+    await vi.waitFor(() => expect(cancelCalls).toBe(2), { timeout: 2000 });
+    expect(fetch.mock.calls.map(([request]) => String(request))).toContain(
+      `/api/runs/${runB}/cancel`,
+    );
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).not.toBeNull();
+
+    holdActiveBRefreshes = false;
+    await act(async () => {
+      for (const resolve of pendingActiveBRefreshes.splice(0))
+        resolve(switchedTree);
+      releaseFirstCancel?.(new Response(null, { status: 204 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    terminalBAvailable = true;
+    await vi.waitFor(() => expect(bRefreshes).toBeGreaterThan(0), {
+      timeout: 2000,
+    });
+    await vi.waitFor(() => {
+      expect(
+        view.container.querySelector('[aria-label="Stop generating"]'),
+      ).toBeNull();
+      const send = view.container.querySelector<HTMLButtonElement>(
+        '[aria-label="Send message"]',
+      );
+      expect(send).not.toBeNull();
+      expect(send?.disabled).toBe(false);
+    });
+    expect(view.container.textContent).toContain('Completed answer A');
+    expect(view.container.textContent).not.toContain('Completed answer B');
+    expect(
+      fetch.mock.calls.some(([request]) =>
+        String(request).endsWith('/viewed-leaf'),
+      ),
+    ).toBe(false);
+  } finally {
+    holdActiveBRefreshes = false;
+    for (const resolve of pendingActiveBRefreshes.splice(0))
+      resolve(switchedTree);
+    releaseCanonicalBTree?.();
+    releaseFirstCancel?.(new Response(null, { status: 204 }));
+    try {
+      streamAController?.close();
+    } catch {
+      // The transport may have already cancelled A after its valid finish.
+    }
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
 it('reconciles a viewed active answer from canonical terminal state while SSE stays open', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';
   const userId = '22222222-2222-4222-8222-222222222222';
