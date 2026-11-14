@@ -14,6 +14,7 @@ export const E2E_PROJECTS = {
     'identity-browser',
     'chat-runtime-proof',
     'chat-browser',
+    'chat-visual',
     'visual-review',
   ],
   shared: ['backend-api', 'identity-api'],
@@ -32,6 +33,7 @@ export function composeFilesForE2EProjects(
   if (
     selectedProjects.includes('chat-runtime-proof') ||
     selectedProjects.includes('chat-browser') ||
+    selectedProjects.includes('chat-visual') ||
     selectedProjects.includes('chat-sse-load')
   )
     files.push(

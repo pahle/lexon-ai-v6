@@ -88,6 +88,17 @@ export default defineConfig({
       },
     },
     {
+      name: 'chat-visual',
+      testMatch: 'backend/test/e2e/chat-visual.spec.ts',
+      snapshotPathTemplate: '{testDir}/docs/references/F4-visual/{arg}{ext}',
+      use: {
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+        reducedMotion: 'reduce',
+      },
+    },
+    {
       name: 'topology',
       testMatch: [
         'backend/test/e2e/topology.spec.ts',

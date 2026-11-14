@@ -103,11 +103,14 @@ export function ChatHistory({
             </EmptyMedia>
             <EmptyTitle>No chats yet</EmptyTitle>
             <EmptyDescription>
-              Your conversations will appear here.
+              Start a new chat to ask Lexon about a contract, a regulation, or a
+              case.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button render={<Link href="/workspace" />}>New chat</Button>
+            <Button nativeButton={false} render={<Link href="/workspace" />}>
+              New chat
+            </Button>
           </EmptyContent>
         </Empty>
         {deleteDialog}

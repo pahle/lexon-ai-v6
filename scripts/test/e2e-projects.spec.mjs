@@ -8,6 +8,22 @@ import {
   resolveE2ESelection,
 } from '../e2e-projects.mjs';
 
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+function readPlaywrightConfig() {
+  const script = `
+    import config from './playwright.config.ts';
+    process.stdout.write(JSON.stringify(config));
+  `;
+  const result = spawnSync(
+    process.execPath,
+    ['--input-type=module', '-e', script],
+    { cwd: repositoryRoot, encoding: 'utf8', env: { CI: 'true' } },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
 test('default E2E selection includes the chat proof and its test overlay', () => {
   const selection = resolveE2ESelection([]);
 
@@ -34,6 +50,30 @@ test('chat browser selects its Compose overlay and browser test project', () => 
       selection.selectedProjects,
       '/repository/',
     ).includes('/repository/backend/test/e2e/compose.chat-runtime-proof.yml'),
+  );
+});
+
+test('chat visual selects the runtime proof overlay and its own snapshot path', () => {
+  const selection = resolveE2ESelection(['--project', 'chat-visual']);
+  assert.deepEqual(selection.selectedProjects, ['chat-visual']);
+  assert.ok(
+    composeFilesForE2EProjects(
+      selection.selectedProjects,
+      '/repository/',
+    ).includes('/repository/backend/test/e2e/compose.chat-runtime-proof.yml'),
+  );
+
+  const config = readPlaywrightConfig();
+  const project = config.projects.find((entry) => entry.name === 'chat-visual');
+  assert.ok(project, 'chat-visual is missing from Playwright projects');
+  assert.equal(project.testMatch, 'backend/test/e2e/chat-visual.spec.ts');
+  assert.equal(
+    project.snapshotPathTemplate,
+    '{testDir}/docs/references/F4-visual/{arg}{ext}',
+  );
+  assert.equal(
+    config.snapshotPathTemplate,
+    '{testDir}/docs/references/F2.1-visual/{arg}{ext}',
   );
 });
 

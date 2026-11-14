@@ -228,6 +228,49 @@ it('loads cursor pages and groups Chats history by activity date', async () => {
   wrapped.client.clear();
 });
 
+it('shows the approved guidance in empty Chats history', async () => {
+  const api = {
+    list: vi.fn(async () => page([])),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<ChatHistory client={api} scope={scope} />);
+  const view = await render(wrapped.node);
+  await settle();
+
+  expect(view.container.textContent).toContain(
+    'Start a new chat to ask Lexon about a contract, a regulation, or a case.',
+  );
+
+  await view.unmount();
+  wrapped.client.clear();
+});
+
+it('renders empty Chats New chat as a link without a native-button warning', async () => {
+  const consoleError = vi.spyOn(console, 'error');
+  const api = {
+    list: vi.fn(async () => page([])),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<ChatHistory client={api} scope={scope} />);
+  let view: Awaited<ReturnType<typeof render>> | undefined;
+
+  try {
+    view = await render(wrapped.node);
+    await settle();
+
+    const newChatLink = view.container.querySelector('a[href="/workspace"]');
+    expect(newChatLink?.tagName).toBe('A');
+    expect(newChatLink?.textContent).toBe('New chat');
+    expect(consoleError).not.toHaveBeenCalledWith(
+      expect.stringContaining(
+        'A component that acts as a button expected a native <button>',
+      ),
+    );
+  } finally {
+    if (view) await view.unmount();
+    wrapped.client.clear();
+    consoleError.mockRestore();
+  }
+});
+
 it('offers rename and delete from the chat actions menu', async () => {
   const api = {
     list: vi.fn(async () => page([item(1, 'Employment dispute')])),
@@ -389,6 +432,29 @@ it('keeps delete confirmation open and retryable when the server refuses deletio
   expect(
     (wrapped.client.getQueryData(cacheKey) as ChatPage).items,
   ).toHaveLength(1);
+  await view.unmount();
+  wrapped.client.clear();
+});
+
+it('renders delete chat confirmation with a solid destructive button', async () => {
+  const api = { delete: vi.fn() } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    <ChatDeleteDialog
+      chatId={chatId}
+      title="Private chat"
+      client={api}
+      scope={scope}
+    />,
+  );
+  const view = await render(wrapped.node);
+  await act(async () => view.container.querySelector('button')?.click());
+
+  const confirm = document.body.querySelector(
+    'button[data-slot="alert-dialog-action"]',
+  ) as HTMLButtonElement;
+  expect(confirm.classList.contains('bg-destructive')).toBe(true);
+  expect(confirm.classList.contains('text-destructive-foreground')).toBe(true);
+  expect(confirm.classList.contains('bg-destructive/10')).toBe(false);
   await view.unmount();
   wrapped.client.clear();
 });
