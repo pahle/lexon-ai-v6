@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   ChatPageSchema,
   ChatSearchMatchSchema,
@@ -509,6 +509,41 @@ async function installRunStreamFixture(page: Page) {
   );
 }
 
+async function openMobileSidebar(page: Page) {
+  const sidebar = page.getByRole('dialog', { name: 'Sidebar' });
+  if (!(await sidebar.isVisible()))
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByRole('heading', { name: 'Sidebar' })).toBeVisible();
+  const navigation = sidebar.getByRole('navigation', {
+    name: 'Primary navigation',
+  });
+  await expect(navigation).toBeVisible();
+  await expect(
+    navigation.getByRole('link', { name: 'New chat' }),
+  ).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Chats' })).toBeVisible();
+  return sidebar;
+}
+
+async function expectRecentChatReady(sidebar: Locator) {
+  const recent = sidebar.getByRole('group', { name: 'Recent chats' });
+  for (const title of [
+    fileNames.newChat,
+    fileNames.acquisition,
+    fileNames.employment,
+    fileNames.forceMajeure,
+    fileNames.default,
+    fileNames.data,
+  ])
+    await expect(
+      recent.getByRole('link', { name: title, exact: true }),
+    ).toBeVisible();
+  await expect(
+    recent.getByRole('link', { name: 'View all chats', exact: true }),
+  ).toBeVisible();
+}
+
 async function openState(page: Page, baseUrl: string, state: string) {
   if (
     state === 'chat-actions-menu' ||
@@ -725,15 +760,28 @@ async function openState(page: Page, baseUrl: string, state: string) {
     );
   }
   if (state === 'organization-switcher-open' || state === 'user-menu-open') {
-    if (await page.getByRole('button', { name: 'Open navigation' }).count())
-      await page.getByRole('button', { name: 'Open navigation' }).click();
+    if (viewportWidth(page) === 390) {
+      const sidebar = await openMobileSidebar(page);
+      await expectRecentChatReady(sidebar);
+    } else {
+      const sidebar = page.getByRole('complementary', {
+        name: 'Workspace navigation',
+      });
+      await expect(sidebar).toBeVisible();
+      const collapsed = await page
+        .getByRole('button', { name: 'Expand sidebar' })
+        .isVisible();
+      if (!collapsed) await expectRecentChatReady(sidebar);
+    }
     if (state === 'organization-switcher-open')
       await page.getByRole('button', { name: /^Organization:/ }).click();
     else await page.getByRole('button', { name: /Ayu Wardani/ }).click();
     await expect(page.getByRole('menu')).toBeVisible();
   }
-  if (state === 'sidebar-expanded' && viewportWidth(page) === 390)
-    await page.getByRole('button', { name: 'Open navigation' }).click();
+  if (state === 'sidebar-expanded' && viewportWidth(page) === 390) {
+    const sidebar = await openMobileSidebar(page);
+    await expectRecentChatReady(sidebar);
+  }
   if (state === 'sidebar-collapsed' && viewportWidth(page) === 1440) {
     const collapseSidebar = page.getByRole('button', {
       name: 'Collapse sidebar',
