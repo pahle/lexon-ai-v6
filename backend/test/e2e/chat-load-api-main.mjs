@@ -136,6 +136,8 @@ function authTransactionErrorCategory(error) {
           : 'PostgresOther';
       if (current.message === 'Query read timeout') return 'PgQueryTimeout';
       if (current.message === 'timeout expired') return 'PgConnectionTimeout';
+      if (current.message === 'timeout exceeded when trying to connect')
+        return 'PgPoolAcquireTimeout';
       current = 'cause' in current ? current.cause : undefined;
     }
   } catch {
@@ -159,52 +161,59 @@ IdentitySessionService.prototype.resolve = function (...args) {
     observedIdentityServices.add(this);
     const integration = this.integration;
     const originalTransaction = integration.transaction;
-    const observedIntegration = new Proxy(integration, {
-      get(target, property, receiver) {
-        if (property !== 'transaction')
-          return Reflect.get(target, property, receiver);
-        return function (...transactionArgs) {
-          if (!authResolutionScope.getStore())
-            return Reflect.apply(originalTransaction, target, transactionArgs);
-          authTransactionObservation.entered += 1;
-          const startedAt = performance.now();
-          const recordDuration = () => {
-            const bucket = authTransactionDurationBucket(
-              performance.now() - startedAt,
-            );
-            authTransactionObservation.durationBuckets[bucket] =
-              (authTransactionObservation.durationBuckets[bucket] ?? 0) + 1;
-          };
-          const recordError = (error) => {
-            const category = authTransactionErrorCategory(error);
-            authTransactionObservation.errors[category] =
-              (authTransactionObservation.errors[category] ?? 0) + 1;
-            recordDuration();
-          };
-          let result;
-          try {
-            result = Reflect.apply(
-              originalTransaction,
-              target,
-              transactionArgs,
-            );
-          } catch (error) {
-            recordError(error);
-            throw error;
-          }
-          if (!result || typeof result.then !== 'function') {
-            authTransactionObservation.succeeded += 1;
-            recordDuration();
+    const observedIntegration = new Proxy(
+      { ...integration },
+      {
+        get(target, property, receiver) {
+          if (property !== 'transaction')
+            return Reflect.get(integration, property, integration);
+          return function (...transactionArgs) {
+            if (!authResolutionScope.getStore())
+              return Reflect.apply(
+                originalTransaction,
+                integration,
+                transactionArgs,
+              );
+            authTransactionObservation.entered += 1;
+            const startedAt = performance.now();
+            const recordDuration = () => {
+              const bucket = authTransactionDurationBucket(
+                performance.now() - startedAt,
+              );
+              authTransactionObservation.durationBuckets[bucket] =
+                (authTransactionObservation.durationBuckets[bucket] ?? 0) + 1;
+            };
+            const recordError = (error) => {
+              const category = authTransactionErrorCategory(error);
+              authTransactionObservation.errors[category] =
+                (authTransactionObservation.errors[category] ?? 0) + 1;
+              recordDuration();
+            };
+            let result;
+            try {
+              result = Reflect.apply(
+                originalTransaction,
+                integration,
+                transactionArgs,
+              );
+            } catch (error) {
+              recordError(error);
+              throw error;
+            }
+            if (!result || typeof result.then !== 'function') {
+              authTransactionObservation.succeeded += 1;
+              recordDuration();
+              return result;
+            }
+            result.then(() => {
+              authTransactionObservation.succeeded += 1;
+              recordDuration();
+            }, recordError);
             return result;
-          }
-          result.then(() => {
-            authTransactionObservation.succeeded += 1;
-            recordDuration();
-          }, recordError);
-          return result;
-        };
+          };
+        },
       },
-    });
+    );
     this.integration = observedIntegration;
   }
   return authResolutionScope.run(true, () =>

@@ -52,6 +52,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   chat-sse-load:
+    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:

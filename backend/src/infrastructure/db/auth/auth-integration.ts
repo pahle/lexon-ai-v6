@@ -11,7 +11,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
   const pool = new Pool({
     connectionString: options.authUrl,
     max: 5,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
     query_timeout: 5000,
   });
   pool.on('error', () => undefined);
