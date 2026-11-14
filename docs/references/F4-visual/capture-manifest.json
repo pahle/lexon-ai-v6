@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "status": "captured-not-reviewed",
-  "producerCommit": "2492b82c7a07c0a1fa44867f61494f7a89ee71c0",
+  "status": "main-compared-awaiting-owner-review-with-final-pr",
+  "producerCommit": "110ad236c800caf36489f16992a771bf744c5517",
   "command": "pnpm test:e2e --project chat-visual",
-  "capturedAt": "2026-11-14T14:32:20.302Z",
+  "capturedAt": "2026-11-14T04:23:25.879Z",
   "browser": "Chromium (Playwright 1.64.1)",
   "deviceScaleFactor": 1,
   "normalization": [
@@ -52,7 +52,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "37ab8344755d116f2e73b99923974a14cec8e78a99ef608d70df2dc2423a67e6"
+      "sha256": "637c68d0f301be7bc335d47ca6ab505a5952fef2111a2c6c8025f30cf154ca12"
     },
     {
       "id": "base-thinking-desktop-light",
@@ -62,7 +62,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "89e870b739c0958d5cf2319853fcc6d9d184008ae00ebd375a13fa4b8035c003"
+      "sha256": "ba445bfc52aac96aec3476625969eb76f3015e337206521c76d62310cf0967a7"
     },
     {
       "id": "base-thinking-desktop-dark",
@@ -72,7 +72,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "69150aef8e5c7d2a502eb0bcf390f6bfc8dc4eb56ee2f38d5c22d56e6647c36a"
+      "sha256": "c11f2cae47587da38c2b5b4b6219cdd78e5a7978a1868efec1b093c1a33e54e0"
     },
     {
       "id": "base-streaming-answer-desktop-light",
@@ -82,7 +82,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "2925b622433dc44ecb246e5ef75b6f710cd278749243fdc16e026e8d93a12068"
+      "sha256": "8eebef4c60022c5656af6bf8d4a6a47d5b51884ddee29bcde946f289e4c56ca8"
     },
     {
       "id": "base-streaming-answer-desktop-dark",
@@ -92,7 +92,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "a92d8f4c2f511de5feba6c019c0fed2072de99e0bfec1aaffb2f942beffec776"
+      "sha256": "4c21db7370f25e5c9a7393843437577dfdbd7dc4b6717fbaa735ff2b252a177e"
     },
     {
       "id": "base-reasoning-open-desktop-light",
@@ -242,7 +242,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "f86c7d5d0ff57d9427a7814edc0d09a8a0b58a2a99102fdbdcbd48fd6a843518"
+      "sha256": "a9c158e9746d1f28711ad1421df0ad03c93976d02b5989c42dc9d569b82ba122"
     },
     {
       "id": "base-reconnecting-desktop-dark",
@@ -252,7 +252,7 @@
       "viewport": "desktop",
       "width": 1440,
       "height": 900,
-      "sha256": "997d276a3c637ebf23d03706d0cba3635d3e119df5d16fbc668b3366ba2d4bdc"
+      "sha256": "6342fad507bd6f90467a80f391458fc5cf5aa740c232b7f1e18ef3df5b6d7ce1"
     },
     {
       "id": "base-thread-loading-desktop-light",
@@ -462,7 +462,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": "a2fb29dbdecd5ef901514ebf603f0596e7141f7d3183471a6ccb89b24b21b61c"
+      "sha256": "51c14493e9ac89b50bb8e3669740a011f254a64c122c63ebd5951145e1dfe9ed"
     },
     {
       "id": "base-chats-history-mobile-dark",
@@ -472,7 +472,7 @@
       "viewport": "mobile",
       "width": 390,
       "height": 844,
-      "sha256": "1c6d304878ad848ede92bbbe628a39f2c38845be631290012d212773293f5a29"
+      "sha256": "d559556121c27b9c17b17423943eb163363eaacdb7789bfcfcad4a18c836f320"
     },
     {
       "id": "variant-no-signal-completion-desktop-light",
