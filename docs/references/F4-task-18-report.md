@@ -1,7 +1,7 @@
 # F4 Task 18 — local S2 load evidence
 
 Date: 2026-11-14. Status: local implementation and measurement captured; main
-review, evidence commit, and exact-final-head Linux CI are pending. This is not
+review is approved; exact-final-head Linux CI remains pending. This is not
 Task 18 acceptance or F4 completion.
 
 ## Scope and preserved limits
@@ -136,8 +136,8 @@ workspace tests across 198 files, workspace typecheck, workspace build,
 format:check, and lint (including all 99 boundary fixtures). The final full-test
 log SHA-256 is
 `c0a167585708987647f7c0eb6477eefc5756365687ee667603bcb6e9bd536a68`;
-the run took 217.953 seconds and preserved the frozen test source. Main review,
-commit, and exact-final-head Linux verification remain pending.
+the run took 217.953 seconds and preserved the frozen test source. Independent spec/quality review approved the complete Task 18 change with no
+Critical or Important findings; exact-final-head Linux verification remains pending.
 
 The unchanged normal Compose E2E layer passed in CI run
 [43504282456](https://github.com/pahle/lexon-ai-v6/actions/runs/43504282456);
@@ -145,7 +145,7 @@ that run's unit layer had two timing assertion failures. The focused unchanged
 local cases subsequently passed, but the run is not represented as full CI
 success.
 
-Main spec/quality review, evidence-document review, a separate evidence commit,
-and the load workflow on the exact clean final source head under Linux remain
-open. Task 21 must run the required final head gates, including manual dispatch
+Independent spec/quality review approved implementation `664a45c` with no
+Critical or Important findings. The load workflow on the exact clean final
+source head under Linux remains open. Task 21 must run the required final head gates, including manual dispatch
 of this load layer. Task 20 golden locking remains deferred to F4.1.
