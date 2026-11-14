@@ -1789,6 +1789,14 @@ passing assertions remain, and all 20 replacement baselines are deferred to
 F4.1. F8 calibration, P8 physical region, and F17 unknown-cost reconciliation
 remain deferred as already recorded.
 
+Warning disposition: actual build/test output is not pristine. It includes
+Docker `ARG` default and deprecated-dependency notices, legacy deploy
+configuration and ignored-build-script notices, color-environment output, and
+existing JSDOM navigation warnings. These were recorded without changing
+dependency pins, build-script approvals, or source to silence them. No secret
+output was observed. Do not expand scope to update or suppress these warnings;
+final Linux checks remain required on the reviewed source.
+
 **Status: DONE_WITH_CONCERNS.** Still pending: final Linux baseline comparison
 for the five retained local screenshot mismatches, any needed exact-head full
 Compose rerun, exact-head normal Linux verification, final isolated search and

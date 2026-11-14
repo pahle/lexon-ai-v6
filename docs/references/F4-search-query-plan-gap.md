@@ -625,8 +625,10 @@ safe aggregate are:
 | Article  | 376.866265 | PASS                      | PASS                          |
 | No match | 215.297268 | PASS                      | PASS                          |
 
-The unchanged safe JSONL aggregate is retained at
-[`gate.jsonl`](../../.superpowers/sdd/2026-11-09-f4-chat/recovery/linux-search-43541121517/gate.jsonl).
+The unchanged safe JSONL aggregate is retained locally at
+`../../.superpowers/sdd/2026-11-09-f4-chat/recovery/linux-search-43541121517/gate.jsonl`.
+For download, use the public Actions run artifact for
+[run 43541121517](https://github.com/pahle/lexon-ai-v6/actions/runs/43541121517).
 This intermediate run passes the blocking gate and warns on the two classes
 above the 500 ms review target. It does not replace the required single
 final-head isolated run after the remaining source changes and final review;
