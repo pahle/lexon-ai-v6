@@ -736,14 +736,8 @@
   },
   "worker": {
     "activeRuns": 2,
-    "sequenceBefore": [
-      3,
-      3
-    ],
-    "sequenceAfter": [
-      6,
-      6
-    ],
+    "sequenceBefore": [3, 3],
+    "sequenceAfter": [6, 6],
     "progressedRuns": 2
   },
   "teardown": {

@@ -164,7 +164,7 @@ IdentitySessionService.prototype.resolve = function (...args) {
     const observedIntegration = new Proxy(
       { ...integration },
       {
-        get(target, property, receiver) {
+        get(target, property) {
           if (property !== 'transaction')
             return Reflect.get(integration, property, integration);
           return function (...transactionArgs) {

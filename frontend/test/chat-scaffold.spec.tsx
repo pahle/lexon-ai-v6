@@ -336,11 +336,14 @@ it('preserves the regenerated assistant sibling across canonical active and term
   const chatId = '11111111-1111-4111-8111-111111111111';
   const rootUserId = '22222222-2222-4222-8222-222222222222';
   const originalAnswerId = '33333333-3333-4333-8333-333333333333';
-  const editedUserId = '44444444-4444-4444-8444-444444444444';
   const editedAnswerId = '55555555-5555-4555-8555-555555555555';
   const regeneratedAnswerId = '66666666-6666-4666-8666-666666666666';
+  const editedRunId = '99999999-9999-4999-8999-999999999999';
   const regeneratedRunId = '77777777-7777-4777-8777-777777777777';
-  const makeTree = (state: 'edited' | 'active' | 'terminal'): ChatTree => ({
+  let editedUserId: string | undefined;
+  const makeTree = (
+    state: 'initial' | 'edited' | 'active' | 'terminal',
+  ): ChatTree => ({
     id: chatId,
     title: 'Edited branch fixture',
     messages: [
@@ -364,58 +367,76 @@ it('preserves the regenerated assistant sibling across canonical active and term
         feedback: null,
         createdAt: '2026-11-11T00:00:01.000Z',
       },
-      {
-        id: editedUserId,
-        role: 'user',
-        parentId: null,
-        text: 'Edited question',
-        effort: 'high',
-        createdAt: '2026-11-11T00:00:02.000Z',
-      },
-      {
-        id: editedAnswerId,
-        role: 'assistant',
-        parentId: editedUserId,
-        runId: '99999999-9999-4999-8999-999999999999',
-        text: 'Edited answer',
-        status: 'completed',
-        reasoningSummary: null,
-        reasoningDurationMs: null,
-        feedback: null,
-        createdAt: '2026-11-11T00:00:03.000Z',
-      },
-      ...(state === 'edited'
+      ...(state === 'initial'
         ? []
-        : [
-            {
-              id: regeneratedAnswerId,
-              role: 'assistant' as const,
-              parentId: editedUserId,
-              runId: regeneratedRunId,
-              text: state === 'terminal' ? 'Regenerated answer' : '',
-              status:
-                state === 'terminal'
-                  ? ('completed' as const)
-                  : ('running' as const),
-              reasoningSummary: null,
-              reasoningDurationMs: null,
-              feedback: null,
-              createdAt: '2026-11-11T00:00:04.000Z',
-            },
-          ]),
+        : (() => {
+            if (!editedUserId)
+              throw new Error('The edited user message ID is missing.');
+            return [
+              {
+                id: editedUserId,
+                role: 'user' as const,
+                parentId: null,
+                text: 'Edited question',
+                effort: 'high' as const,
+                createdAt: '2026-11-11T00:00:02.000Z',
+              },
+              {
+                id: editedAnswerId,
+                role: 'assistant' as const,
+                parentId: editedUserId,
+                runId: editedRunId,
+                text: 'Edited answer',
+                status: 'completed' as const,
+                reasoningSummary: null,
+                reasoningDurationMs: null,
+                feedback: null,
+                createdAt: '2026-11-11T00:00:03.000Z',
+              },
+            ];
+          })()),
+      ...(state === 'initial' || state === 'edited'
+        ? []
+        : (() => {
+            if (!editedUserId)
+              throw new Error('The edited user message ID is missing.');
+            return [
+              {
+                id: regeneratedAnswerId,
+                role: 'assistant' as const,
+                parentId: editedUserId,
+                runId: regeneratedRunId,
+                text: state === 'terminal' ? 'Regenerated answer' : '',
+                status:
+                  state === 'terminal'
+                    ? ('completed' as const)
+                    : ('running' as const),
+                reasoningSummary: null,
+                reasoningDurationMs: null,
+                feedback: null,
+                createdAt: '2026-11-11T00:00:04.000Z',
+              },
+            ];
+          })()),
     ],
-    viewedLeafId: state === 'terminal' ? regeneratedAnswerId : editedAnswerId,
+    viewedLeafId:
+      state === 'initial'
+        ? originalAnswerId
+        : state === 'terminal'
+          ? regeneratedAnswerId
+          : editedAnswerId,
     createdAt: '2026-11-11T00:00:00.000Z',
     updatedAt: '2026-11-11T00:00:04.000Z',
   });
-  const serverTree = makeTree('edited');
+  let editStarted = false;
   let regenerationStarted = false;
   let terminalAvailable = false;
   let activeRefreshes = 0;
   let terminalRefreshes = 0;
   const client = {
     get: vi.fn(async () => {
-      if (!regenerationStarted) return serverTree;
+      if (!editStarted) return makeTree('initial');
+      if (!regenerationStarted) return makeTree('edited');
       if (!terminalAvailable) {
         activeRefreshes += 1;
         return makeTree('active');
@@ -460,6 +481,25 @@ it('preserves the regenerated assistant sibling across canonical active and term
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (
+      url.endsWith(`/messages/${rootUserId}/edit`) &&
+      init?.method === 'POST'
+    ) {
+      const request = JSON.parse(String(init.body)) as {
+        readonly newMessageId: string;
+      };
+      editedUserId = request.newMessageId;
+      editStarted = true;
+      return Response.json(
+        {
+          chatId,
+          userMessageId: editedUserId,
+          assistantMessageId: editedAnswerId,
+          runId: editedRunId,
+        },
+        { status: 201 },
+      );
+    }
+    if (
       url.endsWith(`/messages/${editedAnswerId}/regenerate`) &&
       init?.method === 'POST'
     ) {
@@ -472,6 +512,46 @@ it('preserves the regenerated assistant sibling across canonical active and term
           runId: regeneratedRunId,
         },
         { status: 201 },
+      );
+    }
+    if (url.endsWith(`/runs/${editedRunId}/events`)) {
+      const frames = [
+        {
+          version: 1,
+          type: 'start',
+          runId: editedRunId,
+          messageId: editedAnswerId,
+        },
+        {
+          version: 1,
+          type: 'text-start',
+          runId: editedRunId,
+          id: 'edited-answer-text',
+        },
+        {
+          version: 1,
+          type: 'text-delta',
+          runId: editedRunId,
+          id: 'edited-answer-text',
+          delta: 'Edited answer',
+        },
+        {
+          version: 1,
+          type: 'text-end',
+          runId: editedRunId,
+          id: 'edited-answer-text',
+        },
+        { version: 1, type: 'status', runId: editedRunId, status: 'completed' },
+        { version: 1, type: 'finish', runId: editedRunId },
+      ];
+      return new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(''),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
       );
     }
     if (url.endsWith(`/runs/${regeneratedRunId}/events`))
@@ -500,13 +580,47 @@ it('preserves the regenerated assistant sibling across canonical active and term
   );
 
   try {
-    expect(view.container.textContent).toContain('Edited answer');
+    await vi.waitFor(() =>
+      expect(view.container.textContent).toContain('Original answer'),
+    );
+
+    const originalUser = view.container.querySelector(
+      `[data-message-id="${rootUserId}"]`,
+    );
+    const editButton = originalUser?.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit message"]',
+    );
+    if (!editButton)
+      throw new Error('The original user edit control is missing.');
+    await act(async () => editButton.click());
+    const editInput = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Edit message input"]',
+    );
+    if (!editInput) throw new Error('The edit message input is missing.');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value',
+      )!.set!.call(editInput, 'Edited question');
+      editInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const sendEdit = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send edit"]',
+    );
+    if (!sendEdit) throw new Error('The send edit control is missing.');
+    await act(async () => sendEdit.click());
+    await vi.waitFor(() =>
+      expect(view.container.textContent).toContain('Edited answer'),
+    );
 
     const regenerate = view.container
       .querySelector(`[data-message-id="${editedAnswerId}"]`)
       ?.querySelector<HTMLButtonElement>('[aria-label="Regenerate answer"]');
     if (!regenerate)
       throw new Error('The edited branch regenerate control is missing.');
+    await vi.waitFor(() => expect(regenerate.disabled).toBe(false), {
+      timeout: 2500,
+    });
     await act(async () => regenerate.click());
     expect(
       fetch.mock.calls.some(
@@ -568,6 +682,284 @@ it('preserves the regenerated assistant sibling across canonical active and term
     expect(selectedLeafWrites.map(({ leafId }) => leafId)).toContain(
       regeneratedAnswerId,
     );
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
+it('keeps the edited answer as a regenerate sibling after the edit run ends through canonical terminal refresh', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const rootUserId = '22222222-2222-4222-8222-222222222222';
+  const originalAnswerId = '33333333-3333-4333-8333-333333333333';
+  const editedAnswerId = '55555555-5555-4555-8555-555555555555';
+  const regeneratedAnswerId = '66666666-6666-4666-8666-666666666666';
+  const editedRunId = '99999999-9999-4999-8999-999999999999';
+  const regeneratedRunId = '77777777-7777-4777-8777-777777777777';
+  let editedUserId: string | undefined;
+  const assistant = (
+    id: string,
+    parentId: string,
+    runId: string,
+    text: string,
+    status: 'running' | 'completed',
+    createdAt: string,
+  ) => ({
+    id,
+    role: 'assistant' as const,
+    parentId,
+    runId,
+    text,
+    status,
+    reasoningSummary: null,
+    reasoningDurationMs: null,
+    feedback: null,
+    createdAt,
+  });
+  const makeTree = (state: 'initial' | 'edited' | 'regenerated'): ChatTree => {
+    const edited =
+      state === 'initial'
+        ? []
+        : [
+            {
+              id: editedUserId!,
+              role: 'user' as const,
+              parentId: null,
+              text: 'Edited question',
+              effort: 'high' as const,
+              createdAt: '2026-11-11T00:00:02.000Z',
+            },
+            assistant(
+              editedAnswerId,
+              editedUserId!,
+              editedRunId,
+              'Edited answer',
+              'completed',
+              '2026-11-11T00:00:03.000Z',
+            ),
+          ];
+    return {
+      id: chatId,
+      title: 'Edited branch terminal refresh fixture',
+      messages: [
+        {
+          id: rootUserId,
+          role: 'user',
+          parentId: null,
+          text: 'Original question',
+          effort: 'high',
+          createdAt: '2026-11-11T00:00:00.000Z',
+        },
+        assistant(
+          originalAnswerId,
+          rootUserId,
+          '88888888-8888-4888-8888-888888888888',
+          'Original answer',
+          'completed',
+          '2026-11-11T00:00:01.000Z',
+        ),
+        ...edited,
+        ...(state === 'regenerated'
+          ? [
+              assistant(
+                regeneratedAnswerId,
+                editedUserId!,
+                regeneratedRunId,
+                'Regenerated answer',
+                'completed',
+                '2026-11-11T00:00:04.000Z',
+              ),
+            ]
+          : []),
+      ],
+      viewedLeafId:
+        state === 'initial'
+          ? originalAnswerId
+          : state === 'edited'
+            ? editedAnswerId
+            : regeneratedAnswerId,
+      createdAt: '2026-11-11T00:00:00.000Z',
+      updatedAt: '2026-11-11T00:00:04.000Z',
+    };
+  };
+  let editStarted = false;
+  let regenerationStarted = false;
+  let editTerminalRefreshes = 0;
+  let regeneratedTerminalRefreshes = 0;
+  const client = {
+    get: vi.fn(async () => {
+      if (!editStarted) return makeTree('initial');
+      if (!regenerationStarted) {
+        editTerminalRefreshes += 1;
+        return makeTree('edited');
+      }
+      regeneratedTerminalRefreshes += 1;
+      return makeTree('regenerated');
+    }),
+  };
+  const encoder = new TextEncoder();
+  const openStream = (runId: string, messageId: string, text: string) =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        const frames = [
+          { version: 1, type: 'start', runId, messageId },
+          { version: 1, type: 'text-start', runId, id: `${runId}-text` },
+          {
+            version: 1,
+            type: 'text-delta',
+            runId,
+            id: `${runId}-text`,
+            delta: text,
+          },
+        ];
+        for (const [index, frame] of frames.entries())
+          controller.enqueue(
+            encoder.encode(
+              `id: 1:1783814400000-${index}\ndata: ${JSON.stringify(frame)}\n\n`,
+            ),
+          );
+      },
+    });
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (
+      url.endsWith(`/messages/${rootUserId}/edit`) &&
+      init?.method === 'POST'
+    ) {
+      editedUserId = (
+        JSON.parse(String(init.body)) as { readonly newMessageId: string }
+      ).newMessageId;
+      editStarted = true;
+      return Response.json(
+        {
+          chatId,
+          userMessageId: editedUserId,
+          assistantMessageId: editedAnswerId,
+          runId: editedRunId,
+        },
+        { status: 201 },
+      );
+    }
+    if (
+      url.endsWith(`/messages/${editedAnswerId}/regenerate`) &&
+      init?.method === 'POST'
+    ) {
+      regenerationStarted = true;
+      return Response.json(
+        {
+          chatId,
+          userMessageId: editedUserId,
+          assistantMessageId: regeneratedAnswerId,
+          runId: regeneratedRunId,
+        },
+        { status: 201 },
+      );
+    }
+    const headers = {
+      'content-type': 'text/event-stream',
+      'x-lexon-stream-recovery-result': 'snapshot',
+    };
+    if (url.endsWith(`/runs/${editedRunId}/events`))
+      return new Response(
+        openStream(editedRunId, editedAnswerId, 'Edited answer'),
+        { headers },
+      );
+    if (url.endsWith(`/runs/${regeneratedRunId}/events`))
+      return new Response(
+        openStream(regeneratedRunId, regeneratedAnswerId, 'Regenerated answer'),
+        { headers },
+      );
+    if (url.endsWith('/viewed-leaf') && init?.method === 'PUT')
+      return new Response(null, { status: 204 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="tenant-1:user-1"
+        displayName="Ada"
+        orgId="tenant-1"
+        userId="user-1"
+      />
+    </QueryClientProvider>,
+  );
+
+  try {
+    await vi.waitFor(() =>
+      expect(view.container.textContent).toContain('Original answer'),
+    );
+    const editButton = view.container.querySelector<HTMLButtonElement>(
+      `[data-message-id="${rootUserId}"] [aria-label="Edit message"]`,
+    );
+    if (!editButton)
+      throw new Error('The original user edit control is missing.');
+    await act(async () => editButton.click());
+    const editInput = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Edit message input"]',
+    );
+    if (!editInput) throw new Error('The edit message input is missing.');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value',
+      )!.set!.call(editInput, 'Edited question');
+      editInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const sendEdit = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send edit"]',
+    );
+    if (!sendEdit) throw new Error('The send edit control is missing.');
+    await act(async () => sendEdit.click());
+    await vi.waitFor(() =>
+      expect(view.container.textContent).toContain('Edited answer'),
+    );
+
+    // The edit SSE stays open, so only the canonical refresh ends this run.
+    await vi.waitFor(() => expect(editTerminalRefreshes).toBeGreaterThan(0), {
+      timeout: 2500,
+    });
+    const regenerate = () =>
+      view.container.querySelector<HTMLButtonElement>(
+        `[data-message-id="${editedAnswerId}"] [aria-label="Regenerate answer"]`,
+      );
+    await vi.waitFor(() => expect(regenerate()?.disabled).toBe(false), {
+      timeout: 2500,
+    });
+    await act(async () => regenerate()!.click());
+    await vi.waitFor(
+      () => expect(view.container.textContent).toContain('Regenerated answer'),
+      { timeout: 2000 },
+    );
+    await vi.waitFor(
+      () => expect(regeneratedTerminalRefreshes).toBeGreaterThan(0),
+      { timeout: 2500 },
+    );
+    await vi.waitFor(() => {
+      const regeneratedMessage = view.container.querySelector(
+        `[data-message-id="${regeneratedAnswerId}"]`,
+      );
+      expect(
+        regeneratedMessage?.querySelector('[aria-label="Previous branch"]'),
+      ).not.toBeNull();
+      expect(regeneratedMessage?.textContent).toContain('2 / 2');
+    });
+
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>(
+          `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
+        )!
+        .click(),
+    );
+    await vi.waitFor(() => {
+      expect(view.container.textContent).toContain('Edited answer');
+      expect(view.container.textContent).not.toContain('Regenerated answer');
+      expect(view.container.textContent).toContain('1 / 2');
+    });
   } finally {
     await view.unmount();
     vi.stubGlobal('fetch', originalFetch);

@@ -10,11 +10,11 @@ const workflow = readFileSync(
 test('hosted load is informational while the unchanged load command still runs and uploads evidence', () => {
   assert.match(
     workflow,
-    /chat-sse-load:\n(?:[^\n]*\n)*?    continue-on-error: true\n/u,
+    /chat-sse-load:\n(?:[^\n]*\n)*? {4}continue-on-error: true\n/u,
   );
   assert.match(workflow, /run: pnpm test:load:chat/u);
   assert.match(
     workflow,
-    /name: Upload safe chat SSE load evidence\n        if: always\(\)/u,
+    /name: Upload safe chat SSE load evidence\n {8}if: always\(\)/u,
   );
 });

@@ -401,86 +401,13 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   ).toHaveCount(0);
   const originalAssistantId =
     await assistantMessage.getAttribute('data-message-id');
-  let regenerateResponseStatus: number | undefined;
-  let regenerateResponseBody:
-    | Promise<{
-        readonly chatId?: string;
-        readonly userMessageId?: string;
-        readonly assistantMessageId?: string;
-        readonly runId?: string;
-      }>
-    | undefined;
-  const captureRegenerateResponse = (
-    response: import('@playwright/test').Response,
-  ) => {
-    if (
-      response.request().method() === 'POST' &&
-      response.url().endsWith(`/messages/${originalAssistantId}/regenerate`)
-    ) {
-      regenerateResponseStatus = response.status();
-      regenerateResponseBody = response.json();
-    }
-  };
-  page.on('response', captureRegenerateResponse);
   await page.getByRole('button', { name: 'Regenerate answer' }).click();
   await expect
     .poll(() => assistantMessage.getAttribute('data-message-id'))
     .not.toBe(originalAssistantId);
-  page.off('response', captureRegenerateResponse);
   await expect(
     page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
   ).toBeVisible({ timeout: 20_000 });
-  const regenerateResult = await regenerateResponseBody;
-  const chatId = new URL(page.url()).pathname.split('/').at(-1);
-  const canonicalResponse = await page.request.get(
-    `${stack.apiUrl}/api/chats/${chatId}`,
-    { headers },
-  );
-  const canonicalTree = (await canonicalResponse.json()) as {
-    readonly viewedLeafId?: string | null;
-    readonly messages?: readonly {
-      readonly id: string;
-      readonly role: string;
-      readonly parentId: string | null;
-      readonly status?: string;
-      readonly runId?: string;
-    }[];
-  };
-  const canonicalMessages = canonicalTree.messages ?? [];
-  const visibleAssistantIds = await page
-    .locator('[data-role="assistant"]')
-    .evaluateAll((nodes) =>
-      nodes
-        .map((node) => node.getAttribute('data-message-id'))
-        .filter((id): id is string => id !== null),
-    );
-  console.log(
-    `F4_BRANCH_DIAG ${JSON.stringify({
-      regeneratePost: {
-        status: regenerateResponseStatus ?? null,
-        chatId: regenerateResult?.chatId ?? null,
-        userMessageId: regenerateResult?.userMessageId ?? null,
-        originalAssistantId,
-        assistantMessageId: regenerateResult?.assistantMessageId ?? null,
-        runId: regenerateResult?.runId ?? null,
-      },
-      canonicalGet: {
-        status: canonicalResponse.status(),
-        viewedLeafId: canonicalTree.viewedLeafId ?? null,
-        messages: canonicalMessages.map((message) => ({
-          id: message.id,
-          role: message.role,
-          parentId: message.parentId,
-          status: message.status ?? null,
-          runId: message.runId ?? null,
-        })),
-      },
-      visibleAssistantIds,
-      previousBranchButtonCount: await assistantMessage
-        .getByRole('button', { name: 'Previous branch' })
-        .count(),
-    })}`,
-  );
   await expect(
     assistantMessage.getByRole('button', { name: 'Previous branch' }),
   ).toBeVisible();

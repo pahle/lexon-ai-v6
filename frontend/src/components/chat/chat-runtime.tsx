@@ -17,6 +17,7 @@ import {
   ComposerPrimitive,
   bindExternalStoreMessage,
   fromThreadMessageLike,
+  getExternalStoreMessages,
 } from '@assistant-ui/react';
 import type {
   AppendMessage,
@@ -196,7 +197,8 @@ function ChatRuntimeSession({
             const currentRepository = currentThreadRuntime.export();
             const branchChangedDuringStop =
               selectedLeafIdRef.current !== selectedLeafBeforeStop;
-            currentThreadRuntime.import(
+            importCanonicalTerminalRepository(
+              currentThreadRuntime,
               reconcileCanonicalTerminalMessages(
                 currentRepository,
                 freshTree,
@@ -205,6 +207,7 @@ function ChatRuntimeSession({
                   : visibleLeafBeforeStop,
                 visibleMessagesBeforeStop,
               ),
+              chat.setMessages,
             );
           }
           setServerActiveRunId(undefined);
@@ -221,7 +224,14 @@ function ChatRuntimeSession({
       active = false;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [chat.stop, onTreeRefresh, onTreeUpdate, serverActiveRunId, transport]);
+  }, [
+    chat.setMessages,
+    chat.stop,
+    onTreeRefresh,
+    onTreeUpdate,
+    serverActiveRunId,
+    transport,
+  ]);
 
   const initialRunId = activeRun?.runId;
   const resumedRunRef = useRef<string | undefined>(undefined);
@@ -359,6 +369,47 @@ function findActiveRun(
       (message.status === 'queued' ||
         message.status === 'running' ||
         message.status === 'cancelling'),
+  );
+}
+
+/**
+ * After `import()`, assistant-ui treats the first host message update whose
+ * path differs from the imported path as an import-path change; when that
+ * update starts a run (Regenerate), it resets the head to the run's parent and
+ * prunes the parent's children, deleting the sibling being regenerated.
+ * Import with the head at the leaf's parent, then hand the leaf path back as an
+ * ordinary host update, so that change is consumed while no run is starting.
+ */
+function importCanonicalTerminalRepository(
+  thread: { import(repository: ExportedMessageRepository): void },
+  repository: ExportedMessageRepository,
+  setMessages: (messages: ChatUIMessage[]) => void,
+): void {
+  const entries = new Map(
+    repository.messages.map((entry) => [entry.message.id, entry]),
+  );
+  const head =
+    repository.headId === undefined || repository.headId === null
+      ? undefined
+      : entries.get(repository.headId);
+  if (
+    !head ||
+    head.parentId === null ||
+    repository.messages.some((entry) => entry.parentId === head.message.id)
+  ) {
+    thread.import(repository);
+    return;
+  }
+  const path: ThreadMessage[] = [];
+  for (
+    let entry: (typeof repository.messages)[number] | undefined = head;
+    entry;
+    entry = entry.parentId === null ? undefined : entries.get(entry.parentId)
+  )
+    path.unshift(entry.message);
+  thread.import({ ...repository, headId: head.parentId });
+  setMessages(
+    path.flatMap((message) => getExternalStoreMessages<ChatUIMessage>(message)),
   );
 }
 
