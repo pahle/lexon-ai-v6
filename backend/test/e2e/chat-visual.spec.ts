@@ -35,8 +35,19 @@ const fileNames = {
 } as const;
 const question =
   'Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?';
-const answer =
-  'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian: kesepakatan, kecakapan, suatu hal tertentu, dan sebab yang halal. Kesepakatan dan kecakapan adalah syarat subjektif; cacat pada salah satunya membuat perjanjian dapat dibatalkan. Objek dan sebab yang halal adalah syarat objektif; jika salah satunya tidak terpenuhi, perjanjian batal demi hukum.';
+const deepThinkingQuestion =
+  'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.';
+const answer = `Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:
+
+1. **Kesepakatan** para pihak yang mengikatkan dirinya.
+2. **Kecakapan** untuk membuat suatu perikatan.
+3. **Suatu hal tertentu** sebagai objek perjanjian.
+4. **Suatu sebab yang halal**.
+
+### Akibat jika syarat tidak terpenuhi
+
+- Syarat 1 dan 2 adalah **syarat subjektif**. Jika tidak terpenuhi, perjanjian **dapat dibatalkan** atas permintaan pihak yang dirugikan; selama belum dibatalkan, perjanjian tetap mengikat.
+- Syarat 3 dan 4 adalah **syarat objektif**. Jika tidak terpenuhi, perjanjian **batal demi hukum**, dianggap tidak pernah ada sejak semula.`;
 const reasoning =
   'The question asks for the four requirements in Article 1320. Distinguish subjective requirements from objective requirements, then explain the different legal consequences.';
 const timestamp = '2026-11-14T03:30:00.000Z';
@@ -625,13 +636,20 @@ async function openState(page: Page, baseUrl: string, state: string) {
   await page.goto(`${baseUrl}/workspace`);
   await expect(page.getByText('Welcome, Ayu Wardani')).toBeVisible();
   if (state === 'deep-thinking-on') {
+    await page
+      .getByRole('textbox', { name: 'Message input' })
+      .fill(deepThinkingQuestion);
     const toggle = page.getByRole('button', { name: 'Deep thinking' });
     await toggle.hover();
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await page.mouse.move(0, 0);
     await toggle.hover();
-    await expect(page.getByRole('tooltip')).toBeVisible();
+    const tooltip = page.locator('[data-slot="tooltip-content"][data-open]');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText(
+      'Deep thinking: takes longer and uses more of your budget.',
+    );
   }
   if (state === 'organization-switcher-open' || state === 'user-menu-open') {
     if (await page.getByRole('button', { name: 'Open navigation' }).count())

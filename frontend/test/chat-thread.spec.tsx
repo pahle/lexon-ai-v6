@@ -2,6 +2,8 @@ import { act, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatView } from '../src/components/chat/chat-view.js';
+import { TooltipProvider } from '../src/components/ui/tooltip.js';
+import { TooltipIconButton } from '../src/components/assistant-ui/elements/tooltip-icon-button.js';
 import { rememberChatSearchHighlight } from '../src/lib/chat-search-highlight.js';
 import { render, settle } from './render.js';
 
@@ -43,6 +45,165 @@ function wrapped(node: ReactNode) {
     <QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>
   );
 }
+
+async function expectTooltipOpen(expected: string) {
+  await vi.waitFor(() => {
+    expect(
+      document.body.querySelector('[data-slot="tooltip-content"][data-open]')
+        ?.textContent,
+    ).toBe(expected);
+  });
+}
+
+async function hoverAndFocus(button: HTMLButtonElement, expected: string) {
+  await act(async () => {
+    button.dispatchEvent(
+      new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
+    );
+    button.dispatchEvent(
+      new PointerEvent('pointerenter', { pointerType: 'mouse' }),
+    );
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('mouseenter'));
+  });
+  await expectTooltipOpen(expected);
+  await act(async () => {
+    button.dispatchEvent(
+      new PointerEvent('pointerout', {
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
+    );
+    button.dispatchEvent(
+      new PointerEvent('pointerleave', { pointerType: 'mouse' }),
+    );
+    button.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('mouseleave'));
+  });
+  await vi.waitFor(() => {
+    expect(
+      document.body.querySelector('[data-slot="tooltip-content"][data-open]'),
+    ).toBeNull();
+  });
+  await act(async () => {
+    button.focus();
+  });
+  await expectTooltipOpen(expected);
+}
+
+it('opens the existing tooltip on native mouse hover and keyboard focus', async () => {
+  const view = await render(
+    <TooltipIconButton tooltip="Existing tooltip" type="button">
+      Help
+    </TooltipIconButton>,
+  );
+  try {
+    const button = view.container.querySelector('button');
+    expect(button).not.toBeNull();
+    if (button) await hoverAndFocus(button, 'Existing tooltip');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('explains Deep thinking on hover and focus in the new-chat composer', async () => {
+  const view = await render(
+    <TooltipProvider>
+      {wrapped(
+        <ChatView
+          client={{ create: vi.fn() } as never}
+          actorScope="org:user"
+          displayName="Ada"
+          orgId="org-id"
+          userId="user-id"
+        />,
+      )}
+    </TooltipProvider>,
+  );
+  try {
+    const button = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Deep thinking"]',
+    );
+    expect(button).not.toBeNull();
+    expect(button?.getAttribute('aria-label')).toBe('Deep thinking');
+    if (button)
+      await hoverAndFocus(
+        button,
+        'Deep thinking: takes longer and uses more of your budget.',
+      );
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('explains Deep thinking on hover and focus in the thread composer', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userMessageId = '22222222-2222-4222-8222-222222222222';
+  const answerId = '33333333-3333-4333-8333-333333333333';
+  const client = {
+    get: vi.fn().mockResolvedValue({
+      id: chatId,
+      title: 'Thread fixture',
+      messages: [
+        {
+          id: userMessageId,
+          role: 'user',
+          parentId: null,
+          text: 'Review this clause',
+          effort: 'high',
+          createdAt: '2026-11-12T00:00:00.000Z',
+        },
+        {
+          id: answerId,
+          role: 'assistant',
+          parentId: userMessageId,
+          runId: '44444444-4444-4444-8444-444444444444',
+          text: 'The clause limits liability.',
+          status: 'completed',
+          reasoningSummary: null,
+          reasoningDurationMs: null,
+          feedback: null,
+          createdAt: '2026-11-12T00:00:01.000Z',
+        },
+      ],
+      viewedLeafId: answerId,
+      createdAt: '2026-11-12T00:00:00.000Z',
+      updatedAt: '2026-11-12T00:00:01.000Z',
+    }),
+  };
+  const view = await render(
+    <TooltipProvider>
+      {wrapped(
+        <ChatView
+          chatId={chatId}
+          client={client as never}
+          actorScope="org:user"
+          displayName="Ada"
+          orgId="org-id"
+          userId="user-id"
+        />,
+      )}
+    </TooltipProvider>,
+  );
+  try {
+    await settle();
+    const button = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Deep thinking"]',
+    );
+    expect(button).not.toBeNull();
+    expect(button?.getAttribute('aria-label')).toBe('Deep thinking');
+    if (button)
+      await hoverAndFocus(
+        button,
+        'Deep thinking: takes longer and uses more of your budget.',
+      );
+  } finally {
+    await view.unmount();
+  }
+});
 
 it('creates a server chat only after an accepted text send and navigates to its stable URL', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';

@@ -2,6 +2,11 @@
 
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button';
 import { Thread } from '@/components/assistant-ui/elements/thread.aui';
 import { ChatRuntime } from './chat-runtime';
@@ -260,17 +265,28 @@ function ChatViewSession({
           />
           <div className="flex flex-nowrap items-center justify-between gap-3 pt-2">
             <div className="flex min-w-0 flex-nowrap items-center gap-3">
-              <Button
-                type="button"
-                variant={effort === 'max' ? 'secondary' : 'outline'}
-                size="sm"
-                className="rounded-full"
-                aria-label="Deep thinking"
-                aria-pressed={effort === 'max'}
-                onClick={() => setEffort(effort === 'max' ? 'high' : 'max')}
-              >
-                <BrainIcon aria-hidden="true" /> Deep thinking
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant={effort === 'max' ? 'secondary' : 'outline'}
+                      size="sm"
+                      className="rounded-full"
+                      aria-label="Deep thinking"
+                      aria-pressed={effort === 'max'}
+                      onClick={() =>
+                        setEffort(effort === 'max' ? 'high' : 'max')
+                      }
+                    />
+                  }
+                >
+                  <BrainIcon aria-hidden="true" /> Deep thinking
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Deep thinking: takes longer and uses more of your budget.
+                </TooltipContent>
+              </Tooltip>
               {bytes >= MAX_PROMPT_BYTES - 512 && bytes <= MAX_PROMPT_BYTES ? (
                 <span className="text-muted-foreground shrink-0 whitespace-nowrap text-xs">
                   {MAX_PROMPT_BYTES - bytes} bytes left

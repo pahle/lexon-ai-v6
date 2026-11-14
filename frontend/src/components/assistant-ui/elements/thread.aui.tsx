@@ -3,6 +3,11 @@
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { MarkdownText } from '@/components/chat/markdown-text';
 import { PersistedReasoning } from '@/components/chat/chat-reasoning';
 import { ChatComposerCancel } from '@/components/chat/chat-runtime';
@@ -744,17 +749,28 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           aria-label="Message input"
         />
         <div className="aui-composer-action-wrapper relative flex flex-nowrap items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant={effort === 'max' ? 'secondary' : 'outline'}
-            size="sm"
-            className="shrink-0 whitespace-nowrap"
-            aria-label="Deep thinking"
-            aria-pressed={effort === 'max'}
-            onClick={() => onEffortChange?.(effort === 'max' ? 'high' : 'max')}
-          >
-            <BrainIcon aria-hidden="true" /> Deep thinking
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant={effort === 'max' ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="shrink-0 whitespace-nowrap"
+                  aria-label="Deep thinking"
+                  aria-pressed={effort === 'max'}
+                  onClick={() =>
+                    onEffortChange?.(effort === 'max' ? 'high' : 'max')
+                  }
+                />
+              }
+            >
+              <BrainIcon aria-hidden="true" /> Deep thinking
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Deep thinking: takes longer and uses more of your budget.
+            </TooltipContent>
+          </Tooltip>
           {running ? (
             <ChatComposerCancel
               render={
