@@ -555,8 +555,16 @@ async function openState(page: Page, baseUrl: string, state: string) {
       await search.fill(query);
       await search.press('Enter');
       if (state === 'matching-message-highlight') {
-        await page
-          .getByRole('button', { name: new RegExp(fileNames.default) })
+        const main = page.locator('#main');
+        await expect(main.getByText('3 chats', { exact: true })).toBeVisible();
+        const escapedTitle = fileNames.default.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&',
+        );
+        await main
+          .getByRole('button', {
+            name: new RegExp(`^${escapedTitle}(?:\\s|$)`),
+          })
           .click();
         await expect(page).toHaveURL(`${baseUrl}/chats/${chatId}`);
         await expect(
