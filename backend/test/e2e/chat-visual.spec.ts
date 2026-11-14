@@ -620,7 +620,7 @@ async function openState(page: Page, baseUrl: string, state: string) {
     if (state === 'stopped')
       await expect(page.getByText('Stopped', { exact: true })).toBeVisible();
     if (state === 'run-error')
-      await expect(page.getByRole('alert')).toContainText(
+      await expect(page.locator('#main').getByRole('alert')).toContainText(
         'The response could not be completed.',
       );
     if (state === 'no-signal-completion') {
@@ -661,8 +661,15 @@ async function openState(page: Page, baseUrl: string, state: string) {
   }
   if (state === 'sidebar-expanded' && viewportWidth(page) === 390)
     await page.getByRole('button', { name: 'Open navigation' }).click();
-  if (state === 'sidebar-collapsed' && viewportWidth(page) === 1440)
-    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  if (state === 'sidebar-collapsed' && viewportWidth(page) === 1440) {
+    const collapseSidebar = page.getByRole('button', {
+      name: 'Collapse sidebar',
+    });
+    if (await collapseSidebar.isVisible()) await collapseSidebar.click();
+    await expect(
+      page.getByRole('button', { name: 'Expand sidebar' }),
+    ).toBeVisible();
+  }
 }
 
 function viewportWidth(page: Page) {
