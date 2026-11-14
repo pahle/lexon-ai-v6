@@ -1,7 +1,9 @@
 # Agent skills
 
 Third-party skills vendored from official vendors or core maintainers, read
-by Codex from `.agents/skills/`. Sources and pinned commits are in
+by Codex from `.agents/skills/`. Claude Code reads the same skills through
+relative symlinks in `.claude/skills/` (one per skill; add a symlink when a
+skill is vendored). Sources and pinned commits are in
 [`skills-lock.json`](skills-lock.json); each skill keeps its upstream license.
 
 ## Policy

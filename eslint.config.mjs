@@ -13,6 +13,7 @@ export default ts.config(
       '**/.stryker-tmp/**',
       '**/reports/**',
       '.agents/**',
+      '.claude/**',
       '.superpowers/**',
       '.cache/**',
     ],

@@ -1,4 +1,5 @@
 .agents/
+.claude/
 .superpowers/
 .cache/
 pnpm-lock.yaml
