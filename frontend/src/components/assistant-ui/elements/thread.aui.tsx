@@ -672,18 +672,7 @@ const ThreadEditComposer: FC<{
           Messages can be up to 16,384 bytes.
         </p>
       ) : null}
-      <div className="flex items-center gap-2">
-        <ComposerPrimitive.Send
-          render={
-            <Button
-              aria-label="Save edit"
-              size="sm"
-              onClick={validateAndArmEdit}
-            >
-              Save
-            </Button>
-          }
-        />
+      <div className="flex items-center justify-end gap-2">
         <ComposerPrimitive.Cancel
           render={
             <Button
@@ -701,6 +690,17 @@ const ThreadEditComposer: FC<{
             >
               <XIcon aria-hidden="true" />
               Cancel
+            </Button>
+          }
+        />
+        <ComposerPrimitive.Send
+          render={
+            <Button
+              aria-label="Send edit"
+              size="sm"
+              onClick={validateAndArmEdit}
+            >
+              Send
             </Button>
           }
         />

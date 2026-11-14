@@ -543,6 +543,86 @@ it('does not create a duplicate per-thread title invalidation subscription', asy
   }
 });
 
+it('renders the edit submit as Send after Cancel with accessible name Send edit', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userMessageId = '22222222-2222-4222-8222-222222222222';
+  const answerId = '33333333-3333-4333-8333-333333333333';
+  const client = {
+    get: vi.fn().mockResolvedValue({
+      id: chatId,
+      title: 'Thread fixture',
+      messages: [
+        {
+          id: userMessageId,
+          role: 'user',
+          parentId: null,
+          text: 'Review this clause',
+          effort: 'high',
+          createdAt: '2026-11-12T00:00:00.000Z',
+        },
+        {
+          id: answerId,
+          role: 'assistant',
+          parentId: userMessageId,
+          runId: '44444444-4444-4444-8444-444444444444',
+          text: 'The clause limits liability.',
+          status: 'completed',
+          reasoningSummary: null,
+          reasoningDurationMs: null,
+          feedback: null,
+          createdAt: '2026-11-12T00:00:01.000Z',
+        },
+      ],
+      viewedLeafId: answerId,
+      createdAt: '2026-11-12T00:00:00.000Z',
+      updatedAt: '2026-11-12T00:00:01.000Z',
+    }),
+  };
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const editMessage = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit message"]',
+    );
+    expect(editMessage).not.toBeNull();
+    if (!editMessage) return;
+    await act(async () => editMessage.click());
+    await settle();
+
+    const cancel = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Cancel edit"]',
+    );
+    const sendEdit = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send edit"]',
+    );
+    expect(cancel).not.toBeNull();
+    expect(sendEdit).not.toBeNull();
+    if (!cancel || !sendEdit) return;
+    expect(cancel.textContent).toContain('Cancel');
+    expect(sendEdit.tagName).toBe('BUTTON');
+    expect(sendEdit.getAttribute('aria-label')).toBe('Send edit');
+    expect(sendEdit.textContent?.trim()).toBe('Send');
+    expect(sendEdit.hidden).toBe(false);
+    expect(
+      cancel.compareDocumentPosition(sendEdit) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('renders a persisted answer through the proven runtime and saves feedback against its message ID', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';
   const userMessageId = '22222222-2222-4222-8222-222222222222';
@@ -646,7 +726,7 @@ it('renders a persisted answer through the proven runtime and saves feedback aga
       view.container.querySelector('[aria-label="Edit message input"]'),
     ).not.toBeNull();
     expect(
-      view.container.querySelector('[aria-label="Save edit"]'),
+      view.container.querySelector('[aria-label="Send edit"]'),
     ).not.toBeNull();
     expect(
       view.container.querySelector('[aria-label="Send message"]'),

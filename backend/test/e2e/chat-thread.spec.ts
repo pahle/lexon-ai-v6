@@ -362,14 +362,14 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await editButton.click();
   await expect(edit).toBeFocused();
   await edit.fill('🧾'.repeat(4_097));
-  await page.getByRole('button', { name: 'Save edit' }).click();
+  await page.getByRole('button', { name: 'Send edit' }).click();
   await expect(edit).toBeVisible();
   await expect(
     page.locator('form').filter({ has: edit }).getByRole('alert'),
   ).toContainText('16,384 bytes');
   await expect(edit).toHaveValue('🧾'.repeat(4_097));
   await edit.fill('[runtime-proof:edit] revise this clause');
-  await page.getByRole('button', { name: 'Save edit' }).click();
+  await page.getByRole('button', { name: 'Send edit' }).click();
   await expect(
     page
       .locator('[data-role="user"]')

@@ -132,6 +132,24 @@ function assistantMessage(
 }
 
 function chatTree(state: string): ChatTree {
+  if (state === 'matching-message-highlight') {
+    const matchedUser = {
+      ...userMessage(),
+      text: 'What remedies are available to a party when the other party commits wanprestasi under a supply agreement?',
+    };
+    const matchedAssistant = {
+      ...assistantMessage('answer-complete'),
+      text: 'Under Article 1267 of the Indonesian Civil Code, the injured party may seek performance, damages, or cancellation of the agreement, depending on the circumstances.',
+    };
+    return ChatTreeSchema.parse({
+      id: chatId,
+      title: fileNames.default,
+      messages: [matchedUser, matchedAssistant],
+      viewedLeafId: matchedAssistant.id,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
   if (state === 'edited-branch') {
     const firstUser = userMessage();
     const firstAssistant = assistantMessage(
@@ -142,11 +160,14 @@ function chatTree(state: string): ChatTree {
       ...userMessage('00000000-0000-4000-8000-000000000105'),
       text: 'Apa saja syarat sah perjanjian menurut KUHPerdata? Jawab singkat.',
     };
-    const editedAssistant = assistantMessage(
-      'answer-complete',
-      '00000000-0000-4000-8000-000000000106',
-      editedUser.id,
-    );
+    const editedAssistant = {
+      ...assistantMessage(
+        'answer-complete',
+        '00000000-0000-4000-8000-000000000106',
+        editedUser.id,
+      ),
+      text: 'Singkatnya, ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syarat objektif (hal tertentu dan sebab yang halal) dalam Pasal 1320 KUHPerdata.\n\nPelanggaran syarat subjektif membuat perjanjian dapat dibatalkan; pelanggaran syarat objektif membuatnya batal demi hukum.',
+    };
     return ChatTreeSchema.parse({
       id: chatId,
       title: fileNames.newChat,
@@ -205,6 +226,15 @@ function chatList(state: string) {
   });
 }
 
+function searchExcerpt(excerpt: string) {
+  const matchStart = excerpt.indexOf('wanprestasi');
+  return {
+    excerpt,
+    matchStart,
+    matchEnd: matchStart + 'wanprestasi'.length,
+  };
+}
+
 function searchPage(state: string, query: string) {
   const matches =
     state === 'chats-no-results' || query === 'hak tanggungan'
@@ -214,30 +244,27 @@ function searchPage(state: string, query: string) {
             chatId,
             title: fileNames.default,
             messageId: userMessageId,
-            excerpt:
+            ...searchExcerpt(
               'Upaya hukum atas wanprestasi meliputi pemenuhan perikatan, ganti rugi, atau pembatalan berdasarkan Pasal 1267 KUHPerdata.',
-            matchStart: 17,
-            matchEnd: 28,
+            ),
             updatedAt: timestamp,
           },
           {
             chatId: '00000000-0000-4000-8000-000000000113',
             title: fileNames.forceMajeure,
             messageId: null,
-            excerpt:
+            ...searchExcerpt(
               'Keadaan memaksa dapat memengaruhi tanggung jawab atas wanprestasi dalam perjanjian pasokan.',
-            matchStart: 54,
-            matchEnd: 65,
+            ),
             updatedAt: '2026-11-10T03:30:00.000Z',
           },
           {
             chatId: '00000000-0000-4000-8000-000000000116',
             title: fileNames.newChat,
             messageId: null,
-            excerpt:
+            ...searchExcerpt(
               'Cacat syarat subjektif berbeda dari wanprestasi dalam pelaksanaan perjanjian.',
-            matchStart: 36,
-            matchEnd: 47,
+            ),
             updatedAt: '2026-11-13T03:30:00.000Z',
           },
         ];
@@ -401,6 +428,17 @@ async function installRunStreamFixture(page: Page) {
     }) => {
       const nativeFetch = window.fetch.bind(window);
       let reconnectAttempts = 0;
+      let disconnectFirstStream: (() => void) | undefined;
+      const fixtureWindow = window as Window & {
+        __chatVisualDisconnectRun?: () => boolean;
+      };
+      fixtureWindow.__chatVisualDisconnectRun = () => {
+        if (!disconnectFirstStream) return false;
+        const disconnect = disconnectFirstStream;
+        disconnectFirstStream = undefined;
+        disconnect();
+        return true;
+      };
       window.fetch = async (input, init) => {
         const requestUrl =
           typeof input === 'string' || input instanceof URL
@@ -415,10 +453,7 @@ async function installRunStreamFixture(page: Page) {
         const state = new URL(window.location.href).searchParams.get(
           'capture_state',
         );
-        if (state === 'reconnecting') {
-          reconnectAttempts += 1;
-          if (reconnectAttempts === 1)
-            throw new TypeError('Transient chat stream interruption');
+        if (state === 'reconnecting' && reconnectAttempts > 0) {
           return await new Promise<Response>((_resolve, reject) => {
             const fail = () =>
               reject(new DOMException('Aborted', 'AbortError'));
@@ -427,23 +462,38 @@ async function installRunStreamFixture(page: Page) {
           });
         }
 
+        const disconnectAfterPartialAnswer = state === 'reconnecting';
+        if (disconnectAfterPartialAnswer) reconnectAttempts += 1;
         const streamFrames =
-          state === 'streaming-answer' ? frames.streaming : frames.thinking;
+          state === 'streaming-answer' || disconnectAfterPartialAnswer
+            ? frames.streaming
+            : frames.thinking;
         const encoder = new TextEncoder();
         const frameSeparator = '\n\n';
         const body = new ReadableStream<Uint8Array>({
           start(controller) {
+            let settled = false;
+            const close = () => {
+              if (settled) return;
+              settled = true;
+              controller.close();
+            };
             for (const frame of streamFrames)
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify(frame)}${frameSeparator}`,
                 ),
               );
-            if (signal?.aborted) controller.close();
-            else
-              signal?.addEventListener('abort', () => controller.close(), {
-                once: true,
-              });
+            if (disconnectAfterPartialAnswer)
+              disconnectFirstStream = () => {
+                if (settled) return;
+                settled = true;
+                controller.error(
+                  new TypeError('Transient chat stream interruption'),
+                );
+              };
+            if (signal?.aborted) close();
+            else signal?.addEventListener('abort', close, { once: true });
           },
         });
         return new Response(body, {
@@ -566,6 +616,20 @@ async function openState(page: Page, baseUrl: string, state: string) {
       ).toBeVisible();
     }
     if (state === 'reconnecting') {
+      await expect(
+        page.getByRole('button', { name: 'Stop generating' }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/Pasal 1320 KUHPerdata menetapkan/).first(),
+      ).toBeVisible();
+      await expect(page.getByText('Reconnecting…')).toHaveCount(0);
+      const disconnected = await page.evaluate(() => {
+        const fixtureWindow = window as Window & {
+          __chatVisualDisconnectRun?: () => boolean;
+        };
+        return fixtureWindow.__chatVisualDisconnectRun?.() ?? false;
+      });
+      expect(disconnected).toBe(true);
       await expect(page.getByText('Reconnecting…')).toBeVisible();
       await expect(
         page.getByRole('button', { name: 'Stop generating' }),
@@ -583,6 +647,7 @@ async function openState(page: Page, baseUrl: string, state: string) {
     if (
       state === 'answer-complete' ||
       state === 'copied-and-feedback' ||
+      state === 'stopped' ||
       state === 'no-signal-completion' ||
       state === 'measured-no-summary-completion'
     )
