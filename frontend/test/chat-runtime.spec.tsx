@@ -1533,9 +1533,37 @@ it('shows the empty placeholder in both public runtime and SDK state before dire
   const userId = '22222222-2222-4222-8222-222222222222';
   const assistantId = '33333333-3333-4333-8333-333333333333';
   const runId = '44444444-4444-4444-8444-444444444444';
-  const response = new Response('', {
-    headers: { 'x-lexon-stream-recovery-result': 'snapshot' },
-  });
+  const response = new Response(
+    [
+      {
+        version: 1,
+        type: 'snapshot-start',
+        reset: true,
+        snapshot: {
+          runId,
+          messageId: assistantId,
+          attemptId: null,
+          generation: null,
+          revision: 0,
+          eventId: null,
+          status: 'completed',
+          errorCode: null,
+          reasoningDurationMs: null,
+        },
+        partCount: 0,
+        operationCount: 0,
+      },
+      { version: 1, type: 'snapshot-end', partCount: 0, operationCount: 0 },
+    ]
+      .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+      .join(''),
+    {
+      headers: {
+        'content-type': 'text/event-stream',
+        'x-lexon-stream-recovery-result': 'snapshot',
+      },
+    },
+  );
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     void input;
     void init;
