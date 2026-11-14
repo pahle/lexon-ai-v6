@@ -14,6 +14,13 @@ import { notifyIdentityFallbackHint } from '@/lib/identity-client';
 const CURSOR_PATTERN = /^[1-9]\d{0,8}:\d{1,20}-\d{1,10}$/;
 const STORAGE_PREFIX = 'lexon-chat-recovery:';
 const STORAGE_TTL_MS = 60 * 60 * 1000;
+const STREAM_RETRY_DELAYS_MS = [500, 1_000, 2_000, 4_000, 5_000] as const;
+const STREAM_INTERRUPTED_MESSAGE =
+  'Chat stream was interrupted. Reconnect to continue.';
+
+interface StreamRetryState {
+  retries: number;
+}
 
 export interface LexonChatTransportOptions {
   readonly baseUrl: string;
@@ -58,6 +65,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   private generation = 0;
   private readonly activeStreams = new Set<ReadableStream<UIMessageChunk>>();
   private readonly activeRequests = new Set<AbortController>();
+  private readonly pendingRetryWaits = new Set<AbortController>();
   private selectedLeafId: string | null;
   private persistedLeafId: string | null;
   private selectionPersisted: Promise<void> = Promise.resolve();
@@ -183,7 +191,12 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.prefixProven = false;
     this.recoveryMode = 'snapshot';
     headers.set(CHAT_STREAM_RECOVERY_HEADER, 'snapshot');
-    return this.openStream(result.runId, headers, request.abortSignal);
+    return this.openLogicalStream(
+      result.runId,
+      headers,
+      request.abortSignal,
+      generation,
+    );
   }
 
   async reconnectToStream(
@@ -204,7 +217,12 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     headers.set(CHAT_STREAM_RECOVERY_HEADER, mode);
     if (cursor) headers.set('last-event-id', cursor);
     else headers.delete('last-event-id');
-    return this.openStream(runId, headers, request.abortSignal, generation);
+    return this.openLogicalStream(
+      runId,
+      headers,
+      request.abortSignal,
+      generation,
+    );
   }
 
   async stopRun(): Promise<void> {
@@ -232,6 +250,8 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.generation += 1;
     for (const request of this.activeRequests) request.abort();
     this.activeRequests.clear();
+    for (const wait of this.pendingRetryWaits) wait.abort();
+    this.pendingRetryWaits.clear();
     for (const stream of this.activeStreams)
       void stream.cancel().catch(() => {});
     this.activeStreams.clear();
@@ -252,6 +272,14 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
       this.activeRequests.delete(requestController);
       signal?.removeEventListener('abort', forwardAbort);
     };
+    if (
+      expectedGeneration !== this.generation ||
+      this.closed ||
+      signal?.aborted
+    ) {
+      releaseRequest();
+      throw new Error('This conversation is no longer active.');
+    }
     let response: Response;
     try {
       response = await this.fetcher(
@@ -335,6 +363,319 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.activeStreams.add(stream);
     this.options.onStreamState?.('connected');
     return stream;
+  }
+
+  private async openLogicalStream(
+    runId: string,
+    headers: Headers,
+    signal: AbortSignal | undefined,
+    expectedGeneration: number,
+  ): Promise<ReadableStream<UIMessageChunk>> {
+    const retries: StreamRetryState = { retries: 0 };
+    const initialStream = await this.openStreamWithRetries(
+      runId,
+      headers,
+      signal,
+      expectedGeneration,
+      retries,
+    );
+    return this.createLogicalStream(
+      initialStream,
+      runId,
+      headers,
+      signal,
+      expectedGeneration,
+      retries,
+    );
+  }
+
+  private async openStreamWithRetries(
+    runId: string,
+    headers: Headers,
+    signal: AbortSignal | undefined,
+    expectedGeneration: number,
+    retries: StreamRetryState,
+  ): Promise<ReadableStream<UIMessageChunk>> {
+    try {
+      return await this.openStream(runId, headers, signal, expectedGeneration);
+    } catch (error) {
+      return this.openAfterFailure(
+        runId,
+        headers,
+        signal,
+        expectedGeneration,
+        retries,
+        error,
+      );
+    }
+  }
+
+  private async openAfterFailure(
+    runId: string,
+    baseHeaders: Headers,
+    signal: AbortSignal | undefined,
+    expectedGeneration: number,
+    retries: StreamRetryState,
+    failure: unknown,
+  ): Promise<ReadableStream<UIMessageChunk>> {
+    if (
+      !this.isRetryableStreamFailure(failure) ||
+      retries.retries >= STREAM_RETRY_DELAYS_MS.length ||
+      !this.isActiveGeneration(expectedGeneration, signal)
+    )
+      throw failure;
+
+    retries.retries += 1;
+    this.options.onStreamState?.('reconnecting');
+    await this.waitForRetry(
+      STREAM_RETRY_DELAYS_MS[retries.retries - 1]!,
+      signal,
+      expectedGeneration,
+    );
+    return this.openStreamWithRetries(
+      runId,
+      this.retryHeaders(baseHeaders),
+      signal,
+      expectedGeneration,
+      retries,
+    );
+  }
+
+  private createLogicalStream(
+    initialStream: ReadableStream<UIMessageChunk>,
+    runId: string,
+    baseHeaders: Headers,
+    signal: AbortSignal | undefined,
+    expectedGeneration: number,
+    retries: StreamRetryState,
+  ): ReadableStream<UIMessageChunk> {
+    const logicalAbort = new AbortController();
+    const forwardAbort = () => logicalAbort.abort(signal?.reason);
+    if (signal?.aborted) forwardAbort();
+    else signal?.addEventListener('abort', forwardAbort, { once: true });
+
+    let outputController:
+      ReadableStreamDefaultController<UIMessageChunk> | undefined;
+    let activeReader: ReadableStreamDefaultReader<UIMessageChunk> | undefined;
+    let cleanedUp = false;
+    let outputCanceled = false;
+    let outputClosed = false;
+    let pullPending = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      signal?.removeEventListener('abort', forwardAbort);
+      logicalAbort.signal.removeEventListener('abort', onLogicalAbort);
+      this.activeStreams.delete(logicalStream);
+    };
+    const isInactive = () =>
+      logicalAbort.signal.aborted ||
+      !this.isActiveGeneration(expectedGeneration, signal);
+    const closeOutput = (
+      controller: ReadableStreamDefaultController<UIMessageChunk>,
+    ) => {
+      if (outputClosed || outputCanceled) return;
+      outputClosed = true;
+      cleanup();
+      controller.close();
+    };
+    const releaseReader = (
+      reader: ReadableStreamDefaultReader<UIMessageChunk>,
+    ) => {
+      try {
+        reader.releaseLock();
+      } catch {
+        // A canceled reader may already have released its lock.
+      }
+      if (activeReader === reader) activeReader = undefined;
+    };
+    const cancelReader = (reason?: unknown) => {
+      const reader = activeReader;
+      if (!reader) return;
+      void reader
+        .cancel(reason)
+        .catch(() => {})
+        .finally(() => {
+          if (!pullPending && activeReader === reader) releaseReader(reader);
+        });
+    };
+    const onLogicalAbort = () => {
+      cancelReader(logicalAbort.signal.reason);
+      if (outputController) closeOutput(outputController);
+    };
+    logicalAbort.signal.addEventListener('abort', onLogicalAbort, {
+      once: true,
+    });
+
+    let source = initialStream;
+    const pullNextChunk = async (
+      controller: ReadableStreamDefaultController<UIMessageChunk>,
+    ) => {
+      if (outputCanceled || outputClosed) return;
+      if (isInactive()) {
+        closeOutput(controller);
+        return;
+      }
+
+      pullPending = true;
+      try {
+        while (true) {
+          if (outputCanceled || outputClosed) return;
+          if (isInactive()) {
+            closeOutput(controller);
+            return;
+          }
+
+          const reader = activeReader ?? (activeReader = source.getReader());
+          let result: ReadableStreamReadResult<UIMessageChunk>;
+          try {
+            result = await reader.read();
+          } catch (failure) {
+            releaseReader(reader);
+            if (outputCanceled || outputClosed) return;
+            if (isInactive()) {
+              closeOutput(controller);
+              return;
+            }
+            source = await this.openAfterFailure(
+              runId,
+              baseHeaders,
+              logicalAbort.signal,
+              expectedGeneration,
+              retries,
+              failure,
+            );
+            continue;
+          }
+
+          if (outputCanceled || outputClosed) {
+            releaseReader(reader);
+            return;
+          }
+          if (isInactive()) {
+            releaseReader(reader);
+            closeOutput(controller);
+            return;
+          }
+          if (result.done) {
+            releaseReader(reader);
+            source = await this.openAfterFailure(
+              runId,
+              baseHeaders,
+              logicalAbort.signal,
+              expectedGeneration,
+              retries,
+              new Error(STREAM_INTERRUPTED_MESSAGE),
+            );
+            continue;
+          }
+
+          controller.enqueue(result.value);
+          if (result.value.type === 'finish') {
+            releaseReader(reader);
+            outputClosed = true;
+            cleanup();
+            controller.close();
+          }
+          return;
+        }
+      } catch (error) {
+        if (outputCanceled || outputClosed) return;
+        if (isInactive()) closeOutput(controller);
+        else {
+          outputClosed = true;
+          cleanup();
+          controller.error(error);
+        }
+      } finally {
+        pullPending = false;
+      }
+    };
+
+    const logicalStream = new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        outputController = controller;
+      },
+      pull(controller) {
+        return pullNextChunk(controller);
+      },
+      async cancel(reason) {
+        outputCanceled = true;
+        logicalAbort.abort(reason);
+        cleanup();
+        const reader = activeReader;
+        if (reader) await reader.cancel(reason).catch(() => {});
+      },
+    });
+    this.activeStreams.add(logicalStream);
+    if (isInactive() && outputController) closeOutput(outputController);
+    return logicalStream;
+  }
+
+  private retryHeaders(baseHeaders: Headers): Headers {
+    const headers = mergeHeaders(baseHeaders);
+    const mode = this.prefixProven ? 'incremental' : 'snapshot';
+    this.recoveryMode = ChatStreamRecoveryModeSchema.parse(mode);
+    headers.set(CHAT_STREAM_RECOVERY_HEADER, mode);
+    if (this.cursor) headers.set('last-event-id', this.cursor);
+    else headers.delete('last-event-id');
+    return headers;
+  }
+
+  private isRetryableStreamFailure(error: unknown): boolean {
+    if (error instanceof ChatClientError)
+      return error.code !== 'AI_ACCESS_REVOKED' && error.status >= 500;
+    return (
+      error instanceof Error && error.message === STREAM_INTERRUPTED_MESSAGE
+    );
+  }
+
+  private isActiveGeneration(
+    expectedGeneration: number,
+    signal: AbortSignal | undefined,
+  ): boolean {
+    return (
+      !this.closed &&
+      expectedGeneration === this.generation &&
+      signal?.aborted !== true
+    );
+  }
+
+  private waitForRetry(
+    delayMs: number,
+    signal: AbortSignal | undefined,
+    expectedGeneration: number,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const wait = new AbortController();
+      this.pendingRetryWaits.add(wait);
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, delayMs);
+      const cleanup = () => {
+        clearTimeout(timer);
+        wait.signal.removeEventListener('abort', onWaitAbort);
+        signal?.removeEventListener('abort', onSignalAbort);
+        this.pendingRetryWaits.delete(wait);
+      };
+      const onWaitAbort = () => {
+        cleanup();
+        reject(
+          signal?.reason ?? new Error('The chat stream retry was aborted.'),
+        );
+      };
+      const onSignalAbort = () => wait.abort(signal?.reason);
+
+      wait.signal.addEventListener('abort', onWaitAbort, { once: true });
+      if (signal?.aborted) onSignalAbort();
+      else signal?.addEventListener('abort', onSignalAbort, { once: true });
+
+      if (!this.isActiveGeneration(expectedGeneration, signal)) {
+        wait.abort();
+        return;
+      }
+    });
   }
 
   private setRunId(runId: string | undefined): void {

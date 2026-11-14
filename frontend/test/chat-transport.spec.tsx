@@ -4,6 +4,93 @@ const chatId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
 const runId = '33333333-3333-4333-8333-333333333333';
 const assistantId = '44444444-4444-4444-8444-444444444444';
+const streamCursor = '1:1783814400000-2';
+
+const activeSnapshotFrames = [
+  {
+    version: 1,
+    type: 'snapshot-start',
+    reset: true,
+    snapshot: {
+      runId,
+      messageId: assistantId,
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      generation: 1,
+      revision: 3,
+      eventId: '1783814400000-2',
+      status: 'running',
+      errorCode: null,
+      reasoningDurationMs: null,
+    },
+    partCount: 1,
+    operationCount: 0,
+  },
+  {
+    version: 1,
+    type: 'snapshot-part',
+    partIndex: 0,
+    chunkIndex: 0,
+    partType: 'text',
+    id: 'attempt-1',
+    text: 'Prefix',
+    final: true,
+  },
+];
+
+function sseBody(frames: readonly unknown[], endCursor?: string): string {
+  return [
+    ...frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`),
+    ...(endCursor
+      ? [
+          `id: ${endCursor}\ndata: ${JSON.stringify({
+            version: 1,
+            type: 'snapshot-end',
+            partCount: 1,
+            operationCount: 0,
+          })}\n\n`,
+        ]
+      : []),
+  ].join('');
+}
+
+function interruptedSnapshotBody(disconnect: 'error' | 'eof' = 'error') {
+  return new ReadableStream<Uint8Array>(
+    {
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(sseBody(activeSnapshotFrames, streamCursor)),
+        );
+        setTimeout(() => {
+          if (disconnect === 'error')
+            controller.error(new TypeError('connection interrupted'));
+          else controller.close();
+        }, 0);
+      },
+    },
+    { highWaterMark: 0 },
+  );
+}
+
+function interruptedEmptyBody() {
+  return new ReadableStream<Uint8Array>(
+    {
+      start(controller) {
+        setTimeout(
+          () => controller.error(new TypeError('connection interrupted')),
+          0,
+        );
+      },
+    },
+    { highWaterMark: 0 },
+  );
+}
+
+function activeMutationResponse() {
+  return Response.json(
+    { chatId, userMessageId: userId, assistantMessageId: assistantId, runId },
+    { status: 201 },
+  );
+}
 
 it('uses the same-origin chat API and validates its persisted tree', async () => {
   const { createChatClient } = await import('../src/lib/chat-client.js');
@@ -904,6 +991,575 @@ it('reconnects with the exact Last-Event-ID and replaces a reset snapshot', asyn
   expect(streamStates).toEqual(['reconnecting', 'connected']);
 });
 
+it.each(['network error', 'HTTP 503'] as const)(
+  'retries an initial events request after an accepted message when it gets a $failure',
+  async (failure) => {
+    const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+    const requests: Array<{
+      input: string;
+      init?: RequestInit | undefined;
+    }> = [];
+    const completedSnapshot = [
+      {
+        version: 1,
+        type: 'snapshot-start',
+        reset: true,
+        snapshot: {
+          runId,
+          messageId: assistantId,
+          attemptId: null,
+          generation: null,
+          revision: 1,
+          eventId: null,
+          status: 'completed',
+          errorCode: null,
+          reasoningDurationMs: null,
+        },
+        partCount: 1,
+        operationCount: 0,
+      },
+      {
+        version: 1,
+        type: 'snapshot-part',
+        partIndex: 0,
+        chunkIndex: 0,
+        partType: 'text',
+        id: 'attempt-1',
+        text: 'Recovered answer',
+        final: true,
+      },
+      { version: 1, type: 'snapshot-end', partCount: 1, operationCount: 0 },
+    ];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        requests.push({ input: path, init });
+        if (path.endsWith('/messages')) return activeMutationResponse();
+        const eventCount = requests.filter((request) =>
+          request.input.endsWith('/events'),
+        ).length;
+        if (eventCount === 1) {
+          if (failure === 'network error')
+            throw new TypeError('connection unavailable');
+          return Response.json(
+            { error: { code: 'AI_PROVIDER_UNAVAILABLE', message: 'safe' } },
+            { status: 503 },
+          );
+        }
+        return new Response(
+          completedSnapshot
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+          {
+            headers: {
+              'content-type': 'text/event-stream',
+              'x-lexon-stream-recovery-result': 'snapshot',
+            },
+          },
+        );
+      },
+    );
+    const transport = new LexonChatTransport({
+      baseUrl: '/api',
+      chatId,
+      actorScope: 'tenant-1:user-1',
+      selectedLeafId: assistantId,
+      fetch,
+    });
+
+    vi.useFakeTimers();
+    try {
+      const sendResult = transport
+        .sendMessages({
+          trigger: 'submit-message',
+          chatId,
+          messageId: undefined,
+          messages: [
+            {
+              id: userId,
+              role: 'user',
+              parts: [{ type: 'text', text: 'Question' }],
+            },
+          ],
+          abortSignal: undefined,
+        })
+        .then(
+          (stream) => ({ status: 'fulfilled' as const, stream }),
+          (error: unknown) => ({ status: 'rejected' as const, error }),
+        );
+
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(500);
+      const result = await sendResult;
+      expect(result.status).toBe('fulfilled');
+      if (result.status !== 'fulfilled') return;
+
+      const chunks: Array<{ type: string; delta?: string }> = [];
+      const reader = result.stream.getReader();
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        chunks.push(next.value as { type: string; delta?: string });
+      }
+      const eventRequests = requests.filter((request) =>
+        request.input.endsWith('/events'),
+      );
+      const retryHeaders = new Headers(eventRequests[1]?.init?.headers);
+
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === 'text-delta')
+          .map((chunk) => chunk.delta),
+      ).toEqual(['Recovered answer']);
+      expect(eventRequests).toHaveLength(2);
+      expect(
+        eventRequests.every(
+          (request) => request.input === `/api/runs/${runId}/events`,
+        ),
+      ).toBe(true);
+      expect(retryHeaders.get('x-lexon-stream-recovery')).toBe('snapshot');
+      expect(retryHeaders.get('last-event-id')).toBeNull();
+      expect(
+        requests.filter((request) => request.input.endsWith('/messages')),
+      ).toHaveLength(1);
+    } finally {
+      transport.close();
+      vi.useRealTimers();
+    }
+  },
+);
+
+it.each(['error', 'eof'] as const)(
+  'automatically reconnects a broken active stream after a proven prefix ($disconnect)',
+  async (disconnect) => {
+    const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+    const requests: Array<{
+      input: string;
+      init?: RequestInit | undefined;
+    }> = [];
+    let savedCursorAtRetry: Record<string, unknown> | null = null;
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        requests.push({ input: path, init });
+        if (path.endsWith('/messages')) return activeMutationResponse();
+        const eventCount = requests.filter((request) =>
+          request.input.endsWith('/events'),
+        ).length;
+        if (eventCount > 1)
+          savedCursorAtRetry = JSON.parse(
+            sessionStorage.getItem(
+              `lexon-chat-recovery:tenant-1:user-1:${chatId}`,
+            ) ?? 'null',
+          ) as Record<string, unknown> | null;
+        if (eventCount === 1)
+          return new Response(interruptedSnapshotBody(disconnect), {
+            headers: {
+              'content-type': 'text/event-stream',
+              'x-lexon-stream-recovery-result': 'snapshot',
+            },
+          });
+        return new Response(
+          [
+            {
+              version: 1,
+              runId,
+              type: 'text-delta',
+              id: 'attempt-1',
+              delta: ' suffix',
+            },
+            { version: 1, runId, type: 'status', status: 'completed' },
+            { version: 1, runId, type: 'finish' },
+          ]
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+          {
+            headers: {
+              'content-type': 'text/event-stream',
+              'x-lexon-stream-recovery-result': 'incremental',
+            },
+          },
+        );
+      },
+    );
+    const streamStates: string[] = [];
+    const transport = new LexonChatTransport({
+      baseUrl: '/api',
+      chatId,
+      actorScope: 'tenant-1:user-1',
+      selectedLeafId: assistantId,
+      fetch,
+      onStreamState: (state) => streamStates.push(state),
+    });
+
+    vi.useFakeTimers();
+    try {
+      const stream = await transport.sendMessages({
+        trigger: 'submit-message',
+        chatId,
+        messageId: undefined,
+        messages: [
+          {
+            id: userId,
+            role: 'user',
+            parts: [{ type: 'text', text: 'Question' }],
+          },
+        ],
+        abortSignal: undefined,
+      });
+      const reader = stream.getReader();
+      const chunks: Array<{ type: string; delta?: string }> = [];
+      let streamError: unknown;
+      const consuming = (async () => {
+        try {
+          while (true) {
+            const result = await reader.read();
+            if (result.done) break;
+            chunks.push(result.value as { type: string; delta?: string });
+          }
+        } catch (error) {
+          streamError = error;
+        }
+      })();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(500);
+      await consuming;
+
+      const eventRequests = requests.filter((request) =>
+        request.input.endsWith('/events'),
+      );
+      const initialHeaders = new Headers(eventRequests[0]?.init?.headers);
+      const retryHeaders = new Headers(eventRequests[1]?.init?.headers);
+
+      expect(streamError).toBeUndefined();
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === 'text-delta')
+          .map((chunk) => chunk.delta),
+      ).toEqual(['Prefix', ' suffix']);
+      expect(eventRequests).toHaveLength(2);
+      expect(eventRequests.map((request) => request.input)).toEqual([
+        `/api/runs/${runId}/events`,
+        `/api/runs/${runId}/events`,
+      ]);
+      expect(initialHeaders.get('x-lexon-stream-recovery')).toBe('snapshot');
+      expect(
+        eventRequests.every(
+          (request) => request.init?.credentials === 'same-origin',
+        ),
+      ).toBe(true);
+      expect(retryHeaders.get('last-event-id')).toBe(streamCursor);
+      expect(retryHeaders.get('x-lexon-stream-recovery')).toBe('incremental');
+      expect(savedCursorAtRetry).toMatchObject({
+        actorScope: 'tenant-1:user-1',
+        chatId,
+        runId,
+        cursor: streamCursor,
+      });
+      expect(
+        requests.filter((request) => request.input.endsWith('/messages')),
+      ).toHaveLength(1);
+      expect(streamStates).toEqual(['connected', 'reconnecting', 'connected']);
+    } finally {
+      transport.close();
+      vi.useRealTimers();
+    }
+  },
+);
+
+it('does not retry an event stream after access is revoked', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const requests: string[] = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    requests.push(path);
+    if (path.endsWith('/messages')) return activeMutationResponse();
+    const eventCount = requests.filter((request) =>
+      request.endsWith('/events'),
+    ).length;
+    if (eventCount === 1)
+      return new Response(interruptedSnapshotBody(), {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    return Response.json(
+      { error: { code: 'AI_ACCESS_REVOKED', message: 'safe' } },
+      { status: 403 },
+    );
+  });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId: assistantId,
+    fetch,
+  });
+
+  vi.useFakeTimers();
+  try {
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId,
+      messageId: undefined,
+      messages: [
+        {
+          id: userId,
+          role: 'user',
+          parts: [{ type: 'text', text: 'Question' }],
+        },
+      ],
+      abortSignal: undefined,
+    });
+    const reader = stream.getReader();
+    let streamError: unknown;
+    const consuming = (async () => {
+      try {
+        while (!(await reader.read()).done) {
+          /* Drain until the access error closes the UI stream. */
+        }
+      } catch (error) {
+        streamError = error;
+      }
+    })();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(500);
+    await consuming;
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(streamError).toBeDefined();
+    expect(
+      requests.filter((request) => request.endsWith('/events')),
+    ).toHaveLength(2);
+    expect(
+      requests.filter((request) => request.endsWith('/messages')),
+    ).toHaveLength(1);
+  } finally {
+    transport.close();
+    vi.useRealTimers();
+  }
+});
+
+it('stops a pending automatic retry when the transport closes', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const requests: string[] = [];
+  const streamStates: string[] = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    requests.push(path);
+    if (path.endsWith('/messages')) return activeMutationResponse();
+    const eventCount = requests.filter((request) =>
+      request.endsWith('/events'),
+    ).length;
+    if (eventCount === 1)
+      return new Response(interruptedSnapshotBody(), {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    return new Response(interruptedEmptyBody(), {
+      headers: {
+        'content-type': 'text/event-stream',
+        'x-lexon-stream-recovery-result': 'incremental',
+      },
+    });
+  });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId: assistantId,
+    fetch,
+    onStreamState: (state) => streamStates.push(state),
+  });
+
+  vi.useFakeTimers();
+  try {
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId,
+      messageId: undefined,
+      messages: [
+        {
+          id: userId,
+          role: 'user',
+          parts: [{ type: 'text', text: 'Question' }],
+        },
+      ],
+      abortSignal: undefined,
+    });
+    const reader = stream.getReader();
+    const consuming = (async () => {
+      try {
+        while (!(await reader.read()).done) {
+          /* Drain to let transport observe body interruption. */
+        }
+      } catch {
+        // The bounded retry loop ends by surfacing its final stream error.
+      }
+    })();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(streamStates).toContain('reconnecting');
+    transport.close();
+    await vi.runAllTimersAsync();
+    await consuming;
+
+    expect(
+      requests.filter((request) => request.endsWith('/events')),
+    ).toHaveLength(1);
+    expect(
+      requests.filter((request) => request.endsWith('/messages')),
+    ).toHaveLength(1);
+  } finally {
+    transport.close();
+    vi.useRealTimers();
+  }
+});
+
+it('caps automatic event-stream retries at five without creating another mutation', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const requests: string[] = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    requests.push(path);
+    if (path.endsWith('/messages')) return activeMutationResponse();
+    const eventCount = requests.filter((request) =>
+      request.endsWith('/events'),
+    ).length;
+    return new Response(
+      eventCount === 1 ? interruptedSnapshotBody() : interruptedEmptyBody(),
+      {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result':
+            eventCount === 1 ? 'snapshot' : 'incremental',
+        },
+      },
+    );
+  });
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    selectedLeafId: assistantId,
+    fetch,
+  });
+
+  vi.useFakeTimers();
+  try {
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId,
+      messageId: undefined,
+      messages: [
+        {
+          id: userId,
+          role: 'user',
+          parts: [{ type: 'text', text: 'Question' }],
+        },
+      ],
+      abortSignal: undefined,
+    });
+    const reader = stream.getReader();
+    let streamError: unknown;
+    const consuming = (async () => {
+      try {
+        while (!(await reader.read()).done) {
+          /* Drain until the retry limit surfaces the final stream error. */
+        }
+      } catch (error) {
+        streamError = error;
+      }
+    })();
+    await vi.runAllTimersAsync();
+    await consuming;
+
+    expect(streamError).toBeDefined();
+    expect(
+      requests.filter((request) => request.endsWith('/events')),
+    ).toHaveLength(6);
+    expect(
+      requests.filter((request) => request.endsWith('/messages')),
+    ).toHaveLength(1);
+  } finally {
+    transport.close();
+    vi.useRealTimers();
+  }
+});
+
+it('preserves SSE response backpressure until the UI stream is consumed', async () => {
+  const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
+  const deltas = Array.from({ length: 16 }, (_, index) => `segment-${index}`);
+  const eventFrames = [
+    ...deltas.map(
+      (delta) =>
+        `data: ${JSON.stringify({ version: 1, runId, type: 'text-delta', id: 'attempt-1', delta })}\n\n`,
+    ),
+    `data: ${JSON.stringify({ version: 1, runId, type: 'status', status: 'completed' })}\n\n`,
+    `data: ${JSON.stringify({ version: 1, runId, type: 'finish' })}\n\n`,
+  ];
+  let producedFrames = 0;
+  let producerCanceled = false;
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        const frame = eventFrames[producedFrames];
+        if (!frame) {
+          controller.close();
+          return;
+        }
+        producedFrames += 1;
+        controller.enqueue(new TextEncoder().encode(frame));
+      },
+      cancel() {
+        producerCanceled = true;
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const fetch = vi.fn(
+    async () =>
+      new Response(body, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'incremental',
+        },
+      }),
+  );
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-backpressure',
+    initialRunId: runId,
+    fetch,
+  });
+
+  try {
+    const stream = await transport.reconnectToStream({ chatId, headers: {} });
+    if (!stream) throw new Error('The active run stream was unavailable');
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const prefetchedFrames = producedFrames;
+
+    const reader = stream.getReader();
+    const firstChunk = await reader.read();
+    await reader.cancel();
+
+    expect(prefetchedFrames).toBeLessThanOrEqual(2);
+    expect(firstChunk).toMatchObject({
+      done: false,
+      value: { type: 'text-delta', delta: deltas[0] },
+    });
+    expect(producedFrames).toBeLessThan(eventFrames.length);
+    expect(producerCanceled).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  } finally {
+    transport.close();
+  }
+});
+
 it('does not prove or store cursors from out-of-order or inconsistent snapshots', async () => {
   const { createChatUIMessageStream } =
     await import('../src/lib/chat-stream.js');
@@ -1161,6 +1817,7 @@ it('finishes recovery when the sessionStorage property getter is denied', async 
 it('proves a replay prefix and stores its checkpoint only after snapshot-end', async () => {
   const { LexonChatTransport } = await import('../src/lib/chat-transport.js');
   const cursor = '1:1783814400000-2';
+  sessionStorage.removeItem(`lexon-chat-recovery:tenant-1:user-1:${chatId}`);
   const snapshot = [
     {
       type: 'snapshot-start',
@@ -1219,26 +1876,6 @@ it('proves a replay prefix and stores its checkpoint only after snapshot-end', a
     initialRunId: runId,
     fetch: interruptedFetch,
   });
-  const interruptedStream = await interrupted.reconnectToStream({
-    chatId,
-    headers: {},
-  });
-  if (!interruptedStream)
-    throw new Error('The active run stream was unavailable');
-  const interruptedReader = interruptedStream.getReader();
-  while (!(await interruptedReader.read()).done) {
-    /* Drain the partial attempt. */
-  }
-  expect(
-    sessionStorage.getItem(`lexon-chat-recovery:tenant-1:user-1:${chatId}`),
-  ).toBeNull();
-  await interrupted.reconnectToStream({ chatId, headers: {} });
-  expect(
-    new Headers(interruptedFetch.mock.calls[1]?.[1]?.headers).get(
-      'x-lexon-stream-recovery',
-    ),
-  ).toBe('snapshot');
-
   const completeFetch = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
@@ -1258,27 +1895,79 @@ it('proves a replay prefix and stores its checkpoint only after snapshot-end', a
     initialRunId: runId,
     fetch: completeFetch,
   });
-  const completeStream = await complete.reconnectToStream({
-    chatId,
-    headers: {},
-  });
-  if (!completeStream) throw new Error('The active run stream was unavailable');
-  const completeReader = completeStream.getReader();
-  while (!(await completeReader.read()).done) {
-    /* Drain the complete snapshot. */
+
+  vi.useFakeTimers();
+  try {
+    const drainStream = async <T,>(stream: ReadableStream<T>) => {
+      const reader = stream.getReader();
+      try {
+        while (!(await reader.read()).done) {
+          /* Drain until EOF or the bounded retry error. */
+        }
+      } catch {
+        // EOF completion and exhausted retries both preserve cursor assertions.
+      }
+    };
+    const interruptedStream = await interrupted.reconnectToStream({
+      chatId,
+      headers: {},
+    });
+    if (!interruptedStream)
+      throw new Error('The active run stream was unavailable');
+    const interruptedDrain = drainStream(interruptedStream);
+    await vi.runAllTimersAsync();
+    await interruptedDrain;
+    expect(
+      sessionStorage.getItem(`lexon-chat-recovery:tenant-1:user-1:${chatId}`),
+    ).toBeNull();
+    const interruptedManualRequestIndex = interruptedFetch.mock.calls.length;
+    const interruptedManualStream = await interrupted.reconnectToStream({
+      chatId,
+      headers: {},
+    });
+    if (!interruptedManualStream)
+      throw new Error('The active run stream was unavailable');
+    expect(
+      new Headers(
+        interruptedFetch.mock.calls[interruptedManualRequestIndex]?.[1]
+          ?.headers,
+      ).get('x-lexon-stream-recovery'),
+    ).toBe('snapshot');
+    interrupted.close();
+
+    const completeStream = await complete.reconnectToStream({
+      chatId,
+      headers: {},
+    });
+    if (!completeStream)
+      throw new Error('The active run stream was unavailable');
+    const completeDrain = drainStream(completeStream);
+    await vi.runAllTimersAsync();
+    await completeDrain;
+    expect(
+      JSON.parse(
+        sessionStorage.getItem(
+          `lexon-chat-recovery:tenant-1:user-2:${chatId}`,
+        ) ?? '{}',
+      ),
+    ).toMatchObject({ runId, cursor });
+    const completeManualRequestIndex = completeFetch.mock.calls.length;
+    const completeManualStream = await complete.reconnectToStream({
+      chatId,
+      headers: {},
+    });
+    if (!completeManualStream)
+      throw new Error('The active run stream was unavailable');
+    expect(
+      new Headers(
+        completeFetch.mock.calls[completeManualRequestIndex]?.[1]?.headers,
+      ).get('x-lexon-stream-recovery'),
+    ).toBe('incremental');
+  } finally {
+    interrupted.close();
+    complete.close();
+    vi.useRealTimers();
   }
-  expect(
-    JSON.parse(
-      sessionStorage.getItem(`lexon-chat-recovery:tenant-1:user-2:${chatId}`) ??
-        '{}',
-    ),
-  ).toMatchObject({ runId, cursor });
-  await complete.reconnectToStream({ chatId, headers: {} });
-  expect(
-    new Headers(completeFetch.mock.calls[1]?.[1]?.headers).get(
-      'x-lexon-stream-recovery',
-    ),
-  ).toBe('incremental');
 });
 
 it('cancels an open response reader when the chat transport is disposed', async () => {
@@ -1369,20 +2058,39 @@ it('does not persist a cursor from an id-bearing malformed event', async () => {
     initialRunId: runId,
     fetch,
   });
-  const stream = await transport.reconnectToStream({ chatId, headers: {} });
-  if (!stream) throw new Error('The active run stream was unavailable');
-  const reader = stream.getReader();
-  while (!(await reader.read()).done) {
-    /* Drain the malformed event. */
-  }
+  vi.useFakeTimers();
+  try {
+    const stream = await transport.reconnectToStream({ chatId, headers: {} });
+    if (!stream) throw new Error('The active run stream was unavailable');
+    const reader = stream.getReader();
+    const draining = (async () => {
+      try {
+        while (!(await reader.read()).done) {
+          /* Drain until EOF or the bounded retry error. */
+        }
+      } catch {
+        // The malformed frame remains untrusted in either completion mode.
+      }
+    })();
+    await vi.runAllTimersAsync();
+    await draining;
 
-  expect(
-    sessionStorage.getItem(`lexon-chat-recovery:tenant-1:user-2:${chatId}`),
-  ).toBeNull();
-  await transport.reconnectToStream({ chatId, headers: {} });
-  expect(
-    new Headers(fetch.mock.calls[1]?.[1]?.headers).get(
-      'x-lexon-stream-recovery',
-    ),
-  ).toBe('snapshot');
+    expect(
+      sessionStorage.getItem(`lexon-chat-recovery:tenant-1:user-2:${chatId}`),
+    ).toBeNull();
+    const manualRequestIndex = fetch.mock.calls.length;
+    const manualStream = await transport.reconnectToStream({
+      chatId,
+      headers: {},
+    });
+    if (!manualStream) throw new Error('The active run stream was unavailable');
+    expect(
+      new Headers(fetch.mock.calls[manualRequestIndex]?.[1]?.headers).get(
+        'x-lexon-stream-recovery',
+      ),
+    ).toBe('snapshot');
+  } finally {
+    transport.close();
+    vi.useRealTimers();
+  }
 });

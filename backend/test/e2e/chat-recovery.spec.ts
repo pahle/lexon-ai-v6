@@ -706,6 +706,9 @@ test('recovers a held answer through Caddy after Backend API restart', async ({
       '{{.State.StartedAt}}',
       apiContainerId,
     ]);
+    const hotReconnectCount = eventRequests.filter(
+      (event) => event.runId === activeRunId,
+    ).length;
     await docker(['restart', apiContainerId]);
     await expect
       .poll(
@@ -725,6 +728,36 @@ test('recovers a held answer through Caddy after Backend API restart', async ({
         intervals: [1_000, 2_000, 5_000],
       })
       .toBe(200);
+    await expect
+      .poll(
+        () =>
+          eventRequests.filter((event) => event.runId === activeRunId).length,
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(hotReconnectCount);
+    await expect
+      .poll(() =>
+        eventResponses.some(
+          (event) =>
+            event.runId === activeRunId &&
+            event.status === 200 &&
+            event.recoveryResult === 'incremental',
+        ),
+      )
+      .toBe(true);
+    const hotReconnectRequest = eventRequests
+      .filter(
+        (event) =>
+          event.runId === activeRunId &&
+          event.lastEventId === recoveryCursor &&
+          event.recovery === 'incremental',
+      )
+      .at(-1);
+    expect(hotReconnectRequest).toMatchObject({
+      runId: activeRunId,
+      lastEventId: recoveryCursor,
+      recovery: 'incremental',
+    });
     expect(await containerId('ai-worker')).toBe(workerContainerId);
     expect(
       await docker([
