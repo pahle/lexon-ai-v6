@@ -469,6 +469,17 @@ async function runChatLoadCommand() {
     await resetEvidenceDirectory();
     const qualificationEnvironment = { ...process.env };
     delete qualificationEnvironment.LEXON_CHAT_DEFAULT_SIX_QUALIFIED;
+    if (
+      !(await runPnpm(
+        ['exec', 'tsc', '-p', 'shared/tsconfig.build.json'],
+        qualificationEnvironment,
+      ))
+    ) {
+      await recordFailure(phase);
+      process.stderr.write(`${COMMAND_FAILURE}\n`);
+      process.exitCode = 1;
+      return;
+    }
     if (!(await runPnpm(QUALIFICATION_ARGS, qualificationEnvironment))) {
       await recordFailure(phase);
       process.stderr.write(`${COMMAND_FAILURE}\n`);

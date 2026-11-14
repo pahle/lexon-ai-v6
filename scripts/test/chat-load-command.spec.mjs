@@ -15,6 +15,7 @@ import { test } from 'node:test';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const scriptPath = join(root, 'scripts/chat-load-evidence.mjs');
+const contractsBuildArgs = ['exec', 'tsc', '-p', 'shared/tsconfig.build.json'];
 const qualificationArgs = [
   'exec',
   'vitest',
@@ -28,6 +29,7 @@ const qualificationArgs = [
 const e2eArgs = ['test:e2e', '--project', 'chat-sse-load'];
 
 async function runWithFakePnpm({
+  contractsBuildExit = 0,
   qualificationExit,
   e2eExit,
   removeEvidenceOnE2EFailure = false,
@@ -65,13 +67,17 @@ const record = {
 };
 appendFileSync(process.env.CHAT_LOAD_TEST_LOG, JSON.stringify(record) + '\n');
 const qualification = args[0] === 'exec' && args[1] === 'vitest';
-if (!qualification && process.env.CHAT_LOAD_TEST_REMOVE_EVIDENCE_ON_E2E_FAILURE === '1') {
+const contractsBuild = args[0] === 'exec' && args[1] === 'tsc';
+const e2e = !qualification && !contractsBuild;
+if (e2e && process.env.CHAT_LOAD_TEST_REMOVE_EVIDENCE_ON_E2E_FAILURE === '1') {
   rmSync(process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR, { recursive: true, force: true });
 }
 process.exitCode = Number(
-  qualification
-    ? process.env.CHAT_LOAD_TEST_QUALIFICATION_EXIT
-    : process.env.CHAT_LOAD_TEST_E2E_EXIT,
+  contractsBuild
+    ? process.env.CHAT_LOAD_TEST_CONTRACTS_BUILD_EXIT
+    : qualification
+      ? process.env.CHAT_LOAD_TEST_QUALIFICATION_EXIT
+      : process.env.CHAT_LOAD_TEST_E2E_EXIT,
 );
 `;
   const pnpmPath = join(binDirectory, 'pnpm');
@@ -85,6 +91,7 @@ process.exitCode = Number(
         PATH: binDirectory,
         CHAT_LOAD_TEST_LOG: logPath,
         LEXON_CHAT_LOAD_EVIDENCE_DIR: evidenceDirectory,
+        CHAT_LOAD_TEST_CONTRACTS_BUILD_EXIT: String(contractsBuildExit),
         CHAT_LOAD_TEST_QUALIFICATION_EXIT: String(qualificationExit),
         CHAT_LOAD_TEST_E2E_EXIT: String(e2eExit),
         CHAT_LOAD_TEST_REMOVE_EVIDENCE_ON_E2E_FAILURE:
@@ -142,10 +149,12 @@ test('failed seventh-connection qualification stops before Compose E2E', async (
   assert.notEqual(child.status, 0);
   assert.deepEqual(
     child.calls.map((call) => call.args),
-    [qualificationArgs],
+    [contractsBuildArgs, qualificationArgs],
   );
   assert.equal(child.calls[0].defaultSixQualified, null);
   assert.equal(child.calls[0].staleDiagnosticPresent, false);
+  assert.equal(child.calls[1].defaultSixQualified, null);
+  assert.equal(child.calls[1].staleDiagnosticPresent, false);
   assert.deepEqual(child.evidenceFiles, ['failure.json']);
   assert.deepEqual(JSON.parse(child.evidence['failure.json']), {
     phase: 'qualification',
@@ -159,16 +168,20 @@ test('successful qualification launches flagged E2E and propagates E2E failure',
   assert.notEqual(child.status, 0);
   assert.deepEqual(
     child.calls.map((call) => call.args),
-    [qualificationArgs, e2eArgs],
+    [contractsBuildArgs, qualificationArgs, e2eArgs],
   );
   assert.equal(child.calls[0].loadFlag, null);
   assert.equal(child.calls[0].defaultSixQualified, null);
   assert.equal(child.calls[0].composeEnvFileDisabled, null);
   assert.equal(child.calls[0].staleDiagnosticPresent, false);
-  assert.equal(child.calls[1].loadFlag, '1');
-  assert.equal(child.calls[1].defaultSixQualified, '1');
-  assert.equal(child.calls[1].composeEnvFileDisabled, 'true');
+  assert.equal(child.calls[1].loadFlag, null);
+  assert.equal(child.calls[1].defaultSixQualified, null);
+  assert.equal(child.calls[1].composeEnvFileDisabled, null);
   assert.equal(child.calls[1].staleDiagnosticPresent, false);
+  assert.equal(child.calls[2].loadFlag, '1');
+  assert.equal(child.calls[2].defaultSixQualified, '1');
+  assert.equal(child.calls[2].composeEnvFileDisabled, 'true');
+  assert.equal(child.calls[2].staleDiagnosticPresent, false);
   assert.deepEqual(child.evidenceFiles, ['failure.json']);
   assert.deepEqual(JSON.parse(child.evidence['failure.json']), {
     phase: 'e2e',
@@ -186,13 +199,35 @@ test('E2E failure recreates its safe failure record after Playwright removes out
   assert.notEqual(child.status, 0);
   assert.deepEqual(
     child.calls.map((call) => call.args),
-    [qualificationArgs, e2eArgs],
+    [contractsBuildArgs, qualificationArgs, e2eArgs],
   );
   assert.equal(child.calls[0].staleDiagnosticPresent, false);
   assert.equal(child.calls[1].staleDiagnosticPresent, false);
+  assert.equal(child.calls[2].staleDiagnosticPresent, false);
   assert.deepEqual(child.evidenceFiles, ['failure.json']);
   assert.deepEqual(JSON.parse(child.evidence['failure.json']), {
     phase: 'e2e',
+    status: 'failed',
+  });
+});
+
+test('shared contracts build failure stops before qualification and Compose E2E', async () => {
+  const child = await runWithFakePnpm({
+    contractsBuildExit: 1,
+    qualificationExit: 0,
+    e2eExit: 0,
+  });
+
+  assert.notEqual(child.status, 0);
+  assert.deepEqual(
+    child.calls.map((call) => call.args),
+    [contractsBuildArgs],
+  );
+  assert.equal(child.calls[0].defaultSixQualified, null);
+  assert.equal(child.calls[0].staleDiagnosticPresent, false);
+  assert.deepEqual(child.evidenceFiles, ['failure.json']);
+  assert.deepEqual(JSON.parse(child.evidence['failure.json']), {
+    phase: 'qualification',
     status: 'failed',
   });
 });
