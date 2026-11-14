@@ -24,6 +24,7 @@ import {
   LexonChatTransport,
   type ChatUIMessage,
 } from '../src/lib/chat-transport.js';
+import { render } from './render.js';
 import { expect, it, vi } from 'vitest';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -44,6 +45,43 @@ const makeMessage = (
   role,
   parts: [{ type: 'text', text }],
 });
+
+function makeActiveTree(
+  status: 'running' | 'cancelling' | 'cancelled',
+): ChatTree {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const assistantId = '33333333-3333-4333-8333-333333333333';
+  return {
+    id: chatId,
+    title: 'Runtime proof',
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: assistantId,
+        role: 'assistant',
+        parentId: userId,
+        runId: '44444444-4444-4444-8444-444444444444',
+        text: 'Partial answer',
+        status,
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+    ],
+    viewedLeafId: assistantId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:01.000Z',
+  };
+}
 
 it('seeds the persisted parent-linked tree once and reports an explicit branch switch', async () => {
   const user = makeMessage('user-1', 'user', 'Question');
@@ -208,6 +246,192 @@ it('routes the visible composer Stop control through server cancellation before 
   });
   await act(async () => root.unmount());
   vi.stubGlobal('fetch', originalFetch);
+});
+
+it('recovers a cancelling run and unlocks the composer from terminal SSE reconciliation', async () => {
+  const initialTree = makeActiveTree('cancelling');
+  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/events'))
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            streamController = controller;
+          },
+        }),
+        {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        },
+      );
+    if (url.endsWith('/cancel')) return new Response(null, { status: 204 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const view = await render(
+    <ChatRuntime
+      actorScope="tenant-1:user-1"
+      chatId={initialTree.id}
+      tree={initialTree}
+    >
+      <Thread displayName="Ada" />
+    </ChatRuntime>,
+  );
+  try {
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    if (!input) throw new Error('The public message composer did not render.');
+    const setTextarea = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value',
+    )!.set!;
+    await act(async () => {
+      setTextarea.call(input, 'A follow-up question');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const stop = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop generating"]',
+    );
+    expect(stop).not.toBeNull();
+    const sendWhileActive = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    );
+    expect(sendWhileActive === null || sendWhileActive.disabled).toBe(true);
+    await vi.waitFor(() => {
+      expect(
+        fetch.mock.calls.some(([input]) => String(input).endsWith('/events')),
+      ).toBe(true);
+    });
+
+    const terminalFrames = [
+      {
+        version: 1,
+        type: 'status',
+        runId: '44444444-4444-4444-8444-444444444444',
+        status: 'cancelled',
+      },
+      {
+        version: 1,
+        type: 'finish',
+        runId: '44444444-4444-4444-8444-444444444444',
+      },
+    ];
+    await act(async () => {
+      streamController?.enqueue(
+        new TextEncoder().encode(
+          terminalFrames
+            .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+            .join(''),
+        ),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(
+        view.container.querySelector('[aria-label="Stop generating"]'),
+      ).toBeNull();
+    });
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).toBeNull();
+    const sendAfterTerminal = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    );
+    expect(sendAfterTerminal).not.toBeNull();
+    expect(sendAfterTerminal?.disabled).toBe(false);
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
+it('shows Stop and blocks sending while the initial active-run request awaits headers', async () => {
+  const initialTree = makeActiveTree('running');
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/events')) {
+      const requestSignal = init?.signal;
+      return new Promise<Response>((resolve) => {
+        const finishAbortedRequest = () =>
+          resolve(
+            new Response(new ReadableStream<Uint8Array>(), {
+              headers: {
+                'content-type': 'text/event-stream',
+                'x-lexon-stream-recovery-result': 'snapshot',
+              },
+            }),
+          );
+        if (requestSignal?.aborted) finishAbortedRequest();
+        else
+          requestSignal?.addEventListener('abort', finishAbortedRequest, {
+            once: true,
+          });
+      });
+    }
+    if (url.endsWith('/cancel')) return new Response(null, { status: 204 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const view = await render(
+    <ChatRuntime
+      actorScope="tenant-1:user-1"
+      chatId={initialTree.id}
+      tree={initialTree}
+    >
+      <Thread displayName="Ada" />
+    </ChatRuntime>,
+  );
+  try {
+    await vi.waitFor(() => {
+      expect(
+        fetch.mock.calls.some(([input]) => String(input).endsWith('/events')),
+      ).toBe(true);
+    });
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    if (!input) throw new Error('The public message composer did not render.');
+    const setTextarea = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value',
+    )!.set!;
+    await act(async () => {
+      setTextarea.call(input, 'A follow-up question');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).not.toBeNull();
+    const sendWhileActive = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    );
+    expect(sendWhileActive === null || sendWhileActive.disabled).toBe(true);
+
+    await act(async () => {
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Stop generating"]')
+        ?.click();
+    });
+    expect(fetch.mock.calls.map(([input]) => String(input))).toContain(
+      '/api/runs/44444444-4444-4444-8444-444444444444/cancel',
+    );
+    const sendWhileCancelling = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    );
+    expect(sendWhileCancelling === null || sendWhileCancelling.disabled).toBe(
+      true,
+    );
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
 });
 
 it('keeps the full external repository when the visible server branch changes', async () => {

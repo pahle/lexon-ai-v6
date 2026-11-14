@@ -388,7 +388,21 @@ export class ChatService {
       throw new ChatApiError('CHAT_CONFLICT');
     const renamed = await this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
-      (tx) => this.chats.rename(tx, chatId, normalized),
+      async (tx) => {
+        const didRename = await this.chats.rename(tx, chatId, normalized);
+        if (!didRename) return false;
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          type: 'chat.renamed.v1',
+          occurredAt: new Date().toISOString(),
+          outcome: 'success',
+          orgId: actor.orgId,
+          actorUserId: actor.userId,
+          metadata: { chatId },
+        });
+        return true;
+      },
     );
     if (!renamed) throw new ChatApiError('CHAT_NOT_FOUND');
   }

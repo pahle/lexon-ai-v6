@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/tooltip';
 import { MarkdownText } from '@/components/chat/markdown-text';
 import { PersistedReasoning } from '@/components/chat/chat-reasoning';
-import { ChatComposerCancel } from '@/components/chat/chat-runtime';
+import {
+  ChatComposerCancel,
+  useChatActiveRun,
+} from '@/components/chat/chat-runtime';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
 import {
@@ -201,6 +204,7 @@ const ThreadHistorySkeleton: FC = () => (
 );
 
 const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
+  const serverActive = useChatActiveRun();
   const role = useAuiState((state) => state.message.role);
   const messageId = useAuiState((state) => state.message.id);
   const summary = useAuiState(
@@ -326,6 +330,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
           The response could not be completed.{' '}
           <ActionBarPrimitive.Reload
             aria-label="Try again"
+            disabled={serverActive}
             className="underline"
           >
             Try again
@@ -341,6 +346,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
             The response could not be completed.{' '}
             <ActionBarPrimitive.Reload
               aria-label="Try again"
+              disabled={serverActive}
               className="underline"
             >
               Try again
@@ -546,6 +552,7 @@ const AssistantActions: FC<{
   feedback: 'good' | 'bad' | null;
   onFeedback?: ThreadProps['onFeedback'];
 }> = ({ messageId, feedback, onFeedback }) => {
+  const serverActive = useChatActiveRun();
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
   const copied = useAuiState((state) => state.message.isCopied);
@@ -590,6 +597,7 @@ const AssistantActions: FC<{
       <ActionBarPrimitive.Reload
         className="size-9 rounded-md p-2 hover:bg-muted"
         aria-label="Regenerate answer"
+        disabled={serverActive}
       >
         <RefreshCwIcon className="size-4" />
       </ActionBarPrimitive.Reload>
@@ -597,16 +605,20 @@ const AssistantActions: FC<{
   );
 };
 
-const UserEditAction = () => (
-  <ActionBarPrimitive.Root hideWhenRunning className="mt-1">
-    <ActionBarPrimitive.Edit
-      className="size-9 rounded-md p-2 text-muted-foreground hover:bg-muted"
-      aria-label="Edit message"
-    >
-      <PencilIcon className="size-4" />
-    </ActionBarPrimitive.Edit>
-  </ActionBarPrimitive.Root>
-);
+const UserEditAction = () => {
+  const serverActive = useChatActiveRun();
+  return (
+    <ActionBarPrimitive.Root hideWhenRunning className="mt-1">
+      <ActionBarPrimitive.Edit
+        className="size-9 rounded-md p-2 text-muted-foreground hover:bg-muted"
+        aria-label="Edit message"
+        disabled={serverActive}
+      >
+        <PencilIcon className="size-4" />
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+};
 
 const BranchPicker: FC<{ className?: string }> = ({ className }) => (
   <BranchPickerPrimitive.Root
@@ -638,9 +650,14 @@ const ThreadEditComposer: FC<{
   messageId: string;
   parentId: string | null;
 }> = ({ messageId, parentId }) => {
+  const serverActive = useChatActiveRun();
   const [tooLong, setTooLong] = useState(false);
   const editFocus = useContext(EditFocusContext);
   const validateAndArmEdit = (event: { preventDefault: () => void }) => {
+    if (serverActive) {
+      event.preventDefault();
+      return;
+    }
     const input = document.querySelector<HTMLTextAreaElement>(
       '[aria-label="Edit message input"]',
     );
@@ -698,6 +715,7 @@ const ThreadEditComposer: FC<{
             <Button
               aria-label="Send edit"
               size="sm"
+              disabled={serverActive}
               onClick={validateAndArmEdit}
             >
               Send
@@ -713,10 +731,16 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   effort = 'high',
   onEffortChange,
 }) => {
-  const running = useAuiState((state) => state.thread.isRunning);
+  const serverActive = useChatActiveRun();
+  const running =
+    useAuiState((state) => state.thread.isRunning) || serverActive;
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
+    if (serverActive) {
+      event.preventDefault();
+      return;
+    }
     if (
       !composerText.trim() ||
       promptByteLength(composerText) > MAX_PROMPT_BYTES

@@ -1797,8 +1797,21 @@ dependency pins, build-script approvals, or source to silence them. No secret
 output was observed. Do not expand scope to update or suppress these warnings;
 final Linux checks remain required on the reviewed source.
 
-**Status: DONE_WITH_CONCERNS.** Still pending: final Linux baseline comparison
-for the five retained local screenshot mismatches, any needed exact-head full
-Compose rerun, exact-head normal Linux verification, final isolated search and
-S2 runs, final whole-branch review, and ready-PR handoff. Draft PR #29 is not
-marked ready and is not merged.
+**Historical readiness checkpoint: DONE_WITH_CONCERNS.** The subsequent
+whole-branch review at `5f07d1c` identified four Important findings. Their
+controller-observed fixes, exact RED/GREEN provenance and aggregate local
+limitations are recorded in [F4 final review fixes](F4-final-fixes.md).
+
+### Final review fixes and hosted handoff
+
+The fix wave covers lost-XREAD reconnect, server-active answer control and
+terminal reconciliation, ambiguous first-create identity retention, and
+transactional rename/edit/regenerate audits. No paid call, dotenv access,
+threshold/baseline change or security bypass is authorized by this work.
+
+Current scoped-review and exact-head normal Linux, isolated search and S2
+results are tracked in [PR #29](https://github.com/pahle/lexon-ai-v6/pull/29).
+All required gates must pass on its reviewed head before it is marked ready;
+intermediate runs and non-clean local runs do not substitute for that gate.
+The Task 19 visual set remains for owner review with the PR. Merge remains
+unauthorized.

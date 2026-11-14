@@ -1,10 +1,11 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { ChatTreeSchema } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
+import type { FileServices } from '../setup/provided-context.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
@@ -13,6 +14,7 @@ import {
   ChatMutationRepository,
   TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
+import { AuditService } from '../../src/modules/audit/audit.service.js';
 
 test('a send retry keeps its original answer identity after that answer is regenerated', async ({
   services,
@@ -148,6 +150,13 @@ test('a send retry keeps its original answer identity after that answer is regen
       start_audit: '1',
       slots: '0',
     });
+    const refusedMutationAudits = await fixture.inspect.query(
+      `SELECT type,metadata FROM ops.audit_events
+       WHERE type IN ('chat.message_edited.v1','chat.message_regenerated.v1')
+         AND metadata->>'chatId'=$1`,
+      [chatId],
+    );
+    expect(refusedMutationAudits.rows).toEqual([]);
 
     const sentInput = {
       userMessageId: randomUUID(),
@@ -205,6 +214,17 @@ test('a send retry keeps its original answer identity after that answer is regen
     expect(regeneratedRun?.resolvedConfig).toMatchObject({
       resolvedEffort: 'high',
     });
+    const regenerateAudits = await fixture.inspect.query(
+      `SELECT type,metadata FROM ops.audit_events
+       WHERE type='chat.message_regenerated.v1' AND metadata->>'chatId'=$1`,
+      [chatId],
+    );
+    expect(regenerateAudits.rows).toEqual([
+      {
+        type: 'chat.message_regenerated.v1',
+        metadata: { chatId, messageId: regenerated.assistantMessageId },
+      },
+    ]);
 
     const retry = await send();
     expect(retry.status).toBe(201);
@@ -272,6 +292,20 @@ test('a send retry keeps its original answer identity after that answer is regen
     expect([editOne.status, editTwo.status]).toEqual([201, 201]);
     const editResult = await editOne.json();
     expect(await editTwo.json()).toEqual(editResult);
+    const editAudits = await fixture.inspect.query(
+      `SELECT type,metadata FROM ops.audit_events
+       WHERE type='chat.message_edited.v1' AND metadata->>'chatId'=$1`,
+      [chatId],
+    );
+    expect(editAudits.rows).toEqual([
+      {
+        type: 'chat.message_edited.v1',
+        metadata: { chatId, messageId: editedUserId },
+      },
+    ]);
+    expect(
+      JSON.stringify([...regenerateAudits.rows, ...editAudits.rows]),
+    ).not.toContain('Edited nonroot follow-up');
     const editedTree = ChatTreeSchema.parse(
       await (await fetch(`${origin}/api/chats/${chatId}`, { headers })).json(),
     );
@@ -576,3 +610,255 @@ test('unexpected outbox uniqueness failures remain server errors and roll back a
     await fixture.close();
   }
 });
+
+test('a repeated accepted edit appends exactly one IDs-only mutation audit', async ({
+  services,
+}) => {
+  const context = await createCompletedRoot(services);
+  try {
+    const newMessageId = randomUUID();
+    const edit = () =>
+      fetch(
+        `${context.origin}/api/chats/${context.chatId}/messages/${context.userMessageId}/edit`,
+        {
+          method: 'POST',
+          headers: { ...context.headers, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            messageId: context.userMessageId,
+            newMessageId,
+            text: 'Private edited prompt',
+            effort: 'max',
+          }),
+        },
+      );
+    const first = await edit();
+    expect(first.status).toBe(201);
+    const firstResult = await first.json();
+    const replay = await edit();
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toEqual(firstResult);
+    const rows = await context.fixture.inspect.query(
+      `SELECT type,metadata FROM ops.audit_events
+       WHERE type='chat.message_edited.v1' AND metadata->>'chatId'=$1`,
+      [context.chatId],
+    );
+    expect(rows.rows).toEqual([
+      {
+        type: 'chat.message_edited.v1',
+        metadata: { chatId: context.chatId, messageId: newMessageId },
+      },
+    ]);
+    expect(JSON.stringify(rows.rows)).not.toContain('Private edited prompt');
+  } finally {
+    await context.close();
+  }
+});
+
+test('an edit audit append failure rolls the branch mutation back', async ({
+  services,
+}) => {
+  const context = await createCompletedRoot(services);
+  const originalAppend = AuditService.prototype.append;
+  const failEditAudit = vi
+    .spyOn(AuditService.prototype, 'append')
+    .mockImplementation(async function (this: AuditService, tx, event) {
+      if (String(event.type) === 'chat.message_edited.v1')
+        throw new Error('injected edit audit failure');
+      await originalAppend.call(this, tx, event);
+    });
+  try {
+    const before = await context.fixture.inspect.chatSendSnapshot(
+      context.chatId,
+    );
+    const response = await fetch(
+      `${context.origin}/api/chats/${context.chatId}/messages/${context.userMessageId}/edit`,
+      {
+        method: 'POST',
+        headers: { ...context.headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messageId: context.userMessageId,
+          newMessageId: randomUUID(),
+          text: 'Rollback edit text',
+          effort: 'max',
+        }),
+      },
+    );
+    expect(response.status).toBe(500);
+    expect(
+      await context.fixture.inspect.chatSendSnapshot(context.chatId),
+    ).toEqual(before);
+    expect(
+      (
+        await context.fixture.inspect.query(
+          `SELECT event_id FROM ops.audit_events
+           WHERE type='chat.message_edited.v1' AND metadata->>'chatId'=$1`,
+          [context.chatId],
+        )
+      ).rows,
+    ).toEqual([]);
+  } finally {
+    failEditAudit.mockRestore();
+    await context.close();
+  }
+});
+
+test('a repeated accepted regeneration appends exactly one IDs-only mutation audit', async ({
+  services,
+}) => {
+  const context = await createCompletedRoot(services);
+  try {
+    const requestId = randomUUID();
+    const regenerate = () =>
+      fetch(
+        `${context.origin}/api/chats/${context.chatId}/messages/${context.assistantMessageId}/regenerate`,
+        {
+          method: 'POST',
+          headers: { ...context.headers, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            messageId: context.assistantMessageId,
+            requestId,
+          }),
+        },
+      );
+    const first = await regenerate();
+    expect(first.status).toBe(201);
+    const firstResult = await first.json();
+    const replay = await regenerate();
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toEqual(firstResult);
+    const result = firstResult as { assistantMessageId: string };
+    const rows = await context.fixture.inspect.query(
+      `SELECT type,metadata FROM ops.audit_events
+       WHERE type='chat.message_regenerated.v1' AND metadata->>'chatId'=$1`,
+      [context.chatId],
+    );
+    expect(rows.rows).toEqual([
+      {
+        type: 'chat.message_regenerated.v1',
+        metadata: {
+          chatId: context.chatId,
+          messageId: result.assistantMessageId,
+        },
+      },
+    ]);
+    expect(JSON.stringify(rows.rows)).not.toContain('Root question');
+  } finally {
+    await context.close();
+  }
+});
+
+test('a regeneration audit append failure rolls the branch mutation back', async ({
+  services,
+}) => {
+  const context = await createCompletedRoot(services);
+  const originalAppend = AuditService.prototype.append;
+  const failRegenerateAudit = vi
+    .spyOn(AuditService.prototype, 'append')
+    .mockImplementation(async function (this: AuditService, tx, event) {
+      if (String(event.type) === 'chat.message_regenerated.v1')
+        throw new Error('injected regenerate audit failure');
+      await originalAppend.call(this, tx, event);
+    });
+  try {
+    const before = await context.fixture.inspect.chatSendSnapshot(
+      context.chatId,
+    );
+    const response = await fetch(
+      `${context.origin}/api/chats/${context.chatId}/messages/${context.assistantMessageId}/regenerate`,
+      {
+        method: 'POST',
+        headers: { ...context.headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messageId: context.assistantMessageId,
+          requestId: randomUUID(),
+        }),
+      },
+    );
+    expect(response.status).toBe(500);
+    expect(
+      await context.fixture.inspect.chatSendSnapshot(context.chatId),
+    ).toEqual(before);
+    expect(
+      (
+        await context.fixture.inspect.query(
+          `SELECT event_id FROM ops.audit_events
+           WHERE type='chat.message_regenerated.v1' AND metadata->>'chatId'=$1`,
+          [context.chatId],
+        )
+      ).rows,
+    ).toEqual([]);
+  } finally {
+    failRegenerateAudit.mockRestore();
+    await context.close();
+  }
+});
+
+async function createCompletedRoot(services: FileServices) {
+  const app = await createTestApi(
+    loadRuntimeConfig(
+      'api',
+      createAuthEnvironment(
+        services,
+        '/tmp/lexon-chat-mutation-audit-health.json',
+      ),
+    ),
+  );
+  const fixture = await createChatFixture(services);
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    const headers = await apiHeaders(app);
+    const chatId = randomUUID();
+    const userMessageId = randomUUID();
+    const created = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        userMessageId,
+        requestId: randomUUID(),
+        text: 'Root question',
+        effort: 'high',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const mutation = (await created.json()) as {
+      assistantMessageId: string;
+      runId: string;
+    };
+    const identity = (await (
+      await fetch(`${origin}/api/identity`, { headers })
+    ).json()) as { user: { id: string }; organization: { id: string } };
+    expect(
+      await app
+        .get(TenantDatabase)
+        .withTenant(
+          { orgId: identity.organization.id, userId: identity.user.id },
+          (tx) =>
+            new AiRunRepository().transition(tx, {
+              runId: mutation.runId,
+              expectedVersion: 1,
+              from: 'queued',
+              to: 'completed',
+            }),
+        ),
+    ).toBe(true);
+    return {
+      app,
+      fixture,
+      origin,
+      headers,
+      chatId,
+      userMessageId,
+      assistantMessageId: mutation.assistantMessageId,
+      async close() {
+        await app.close();
+        await fixture.close();
+      },
+    };
+  } catch (error) {
+    await app.close();
+    await fixture.close();
+    throw error;
+  }
+}

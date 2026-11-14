@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   ChatMutationResult,
   EditMessageInput,
@@ -15,6 +16,7 @@ import {
 import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { RunService } from './run.service.js';
+import { AuditService } from '../audit/index.js';
 
 export class ChatBranchService {
   private readonly chats = new ChatRepository();
@@ -22,6 +24,7 @@ export class ChatBranchService {
   private readonly mutations = new ChatMutationRepository();
   private readonly steps = new AiStepRepository();
   private readonly deletions = new ChatDeletionRepository();
+  private readonly audit = new AuditService();
 
   constructor(
     private readonly database: TenantDatabase,
@@ -103,6 +106,16 @@ export class ChatBranchService {
           });
           if (!(await this.chats.selectLeaf(tx, chatId, runId)))
             throw new ChatApiError('CHAT_CONFLICT');
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            type: 'chat.message_edited.v1',
+            occurredAt: new Date().toISOString(),
+            outcome: 'success',
+            orgId: actor.orgId,
+            actorUserId: actor.userId,
+            metadata: { chatId, messageId: input.newMessageId },
+          });
           return {
             chatId,
             userMessageId: input.newMessageId,
@@ -196,6 +209,16 @@ export class ChatBranchService {
           });
           if (!(await this.chats.selectLeaf(tx, chatId, runId)))
             throw new ChatApiError('CHAT_CONFLICT');
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            type: 'chat.message_regenerated.v1',
+            occurredAt: new Date().toISOString(),
+            outcome: 'success',
+            orgId: actor.orgId,
+            actorUserId: actor.userId,
+            metadata: { chatId, messageId: runId },
+          });
           return {
             chatId,
             userMessageId: source.parentMessageId,

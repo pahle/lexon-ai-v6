@@ -304,6 +304,30 @@ const chatMessageSent = z.strictObject({
   actorUserId: UuidSchema,
   metadata: z.strictObject({ chatId: UuidSchema, messageId: UuidSchema }),
 });
+const chatRenamed = z.strictObject({
+  ...base,
+  type: z.literal('chat.renamed.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
+const chatMessageEdited = z.strictObject({
+  ...base,
+  type: z.literal('chat.message_edited.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema, messageId: UuidSchema }),
+});
+const chatMessageRegenerated = z.strictObject({
+  ...base,
+  type: z.literal('chat.message_regenerated.v1'),
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema, messageId: UuidSchema }),
+});
 const chatDeletion = z.strictObject({
   ...base,
   type: z.enum(['chat.deletion_requested.v1', 'chat.deletion_completed.v1']),
@@ -346,6 +370,9 @@ export const AuditEventSchema = z.union([
   aiApprovalDecided,
   chatCreated,
   chatMessageSent,
+  chatRenamed,
+  chatMessageEdited,
+  chatMessageRegenerated,
   chatDeletion,
   chatMessageFeedback,
 ]);

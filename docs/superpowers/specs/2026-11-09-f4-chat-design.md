@@ -1097,3 +1097,49 @@ admin APIs, safe report fields only. Never read/print/copy/log dotenv or keys;
 secret output stops execution and is deleted before owner notification. No
 paid CI evaluation dispatch or other paid calls are authorized. Structural
 controller-observed RED-first controls and final branch review remain.
+
+## Research addendum — final review fixes (2026-11-14)
+
+All sources below were read on 2026-11-14 and checked against the installed
+versions; dependency pins and owner limits are unchanged. Controller evidence
+and implementation decisions are in [F4 final review fixes](../../references/F4-final-fixes.md).
+
+- [ioredis reconnect behavior](https://github.com/redis/ioredis#auto-reconnect),
+  `ioredis` 6.0.0; [Valkey XREAD](https://valkey.io/commands/xread/) and
+  [client handling](https://valkey.io/topics/clients/), Valkey
+  `9.0.7-alpine3.24`: a nonnumeric retry strategy leaves the connection ended.
+  Reconnect the existing blocking client with the existing delay and preserve
+  cursors; test a server-side socket kill while the subscriber remains active.
+- [AI SDK resume streams](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-resume-streams)
+  and [chatbot control](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot),
+  `ai` 7.0.159 / `@ai-sdk/react` 4.0.163;
+  [assistant-ui AI SDK v7 runtime](https://www.assistant-ui.com/docs/runtimes/ai-sdk/v7)
+  and [ThreadRuntime](https://www.assistant-ui.com/docs/api-reference/runtimes/thread-runtime),
+  `@assistant-ui/react` 0.15.33 / `@assistant-ui/ai-sdk` 0.0.16:
+  server-active identity must remain independent of SDK connection readiness.
+  Installed source confirms repository seeding is once-only and public imports
+  feed bound external messages back to the SDK. Use public message construction
+  and binding APIs for canonical terminal replacement. Public runtime
+  observation proved that a live assistant may be visible but absent from an
+  export; capture visible state before local SDK stop, then reconcile only
+  matching terminal data and preserve an explicit branch selection. Local stop
+  is not a server cancellation request. An initial reconnect can still await
+  headers while SDK status is idle, so authoritative terminal reconciliation
+  also invalidates the application transport generation and aborts pending GETs,
+  retry waits and readers. Late responses cannot restart that run; explicit
+  transport disposal retains its original rejection contract. No SDK internals
+  or patches are used.
+- [React useRef](https://react.dev/reference/react/useRef), React 19.3.1:
+  keep the pending first-create identities and exact payload in the actor/chat
+  session across an ambiguous failure; manual same-operation retry reuses them,
+  acknowledgment clears them, and a deliberate new payload gets new identities.
+  This adds no automatic mutation retry or persistent draft storage.
+- [Zod strict objects](https://zod.dev/api), Zod 4.6.7;
+  [PostgreSQL 17 JSON](https://www.postgresql.org/docs/17/functions-json.html)
+  and [triggers](https://www.postgresql.org/docs/17/sql-createtrigger.html),
+  PostgreSQL 17.11; [Drizzle transactions](https://orm.drizzle.team/docs/transactions),
+  Drizzle ORM 0.45.4 / pg 8.23.1: closed IDs-only event metadata is validated in
+  both application and database layers. Append rename/edit/regenerate events in
+  the existing mutation transaction and register a new migration; preserve
+  existing validator security attributes and all other event routes. Injected
+  append-failure tests establish rollback without a privilege or RLS bypass.

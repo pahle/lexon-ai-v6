@@ -13,7 +13,13 @@ import { ChatRuntime } from './chat-runtime';
 import type { ChatApi, ChatTree } from '@lexon/contracts';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { toast } from 'sonner';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { ArrowUpIcon, Brain as BrainIcon } from 'lucide-react';
@@ -33,6 +39,14 @@ type ChatViewProps = {
   readonly orgId: string;
   readonly userId: string;
   readonly onNavigate?: (path: string) => void;
+};
+
+type PendingCreateIdentity = {
+  readonly chatId: string;
+  readonly userMessageId: string;
+  readonly requestId: string;
+  readonly text: string;
+  readonly effort: 'high' | 'max';
 };
 
 export function ChatView(props: ChatViewProps) {
@@ -67,7 +81,15 @@ function ChatViewSession({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const pendingCreateIdentity = useRef<PendingCreateIdentity | null>(null);
   const bytes = promptByteLength(text);
+  const refreshActiveTree = useCallback(() => {
+    if (!chatId) throw new Error('This conversation is not available.');
+    return client.get(chatId);
+  }, [chatId, client]);
+  const updateCanonicalTree = useCallback((nextTree: ChatTree) => {
+    setTree(nextTree);
+  }, []);
 
   useEffect(() => {
     if (!chatId) return;
@@ -161,13 +183,27 @@ function ChatViewSession({
     setSendError(false);
     try {
       if (!chatId) {
+        const pending = pendingCreateIdentity.current;
+        const identity =
+          pending?.text === value && pending.effort === effort
+            ? pending
+            : {
+                chatId: crypto.randomUUID(),
+                userMessageId: crypto.randomUUID(),
+                requestId: crypto.randomUUID(),
+                text: value,
+                effort,
+              };
+        pendingCreateIdentity.current = identity;
         const result = await client.create({
-          chatId: crypto.randomUUID(),
-          userMessageId: crypto.randomUUID(),
-          requestId: crypto.randomUUID(),
+          chatId: identity.chatId,
+          userMessageId: identity.userMessageId,
+          requestId: identity.requestId,
           text: value,
           effort,
         });
+        if (pendingCreateIdentity.current === identity)
+          pendingCreateIdentity.current = null;
         void queryClient.invalidateQueries({
           queryKey: chatListQueryKey({ orgId, userId }),
         });
@@ -209,6 +245,8 @@ function ChatViewSession({
         actorScope={actorScope}
         chatId={chatId}
         tree={tree}
+        onTreeRefresh={refreshActiveTree}
+        onTreeUpdate={updateCanonicalTree}
         effort={effort}
         onRunId={(runId) => {
           if (runId) setEffort('high');

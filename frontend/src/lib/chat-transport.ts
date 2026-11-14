@@ -124,6 +124,32 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.effort = effort;
   }
 
+  syncActiveRun(runId: string | undefined): void {
+    const nextRunId = runId ? UuidSchema.parse(runId) : undefined;
+    if (this.runId === nextRunId) return;
+    this.runId = nextRunId;
+    this.cursor = undefined;
+    this.prefixProven = false;
+    this.recoveryMode = 'snapshot';
+  }
+
+  invalidateActiveRunStream(): void {
+    if (this.closed) return;
+    this.generation += 1;
+    this.runId = undefined;
+    this.cursor = undefined;
+    this.prefixProven = false;
+    this.recoveryMode = 'snapshot';
+    this.removeRecovery();
+    for (const request of this.activeRequests) request.abort();
+    this.activeRequests.clear();
+    for (const wait of this.pendingRetryWaits) wait.abort();
+    this.pendingRetryWaits.clear();
+    for (const stream of this.activeStreams)
+      void stream.cancel().catch(() => {});
+    this.activeStreams.clear();
+  }
+
   syncSelectedLeaf(leafId: string | null): void {
     this.selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
     this.persistedLeafId = this.selectedLeafId;
@@ -217,16 +243,20 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     headers.set(CHAT_STREAM_RECOVERY_HEADER, mode);
     if (cursor) headers.set('last-event-id', cursor);
     else headers.delete('last-event-id');
-    return this.openLogicalStream(
-      runId,
-      headers,
-      request.abortSignal,
-      generation,
-    );
+    try {
+      return await this.openLogicalStream(
+        runId,
+        headers,
+        request.abortSignal,
+        generation,
+      );
+    } catch (error) {
+      if (generation !== this.generation && !this.closed) return null;
+      throw error;
+    }
   }
 
-  async stopRun(): Promise<void> {
-    const runId = this.runId;
+  async stopRun(runId = this.runId): Promise<void> {
     if (!runId) return;
     await this.fetcher(
       `${this.options.baseUrl.replace(/\/$/, '')}/runs/${runId}/cancel`,
@@ -294,13 +324,22 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
       );
     } catch {
       releaseRequest();
+      if (expectedGeneration !== this.generation && !this.closed)
+        return createClosedUIMessageStream();
       throw new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503);
     }
-    if (
-      expectedGeneration === this.generation &&
-      !this.closed &&
-      notifyIdentityFallbackHint(response)
-    ) {
+    if (this.closed) {
+      await response.body?.cancel().catch(() => {});
+      releaseRequest();
+      if (!response.ok) throw await chatClientError(response);
+      throw new Error('This conversation is no longer active.');
+    }
+    if (expectedGeneration !== this.generation) {
+      await response.body?.cancel().catch(() => {});
+      releaseRequest();
+      return createClosedUIMessageStream();
+    }
+    if (notifyIdentityFallbackHint(response)) {
       await response.body?.cancel().catch(() => {});
       releaseRequest();
       throw new ChatClientError('AI_ACCESS_REVOKED', response.status);
@@ -308,11 +347,6 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     if (!response.ok) {
       releaseRequest();
       throw await chatClientError(response);
-    }
-    if (expectedGeneration !== this.generation || this.closed) {
-      await response.body?.cancel().catch(() => {});
-      releaseRequest();
-      throw new Error('This conversation is no longer active.');
     }
     const selectedMode = ChatStreamRecoveryModeSchema.safeParse(
       response.headers.get(CHAT_STREAM_RECOVERY_RESULT_HEADER),
@@ -765,6 +799,14 @@ function getSessionStorage(): Storage | undefined {
 
 function mergeHeaders(headers?: HeadersInit): Headers {
   return new Headers(headers);
+}
+
+function createClosedUIMessageStream(): ReadableStream<UIMessageChunk> {
+  return new ReadableStream({
+    start(controller) {
+      controller.close();
+    },
+  });
 }
 
 function isCursor(value: string | null | undefined): value is string {

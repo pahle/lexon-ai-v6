@@ -374,6 +374,146 @@ test('shared reader keeps a monotonic live cursor and reconnects after all clien
   }
 });
 
+test('shared reader resumes existing subscribers after its blocking XREAD socket is lost', async ({
+  services,
+}) => {
+  const redis = new Redis(services.valkey.streamsUrl);
+  const reader = new SseStreamReader(services.valkey.streamsUrl);
+  const hub = new StreamHub(reader, 15_000, 5_000);
+  const key = `${services.queuePrefix}:{run-streams}:${randomUUID()}:events`;
+  const generation = 7;
+  const frames: SseFrame[] = [];
+  const sink = {
+    write(frame: SseFrame) {
+      frames.push(frame);
+      return true;
+    },
+    async drain() {
+      return true;
+    },
+    async close() {},
+  };
+  const blockingClientIds = new Set<number>();
+  const replayClientIds = new Set<number>();
+  const originalXread = Redis.prototype.xread;
+  const originalMget = Redis.prototype.mget;
+  const xreadSpy = vi
+    .spyOn(Redis.prototype, 'xread')
+    .mockImplementation(async function (this: Redis, ...args: unknown[]) {
+      // Read the server ID on every command so a reconnect gets a new ID.
+      const id = Number(await this.client('ID'));
+      blockingClientIds.add(id);
+      return originalXread.apply(this, args as never);
+    } as never);
+  const mgetSpy = vi
+    .spyOn(Redis.prototype, 'mget')
+    .mockImplementation(async function (this: Redis, ...keys: string[]) {
+      const id = Number(await this.client('ID'));
+      replayClientIds.add(id);
+      return originalMget.call(this, keys);
+    } as never);
+  let subscription: { close(): Promise<void> } | undefined;
+  try {
+    await redis.set(key.replace(/:events$/, ':generation'), String(generation));
+    subscription = await hub.subscribe(key, undefined, sink);
+    await expect
+      .poll(() => frames.some((frame) => frame.data.startsWith(': connected')))
+      .toBe(true);
+    await expect.poll(() => blockingClientIds.size).toBe(1);
+    await expect.poll(() => replayClientIds.size).toBe(1);
+
+    const firstId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: 'before socket loss' }),
+      'generation',
+      String(generation),
+    );
+    if (!firstId) throw new Error('Valkey did not return an XADD cursor');
+    await expect
+      .poll(() => frames.filter((frame) => frame.id).map((frame) => frame.id))
+      .toEqual([`${generation}:${firstId}`]);
+
+    const [blockingClientId] = blockingClientIds;
+    if (blockingClientId === undefined)
+      throw new Error('The blocking reader connection was not observed');
+    await expect
+      .poll(
+        async () => {
+          const rows = ((await redis.client('LIST')) as string)
+            .split('\n')
+            .filter(Boolean);
+          return rows.some(
+            (row) =>
+              row.includes(`id=${blockingClientId} `) &&
+              row.includes('cmd=xread'),
+          );
+        },
+        { timeout: 5000 },
+      )
+      .toBe(true);
+    expect(await redis.client('KILL', 'ID', blockingClientId)).toBe(1);
+    await expect
+      .poll(async () => {
+        const rows = ((await redis.client('LIST')) as string)
+          .split('\n')
+          .filter(Boolean);
+        return rows.some((row) => row.includes(`id=${blockingClientId} `));
+      })
+      .toBe(false);
+
+    const laterId = await redis.xadd(
+      key,
+      '*',
+      'event',
+      JSON.stringify({ type: 'text-delta', delta: 'after socket loss' }),
+      'generation',
+      String(generation),
+    );
+    if (!laterId) throw new Error('Valkey did not return an XADD cursor');
+
+    await expect
+      .poll(() => frames.filter((frame) => frame.id).map((frame) => frame.id))
+      .toEqual([`${generation}:${firstId}`, `${generation}:${laterId}`]);
+    await expect.poll(() => blockingClientIds.size, { timeout: 10000 }).toBe(2);
+    expect(replayClientIds.size).toBe(1);
+    expect(await reader.latest(key)).toBe(laterId);
+    expect(await reader.generation(key)).toBe(generation);
+    expect(
+      frames.filter((frame) => frame.id).map((frame) => frame.data),
+    ).toEqual([
+      JSON.stringify({ type: 'text-delta', delta: 'before socket loss' }),
+      JSON.stringify({ type: 'text-delta', delta: 'after socket loss' }),
+    ]);
+
+    const finalRows = ((await redis.client('LIST')) as string)
+      .split('\n')
+      .filter(Boolean);
+    const readerConnectionIds = new Set([
+      ...blockingClientIds,
+      ...replayClientIds,
+    ]);
+    expect(blockingClientIds.size).toBe(2);
+    expect(replayClientIds.size).toBe(1);
+    expect(readerConnectionIds.size).toBe(3);
+    expect(
+      finalRows.filter((row) =>
+        [...readerConnectionIds].some((id) => row.includes(`id=${id} `)),
+      ),
+    ).toHaveLength(2);
+    expect(
+      finalRows.some((row) => row.includes(`id=${[...replayClientIds][0]} `)),
+    ).toBe(true);
+  } finally {
+    await subscription?.close();
+    await hub.close();
+    xreadSpy.mockRestore();
+    mgetSpy.mockRestore();
+    redis.disconnect();
+  }
+});
+
 test('a new replay subscriber does not skip an entry for an existing live subscriber', async ({
   services,
 }) => {

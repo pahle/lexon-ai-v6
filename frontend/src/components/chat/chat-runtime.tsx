@@ -15,14 +15,26 @@ import { useAISDKRuntime } from '@assistant-ui/ai-sdk';
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
+  bindExternalStoreMessage,
+  fromThreadMessageLike,
 } from '@assistant-ui/react';
-import type { AppendMessage } from '@assistant-ui/react';
+import type {
+  AppendMessage,
+  ExportedMessageRepository,
+  ThreadMessage,
+} from '@assistant-ui/react';
 import type { CreateUIMessage, UIMessage } from 'ai';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import { Button } from '@/components/ui/button';
 import { createChatClient } from '@/lib/chat-client';
 import { LexonChatTransport, type ChatUIMessage } from '@/lib/chat-transport';
 
 const ChatStopContext = createContext<(() => Promise<void>) | null>(null);
+const ChatActiveRunContext = createContext(false);
+
+export function useChatActiveRun(): boolean {
+  return useContext(ChatActiveRunContext);
+}
 
 export interface ChatRuntimeProps {
   readonly actorScope: string;
@@ -30,6 +42,8 @@ export interface ChatRuntimeProps {
   readonly tree: ChatTree;
   readonly effort?: 'high' | 'max';
   readonly children: ReactNode;
+  readonly onTreeRefresh?: () => Promise<ChatTree>;
+  readonly onTreeUpdate?: (tree: ChatTree) => void;
   readonly onRunId?: (runId: string | undefined) => void;
   readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
   readonly onStopReady?: (stop: () => Promise<void>) => void;
@@ -50,6 +64,8 @@ function ChatRuntimeSession({
   tree,
   effort = 'high',
   children,
+  onTreeRefresh,
+  onTreeUpdate,
   onRunId,
   onStreamState,
   onStopReady,
@@ -57,7 +73,11 @@ function ChatRuntimeSession({
   const [runId, setRunId] = useState<string | undefined>(
     () => findActiveRun(tree)?.runId,
   );
+  const [serverActiveRunId, setServerActiveRunId] = useState<
+    string | undefined
+  >(() => findActiveRun(tree)?.runId);
   const [selectionSaveFailed, setSelectionSaveFailed] = useState(false);
+  const selectedLeafIdRef = useRef(tree.viewedLeafId);
   const onRunIdRef = useRef(onRunId);
   const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
@@ -73,6 +93,7 @@ function ChatRuntimeSession({
 
   const handleRunId = useCallback((nextRunId: string | undefined) => {
     setRunId(nextRunId);
+    setServerActiveRunId(nextRunId);
     onRunIdRef.current?.(nextRunId);
   }, []);
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
@@ -100,6 +121,11 @@ function ChatRuntimeSession({
     resume: false,
     transport,
   });
+  const chatStatusRef = useRef(chat.status);
+  chatStatusRef.current = chat.status;
+  const threadRuntimeRef = useRef<
+    ReturnType<typeof useAISDKRuntime>['thread'] | undefined
+  >(undefined);
   const runtime = useAISDKRuntime(chat, {
     joinStrategy: 'none',
     messageRepository: repository,
@@ -110,6 +136,7 @@ function ChatRuntimeSession({
       readonly headId: string | null;
     }) => {
       if (headId === null) return;
+      selectedLeafIdRef.current = headId;
       setSelectionSaveFailed(false);
       void transport
         .selectLeaf(headId, () =>
@@ -119,10 +146,82 @@ function ChatRuntimeSession({
         .catch(() => setSelectionSaveFailed(true));
     },
   });
+  threadRuntimeRef.current = runtime.thread;
 
   useEffect(() => {
     transport.setEffort(effort);
   }, [effort, transport]);
+
+  useEffect(() => {
+    transport.syncActiveRun(activeRun?.runId);
+    if (activeRun) {
+      setServerActiveRunId(activeRun.runId);
+      setRunId(activeRun.runId);
+    }
+  }, [activeRun?.runId, transport]);
+
+  useEffect(() => {
+    if (!serverActiveRunId || !onTreeRefresh) return;
+    let active = true;
+    let timer: number | undefined;
+    const refresh = async () => {
+      try {
+        const freshTree = await onTreeRefresh();
+        if (!active) return;
+        const selectedLeafId = selectedLeafIdRef.current;
+        const refreshedTree =
+          selectedLeafId !== null &&
+          freshTree.messages.some((message) => message.id === selectedLeafId)
+            ? { ...freshTree, viewedLeafId: selectedLeafId }
+            : freshTree;
+        onTreeUpdate?.(refreshedTree);
+        const freshRun = findActiveRun(freshTree);
+        if (freshRun) {
+          setServerActiveRunId(freshRun.runId);
+          setRunId(freshRun.runId);
+          transport.syncActiveRun(freshRun.runId);
+        } else {
+          const threadRuntime = threadRuntimeRef.current;
+          const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
+          const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
+          const selectedLeafBeforeStop = selectedLeafIdRef.current;
+          const sdkRunIsActive =
+            chatStatusRef.current === 'submitted' ||
+            chatStatusRef.current === 'streaming';
+          transport.invalidateActiveRunStream();
+          if (sdkRunIsActive) await chat.stop();
+          if (!active) return;
+          const currentThreadRuntime = threadRuntimeRef.current;
+          if (currentThreadRuntime) {
+            const currentRepository = currentThreadRuntime.export();
+            const branchChangedDuringStop =
+              selectedLeafIdRef.current !== selectedLeafBeforeStop;
+            currentThreadRuntime.import(
+              reconcileCanonicalTerminalMessages(
+                currentRepository,
+                freshTree,
+                branchChangedDuringStop
+                  ? currentRepository.headId
+                  : visibleLeafBeforeStop,
+                visibleMessagesBeforeStop,
+              ),
+            );
+          }
+          setServerActiveRunId(undefined);
+          setRunId(undefined);
+          transport.syncActiveRun(undefined);
+        }
+      } catch {
+        // Keep controls locked until an authoritative refresh succeeds.
+      }
+      if (active) timer = window.setTimeout(() => void refresh(), 1_000);
+    };
+    timer = window.setTimeout(() => void refresh(), 1_000);
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [chat.stop, onTreeRefresh, onTreeUpdate, serverActiveRunId, transport]);
 
   const initialRunId = activeRun?.runId;
   const resumedRunRef = useRef<string | undefined>(undefined);
@@ -134,9 +233,9 @@ function ChatRuntimeSession({
   }, [activeRun?.id, chat.messages, chat.resumeStream, initialRunId]);
 
   const stop = useCallback(async () => {
-    await transport.stopRun();
+    await transport.stopRun(serverActiveRunId ?? runId);
     runtime.thread.cancelRun();
-  }, [runtime.thread, transport]);
+  }, [runId, runtime.thread, serverActiveRunId, transport]);
   const onStopReadyCallback = useCallback(() => {
     onStopReadyRef.current?.(stop);
   }, [stop]);
@@ -150,15 +249,17 @@ function ChatRuntimeSession({
 
   return (
     <ChatStopContext.Provider value={stop}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-        {selectionSaveFailed ? (
-          <span role="alert">
-            Could not save this branch selection. Reload the conversation before
-            sending another message.
-          </span>
-        ) : null}
-      </AssistantRuntimeProvider>
+      <ChatActiveRunContext.Provider value={serverActiveRunId !== undefined}>
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+          {selectionSaveFailed ? (
+            <span role="alert">
+              Could not save this branch selection. Reload the conversation
+              before sending another message.
+            </span>
+          ) : null}
+        </AssistantRuntimeProvider>
+      </ChatActiveRunContext.Provider>
     </ChatStopContext.Provider>
   );
 }
@@ -175,7 +276,7 @@ export function ChatComposerCancel(props: ChatComposerCancelProps) {
     throw new Error('ChatComposerCancel must be used inside ChatRuntime.');
   return (
     <>
-      <ComposerPrimitive.Cancel
+      <Button
         {...props}
         onClick={(event) => {
           event.preventDefault();
@@ -255,7 +356,137 @@ function findActiveRun(
   return tree.messages.find(
     (message): message is Extract<ChatMessage, { role: 'assistant' }> =>
       message.role === 'assistant' &&
-      message.id === tree.viewedLeafId &&
-      (message.status === 'queued' || message.status === 'running'),
+      (message.status === 'queued' ||
+        message.status === 'running' ||
+        message.status === 'cancelling'),
   );
+}
+
+function reconcileCanonicalTerminalMessages(
+  repository: ExportedMessageRepository,
+  tree: ChatTree,
+  preferredHeadId?: string | null,
+  visibleMessagesBeforeStop?: readonly ThreadMessage[],
+): ExportedMessageRepository {
+  const canonicalMessages = new Map(
+    tree.messages.map((message) => [message.id, message]),
+  );
+  const messages = repository.messages.map((entry) => {
+    const canonical = canonicalMessages.get(entry.message.id);
+    if (!canonical || canonical.role !== entry.message.role) return entry;
+
+    if (canonical.role === 'user' && entry.message.role === 'user') {
+      const message = fromThreadMessageLike(
+        {
+          ...entry.message,
+          content: [
+            { type: 'text', text: canonical.text },
+            ...entry.message.content.filter((part) => part.type !== 'text'),
+          ],
+        },
+        entry.message.id,
+        { type: 'complete', reason: 'stop' },
+      );
+      bindExternalStoreMessage(message, toUIMessage(canonical));
+      return {
+        ...entry,
+        message,
+      };
+    }
+
+    if (canonical.role === 'assistant' && entry.message.role === 'assistant') {
+      return {
+        ...entry,
+        message: toCanonicalAssistantMessage(entry.message, canonical),
+      };
+    }
+
+    return entry;
+  });
+  const currentMessageIds = new Set(messages.map((entry) => entry.message.id));
+  for (const visibleMessage of visibleMessagesBeforeStop ?? []) {
+    const canonical = canonicalMessages.get(visibleMessage.id);
+    if (
+      visibleMessage.role !== 'assistant' ||
+      !canonical ||
+      canonical.role !== 'assistant' ||
+      canonical.status === 'queued' ||
+      canonical.status === 'running' ||
+      canonical.status === 'cancelling' ||
+      (visibleMessage.metadata.runId !== undefined &&
+        visibleMessage.metadata.runId !== canonical.runId) ||
+      (canonical.parentId !== null &&
+        (!currentMessageIds.has(canonical.parentId) ||
+          !canonicalMessages.has(canonical.parentId))) ||
+      currentMessageIds.has(visibleMessage.id)
+    ) {
+      continue;
+    }
+    messages.push({
+      parentId: canonical.parentId,
+      message: toCanonicalAssistantMessage(visibleMessage, canonical),
+    });
+    currentMessageIds.add(visibleMessage.id);
+  }
+  const headId =
+    preferredHeadId !== undefined &&
+    preferredHeadId !== null &&
+    currentMessageIds.has(preferredHeadId) &&
+    canonicalMessages.has(preferredHeadId)
+      ? preferredHeadId
+      : repository.headId;
+  return {
+    ...repository,
+    ...(headId !== undefined ? { headId } : {}),
+    messages,
+  };
+}
+
+function toCanonicalAssistantMessage(
+  message: Extract<ThreadMessage, { role: 'assistant' }>,
+  canonical: Extract<ChatMessage, { role: 'assistant' }>,
+): ThreadMessage {
+  const preservedContent = message.content.filter(
+    (part) => part.type !== 'reasoning' && part.type !== 'text',
+  );
+  const status =
+    canonical.status === 'cancelled'
+      ? { type: 'incomplete' as const, reason: 'cancelled' as const }
+      : canonical.status === 'failed'
+        ? { type: 'incomplete' as const, reason: 'error' as const }
+        : { type: 'complete' as const, reason: 'stop' as const };
+  const reconciled = fromThreadMessageLike(
+    {
+      ...message,
+      content: [
+        ...(canonical.reasoningSummary
+          ? [
+              {
+                type: 'reasoning' as const,
+                text: canonical.reasoningSummary,
+              },
+            ]
+          : []),
+        ...(canonical.text
+          ? [{ type: 'text' as const, text: canonical.text }]
+          : []),
+        ...preservedContent,
+      ],
+      status,
+      metadata: {
+        ...message.metadata,
+        custom: {
+          ...message.metadata.custom,
+          status: canonical.status,
+          reasoningDurationMs: canonical.reasoningDurationMs,
+          feedback: canonical.feedback,
+          loadedFromServer: true,
+        },
+      },
+    },
+    message.id,
+    status,
+  );
+  bindExternalStoreMessage(reconciled, toUIMessage(canonical));
+  return reconciled;
 }

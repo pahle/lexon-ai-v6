@@ -1,7 +1,10 @@
-import { act, type ReactNode } from 'react';
+import { act, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { ChatTree } from '@lexon/contracts';
 import { ChatView } from '../src/components/chat/chat-view.js';
+import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
+import { Thread } from '../src/components/assistant-ui/elements/thread.aui.js';
 import { TooltipProvider } from '../src/components/ui/tooltip.js';
 import { TooltipIconButton } from '../src/components/assistant-ui/elements/tooltip-icon-button.js';
 import { rememberChatSearchHighlight } from '../src/lib/chat-search-highlight.js';
@@ -45,6 +48,216 @@ function wrapped(node: ReactNode) {
     <QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>
   );
 }
+
+function makeBranchTree(active: boolean): ChatTree {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const selectedAnswerId = '33333333-3333-4333-8333-333333333333';
+  const activeAnswerId = '66666666-6666-4666-8666-666666666666';
+  return {
+    id: chatId,
+    title: 'Branch fixture',
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: selectedAnswerId,
+        role: 'assistant',
+        parentId: userId,
+        runId: '44444444-4444-4444-8444-444444444444',
+        text: 'Selected branch answer',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+      {
+        id: activeAnswerId,
+        role: 'assistant',
+        parentId: userId,
+        runId: '77777777-7777-4777-8777-777777777777',
+        text: active ? '' : 'Other branch answer',
+        status: active ? 'running' : 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:02.000Z',
+      },
+    ],
+    viewedLeafId: selectedAnswerId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:02.000Z',
+  };
+}
+
+it('exposes Stop for an off-branch active answer without replacing the viewed branch', async () => {
+  const tree = makeBranchTree(true);
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/cancel')) return new Response(null, { status: 204 });
+    if (url.endsWith('/events'))
+      return new Response(new ReadableStream<Uint8Array>(), {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+
+  try {
+    await settle();
+    expect(
+      view.container.querySelector(
+        '[data-message-id="33333333-3333-4333-8333-333333333333"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-message-id="66666666-6666-4666-8666-666666666666"]',
+      ),
+    ).toBeNull();
+    expect(view.container.textContent).toContain('Selected branch answer');
+    expect(view.container.textContent).not.toContain('Other branch answer');
+
+    const stop = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop generating"]',
+    );
+    expect(stop).not.toBeNull();
+    await act(async () => stop?.click());
+    expect(fetch.mock.calls.map(([input]) => String(input))).toContain(
+      '/api/runs/77777777-7777-4777-8777-777777777777/cancel',
+    );
+    expect(view.container.textContent).toContain('Selected branch answer');
+    expect(view.container.textContent).not.toContain('Other branch answer');
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
+it('locks send, an already-open edit, and regeneration when an off-branch run appears', async () => {
+  const initialTree = makeBranchTree(false);
+  let updateTree!: (tree: ChatTree) => void;
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/events'))
+      return new Response(new ReadableStream<Uint8Array>(), {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    if (url.endsWith('/cancel')) return new Response(null, { status: 204 });
+    if (url.includes('/messages')) return new Response(null, { status: 409 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  function Harness() {
+    const [tree, setTree] = useState(initialTree);
+    updateTree = setTree;
+    return (
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>
+    );
+  }
+
+  const view = await render(wrapped(<Harness />));
+  try {
+    await settle();
+    const edit = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit message"]',
+    );
+    expect(edit).not.toBeNull();
+    await act(async () => edit?.click());
+    await settle();
+    expect(
+      view.container.querySelector('[aria-label="Edit message input"]'),
+    ).not.toBeNull();
+
+    const messageInput = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    const editInput = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Edit message input"]',
+    );
+    if (!messageInput || !editInput)
+      throw new Error('The public thread composers did not render.');
+    const setTextarea = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value',
+    )!.set!;
+    await act(async () => {
+      setTextarea.call(messageInput, 'Another question');
+      messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+      setTextarea.call(editInput, 'Edited question');
+      editInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await act(async () => updateTree(makeBranchTree(true)));
+    await settle();
+    expect
+      .soft(view.container.querySelector('[aria-label="Stop generating"]'))
+      .not.toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-message-id="33333333-3333-4333-8333-333333333333"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-message-id="66666666-6666-4666-8666-666666666666"]',
+      ),
+    ).toBeNull();
+
+    const send = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    );
+    const sendEdit = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send edit"]',
+    );
+    const regenerate = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Regenerate answer"]',
+    );
+    expect.soft(send === null || send.disabled).toBe(true);
+    expect.soft(sendEdit === null || sendEdit.disabled).toBe(true);
+    expect.soft(regenerate === null || regenerate.disabled).toBe(true);
+    await act(async () => {
+      if (send && !send.disabled) send.click();
+      if (sendEdit && !sendEdit.disabled) sendEdit.click();
+      if (regenerate && !regenerate.disabled) regenerate.click();
+    });
+    expect
+      .soft(
+        fetch.mock.calls.filter(([input]) =>
+          String(input).includes('/messages'),
+        ),
+      )
+      .toEqual([]);
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
 
 async function expectTooltipOpen(expected: string) {
   await vi.waitFor(() => {

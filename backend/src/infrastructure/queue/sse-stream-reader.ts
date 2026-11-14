@@ -234,8 +234,16 @@ export class SseStreamReader {
             ...ids,
           );
         } catch {
-          if (!this.#closed)
+          if (!this.#closed) {
             await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!this.#closed && this.#blocking.status === 'end') {
+              try {
+                await this.#blocking.connect();
+              } catch {
+                // The next read retries after the same bounded delay.
+              }
+            }
+          }
           continue;
         }
         if (!Array.isArray(result)) continue;
