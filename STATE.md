@@ -4,6 +4,8 @@ Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3
 
 ## Next action
 
+**2026-11-14:** F4 in Task 21 final fix wave (Codex, moving to a fresh thread because of usage limits). PO agreed to trial **Claude Code as F4.1 implementer** (fresh clean session on the PO's Mac with Docker; this contaminated session stays brief generator/reviewer). Prep done: PR #30 (`.claude/skills` symlinks to `.agents/skills`), F4.1 brief draft at `design-drafts/F4.1-brand-refresh.brief-draft.md`. When F4 merges: publish brief + prototype + brand v4.1 extract + LEX-DS-001 v3.0 in one PR.
+
 **F4 Chat brief merged (PR #28)** (prototype approved 2026-11-09, `docs/design/f4-prototype/`).
 Next: Codex brainstorms F4 (open the feature-branch
 draft PR early so CI runs every task).
