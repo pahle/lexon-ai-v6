@@ -514,7 +514,9 @@ async function openMobileSidebar(page: Page) {
   if (!(await sidebar.isVisible()))
     await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(sidebar).toBeVisible();
-  await expect(sidebar.getByRole('heading', { name: 'Sidebar' })).toBeAttached();
+  await expect(
+    sidebar.getByRole('heading', { name: 'Sidebar' }),
+  ).toBeAttached();
   const navigation = sidebar.getByRole('navigation', {
     name: 'Primary navigation',
   });
@@ -544,6 +546,27 @@ async function expectRecentChatReady(sidebar: Locator) {
   ).toBeVisible();
 }
 
+async function expectSolidDestructiveButton(button: Locator) {
+  const styles = await button.evaluate((element) => {
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--destructive)';
+    probe.style.color = 'var(--destructive-foreground)';
+    document.body.append(probe);
+    const expected = getComputedStyle(probe);
+    const actual = getComputedStyle(element);
+    const result = {
+      actualBackground: actual.backgroundColor,
+      expectedBackground: expected.backgroundColor,
+      actualForeground: actual.color,
+      expectedForeground: expected.color,
+    };
+    probe.remove();
+    return result;
+  });
+  expect(styles.actualBackground).toBe(styles.expectedBackground);
+  expect(styles.actualForeground).toBe(styles.expectedForeground);
+}
+
 async function openState(page: Page, baseUrl: string, state: string) {
   if (
     state === 'chat-actions-menu' ||
@@ -567,6 +590,22 @@ async function openState(page: Page, baseUrl: string, state: string) {
     if (state === 'delete-confirm') {
       await page.getByRole('menuitem', { name: 'Delete' }).click();
       await expect(page.getByRole('alertdialog')).toBeVisible();
+      const deleteButton = page.getByRole('button', {
+        name: 'Delete chat',
+        exact: true,
+      });
+      await expect(deleteButton).toBeVisible();
+      await expectSolidDestructiveButton(deleteButton);
+      await deleteButton.hover();
+      await deleteButton.evaluate(async (button) => {
+        await Promise.all(
+          button
+            .getAnimations()
+            .map((animation) => animation.finished.catch(() => undefined)),
+        );
+      });
+      await expectSolidDestructiveButton(deleteButton);
+      await page.mouse.move(0, 0);
     }
     return;
   }
@@ -777,6 +816,17 @@ async function openState(page: Page, baseUrl: string, state: string) {
       await page.getByRole('button', { name: /^Organization:/ }).click();
     else await page.getByRole('button', { name: /Ayu Wardani/ }).click();
     await expect(page.getByRole('menu')).toBeVisible();
+    if (state === 'organization-switcher-open') {
+      await expect(
+        page.getByRole('menuitem', { name: 'Personal', exact: true }),
+      ).toBeVisible();
+      const activeOrganization = page.getByRole('menuitem', {
+        name: 'Hukum Nusantara',
+        exact: true,
+      });
+      await expect(activeOrganization).toBeVisible();
+      await expect(activeOrganization).toHaveAttribute('aria-current', 'true');
+    }
   }
   if (state === 'sidebar-expanded' && viewportWidth(page) === 390) {
     const sidebar = await openMobileSidebar(page);
