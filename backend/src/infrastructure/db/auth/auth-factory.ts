@@ -144,6 +144,7 @@ export function createAuthEngine(
     user: {
       changeEmail: { enabled: true },
       additionalFields: {
+        jobTitle: { type: 'string', required: false, input: false },
         onboardingComplete: {
           type: 'boolean',
           defaultValue: false,

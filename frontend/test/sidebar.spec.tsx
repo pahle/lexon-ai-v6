@@ -22,6 +22,7 @@ const identity: IdentitySummary = {
     emailVerified: true,
     onboardingCompleted: true,
     twoFactorEnabled: true,
+    jobTitle: null,
   },
   organization: {
     version: 1,
@@ -61,6 +62,7 @@ async function sidebarFetch(input: RequestInfo | URL) {
     email: identity.user.email,
     emailVerified: true,
     twoFactorEnabled: true,
+    jobTitle: null,
     onboardingCompleted: true,
   });
 }
@@ -818,6 +820,7 @@ test('sign-out cancels, clears, calls auth, and shows the F1 failure message', a
       email: identity.user.email,
       emailVerified: true,
       twoFactorEnabled: true,
+      jobTitle: null,
       onboardingCompleted: true,
     }),
   );
@@ -872,6 +875,7 @@ test('successful sign-out navigates only after authentication completes', async 
       email: identity.user.email,
       emailVerified: true,
       twoFactorEnabled: true,
+      jobTitle: null,
       onboardingCompleted: true,
     }),
   );

@@ -384,6 +384,7 @@ test('completed setup discards its proof without redeeming it again', async () =
     name: 'Operator',
     emailVerified: true,
     twoFactorEnabled: true,
+    jobTitle: null,
     onboardingCompleted: false,
   };
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) =>

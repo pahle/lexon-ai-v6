@@ -94,6 +94,7 @@ async function asActor<T>(
           email: 'fixture@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {

@@ -17,6 +17,20 @@ export function createAuthInspector(options: {
     return Number(result.rows[0]!.count);
   }
   return {
+    async jobTitle(userId: string) {
+      const result = await migrator.query<{ jobTitle: string | null }>(
+        'SELECT job_title AS "jobTitle" FROM auth."user" WHERE id = $1',
+        [userId],
+      );
+      return result.rows[0]!.jobTitle;
+    },
+    /** Raw write as the migrator role; lets tests probe the check constraint. */
+    async setJobTitle(userId: string, value: string | null) {
+      await migrator.query(
+        'UPDATE auth."user" SET job_title = $2 WHERE id = $1',
+        [userId, value],
+      );
+    },
     async makeAdmin(userId: string) {
       await migrator.query('UPDATE auth."user" SET role = $2 WHERE id=$1', [
         userId,

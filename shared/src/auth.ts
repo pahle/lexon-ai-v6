@@ -60,6 +60,7 @@ export const SafeProfileSchema = z.strictObject({
   name: DisplayNameSchema,
   emailVerified: z.boolean(),
   twoFactorEnabled: z.boolean(),
+  jobTitle: JobTitleSchema.nullable(),
   onboardingCompleted: z.boolean(),
 });
 export type SafeProfile = z.infer<typeof SafeProfileSchema>;

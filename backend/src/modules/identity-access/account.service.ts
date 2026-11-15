@@ -205,7 +205,11 @@ export class AccountService {
     return this.integration.transaction(async (tx) =>
       SafeProfileSchema.parse(
         await tx.call('lexonAccountProfile', {
-          body: { userId: identity.userId, name: body.name },
+          body: {
+            userId: identity.userId,
+            ...(body.name !== undefined ? { name: body.name } : {}),
+            ...(body.jobTitle !== undefined ? { jobTitle: body.jobTitle } : {}),
+          },
         }),
       ),
     );

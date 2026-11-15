@@ -26,6 +26,7 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
         name: 'Taylor Person',
         emailVerified: true,
         twoFactorEnabled: false,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {
@@ -75,6 +76,7 @@ test('profile settings updates a validated display name and keeps email read-onl
     name: 'New Name',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: true,
   });
   const view = await render(<ProfileSettings />);

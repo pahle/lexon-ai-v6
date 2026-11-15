@@ -34,6 +34,7 @@ const workspaceState = vi.hoisted(() => ({
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -98,6 +99,7 @@ afterEach(() => {
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -274,6 +276,7 @@ test.each(['invitations', 'general'] as const)(
         email: 'taylor@example.test',
         emailVerified: true,
         twoFactorEnabled: false,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {
@@ -529,6 +532,7 @@ function organizationIdentity(
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -557,6 +561,7 @@ test('demotion cancels and removes a delayed invitation response while Settings 
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {

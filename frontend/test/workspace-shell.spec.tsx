@@ -69,6 +69,7 @@ const identity: IdentitySummary = {
     name: 'Member',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: true,
   },
   organization: {

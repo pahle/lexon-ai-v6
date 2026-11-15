@@ -1097,6 +1097,7 @@ async function withActorScope<T>(
           email: `${actor.userId}@example.test`,
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {

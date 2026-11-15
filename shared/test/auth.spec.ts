@@ -69,9 +69,24 @@ test('safe own profile is versioned and has no session credentials', () => {
     name: 'A Person',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: false,
   };
   expect(SafeProfileSchema.parse(profile)).toEqual(profile);
+  expect(
+    SafeProfileSchema.parse({ ...profile, jobTitle: 'Senior Associate' })
+      .jobTitle,
+  ).toBe('Senior Associate');
+  const withoutTitle: Record<string, unknown> = { ...profile };
+  delete withoutTitle.jobTitle;
+  expect(SafeProfileSchema.safeParse(withoutTitle).success).toBe(false);
+  expect(
+    SafeProfileSchema.safeParse({ ...profile, jobTitle: '' }).success,
+  ).toBe(false);
+  expect(
+    SafeProfileSchema.safeParse({ ...profile, jobTitle: 'a'.repeat(81) })
+      .success,
+  ).toBe(false);
   expect(
     SafeProfileSchema.safeParse({ ...profile, token: 'secret' }).success,
   ).toBe(false);
@@ -97,6 +112,7 @@ test('identity summary requires a boolean platform eligibility flag', () => {
       name: 'A Person',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: false,
     },
     organization: {
@@ -134,6 +150,7 @@ test('the identity summary carries the member count of an active team only', () 
     name: 'A Person',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: true,
   };
   const organization = {

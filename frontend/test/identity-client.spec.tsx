@@ -70,6 +70,7 @@ test('identity client validates the safe platform eligibility summary field', as
         name: 'Admin',
         emailVerified: true,
         twoFactorEnabled: true,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {
@@ -177,6 +178,7 @@ test('server and identity clients do not re-emit a body-backed fallback hint', a
               name: 'Member',
               emailVerified: true,
               twoFactorEnabled: false,
+              jobTitle: null,
               onboardingCompleted: true,
             },
             organization: {
@@ -214,6 +216,7 @@ test('server and identity clients do not re-emit a body-backed fallback hint', a
               name: 'Member',
               emailVerified: true,
               twoFactorEnabled: false,
+              jobTitle: null,
               onboardingCompleted: true,
             },
             organization: {

@@ -180,6 +180,7 @@ export async function createChatApiHarness(
         email: `${ctx.userId}@example.test`,
         emailVerified: true,
         twoFactorEnabled: false,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {

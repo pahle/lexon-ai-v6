@@ -117,6 +117,7 @@ describe('RunAuthorizationService.withActor', () => {
             email: 'initiator@example.test',
             emailVerified: true,
             twoFactorEnabled: true,
+            jobTitle: null,
             onboardingCompleted: false,
           },
           organization: {
@@ -198,6 +199,7 @@ describe('RunAuthorizationService.withActor', () => {
             email: 'initiator@example.test',
             emailVerified: true,
             twoFactorEnabled: false,
+            jobTitle: null,
             onboardingCompleted: false,
           },
           organization: {

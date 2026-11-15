@@ -94,6 +94,7 @@ test('executor streams only typed summaries and reload matches measured timing',
       email: 'fixture@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {

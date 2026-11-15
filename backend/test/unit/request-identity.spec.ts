@@ -39,6 +39,7 @@ test('request identity and tenant context survive async work and expire together
           email: 'context@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {

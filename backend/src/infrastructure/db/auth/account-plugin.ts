@@ -30,6 +30,7 @@ interface ProfileRow {
   email: string;
   emailVerified: boolean;
   twoFactorEnabled: boolean;
+  jobTitle: string | null;
   onboardingComplete: boolean;
 }
 
@@ -161,6 +162,7 @@ export function accountPlugin(locks: AccountLocks) {
             .object({
               userId: z.uuid(),
               name: z.string().trim().min(1).max(100).optional(),
+              jobTitle: z.string().trim().min(1).max(80).nullable().optional(),
               completeOnboarding: z.literal(true).optional(),
             })
             .strict(),
@@ -170,6 +172,9 @@ export function accountPlugin(locks: AccountLocks) {
           const where = [{ field: 'id', value: ctx.body.userId }];
           const data = {
             ...(ctx.body.name !== undefined ? { name: ctx.body.name } : {}),
+            ...(ctx.body.jobTitle !== undefined
+              ? { jobTitle: ctx.body.jobTitle }
+              : {}),
             ...(ctx.body.completeOnboarding
               ? { onboardingComplete: true }
               : {}),
@@ -195,6 +200,7 @@ export function accountPlugin(locks: AccountLocks) {
             email: user.email,
             emailVerified: user.emailVerified,
             twoFactorEnabled: user.twoFactorEnabled,
+            jobTitle: user.jobTitle ?? null,
             onboardingCompleted: user.onboardingComplete,
           };
         },
