@@ -100,6 +100,7 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 ## Status 2026-11-14
 
 - F4 merged (#29, f2a73ce); PR #30 merged (e731ce0). F4.1 brief PR #31 (draft, c7b20c3): brief, LEX-DS-001 v3.0, docs/design/f4.1-prototype (38 screens + prototype.html), docs/brand/lexon-2026-v4.1. Next: PO reviews and merges #31, then a clean Claude Code session implements F4.1. F5 brief opens with chat client hardening.
+- 2026-11-15: F4.1 implementer (Claude Code, Fable 5.2 low main, Sonnet medium workers, Opus high reviewer at spec/plan/final) started; branches from main after #31 merges. Third flaky test added to F4.1: backend ai-step-concurrency.spec.ts "a live-refused claim that expires before inspection is deferred for fenced recovery" (failed on docs-only PR #31 CI, rerun requested).
 
 ## Lessons learned (apply to every brief)
 
