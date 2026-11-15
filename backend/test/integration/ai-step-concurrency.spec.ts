@@ -186,15 +186,22 @@ test('a live-refused claim that expires before inspection is deferred for fenced
     const run = await ai.start(0);
     await ai.seedPendingStep(0, run.id);
     const steps = new AiStepRepository();
-    const service = new StepCoordinator(
-      ai.database as TenantDatabase,
-      new AiRunRepository(),
-      steps,
-      new AttemptService(),
-      new OutboxRepository(),
-      new JobExecutor(ai.database),
-      150,
-    );
+    const coordinator = (leaseMs?: number) =>
+      new StepCoordinator(
+        ai.database as TenantDatabase,
+        new AiRunRepository(),
+        steps,
+        new AttemptService(),
+        new OutboxRepository(),
+        new JobExecutor(ai.database),
+        leaseMs,
+      );
+    // The short lease exists only so the original claim expires during the
+    // paused inspection. The recovery claim uses the default lease: with
+    // 150 ms, a slow runner could let the recovered lease expire before its
+    // own commit and report 'stale'.
+    const service = coordinator(150);
+    const recovery = coordinator();
     const queuedJob = job(run.id, ai.tenants[0]!);
     const originalFind = steps.find.bind(steps);
     vi.spyOn(steps, 'find').mockImplementation(async (tx, input) => {
@@ -215,12 +222,12 @@ test('a live-refused claim that expires before inspection is deferred for fenced
     expect(refused.kind).toBe('busy');
     if (refused.kind !== 'busy') return;
 
-    const recovered = await service.claim(queuedJob);
+    const recovered = await recovery.claim(queuedJob);
     expect(recovered.kind).toBe('claimed');
     if (recovered.kind !== 'claimed') return;
     expect(recovered.claim.fence).toBe(originalClaim.claim.fence + 1);
     expect(
-      await service.commit(queuedJob, recovered.claim, {
+      await recovery.commit(queuedJob, recovered.claim, {
         state: 'committed',
         text: 'replacement completed',
         data: {},
