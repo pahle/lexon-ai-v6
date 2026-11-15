@@ -33,6 +33,7 @@ export default defineConfig({
         'backend/test/e2e/app-shell.spec.ts',
         'backend/test/e2e/theme-before-hydration.spec.ts',
         'backend/test/e2e/shell-accessibility.spec.ts',
+        'backend/test/e2e/brand-layout.spec.ts',
       ],
     },
     {

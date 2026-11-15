@@ -111,6 +111,14 @@ const sizes = {
 } as const;
 const validatedApprovedSets = new Set<string>();
 
+// The layout and behavior assertions in these helpers outlive the F2.1
+// screenshot set. A spec that only wants those assertions turns the
+// screenshots and golden comparisons off.
+let screenshotsEnabled = true;
+export function setVisualScreenshots(enabled: boolean) {
+  screenshotsEnabled = enabled;
+}
+
 function resolveCurrentVisualMode() {
   return resolveVisualMode({
     updateSnapshots: isSnapshotUpdateEnabled(
@@ -201,9 +209,10 @@ export async function captureTask7BViewportReview(
   expect(documentWidth, JSON.stringify(overflowNodes)).toBeLessThanOrEqual(
     width,
   );
+  await page.mouse.move(0, 0);
+  if (!screenshotsEnabled) return;
   const output = resolve('.cache/f21-task7B', `${view}-${width}-${theme}.png`);
   await mkdir(resolve(output, '..'), { recursive: true });
-  await page.mouse.move(0, 0);
   await page.screenshot({
     path: output,
     fullPage: false,
@@ -290,7 +299,7 @@ export async function captureCheckpointCView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+  if (screenshotsEnabled && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
     const output = resolve(
       'docs/references/F2.1-visual/checkpoints',
       `c-${view}-${theme}.png`,
@@ -388,7 +397,11 @@ export async function captureVisualView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (mode === 'capture' && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+  if (
+    screenshotsEnabled &&
+    mode === 'capture' &&
+    process.env.LEXON_CAPTURE_CHECKPOINTS === '1'
+  ) {
     const output = resolve(
       'docs/references/F2.1-visual/checkpoints',
       `a-${view}-${viewport}-${theme}.png`,
@@ -493,6 +506,7 @@ export async function captureShellReviewView(
     'organization-switcher-open': '13',
     'user-menu-open': '14',
   };
+  if (!screenshotsEnabled) return;
   const output = resolve(
     outputDirectory,
     `${index[view]}-${view}-${viewport}-${theme}.png`,
@@ -808,6 +822,15 @@ export async function captureTask9ReviewView(
         document.activeElement.blur();
     });
     await expect(organizationTrigger).not.toBeFocused();
+  }
+  if (!screenshotsEnabled) {
+    if (view === 'organization-switcher-open' || view === 'user-menu-open') {
+      await page.keyboard.press('Escape');
+      if (viewport === 'mobile') await page.keyboard.press('Escape');
+    } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+      await page.keyboard.press('Escape');
+    }
+    return null;
   }
   if (mode === 'compare' || mode === 'update') {
     const directory = resolve('docs/references/F2.1-visual');
