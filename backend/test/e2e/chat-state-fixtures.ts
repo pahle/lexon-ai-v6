@@ -544,8 +544,8 @@ export async function expectRecentChatReady(sidebar: Locator) {
 export async function expectSolidDestructiveButton(button: Locator) {
   const styles = await button.evaluate((element) => {
     const probe = document.createElement('span');
-    probe.style.backgroundColor = 'var(--destructive)';
-    probe.style.color = 'var(--destructive-foreground)';
+    probe.style.backgroundColor = 'var(--lexon-destructive-fill)';
+    probe.style.color = '#ffffff';
     document.body.append(probe);
     const expected = getComputedStyle(probe);
     const actual = getComputedStyle(element);

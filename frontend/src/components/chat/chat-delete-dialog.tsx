@@ -141,7 +141,7 @@ export function ChatDeleteDialog({
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              className="bg-destructive text-destructive-foreground hover:bg-destructive dark:bg-destructive dark:hover:bg-destructive"
+              className="bg-(--lexon-destructive-fill) text-white hover:bg-(--lexon-destructive-fill) hover:opacity-90 dark:bg-(--lexon-destructive-fill) dark:hover:bg-(--lexon-destructive-fill)"
               disabled={busy}
               onClick={(event) => {
                 event.preventDefault();

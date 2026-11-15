@@ -48,12 +48,12 @@ export function AppearanceSettings(): React.ReactElement {
                 data-slot="appearance-preview"
                 data-theme-preview={value}
                 data-selected={theme === value}
-                className="flex h-24 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1 data-[selected=true]:border-primary"
+                className="flex h-24 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-muted p-1 data-[selected=true]:border-primary"
               >
                 <span
                   aria-hidden="true"
                   data-preview-theme={value === 'system' ? 'light' : value}
-                  className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)] p-1"
+                  className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-card p-1"
                 >
                   <span className="h-1.5 w-full rounded bg-muted" />
                   <span className="h-1.5 w-2/3 rounded bg-muted" />

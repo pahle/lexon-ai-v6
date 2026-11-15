@@ -11,25 +11,25 @@ test('F2 applies stored theme before hydration while external scripts are blocke
       theme: 'light',
       colorScheme: 'dark',
       expected: 'light',
-      color: 'rgb(246, 239, 226)',
+      color: 'rgb(255, 255, 255)',
     },
     {
       theme: 'dark',
       colorScheme: 'light',
       expected: 'dark',
-      color: 'rgb(42, 21, 25)',
+      color: 'rgb(18, 16, 17)',
     },
     {
       theme: 'system',
       colorScheme: 'light',
       expected: 'light',
-      color: 'rgb(246, 239, 226)',
+      color: 'rgb(255, 255, 255)',
     },
     {
       theme: 'system',
       colorScheme: 'dark',
       expected: 'dark',
-      color: 'rgb(42, 21, 25)',
+      color: 'rgb(18, 16, 17)',
     },
   ] as const;
 
@@ -99,10 +99,10 @@ test('appearance previews keep scoped light, dark, and system token surfaces', a
       element.querySelector('[data-preview-theme="dark"]')!,
     ).backgroundColor,
   }));
-  expect(light).toBe('rgb(229, 217, 195)');
-  expect(dark).toBe('rgb(74, 40, 48)');
+  expect(light).toBe('rgb(245, 244, 244)');
+  expect(dark).toBe('rgb(36, 32, 33)');
   expect(system).toEqual({
-    light: 'rgb(238, 228, 210)',
-    dark: 'rgb(42, 21, 25)',
+    light: 'rgb(255, 255, 255)',
+    dark: 'rgb(18, 16, 17)',
   });
 });

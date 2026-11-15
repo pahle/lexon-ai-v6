@@ -97,7 +97,7 @@ test('F2 appearance preference persists in this browser without changing securit
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
   await expect(page.locator('body')).toHaveCSS(
     'background-color',
-    'rgb(42, 21, 25)',
+    'rgb(18, 16, 17)',
   );
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);

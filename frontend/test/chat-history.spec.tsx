@@ -452,8 +452,10 @@ it('renders delete chat confirmation with a solid destructive button', async () 
   const confirm = document.body.querySelector(
     'button[data-slot="alert-dialog-action"]',
   ) as HTMLButtonElement;
-  expect(confirm.classList.contains('bg-destructive')).toBe(true);
-  expect(confirm.classList.contains('text-destructive-foreground')).toBe(true);
+  expect(confirm.classList.contains('bg-(--lexon-destructive-fill)')).toBe(
+    true,
+  );
+  expect(confirm.classList.contains('text-white')).toBe(true);
   expect(confirm.classList.contains('bg-destructive/10')).toBe(false);
   await view.unmount();
   wrapped.client.clear();

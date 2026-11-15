@@ -77,7 +77,7 @@ export function SessionList({
             aria-label="Signed-in sessions"
             className="w-full border-collapse text-left text-sm"
           >
-            <thead className="bg-[var(--surface-raised)] text-muted-foreground">
+            <thead className="bg-muted text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">
                   Session

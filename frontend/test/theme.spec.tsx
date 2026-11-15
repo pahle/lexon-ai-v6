@@ -98,9 +98,7 @@ test('appearance selection stores and applies light and dark themes locally', as
     expect(preview.parentElement?.className).not.toContain(
       'rounded-[var(--radius)] border',
     );
-    expect(preview.parentElement?.className).not.toContain(
-      'bg-[var(--surface-raised)]',
-    );
+    expect(preview.parentElement?.className).not.toContain('bg-card');
     const radio = preview.parentElement?.querySelector('[role="radio"]');
     expect(radio).not.toBeNull();
     expect(
