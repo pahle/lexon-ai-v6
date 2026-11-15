@@ -104,6 +104,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 - 2026-11-15 PO decision: F4.1 auth cover statement uses "Read, draft, and check Indonesian law in one quiet workspace." until F8; F8 brief must restore "Every answer names the article it rests on, so you can check it yourself." once citations ship.
 
+- 2026-11-15 F4.1 progress: PR #33 (draft). Tasks 0-6 done (three flaky tests root-caused: lease race test-only fix; regenerate test clicked before finish; Checkpoint C theme hardened, cause unproven). Model switch at Task 7: Opus medium main, Sonnet high workers, no Opus reviewer; final whole-branch review done by this session. Check at review: Task 6 primary hover color change, Task 4A reused approval model. Candidate flaky tests for a later slice: ai-streams.spec.ts "a stale claim fence cannot publish after a newer claim", ai-execution.spec.ts "renews a short-lived claim while the context collector is delayed".
+
 ## Lessons learned (apply to every brief)
 
 - F4 holistic review (2026-11-14, d4ae874): verdict merge; see reviews/F4-review.md. F5 brief must open with a chat client hardening task: single source of truth for the client tree and no 1 s full-tree polling during active runs.
