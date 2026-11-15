@@ -3,7 +3,7 @@ export default defineConfig({
   testDir: '.',
   timeout: 45000,
   expect: { timeout: 10000 },
-  snapshotPathTemplate: '{testDir}/docs/references/F2.1-visual/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
@@ -77,33 +77,12 @@ export default defineConfig({
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },
     {
-      name: 'visual-review',
-      testMatch: [
-        'backend/test/e2e/visual-rework.spec.ts',
-        'backend/test/e2e/visual-comparison-regression.spec.ts',
-      ],
-      use: {
-        deviceScaleFactor: 1,
-        locale: 'en-US',
-        timezoneId: 'Asia/Jakarta',
-        reducedMotion: 'reduce',
-      },
-    },
-    {
-      name: 'chat-visual',
-      testMatch: 'backend/test/e2e/chat-visual.spec.ts',
-      snapshotPathTemplate: '{testDir}/docs/references/F4-visual/{arg}{ext}',
-      use: {
-        deviceScaleFactor: 1,
-        locale: 'en-US',
-        timezoneId: 'Asia/Jakarta',
-        reducedMotion: 'reduce',
-      },
-    },
-    {
       name: 'brand-visual',
       timeout: 240000,
-      testMatch: 'backend/test/e2e/brand-visual.spec.ts',
+      testMatch: [
+        'backend/test/e2e/brand-visual.spec.ts',
+        'backend/test/e2e/visual-comparison-regression.spec.ts',
+      ],
       snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
       use: {
         deviceScaleFactor: 1,

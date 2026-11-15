@@ -45,18 +45,22 @@ test('manual capture mode preserves compare, update, and normal Compose E2E beha
 
 test('manual capture records a post-checkout freshness marker and always validates the manifest', () => {
   const checkout = composeJob.indexOf('- uses: actions/checkout@');
-  const marker = stepBlock(composeJob, 'Record visual audit freshness marker');
+  const marker = stepBlock(
+    composeJob,
+    'Record visual capture freshness marker',
+  );
   const capture = stepBlock(
     composeJob,
     'Full Compose browser API and topology layer',
   );
-  const manifest = stepBlock(composeJob, 'Write fresh visual audit manifest');
+  const manifest = stepBlock(composeJob, 'Write F4.1 visual capture manifest');
   const captureBranch = capture.match(
     /(?:if|elif) \[ "\$\{\{ inputs\.visual_mode \}\}" = "capture" \]; then\n([\s\S]*?)\n\s*(?:elif|else|fi)/,
   )?.[1];
   assert.ok(checkout >= 0, 'Compose job checks out the repository');
   assert.ok(checkout < composeJob.indexOf(marker));
   assert.ok(composeJob.indexOf(marker) < composeJob.indexOf(capture));
+  assert.ok(composeJob.indexOf(capture) < composeJob.indexOf(manifest));
   assert.ok(captureBranch, 'Compose step has an explicit capture branch');
   assert.match(captureBranch, /LEXON_VISUAL_MODE=capture pnpm test:e2e/);
   assert.doesNotMatch(captureBranch, /--update-snapshots/);
@@ -65,38 +69,57 @@ test('manual capture records a post-checkout freshness marker and always validat
     /if: github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'capture'/,
   );
   assert.match(marker, /Date\.now\(\)/);
-  assert.match(marker, /\.cache\/f4-f21-baseline-audit\/start-epoch-ms\.txt/);
+  assert.match(marker, /\.cache\/f4\.1-visual\/start-epoch-ms\.txt/);
   assert.match(
     manifest,
     /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'capture'/,
   );
-  assert.match(manifest, /scripts\/test\/visual-capture-manifest\.mjs/);
-  assert.match(manifest, /--not-before/);
-  assert.match(manifest, /\.cache\/f4-f21-baseline-audit\/start-epoch-ms\.txt/);
   assert.match(
     manifest,
-    /--output \.cache\/f4-f21-baseline-audit\/manifest\.json/,
+    /scripts\/test\/visual-capture-manifest\.mjs --set F4\.1-visual/,
   );
+  assert.match(manifest, /--not-before/);
+  assert.match(manifest, /\.cache\/f4\.1-visual\/start-epoch-ms\.txt/);
   assert.doesNotMatch(manifest, /--update-snapshots|rm\s+-rf/);
 });
 
-test('manual capture audit artifacts always upload for fourteen days without writing baselines', () => {
-  const upload = stepBlock(composeJob, 'Upload F2.1 manual capture audit');
+test('manual capture and update artifacts always upload for fourteen days', () => {
+  const upload = stepBlock(composeJob, 'Upload F4.1 Linux visual set');
   assert.match(
     upload,
-    /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'capture'/,
+    /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode != 'compare'/,
   );
   assert.match(upload, /uses: actions\/upload-artifact@[0-9a-f]{40}/);
-  assert.match(upload, /name: f4-f21-baseline-audit-\$\{\{ github\.sha \}\}/);
+  assert.match(
+    upload,
+    /name: f4\.1-visual-\$\{\{ inputs\.visual_mode \}\}-\$\{\{ github\.sha \}\}/,
+  );
   for (const path of [
-    'docs/references/F2.1-visual/review/*.png',
-    '.cache/f4-f21-baseline-audit/start-epoch-ms.txt',
-    '.cache/f4-f21-baseline-audit/manifest.json',
-    'docs/references/F2.1-visual/index.json',
-    'docs/references/F2.1-visual/approval.json',
-    'docs/references/F2.1-visual/baseline-manifest.json',
+    'docs/references/F4.1-visual/review/*.png',
+    'docs/references/F4.1-visual/baseline/*.png',
+    'docs/references/F4.1-visual/index.json',
+    'docs/references/F4.1-visual/approval.json',
+    'docs/references/F4.1-visual/capture-manifest.json',
+    '.cache/f4.1-visual/baseline-manifest.json',
+    '.cache/f4.1-visual/start-epoch-ms.txt',
   ])
-    assert.ok(upload.includes(path), `audit upload includes ${path}`);
+    assert.ok(upload.includes(path), `visual upload includes ${path}`);
   assert.match(upload, /retention-days: 14/);
   assert.doesNotMatch(upload, /--update-snapshots|rm\s+-rf/);
+});
+
+test('baselines are verified only after a manual update on the approved set', () => {
+  const verify = stepBlock(
+    composeJob,
+    'Verify F4.1 approved Linux baseline manifest',
+  );
+  assert.match(
+    verify,
+    /if: success\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'update'/,
+  );
+  assert.match(
+    verify,
+    /scripts\/test\/write-visual-baseline-manifest\.mjs --set F4\.1-visual/,
+  );
+  assert.doesNotMatch(workflow, /f2\.1-visual-rework|F2\.1-visual/);
 });

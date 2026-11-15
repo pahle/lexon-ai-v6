@@ -111,10 +111,11 @@ const sizes = {
 } as const;
 const validatedApprovedSets = new Set<string>();
 
-// The layout and behavior assertions in these helpers outlive the F2.1
-// screenshot set. A spec that only wants those assertions turns the
-// screenshots and golden comparisons off.
-let screenshotsEnabled = true;
+// The F2.1 screenshot set is retired (superseded by the F4.1 set, owner
+// decision 2026-11-15). The layout and behavior assertions in these helpers
+// stay; screenshots and golden comparisons are off unless a caller turns them
+// on to inspect the old set by hand.
+let screenshotsEnabled = false;
 export function setVisualScreenshots(enabled: boolean) {
   screenshotsEnabled = enabled;
 }

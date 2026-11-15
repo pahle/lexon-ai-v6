@@ -69,7 +69,10 @@ test('brand visual selects the runtime proof overlay and the F4.1 snapshot path'
     (entry) => entry.name === 'brand-visual',
   );
   assert.ok(project, 'brand-visual is missing from Playwright projects');
-  assert.equal(project.testMatch, 'backend/test/e2e/brand-visual.spec.ts');
+  assert.deepEqual(project.testMatch, [
+    'backend/test/e2e/brand-visual.spec.ts',
+    'backend/test/e2e/visual-comparison-regression.spec.ts',
+  ]);
   assert.equal(
     project.snapshotPathTemplate,
     '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
@@ -82,27 +85,21 @@ test('brand visual selects the runtime proof overlay and the F4.1 snapshot path'
   });
 });
 
-test('chat visual selects the runtime proof overlay and its own snapshot path', () => {
-  const selection = resolveE2ESelection(['--project', 'chat-visual']);
-  assert.deepEqual(selection.selectedProjects, ['chat-visual']);
-  assert.ok(
-    composeFilesForE2EProjects(
-      selection.selectedProjects,
-      '/repository/',
-    ).includes('/repository/backend/test/e2e/compose.chat-runtime-proof.yml'),
-  );
-
+test('the retired F2.1 and F4 visual projects are gone', () => {
   const config = readPlaywrightConfig();
-  const project = config.projects.find((entry) => entry.name === 'chat-visual');
-  assert.ok(project, 'chat-visual is missing from Playwright projects');
-  assert.equal(project.testMatch, 'backend/test/e2e/chat-visual.spec.ts');
-  assert.equal(
-    project.snapshotPathTemplate,
-    '{testDir}/docs/references/F4-visual/{arg}{ext}',
-  );
+  for (const name of ['chat-visual', 'visual-review']) {
+    assert.ok(
+      !Object.values(E2E_PROJECTS).flat().includes(name),
+      `${name} is still selectable`,
+    );
+    assert.ok(
+      !config.projects.some((entry) => entry.name === name),
+      `${name} is still a Playwright project`,
+    );
+  }
   assert.equal(
     config.snapshotPathTemplate,
-    '{testDir}/docs/references/F2.1-visual/{arg}{ext}',
+    '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
   );
 });
 

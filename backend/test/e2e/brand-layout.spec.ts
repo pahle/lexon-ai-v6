@@ -15,19 +15,16 @@ import {
   captureShellReviewView,
   captureTask7BViewportReview,
   captureVisualView,
-  setVisualScreenshots,
   type VisualTheme,
   type VisualViewport,
 } from './visual-support.js';
 
 // Layout, behavior, and accessibility assertions that used to live in the
-// F2.1 visual capture spec. They run with screenshots and golden comparisons
-// turned off, so they do not depend on any visual baseline.
+// F2.1 visual capture spec. The helpers no longer take screenshots or compare
+// goldens, so these tests do not depend on any visual baseline.
 // Same browser context as the retired visual-review project, so geometry is
 // measured after motion has settled.
 test.use({ reducedMotion: 'reduce' });
-test.beforeAll(() => setVisualScreenshots(false));
-test.afterAll(() => setVisualScreenshots(true));
 
 async function captureTask9Variants(
   page: import('@playwright/test').Page,

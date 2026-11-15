@@ -8,7 +8,7 @@ import {
   resolveVisualMode,
 } from '../../../scripts/visual-mode.mjs';
 
-const visualDirectory = resolve('docs/references/F2.1-visual');
+const visualDirectory = resolve('docs/references/F4.1-visual');
 const fixturePath = resolve(
   visualDirectory,
   'test-fixtures/eight-pixel-layout.png',

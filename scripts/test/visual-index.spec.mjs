@@ -857,11 +857,10 @@ test('CI comparison is the normal approved path and updates require explicit dis
     /LEXON_VISUAL_MODE=update pnpm test:e2e --update-snapshots/,
   );
   assert.match(workflow, /LEXON_VISUAL_MODE=compare pnpm test:e2e/);
-  assert.match(
-    workflow,
-    /steps\.visual-approval\.outputs\.status == 'awaiting-owner'/,
-  );
-  assert.match(workflow, /docs\/references\/F2\.1-visual\/baseline\/\*\.png/);
+  // The approval record of the active (F4.1) set decides the mode; the F2.1
+  // set is retired and no longer drives CI.
+  assert.match(workflow, /docs\/references\/F4\.1-visual\/approval\.json/);
+  assert.match(workflow, /docs\/references\/F4\.1-visual\/baseline\/\*\.png/);
 });
 
 test('Playwright update snapshots config is the authoritative worker signal', () => {
@@ -952,4 +951,34 @@ test('Checkpoint C index still maps every prototype and preserves all checkpoint
       assert.equal(png.readUInt32BE(16), 1440);
       assert.equal(png.readUInt32BE(20), 900);
     }
+});
+
+test('the F4.1 set records every F2.1 and F4 image it supersedes', () => {
+  const directory = resolve(import.meta.dirname, '../../docs/references');
+  const read = (path) =>
+    JSON.parse(readFileSync(resolve(directory, path), 'utf8'));
+  const record = read('F4.1-visual/retirements.json');
+  assert.equal(record.version, 1);
+  assert.equal(record.status, 'approved');
+  assert.equal(record.ownerApproval.reference, 'Owner decision Q2, 2026-11-15');
+  assert.equal(record.ownerApproval.date, '2026-11-15');
+  const expected = [
+    ...Object.entries(read('F2.1-visual/index.json').views)
+      .filter(([, view]) => view.path.startsWith('review/'))
+      .map(([id]) => `F2.1-visual:${id}`),
+    ...read('F4-visual/index.json').captures.map(
+      (capture) => `F4-visual:${capture.id}`,
+    ),
+  ].sort();
+  assert.equal(expected.length, 148);
+  assert.deepEqual(
+    record.supersedes.map((entry) => `${entry.set}:${entry.id}`).sort(),
+    expected,
+  );
+  const f41 = Object.keys(read('F4.1-visual/index.json').views);
+  for (const entry of record.supersedes)
+    assert.ok(
+      entry.replacedBy === null || f41.includes(entry.replacedBy),
+      `${entry.set}:${entry.id} names an unknown replacement`,
+    );
 });
