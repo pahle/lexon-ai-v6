@@ -84,8 +84,7 @@ test('profile settings updates a validated display name and keeps email read-onl
     view.container.querySelector('input[aria-label="Email address"]'),
   ).toBeNull();
   expect(view.container.textContent).toContain('person@example.test');
-  expect(view.container.textContent).toContain('Active organization');
-  expect(view.container.textContent).toContain('Personal');
+  expect(view.container.textContent).not.toContain('Active organization');
   expect(view.container.textContent).not.toContain('Personal internal name');
   expect(
     view.container.querySelector('a[href*="settings=security"]'),
@@ -109,7 +108,7 @@ test('profile settings updates a validated display name and keeps email read-onl
         );
     });
   });
-  expect(update).toHaveBeenCalledWith({ name: 'New Name' });
+  expect(update).toHaveBeenCalledWith({ name: 'New Name', jobTitle: null });
   expect(refreshIdentity).toHaveBeenCalled();
   expect(successToast).toHaveBeenCalledWith('Changes saved.');
   expect(view.container.textContent).not.toContain(
@@ -194,4 +193,113 @@ test('invalid profile name uses the shared Field error and destructive label sta
     field.querySelector('[data-slot="field-error"]')?.textContent,
   ).toBeTruthy();
   await view.unmount();
+});
+
+async function typeInto(input: HTMLInputElement, value: string) {
+  const { act } = await import('react');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+async function submitForm(container: HTMLElement) {
+  const { act } = await import('react');
+  await act(async () => {
+    container
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+}
+const savedProfile = {
+  version: 1 as const,
+  id: '00000000-0000-4000-8000-000000000001',
+  email: 'person@example.test',
+  name: 'Taylor Person',
+  emailVerified: true,
+  twoFactorEnabled: false,
+  jobTitle: null,
+  onboardingCompleted: true,
+};
+
+test('profile settings shows a Job title field with its description', async () => {
+  const view = await render(<ProfileSettings />);
+  const job = view.container.querySelector('#profile-job-title');
+  expect(job).not.toBeNull();
+  expect(view.container.textContent).toContain('Job title');
+  expect(view.container.textContent).toContain(
+    'Shown under your name in the sidebar.',
+  );
+  expect(
+    view.container.querySelector('label[for="profile-job-title"]')?.textContent,
+  ).toBe('Job title');
+  await view.unmount();
+});
+
+test('profile settings trims the job title before saving', async () => {
+  const update = vi
+    .spyOn(identityApi, 'updateProfile')
+    .mockResolvedValue(savedProfile);
+  const view = await render(<ProfileSettings />);
+  await typeInto(
+    view.container.querySelector('#profile-job-title') as HTMLInputElement,
+    '  Partner ',
+  );
+  await submitForm(view.container);
+  expect(update).toHaveBeenCalledWith({
+    name: 'Taylor Person',
+    jobTitle: 'Partner',
+  });
+  expect(refreshIdentity).toHaveBeenCalled();
+  expect(successToast).toHaveBeenCalledWith('Changes saved.');
+  await view.unmount();
+  update.mockRestore();
+  refreshIdentity.mockClear();
+  successToast.mockClear();
+});
+
+test('clearing the job title saves null', async () => {
+  const update = vi
+    .spyOn(identityApi, 'updateProfile')
+    .mockResolvedValue(savedProfile);
+  const view = await render(<ProfileSettings />);
+  const job = view.container.querySelector(
+    '#profile-job-title',
+  ) as HTMLInputElement;
+  await typeInto(job, 'Partner');
+  await typeInto(job, '');
+  await submitForm(view.container);
+  expect(update).toHaveBeenCalledWith({
+    name: 'Taylor Person',
+    jobTitle: null,
+  });
+  await view.unmount();
+  update.mockRestore();
+  refreshIdentity.mockClear();
+  successToast.mockClear();
+});
+
+test('a job title over 80 characters shows an error and does not call the API', async () => {
+  const update = vi
+    .spyOn(identityApi, 'updateProfile')
+    .mockResolvedValue(savedProfile);
+  const view = await render(<ProfileSettings />);
+  const job = view.container.querySelector(
+    '#profile-job-title',
+  ) as HTMLInputElement;
+  await typeInto(job, 'x'.repeat(81));
+  await submitForm(view.container);
+  expect(update).not.toHaveBeenCalled();
+  expect(view.container.textContent).toContain('Use 80 characters or fewer.');
+  expect(job.getAttribute('aria-invalid')).toBe('true');
+  const describedBy = job.getAttribute('aria-describedby')!;
+  expect(describedBy).toBeTruthy();
+  expect(view.container.querySelector(`#${describedBy}`)?.textContent).toBe(
+    'Use 80 characters or fewer.',
+  );
+  await view.unmount();
+  update.mockRestore();
 });

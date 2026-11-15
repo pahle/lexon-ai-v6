@@ -667,11 +667,7 @@ async function expectAccountSectionReady(
   if (section === 'profile') {
     await expect(page.getByLabel('Display name')).toBeVisible();
     await expect(page.getByText('Email', { exact: true })).toBeVisible();
-    await expect(
-      page
-        .getByRole('region', { name: 'profile settings' })
-        .getByText('Personal', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByLabel('Job title')).toBeVisible();
   } else if (section === 'appearance') {
     await expect(page.getByRole('radio', { name: 'Light' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeVisible();

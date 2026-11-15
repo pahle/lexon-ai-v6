@@ -54,7 +54,7 @@ export function UserMenu({
   const pathname = usePathname() ?? '/workspace';
   const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const name = identity?.user.name ?? 'Account';
-  const email = identity?.user.email ?? '';
+  const subtitle = identity?.user.jobTitle ?? identity?.user.email ?? '';
   const requestSettingsNavigation = () => {
     settingsNavigationPending.current = true;
     if (sidebar?.isMobile) {
@@ -100,7 +100,7 @@ export function UserMenu({
           <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{name}</span>
             <span className="truncate text-xs text-muted-foreground">
-              {email}
+              {subtitle}
             </span>
           </span>
         ) : null}
@@ -131,7 +131,7 @@ export function UserMenu({
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {email}
+                  {subtitle}
                 </span>
               </div>
             </div>

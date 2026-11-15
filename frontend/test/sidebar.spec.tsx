@@ -1334,3 +1334,64 @@ test('trigger accessible names contain the visible text in order and keep the ro
     vi.unstubAllGlobals();
   }
 });
+
+test('the user menu shows the job title instead of the email, and the email without one', async () => {
+  workspace.identity = {
+    ...identity,
+    user: { ...identity.user, jobTitle: 'Senior Associate' },
+  };
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const trigger = view.container.querySelector('button[aria-haspopup="menu"]')!;
+  expect(trigger.textContent).toContain('Senior Associate');
+  expect(trigger.textContent).not.toContain('ada@example.test');
+  await act(async () => (trigger as HTMLButtonElement).click());
+  await settle();
+  const label = document.body.querySelector(
+    '[data-slot="dropdown-menu-label"]',
+  )!;
+  expect(label.textContent).toContain('Senior Associate');
+  expect(label.textContent).not.toContain('ada@example.test');
+  await view.unmount();
+
+  workspace.identity = identity;
+  const plain = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const plainTrigger = plain.container.querySelector(
+    'button[aria-haspopup="menu"]',
+  )!;
+  expect(plainTrigger.textContent).toContain('ada@example.test');
+  await act(async () => (plainTrigger as HTMLButtonElement).click());
+  await settle();
+  expect(
+    document.body.querySelector('[data-slot="dropdown-menu-label"]')
+      ?.textContent,
+  ).toContain('ada@example.test');
+  await plain.unmount();
+});
+
+test('an 80-character job title truncates inside the trigger', async () => {
+  workspace.identity = {
+    ...identity,
+    user: { ...identity.user, jobTitle: 'J'.repeat(80) },
+  };
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const trigger = view.container.querySelector('button[aria-haspopup="menu"]')!;
+  const line = [...trigger.querySelectorAll('span.truncate')].find((el) =>
+    el.textContent?.startsWith('JJJ'),
+  )!;
+  expect(line.className).toContain('truncate');
+  expect(line.parentElement?.className).toContain('min-w-0');
+  expect(trigger.className).not.toContain('overflow-visible');
+  await view.unmount();
+});
