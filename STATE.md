@@ -102,6 +102,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F4 merged (#29, f2a73ce); PR #30 merged (e731ce0). F4.1 brief PR #31 (draft, c7b20c3): brief, LEX-DS-001 v3.0, docs/design/f4.1-prototype (38 screens + prototype.html), docs/brand/lexon-2026-v4.1. Next: PO reviews and merges #31, then a clean Claude Code session implements F4.1. F5 brief opens with chat client hardening.
 - 2026-11-15: F4.1 implementer (Claude Code, Fable 5.2 low main, Sonnet medium workers, Opus high reviewer at spec/plan/final) started; branches from main after #31 merges. Third flaky test added to F4.1: backend ai-step-concurrency.spec.ts "a live-refused claim that expires before inspection is deferred for fenced recovery" (failed on docs-only PR #31 CI, rerun requested).
 
+- 2026-11-15 PO decision: F4.1 auth cover statement uses "Read, draft, and check Indonesian law in one quiet workspace." until F8; F8 brief must restore "Every answer names the article it rests on, so you can check it yourself." once citations ship.
+
 ## Lessons learned (apply to every brief)
 
 - F4 holistic review (2026-11-14, d4ae874): verdict merge; see reviews/F4-review.md. F5 brief must open with a chat client hardening task: single source of truth for the client tree and no 1 s full-tree polling during active runs.
