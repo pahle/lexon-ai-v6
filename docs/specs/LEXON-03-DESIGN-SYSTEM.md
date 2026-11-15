@@ -1,5 +1,5 @@
 ---
-version: "3.0"
+version: "3.0.1"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -19,7 +19,8 @@ colors:
   secondary-foreground: "#1A1718"
   accent: "#F2F1F1" # hover surface
   accent-foreground: "#1A1718"
-  destructive: "#8E1A22" # Merah Segel Deep (dialog confirm buttons and error text)
+  destructive: "#8E1A22" # Merah Segel Deep: error text
+  destructive-fill: "#8E1A22" # Merah Segel Deep: confirm button fill in destructive dialogs
   ring: "#B3202A"
   sidebar: "#F5F4F4"
   sidebar-primary: "#1A1718" # team switcher tile
@@ -50,7 +51,8 @@ colors-dark:
   secondary-foreground: "#F2F0F0"
   accent: "#242021"
   accent-foreground: "#F2F0F0"
-  destructive: "#F0646C" # error text; dialog confirm buttons keep Merah Segel Deep fill
+  destructive: "#F0646C" # error text
+  destructive-fill: "#8E1A22" # same fill in both themes; white text 9.1:1
   ring: "#F0646C"
   sidebar: "#181516"
   sidebar-primary: "#F2F0F0"
@@ -84,7 +86,7 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 3.0 |
+| **Version** | 3.0.1 |
 | **Date** | 14 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
@@ -139,7 +141,7 @@ family: `--sidebar`, `--sidebar-primary`, `--sidebar-primary-foreground`,
 `foreground`, `--sidebar-accent-foreground` = `foreground`, `--sidebar-ring` =
 `ring`). `--card-foreground` and `--popover-foreground` are `foreground`.
 Lexon tokens with no shadcn equivalent use a `--lexon-` prefix
-(`--lexon-red-text`, `--lexon-tint`, `--lexon-flag`, `--lexon-deleted`,
+(`--lexon-destructive-fill`, `--lexon-red-text`, `--lexon-tint`, `--lexon-flag`, `--lexon-deleted`,
 `--lexon-user-bubble`, `--lexon-night`, `--lexon-warning`, `--lexon-success`).
 Charts (later slices) use Merah Segel, Ink, Muted, `#9A9495`, and `#DDDADA` in
 that order.
@@ -152,7 +154,7 @@ Measured contrast (WCAG 2.2 relative luminance):
 | `muted-foreground` on `background` / `card` / `muted` / `sidebar` | 5.7 / 5.7 / 5.2 / 5.2 | 7.3 / 6.9 / 6.2 / 7.0 |
 | `muted-foreground` on `sidebar-accent` | 4.8 | 5.8 |
 | `primary-foreground` on `primary` | 6.65 | 6.65 |
-| white on `destructive` fill (Merah Segel Deep, dialog confirm) | 9.1 | 9.1 |
+| white on `destructive-fill` (Merah Segel Deep, dialog confirm) | 9.1 | 9.1 |
 | `red-text` on `background` / `card` / `muted` | 6.7 / 6.7 / 6.1 | 6.1 / 5.7 / 5.2 |
 | `red-text` on `tint` | 5.5 | 5.0 |
 | `destructive` (error text) on `background` / `muted` | 9.1 / 8.2 | 6.1 / 5.2 |
@@ -170,7 +172,8 @@ Rules:
 - **Destructive actions** cannot be told apart by color, because red is the
   primary. Outside dialogs they use `Button variant="outline"` with explicit
   text ("Delete chat"). The confirm button inside the confirmation
-  `AlertDialog` uses the `destructive` variant (Merah Segel Deep fill, white
+  `AlertDialog` uses the `destructive` variant drawn with `destructive-fill`
+  (Merah Segel Deep, white
   text) in both themes.
 - `border` and `input` are decorative (≤ 2.4:1). Inputs rely on their label
   and the focus ring for the non-text cue.
@@ -354,6 +357,7 @@ The prototype README and `fm-strip.png` / `finish-strip.png` show it.
 
 | Version | Change |
 |---|---|
+| 3.0.1 | **Added (product owner, F4.1 spec review, 2026-11-15):** `destructive-fill` token (`--lexon-destructive-fill`, Merah Segel Deep in both themes) for the confirm button of destructive dialogs, since the dark `destructive` token is the lighter error-text red |
 | 3.0 | **Replaced (product owner, brand kit v4.1 and F4.1 prototype approval, 2026-11-13):** Royal Seal palette by brand v4.1 (White, Ink, Surface, Muted, Line Soft, Merah Segel, Merah Segel Deep, Night, Tint) with a derived dark theme and measured contrast; Georgia by EB Garamond for headlines; TeX Gyre Bonum added for legal quotations; brand source `docs/brand/lexon-2026-v4.1/`. **Added:** red-is-reserved and destructive-action rules (§2); inset shell, Tools/Recent groups, Personal monogram, job title (§4, §5); auth Night cover (§5); chat layout (§5.3); thinking indicator (§5.4). **Changed:** visual target is `docs/design/f4.1-prototype/` |
 | 2.2 | **Added (product owner, F4 prototype approval):** chat visual target and workspace navigation (New chat, Chats, Recent) in §5 |
 | 2.1 | **Added (product owner, prototype approval):** UI patterns (§5.1: fields and errors, password visibility toggle, pending buttons, form alerts, toasts, empty and loading states, destructive confirmation); one Settings dialog (§5.2, shadcn `sidebar-13`) for personal and organization settings; visual-target rule. **Changed:** logo placement (§4): tile mark in the organization switcher instead of a sidebar wordmark; sign-in pages use the compact wordmark at 128px; brand package v1.1 (more space around the L in marks and icons) |
