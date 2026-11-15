@@ -96,7 +96,7 @@ jobs:
         if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
         run: |
           marker="$(cat .cache/f4-f21-baseline-audit/start-epoch-ms.txt)"
-          node scripts/test/visual-capture-manifest.mjs --not-before "$marker" --output .cache/f4-f21-baseline-audit/manifest.json
+          node scripts/test/visual-capture-manifest.mjs --set F2.1-visual --not-before "$marker" --output .cache/f4-f21-baseline-audit/manifest.json
       - name: Upload F2.1 manual capture audit
         if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -123,10 +123,10 @@ jobs:
           if-no-files-found: ignore
       - name: Verify exact approved Linux baseline manifest
         if: success() && github.event_name == 'workflow_dispatch'
-        run: node scripts/test/write-visual-baseline-manifest.mjs
+        run: node scripts/test/write-visual-baseline-manifest.mjs --set F2.1-visual
       - name: Save first Linux review capture hashes
         if: success() && github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/f2.1-visual-rework' && steps.visual-approval.outputs.status == 'awaiting-owner'
-        run: node scripts/test/visual-capture-manifest.mjs --output .cache/f2.1-visual/capture-run-1.json
+        run: node scripts/test/visual-capture-manifest.mjs --set F2.1-visual --output .cache/f2.1-visual/capture-run-1.json
       - name: Repeat indexed review captures on the same Linux runner
         if: success() && github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/f2.1-visual-rework' && steps.visual-approval.outputs.status == 'awaiting-owner'
         run: |
@@ -134,10 +134,10 @@ jobs:
           LEXON_VISUAL_MODE=capture pnpm test:e2e --project identity-browser -g 'F2 platform page passes both-theme axe checks in the real operator flow'
       - name: Compare both Linux review capture iterations
         if: success() && github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/f2.1-visual-rework' && steps.visual-approval.outputs.status == 'awaiting-owner'
-        run: node scripts/test/visual-capture-manifest.mjs --compare .cache/f2.1-visual/capture-run-1.json
+        run: node scripts/test/visual-capture-manifest.mjs --set F2.1-visual --compare .cache/f2.1-visual/capture-run-1.json
       - name: Write indexed visual review manifest
         if: success() && github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/f2.1-visual-rework' && steps.visual-approval.outputs.status == 'awaiting-owner'
-        run: node scripts/test/visual-capture-manifest.mjs
+        run: node scripts/test/visual-capture-manifest.mjs --set F2.1-visual
       - name: Upload indexed Linux visual review set
         if: success() && github.ref == 'refs/heads/f2.1-visual-rework' && (github.event_name == 'workflow_dispatch' || steps.visual-approval.outputs.status == 'awaiting-owner')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -152,6 +152,26 @@ jobs:
             .cache/f2.1-visual/baseline-manifest.json
           retention-days: 7
           if-no-files-found: error
+      - name: Write F4.1 visual capture manifest
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        run: node scripts/test/visual-capture-manifest.mjs --set F4.1-visual
+      - name: Verify F4.1 approved Linux baseline manifest
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'update'
+        run: node scripts/test/write-visual-baseline-manifest.mjs --set F4.1-visual
+      - name: Upload F4.1 Linux visual set
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode != 'compare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f4.1-visual-${{ inputs.visual_mode }}-${{ github.sha }}
+          path: |
+            docs/references/F4.1-visual/index.json
+            docs/references/F4.1-visual/approval.json
+            docs/references/F4.1-visual/capture-manifest.json
+            docs/references/F4.1-visual/review/*.png
+            docs/references/F4.1-visual/baseline/*.png
+            .cache/f4.1-visual/baseline-manifest.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Sanitized test artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

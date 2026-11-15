@@ -4,10 +4,22 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { arch, platform, release, type } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { buildVisualBaselineManifest } from '../visual-mode.mjs';
+import {
+  assertApprovalSourceReachable,
+  buildVisualBaselineManifest,
+  visualSetDirectory,
+} from '../visual-mode.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
-const visualDirectory = resolve(root, 'docs/references/F2.1-visual');
+const setIndex = process.argv.indexOf('--set');
+const visualSet = setIndex >= 0 ? process.argv[setIndex + 1] : undefined;
+const visualDirectory = visualSetDirectory(visualSet, root);
+const isLegacySet = visualDirectory.endsWith('F2.1-visual');
+const outputArgument = process.argv
+  .slice(2)
+  .find(
+    (arg, position, args) => arg !== '--set' && args[position - 1] !== '--set',
+  );
 if (process.env.CI !== 'true' || process.platform !== 'linux') {
   throw new Error('Visual baseline manifest requires a Linux CI runner.');
 }
@@ -42,6 +54,24 @@ try {
     cwd: root,
     encoding: 'utf8',
   }).trim();
+  // A shallow CI checkout cannot prove ancestry; a full clone must.
+  const shallow =
+    execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim() === 'true';
+  if (!isLegacySet && !shallow)
+    assertApprovalSourceReachable(approval, (sha) => {
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], {
+          cwd: root,
+          stdio: 'ignore',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    });
   const manifest = buildVisualBaselineManifest(
     index,
     approval,
@@ -49,6 +79,11 @@ try {
     {
       sourceSha,
       generatedAt: new Date().toISOString(),
+      expectedViewCount: isLegacySet
+        ? 82
+        : Object.values(index.views).filter((view) =>
+            view.path?.startsWith('review/'),
+          ).length,
       approvalSha256: sha256(approvalBytes),
       indexSha256: sha256(indexBytes),
       environment: {
@@ -68,7 +103,10 @@ try {
   );
   const output = resolve(
     root,
-    process.argv[2] ?? '.cache/f2.1-visual/baseline-manifest.json',
+    outputArgument ??
+      (isLegacySet
+        ? '.cache/f2.1-visual/baseline-manifest.json'
+        : '.cache/f4.1-visual/baseline-manifest.json'),
   );
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, JSON.stringify(manifest, null, 2) + '\n');

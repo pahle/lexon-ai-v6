@@ -118,3 +118,15 @@ export function buildVisualBaselineManifest(
     expectedViewCount?: number;
   },
 ): VisualBaselineManifest;
+export const DEFAULT_VISUAL_SET: 'F4.1-visual';
+export function visualSetDirectory(set?: string, root?: string): string;
+export function invalidateRecapturedApproval<
+  T extends { status: string; images?: Record<string, { sha256: string }> },
+>(
+  approval: T,
+  capturedImages: Record<string, { sha256: string }>,
+): { approval: T; invalidated: string[] };
+export function assertApprovalSourceReachable(
+  approval: { sourceSha: string },
+  isAncestor: (sha: string) => boolean,
+): void;

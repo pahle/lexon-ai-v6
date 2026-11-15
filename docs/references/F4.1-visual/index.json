@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "deviceScaleFactor": 1,
+  "format": "png",
+  "views": {
+    "sign-in-desktop-light": {
+      "path": "review/sign-in-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, idle",
+      "prototypeReference": "01-sign-in.png",
+      "replaces": []
+    },
+    "sign-in-desktop-dark": {
+      "path": "review/sign-in-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, idle",
+      "prototypeReference": "03-sign-in-dark.png",
+      "replaces": []
+    },
+    "sign-in-mobile-light": {
+      "path": "review/sign-in-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, idle",
+      "prototypeReference": "01-sign-in.png",
+      "replaces": []
+    },
+    "sign-in-mobile-dark": {
+      "path": "review/sign-in-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, idle",
+      "prototypeReference": "03-sign-in-dark.png",
+      "replaces": []
+    }
+  }
+}

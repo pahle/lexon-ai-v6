@@ -6,6 +6,63 @@ export function isSnapshotUpdateEnabled(updateSnapshots) {
   return ['all', 'changed', 'missing'].includes(updateSnapshots);
 }
 
+export const DEFAULT_VISUAL_SET = 'F4.1-visual';
+
+/** The directory of a visual set under docs/references (default: F4.1). */
+export function visualSetDirectory(
+  set = process.env.LEXON_VISUAL_SET ?? DEFAULT_VISUAL_SET,
+  root = process.cwd(),
+) {
+  if (!/^F\d+(\.\d+)?-visual$/.test(set))
+    throw new Error(`Unknown visual set: ${set}`);
+  return resolve(root, 'docs/references', set);
+}
+
+/**
+ * Recapturing an image invalidates its recorded approval (F4 follow-up M3).
+ * Returns a new approval record: every approved image whose recaptured hash
+ * differs loses its approved entry, is listed under `invalidated`, and the
+ * set returns to awaiting-owner, which refuses compare and update modes.
+ */
+export function invalidateRecapturedApproval(approval, capturedImages) {
+  if (approval.status !== 'approved') return { approval, invalidated: [] };
+  const changed = Object.entries(approval.images ?? {}).filter(
+    ([id, image]) =>
+      capturedImages[id] !== undefined &&
+      capturedImages[id].sha256 !== image.sha256,
+  );
+  if (changed.length === 0) return { approval, invalidated: [] };
+  const invalidated = changed.map(([id]) => id);
+  return {
+    invalidated,
+    approval: {
+      ...approval,
+      status: 'awaiting-owner',
+      images: Object.fromEntries(
+        Object.entries(approval.images).filter(
+          ([id]) => !invalidated.includes(id),
+        ),
+      ),
+      invalidated: [
+        ...(approval.invalidated ?? []),
+        ...changed.map(([id, image]) => ({
+          id,
+          approvedSha256: image.sha256,
+          recapturedSha256: capturedImages[id].sha256,
+        })),
+      ],
+    },
+  };
+}
+
+/** An approval must come from a commit in the current history. */
+export function assertApprovalSourceReachable(approval, isAncestor) {
+  if (!isAncestor(approval.sourceSha))
+    throw new Error(
+      `Approved visual source ${approval.sourceSha} is not an ancestor of the current commit.`,
+    );
+}
+
 export function resolveVisualMode({
   explicitMode = process.env.LEXON_VISUAL_MODE,
   approvalPath = resolve('docs/references/F2.1-visual/approval.json'),

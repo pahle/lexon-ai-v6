@@ -99,6 +99,18 @@ export default defineConfig({
       },
     },
     {
+      name: 'brand-visual',
+      timeout: 240000,
+      testMatch: 'backend/test/e2e/brand-visual.spec.ts',
+      snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
+      use: {
+        deviceScaleFactor: 1,
+        locale: 'en-US',
+        timezoneId: 'Asia/Jakarta',
+        reducedMotion: 'reduce',
+      },
+    },
+    {
       name: 'topology',
       testMatch: [
         'backend/test/e2e/topology.spec.ts',

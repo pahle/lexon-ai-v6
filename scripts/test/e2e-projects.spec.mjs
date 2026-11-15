@@ -53,6 +53,35 @@ test('chat browser selects its Compose overlay and browser test project', () => 
   );
 });
 
+test('brand visual selects the runtime proof overlay and the F4.1 snapshot path', () => {
+  assert.ok(E2E_PROJECTS.frontend.includes('brand-visual'));
+  const selection = resolveE2ESelection(['--project', 'brand-visual']);
+  assert.deepEqual(selection.selectedProjects, ['brand-visual']);
+  assert.ok(
+    composeFilesForE2EProjects(
+      selection.selectedProjects,
+      '/repository/',
+    ).includes('/repository/backend/test/e2e/compose.chat-runtime-proof.yml'),
+  );
+
+  const config = readPlaywrightConfig();
+  const project = config.projects.find(
+    (entry) => entry.name === 'brand-visual',
+  );
+  assert.ok(project, 'brand-visual is missing from Playwright projects');
+  assert.equal(project.testMatch, 'backend/test/e2e/brand-visual.spec.ts');
+  assert.equal(
+    project.snapshotPathTemplate,
+    '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
+  );
+  assert.deepEqual(project.use, {
+    deviceScaleFactor: 1,
+    locale: 'en-US',
+    timezoneId: 'Asia/Jakarta',
+    reducedMotion: 'reduce',
+  });
+});
+
 test('chat visual selects the runtime proof overlay and its own snapshot path', () => {
   const selection = resolveE2ESelection(['--project', 'chat-visual']);
   assert.deepEqual(selection.selectedProjects, ['chat-visual']);
