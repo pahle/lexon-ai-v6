@@ -50,6 +50,8 @@ jobs:
         run: pnpm test
       - name: Identity policy mutation gate
         run: pnpm --filter @lexon/backend test:mutation:identity
+      - name: Job title contract mutation gate
+        run: pnpm --filter @lexon/contracts test:mutation
       - name: Tooling and cleanup assertions
         run: node --test scripts/test/*.spec.mjs
   compose-e2e:

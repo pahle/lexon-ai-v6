@@ -50,6 +50,17 @@ test('forms reject authority injection and invalid display names', () => {
     }).success,
   ).toBe(false);
 });
+test('profile input accepts a name, a job title, or both, and nothing else', () => {
+  for (const ok of [
+    { jobTitle: null },
+    { jobTitle: 'Partner' },
+    { name: 'Ayu' },
+    { name: 'Ayu', jobTitle: 'Partner' },
+  ])
+    expect(ProfileInputSchema.safeParse(ok).success).toBe(true);
+  for (const bad of [{}, { jobTitle: 'x', role: 'admin' }, { jobTitle: '' }])
+    expect(ProfileInputSchema.safeParse(bad).success).toBe(false);
+});
 test('safe own profile is versioned and has no session credentials', () => {
   const profile = {
     version: 1,

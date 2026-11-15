@@ -1,3 +1,4 @@
+import { JobTitleSchema } from './job-title.js';
 import { z } from 'zod';
 import {
   UuidSchema,
@@ -43,7 +44,14 @@ export const SignInInputSchema = z.strictObject({
   password: ExistingPasswordSchema,
 });
 export type SignInInput = z.infer<typeof SignInInputSchema>;
-export const ProfileInputSchema = z.strictObject({ name: DisplayNameSchema });
+export const ProfileInputSchema = z
+  .strictObject({
+    name: DisplayNameSchema.optional(),
+    jobTitle: JobTitleSchema.nullable().optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, {
+    message: 'Provide a name or a job title.',
+  });
 export type ProfileInput = z.infer<typeof ProfileInputSchema>;
 export const SafeProfileSchema = z.strictObject({
   version: z.literal(1),
