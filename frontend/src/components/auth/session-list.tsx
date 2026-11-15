@@ -115,7 +115,7 @@ export function SessionList({
                   <td className="px-3 py-3 text-right">
                     {!session.current ? (
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         disabled={busy !== null}
                         onClick={() => {
                           setRevokeFailure(false);

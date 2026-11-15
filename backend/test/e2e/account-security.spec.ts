@@ -69,7 +69,9 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
     exact: true,
   });
   await expect(revoke).toBeVisible();
-  await expect(revoke).toHaveClass(/text-destructive/);
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  await expect(revoke).toHaveClass(/border-border/);
+  await expect(revoke).not.toHaveClass(/text-destructive/);
   await revoke.click();
   const confirmation = page.getByRole('alertdialog', {
     name: 'Revoke this session?',

@@ -639,7 +639,9 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
     name: 'Remove',
     exact: true,
   });
-  await expect(remove).toHaveClass(/text-destructive/);
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  await expect(remove).toHaveClass(/border-border/);
+  await expect(remove).not.toHaveClass(/text-destructive/);
   await remove.click();
   const confirmation = page.getByRole('alertdialog', {
     name: 'Remove Alex Rivera from Task 7B Team?',
@@ -1480,7 +1482,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       ).toBeVisible();
       await expect(
         page.getByRole('button', { name: 'Cancel', exact: true }),
-      ).toHaveClass(/text-destructive/);
+      ).toHaveClass(/border-border/);
+      await expect(
+        page.getByRole('button', { name: 'Cancel', exact: true }),
+      ).not.toHaveClass(/text-destructive/);
     }
     if (section === 'general') {
       await expect(

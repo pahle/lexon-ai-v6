@@ -298,7 +298,7 @@ export function Members({
                       <TableCell className="text-right">
                         {removable ? (
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
                             disabled={submission.pending}
                             onClick={() => {

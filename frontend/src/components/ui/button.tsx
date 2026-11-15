@@ -17,8 +17,11 @@ const buttonVariants = cva(
           'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost:
           'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
+        // Lexon (LEX-DS-001 §2): the confirm button of a destructive dialog is a
+        // solid Merah Segel Deep fill with white text in both themes. shadcn
+        // publishes a translucent red tint here.
         destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+          'bg-(--lexon-destructive-fill) text-white hover:brightness-110 focus-visible:border-ring focus-visible:ring-ring/50',
         link: 'text-foreground underline underline-offset-4 hover:text-muted-foreground',
       },
       size: {

@@ -208,7 +208,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await expect(renameMenuItem).toBeVisible();
   await expect(deleteMenuItem).toBeVisible();
   await expect(page.getByRole('menu')).toHaveCSS('opacity', '1');
-  await expect(deleteMenuItem).toHaveAttribute('data-variant', 'destructive');
+  // Menu items are plain; red is reserved (LEX-DS-001 §2).
+  await expect(deleteMenuItem).toHaveAttribute('data-variant', 'default');
   await expect(deleteMenuItem.locator('svg')).toBeVisible();
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chat-actions-menu.png',

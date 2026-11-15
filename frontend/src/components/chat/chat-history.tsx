@@ -415,7 +415,7 @@ function ChatHistoryActions({
           <Pencil aria-hidden="true" data-icon="inline-start" />
           Rename
         </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        <DropdownMenuItem onClick={onDelete}>
           <Trash2 aria-hidden="true" data-icon="inline-start" />
           Delete
         </DropdownMenuItem>

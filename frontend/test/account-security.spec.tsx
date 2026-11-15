@@ -192,7 +192,10 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   );
   const revokeRowAction =
     view.container.querySelector<HTMLButtonElement>('tbody tr button');
-  expect(revokeRowAction?.className).toContain('text-destructive');
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  expect(revokeRowAction!.classList.contains('border-border')).toBe(true);
+  expect(revokeRowAction!.classList.contains('bg-background')).toBe(true);
+  expect(revokeRowAction!.className).not.toContain('text-destructive');
   await act(async () => view.container.querySelector('button')!.click());
   expect(revoked).toBe('');
   const cancel = document.body.querySelector<HTMLButtonElement>(

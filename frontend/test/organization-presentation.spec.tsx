@@ -205,7 +205,10 @@ test('member removal and invitation cancellation are named confirmations', async
   const remove = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Remove',
   )!;
-  expect(remove.className).toContain('text-destructive');
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  expect(remove.classList.contains('border-border')).toBe(true);
+  expect(remove.classList.contains('bg-background')).toBe(true);
+  expect(remove.className).not.toContain('text-destructive');
   await act(async () => remove.click());
   expect(document.body.textContent).toContain(
     'Remove Dewi Lestari from Hukum Nusantara?',
@@ -221,7 +224,10 @@ test('member removal and invitation cancellation are named confirmations', async
   const cancelInvitation = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Cancel',
   )!;
-  expect(cancelInvitation.className).toContain('text-destructive');
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  expect(cancelInvitation.classList.contains('border-border')).toBe(true);
+  expect(cancelInvitation.classList.contains('bg-background')).toBe(true);
+  expect(cancelInvitation.className).not.toContain('text-destructive');
   await act(async () => cancelInvitation.click());
   expect(document.body.textContent).toContain(
     'Cancel the invitation to dewi@example.test?',

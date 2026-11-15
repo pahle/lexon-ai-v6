@@ -318,7 +318,7 @@ export function Invitations({
                             Resend
                           </PendingButton>
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             disabled={submission.pending}
                             onClick={() => {
                               setFailure('');

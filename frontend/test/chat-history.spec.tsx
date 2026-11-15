@@ -561,9 +561,11 @@ it('keeps the last history row refusal dialog mounted through the empty state', 
   );
   await act(async () =>
     (
-      document.body.querySelector(
-        '[data-slot="dropdown-menu-item"][data-variant="destructive"]',
-      ) as HTMLElement
+      [
+        ...document.body.querySelectorAll<HTMLElement>(
+          '[data-slot="dropdown-menu-item"]',
+        ),
+      ].find((item) => item.textContent?.trim() === 'Delete') as HTMLElement
     ).click(),
   );
   await act(async () =>
