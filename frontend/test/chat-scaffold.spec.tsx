@@ -650,6 +650,11 @@ it('preserves the regenerated assistant sibling across canonical active and term
         regeneratedMessage?.querySelector('[aria-label="Previous branch"]'),
       ).not.toBeNull();
       expect(regeneratedMessage?.textContent).toContain('2 / 2');
+      // The branch picker already shows "2 / 2" while the regenerated run is
+      // still active. Wait for the canonical terminal import to be applied
+      // before taking a reference to a control, or the import replaces the
+      // message and the click lands on a detached button.
+      expect(view.container.textContent).not.toContain('Lexon is responding.');
     });
 
     const previousBranch = view.container.querySelector<HTMLButtonElement>(
