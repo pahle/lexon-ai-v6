@@ -213,6 +213,34 @@ export async function captureTask7BViewportReview(
   });
 }
 
+/**
+ * Switches the theme the way another tab would (localStorage plus a storage
+ * event) and waits for the document to follow. next-themes attaches its
+ * storage listener in an effect after its first client render, so an event
+ * dispatched in that gap right after a navigation is lost and the page keeps
+ * the previous theme. Setting and dispatching again is idempotent, so the
+ * switch is repeated until the document class matches, within the normal
+ * expect timeout.
+ */
+export async function applyTheme(page: Page, theme: VisualTheme) {
+  await expect(async () => {
+    await page.evaluate((value) => {
+      localStorage.setItem('theme', value);
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'theme',
+          newValue: value,
+          storageArea: localStorage,
+        }),
+      );
+    }, theme);
+    await expect(page.locator('html')).toHaveClass(
+      theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+      { timeout: 1000 },
+    );
+  }).toPass({ timeout: 10000 });
+}
+
 export async function captureCheckpointCView(
   page: Page,
   view: CheckpointCView,
@@ -221,20 +249,8 @@ export async function captureCheckpointCView(
   if (!(await shouldCaptureCheckpointCView(view))) return;
   await page.setViewportSize(sizes.desktop);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate((value) => {
-    localStorage.setItem('theme', value);
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: 'theme',
-        newValue: value,
-        storageArea: localStorage,
-      }),
-    );
-  }, theme);
   await expect(page.locator('main')).toHaveCount(1);
-  await expect(page.locator('html')).toHaveClass(
-    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
-  );
+  await applyTheme(page, theme);
   if (view === 'appearance') {
     await expect(
       page.getByRole('radio', {
