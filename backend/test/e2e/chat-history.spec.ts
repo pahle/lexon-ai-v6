@@ -620,7 +620,8 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
     .evaluateAll((links) =>
       links.map((link) => (link as HTMLAnchorElement).getAttribute('href')),
     );
-  expect(primaryHrefs).toEqual(['/workspace', '/chats']);
+  // Tools → Assistant (links to New chat), then its sub-items New chat and Chats.
+  expect(primaryHrefs).toEqual(['/workspace', '/workspace', '/chats']);
   const recentFollowsPrimary = await primary.evaluate((nav) => {
     const recent = document.querySelector(
       '[role="group"][aria-label="Recent chats"]',
@@ -664,16 +665,32 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
 
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await expect(recentGroup).toHaveCount(0);
-  await expect(newChat).toBeVisible();
-  await expect(chats).toBeVisible();
-  await expect(newChat).toHaveAttribute('href', '/workspace');
-  await expect(chats).toHaveAttribute('href', '/chats');
-  await newChat.focus();
+  // Collapsed (F4.1 prototype screen 32): one Assistant icon. It opens a menu
+  // with the same two destinations, so both stay reachable by keyboard.
+  const assistantMenu = primary.getByRole('button', {
+    name: 'Assistant navigation',
+    exact: true,
+  });
+  const menuNewChat = page.getByRole('menuitem', {
+    name: 'New chat',
+    exact: true,
+  });
+  const menuChats = page.getByRole('menuitem', { name: 'Chats', exact: true });
+  await expect(assistantMenu).toBeVisible();
+  await assistantMenu.focus();
+  await page.keyboard.press('Enter');
+  await expect(menuNewChat).toBeVisible();
+  await expect(menuChats).toBeVisible();
+  await expect(menuNewChat).toHaveAttribute('href', '/workspace');
+  await expect(menuChats).toHaveAttribute('href', '/chats');
+  await menuNewChat.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/workspace`);
-  await newChat.focus();
-  await page.keyboard.press('Tab');
-  await expect(chats).toBeFocused();
+  await assistantMenu.focus();
+  await page.keyboard.press('Enter');
+  await menuNewChat.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(menuChats).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
   await expect(recentGroup).toHaveCount(0);

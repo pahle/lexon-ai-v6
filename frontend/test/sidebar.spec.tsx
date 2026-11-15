@@ -125,20 +125,42 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     links.map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
-    ['New chat', '/workspace'],
+    ['Assistant', '/workspace'],
+    ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
     ['Platform', '/platform/provisioning'],
   ]);
+  // LEX-DS-001 §5: the inset shell, a Tools group, and Assistant open by
+  // default with New chat and Chats as its sub-items.
+  expect(
+    view.container.querySelector('[data-slot="sidebar"][data-variant="inset"]'),
+  ).not.toBeNull();
+  const groupLabels = [
+    ...view.container.querySelectorAll('[data-slot="sidebar-group-label"]'),
+  ].map((label) => label.textContent);
+  expect(groupLabels).toEqual(['Tools', 'Recent']);
+  expect(
+    view.container
+      .querySelector('nav button[aria-label="Toggle Assistant navigation"]')
+      ?.getAttribute('aria-expanded'),
+  ).toBe('true');
+  const hint = view.container.querySelector('[data-slot="shortcut-hint"]')!;
+  expect(hint.textContent).toBe('Ctrl Alt N');
+  expect(hint.getAttribute('aria-hidden')).toBe('true');
+  const viewAll = view.container.querySelector(
+    '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
+  )!;
+  expect(viewAll.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   expect(
     links
       .filter((link) => link.getAttribute('aria-current') === 'page')
       .map((link) => link.textContent?.trim()),
-  ).toEqual(['New chat']);
+  ).toEqual(['New chatCtrl Alt N']);
   const activeLink = links.find(
     (link) => link.getAttribute('aria-current') === 'page',
   )!;
   expect(activeLink.hasAttribute('data-active')).toBe(true);
-  expect(activeLink.className).toContain('data-active:font-medium');
+  expect(activeLink.className).toContain('data-active:bg-sidebar-accent');
   await openNavigationGroup(view.container, 'Platform');
   expect(
     view.container.querySelector<HTMLButtonElement>(
@@ -198,6 +220,8 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
       .filter((link) => link.closest('[data-slot="sidebar-menu-sub"]'))
       .map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
+    ['New chatCtrl Alt N', '/workspace'],
+    ['Chats', '/chats'],
     ['Provisioning', '/platform/provisioning'],
     ['Account status', '/platform/accounts'],
   ]);
@@ -362,7 +386,8 @@ test('every active team role gets organization settings; only platform admins ge
         link.getAttribute('href'),
       ]),
     ).toEqual([
-      ['New chat', '/workspace'],
+      ['Assistant', '/workspace'],
+      ['New chatCtrl Alt N', '/workspace'],
       ['Chats', '/chats'],
       ['Platform', '/platform/provisioning'],
     ]);
@@ -370,7 +395,7 @@ test('every active team role gets organization settings; only platform admins ge
       links
         .filter((link) => link.getAttribute('aria-current') === 'page')
         .map((link) => link.textContent?.trim()),
-    ).toEqual(['New chat']);
+    ).toEqual(['New chatCtrl Alt N']);
     if (organization.kind === 'team') {
       expect(view.container.querySelector('a[href*="/settings/"]')).toBeNull();
     }
@@ -409,7 +434,8 @@ test('every active team role gets organization settings; only platform admins ge
       ),
     ].map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
-    ['New chat', '/workspace'],
+    ['Assistant', '/workspace'],
+    ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
   ]);
   expect(view.container.textContent).not.toContain('Organization settings');
@@ -1062,9 +1088,38 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(
     sidebar.querySelector('[data-slot="avatar-initials"]')?.className,
   ).toContain('rounded-full');
-  for (const button of sidebar.querySelectorAll('button[aria-haspopup]')) {
+  for (const button of sidebar.querySelectorAll(
+    '[data-slot="sidebar-header"] button[aria-haspopup], [data-slot="sidebar-footer"] button[aria-haspopup]',
+  )) {
     expect(button.className).toContain('h-12');
   }
+  // Collapsed (prototype screen 32): one Assistant icon. It opens a menu with
+  // the same destinations, so New chat and Chats stay keyboard reachable.
+  const assistantMenu = sidebar.querySelector<HTMLButtonElement>(
+    'nav button[aria-label="Assistant navigation"]',
+  )!;
+  expect(assistantMenu.getAttribute('aria-haspopup')).toBe('menu');
+  expect(
+    sidebar.querySelector('nav [data-slot="sidebar-menu-sub"]'),
+  ).toBeNull();
+  await act(async () => assistantMenu.click());
+  await settle();
+  expect(
+    [
+      ...document.body.querySelectorAll<HTMLAnchorElement>(
+        '[data-slot="dropdown-menu-content"] a[role="menuitem"]',
+      ),
+    ].map((item) => [item.textContent?.trim(), item.getAttribute('href')]),
+  ).toEqual([
+    ['New chat', '/workspace'],
+    ['Chats', '/chats'],
+  ]);
+  await act(async () =>
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await settle();
   await act(async () =>
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true }),
@@ -1085,4 +1140,38 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   ).toBe('collapsed');
   await collapsed.unmount();
   vi.unstubAllGlobals();
+});
+
+test('the New chat shortcut hint follows the platform', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', sidebarFetch);
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const platform = vi
+    .spyOn(window.navigator, 'platform', 'get')
+    .mockReturnValue('MacIntel');
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SidebarProvider>
+        <ChatRuntimeProvider
+          tenantId={`${identity.user.id}:${identity.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  try {
+    const hint = view.container.querySelector('[data-slot="shortcut-hint"]')!;
+    expect(hint.textContent).toBe('⌘ ⌥ N');
+    expect(hint.getAttribute('aria-hidden')).toBe('true');
+  } finally {
+    platform.mockRestore();
+    await view.unmount();
+    vi.unstubAllGlobals();
+  }
 });

@@ -3,14 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  ChevronRight,
-  MessageSquarePlus,
-  MessagesSquare,
-  Shield,
-  X,
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, Ellipsis, MessageCircle, Shield, X } from 'lucide-react';
 import { useWorkspace } from './workspace-provider';
 import {
   Sidebar,
@@ -33,6 +27,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '../ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { OrganizationMenu } from './organization-menu';
 import { UserMenu } from './user-menu';
 import { Button } from '../ui/button';
@@ -41,26 +41,94 @@ import { createChatClient } from '../../lib/chat-client';
 import { requestRouteHeadingFocus } from './navigation-focus';
 import { shouldOpenNewChatShortcut } from '../../lib/chat-navigation';
 
-type Destination = { title: string; href: string };
+type Destination = { title: string; href: string; shortcutHint?: boolean };
+
+/**
+ * The visible hint for the New chat shortcut (Ctrl/Cmd + Alt + N). It is
+ * decoration: the link's accessible name stays "New chat". The Apple form is
+ * chosen after mount, so server and client markup agree.
+ */
+function NewChatShortcutHint() {
+  const [apple, setApple] = useState(false);
+  useEffect(() => {
+    setApple(/^(Mac|iPhone|iPad|iPod)/.test(window.navigator.platform));
+  }, []);
+  return (
+    <span
+      data-slot="shortcut-hint"
+      aria-hidden="true"
+      className="ml-auto text-xs tracking-wide text-muted-foreground"
+    >
+      {apple ? '⌘ ⌥ N' : 'Ctrl Alt N'}
+    </span>
+  );
+}
 
 function NavigationGroup({
   title,
   icon: Icon,
   active,
+  defaultOpen = active,
+  collapsedMenu = false,
   destinations,
   onNavigate,
 }: {
   title: string;
   icon: typeof Shield;
   active: boolean;
+  /** Open on first render. Defaults to open only while a destination is active. */
+  defaultOpen?: boolean;
+  /**
+   * In the collapsed (icon) sidebar the sub-items are hidden. With this set,
+   * the icon opens a menu with the same destinations, so they stay reachable
+   * by keyboard without expanding the sidebar.
+   */
+  collapsedMenu?: boolean;
   destinations: Destination[];
   onNavigate: () => void;
 }) {
   const pathname = usePathname() ?? '';
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
+  if (collapsedMenu && !isMobile && state === 'collapsed')
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                tooltip={title}
+                isActive={active}
+                aria-label={`${title} navigation`}
+              />
+            }
+          >
+            <Icon aria-hidden="true" />
+            <span>{title}</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="min-w-40">
+            {destinations.map(({ title: label, href }) => (
+              <DropdownMenuItem
+                key={href}
+                aria-current={pathname === href ? 'page' : undefined}
+                render={
+                  <Link
+                    href={href}
+                    onNavigate={() => {
+                      if (pathname !== href) onNavigate();
+                    }}
+                  />
+                }
+              >
+                {label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
   return (
     <Collapsible
-      defaultOpen={active}
+      defaultOpen={defaultOpen}
       className="group/collapsible"
       render={<SidebarMenuItem />}
     >
@@ -98,7 +166,7 @@ function NavigationGroup({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <SidebarMenuSub>
-          {destinations.map(({ title: label, href }) => {
+          {destinations.map(({ title: label, href, shortcutHint }) => {
             const current = pathname === href;
             return (
               <SidebarMenuSubItem key={href}>
@@ -117,7 +185,8 @@ function NavigationGroup({
                     />
                   }
                 >
-                  {label}
+                  <span>{label}</span>
+                  {shortcutHint ? <NewChatShortcutHint /> : null}
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             );
@@ -186,6 +255,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar
+      variant="inset"
       collapsible="icon"
       role={isMobile ? undefined : 'complementary'}
       aria-label={isMobile ? undefined : 'Workspace navigation'}
@@ -221,50 +291,22 @@ export function AppSidebar() {
       <SidebarContent>
         <nav aria-label="Primary navigation">
           <SidebarGroup>
-            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+            <SidebarGroupLabel>Tools</SidebarGroupLabel>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={pathname === '/workspace'}
-                  tooltip="New chat · Ctrl+Alt+N / Cmd+Alt+N"
-                  aria-current={pathname === '/workspace' ? 'page' : undefined}
-                  onClick={() => {
-                    if (isMobile) setOpenMobile(false);
-                  }}
-                  render={
-                    <Link
-                      href="/workspace"
-                      onNavigate={() => {
-                        if (pathname !== '/workspace') requestNavigationFocus();
-                      }}
-                    />
-                  }
-                >
-                  <MessageSquarePlus aria-hidden="true" />
-                  <span>New chat</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={pathname === '/chats'}
-                  tooltip="Chats"
-                  aria-current={pathname === '/chats' ? 'page' : undefined}
-                  onClick={() => {
-                    if (isMobile) setOpenMobile(false);
-                  }}
-                  render={
-                    <Link
-                      href="/chats"
-                      onNavigate={() => {
-                        if (pathname !== '/chats') requestNavigationFocus();
-                      }}
-                    />
-                  }
-                >
-                  <MessagesSquare aria-hidden="true" />
-                  <span>Chats</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <NavigationGroup
+                title="Assistant"
+                icon={MessageCircle}
+                active={
+                  pathname === '/workspace' || pathname.startsWith('/chats')
+                }
+                defaultOpen
+                collapsedMenu
+                onNavigate={requestNavigationFocus}
+                destinations={[
+                  { title: 'New chat', href: '/workspace', shortcutHint: true },
+                  { title: 'Chats', href: '/chats' },
+                ]}
+              />
               {identity.platformAdmin ? (
                 <NavigationGroup
                   title="Platform"
@@ -309,6 +351,7 @@ export function AppSidebar() {
                     />
                   }
                 >
+                  <Ellipsis aria-hidden="true" />
                   <span>View all chats</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
