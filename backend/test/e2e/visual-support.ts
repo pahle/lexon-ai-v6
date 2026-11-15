@@ -745,17 +745,22 @@ export async function captureTask9ReviewView(
         ? 'organization-popup'
         : 'user-menu-popup',
     );
-    if (!(await popup.isVisible().catch(() => false))) {
-      if (view === 'organization-switcher-open') {
-        await page
-          .locator('[data-slot="sidebar-header"] button[aria-haspopup="menu"]')
-          .click();
-      } else {
-        await page
-          .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
-          .click();
-      }
+    // Never rely on a menu left open by an earlier call: it can close after
+    // the visibility check (theme switch, re-render). Close it, then reopen.
+    if (await popup.isVisible().catch(() => false)) {
+      await page.keyboard.press('Escape');
+      await expect(popup).toBeHidden();
     }
+    const trigger =
+      view === 'organization-switcher-open'
+        ? page.locator(
+            '[data-slot="sidebar-header"] button[aria-haspopup="menu"]',
+          )
+        : page.locator(
+            '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+          );
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     if (view === 'organization-switcher-open')
       await expect(page.getByTestId('organization-popup')).toBeVisible();
     else
