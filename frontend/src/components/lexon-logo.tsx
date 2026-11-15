@@ -1,54 +1,46 @@
 import Image from 'next/image';
 
-// Intrinsic aspect ratio of the wordmark SVGs (viewBox height / width). Every mark and the monogram are square.
-const WORDMARK_RATIO = 472 / 1631;
+// Brand v4.1 marks (docs/brand/lexon-2026-v4.1/logo). The word "Lexon" as a
+// logo always comes from these SVGs, never from a live font (LEX-DS-001 §4).
 
-type Tone = 'seal' | 'ink' | 'midnight' | 'parchment';
+// Intrinsic aspect ratio of the wordmark SVGs (viewBox height / width).
+const WORDMARK_RATIO = 472 / 1631;
 
 type Props = {
   /**
-   * "wordmark"    full Lexon logo (the compact version is chosen automatically below 200 px)
-   * "monogram"    the three-pillar L on its own
-   * "mark-circle" | "mark-square" | "mark-tile"  the L inside a circle, a square or a rounded square
+   * "monogram"          the L on its own, always Merah Segel red
+   * "wordmark-compact"  the wordmark for widths under 200 px (auth pages use 128)
+   * "wordmark"          the full wordmark, ink only, for 200 px and wider
    */
-  variant?:
-    'wordmark' | 'monogram' | 'mark-circle' | 'mark-square' | 'mark-tile';
-  /** Wordmark and monogram: use the cream artwork on dark backgrounds. */
-  inverse?: boolean;
-  /** Marks only: background tone. seal (default), ink and midnight carry a cream L; parchment carries a seal L. */
-  tone?: Tone;
-  /** Rendered width in CSS px. Minimums: wordmark 200 (compact 128), monogram 64 (small 40, micro 16), marks 16. */
+  variant?: 'monogram' | 'wordmark-compact' | 'wordmark';
+  /** Compact wordmark only: ink on light surfaces, white on Night or dark surfaces. */
+  tone?: 'ink' | 'white';
+  /** Rendered width in CSS px. */
   width?: number;
+  /** Pass an empty string for a decorative copy next to another named logo. */
+  alt?: string;
   className?: string;
 };
 
 export function LexonLogo({
-  variant = 'wordmark',
-  inverse = false,
-  tone = 'seal',
-  width = 200,
+  variant = 'wordmark-compact',
+  tone = 'ink',
+  width = 128,
+  alt = 'Lexon',
   className = '',
 }: Props) {
-  const color = inverse ? 'cream' : 'ink';
-  // Size tiers. Below 200 px the wordmark switches to the compact version (three fine pillars).
-  // Monogram and marks switch to the small version (three fine pillars) below 64 px and to the micro version (single stem) below 40 px.
-  const tier = width < 40 ? '-micro' : width < 64 ? '-small' : '';
-  let src: string;
-  let height: number;
-  if (variant === 'wordmark') {
-    src = `/LEXON-wordmark${width < 200 ? '-compact' : ''}-${color}.svg`;
-    height = Math.round(width * WORDMARK_RATIO);
-  } else if (variant === 'monogram') {
-    src = `/LEXON-monogram${tier}-${color}.svg`;
-    height = width;
-  } else {
-    src = `/LEXON-${variant}-${tone}${tier}.svg`;
-    height = width;
-  }
+  const src =
+    variant === 'monogram'
+      ? '/LEXON-monogram-micro-seal.svg'
+      : variant === 'wordmark'
+        ? '/LEXON-wordmark-ink.svg'
+        : `/LEXON-wordmark-compact-${tone}.svg`;
+  const height =
+    variant === 'monogram' ? width : Math.round(width * WORDMARK_RATIO);
   return (
     <Image
       src={src}
-      alt="Lexon"
+      alt={alt}
       width={width}
       height={height}
       className={className}

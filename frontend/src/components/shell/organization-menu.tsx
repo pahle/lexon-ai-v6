@@ -95,8 +95,8 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                   />
                 }
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <LexonLogo variant="mark-tile" width={32} />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-background">
+                  <LexonLogo variant="monogram" width={20} />
                 </div>
                 {!collapsed ? (
                   <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
@@ -123,8 +123,8 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             aria-label={`Organization: ${orgLabel(identity.organization)} ${organizationRole(identity.organization)}`}
             className="flex w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <LexonLogo variant="mark-tile" width={32} />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-background">
+              <LexonLogo variant="monogram" width={20} />
             </span>
             <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">
@@ -219,23 +219,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                     aria-hidden="true"
                     className="flex size-6 shrink-0 items-center justify-center rounded-md"
                   >
-                    {organization.kind === 'personal' ? (
-                      <>
-                        <LexonLogo
-                          variant="monogram"
-                          width={24}
-                          className="dark:hidden"
-                        />
-                        <LexonLogo
-                          variant="monogram"
-                          inverse
-                          width={24}
-                          className="hidden dark:block"
-                        />
-                      </>
-                    ) : (
-                      <LexonLogo variant="mark-tile" width={24} />
-                    )}
+                    <LexonLogo variant="monogram" width={20} />
                   </span>
                   {orgLabel(organization)}
                   {organization.id === identity.organization.id ? (

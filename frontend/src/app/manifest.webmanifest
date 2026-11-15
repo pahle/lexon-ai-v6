@@ -3,8 +3,8 @@
   "short_name": "Lexon",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F6EFE2",
-  "theme_color": "#7A1F2E",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1A1718",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

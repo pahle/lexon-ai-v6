@@ -148,7 +148,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] img[alt="Lexon"]',
@@ -231,10 +231,10 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.textContent).not.toContain('No recent chats.');
   expect(
     view.container.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
+  ).toContain('LEXON-monogram-micro-seal.svg');
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
@@ -673,12 +673,10 @@ test('Personal organization monogram switches to cream artwork in dark mode', as
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
   ].find((item) => item.textContent?.includes('Personal'))!;
   const logos = [...personal.querySelectorAll<HTMLImageElement>('img')];
+  // The v4.1 monogram is one seal-red mark for both themes.
   expect(logos.map((logo) => logo.getAttribute('src'))).toEqual([
-    '/LEXON-monogram-micro-ink.svg',
-    '/LEXON-monogram-micro-cream.svg',
+    '/LEXON-monogram-micro-seal.svg',
   ]);
-  expect(logos[0]?.className).toContain('dark:hidden');
-  expect(logos[1]?.className).toContain('dark:block');
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -930,10 +928,10 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(
     document.body.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
+  ).toContain('LEXON-monogram-micro-seal.svg');
   expect(
     document.body.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(document.body.textContent).toContain('ada@example.test');
   const userSettingsTrigger = document.body.querySelector(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
@@ -1046,7 +1044,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(collapsedHeader.className).toContain('p-2');
   expect(
     collapsedHeader.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
+  ).toContain('LEXON-monogram-micro-seal.svg');
   const collapsedMenuButton = sidebar.querySelector(
     '[data-slot="sidebar-menu-button"]',
   )!;
@@ -1057,7 +1055,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(
     organizationTrigger.querySelector<HTMLImageElement>('img[alt="Lexon"]')
       ?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(organizationTrigger.textContent).not.toContain('L');
   expect(organizationTrigger.textContent).not.toContain('Admin');
   expect(sidebar.textContent).not.toContain('ada@example.test');

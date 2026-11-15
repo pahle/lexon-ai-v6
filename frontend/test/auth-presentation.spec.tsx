@@ -25,7 +25,7 @@ test('account layout uses the published frame and one labeled heading', async ()
   ).toBe('128');
   expect(
     view.container
-      .querySelector('img[src*="wordmark-compact-cream"]')
+      .querySelector('img[src*="wordmark-compact-white"]')
       ?.getAttribute('width'),
   ).toBe('128');
   expect(view.container.querySelector('img[src*="placeholder"]')).toBeNull();

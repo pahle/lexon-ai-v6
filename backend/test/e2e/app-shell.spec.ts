@@ -9,7 +9,8 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   const stack = descriptor();
   const assetPaths = [
     '/LEXON-wordmark-compact-ink.svg',
-    '/LEXON-wordmark-compact-cream.svg',
+    '/LEXON-wordmark-compact-white.svg',
+    '/LEXON-monogram-micro-seal.svg',
   ];
   for (const path of assetPaths) {
     const response = await page.request.get(stack.frontendUrl + path);
@@ -426,8 +427,12 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
     name: 'Organization: Personal',
   });
   const tile = collapsedOrganization.locator('img[alt="Lexon"]');
-  await expect(tile).toHaveAttribute('src', /LEXON-mark-tile-seal-micro\.svg$/);
-  const tileBounds = await tile.boundingBox();
+  await expect(tile).toHaveAttribute('src', /LEXON-monogram-micro-seal\.svg$/);
+  // Brand v4.1: a 20px monogram centered in the 32px switcher tile.
+  const markBounds = await tile.boundingBox();
+  expect(markBounds?.width).toBe(20);
+  expect(markBounds?.height).toBe(20);
+  const tileBounds = await tile.locator('..').boundingBox();
   expect(tileBounds?.width).toBe(32);
   expect(tileBounds?.height).toBe(32);
   await collapsedOrganization.focus();
