@@ -64,7 +64,7 @@ export function Members({
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { identity } = useWorkspace();
+  const { identity, refreshIdentity } = useWorkspace();
   const submission = useSubmissionLock();
   const [failure, setFailure] = useState('');
   const [removing, setRemoving] = useState<MemberSummary | null>(null);
@@ -128,8 +128,15 @@ export function Members({
           () => identityApi.removeMember(organization.id, removing.id),
           'Member removed.',
         )
-      )
+      ) {
         setRemoving(null);
+        // The sidebar's member count comes from the identity summary.
+        try {
+          await refreshIdentity();
+        } catch {
+          // The next verified refresh will update the count.
+        }
+      }
     });
   }
 

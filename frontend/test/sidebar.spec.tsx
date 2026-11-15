@@ -171,7 +171,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(20);
+  ).toBe(16);
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] img[alt="Lexon"]',
@@ -191,18 +191,18 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
-  ).toContain('Owner');
+  ).toBe('Personal Your private workspace');
   expect(
     view.container
       .querySelector<HTMLButtonElement>(
         'button[aria-label^="Organization: Personal"]',
       )
       ?.getAttribute('aria-label'),
-  ).toBe('Organization: Personal Owner');
+  ).toBe('Organization: Personal Your private workspace, Owner');
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
-  ).toContain('Personal Owner');
+  ).not.toContain('Owner');
   expect(view.container.textContent).toContain('No recent chats.');
   const recentGroup = view.container.querySelector(
     '[role="group"][aria-label="Recent chats"]',
@@ -259,7 +259,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   ).toContain('LEXON-monogram-micro-seal.svg');
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(20);
+  ).toBe(16);
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
@@ -377,8 +377,8 @@ test('every active team role gets organization settings; only platform admins ge
     const organizationTrigger = view.container.querySelector(
       'button[aria-label^="Organization: Lexon Team"]',
     )!;
-    expect(organizationTrigger.textContent).toContain(
-      organization.role.charAt(0).toUpperCase() + organization.role.slice(1),
+    expect(organizationTrigger.getAttribute('aria-label')).toBe(
+      `Organization: Lexon Team 1 member, ${organization.role.charAt(0).toUpperCase() + organization.role.slice(1)}`,
     );
     const links = [
       ...view.container.querySelectorAll(
@@ -529,7 +529,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
   await settle();
   const option = [
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
-  ].find((item) => item.textContent === 'Protected team')!;
+  ].find((item) => item.textContent?.endsWith('Protected team'))!;
   await act(async () => option.click());
   await settle();
   expect(beginExplicitTransition).toHaveBeenCalledTimes(1);
@@ -790,7 +790,7 @@ test('successful switch waits for tenant transition before a full workspace relo
   await settle();
   const option = [
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
-  ].find((item) => item.textContent === 'Switch target')!;
+  ].find((item) => item.textContent?.endsWith('Switch target'))!;
   await act(async () => option.click());
   await settle();
   expect(events).toEqual(['transition-start']);
@@ -947,7 +947,9 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   const mobileOrganizationTrigger = document.body.querySelector(
     'button[aria-label^="Organization: Mobile team"]',
   );
-  expect(mobileOrganizationTrigger?.textContent).toContain('Admin');
+  expect(mobileOrganizationTrigger?.getAttribute('aria-label')).toContain(
+    'Admin',
+  );
   const closeSidebar = document.body.querySelector(
     'button[aria-label="Close navigation"]',
   ) as HTMLButtonElement | null;
@@ -960,11 +962,12 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(
-    document.body.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-monogram-micro-seal.svg');
-  expect(
-    document.body.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(20);
+    document.body
+      .querySelector(
+        'button[aria-label^="Organization: Mobile team"] .bg-sidebar-primary',
+      )
+      ?.getAttribute('data-initials'),
+  ).toBe('MT');
   expect(document.body.textContent).toContain('ada@example.test');
   const userSettingsTrigger = document.body.querySelector(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
@@ -1077,8 +1080,10 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   )!;
   expect(collapsedHeader.className).toContain('p-2');
   expect(
-    collapsedHeader.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-monogram-micro-seal.svg');
+    collapsedHeader
+      .querySelector('.bg-sidebar-primary')
+      ?.getAttribute('data-initials'),
+  ).toBe('LT');
   const collapsedMenuButton = sidebar.querySelector(
     '[data-slot="sidebar-menu-button"]',
   )!;
@@ -1086,11 +1091,12 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   const organizationTrigger = sidebar.querySelector(
     'button[aria-label^="Organization: Lexon Team"]',
   )!;
+  expect(organizationTrigger.textContent).toBe('');
   expect(
-    organizationTrigger.querySelector<HTMLImageElement>('img[alt="Lexon"]')
-      ?.width,
-  ).toBe(20);
-  expect(organizationTrigger.textContent).not.toContain('L');
+    organizationTrigger
+      .querySelector('.bg-sidebar-primary')
+      ?.getAttribute('data-initials'),
+  ).toBe('LT');
   expect(organizationTrigger.textContent).not.toContain('Admin');
   expect(sidebar.textContent).not.toContain('ada@example.test');
   expect(
@@ -1179,6 +1185,147 @@ test('the New chat shortcut hint follows the platform', async () => {
     expect(hint.getAttribute('aria-hidden')).toBe('true');
   } finally {
     platform.mockRestore();
+    await view.unmount();
+    vi.unstubAllGlobals();
+  }
+});
+
+const teamIdentity = (name: string, count: number | null): IdentitySummary => ({
+  ...identity,
+  organization: {
+    ...identity.organization,
+    id: '00000000-0000-4000-8000-000000000002',
+    name,
+    slug: 'team-slug',
+    kind: 'team',
+    role: 'admin',
+  },
+  organizationMemberCount: count,
+});
+
+async function renderMenu(value: IdentitySummary) {
+  workspace.identity = value;
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      items: [identity.organization, { ...value.organization }],
+      pageInfo: { nextCursor: null },
+    }),
+  );
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationMenu identity={value} />
+    </QueryClientProvider>,
+  );
+}
+
+test('team trigger shows initials on the ink tile, the name, and the member count', async () => {
+  const view = await renderMenu(teamIdentity('Hukum Nusantara', 12));
+  await settle();
+  const trigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Hukum Nusantara"]',
+  )!;
+  expect(trigger.getAttribute('aria-label')).toBe(
+    'Organization: Hukum Nusantara 12 members, Admin',
+  );
+  const tile = trigger.querySelector('.bg-sidebar-primary')!;
+  expect(tile.className).toContain('text-sidebar-primary-foreground');
+  expect(tile.getAttribute('data-initials')).toBe('HN');
+  expect(trigger.textContent).toBe('Hukum Nusantara 12 members');
+  expect(trigger.querySelector('img[alt="Lexon"]')).toBeNull();
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('team trigger says "1 member" for a single member', async () => {
+  const view = await renderMenu(teamIdentity('Solo', 1));
+  await settle();
+  const trigger = view.container.querySelector('button')!;
+  expect(trigger.textContent).toBe('Solo 1 member');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('personal trigger shows the monogram tile and the private workspace line', async () => {
+  const view = await renderMenu(identity);
+  await settle();
+  const trigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Personal"]',
+  )!;
+  const logo = trigger.querySelector<HTMLImageElement>(
+    'img[alt="Lexon"][src="/LEXON-monogram-micro-seal.svg"]',
+  )!;
+  expect(logo).not.toBeNull();
+  const tile = logo.parentElement!;
+  expect(tile.className).toContain('bg-background');
+  expect(tile.className).toContain('border');
+  expect(trigger.textContent).toBe('Personal Your private workspace');
+  expect(trigger.getAttribute('aria-label')).toBe(
+    'Organization: Personal Your private workspace, Owner',
+  );
+  expect(trigger.textContent).not.toContain('member');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('a 60-character team name truncates inside the trigger', async () => {
+  const name = 'Nusantara '.repeat(6).trim().slice(0, 60);
+  const view = await renderMenu(teamIdentity(name, 3));
+  await settle();
+  const trigger = view.container.querySelector('button')!;
+  const nameElement = [...trigger.querySelectorAll('span')].find(
+    (el) => el.textContent === name,
+  )!;
+  expect(nameElement.className).toContain('truncate');
+  expect(nameElement.parentElement!.className).toContain('min-w-0');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('the dropdown list shows a tile and name per organization and no counts', async () => {
+  const view = await renderMenu(teamIdentity('Hukum Nusantara', 12));
+  await settle();
+  await act(async () => view.container.querySelector('button')!.click());
+  await settle();
+  const items = [
+    ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].filter(
+    (item) =>
+      item.hasAttribute('aria-current') ||
+      item.querySelector('span[aria-hidden="true"]'),
+  );
+  const text = items.map((item) => item.textContent);
+  expect(text).toContain('PPersonal'.slice(1));
+  expect(text.some((value) => value?.includes('Hukum Nusantara'))).toBe(true);
+  const popup = document.body.querySelector(
+    '[data-testid="organization-popup"]',
+  )!;
+  expect(popup.textContent).not.toMatch(/\d+ members?/);
+  expect(popup.querySelectorAll('.bg-sidebar-primary')).toHaveLength(1);
+  expect(popup.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('trigger accessible names contain the visible text in order and keep the role', async () => {
+  for (const [value, visible, role] of [
+    [
+      teamIdentity('Hukum Nusantara', 12),
+      'Hukum Nusantara 12 members',
+      'Admin',
+    ],
+    [teamIdentity('Solo', 1), 'Solo 1 member', 'Admin'],
+    [identity, 'Personal Your private workspace', 'Owner'],
+  ] as const) {
+    const view = await renderMenu(value);
+    await settle();
+    const trigger = view.container.querySelector('button')!;
+    const label = trigger.getAttribute('aria-label')!;
+    expect(label.startsWith(`Organization: ${visible}`)).toBe(true);
+    expect(label).toContain(role);
+    const spoken = [...trigger.querySelectorAll('span:not([aria-hidden])')]
+      .filter((el) => el.children.length === 0)
+      .map((el) => el.textContent);
+    expect(label).toContain(spoken.join(' '));
     await view.unmount();
     vi.unstubAllGlobals();
   }

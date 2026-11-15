@@ -28,6 +28,7 @@ const presentationFixture = vi.hoisted(() => ({
   memberItems: null as unknown[] | null,
   currentUserId: '00000000-0000-4000-8000-000000000099',
 }));
+const refreshIdentity = vi.hoisted(() => vi.fn(async () => undefined));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -35,6 +36,7 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({
     identity: { user: { id: presentationFixture.currentUserId } },
+    refreshIdentity,
   }),
 }));
 vi.mock('../src/components/organizations/page-state', () => ({
@@ -506,5 +508,52 @@ test('current member is first, has plain role text, and cannot be removed', asyn
   ).toBe(true);
   presentationFixture.memberItems = null;
   presentationFixture.currentUserId = '00000000-0000-4000-8000-000000000099';
+  await view.unmount();
+});
+
+test('removing a member refreshes the identity once after the mutation succeeds', async () => {
+  refreshIdentity.mockClear();
+  api.removeMember.mockClear();
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+    </QueryClientProvider>,
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Remove')!
+      .click(),
+  );
+  const dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(api.removeMember).toHaveBeenCalledTimes(1);
+  expect(refreshIdentity).toHaveBeenCalledTimes(1);
+  await view.unmount();
+});
+
+test('a failed member removal does not refresh the identity', async () => {
+  refreshIdentity.mockClear();
+  api.removeMember.mockRejectedValueOnce(new Error('nope'));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+    </QueryClientProvider>,
+  );
+  await act(async () =>
+    [...view.container.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Remove')!
+      .click(),
+  );
+  const dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(refreshIdentity).not.toHaveBeenCalled();
   await view.unmount();
 });

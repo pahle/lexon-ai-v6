@@ -472,7 +472,7 @@ test('organization switch hides old protected content and enrollment denial rest
   await settle();
   await act(async () =>
     [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === 'Next team')
+      .find((item) => item.textContent?.endsWith('Next team'))
       ?.click(),
   );
   expect(switchCall).toHaveBeenCalledWith(target.id);
@@ -514,7 +514,7 @@ test('organization switch hides old protected content and enrollment denial rest
   await settle();
   await act(async () =>
     [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === 'Next team')
+      .find((item) => item.textContent?.endsWith('Next team'))
       ?.click(),
   );
   await settle();
