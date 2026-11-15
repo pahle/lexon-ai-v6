@@ -25,6 +25,17 @@ Proof of a faithful move: `pnpm test:e2e --project identity-browser` runs the 12
 
 Later F4.1 tasks update these assertions in place when they change the layout, and list each change old → new in `docs/references/F4.1-acceptance.md`.
 
+## `backend/test/e2e/chat-visual.spec.ts` → `chat-states.spec.ts` and `chat-state-fixtures.ts` (Task 4C)
+
+`chat-visual.spec.ts` was one capture test with no golden comparison. Its 62 non-screenshot assertions are the 8 setup assertions in the test (team creation, organization switch, onboarding, index size) and the 54 in `openState` and its helpers (per-state readiness, behavior, and the solid destructive button check).
+
+| Source                                                                                                                                                                                                               | Kind                        | Destination                                                                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixture builders and state openers (`chatTree`, `chatList`, `searchPage`, `activeRunFrames`, `installChatFixtures`, `installRunStreamFixture`, `openState`, `expectSolidDestructiveButton`, constants), lines 19–848 | fixtures with 54 assertions | `backend/test/e2e/chat-state-fixtures.ts`, exported unchanged                                                                               |
+| The test body up to the capture loop, minus `page.screenshot` and the index and manifest rewrite                                                                                                                     | functional                  | `backend/test/e2e/chat-states.spec.ts` ("every indexed F4 chat state opens with its expected content and controls"), project `chat-browser` |
+
+Proof: `pnpm test:e2e --project chat-browser` passes with the new spec; `chat-visual` still passes with the fixtures imported from the new module.
+
 ## Still tied to the F2.1 goldens
 
 `backend/test/e2e/platform-identity.spec.ts:54` ("F2 platform page passes both-theme axe checks in the real operator flow…") compares against F2.1 baselines through `captureTask9ReviewView`. Task 4D turns its screenshot comparison off the same way and keeps its axe and behavior assertions.
