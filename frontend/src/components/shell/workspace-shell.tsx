@@ -3,8 +3,11 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
 import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
-import { WorkspaceBreadcrumb } from './workspace-breadcrumb';
+import {
+  ChatFloatingActions,
+  isChatChromePath,
+  useOpenChat,
+} from '../chat/chat-floating-actions';
 import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
@@ -42,6 +45,8 @@ export function WorkspaceShell({
   const pathname = usePathname();
   const isChatSurface =
     pathname === '/workspace' || /^\/chats\/[0-9a-f-]{36}$/i.test(pathname);
+  const hasChatChrome = isChatChromePath(pathname);
+  const openChat = useOpenChat();
   const sidebarState = useOptionalSidebar();
   const isMobile = sidebarState?.isMobile ?? false;
   const sidebarCollapsed = sidebarState?.state === 'collapsed';
@@ -98,7 +103,9 @@ export function WorkspaceShell({
           id="main"
           tabIndex={-1}
           className={
-            isChatSurface ? 'h-dvh max-h-dvh min-h-0 min-w-0' : 'min-w-0'
+            isChatSurface
+              ? 'relative h-dvh max-h-dvh min-h-0 min-w-0'
+              : 'relative min-w-0'
           }
         >
           {sidebar && sidebarState ? (
@@ -114,13 +121,11 @@ export function WorkspaceShell({
                         : 'Collapse sidebar'
                   }
                 />
-                <Separator
-                  orientation="vertical"
-                  className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-                />
-                <WorkspaceBreadcrumb />
               </div>
             </header>
+          ) : null}
+          {sidebar && sidebarState && hasChatChrome ? (
+            <ChatFloatingActions chat={openChat} />
           ) : null}
           <div className="flex min-h-0 flex-1">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 pt-0">

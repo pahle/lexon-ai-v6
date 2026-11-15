@@ -223,7 +223,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           'provisioning',
           theme,
           viewport,
-          'Provisioning',
+          'Organization provisioning',
           { loadedContent: emptyProvisioningList },
         );
       }

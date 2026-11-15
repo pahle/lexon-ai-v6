@@ -119,7 +119,7 @@ function FallbackNoticeProbe() {
   );
 }
 
-test('workspace shell composes one sidebar inset, one main, and a route breadcrumb', async () => {
+test('workspace shell composes one sidebar inset, one main, and the chat pill without a breadcrumb', async () => {
   window.innerWidth = 1280;
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -149,9 +149,10 @@ test('workspace shell composes one sidebar inset, one main, and a route breadcru
   expect(
     view.container.querySelector('[data-slot="sidebar-inset"]'),
   ).not.toBeNull();
+  expect(view.container.querySelector('[aria-label="breadcrumb"]')).toBeNull();
   expect(
-    view.container.querySelector('[aria-label="breadcrumb"]')?.textContent,
-  ).toContain('New chat');
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).not.toBeNull();
   expect(view.container.textContent).toContain('Workspace content');
   await view.unmount();
 });
@@ -198,7 +199,7 @@ test('incomplete onboarding keeps Account Security available without team settin
   vi.unstubAllGlobals();
 });
 
-test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
+test('workspace chat chrome has no breadcrumb and never reveals the team name', async () => {
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
@@ -227,16 +228,14 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const breadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
-  const items = [...breadcrumb.querySelectorAll('ol > li')];
-  expect(items).toHaveLength(1);
-  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'New chat',
-  );
-  expect(breadcrumb.textContent).not.toContain('Private team name');
-  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
+  const header = view.container.querySelector('#main > header')!;
+  expect(header.textContent).not.toContain('Private team name');
+  expect(
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).not.toBeNull();
   expect(
     view.container.querySelector(
       `nav[aria-label="Primary navigation"] a[href*="settings=general"]`,
@@ -245,7 +244,7 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
   await view.unmount();
 });
 
-test('workspace breadcrumb labels provisioning details and invalid organization routes safely', async () => {
+test('provisioning details and invalid organization routes have no breadcrumb and no pill', async () => {
   navigation.path = '/platform/provisioning/org-private-id';
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -262,14 +261,15 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const breadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
-  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'Provisioning details',
-  );
-  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
-  expect(breadcrumb.textContent).not.toContain('org-private-id');
+  expect(
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
+  expect(
+    view.container.querySelector('#main > header')?.textContent,
+  ).not.toContain('org-private-id');
+  expect(
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).toBeNull();
 
   navigation.path = `/organizations/${identity.organization.id}/members`;
   await view.rerender(
@@ -283,15 +283,12 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const invalidBreadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
   expect(
-    invalidBreadcrumb.querySelector('[aria-current="page"]')?.textContent,
-  ).toBe('Page not found');
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
   expect(
-    invalidBreadcrumb.querySelectorAll('[aria-current="page"]'),
-  ).toHaveLength(1);
+    view.container.querySelector('#main button[aria-label="Chat actions"]'),
+  ).toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
 });

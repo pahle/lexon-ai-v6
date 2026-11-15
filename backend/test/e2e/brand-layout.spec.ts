@@ -304,16 +304,15 @@ test('real API-authenticated workspace shell renders Task 4 review captures', as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.goto(stack.frontendUrl + '/workspace');
-  const mobileBreadcrumb = page.getByRole('navigation', {
-    name: 'breadcrumb',
-  });
-  await expect(mobileBreadcrumb).toContainText('New chat');
   await expect(
-    mobileBreadcrumb.getByRole('link', { name: 'Settings', exact: true }),
+    page.getByRole('navigation', { name: 'breadcrumb' }),
   ).toHaveCount(0);
   await expect(
-    mobileBreadcrumb.locator('[data-slot="breadcrumb-separator"]'),
-  ).toBeHidden();
+    page.getByRole('button', { name: 'Open navigation' }),
+  ).toBeVisible();
+  await expect(
+    page.locator('#main').getByRole('link', { name: 'New chat', exact: true }),
+  ).toBeVisible();
   await capture('sidebar-mobile-closed-light');
   await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(page.getByRole('dialog', { name: 'Sidebar' })).toBeVisible();

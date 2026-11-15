@@ -58,7 +58,14 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.goto(`${stack.publicUrl}/chats`);
   await expect(page.getByRole('heading', { name: 'Chats' })).toBeVisible();
   const breadcrumb = page.getByRole('navigation', { name: 'breadcrumb' });
-  await expect(breadcrumb).toHaveText('Chats');
+  await expect(breadcrumb).toHaveCount(0);
+  await expect(
+    page.getByRole('link', { name: 'New chat' }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Chat actions' }),
+  ).toBeDisabled();
+  const chatHeading = page.locator('#main h1');
   const pageHeading = page.getByRole('heading', { name: 'Chats' });
   expect(await pageHeading.locator('..').getAttribute('class')).not.toContain(
     'border-b',
@@ -168,8 +175,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     .then(() => true)
     .catch(() => false);
   await page.goto(`${stack.publicUrl}${mobileRecentHref}`);
-  await expect(breadcrumb).toContainText(/Chats.+/);
-  await expect(breadcrumb).not.toContainText('Mobile title event update');
+  await expect(chatHeading).toHaveText(/.+/);
+  await expect(chatHeading).not.toHaveText('Mobile title event update');
   const mobileChatId = new URL(mobileRecentHref!, stack.publicUrl).pathname
     .split('/')
     .at(-1)!;
@@ -181,8 +188,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     },
   );
   expect(eventTitleResponse.status()).toBe(204);
-  const titleUpdatedInMountedThread = await expect(breadcrumb)
-    .toContainText('Mobile title event update')
+  const titleUpdatedInMountedThread = await expect(chatHeading)
+    .toHaveText('Mobile title event update')
     .then(() => true)
     .catch(() => false);
   expect({
@@ -334,7 +341,10 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.goto(`${stack.publicUrl}/chats`);
 
   await page.goto(`${stack.publicUrl}/chats/${chatId}`);
-  await expect(breadcrumb).toHaveText(/Chats/);
+  await expect(breadcrumb).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Chat actions' }),
+  ).toBeEnabled();
   await expect(
     page.getByRole('button', { name: 'Stop generating' }),
   ).toHaveCount(0);

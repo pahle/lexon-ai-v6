@@ -348,7 +348,7 @@ function ChatHistoryRow({
   );
 }
 
-function finishChatRename(
+export function finishChatRename(
   queryClient: ReturnType<typeof useQueryClient>,
   scope: ChatQueryScope,
   chatId: string,
