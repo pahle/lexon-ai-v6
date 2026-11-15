@@ -61,6 +61,7 @@ afterEach(() => {
 const identity: IdentitySummary = {
   version: 1,
   platformAdmin: false,
+  organizationMemberCount: 1,
   user: {
     version: 1,
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -1284,6 +1285,7 @@ test('the same fallback event stays dismissed while a fallback from another sour
   const fallbackA: IdentitySummary = {
     ...identity,
     organization: personal,
+    organizationMemberCount: null,
     fallbackReason: 'membership_removed',
     previousOrganizationName: 'Shared Team',
   };
@@ -1329,6 +1331,7 @@ test('a known fallback header refreshes identity and announces only a verified s
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1392,6 +1395,7 @@ test('a known fallback header refreshes identity and announces only a verified s
 test('stale fallback hints do not announce same-organization, other-team, or other-account identity', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1453,6 +1457,7 @@ test('stale fallback hints do not announce same-organization, other-team, or oth
 test('header fallback notice is cleared when an explicit tenant transition starts', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1500,6 +1505,7 @@ test('header fallback notice is cleared when an explicit tenant transition start
 test('header fallback notice does not survive a verified bootstrap account change', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1558,6 +1564,7 @@ test('unmount discards a pending header-triggered identity verification', async 
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1604,6 +1611,7 @@ test('a bootstrap account change invalidates a pending header verification', asy
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1913,6 +1921,7 @@ test('clearing the query cache never restores the initial bootstrap identity or 
   const personal: IdentitySummary = {
     ...identity,
     user: { ...identity.user, name: 'Verified latest user' },
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',

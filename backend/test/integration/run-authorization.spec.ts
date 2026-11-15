@@ -263,6 +263,7 @@ test('a different active member cannot authorize a decision or mutate the run', 
         summary: {
           version: 1,
           platformAdmin: false,
+          organizationMemberCount: 1,
           user: { ...otherOwner.profile, onboardingCompleted: false },
           organization: {
             version: 1,

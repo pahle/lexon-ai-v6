@@ -117,12 +117,22 @@ export function selectionPlugin(primitives: SelectionPrimitives) {
           const targetMember = ctx.body.targetOrganizationId
             ? await member(ctx.body.targetOrganizationId)
             : null;
+          // Counted only for a team the caller belongs to, so a count never
+          // describes an organization the caller cannot see.
+          const selectedMemberCount =
+            selected && selectedMember && selected.kind === 'team'
+              ? await ctx.context.adapter.count({
+                  model: 'member',
+                  where: [{ field: 'organizationId', value: selected.id }],
+                })
+              : null;
           return {
             session,
             personal,
             personalMember: personal ? await member(personal.id) : null,
             selected,
             selectedMember,
+            selectedMemberCount,
             target,
             targetMember,
           };

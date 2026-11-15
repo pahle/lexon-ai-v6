@@ -69,6 +69,7 @@ function actorScope<T>(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       }),
     },
     new Headers(),

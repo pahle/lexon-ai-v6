@@ -183,3 +183,79 @@ test('identity read inventory isolates account organization invitation session a
     await inspect.close();
   }
 });
+
+test('the identity summary reports the member count of the active team only', async ({
+  services,
+}) => {
+  const api = await identityApiHarness(services);
+  try {
+    const owner = await api.user('Count owner');
+    const colleague = await api.user('Count colleague');
+    const third = await api.user('Count third');
+    const outsider = await api.user('Count outsider');
+    const identity = async (actor: typeof owner) =>
+      (await (await api.call('/identity', actor.headers)).json()) as {
+        organization: { id: string; kind: string };
+        organizationMemberCount: number | null;
+      };
+
+    // Personal workspace: no count.
+    expect(await identity(owner)).toMatchObject({
+      organization: { kind: 'personal' },
+      organizationMemberCount: null,
+    });
+
+    const created = await api.call('/organizations', owner.headers, 'POST', {
+      name: 'Count team',
+      slug: 'count-' + randomUUID().slice(0, 8),
+    });
+    expect(created.status).toBe(201);
+    const team = (await created.json()) as { id: string };
+    const activate = async (actor: typeof owner) =>
+      api.call('/organizations/active', actor.headers, 'POST', {
+        organizationId: team.id,
+      });
+    expect((await activate(owner)).status).toBe(200);
+    expect(await identity(owner)).toMatchObject({
+      organization: { id: team.id, kind: 'team' },
+      organizationMemberCount: 1,
+    });
+
+    const join = async (actor: typeof owner) => {
+      const invited = await api.call(
+        '/organizations/' + team.id + '/invitations',
+        owner.headers,
+        'POST',
+        { email: actor.profile.email, role: 'member' },
+      );
+      expect(invited.status).toBe(201);
+      const invitation = (await invited.json()) as { id: string };
+      const accepted = await api.call(
+        '/invitations/' + invitation.id + '/accept',
+        actor.headers,
+        'POST',
+      );
+      expect(accepted.status).toBe(200);
+    };
+    await join(colleague);
+    // Every member of the team sees the same count.
+    expect((await identity(owner)).organizationMemberCount).toBe(2);
+    expect(await identity(colleague)).toMatchObject({
+      organization: { id: team.id, kind: 'team' },
+      organizationMemberCount: 2,
+    });
+
+    await join(third);
+    expect((await identity(owner)).organizationMemberCount).toBe(3);
+    expect((await identity(colleague)).organizationMemberCount).toBe(3);
+
+    // A user outside the team cannot select it and never receives its count.
+    expect((await activate(outsider)).status).not.toBe(200);
+    expect(await identity(outsider)).toMatchObject({
+      organization: { kind: 'personal' },
+      organizationMemberCount: null,
+    });
+  } finally {
+    await api.close();
+  }
+});

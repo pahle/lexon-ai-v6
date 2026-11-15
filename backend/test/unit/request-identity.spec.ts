@@ -31,6 +31,7 @@ test('request identity and tenant context survive async work and expire together
       summary: {
         version: 1,
         platformAdmin: false,
+        organizationMemberCount: null,
         user: {
           version: 1,
           id: userId,

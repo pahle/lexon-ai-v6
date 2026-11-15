@@ -35,6 +35,7 @@ const identity: IdentitySummary = {
     createdAt: '2026-11-01T00:00:00Z',
   },
   platformAdmin: true,
+  organizationMemberCount: null,
 };
 
 const workspace = vi.hoisted(() => ({
@@ -356,7 +357,11 @@ test('every active team role gets organization settings; only platform admins ge
       role: 'admin' as const,
     },
   ] as const) {
-    workspace.identity = { ...identity, organization };
+    workspace.identity = {
+      ...identity,
+      organization,
+      organizationMemberCount: 1,
+    };
     const view = await render(
       <QueryClientProvider client={new QueryClient()}>
         <SidebarProvider>
@@ -414,6 +419,7 @@ test('every active team role gets organization settings; only platform admins ge
       role: 'admin',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   };
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
@@ -903,6 +909,7 @@ test('successful sign-out navigates only after authentication completes', async 
 test('mobile sidebar closes on Escape and returns focus; the 768px boundary removes the sheet', async () => {
   workspace.identity = {
     ...identity,
+    organizationMemberCount: 1,
     organization: {
       ...identity.organization,
       kind: 'team',
@@ -1016,6 +1023,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(sidebarDefaultOpen('malformed')).toBe(true);
   workspace.identity = {
     ...identity,
+    organizationMemberCount: 1,
     organization: {
       ...identity.organization,
       kind: 'team',

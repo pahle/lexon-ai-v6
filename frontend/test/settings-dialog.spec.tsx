@@ -48,6 +48,7 @@ const workspaceState = vi.hoisted(() => ({
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: null,
   } as unknown,
 }));
 vi.mock('next/navigation', () => ({
@@ -111,6 +112,7 @@ afterEach(() => {
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: null,
   };
 });
 
@@ -286,6 +288,7 @@ test.each(['invitations', 'general'] as const)(
         createdAt: '2026-11-01T00:00:00.000Z',
       },
       platformAdmin: false,
+      organizationMemberCount: 1,
     };
     locationState.search = '?settings=' + section;
     const fetcher = vi.fn(async () =>
@@ -540,6 +543,7 @@ function organizationIdentity(
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   } as const;
 }
 
@@ -567,6 +571,7 @@ test('demotion cancels and removes a delayed invitation response while Settings 
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   });
   workspaceState.identity = identity('owner');
   locationState.search = '?settings=invitations';

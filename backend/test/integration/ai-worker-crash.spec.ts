@@ -86,6 +86,7 @@ async function asActor<T>(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       },
     },
     new Headers(),

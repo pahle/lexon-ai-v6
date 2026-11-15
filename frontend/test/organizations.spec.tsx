@@ -71,13 +71,18 @@ test('organization route gates deny unauthorized sections before protected data 
     },
     organization: { ...team, role: 'member' as const },
     platformAdmin: false,
+    organizationMemberCount: 1,
   };
   const unauthorized = [
     { view: 'invitations' as const },
     { view: 'general' as const },
     {
       view: 'general' as const,
-      identity: { ...member, organization: personal },
+      identity: {
+        ...member,
+        organization: personal,
+        organizationMemberCount: null,
+      },
     },
   ];
   const fetcher = vi.fn(async () => {
@@ -112,6 +117,7 @@ test('role refresh removes a formerly allowed settings view and its cached data'
     },
     organization: { ...team, role: 'owner' as const },
     platformAdmin: false,
+    organizationMemberCount: 1,
   };
   const queryClient = new QueryClient();
   const protectedKey = ['tenant', team.id, 'members', 'start'] as const;
@@ -151,6 +157,7 @@ test('Personal active organization never loads team membership data', async () =
     },
     organization: personal,
     platformAdmin: false,
+    organizationMemberCount: null,
   };
   const fetcher = vi.fn(async () => {
     throw new Error('old organization data should not load');

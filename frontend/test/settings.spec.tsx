@@ -40,6 +40,7 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
         createdAt: '2026-11-01T00:00:00Z',
       },
       platformAdmin: false,
+      organizationMemberCount: null,
     },
     refreshIdentity,
   }),

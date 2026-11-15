@@ -86,6 +86,7 @@ test('executor streams only typed summaries and reload matches measured timing',
   const summaryInfo = IdentitySummarySchema.parse({
     version: 1,
     platformAdmin: false,
+    organizationMemberCount: null,
     user: {
       version: 1,
       id: tenant.userId,

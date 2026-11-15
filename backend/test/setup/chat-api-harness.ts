@@ -172,6 +172,7 @@ export async function createChatApiHarness(
     const summary = {
       version: 1 as const,
       platformAdmin: false,
+      organizationMemberCount: null,
       user: {
         version: 1 as const,
         id: ctx.userId,

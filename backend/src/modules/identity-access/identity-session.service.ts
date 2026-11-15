@@ -244,6 +244,7 @@ export class IdentitySessionService implements OrganizationSelectionPort {
     return {
       facts,
       organization: summary(facts.selected, facts.selectedMember.role),
+      organizationMemberCount: facts.selectedMemberCount,
       fallbackReason,
       previousOrganizationName,
     };
@@ -302,6 +303,7 @@ export class IdentitySessionService implements OrganizationSelectionPort {
             platformAdmin,
             user: profile,
             organization: selection.organization,
+            organizationMemberCount: selection.organizationMemberCount,
             ...(selection.fallbackReason
               ? { fallbackReason: selection.fallbackReason }
               : {}),

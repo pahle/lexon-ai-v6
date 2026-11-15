@@ -51,6 +51,7 @@ function withActor<T>(
       summary: {
         version: 1,
         platformAdmin: false,
+        organizationMemberCount: null,
         user: {
           version: 1,
           id: tenant.userId,
