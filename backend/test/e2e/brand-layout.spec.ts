@@ -399,7 +399,7 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
       ).toBeVisible();
       await expectAccountSectionReady(page, section);
       if (section === 'appearance') {
-        await expectAppearanceGeometry(page, 1440);
+        await expectAppearanceGeometry(page);
       }
       await expect(page.locator('main')).toHaveCount(1);
       const navBox = await page
@@ -442,7 +442,7 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
     await expectAccountSectionReady(page, section);
     if (section === 'appearance') {
-      await expectAppearanceGeometry(page, 390);
+      await expectAppearanceGeometry(page);
     }
     await expect(
       page
@@ -463,7 +463,7 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
     await expectAccountSectionReady(page, section);
     if (section === 'appearance') {
-      await expectAppearanceGeometry(page, 768);
+      await expectAppearanceGeometry(page);
     }
     const navBox = await page
       .getByRole('navigation', { name: 'Settings sections' })
@@ -685,10 +685,7 @@ async function expectAccountSectionReady(
   }
 }
 
-async function expectAppearanceGeometry(
-  page: import('@playwright/test').Page,
-  viewportWidth: number,
-) {
+async function expectAppearanceGeometry(page: import('@playwright/test').Page) {
   const metrics = await page.getByRole('radiogroup').evaluate((group) => {
     const rects = Array.from(
       group.querySelectorAll<HTMLElement>('[data-slot="appearance-option"]'),

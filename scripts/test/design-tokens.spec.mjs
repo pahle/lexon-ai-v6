@@ -242,6 +242,35 @@ test('no Royal Seal color remains in the frontend source', () => {
   assert.deepEqual(offenders, []);
 });
 
+test('no retired heading size variable remains in the frontend source', () => {
+  const offenders = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (/\.(ts|tsx|css)$/.test(entry.name)) {
+        if (readFileSync(path, 'utf8').includes('--font-size-heading'))
+          offenders.push(path);
+      }
+    }
+  };
+  visit(frontendSource.pathname);
+  assert.deepEqual(offenders, []);
+});
+
+test('the Toaster carries no hard-coded color class or literal', () => {
+  const toaster = readFileSync(
+    new URL('components/ui/sonner.tsx', frontendSource),
+    'utf8',
+  );
+  assert.doesNotMatch(toaster, /#[\da-f]{3,8}\b/i, 'no hex literal');
+  assert.doesNotMatch(
+    toaster,
+    /\b(?:bg|text|border|ring|fill|stroke)-(?:red|orange|amber|yellow|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone|black|white)\b/,
+    'no palette color class',
+  );
+});
+
 test('meets the measured contrast of LEX-DS-001 §2', () => {
   for (const [theme, tokens] of Object.entries(themes)) {
     const color = (name) => resolve(tokens, name);

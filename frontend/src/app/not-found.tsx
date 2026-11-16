@@ -10,9 +10,7 @@ export default function NotFound() {
         Skip to content
       </a>
       <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
-        <h1 className="text-[length:var(--font-size-heading)] font-semibold">
-          Page not found
-        </h1>
+        <h1 className="font-serif text-2xl font-bold">Page not found</h1>
         <p className="mt-4">The requested page could not be found.</p>
         <Link
           className="mt-4 inline-flex min-h-11 items-center underline"

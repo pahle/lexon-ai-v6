@@ -416,3 +416,37 @@ test('completed setup discards its proof without redeeming it again', async () =
   await view.unmount();
   vi.unstubAllGlobals();
 });
+
+test('provisioning list shows a skeleton while loading', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => new Promise<Response>(() => {})),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  await view.unmount();
+});
+
+test('provisioning list section heading uses the serif treatment', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({ items: [], pageInfo: { nextCursor: null } }),
+    ),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const heading = view.container.querySelector('#provisioning-heading');
+  expect(heading?.className).toContain('font-serif');
+  expect(heading?.className).toContain('text-xl');
+  await view.unmount();
+});

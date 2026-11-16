@@ -140,7 +140,7 @@ export function ProvisioningList() {
         className="flex flex-col gap-4"
       >
         <header>
-          <h2 id="provisioning-heading" className="text-lg font-medium">
+          <h2 id="provisioning-heading" className="font-serif text-xl">
             Provisioning organizations
           </h2>
           <p className="text-sm text-muted-foreground">

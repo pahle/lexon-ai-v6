@@ -93,3 +93,20 @@ test('auth layout includes a visible-on-focus skip link to its focusable main', 
   expect(main?.getAttribute('tabindex')).toBe('-1');
   await view.unmount();
 });
+
+test('page and error titles use the serif heading treatment without the retired size variable', async () => {
+  const retry = vi.fn();
+  for (const element of [
+    <WorkspaceNotFound key="workspace-not-found" />,
+    <RootNotFound key="root-not-found" />,
+    <RootError key="root-error" error={new Error('x')} retry={retry} />,
+  ]) {
+    const view = await render(element);
+    const heading = view.container.querySelector('h1');
+    expect(heading?.className).toContain('font-serif');
+    expect(heading?.className).toContain('text-2xl');
+    expect(heading?.className).toContain('font-bold');
+    expect(heading?.className).not.toContain('--font-size-heading');
+    await view.unmount();
+  }
+});
