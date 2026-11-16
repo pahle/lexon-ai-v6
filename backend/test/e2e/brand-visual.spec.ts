@@ -3,6 +3,22 @@ import { descriptor } from './runtime-support.js';
 import { authenticateApi, readCapturedMail } from './identity-support.js';
 import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
+import { ChatTreeSchema, type ChatMessage } from '@lexon/contracts';
+import {
+  answer,
+  assistantMessage,
+  assistantMessageId,
+  chatId,
+  deepThinkingQuestion,
+  expectSolidDestructiveButton,
+  fileNames,
+  installChatFixtures,
+  installRunStreamFixture,
+  reasoning,
+  timestamp,
+  userMessage,
+  userMessageId,
+} from './chat-state-fixtures.js';
 import {
   captureBrandViews,
   brandFixedTime,
@@ -897,4 +913,596 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await page.goto(stack.frontendUrl + '/platform/accounts');
   await expect(page.getByLabel('User ID')).toBeVisible();
   await captureBrandViews(page, 'platform-accounts');
+});
+
+// Chat states. The chat API and the run stream are the deterministic fixtures
+// of the F4 chat states (chat-state-fixtures.ts); the shell, the auth, and the
+// organization are real. The thinking indicator animates, so these states run
+// with reduced motion (the project default), which shows the static mark.
+
+type ChatEnv = { stack: ReturnType<typeof descriptor>; state: string };
+
+async function startChatStates(page: Page): Promise<ChatEnv> {
+  const { stack } = await prepareIdentity(
+    page,
+    { name: 'Ayu Wardani' },
+    'Senior Associate',
+  );
+  const env: ChatEnv = { stack, state: 'new-chat' };
+  await installChatFixtures(
+    page,
+    () => env.state,
+    () => undefined,
+  );
+  await installRunStreamFixture(page);
+  // The theme is stored per origin, so the page is on the app before the
+  // first capture applies it.
+  await gotoWorkspace(page, 'Ayu');
+  return env;
+}
+
+const messageOf = (page: Page, id: string) =>
+  page.locator(`[data-message-id="${id}"]`);
+
+async function settleAnimations(page: Page) {
+  await page.evaluate(async () => {
+    await Promise.all(
+      document
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+}
+
+/**
+ * Parks the pointer, closes any hover tooltip, lets every animation finish,
+ * and waits until the layout has been still for 20 frames, so the capture
+ * does not depend on where a transition or an autosizing field is.
+ */
+async function calm(page: Page) {
+  await page.mouse.move(0, 0);
+  await expect(page.locator('[data-slot="tooltip-content"]')).toHaveCount(0);
+  await settleAnimations(page);
+  await page.evaluate(async () => {
+    const frame = () =>
+      new Promise<void>((done) => requestAnimationFrame(() => done()));
+    const layout = () =>
+      [...document.querySelectorAll('button, textarea, input, mark, main')]
+        .map((node) => {
+          const r = node.getBoundingClientRect();
+          return `${r.x},${r.y},${r.width},${r.height}`;
+        })
+        .join('|');
+    let still = 0;
+    let last = layout();
+    for (let tries = 0; still < 20 && tries < 300; tries++) {
+      await frame();
+      const next = layout();
+      still = next === last ? still + 1 : 0;
+      last = next;
+    }
+  });
+}
+
+async function openThread(
+  page: Page,
+  env: ChatEnv,
+  state: string,
+  ready: Locator,
+  query = '',
+) {
+  env.state = state;
+  await page.clock.setFixedTime(brandFixedTime);
+  const response = await page.goto(
+    `${env.stack.frontendUrl}/chats/${chatId}${query}`,
+  );
+  expect(response?.status()).toBe(200);
+  await expect(ready).toBeVisible();
+  await expect(page.locator('main')).toHaveCount(1);
+}
+
+const reasoningToggle = (page: Page, label: string) =>
+  page.getByRole('button', { name: label });
+const answerStart = answer.slice(0, 50);
+
+test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
+  await startChatStates(page);
+  const openNewChat = async (viewport: BrandViewport) => {
+    await gotoWorkspace(page, 'Ayu');
+    await expectResting(page, viewport);
+    if (viewport === 'desktop')
+      await expect(
+        page
+          .getByRole('group', { name: 'Recent chats' })
+          .getByRole('link', { name: fileNames.default, exact: true }),
+      ).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Starter prompts' }),
+    ).toBeVisible();
+  };
+  await captureBrandViews(page, 'chat-new', { open: openNewChat });
+
+  await captureBrandViews(page, 'chat-deep-thinking', {
+    open: async (viewport) => {
+      await openNewChat(viewport);
+      await page
+        .getByRole('textbox', { name: 'Message input' })
+        .fill(deepThinkingQuestion);
+      const toggle = page.getByRole('button', { name: 'Deep thinking' });
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await calm(page);
+    },
+  });
+
+  const template =
+    'Explain Article [number] of [law or regulation] in plain language.';
+  await captureBrandViews(page, 'chat-starter-pill', {
+    open: async (viewport) => {
+      await openNewChat(viewport);
+      await page
+        .getByRole('group', { name: 'Starter prompts' })
+        .getByRole('button', { name: 'Explain an article', exact: true })
+        .click();
+      const input = page.getByRole('textbox', { name: 'Message input' });
+      await expect(input).toHaveValue(template);
+      await expect(input).toBeFocused();
+      await calm(page);
+    },
+  });
+});
+
+test('completed answers, editing, branches, stopped, and failed runs', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page);
+  const answerShown = page.getByText(answerStart);
+  const thought = 'Thought for 14 seconds';
+  const openAnswer = async () => {
+    await openThread(page, env, 'answer-complete', answerShown);
+    await expect(reasoningToggle(page, thought)).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  };
+
+  await captureBrandViews(page, 'chat-reasoning-collapsed', {
+    open: openAnswer,
+  });
+
+  await captureBrandViews(page, 'chat-reasoning-open', {
+    open: async () => {
+      await openAnswer();
+      await reasoningToggle(page, thought).click();
+      await expect(reasoningToggle(page, thought)).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      await expect(page.getByText(reasoning)).toBeVisible();
+      await settleAnimations(page);
+    },
+  });
+
+  // The action bar shows on hover or focus; focus keeps it open after the
+  // capture step moves the pointer away.
+  await captureBrandViews(page, 'chat-answer-actions', {
+    open: async () => {
+      await openAnswer();
+      const copy = page.getByRole('button', { name: 'Copy answer' });
+      await copy.focus();
+      await expect(copy).toBeFocused();
+      await expect(page.locator('[data-slot="aui_message-actions"]')).toHaveCSS(
+        'opacity',
+        '1',
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-edit', {
+    open: async () => {
+      await openAnswer();
+      const message = messageOf(page, userMessageId);
+      await message.getByRole('button', { name: 'Edit message' }).click();
+      await expect(
+        page.getByRole('textbox', { name: 'Edit message input' }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('textbox', { name: 'Edit message input' }),
+      ).toBeFocused();
+    },
+  });
+
+  const editedLeaf = '00000000-0000-4000-8000-000000000105';
+  await captureBrandViews(page, 'chat-branch', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'edited-branch',
+        page.getByText('2 / 2', { exact: true }).first(),
+      );
+      const previous = messageOf(page, editedLeaf).getByRole('button', {
+        name: 'Previous branch',
+      });
+      await previous.focus();
+      await expect(previous).toBeFocused();
+    },
+  });
+
+  await captureBrandViews(page, 'chat-stopped', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'stopped',
+        page.getByText('Stopped', { exact: true }),
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-error', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'run-error',
+        page.locator('#main').getByRole('alert'),
+      );
+      await expect(page.locator('#main').getByRole('alert')).toContainText(
+        'The response could not be completed.',
+      );
+    },
+  });
+});
+
+test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page);
+  const answerShown = page.getByText(answerStart);
+  const pill = page.getByRole('button', { name: 'Chat actions', exact: true });
+  const renameItem = page.getByRole('menuitem', { name: 'Rename' });
+  const openPillMenu = async () => {
+    await openThread(page, env, 'answer-complete', answerShown);
+    await expect(pill).toBeEnabled();
+    await openMenuReliably(page, pill, renameItem, 'floating chat menu');
+  };
+  const closePillMenu = async () => {
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+  };
+
+  await captureBrandViews(page, 'chat-floating-menu', {
+    open: async () => {
+      await openPillMenu();
+      await expect(
+        page.getByRole('menuitem', { name: 'Delete' }),
+      ).toBeVisible();
+    },
+    close: closePillMenu,
+  });
+
+  await captureBrandViews(page, 'chat-rename', {
+    open: async () => {
+      await openPillMenu();
+      await renameItem.click();
+      const dialog = page.getByRole('dialog', { name: 'Rename chat' });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole('textbox', { name: 'Chat title' }),
+      ).toBeFocused();
+      await settleAnimations(page);
+    },
+    close: async () => {
+      await page.keyboard.press('Escape');
+      await expect(
+        page.getByRole('dialog', { name: 'Rename chat' }),
+      ).toBeHidden();
+    },
+  });
+
+  await captureBrandViews(page, 'chat-delete', {
+    open: async () => {
+      await openPillMenu();
+      await page.getByRole('menuitem', { name: 'Delete' }).click();
+      const dialog = page.getByRole('alertdialog');
+      await expect(dialog).toBeVisible();
+      await expectSolidDestructiveButton(
+        dialog.getByRole('button', { name: 'Delete chat', exact: true }),
+      );
+      await settleAnimations(page);
+    },
+    close: async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('alertdialog')).toBeHidden();
+    },
+  });
+
+  const recentTrigger = page.getByRole('button', {
+    name: `Chat actions for ${fileNames.acquisition}`,
+  });
+  await captureBrandViews(page, 'recent-menu', {
+    open: async (viewport) => {
+      await openThread(page, env, 'answer-complete', answerShown);
+      if (viewport === 'mobile') await openMobileSheet(page);
+      await openMenuReliably(
+        page,
+        recentTrigger,
+        renameItem,
+        'Recent chat menu',
+      );
+      await expect(
+        page.getByRole('menuitem', { name: 'Delete' }),
+      ).toBeVisible();
+    },
+    close: async (viewport) => {
+      await closeMenu(page, viewport);
+    },
+  });
+});
+
+/**
+ * Holds the page clock still for states whose indicator expires on a timer
+ * (the copied check, the feedback toast). The clock is installed once, resumed
+ * for each load, and paused 100 ms after the click; the one-millisecond steps
+ * that let axe finish are counted and bounded far below the timer.
+ */
+function frozenClock(page: Page) {
+  let stepping = false;
+  let steps = 0;
+  let loop: Promise<void> | undefined;
+  return {
+    install: () => page.clock.install({ time: new Date(brandFixedTime) }),
+    resume: () => page.clock.resume(),
+    async hold() {
+      const now = await page.evaluate(() => Date.now());
+      await page.clock.pauseAt(new Date(now + 100));
+      stepping = true;
+      steps = 0;
+      loop = (async () => {
+        while (stepping) {
+          await page.clock.runFor(1);
+          steps++;
+          await new Promise((done) => setTimeout(done, 5));
+        }
+      })();
+    },
+    async release() {
+      stepping = false;
+      await loop;
+      expect(
+        steps,
+        'fake milliseconds advanced during the capture',
+      ).toBeLessThan(2000);
+    },
+  };
+}
+
+test('copied answer and given feedback hold their timers', async ({ page }) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], {
+    origin: env.stack.frontendUrl,
+  });
+  const clock = frozenClock(page);
+  await clock.install();
+  const load = async () => {
+    await clock.resume();
+    env.state = 'answer-complete';
+    const response = await page.goto(
+      `${env.stack.frontendUrl}/chats/${chatId}`,
+    );
+    expect(response?.status()).toBe(200);
+    await expect(page.getByText(answerStart)).toBeVisible();
+  };
+
+  await captureBrandViews(page, 'chat-copied', {
+    open: async () => {
+      await load();
+      const copy = page.getByRole('button', { name: 'Copy answer' });
+      await copy.click();
+      await expect(copy.locator('svg.lucide-check')).toBeVisible();
+      await clock.hold();
+    },
+    close: () => clock.release(),
+  });
+
+  await captureBrandViews(page, 'chat-feedback', {
+    open: async () => {
+      await load();
+      const good = page.getByRole('button', { name: 'Good answer' });
+      await good.click();
+      await expect(good).toHaveAttribute('aria-pressed', 'true');
+      const toast = page.locator('[data-sonner-toast]');
+      await expect(toast).toContainText('Thanks for your feedback.');
+      await clock.hold();
+      await settleAnimations(page);
+    },
+    close: () => clock.release(),
+  });
+});
+
+function scrollableStreamingTree() {
+  const messages: ChatMessage[] = [];
+  let parentId: string | null = null;
+  for (let turn = 0; turn < 3; turn++) {
+    const user: Extract<ChatMessage, { role: 'user' }> = {
+      ...userMessage(`00000000-0000-4000-8000-00000000020${turn}`),
+      parentId,
+    };
+    const reply: Extract<ChatMessage, { role: 'assistant' }> = {
+      ...assistantMessage(
+        'answer-complete',
+        `00000000-0000-4000-8000-00000000021${turn}`,
+        user.id,
+      ),
+      runId: `00000000-0000-4000-8000-00000000022${turn}`,
+    };
+    messages.push(user, reply);
+    parentId = reply.id;
+  }
+  messages.push(
+    { ...userMessage(), parentId },
+    assistantMessage('streaming-answer'),
+  );
+  return ChatTreeSchema.parse({
+    id: chatId,
+    title: fileNames.newChat,
+    messages,
+    viewedLeafId: assistantMessageId,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+test('streaming, reconnecting, and loading chat threads', async ({ page }) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page);
+
+  await page.route(
+    (url) => url.pathname === `/api/chats/${chatId}`,
+    (route) =>
+      route.request().method() === 'GET' && env.state === 'streaming-scroll'
+        ? route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(scrollableStreamingTree()),
+          })
+        : route.fallback(),
+  );
+  await captureBrandViews(page, 'chat-streaming-scroll', {
+    open: async (viewport) => {
+      await openThread(
+        page,
+        env,
+        'streaming-scroll',
+        page.getByRole('button', { name: 'Stop generating' }),
+        '?capture_state=streaming-answer',
+      );
+      await expect(page.getByText('Thought for 8 seconds')).toBeVisible();
+      const viewportBox = page.locator('[data-slot="aui_thread-viewport"]');
+      // Wait until the thread is pinned to the bottom and has stopped
+      // changing size, so nothing later pulls it back down.
+      await viewportBox.evaluate(async (element) => {
+        const frame = () =>
+          new Promise<void>((done) => requestAnimationFrame(() => done()));
+        let still = 0;
+        let last = '';
+        for (let tries = 0; still < 30 && tries < 600; tries++) {
+          await frame();
+          const next = `${element.scrollHeight}|${element.scrollTop}`;
+          still = next === last ? still + 1 : 0;
+          last = next;
+        }
+      });
+      await page.mouse.move(viewport === 'desktop' ? 840 : 195, 400);
+      await page.mouse.wheel(0, -6000);
+      await expect(
+        page.getByRole('button', { name: 'Scroll to bottom' }),
+      ).toBeVisible();
+      await expect
+        .poll(() => viewportBox.evaluate((element) => element.scrollTop))
+        .toBe(0);
+    },
+  });
+
+  await captureBrandViews(page, 'chat-reconnecting', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'reconnecting',
+        page.getByRole('button', { name: 'Stop generating' }),
+        '?capture_state=reconnecting',
+      );
+      await expect(
+        page.getByText(/Pasal 1320 KUHPerdata menetapkan/).first(),
+      ).toBeVisible();
+      await expect(page.getByText('Reconnecting…')).toHaveCount(0);
+      const disconnected = await page.evaluate(
+        () =>
+          (
+            window as Window & { __chatVisualDisconnectRun?: () => boolean }
+          ).__chatVisualDisconnectRun?.() ?? false,
+      );
+      expect(disconnected).toBe(true);
+      await expect(page.getByText('Reconnecting…')).toBeVisible();
+    },
+  });
+
+  // The thread request is held by a gated route, so the loading state stays
+  // open for as long as the captures need and never depends on a timer.
+  let release!: () => void;
+  const gate = new Promise<void>((done) => (release = done));
+  await page.route(
+    (url) => url.pathname === `/api/chats/${chatId}`,
+    async (route) => {
+      if (route.request().method() !== 'GET' || env.state !== 'thread-loading')
+        return route.fallback();
+      await gate;
+      await route.abort().catch(() => undefined);
+    },
+  );
+  try {
+    await captureBrandViews(page, 'chat-thread-loading', {
+      open: async () => {
+        env.state = 'thread-loading';
+        await page.clock.setFixedTime(brandFixedTime);
+        await page.goto(`${env.stack.frontendUrl}/chats/${chatId}`);
+        await expect(page.locator('#main [role="status"]')).toBeVisible();
+      },
+    });
+  } finally {
+    release();
+  }
+});
+
+test('Chats history, search with highlights, and no results', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page);
+  const openChats = async (state: string) => {
+    env.state = state;
+    await page.clock.setFixedTime(brandFixedTime);
+    await page.goto(`${env.stack.frontendUrl}/chats`);
+    await expect(page.getByRole('heading', { name: 'Chats' })).toBeVisible();
+    await expect(page.locator('main')).toHaveCount(1);
+  };
+  const search = async (query: string) => {
+    const box = page.getByRole('textbox', { name: 'Search chats' });
+    await box.fill(query);
+    await box.press('Enter');
+  };
+
+  await captureBrandViews(page, 'chats-history', {
+    open: async () => {
+      await openChats('chats-history');
+      for (const title of [fileNames.newChat, fileNames.data])
+        await expect(
+          page.locator('#main').getByText(title, { exact: true }).first(),
+        ).toBeVisible();
+    },
+  });
+
+  await captureBrandViews(page, 'chats-search', {
+    open: async () => {
+      await openChats('chats-search');
+      await search('wanprestasi');
+      await expect(page.getByText('3 chats', { exact: true })).toBeVisible();
+      await expect(page.locator('#main mark').first()).toBeVisible();
+      await calm(page);
+    },
+  });
+
+  await captureBrandViews(page, 'chats-no-results', {
+    open: async () => {
+      await openChats('chats-no-results');
+      await search('hak tanggungan');
+      await expect(
+        page.getByText('No chats match “hak tanggungan”', { exact: true }),
+      ).toBeVisible();
+      await calm(page);
+    },
+  });
 });

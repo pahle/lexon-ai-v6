@@ -181,6 +181,25 @@ it('loads exactly six owner-scoped Recent chats', async () => {
   wrapped.client.clear();
 });
 
+it('gives the Recent chat actions button a 24 px target', async () => {
+  const api = {
+    list: vi.fn(async () => page([item(1, 'Target size row')])),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(<RecentChats client={api} scope={scope} />);
+  const view = await render(wrapped.node);
+  try {
+    await settle();
+    const opener = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Chat actions for Target size row"]',
+    )!;
+    // WCAG 2.2 target size (minimum): 24 by 24 CSS pixels.
+    expect(opener.className).toContain('size-6');
+    expect(opener.className).not.toMatch(/(^|\s)w-5(\s|$)/);
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('renames a Recent chat in a dialog and keeps the row title link in place', async () => {
   let serverTitle = 'Original recent title';
   const api = {

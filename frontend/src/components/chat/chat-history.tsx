@@ -405,6 +405,7 @@ export function ChatHistoryActions({
             <SidebarMenuAction
               type="button"
               showOnHover
+              className="size-6 peer-data-[size=default]/menu-button:top-1"
               aria-label={label}
               disabled={disabled}
               ref={triggerRef}

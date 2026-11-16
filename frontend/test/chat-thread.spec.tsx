@@ -871,6 +871,95 @@ it('renders the edit submit as Send after Cancel with accessible name Send edit'
   }
 });
 
+it('keeps the answer under an open edit readable and operable, dimmed by color only', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userMessageId = '22222222-2222-4222-8222-222222222222';
+  const answerId = '33333333-3333-4333-8333-333333333333';
+  const client = {
+    get: vi.fn().mockResolvedValue({
+      id: chatId,
+      title: 'Thread fixture',
+      messages: [
+        {
+          id: userMessageId,
+          role: 'user',
+          parentId: null,
+          text: 'Review this clause',
+          effort: 'high',
+          createdAt: '2026-11-12T00:00:00.000Z',
+        },
+        {
+          id: answerId,
+          role: 'assistant',
+          parentId: userMessageId,
+          runId: '44444444-4444-4444-8444-444444444444',
+          text: 'The clause limits liability.',
+          status: 'completed',
+          reasoningSummary: null,
+          reasoningDurationMs: null,
+          feedback: null,
+          createdAt: '2026-11-12T00:00:01.000Z',
+        },
+      ],
+      viewedLeafId: answerId,
+      createdAt: '2026-11-12T00:00:00.000Z',
+      updatedAt: '2026-11-12T00:00:01.000Z',
+    }),
+  };
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const answer = () =>
+      view.container.querySelector<HTMLElement>(
+        `[data-message-id="${answerId}"]`,
+      );
+    expect(answer()?.hasAttribute('inert')).toBe(false);
+    expect(answer()?.className).toContain('text-foreground');
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Edit message"]')
+        ?.click(),
+    );
+    await settle();
+    // Presentation only: the answer stays in the accessibility tree and the
+    // tab order while the edit is open, and reads as dimmed through color.
+    const dimmed = answer()!;
+    expect(dimmed.closest('[inert]')).toBeNull();
+    expect(dimmed.hasAttribute('inert')).toBe(false);
+    expect(dimmed.textContent).toContain('The clause limits liability.');
+    expect(dimmed.className).not.toContain('opacity-50');
+    expect(dimmed.className).toContain('text-muted-foreground');
+    expect(dimmed.className).not.toMatch(/(^|\s)text-foreground(\s|$)/);
+    const copy = dimmed.querySelector<HTMLButtonElement>(
+      '[aria-label="Copy answer"]',
+    )!;
+    expect(copy).not.toBeNull();
+    copy.focus();
+    expect(document.activeElement).toBe(copy);
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Cancel edit"]')
+        ?.click(),
+    );
+    await settle();
+    expect(answer()?.hasAttribute('inert')).toBe(false);
+    expect(answer()?.className).toContain('text-foreground');
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('renders a persisted answer through the proven runtime and saves feedback against its message ID', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';
   const userMessageId = '22222222-2222-4222-8222-222222222222';
@@ -1977,7 +2066,7 @@ it('keeps the edit controls inside the bubble and dims the answer below while ed
     await settle();
     const answer = () =>
       view.container.querySelector(`[data-message-id="${answerId}"]`);
-    expect(answer()?.className).not.toContain('opacity-50');
+    expect(answer()?.className).not.toContain('text-muted-foreground');
     await act(async () =>
       view.container
         .querySelector<HTMLButtonElement>('[aria-label="Edit message"]')
@@ -2001,14 +2090,14 @@ it('keeps the edit controls inside the bubble and dims the answer below while ed
           Node.DOCUMENT_POSITION_FOLLOWING &&
         cancel.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(answer()?.className).toContain('opacity-50');
+    expect(answer()?.className).toContain('text-muted-foreground');
     await act(async () =>
       view.container
         .querySelector<HTMLButtonElement>('[aria-label="Cancel edit"]')
         ?.click(),
     );
     await settle();
-    expect(answer()?.className).not.toContain('opacity-50');
+    expect(answer()?.className).not.toContain('text-muted-foreground');
   } finally {
     await view.unmount();
   }

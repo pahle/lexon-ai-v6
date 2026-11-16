@@ -351,18 +351,22 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
   );
   if (editing)
     return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
+  // The answer under an open edit reads as dimmed through the muted text
+  // color (it meets WCAG contrast), not opacity or inert: the answer stays
+  // readable and operable for every user while the edit is open.
+  const dimmed =
+    role === 'assistant' &&
+    parentId !== null &&
+    editFocus.editingId === parentId;
   return (
     <MessagePrimitive.Root
       data-slot={`aui_${role}-message-root`}
       data-role={role}
       data-message-id={messageId}
       className={cn(
-        'group/turn text-foreground px-2 leading-relaxed wrap-break-word',
+        'group/turn px-2 leading-relaxed wrap-break-word',
         role === 'user' && 'ms-auto max-w-[80%] px-0',
-        role === 'assistant' &&
-          parentId !== null &&
-          editFocus.editingId === parentId &&
-          'opacity-50',
+        dimmed ? 'text-muted-foreground' : 'text-foreground',
       )}
     >
       {role === 'assistant' ? (
