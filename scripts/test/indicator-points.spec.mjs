@@ -46,26 +46,30 @@ test('every path of every mark has a positive finite length', () => {
   }
 });
 
-// The brand monogram (docs/brand/lexon-2026/01_VECTOR/LEXON-monogram-seal.svg)
-// is a 911 x 911 SVG: a group translated by (194.5, 64) holding five paths.
-// The indicator's lexon mark is that artwork scaled to a 20 x 20 box.
-test('the lexon mark matches the brand monogram scaled to 20x20', () => {
+// The brand's micro-tier monogram
+// (docs/brand/lexon-2026-v4.1/logo/LEXON-monogram-micro-seal.svg; README.md
+// line 14 names the thinking indicator as a use) is a 911 x 911 SVG: a group
+// translated by (194.5, 64) holding three paths. Its middle is one bar by
+// design. The indicator's lexon mark is exactly those three shapes scaled to a
+// 20 x 20 box.
+test('the lexon mark matches the brand micro monogram scaled to 20x20', () => {
   const svg = readFileSync(
     resolve(
       import.meta.dirname,
-      '../../docs/brand/lexon-2026/01_VECTOR/LEXON-monogram-seal.svg',
+      '../../docs/brand/lexon-2026-v4.1/logo/LEXON-monogram-micro-seal.svg',
     ),
     'utf8',
   );
-  const group = /<g transform="translate\(([\d.]+) ([\d.]+)\)"[^>]*>(.*)<\/g>/s.exec(
-    svg,
-  );
+  const group =
+    /<g transform="translate\(([\d.]+) ([\d.]+)\)"[^>]*>(.*)<\/g>/s.exec(svg);
   assert.ok(group, 'brand group found');
   const [, tx, ty, body] = group;
+  assert.equal(Number(tx), 194.5);
+  assert.equal(Number(ty), 64);
   const size = Number(/viewBox="0 0 (\d+) \d+"/.exec(svg)[1]);
   const k = 20 / size;
   const brand = [...body.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(brand.length, 5);
+  assert.equal(brand.length, 3);
 
   const tokens = (d) => d.match(/[A-Za-z]|-?\d+(?:\.\d+)?/g);
   // Translate and scale each coordinate (H is an x, V is a y, others pair up).
@@ -90,20 +94,8 @@ test('the lexon mark matches the brand monogram scaled to 20x20', () => {
       .map((t) => (/[A-Za-z]/.test(t) ? t : Number(t).toFixed(3)))
       .join(' ');
 
-  const [top, , , , bottom] = brand;
   assert.equal(MARKS.lexon.paths.length, 3);
-  assert.equal(normalize(MARKS.lexon.paths[0]), scale(top));
-  assert.equal(normalize(MARKS.lexon.paths[2]), scale(bottom));
-
-  // The prototype merges the three brand columns (x 104..236, y 137..646)
-  // into one bar spanning them.
-  const left = ((104 + Number(tx)) * k).toFixed(3);
-  const right = ((236 + Number(tx)) * k).toFixed(3);
-  const topY = ((137 + Number(ty)) * k).toFixed(3);
-  const bottomY = ((646 + Number(ty)) * k).toFixed(3);
-  assert.deepEqual(brand.slice(1, 4).map((d) => tokens(d)[1]), ['104', '153', '202']);
-  assert.equal(
-    normalize(MARKS.lexon.paths[1]),
-    `M ${left} ${topY} H ${right} V ${bottomY} H ${left} Z`,
-  );
+  brand.forEach((d, i) => {
+    assert.equal(normalize(MARKS.lexon.paths[i]), scale(d), `shape ${i}`);
+  });
 });

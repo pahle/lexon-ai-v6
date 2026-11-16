@@ -19,8 +19,9 @@ export interface MarkDef {
 }
 
 // Path data is the prototype's LQ_SCENES[].p, in a 20x20 viewBox. The lexon
-// monogram is the brand monogram (docs/brand/lexon-2026/01_VECTOR/
-// LEXON-monogram-seal.svg) scaled to that box.
+// monogram is the brand's micro-tier monogram (docs/brand/lexon-2026-v4.1/
+// logo/LEXON-monogram-micro-seal.svg; see README.md line 14) scaled to that
+// box. Its middle is one bar by design.
 export const MARKS: Record<MarkId, MarkDef> = {
   lexon: {
     id: 'lexon',
@@ -83,7 +84,11 @@ export const MARKS: Record<MarkId, MarkDef> = {
   },
   pilcrow: {
     id: 'pilcrow',
-    paths: ['M14 3.6v12.8', 'M11 3.6v12.8', 'M14 3.6H9.6a3.3 3.3 0 0 0 0 6.6H11'],
+    paths: [
+      'M14 3.6v12.8',
+      'M11 3.6v12.8',
+      'M14 3.6H9.6a3.3 3.3 0 0 0 0 6.6H11',
+    ],
     strokeWidth: 1.5,
   },
 };
