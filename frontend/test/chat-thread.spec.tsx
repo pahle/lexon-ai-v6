@@ -1529,3 +1529,145 @@ it('disables an empty thread send and does not submit whitespace with Enter', as
     await view.unmount();
   }
 });
+
+const expectElevatedShell = (shell: Element | null | undefined) => {
+  expect(shell).not.toBeNull();
+  const className = shell?.className ?? '';
+  expect(className).toContain('max-w-[880px]');
+  expect(className).toContain('rounded-[20px]');
+  expect(className).toMatch(/(^|\s)shadow-/);
+  expect(className).toContain('bg-background');
+  expect(className).toContain('focus-within:border-ring');
+};
+
+const expectRoundSize9 = (button: Element | null | undefined) => {
+  expect(button).not.toBeNull();
+  expect(button?.className).toContain('rounded-full');
+  expect(button?.className).toContain('size-9');
+};
+
+it('renders the new chat composer as an elevated 880px shell with a Deep thinking pill', async () => {
+  const view = await render(
+    wrapped(
+      <ChatView
+        client={{ create: vi.fn() } as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+        onNavigate={vi.fn()}
+      />,
+    ),
+  );
+  try {
+    await settle();
+    expectElevatedShell(view.container.querySelector('form > div'));
+    expectRoundSize9(
+      view.container.querySelector('[aria-label="Send message"]'),
+    );
+    const thinking = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Deep thinking"]',
+    )!;
+    expect(thinking.getAttribute('aria-pressed')).toBe('false');
+    expect(thinking.className).not.toContain('bg-(--lexon-tint)');
+    await act(async () => thinking.click());
+    expect(thinking.getAttribute('aria-pressed')).toBe('true');
+    expect(thinking.className).toContain('bg-(--lexon-tint)');
+    expect(thinking.className).toContain('text-(--lexon-red-text)');
+    expect(view.container.querySelector('textarea')?.placeholder).toBe(
+      'Ask Lexon about a contract, a regulation, or a case...',
+    );
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('renders the thread composer as an elevated 880px shell with a Deep thinking pill', async () => {
+  const tree = makeBranchTree(false);
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(new ReadableStream<Uint8Array>(), {
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    ),
+  );
+  function Harness() {
+    const [effort, setEffort] = useState<'high' | 'max'>('high');
+    return (
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" effort={effort} onEffortChange={setEffort} />
+      </ChatRuntime>
+    );
+  }
+  const view = await render(wrapped(<Harness />));
+  try {
+    await settle();
+    expect(
+      view.container.querySelector('.aui-thread-root')?.getAttribute('style'),
+    ).toContain('--thread-max-width: 880px');
+    expectElevatedShell(
+      view.container.querySelector('[data-slot="aui_composer-shell"]'),
+    );
+    expectRoundSize9(
+      view.container.querySelector('[aria-label="Send message"]'),
+    );
+    const thinking = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Deep thinking"]',
+    )!;
+    expect(thinking.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => thinking.click());
+    expect(thinking.getAttribute('aria-pressed')).toBe('true');
+    expect(thinking.className).toContain('bg-(--lexon-tint)');
+    expect(thinking.className).toContain('text-(--lexon-red-text)');
+    expect(view.container.querySelector('textarea')?.placeholder).toBe(
+      'Ask Lexon about a contract, a regulation, or a case...',
+    );
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
+it('renders the thread Stop control as a round size-9 button and keeps the answering placeholder', async () => {
+  const tree = makeBranchTree(true);
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(new ReadableStream<Uint8Array>(), {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        }),
+    ),
+  );
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    expectRoundSize9(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    );
+    expectElevatedShell(
+      view.container.querySelector('[data-slot="aui_composer-shell"]'),
+    );
+    expect(
+      view.container.querySelector<HTMLTextAreaElement>(
+        '[aria-label="Message input"]',
+      )?.placeholder,
+    ).toBe('Lexon is answering…');
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});

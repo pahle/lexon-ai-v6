@@ -15,6 +15,7 @@ import {
   ChatComposerCancel,
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
+import { composerClasses } from '@/components/chat/composer-styles';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
 import {
@@ -128,11 +129,8 @@ export const Thread: FC<ThreadProps> = ({
       <ThreadPrimitive.Root
         className="aui-root aui-thread-root bg-background @container flex min-h-0 min-w-0 flex-1 flex-col"
         style={{
-          ['--thread-max-width' as string]: '44rem',
-          ['--composer-bg' as string]:
-            'color-mix(in oklab, var(--color-muted) 30%, transparent)',
-          ['--composer-radius' as string]: '1rem',
-          ['--composer-padding' as string]: '8px',
+          ['--thread-max-width' as string]: '880px',
+          ['--composer-radius' as string]: '20px',
         }}
       >
         <ThreadPrimitive.Viewport
@@ -754,32 +752,40 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onPaste={preventFilePaste}
       onSubmit={validatePrompt}
     >
-      <div
-        data-slot="aui_composer-shell"
-        className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]"
-      >
+      <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
             running
               ? 'Lexon is answering…'
               : 'Ask Lexon about a contract, a regulation, or a case...'
           }
-          className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
+          className={cn(
+            'aui-composer-input caret-primary',
+            composerClasses.input,
+          )}
           rows={1}
           addAttachmentOnPaste={false}
           submitMode="enter"
           enterKeyHint="send"
           aria-label="Message input"
         />
-        <div className="aui-composer-action-wrapper relative flex flex-nowrap items-center justify-between gap-3">
+        <div
+          className={cn(
+            'aui-composer-action-wrapper relative',
+            composerClasses.toolbar,
+          )}
+        >
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   type="button"
-                  variant={effort === 'max' ? 'secondary' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  className="shrink-0 whitespace-nowrap"
+                  className={cn(
+                    composerClasses.deepThinking,
+                    effort === 'max' && composerClasses.deepThinkingPressed,
+                  )}
                   aria-label="Deep thinking"
                   aria-pressed={effort === 'max'}
                   onClick={() =>
@@ -801,7 +807,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   type="button"
                   variant="default"
                   size="icon"
-                  className="aui-composer-send size-7 rounded-full"
+                  className={cn('aui-composer-send', composerClasses.stop)}
                   aria-label="Stop generating"
                 >
                   <SquareIcon className="size-4" aria-hidden="true" />
@@ -818,7 +824,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   disabled={tooLong || !composerText.trim()}
                   variant="default"
                   size="icon"
-                  className="aui-composer-send size-7 rounded-full"
+                  className={cn('aui-composer-send', composerClasses.send)}
                   aria-label="Send message"
                 >
                   <ArrowUpIcon className="aui-composer-send-icon size-4" />

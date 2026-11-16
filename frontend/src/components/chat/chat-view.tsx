@@ -28,6 +28,8 @@ import { ChatClientError } from '@/lib/chat-errors';
 import { WorkspaceNotFound } from '@/components/states/workspace-not-found';
 import { useWorkspace } from '@/components/shell/workspace-provider';
 import { chatListQueryKey } from '@/lib/chat-queries';
+import { composerClasses } from '@/components/chat/composer-styles';
+import { cn } from 'cn';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
@@ -274,11 +276,11 @@ function ChatViewSession({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
-      <div className="mb-6 w-full max-w-3xl">
+      <div className="mx-auto mb-6 w-full max-w-[880px]">
         <ChatGreeting displayName={displayName} />
       </div>
-      <form onSubmit={submit} className="w-full max-w-3xl">
-        <div className="border-border bg-muted/30 focus-within:border-ring rounded-2xl border p-3">
+      <form onSubmit={submit} className="w-full max-w-[880px]">
+        <div data-slot="aui_composer-shell" className={composerClasses.shell}>
           <Textarea
             aria-label="Message input"
             placeholder="Ask Lexon about a contract, a regulation, or a case..."
@@ -295,18 +297,24 @@ function ChatViewSession({
               }
             }}
             rows={1}
-            className="max-h-48 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+            className={cn(
+              composerClasses.input,
+              'min-h-20 border-0 shadow-none focus-visible:ring-0',
+            )}
           />
-          <div className="flex flex-nowrap items-center justify-between gap-3 pt-2">
+          <div className={cn(composerClasses.toolbar, 'pt-2')}>
             <div className="flex min-w-0 flex-nowrap items-center gap-3">
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
                       type="button"
-                      variant={effort === 'max' ? 'secondary' : 'outline'}
+                      variant="outline"
                       size="sm"
-                      className="rounded-full"
+                      className={cn(
+                        composerClasses.deepThinking,
+                        effort === 'max' && composerClasses.deepThinkingPressed,
+                      )}
                       aria-label="Deep thinking"
                       aria-pressed={effort === 'max'}
                       onClick={() =>
@@ -333,7 +341,7 @@ function ChatViewSession({
               disabled={!text.trim() || bytes > MAX_PROMPT_BYTES || sending}
               variant="default"
               size="icon"
-              className="size-9 shrink-0 rounded-full"
+              className={composerClasses.send}
               aria-label="Send message"
             >
               <ArrowUpIcon className="size-4" />
