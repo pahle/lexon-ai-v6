@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { authenticateApi } from './identity-support.js';
+import { authenticateApi, readCapturedMail } from './identity-support.js';
+import { operatorSetup, signupMode } from './setup-support.js';
+import { totpForUri } from '../setup/totp.js';
 import {
   captureBrandViews,
   brandFixedTime,
@@ -480,4 +482,406 @@ test('team shell, menus, mobile sheet, and Settings', async ({
       p.getByRole('heading', { name: 'General', exact: true }),
     ),
   );
+});
+
+// Platform, errors, and UI patterns.
+
+let restoreSignupModeAfterTest = false;
+test.afterEach(async () => {
+  if (!restoreSignupModeAfterTest) return;
+  restoreSignupModeAfterTest = false;
+  await signupMode(true);
+});
+
+/**
+ * Holds every request matching `matches` until `release()` is called. The
+ * route is removed by its own matcher, after every held request has finished,
+ * so no other route is touched.
+ */
+async function gateRequests(
+  page: Page,
+  matches: (url: URL, method: string) => boolean,
+) {
+  let release!: () => void;
+  let markStarted!: () => void;
+  const started = new Promise<void>((done) => (markStarted = done));
+  const gate = new Promise<void>((done) => (release = done));
+  const held = new Set<Promise<void>>();
+  const matcher = (url: URL) => matches(url, '');
+  await page.route(matcher, (route) => {
+    if (!matches(new URL(route.request().url()), route.request().method()))
+      return route.fallback();
+    markStarted();
+    const request = (async () => {
+      await gate;
+      await route.continue();
+    })();
+    held.add(request);
+    return request;
+  });
+  return {
+    started,
+    release,
+    async finish() {
+      release();
+      await Promise.all([...held]);
+      await page.unroute(matcher);
+    },
+  };
+}
+
+const chatListRequest = (url: URL, method: string) =>
+  url.pathname === '/api/chats' && (method === 'GET' || method === '');
+
+test('chats empty and loading lists, access denied, and not-found pages', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  await prepareIdentity(page, { name: 'Ayu Wardani' }, 'Senior Associate');
+  await page.clock.setFixedTime(brandFixedTime);
+
+  await page.goto(stack.frontendUrl + '/chats');
+  await expect(page.getByText('No chats yet', { exact: true })).toBeVisible();
+  await expect(page.locator('main')).toHaveCount(1);
+  await captureBrandViews(page, 'chats-empty');
+
+  // The list request is held by a gated route, so the loading state stays
+  // open for as long as the captures need and never depends on a timer.
+  const list = await gateRequests(page, chatListRequest);
+  try {
+    await page.goto(stack.frontendUrl + '/chats');
+    await list.started;
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Loading chats…' }),
+    ).toBeVisible();
+    await captureBrandViews(page, 'chats-loading');
+  } finally {
+    await list.finish();
+  }
+
+  const denied = await page.goto(stack.frontendUrl + '/platform/provisioning');
+  expect(denied?.status()).toBe(200);
+  await expect(page.locator('section[role="alert"]')).toContainText(
+    'You do not have access to this page.',
+  );
+  await captureBrandViews(page, 'platform-no-access');
+
+  const organizations = await page.goto(stack.frontendUrl + '/organizations');
+  expect(organizations?.status()).toBe(404);
+  await expect(
+    page.getByRole('heading', { name: 'Page not found' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('The requested workspace page could not be found.'),
+  ).toBeVisible();
+  await captureBrandViews(page, 'organizations-not-found');
+
+  const missing = await page.goto(stack.frontendUrl + '/no-such-page');
+  expect(missing?.status()).toBe(404);
+  await expect(
+    page.getByRole('heading', { name: 'Page not found' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('The requested page could not be found.', { exact: true }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'not-found');
+});
+
+test('workspace error page after a render failure', async ({ page }) => {
+  const stack = descriptor();
+  await prepareIdentity(page, { name: 'Ayu Wardani' }, 'Senior Associate');
+  await page.clock.setFixedTime(brandFixedTime);
+  // One chat from an earlier month makes the Chats page format a month-and-year
+  // heading; the init script makes exactly that formatter fail, so the real
+  // route error boundary renders. Nothing in the product is changed.
+  await page.addInitScript(() => {
+    const Original = Intl.DateTimeFormat;
+    Intl.DateTimeFormat = new Proxy(Original, {
+      construct(target, args, newTarget) {
+        const options = args[1] as Intl.DateTimeFormatOptions | undefined;
+        if (
+          options?.month === 'long' &&
+          options.year === 'numeric' &&
+          options.day === undefined
+        )
+          throw new Error('Synthetic render failure');
+        return Reflect.construct(target, args, newTarget);
+      },
+    });
+  });
+  await page.route(
+    (url) => chatListRequest(url, 'GET'),
+    (route) =>
+      route.request().method() !== 'GET'
+        ? route.fallback()
+        : route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              items: [
+                {
+                  id: '5f0f2a7e-1c3b-4d5e-8a9b-0c1d2e3f4a5b',
+                  title: 'Force majeure clause review',
+                  updatedAt: '2026-01-05T04:00:00.000Z',
+                  lastMessageAt: '2026-01-05T04:00:00.000Z',
+                },
+              ],
+              pageInfo: { nextCursor: null },
+            }),
+          }),
+  );
+  await page.goto(stack.frontendUrl + '/chats');
+  await expect(
+    page.getByRole('heading', { name: 'Something went wrong' }),
+  ).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(
+    'Synthetic render failure',
+  );
+  await captureBrandViews(page, 'workspace-error');
+});
+
+test('toast after a saved profile', async ({ page }) => {
+  const stack = descriptor();
+  await prepareIdentity(
+    page,
+    { name: 'Ayu Wardani', email: 'ayu.wardani@example.test' },
+    'Senior Associate',
+  );
+  // The clock is paused (not raced) so the toast cannot time out: nothing
+  // advances it except the small runFor steps below.
+  await page.clock.install({ time: new Date(brandFixedTime) });
+  await page.goto(stack.frontendUrl + '/workspace?settings=profile');
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByLabel('Job title')).toHaveValue('Senior Associate');
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+  const save = await gateRequests(
+    page,
+    (url, method) =>
+      url.pathname === '/api/identity/profile' &&
+      (method === 'PATCH' || method === ''),
+  );
+  try {
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await save.started;
+    // Pause 100 ms ahead of the page's own clock: the held save request is
+    // in flight, and a larger jump would fire the client's request timeout.
+    const now = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(new Date(now + 100));
+    save.release();
+    const toast = page.locator('[data-sonner-toast]');
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(50);
+        return toast.count();
+      })
+      .toBe(1);
+    await expect(toast).toContainText('Changes saved.');
+    // axe finishes its rules through zero-delay timers, so the paused clock
+    // is stepped one millisecond at a time while the captures run. The fake
+    // time that passes is the step count, bounded far below the 4 s toast
+    // lifetime, so no real-time race is involved.
+    let stepping = true;
+    let steps = 0;
+    const stepper = (async () => {
+      while (stepping) {
+        await page.clock.runFor(1);
+        steps++;
+        await new Promise((done) => setTimeout(done, 5));
+      }
+    })();
+    try {
+      await captureBrandViews(page, 'toast-success');
+    } finally {
+      stepping = false;
+      await stepper;
+    }
+    expect(
+      steps,
+      'fake milliseconds advanced during the captures',
+    ).toBeLessThan(3000);
+    await expect(toast).toContainText('Changes saved.');
+  } finally {
+    await save.finish();
+  }
+});
+
+test('Platform pages for a real platform administrator', async ({ page }) => {
+  test.setTimeout(230_000);
+  const stack = descriptor();
+  const email = 'brand.operator@example.test';
+  const password = 'Brand-operator-42!';
+  await signupMode(false);
+  restoreSignupModeAfterTest = true;
+  const setup = await operatorSetup(email, true);
+  expect(setup.status).toBe('created');
+  await page.goto(setup.mail!.actionUrl);
+  await page
+    .getByRole('button', { name: 'Create setup account', exact: true })
+    .click();
+  await page.getByLabel('Name', { exact: true }).fill('Brand Operator');
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page
+    .getByRole('button', { name: 'Create account', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Check your email' }),
+  ).toBeVisible();
+  await page.goto(
+    (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
+  );
+  await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  const signedIn = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/auth/sign-in/email' &&
+      response.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  expect((await signedIn).status()).toBe(200);
+  await expect(page).toHaveURL(/admin-setup/);
+  await page.getByLabel('Enrollment password', { exact: true }).fill(password);
+  await page
+    .getByRole('button', { name: 'Set up authenticator', exact: true })
+    .click();
+  const uri = await page.getByTestId('authenticator-uri').textContent();
+  await page
+    .getByLabel('Authenticator code', { exact: true })
+    .fill(totpForUri(uri!));
+  await page
+    .getByRole('button', { name: 'Verify authenticator', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'I saved my recovery codes', exact: true })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Activate platform administrator',
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Administrator setup complete' }),
+  ).toBeVisible();
+  expect(
+    (
+      await page.request.post(
+        stack.apiUrl + '/api/identity/onboarding/complete',
+        { headers: { origin: stack.frontendUrl }, data: {} },
+      )
+    ).status(),
+  ).toBe(204);
+  await page.clock.setFixedTime(brandFixedTime);
+
+  const listUrl = (url: URL, method: string) =>
+    url.pathname === '/api/platform/provisioning' &&
+    url.searchParams.has('limit') &&
+    (method === 'GET' || method === '');
+  const provisioning = stack.frontendUrl + '/platform/provisioning';
+
+  // The empty list: nothing has been provisioned yet.
+  await page.goto(provisioning);
+  await expect(page.locator('h1')).toHaveText('Organization provisioning');
+  await expect(
+    page.getByText('No provisioning organizations', { exact: true }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'platform-provisioning-empty');
+
+  // The list request is held by a gated route, then released.
+  const list = await gateRequests(page, listUrl);
+  try {
+    await page.reload();
+    await list.started;
+    await expect(
+      page.getByRole('status', { name: 'Checking platform access' }),
+    ).toBeVisible();
+    await captureBrandViews(page, 'platform-provisioning-loading');
+  } finally {
+    await list.finish();
+  }
+
+  const failingList = (url: URL) => listUrl(url, 'GET');
+  await page.route(failingList, (route) =>
+    route.request().method() !== 'GET'
+      ? route.fallback()
+      : route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: '{"message":"private platform detail"}',
+        }),
+  );
+  try {
+    await expect(async () => {
+      await page.reload();
+      await expect(
+        page.getByText('Service temporarily unavailable. Please try again.', {
+          exact: true,
+        }),
+      ).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
+    await expect(page.locator('body')).not.toContainText(
+      'private platform detail',
+    );
+    await captureBrandViews(page, 'platform-provisioning-error');
+  } finally {
+    await page.unroute(failingList);
+  }
+
+  const created = await page.request.post(
+    stack.apiUrl + '/api/platform/provisioning',
+    {
+      headers: { origin: stack.frontendUrl },
+      data: {
+        name: 'Harbor Legal Partners',
+        slug: 'harbor-legal-partners-review',
+        ownerEmail: 'first.owner@example.test',
+      },
+    },
+  );
+  expect(created.status()).toBe(201);
+  const organization = (await created.json()) as { id: string };
+  await page.goto(provisioning);
+  await expect(
+    page.getByRole('link', { name: 'Harbor Legal Partners', exact: true }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'platform-provisioning-populated');
+
+  // The invitation expiry is the only time-dependent value on the detail page.
+  const detailPath = `/api/platform/provisioning/${organization.id}`;
+  const detailUrl = (url: URL) => url.pathname === detailPath;
+  await page.route(detailUrl, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      invitation: { expiresAt: string };
+    };
+    body.invitation.expiresAt = '2026-11-21T04:00:00.000Z';
+    return route.fulfill({ response, json: body });
+  });
+  try {
+    await page
+      .getByRole('link', { name: 'Harbor Legal Partners', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', { name: 'Resend owner invitation' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Nov 21, 2026', { exact: false }),
+    ).toBeVisible();
+    await captureBrandViews(page, 'platform-provisioning-detail');
+  } finally {
+    await page.unroute(detailUrl);
+  }
+
+  await page.goto(stack.frontendUrl + '/platform/accounts');
+  await expect(page.getByLabel('User ID')).toBeVisible();
+  await captureBrandViews(page, 'platform-accounts');
 });
