@@ -44,6 +44,358 @@
       "state": "Sign in, idle",
       "prototypeReference": "03-sign-in-dark.png",
       "replaces": []
+    },
+    "sign-in-field-errors-desktop-light": {
+      "path": "review/sign-in-field-errors-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, field errors",
+      "prototypeReference": "02-sign-in-errors.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-desktop-dark": {
+      "path": "review/sign-in-field-errors-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, field errors",
+      "prototypeReference": "02-sign-in-errors.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-mobile-light": {
+      "path": "review/sign-in-field-errors-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, field errors",
+      "prototypeReference": "02-sign-in-errors.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-mobile-dark": {
+      "path": "review/sign-in-field-errors-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, field errors",
+      "prototypeReference": "02-sign-in-errors.png",
+      "replaces": []
+    },
+    "sign-in-pending-desktop-light": {
+      "path": "review/sign-in-pending-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, pending",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-pending-desktop-dark": {
+      "path": "review/sign-in-pending-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, pending",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-pending-mobile-light": {
+      "path": "review/sign-in-pending-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, pending",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-pending-mobile-dark": {
+      "path": "review/sign-in-pending-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, pending",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-form-alert-desktop-light": {
+      "path": "review/sign-in-form-alert-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, form alert",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-form-alert-desktop-dark": {
+      "path": "review/sign-in-form-alert-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, form alert",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-form-alert-mobile-light": {
+      "path": "review/sign-in-form-alert-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, form alert",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-in-form-alert-mobile-dark": {
+      "path": "review/sign-in-form-alert-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, form alert",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-up-desktop-light": {
+      "path": "review/sign-up-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign up",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-up-desktop-dark": {
+      "path": "review/sign-up-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign up",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-up-mobile-light": {
+      "path": "review/sign-up-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign up",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sign-up-mobile-dark": {
+      "path": "review/sign-up-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign up",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "forgot-password-desktop-light": {
+      "path": "review/forgot-password-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Forgot password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "forgot-password-desktop-dark": {
+      "path": "review/forgot-password-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Forgot password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "forgot-password-mobile-light": {
+      "path": "review/forgot-password-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Forgot password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "forgot-password-mobile-dark": {
+      "path": "review/forgot-password-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Forgot password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "reset-password-desktop-light": {
+      "path": "review/reset-password-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Reset password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "reset-password-desktop-dark": {
+      "path": "review/reset-password-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Reset password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "reset-password-mobile-light": {
+      "path": "review/reset-password-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Reset password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "reset-password-mobile-dark": {
+      "path": "review/reset-password-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Reset password",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "verify-email-desktop-light": {
+      "path": "review/verify-email-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Verify email",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "verify-email-desktop-dark": {
+      "path": "review/verify-email-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Verify email",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "verify-email-mobile-light": {
+      "path": "review/verify-email-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Verify email",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "verify-email-mobile-dark": {
+      "path": "review/verify-email-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Verify email",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "two-factor-desktop-light": {
+      "path": "review/two-factor-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Two-factor",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "two-factor-desktop-dark": {
+      "path": "review/two-factor-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Two-factor",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "two-factor-mobile-light": {
+      "path": "review/two-factor-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Two-factor",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "two-factor-mobile-dark": {
+      "path": "review/two-factor-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Two-factor",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "accept-invitation-desktop-light": {
+      "path": "review/accept-invitation-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Accept invitation",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "accept-invitation-desktop-dark": {
+      "path": "review/accept-invitation-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Accept invitation",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "accept-invitation-mobile-light": {
+      "path": "review/accept-invitation-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Accept invitation",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "accept-invitation-mobile-dark": {
+      "path": "review/accept-invitation-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Accept invitation",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "admin-setup-desktop-light": {
+      "path": "review/admin-setup-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Admin setup",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "admin-setup-desktop-dark": {
+      "path": "review/admin-setup-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Admin setup",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "admin-setup-mobile-light": {
+      "path": "review/admin-setup-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Admin setup",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "admin-setup-mobile-dark": {
+      "path": "review/admin-setup-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Admin setup",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "onboarding-desktop-light": {
+      "path": "review/onboarding-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Onboarding",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "onboarding-desktop-dark": {
+      "path": "review/onboarding-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Onboarding",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "onboarding-mobile-light": {
+      "path": "review/onboarding-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Onboarding",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "onboarding-mobile-dark": {
+      "path": "review/onboarding-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Onboarding",
+      "prototypeReference": null,
+      "replaces": []
     }
   }
 }

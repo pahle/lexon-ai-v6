@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
@@ -14,6 +15,16 @@ import { applyTheme, type VisualTheme } from './visual-support.js';
 export type BrandViewport = 'desktop' | 'mobile';
 export const brandThemes: readonly VisualTheme[] = ['light', 'dark'];
 export const brandViewports: readonly BrandViewport[] = ['desktop', 'mobile'];
+
+/** Every F4.1 capture runs on this instant so dates and greetings are stable. */
+export const brandFixedTime = '2026-11-14T04:00:00.000Z';
+export const brandAxeTags = [
+  'wcag2a',
+  'wcag2aa',
+  'wcag21a',
+  'wcag21aa',
+  'wcag22aa',
+];
 
 const setDirectory = visualSetDirectory('F4.1-visual');
 // Local capture runs never rewrite the committed Linux review set.
@@ -40,9 +51,12 @@ export function brandViewId(
 
 /**
  * Captures or compares one indexed F4.1 view. The caller has already put the
- * page in the state to capture; this applies the viewport and theme, waits
- * for fonts and images, and then writes a review capture (capture mode) or
+ * page in the state to capture; this applies the viewport and theme, fixes
+ * the date, waits for fonts and images, runs axe with the WCAG 2.0, 2.1, and
+ * 2.2 A and AA tags, and then writes a review capture (capture mode) or
  * compares against the approved Linux golden (compare and update modes).
+ * The installTask9* row normalizations apply to Settings tables and are
+ * installed by the specs that open those pages, not by the auth set.
  */
 export async function captureBrandView(
   page: Page,
@@ -57,6 +71,7 @@ export async function captureBrandView(
   if (!size || view.viewport !== viewport || view.theme !== theme)
     throw new Error(`F4.1 visual index entry "${id}" does not match its id.`);
 
+  await page.clock.setFixedTime(brandFixedTime);
   await page.setViewportSize(size);
   await applyTheme(page, theme);
   await page.evaluate(() => document.fonts.ready);
@@ -74,6 +89,15 @@ export async function captureBrandView(
     )
     .toBe(true);
   await page.mouse.move(0, 0);
+
+  const axe = await new AxeBuilder({ page }).withTags(brandAxeTags).analyze();
+  expect(
+    axe.violations.map((violation) => ({
+      id: violation.id,
+      targets: violation.nodes.map((node) => node.target),
+    })),
+    `axe violations in ${id}`,
+  ).toEqual([]);
 
   const mode = resolveVisualMode({
     approvalPath: resolve(setDirectory, 'approval.json'),
@@ -111,4 +135,11 @@ export async function captureBrandView(
     maxDiffPixelRatio: 0.001,
   });
   return resolve(setDirectory, `baseline/${id}.png`);
+}
+
+/** Captures one state in light and dark at both viewports. */
+export async function captureBrandViews(page: Page, state: string) {
+  for (const viewport of brandViewports)
+    for (const theme of brandThemes)
+      await captureBrandView(page, state, { theme, viewport });
 }

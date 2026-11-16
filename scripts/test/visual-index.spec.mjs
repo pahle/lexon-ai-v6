@@ -982,3 +982,59 @@ test('the F4.1 set records every F2.1 and F4 image it supersedes', () => {
       `${entry.set}:${entry.id} names an unknown replacement`,
     );
 });
+
+test('the F4.1 index lists every state in four variants and matches the captures', () => {
+  const directory = resolve(root, 'docs/references/F4.1-visual');
+  const index = JSON.parse(
+    readFileSync(resolve(directory, 'index.json'), 'utf8'),
+  );
+  const ids = Object.keys(index.views);
+  assert.equal(new Set(ids).size, ids.length, 'ids are unique');
+  const states = new Map();
+  for (const [id, view] of Object.entries(index.views)) {
+    assert.ok(
+      ['desktop', 'mobile'].includes(view.viewport) &&
+        ['light', 'dark'].includes(view.theme),
+      `${id} has a known viewport and theme`,
+    );
+    const state = id.slice(0, -`-${view.viewport}-${view.theme}`.length);
+    assert.equal(id, `${state}-${view.viewport}-${view.theme}`);
+    assert.equal(view.path, `review/${id}.png`);
+    states.set(state, [...(states.get(state) ?? []), id]);
+  }
+  for (const [state, variants] of states)
+    assert.deepEqual(
+      variants.toSorted(),
+      ['desktop', 'mobile']
+        .flatMap((viewport) =>
+          ['light', 'dark'].map((theme) => `${state}-${viewport}-${theme}`),
+        )
+        .toSorted(),
+      `${state} has the four theme-and-viewport variants`,
+    );
+  const source = readFileSync(
+    resolve(root, 'backend/test/e2e/brand-visual.spec.ts'),
+    'utf8',
+  );
+  const captured = new Set(
+    [...source.matchAll(/captureBrandViews\(\s*page,\s*'([a-z0-9-]+)'/g)].map(
+      (match) => match[1],
+    ),
+  );
+  assert.deepEqual([...captured].toSorted(), [...states.keys()].toSorted());
+  for (const state of [
+    'sign-in',
+    'sign-in-field-errors',
+    'sign-in-pending',
+    'sign-in-form-alert',
+    'sign-up',
+    'forgot-password',
+    'reset-password',
+    'verify-email',
+    'two-factor',
+    'accept-invitation',
+    'admin-setup',
+    'onboarding',
+  ])
+    assert.ok(states.has(state), `${state} is indexed`);
+});
