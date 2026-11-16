@@ -208,11 +208,17 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect(composer).toHaveAttribute('placeholder', 'Lexon is answering…');
   await expect(page.getByText('Thinking…')).toBeVisible();
   await expect(page.getByText('Thought for 2 seconds')).toHaveCount(0);
-  const spinner = page.locator('.lucide-loader-circle').first();
-  await expect(spinner).toBeVisible();
+  // Reduced motion: the indicator is the static Lexon mark, with no loop and
+  // no CSS animation, and no leftover spinner icon.
+  const indicator = page
+    .locator('[data-role="assistant"] [data-slot="reasoning-mark"] svg')
+    .first();
+  await expect(indicator).toBeVisible();
+  await expect(indicator).toHaveAttribute('fill', 'currentColor');
+  await expect(page.locator('.lucide-loader-circle')).toHaveCount(0);
   await expect
     .poll(() =>
-      spinner.evaluate((element) => getComputedStyle(element).animationName),
+      indicator.evaluate((element) => getComputedStyle(element).animationName),
     )
     .toBe('none');
   await page.screenshot({

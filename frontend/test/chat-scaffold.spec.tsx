@@ -14,6 +14,7 @@ import {
 } from '../src/components/shell/chat-runtime-provider';
 import { Workspace } from '../src/components/organizations/workspace';
 import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.aui';
+import { resetIndicatorRuns } from '../src/components/chat/indicator/indicator-run-store.js';
 import { render, settle } from './render.js';
 
 beforeEach(() => {
@@ -668,7 +669,10 @@ it('preserves the regenerated assistant sibling across canonical active and term
       // still active. Wait for the canonical terminal import to be applied
       // before taking a reference to a control, or the import replaces the
       // message and the click lands on a detached button.
-      expect(view.container.textContent).not.toContain('Lexon is responding.');
+      expect(
+        view.container.querySelector('[data-slot="run-announcer"]')
+          ?.textContent,
+      ).toBe('Answer complete');
     });
 
     const previousBranch = view.container.querySelector<HTMLButtonElement>(
@@ -1463,6 +1467,247 @@ it('reconciles a viewed active answer from canonical terminal state while SSE st
       .soft(view.container.textContent)
       .not.toContain('Late stale SSE text');
   } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});
+
+it('plays the indicator finish and announces Answer complete once through the terminal import, with one mark at every step', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const assistantId = '33333333-3333-4333-8333-333333333333';
+  const runId = '44444444-4444-4444-8444-444444444444';
+  const makeTree = (terminal: boolean): ChatTree => ({
+    id: chatId,
+    title: 'Viewed active answer fixture',
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Question before live stream',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: assistantId,
+        role: 'assistant',
+        parentId: userId,
+        runId,
+        text: terminal ? 'Canonical final answer' : '',
+        status: terminal ? 'completed' : 'running',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+    ],
+    viewedLeafId: assistantId,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: terminal
+      ? '2026-11-11T00:00:03.000Z'
+      : '2026-11-11T00:00:01.000Z',
+  });
+  const activeTree = makeTree(false);
+  const terminalTree = makeTree(true);
+  let terminalRefreshes = 0;
+  let terminalAvailable = false;
+  const client = {
+    get: vi.fn(async () => {
+      if (!terminalAvailable) return activeTree;
+      terminalRefreshes += 1;
+      return terminalTree;
+    }),
+  };
+  const frames = [
+    { version: 1, type: 'start', runId, messageId: assistantId },
+    { version: 1, type: 'text-start', runId, id: 'open-stream-text' },
+    {
+      version: 1,
+      type: 'text-delta',
+      runId,
+      id: 'open-stream-text',
+      delta: 'Live partial answer',
+    },
+  ];
+  const encoder = new TextEncoder();
+  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let streamClosed = false;
+  const responseBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+      for (const [index, frame] of frames.entries())
+        controller.enqueue(
+          encoder.encode(
+            `id: 1:1783814400000-${index}\ndata: ${JSON.stringify(frame)}\n\n`,
+          ),
+        );
+    },
+    cancel() {
+      streamClosed = true;
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith(`/runs/${runId}/events`))
+      return new Response(responseBody, {
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lexon-stream-recovery-result': 'snapshot',
+        },
+      });
+    if (url.endsWith('/viewed-leaf'))
+      return new Response(null, { status: 204 });
+    if (url.endsWith('/cancel'))
+      throw new Error('A canonical terminal refresh must not issue Stop.');
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  resetIndicatorRuns();
+  let clock = 1000;
+  let nextFrame = 1;
+  const pendingFrames = new Map<number, FrameRequestCallback>();
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    vi.fn((callback: FrameRequestCallback) => {
+      const id = nextFrame++;
+      pendingFrames.set(id, callback);
+      return id;
+    }),
+  );
+  vi.stubGlobal(
+    'cancelAnimationFrame',
+    vi.fn((id: number) => pendingFrames.delete(id)),
+  );
+  const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => clock);
+  const advanceFrames = async (ms: number) => {
+    for (let left = ms; left > 0; left -= 16) {
+      clock += 16;
+      const batch = [...pendingFrames.values()];
+      pendingFrames.clear();
+      await act(async () => {
+        for (const callback of batch) callback(clock);
+      });
+    }
+  };
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="tenant-1:user-1"
+        displayName="Ada"
+        orgId="tenant-1"
+        userId="user-1"
+      />
+    </QueryClientProvider>,
+  );
+
+  try {
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    if (!input) throw new Error('The public message composer did not render.');
+    await vi.waitFor(
+      () => expect(view.container.textContent).toContain('Live partial answer'),
+      { timeout: 2000 },
+    );
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value',
+      )!.set!.call(input, 'A follow-up after the answer completed');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(streamClosed).toBe(false);
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).not.toBeNull();
+
+    const assistant = () =>
+      view.container.querySelector(`[data-message-id="${assistantId}"]`);
+    const announcers = () =>
+      view.container.querySelectorAll(
+        '[data-slot="run-announcer"][role="status"]',
+      );
+    const markSvgs = () =>
+      assistant()?.querySelectorAll('[data-slot="reasoning-mark"] svg') ?? [];
+    const isStatic = (svg: Element | undefined) =>
+      svg?.getAttribute('fill') === 'currentColor';
+
+    expect(announcers()).toHaveLength(1);
+    expect(announcers()[0]?.textContent).toBe('Thinking');
+    expect(markSvgs()).toHaveLength(1);
+    expect(isStatic(markSvgs()[0])).toBe(false);
+    expect(assistant()?.textContent).toContain('Thinking…');
+    await advanceFrames(500);
+
+    const markCounts: number[] = [];
+    const announced: string[] = [];
+    const observer = new MutationObserver(() => {
+      markCounts.push(markSvgs().length);
+      const text = announcers()[0]?.textContent ?? '';
+      if (announced.at(-1) !== text) announced.push(text);
+    });
+    observer.observe(view.container, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+
+    terminalAvailable = true;
+    await vi.waitFor(() => expect(terminalRefreshes).toBeGreaterThan(0), {
+      timeout: 2500,
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect.soft(view.container.textContent).toContain('Canonical final answer');
+    expect(announcers()).toHaveLength(1);
+    expect(announcers()[0]?.textContent).toBe('Answer complete');
+    // The remounted answer (same message id) plays the finish, not the static mark.
+    expect(markSvgs()).toHaveLength(1);
+    expect(isStatic(markSvgs()[0])).toBe(false);
+    await advanceFrames(5000);
+    expect(markSvgs()).toHaveLength(1);
+    expect(isStatic(markSvgs()[0])).toBe(true);
+    expect(announcers()[0]?.textContent).toBe('Answer complete');
+    observer.disconnect();
+    expect(markCounts.every((count) => count === 1)).toBe(true);
+    expect(announced.filter((text) => text === 'Answer complete')).toHaveLength(
+      1,
+    );
+    expect(announcers()).toHaveLength(1);
+    expect
+      .soft(view.container.querySelector('[aria-label="Stop generating"]'))
+      .toBeNull();
+    expect(
+      fetch.mock.calls.some(([request]) => String(request).endsWith('/cancel')),
+    ).toBe(false);
+
+    try {
+      streamController?.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({
+            version: 1,
+            type: 'text-delta',
+            runId,
+            id: 'open-stream-text',
+            delta: ' Late stale SSE text',
+          })}\n\n`,
+        ),
+      );
+    } catch {
+      // A closed stream cannot deliver a late frame.
+    }
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect.soft(view.container.textContent).toContain('Canonical final answer');
+    expect
+      .soft(view.container.textContent)
+      .not.toContain('Late stale SSE text');
+  } finally {
+    nowSpy.mockRestore();
     await view.unmount();
     vi.stubGlobal('fetch', originalFetch);
   }

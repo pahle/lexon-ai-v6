@@ -10,7 +10,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { MarkdownText } from '@/components/chat/markdown-text';
-import { PersistedReasoning } from '@/components/chat/chat-reasoning';
+import {
+  PersistedReasoning,
+  type AnswerStatus,
+} from '@/components/chat/chat-reasoning';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
 import {
   ChatComposerCancel,
@@ -183,6 +186,7 @@ export const Thread: FC<ThreadProps> = ({
                 Reconnecting…
               </p>
             ) : null}
+            <RunAnnouncer />
 
             <ThreadPrimitive.ViewportFooter
               className={cn(
@@ -203,6 +207,38 @@ export const Thread: FC<ThreadProps> = ({
         </ThreadPrimitive.Viewport>
       </ThreadPrimitive.Root>
     </EditFocusContext.Provider>
+  );
+};
+
+/**
+ * The thread's single run announcer, mounted for the thread's lifetime. It
+ * reads "Thinking" while a run is active and "Answer complete" once it ends,
+ * and stays empty for a thread that only ever held completed answers.
+ */
+const RunAnnouncer: FC = () => {
+  const active = useAuiState(
+    (state) =>
+      state.thread.isRunning ||
+      state.thread.messages.some(
+        (message) => message.status?.type === 'running',
+      ),
+  );
+  const [text, setText] = useState('');
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (active) setText('Thinking');
+    else if (wasActive.current) setText('Answer complete');
+    wasActive.current = active;
+  }, [active]);
+  return (
+    <p
+      data-slot="run-announcer"
+      role="status"
+      aria-live="polite"
+      className="sr-only"
+    >
+      {text}
+    </p>
   );
 };
 
@@ -296,6 +332,17 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       .map((part) => part.text)
       .join(''),
   );
+  const answerStatus: AnswerStatus = running
+    ? 'running'
+    : metadata?.status === 'failed' ||
+        (assistantStatus?.type === 'incomplete' &&
+          assistantStatus.reason === 'error')
+      ? 'failed'
+      : metadata?.status === 'cancelled' ||
+          (assistantStatus?.type === 'incomplete' &&
+            assistantStatus.reason === 'cancelled')
+        ? 'stopped'
+        : 'complete';
   const announcement = useIncrementalAnnouncement(
     messageId,
     answerText,
@@ -320,16 +367,12 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
     >
       {role === 'assistant' ? (
         <PersistedReasoning
+          messageId={messageId}
+          status={answerStatus}
           summary={summary}
           durationMs={durationMs}
           answerHasText={answerText.length > 0}
-          running={running}
         />
-      ) : null}
-      {role === 'assistant' && running ? (
-        <span role="status" aria-live="polite" className="sr-only">
-          Lexon is responding.
-        </span>
       ) : null}
       <div
         className={cn(

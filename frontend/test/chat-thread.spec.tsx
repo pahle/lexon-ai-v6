@@ -97,6 +97,32 @@ function makeBranchTree(active: boolean): ChatTree {
   };
 }
 
+it('mounts exactly one empty run announcer for a thread loaded with only completed answers', async () => {
+  const tree = makeBranchTree(false);
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const announcers = view.container.querySelectorAll(
+      '[data-slot="run-announcer"][role="status"]',
+    );
+    expect(announcers).toHaveLength(1);
+    expect(announcers[0]?.textContent).toBe('');
+    expect(view.container.textContent).not.toContain('Answer complete');
+    const marks = view.container.querySelectorAll(
+      '[data-message-id="33333333-3333-4333-8333-333333333333"] [data-slot="reasoning-mark"] svg[fill="currentColor"]',
+    );
+    expect(marks).toHaveLength(1);
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('exposes Stop for an off-branch active answer without replacing the viewed branch', async () => {
   const tree = makeBranchTree(true);
   const originalFetch = globalThis.fetch;
@@ -1546,7 +1572,13 @@ it('shows a measured duration without exposing a summary for a raw-only signal',
   const { PersistedReasoning } =
     await import('../src/components/chat/chat-reasoning.js');
   const view = await render(
-    <PersistedReasoning summary={null} durationMs={2_300} answerHasText />,
+    <PersistedReasoning
+      messageId="m1"
+      status="complete"
+      summary={null}
+      durationMs={2_300}
+      answerHasText
+    />,
   );
   try {
     expect(view.container.textContent).toContain('Thought for 2 seconds');
