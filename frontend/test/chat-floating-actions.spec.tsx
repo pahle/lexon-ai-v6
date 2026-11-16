@@ -154,6 +154,90 @@ test('Chat actions opens Rename and Delete on an open chat', async () => {
   await view.unmount();
 });
 
+async function openPillMenuItem(
+  view: { container: HTMLElement },
+  name: string,
+) {
+  await act(async () => pill(view).actions!.click());
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent === name)!
+      .click(),
+  );
+  await settle();
+}
+const dialog = () =>
+  document.body.querySelector<HTMLElement>('[role="dialog"]');
+
+test('Rename from the pill opens a dialog prefilled with the open chat title', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = 'Employment agreement review';
+  const view = await render(tree(<ChatPage />));
+  await settle();
+  await openPillMenuItem(view, 'Rename');
+  expect(dialog()?.textContent).toContain('Rename chat');
+  const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+  expect(input.labels?.[0]?.textContent).toBe('Chat title');
+  expect(input.value).toBe('Employment agreement review');
+  await act(async () =>
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await settle();
+  expect(dialog()).toBeNull();
+  expect(document.activeElement).toBe(pill(view).actions);
+  await view.unmount();
+});
+
+test('saving the pill rename calls the API and updates the pill title and hidden h1', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = 'Employment agreement review';
+  const fetchMock = vi.fn<(...args: unknown[]) => Promise<Response>>(
+    async () => new Response(null, { status: 204 }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  const view = await render(tree(<ChatPage />));
+  await settle();
+  await openPillMenuItem(view, 'Rename');
+  const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, 'Renamed from the pill');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () =>
+    dialog()!
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+  );
+  await settle();
+  const call = fetchMock.mock.calls.find(([url]) =>
+    String(url).includes(`/chats/${CHAT_ID}`),
+  );
+  expect(call).toBeDefined();
+  expect(JSON.stringify(call)).toContain('Renamed from the pill');
+  expect(dialog()).toBeNull();
+  expect(view.container.querySelector('#main h1')?.textContent).toBe(
+    'Renamed from the pill',
+  );
+  await view.unmount();
+});
+
+test('Delete from the pill opens the delete confirmation', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = 'Employment agreement review';
+  const view = await render(tree(<ChatPage />));
+  await settle();
+  await openPillMenuItem(view, 'Delete');
+  const alert = document.body.querySelector('[role="alertdialog"]');
+  expect(alert?.textContent).toContain('Delete chat');
+  await view.unmount();
+});
+
 test('route changes still move focus to the single h1', async () => {
   vi.useFakeTimers();
   navigation.path = '/workspace';

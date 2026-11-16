@@ -454,9 +454,11 @@ it('keeps submitted search results in sync with sidebar rename, delete rollback,
       .find((menuitem) => menuitem.textContent?.includes('Rename'))
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
   );
-  const renameInput = view.container.querySelector(
-    'input[aria-label="Chat title"]',
+  await settle();
+  const renameInput = document.body.querySelector(
+    '[role="dialog"] input',
   ) as HTMLInputElement;
+  expect(renameInput.labels?.[0]?.textContent).toBe('Chat title');
   const setValue = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value',

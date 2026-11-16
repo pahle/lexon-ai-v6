@@ -3,7 +3,7 @@ import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ChatApi, ChatPage } from '@lexon/contracts';
 import { ChatHistory, RecentChats } from '../src/components/chat/chat-history';
-import { ChatRename } from '../src/components/chat/chat-rename';
+import { ChatRenameDialog } from '../src/components/chat/chat-rename-dialog';
 import { ChatDeleteDialog } from '../src/components/chat/chat-delete-dialog';
 import { SidebarProvider } from '../src/components/ui/sidebar';
 import {
@@ -33,6 +33,63 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 const chatId = '00000000-0000-4000-8000-000000000003';
+const renameDialog = () =>
+  document.body.querySelector<HTMLElement>('[role="dialog"]');
+const renameInput = () =>
+  renameDialog()?.querySelector<HTMLInputElement>('input') ?? null;
+const renameForm = () =>
+  renameDialog()?.querySelector<HTMLFormElement>('form') ?? null;
+async function typeTitle(value: string) {
+  const input = renameInput()!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+async function submitRename() {
+  await act(async () =>
+    renameForm()!.dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    ),
+  );
+}
+async function pressEscape() {
+  await act(async () =>
+    renameInput()!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await settle();
+}
+const dialogButton = (label: string) =>
+  [...(renameDialog()?.querySelectorAll('button') ?? [])].find(
+    (button) => button.textContent === label,
+  );
+function openChat(title = 'Old title') {
+  return { id: chatId, title };
+}
+function renameDialogNode(
+  api: ChatApi,
+  props: {
+    title?: string;
+    onOpenChange?: (open: boolean) => void;
+    onSaved?: (title: string) => void;
+  } = {},
+) {
+  return (
+    <ChatRenameDialog
+      chat={openChat(props.title)}
+      client={api}
+      scope={scope}
+      open
+      onOpenChange={props.onOpenChange ?? vi.fn()}
+      onSaved={props.onSaved ?? vi.fn()}
+    />
+  );
+}
 const scope = {
   orgId: '00000000-0000-4000-8000-000000000001',
   userId: '00000000-0000-4000-8000-000000000002',
@@ -124,7 +181,7 @@ it('loads exactly six owner-scoped Recent chats', async () => {
   wrapped.client.clear();
 });
 
-it('replaces the Recent title link with its inline editor and restores or saves it', async () => {
+it('renames a Recent chat in a dialog and keeps the row title link in place', async () => {
   let serverTitle = 'Original recent title';
   const api = {
     list: vi.fn(async () =>
@@ -141,14 +198,12 @@ it('replaces the Recent title link with its inline editor and restores or saves 
     view.container.querySelector('[data-slot="sidebar-menu-item"]')!;
   const titleLink = () =>
     row().querySelector('a[href="/chats/' + chatId + '"]');
+  const opener = () =>
+    row().querySelector<HTMLButtonElement>(
+      '[aria-label="Chat actions for Original recent title"]',
+    )!;
   const startRename = async () => {
-    await act(async () =>
-      row()
-        .querySelector<HTMLButtonElement>(
-          '[aria-label="Chat actions for Original recent title"]',
-        )!
-        .click(),
-    );
+    await act(async () => opener().click());
     await act(async () =>
       (
         document.body.querySelector(
@@ -156,43 +211,29 @@ it('replaces the Recent title link with its inline editor and restores or saves 
         ) as HTMLElement
       ).click(),
     );
+    await settle();
   };
 
   expect(titleLink()?.textContent).toBe('Original recent title');
   await startRename();
-  expect(titleLink()).toBeNull();
-  const cancelInput = row().querySelector<HTMLInputElement>(
-    'input[aria-label="Chat title"]',
-  )!;
-  await act(async () =>
-    cancelInput.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    ),
-  );
   expect(titleLink()?.textContent).toBe('Original recent title');
-  expect(row().querySelector('input[aria-label="Chat title"]')).toBeNull();
+  expect(renameDialog()?.textContent).toContain('Rename chat');
+  expect(renameInput()!.labels?.[0]?.textContent).toBe('Chat title');
+  expect(renameInput()!.value).toBe('Original recent title');
+  expect(row().querySelector('input')).toBeNull();
+  await pressEscape();
+  expect(renameDialog()).toBeNull();
+  expect(api.rename).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(opener());
 
   await startRename();
-  const input = row().querySelector<HTMLInputElement>(
-    'input[aria-label="Chat title"]',
-  )!;
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )!.set!.call(input, 'Saved recent title');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-    );
-    input.form!.dispatchEvent(
-      new Event('submit', { bubbles: true, cancelable: true }),
-    );
-  });
+  await typeTitle('Saved recent title');
+  await submitRename();
   await settle();
   expect(api.rename).toHaveBeenCalledWith(chatId, {
     title: 'Saved recent title',
   });
+  expect(renameDialog()).toBeNull();
   expect(titleLink()?.textContent).toBe('Saved recent title');
   await view.unmount();
   wrapped.client.clear();
@@ -289,8 +330,9 @@ it('offers rename and delete from the chat actions menu', async () => {
   wrapped.client.clear();
 });
 
-it('trims a renamed title and keeps the form actionable after a failed save', async () => {
+it('trims a renamed title and keeps the dialog open and actionable after a failed save', async () => {
   const saved = vi.fn();
+  const onOpenChange = vi.fn();
   const api = {
     rename: vi
       .fn()
@@ -298,95 +340,102 @@ it('trims a renamed title and keeps the form actionable after a failed save', as
       .mockResolvedValueOnce(undefined),
   } as unknown as ChatApi;
   const wrapped = withQueryClient(
-    <ChatRename
-      chatId={chatId}
-      title="Old title"
-      client={api}
-      scope={scope}
-      onCancel={vi.fn()}
-      onSaved={saved}
-    />,
+    renameDialogNode(api, { onOpenChange, onSaved: saved }),
   );
   const view = await render(wrapped.node);
-  expect(
-    view.container.querySelector('button[type="submit"]')?.textContent,
-  ).not.toBe('Save');
-  expect(view.container.querySelector('button[type="button"]')).toBeNull();
-  const input = view.container.querySelector('input')!;
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value',
-  )!.set!;
-  setter.call(input, '  New title  ');
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  const form = view.container.querySelector('form')!;
-  await act(async () =>
-    form.dispatchEvent(
-      new Event('submit', { bubbles: true, cancelable: true }),
-    ),
-  );
-  expect(view.container.textContent).toContain('The title could not be saved');
-  expect(input.value).toBe('  New title  ');
-  await act(async () =>
-    form.dispatchEvent(
-      new Event('submit', { bubbles: true, cancelable: true }),
-    ),
-  );
+  await settle();
+  expect(dialogButton('Save')).toBeDefined();
+  expect(dialogButton('Cancel')).toBeDefined();
+  await typeTitle('  New title  ');
+  await submitRename();
+  expect(renameDialog()?.textContent).toContain('The title could not be saved');
+  expect(renameInput()!.value).toBe('  New title  ');
+  expect(onOpenChange).not.toHaveBeenCalled();
+  await submitRename();
   expect(api.rename).toHaveBeenLastCalledWith(chatId, { title: 'New title' });
   expect(saved).toHaveBeenCalledWith('New title');
+  expect(onOpenChange).toHaveBeenCalledWith(false);
   await view.unmount();
   wrapped.client.clear();
 });
 
-it('cancels inline rename with Escape', async () => {
-  const onCancel = vi.fn();
+it('opens the rename dialog titled Rename chat with a prefilled, selected Chat title field', async () => {
   const wrapped = withQueryClient(
-    <ChatRename
-      chatId={chatId}
-      title="Old title"
-      client={{ rename: vi.fn() } as unknown as ChatApi}
-      scope={scope}
-      onCancel={onCancel}
-      onSaved={vi.fn()}
-    />,
+    renameDialogNode({ rename: vi.fn() } as unknown as ChatApi),
   );
   const view = await render(wrapped.node);
-  const input = view.container.querySelector('input')!;
-  input.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  await settle();
+  expect(
+    renameDialog()?.querySelector('[data-slot="dialog-title"]')?.textContent,
+  ).toBe('Rename chat');
+  const input = renameInput()!;
+  expect(input.labels?.[0]?.textContent).toBe('Chat title');
+  expect(input.value).toBe('Old title');
+  expect(document.activeElement).toBe(input);
+  expect([input.selectionStart, input.selectionEnd]).toEqual([0, 9]);
+  await view.unmount();
+  wrapped.client.clear();
+});
+
+it('saves the rename dialog from the Save button and closes it', async () => {
+  const onOpenChange = vi.fn();
+  const saved = vi.fn();
+  const api = {
+    rename: vi.fn(async () => undefined),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    renameDialogNode(api, { onOpenChange, onSaved: saved }),
   );
-  expect(onCancel).toHaveBeenCalledOnce();
+  const view = await render(wrapped.node);
+  await settle();
+  await typeTitle('Via save');
+  expect(dialogButton('Save')!.type).toBe('submit');
+  await submitRename();
+  expect(api.rename).toHaveBeenCalledWith(chatId, { title: 'Via save' });
+  expect(saved).toHaveBeenCalledWith('Via save');
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  await view.unmount();
+  wrapped.client.clear();
+});
+
+it('closes the rename dialog with Escape or Cancel without calling the API', async () => {
+  const onOpenChange = vi.fn();
+  const api = { rename: vi.fn() } as unknown as ChatApi;
+  const wrapped = withQueryClient(renameDialogNode(api, { onOpenChange }));
+  const view = await render(wrapped.node);
+  await settle();
+  await pressEscape();
+  expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
+  onOpenChange.mockClear();
+  await act(async () => dialogButton('Cancel')!.click());
+  await settle();
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  expect(api.rename).not.toHaveBeenCalled();
+  await view.unmount();
+  wrapped.client.clear();
+});
+
+it('rejects an empty or whitespace-only title without calling the API', async () => {
+  const api = { rename: vi.fn() } as unknown as ChatApi;
+  const wrapped = withQueryClient(renameDialogNode(api));
+  const view = await render(wrapped.node);
+  await settle();
+  await typeTitle('   ');
+  await submitRename();
+  expect(api.rename).not.toHaveBeenCalled();
+  expect(renameDialog()?.textContent).toContain('Enter a chat title');
   await view.unmount();
   wrapped.client.clear();
 });
 
 it('prevents saving titles longer than 120 Unicode characters', async () => {
   const api = { rename: vi.fn() } as unknown as ChatApi;
-  const wrapped = withQueryClient(
-    <ChatRename
-      chatId={chatId}
-      title="Old"
-      client={api}
-      scope={scope}
-      onCancel={vi.fn()}
-      onSaved={vi.fn()}
-    />,
-  );
+  const wrapped = withQueryClient(renameDialogNode(api, { title: 'Old' }));
   const view = await render(wrapped.node);
-  const input = view.container.querySelector('input')!;
-  Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value',
-  )!.set!.call(input, '😀'.repeat(121));
-  await act(async () =>
-    input.dispatchEvent(new Event('input', { bubbles: true })),
-  );
-  expect(view.container.textContent).toContain('120 characters or fewer');
-  await act(async () =>
-    view.container
-      .querySelector('form')!
-      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
-  );
+  await settle();
+  await typeTitle('😀'.repeat(121));
+  expect(renameDialog()?.textContent).toContain('120 characters or fewer');
+  await submitRename();
   expect(api.rename).not.toHaveBeenCalled();
   await view.unmount();
   wrapped.client.clear();
@@ -962,22 +1011,11 @@ it('ignores a late rename success after the tenant scope changes', async () => {
   } as unknown as ChatApi;
   const saved = vi.fn();
   const wrapped = withQueryClient(
-    <ChatRename
-      chatId={chatId}
-      title="Private title"
-      client={api}
-      scope={scope}
-      onCancel={vi.fn()}
-      onSaved={saved}
-    />,
+    renameDialogNode(api, { title: 'Private title', onSaved: saved }),
   );
   const view = await render(wrapped.node);
-  const form = view.container.querySelector('form')!;
-  await act(async () =>
-    form.dispatchEvent(
-      new Event('submit', { bubbles: true, cancelable: true }),
-    ),
-  );
+  await settle();
+  await submitRename();
   await vi.waitFor(() => expect(api.rename).toHaveBeenCalledOnce());
   await transitionTenant(wrapped.client, {
     version: 1,

@@ -1,29 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, Pencil, SquarePen, Trash2 } from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { SquarePen } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
 import { createChatClient } from '@/lib/chat-client';
 import { requestRouteHeadingFocus } from '../shell/navigation-focus';
 import { useWorkspace } from '../shell/workspace-provider';
 import { ChatDeleteDialog } from './chat-delete-dialog';
-import { finishChatRename } from './chat-history';
-import { ChatRename } from './chat-rename';
+import { ChatHistoryActions, finishChatRename } from './chat-history';
+import { ChatRenameDialog } from './chat-rename-dialog';
 
 export type OpenChat = { id: string; title: string };
 
@@ -58,10 +46,11 @@ export function useOpenChat(): OpenChat | null {
 }
 
 export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
-  const { identity } = useWorkspace();
+  const { identity, setChatTitle } = useWorkspace();
   const queryClient = useQueryClient();
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const [renaming, setRenaming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [deleting, setDeleting] = useState(false);
   const scope = identity
     ? { orgId: identity.organization.id, userId: identity.user.id }
@@ -76,51 +65,33 @@ export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
       >
         <SquarePen aria-hidden="true" />
       </Link>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Chat actions"
-              disabled={!chat}
-            />
-          }
-        >
-          <MoreHorizontal aria-hidden="true" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setRenaming(true)}>
-            <Pencil aria-hidden="true" data-icon="inline-start" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDeleting(true)}>
-            <Trash2 aria-hidden="true" data-icon="inline-start" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ChatHistoryActions
+        item={chat ?? { title: '' }}
+        label="Chat actions"
+        triggerRef={triggerRef}
+        disabled={!chat}
+        onRename={() => setRenaming(true)}
+        onDelete={() => setDeleting(true)}
+      />
       {chat && scope ? (
         <>
-          <Dialog open={renaming} onOpenChange={setRenaming}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Rename chat</DialogTitle>
-              </DialogHeader>
-              <ChatRename
-                chatId={chat.id}
-                title={chat.title}
-                client={client}
-                scope={scope}
-                onCancel={() => setRenaming(false)}
-                onSaved={(title) => {
-                  setRenaming(false);
-                  finishChatRename(queryClient, scope, chat.id, title);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          <ChatRenameDialog
+            chat={chat}
+            client={client}
+            scope={scope}
+            returnFocusRef={triggerRef}
+            open={renaming}
+            onOpenChange={setRenaming}
+            onSaved={(title) => {
+              finishChatRename(queryClient, scope, chat.id, title);
+              if (identity)
+                setChatTitle(
+                  chat.id,
+                  `${identity.organization.id}:${identity.user.id}`,
+                  title,
+                );
+            }}
+          />
           <ChatDeleteDialog
             chatId={chat.id}
             title={chat.title}

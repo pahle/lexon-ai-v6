@@ -225,18 +225,22 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.keyboard.press('Escape');
   await recentAction.click();
   await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await expect(page.getByRole('dialog', { name: 'Rename chat' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Chat title' })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Save', exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Cancel', exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chat-rename-inline.png',
     fullPage: true,
   });
   await page.getByRole('textbox', { name: 'Chat title' }).press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Rename chat' })).toHaveCount(
+    0,
+  );
 
   const search = page.getByRole('textbox', { name: 'Search chats' });
   await search.fill('wanprestasi');

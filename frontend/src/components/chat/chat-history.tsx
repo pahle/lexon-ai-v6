@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState, type Ref } from 'react';
 import type { ChatApi } from '@lexon/contracts';
 import {
   useInfiniteQuery,
@@ -35,7 +35,7 @@ import {
   type ChatQueryScope,
 } from '@/lib/chat-queries';
 import { ChatDeleteDialog } from './chat-delete-dialog';
-import { ChatRename } from './chat-rename';
+import { ChatRenameDialog } from './chat-rename-dialog';
 import {
   Empty,
   EmptyContent,
@@ -253,23 +253,8 @@ function RecentChatRow({
   onDelete: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
-  if (renaming)
-    return (
-      <SidebarMenuItem>
-        <ChatRename
-          chatId={item.id}
-          title={item.title}
-          client={client}
-          scope={scope}
-          onCancel={() => setRenaming(false)}
-          onSaved={(title) => {
-            setRenaming(false);
-            finishChatRename(queryClient, scope, item.id, title);
-          }}
-        />
-      </SidebarMenuItem>
-    );
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -291,8 +276,20 @@ function RecentChatRow({
       <ChatHistoryActions
         item={item}
         sidebar
+        triggerRef={triggerRef}
         onRename={() => setRenaming(true)}
         onDelete={onDelete}
+      />
+      <ChatRenameDialog
+        chat={item}
+        client={client}
+        scope={scope}
+        returnFocusRef={triggerRef}
+        open={renaming}
+        onOpenChange={setRenaming}
+        onSaved={(title) =>
+          finishChatRename(queryClient, scope, item.id, title)
+        }
       />
     </SidebarMenuItem>
   );
@@ -312,21 +309,8 @@ function ChatHistoryRow({
   onDelete: (item: ChatListItem) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
-  if (renaming)
-    return (
-      <ChatRename
-        chatId={item.id}
-        title={item.title}
-        client={client}
-        scope={scope}
-        onCancel={() => setRenaming(false)}
-        onSaved={(title) => {
-          setRenaming(false);
-          finishChatRename(queryClient, scope, item.id, title);
-        }}
-      />
-    );
   return (
     <div className="flex min-h-12 min-w-0 items-center gap-4 px-3 py-2">
       <Link
@@ -341,8 +325,20 @@ function ChatHistoryRow({
       </time>
       <ChatHistoryActions
         item={item}
+        triggerRef={triggerRef}
         onRename={() => setRenaming(true)}
         onDelete={() => onDelete(item)}
+      />
+      <ChatRenameDialog
+        chat={item}
+        client={client}
+        scope={scope}
+        returnFocusRef={triggerRef}
+        open={renaming}
+        onOpenChange={setRenaming}
+        onSaved={(title) =>
+          finishChatRename(queryClient, scope, item.id, title)
+        }
       />
     </div>
   );
@@ -377,16 +373,22 @@ function formatActivityDate(value: string) {
   }).format(date);
 }
 
-function ChatHistoryActions({
+export function ChatHistoryActions({
   item,
   onRename,
   onDelete,
   sidebar = false,
+  label = `Chat actions for ${item.title}`,
+  disabled = false,
+  triggerRef,
 }: {
-  item: ChatListItem;
+  item: { title: string };
   onRename: () => void;
   onDelete: () => void;
   sidebar?: boolean;
+  label?: string;
+  disabled?: boolean;
+  triggerRef?: Ref<HTMLButtonElement>;
 }) {
   return (
     <DropdownMenu>
@@ -396,14 +398,18 @@ function ChatHistoryActions({
             <SidebarMenuAction
               type="button"
               showOnHover
-              aria-label={`Chat actions for ${item.title}`}
+              aria-label={label}
+              disabled={disabled}
+              ref={triggerRef}
             />
           ) : (
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              aria-label={`Chat actions for ${item.title}`}
+              aria-label={label}
+              disabled={disabled}
+              ref={triggerRef}
             />
           )
         }
