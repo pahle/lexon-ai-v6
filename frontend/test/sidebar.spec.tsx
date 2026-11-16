@@ -150,10 +150,11 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   const hint = view.container.querySelector('[data-slot="shortcut-hint"]')!;
   expect(hint.textContent).toBe('Ctrl Alt N');
   expect(hint.getAttribute('aria-hidden')).toBe('true');
-  const viewAll = view.container.querySelector(
-    '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
-  )!;
-  expect(viewAll.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  expect(
+    view.container.querySelector(
+      '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
+    ),
+  ).toBeNull();
   expect(
     links
       .filter((link) => link.getAttribute('aria-current') === 'page')
@@ -205,17 +206,18 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
   ).not.toContain('Owner');
-  expect(view.container.textContent).toContain('No recent chats.');
+  expect(view.container.textContent).toContain('No chats yet.');
   const recentGroup = view.container.querySelector(
     '[role="group"][aria-label="Recent chats"]',
   );
-  expect(recentGroup?.querySelector('p')?.textContent).toBe('No recent chats.');
+  expect(recentGroup?.querySelector('p')?.textContent).toBe('No chats yet.');
   expect(
     [...(recentGroup?.querySelectorAll('a') ?? [])].map((link) => [
       link.textContent?.trim(),
       link.getAttribute('href'),
     ]),
-  ).toEqual([['View all chats', '/chats']]);
+  ).toEqual([]);
+  expect(view.container.textContent).not.toContain('View all chats');
   expect(view.container.textContent).not.toContain('private-personal-slug');
   expect(view.container.textContent).not.toContain('Hidden personal name');
   expect(
@@ -255,7 +257,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('[role="group"][aria-label="Recent chats"]'),
   ).toBeNull();
-  expect(view.container.textContent).not.toContain('No recent chats.');
+  expect(view.container.textContent).not.toContain('No chats yet.');
   expect(
     view.container.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
   ).toContain('LEXON-monogram-micro-seal.svg');
@@ -280,7 +282,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ),
   );
   await settle();
-  expect(view.container.textContent).toContain('No recent chats.');
+  expect(view.container.textContent).toContain('No chats yet.');
   await act(async () =>
     (
       view.container.querySelector(
@@ -304,6 +306,55 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     document.body.querySelector('[data-slot="dropdown-menu-content"]')
       ?.className,
   ).toContain('shadow-md');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('Recent shows View all chats with its icon when there is at least one chat', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const requestUrl = new URL(
+      input instanceof Request ? input.url : String(input),
+      window.location.origin,
+    );
+    if (requestUrl.pathname === '/api/chats')
+      return Response.json({
+        items: [
+          {
+            id: '00000000-0000-4000-8000-000000000021',
+            title: 'Contract review',
+            updatedAt: '2026-11-13T09:00:00.000Z',
+            lastMessageAt: '2026-11-13T09:00:00.000Z',
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      });
+    return sidebarFetch(input);
+  });
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SidebarProvider>
+        <ChatRuntimeProvider
+          tenantId={`${identity.user.id}:${identity.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.textContent).toContain('Contract review');
+  expect(view.container.textContent).not.toContain('No chats yet.');
+  const viewAll = view.container.querySelector(
+    '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
+  )!;
+  expect(viewAll.textContent?.trim()).toBe('View all chats');
+  expect(viewAll.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -947,7 +998,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-  expect(document.body.textContent).toContain('No recent chats.');
+  expect(document.body.textContent).toContain('No chats yet.');
   const mobileOrganizationTrigger = document.body.querySelector(
     'button[aria-label^="Organization: Mobile team"]',
   );

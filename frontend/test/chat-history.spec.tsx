@@ -1100,3 +1100,32 @@ it('ignores a late delete success after the tenant scope changes', async () => {
     replaceRoute.mockClear();
   }
 });
+
+it('hides View all chats in Recent when there are no chats and shows it otherwise', async () => {
+  const link = <a href="/chats">View all chats</a>;
+  const empty = withQueryClient(
+    <RecentChats
+      client={{ list: vi.fn(async () => page([])) } as unknown as ChatApi}
+      scope={scope}
+      viewAll={link}
+    />,
+  );
+  const emptyView = await render(empty.node);
+  await settle();
+  expect(emptyView.container.textContent).toContain('No chats yet.');
+  expect(emptyView.container.textContent).not.toContain('View all chats');
+  await emptyView.unmount();
+  const full = withQueryClient(
+    <RecentChats
+      client={
+        { list: vi.fn(async () => page([item(1)])) } as unknown as ChatApi
+      }
+      scope={scope}
+      viewAll={link}
+    />,
+  );
+  const fullView = await render(full.node);
+  await settle();
+  expect(fullView.container.textContent).toContain('View all chats');
+  await fullView.unmount();
+});

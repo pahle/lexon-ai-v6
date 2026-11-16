@@ -253,6 +253,28 @@ export function AppSidebar() {
   };
   if (!identity) return null;
 
+  const viewAllChats = (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+          }}
+          render={
+            <Link
+              href="/chats"
+              onNavigate={() => {
+                if (pathname !== '/chats') requestNavigationFocus();
+              }}
+            />
+          }
+        >
+          <Ellipsis aria-hidden="true" />
+          <span>View all chats</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
   return (
     <Sidebar
       variant="inset"
@@ -334,28 +356,10 @@ export function AppSidebar() {
                   if (isMobile) setOpenMobile(false);
                 }}
                 {...(currentChatId ? { currentChatId } : {})}
+                viewAll={viewAllChats}
               />
             ) : null}
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => {
-                    if (isMobile) setOpenMobile(false);
-                  }}
-                  render={
-                    <Link
-                      href="/chats"
-                      onNavigate={() => {
-                        if (pathname !== '/chats') requestNavigationFocus();
-                      }}
-                    />
-                  }
-                >
-                  <Ellipsis aria-hidden="true" />
-                  <span>View all chats</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            {chatScope ? null : viewAllChats}
           </SidebarGroup>
         ) : null}
       </SidebarContent>

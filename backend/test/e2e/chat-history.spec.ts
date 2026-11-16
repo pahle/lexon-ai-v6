@@ -379,7 +379,9 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     page.getByRole('heading', { name: 'Page not found' }),
   ).toBeVisible();
   await page.goto(`${stack.publicUrl}/chats`);
-  await expect(page.getByText('No chats yet')).toBeVisible();
+  await expect(
+    page.locator('[data-slot="empty-title"]', { hasText: 'No chats yet' }),
+  ).toBeVisible();
   await expect(page.locator('[data-slot="empty"]')).toHaveCSS(
     'height',
     '320px',

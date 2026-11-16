@@ -294,7 +294,7 @@ function highlightExcerpt(
   return (
     <>
       {text.slice(0, safeStart)}
-      <mark className="rounded-sm bg-primary/20 text-foreground">
+      <mark className="rounded-sm bg-(--lexon-tint) text-foreground">
         {text.slice(safeStart, safeEnd)}
       </mark>
       {text.slice(safeEnd)}

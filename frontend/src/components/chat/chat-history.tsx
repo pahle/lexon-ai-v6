@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState, type Ref } from 'react';
+import { useRef, useState, type ReactNode, type Ref } from 'react';
 import type { ChatApi } from '@lexon/contracts';
 import {
   useInfiniteQuery,
@@ -162,12 +162,14 @@ export function RecentChats({
   currentChatId,
   onNavigate,
   onCloseMobile,
+  viewAll,
 }: {
   client: ChatApi;
   scope: ChatQueryScope;
   currentChatId?: string;
   onNavigate?: () => void;
   onCloseMobile?: () => void;
+  viewAll?: ReactNode;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<ChatListItem | null>(null);
   const query = useQuery({
@@ -193,6 +195,7 @@ export function RecentChats({
         <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
           Loading recent chats…
         </p>
+        {viewAll}
         {deleteDialog}
       </>
     );
@@ -202,6 +205,7 @@ export function RecentChats({
         <p role="alert" className="px-2.5 py-2 text-sm">
           Recent chats could not be loaded.
         </p>
+        {viewAll}
         {deleteDialog}
       </>
     );
@@ -209,8 +213,10 @@ export function RecentChats({
     return (
       <>
         <p className="px-2.5 py-2 text-sm text-muted-foreground">
-          No recent chats.
+          No chats yet.
         </p>
+        {/* Keep the child slots stable so an open delete dialog survives the list emptying. */}
+        {null}
         {deleteDialog}
       </>
     );
@@ -230,6 +236,7 @@ export function RecentChats({
           />
         ))}
       </SidebarMenu>
+      {viewAll}
       {deleteDialog}
     </>
   );

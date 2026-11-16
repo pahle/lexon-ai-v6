@@ -317,7 +317,7 @@ it('styles matched text with theme tokens', async () => {
   await submitSearch(view.container);
   const mark = view.container.querySelector('mark');
   expect(mark?.textContent).toBe('wanprestasi');
-  expect(mark?.className).toContain('bg-primary/20');
+  expect(mark?.className).toContain('bg-(--lexon-tint)');
   expect(mark?.className).toContain('text-foreground');
   await view.unmount();
 });
