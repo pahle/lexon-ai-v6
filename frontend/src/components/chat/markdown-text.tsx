@@ -14,17 +14,17 @@ export function MarkdownText({
   const components: Components = {
     img: () => null,
     h1: ({ children }) => (
-      <h1 className="mt-6 mb-3 text-2xl font-semibold tracking-tight first:mt-0">
+      <h1 className="mt-6 mb-3 text-2xl font-semibold font-sans tracking-tight first:mt-0">
         {children}
       </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="mt-6 mb-3 text-xl font-semibold tracking-tight first:mt-0">
+      <h2 className="mt-6 mb-3 text-xl font-semibold font-sans tracking-tight first:mt-0">
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="mt-5 mb-2 text-lg font-semibold tracking-tight first:mt-0">
+      <h3 className="mt-5 mb-2 text-lg font-semibold font-sans tracking-tight first:mt-0">
         {children}
       </h3>
     ),
@@ -36,6 +36,9 @@ export function MarkdownText({
     ),
     ol: ({ children }) => (
       <ol className="my-3 ms-6 list-decimal space-y-1">{children}</ol>
+    ),
+    strong: ({ children }) => (
+      <strong className="font-semibold">{children}</strong>
     ),
     li: ({ children }) => <li className="ps-1">{children}</li>,
     blockquote: ({ children }) => (
@@ -60,7 +63,7 @@ export function MarkdownText({
   };
   if (source !== undefined)
     return (
-      <div className="aui-md text-foreground max-w-none leading-relaxed">
+      <div className="aui-md text-foreground max-w-none">
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
           {source}
         </ReactMarkdown>
@@ -71,7 +74,7 @@ export function MarkdownText({
       {...props}
       remarkPlugins={[remarkGfm]}
       components={components}
-      className="aui-md text-foreground max-w-none leading-relaxed"
+      className="aui-md text-foreground max-w-none"
       defer
     />
   );

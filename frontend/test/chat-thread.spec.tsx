@@ -1671,3 +1671,71 @@ it('renders the thread Stop control as a round size-9 button and keeps the answe
     vi.stubGlobal('fetch', originalFetch);
   }
 });
+
+it('lays out the thread for reading: bare answers, a user bubble, a fade, and a centered scroll button', async () => {
+  const tree = makeBranchTree(false);
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(new ReadableStream<Uint8Array>(), {
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    ),
+  );
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const assistant = view.container.querySelector<HTMLElement>(
+      '[data-role="assistant"]',
+    )!;
+    expect(assistant).not.toBeNull();
+    expect(assistant.className).not.toMatch(/(^|\s)(bg-|border)/);
+    expect(
+      assistant.querySelector(
+        '[data-slot*="avatar"], img, svg[class*="avatar"]',
+      ),
+    ).toBeNull();
+    const body = assistant.querySelector<HTMLElement>('[aria-live="off"]')!;
+    expect(body.className).not.toMatch(/(^|\s)(bg-|border)/);
+    expect(body.className).toContain('text-base');
+    expect(body.className).toContain('leading-[1.75]');
+
+    const user =
+      view.container.querySelector<HTMLElement>('[data-role="user"]')!;
+    expect(user.className).toContain('ms-auto');
+    const bubble = user.querySelector<HTMLElement>('[aria-live="off"]')!;
+    expect(bubble.className).toContain('bg-(--lexon-user-bubble)');
+    expect(bubble.className).toContain('rounded-2xl');
+
+    const fade = view.container.querySelector<HTMLElement>(
+      '[data-slot="aui_thread-fade"]',
+    )!;
+    expect(fade.getAttribute('aria-hidden')).toBe('true');
+    expect(fade.className).toContain('pointer-events-none');
+    expect(fade.parentElement).toBe(
+      view.container.querySelector('.aui-thread-viewport-footer'),
+    );
+    expect(
+      fade.compareDocumentPosition(
+        view.container.querySelector('[data-slot="aui_composer-shell"]')!,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const scroll = view.container.querySelector<HTMLElement>(
+      '.aui-thread-scroll-to-bottom',
+    )!;
+    expect(scroll.className).toContain('left-1/2');
+    expect(scroll.className).toContain('-translate-x-1/2');
+  } finally {
+    await view.unmount();
+    vi.stubGlobal('fetch', originalFetch);
+  }
+});

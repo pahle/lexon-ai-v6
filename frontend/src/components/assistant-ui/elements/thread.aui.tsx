@@ -171,11 +171,16 @@ export const Thread: FC<ThreadProps> = ({
 
             <ThreadPrimitive.ViewportFooter
               className={cn(
-                'aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
+                'aui-thread-viewport-footer bg-background relative flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
                 !isEmpty &&
                   'sticky bottom-0 mt-auto rounded-t-(--composer-radius)',
               )}
             >
+              <div
+                data-slot="aui_thread-fade"
+                aria-hidden="true"
+                className="from-background pointer-events-none absolute inset-x-0 -top-8 h-8 bg-linear-to-t to-transparent"
+              />
               <ThreadScrollToBottom />
               <Composer effort={effort} onEffortChange={onEffortChange} />
             </ThreadPrimitive.ViewportFooter>
@@ -308,7 +313,11 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
         </span>
       ) : null}
       <div
-        className={cn(role === 'user' && 'rounded-2xl bg-muted px-4 py-2.5')}
+        className={cn(
+          role === 'user'
+            ? 'rounded-2xl bg-(--lexon-user-bubble) px-4 py-2.5'
+            : 'text-base leading-[1.75]',
+        )}
         aria-live="off"
       >
         <MessagePrimitive.Parts
@@ -527,7 +536,7 @@ const ThreadScrollToBottom: FC = () => (
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 left-1/2 z-10 -translate-x-1/2 rounded-full p-4 disabled:invisible"
       />
     }
   >

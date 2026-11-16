@@ -34,12 +34,24 @@ it('keeps heading hierarchy and visible ordered and unordered list markers', asy
     for (const heading of view.container.querySelectorAll('h1, h2, h3')) {
       expect(heading.className).toContain('font-semibold');
       expect(heading.className).not.toContain('font-serif');
+      expect(heading.className).toContain('font-sans');
     }
     expect(view.container.querySelector('ul')?.className).toContain(
       'list-disc',
     );
     expect(view.container.querySelector('ol')?.className).toContain(
       'list-decimal',
+    );
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('renders strong text as semibold', async () => {
+  const view = await render(<MarkdownText source={'A **key term** here'} />);
+  try {
+    expect(view.container.querySelector('strong')?.className).toContain(
+      'font-semibold',
     );
   } finally {
     await view.unmount();
