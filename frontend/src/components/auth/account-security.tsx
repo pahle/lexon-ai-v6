@@ -135,7 +135,7 @@ export function AccountSecurity() {
         className="flex flex-col gap-4"
       >
         <div>
-          <h2 id="security-heading" className="text-lg font-medium">
+          <h2 id="security-heading" className="font-serif text-xl">
             Security
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -154,7 +154,10 @@ export function AccountSecurity() {
           action="Change email"
           onAction={() => setActiveAction('email')}
         />
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div
+          data-slot="security-row"
+          className="flex flex-wrap items-center justify-between gap-3 py-4"
+        >
           <div className="min-w-0">
             <h3 className="text-sm font-medium">Two-factor authentication</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -289,7 +292,10 @@ function SecurityRow({
   onAction: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+    <div
+      data-slot="security-row"
+      className="flex flex-wrap items-center justify-between gap-3 border-b py-4"
+    >
       <div className="min-w-0">
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>

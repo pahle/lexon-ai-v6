@@ -90,7 +90,7 @@ export function OrganizationSettings({
       aria-labelledby="organization-general-heading"
       className="flex flex-col gap-5"
     >
-      <h2 id="organization-general-heading" className="text-lg font-medium">
+      <h2 id="organization-general-heading" className="font-serif text-xl">
         General
       </h2>
       {failure ? (

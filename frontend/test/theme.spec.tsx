@@ -71,9 +71,9 @@ test('appearance selection stores and applies light and dark themes locally', as
       ?.getAttribute('aria-label'),
   ).toBe('System');
   const group = view.container.querySelector('[data-slot="radio-group"]');
-  expect(group?.className).toContain('max-w-[35.75rem]');
-  expect(group?.className).toContain('grid-cols-1');
-  expect(group?.className).toContain('min-[768px]:grid-cols-3');
+  expect(group?.className).toContain('max-w-[22rem]');
+  expect(group?.className).toContain('grid-cols-3');
+  expect(group?.className).toContain('gap-3');
   const previews = [
     ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
   ];
@@ -93,7 +93,7 @@ test('appearance selection stores and applies light and dark themes locally', as
     ).size,
   ).toBe(3);
   for (const preview of previews) {
-    expect(preview.className).toContain('h-24');
+    expect(preview.className).toContain('h-16');
     expect(preview.className).toContain('border');
     expect(preview.parentElement?.className).not.toContain(
       'rounded-[var(--radius)] border',
@@ -167,7 +167,7 @@ test('system selection follows operating system changes and uses rectangular pre
   );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
-  expect(preview?.className).toContain('h-24');
+  expect(preview?.className).toContain('h-16');
 });
 
 test('does not render a theme selection before the client mount', () => {
@@ -179,4 +179,29 @@ test('does not render a theme selection before the client mount', () => {
   );
 
   expect(markup).not.toContain('role="radio"');
+});
+
+test('Appearance titles itself with a serif h2 and places the control in a label-left, control-right row', async () => {
+  installMatchMedia();
+  const view = await render(
+    <ThemeProvider>
+      <AppearanceSettings />
+    </ThemeProvider>,
+  );
+  mountedViews.push(view);
+  await settle();
+
+  const heading = view.container.querySelector('h2');
+  expect(heading?.textContent).toBe('Appearance');
+  expect(heading?.className).toContain('font-serif');
+  const group = view.container.querySelector('[role="radiogroup"]');
+  expect(group?.getAttribute('aria-labelledby')).toBe(heading?.id);
+  const row = group?.closest('[data-slot="field"]');
+  expect(row).not.toBeNull();
+  expect(row?.className).toContain('border-b');
+  const label = row?.querySelector('[data-slot="field-label"]');
+  expect(label?.textContent).toBe('Theme');
+  expect(
+    label!.compareDocumentPosition(group!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

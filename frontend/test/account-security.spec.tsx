@@ -683,3 +683,39 @@ test('security page embeds session errors without a nested main', async () => {
   generateBackupCodes.mockClear();
   vi.unstubAllGlobals();
 });
+
+test('security title is a serif h2 and its rows separate label from action', async () => {
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const path = new URL(String(input), window.location.origin).pathname;
+    if (path === '/api/identity/security')
+      return Response.json({
+        version: 1,
+        twoFactorEnabled: false,
+        mfaVerified: false,
+        reauthenticationExpiresAt: null,
+        recoveryCodesRemaining: 0,
+      });
+    return Response.json([]);
+  });
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <AccountSecurity />
+    </QueryClientProvider>,
+  );
+  await settle();
+  await vi.waitFor(() =>
+    expect(view.container.querySelector('#security-heading')).not.toBeNull(),
+  );
+  const heading = view.container.querySelector('#security-heading')!;
+  expect(heading.tagName).toBe('H2');
+  expect(heading.className).toContain('font-serif');
+  const rows = [
+    ...view.container.querySelectorAll('[data-slot="security-row"]'),
+  ];
+  expect(rows.length).toBe(3);
+  rows
+    .slice(0, -1)
+    .forEach((row) => expect(row.className).toContain('border-b'));
+  await view.unmount();
+  vi.unstubAllGlobals();
+});

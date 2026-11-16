@@ -122,7 +122,7 @@ function SettingsGroup({
 }) {
   return (
     <SidebarGroup className="py-2">
-      <SidebarGroupLabel className="text-sidebar-foreground">
+      <SidebarGroupLabel className="text-muted-foreground">
         {title}
       </SidebarGroupLabel>
       <SidebarGroupContent>

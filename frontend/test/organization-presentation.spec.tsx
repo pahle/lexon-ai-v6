@@ -557,3 +557,26 @@ test('a failed member removal does not refresh the identity', async () => {
   expect(refreshIdentity).not.toHaveBeenCalled();
   await view.unmount();
 });
+
+test('organization section titles are serif h2 elements', async () => {
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+      <Invitations organization={team} />
+      <OrganizationSettings organization={team} />
+    </QueryClientProvider>,
+  );
+  const titles = [
+    ...view.container.querySelectorAll('section > h2, section > header > h2'),
+  ];
+  expect(titles.map((title) => title.textContent)).toEqual([
+    'Members',
+    'Invitations',
+    'General',
+  ]);
+  for (const title of titles) {
+    expect(title.className).toContain('font-serif');
+    expect(title.className).not.toContain('text-lg');
+  }
+  await view.unmount();
+});

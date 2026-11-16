@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { Field, FieldContent, FieldDescription, FieldLabel } from '../ui/field';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
@@ -21,60 +22,65 @@ export function AppearanceSettings(): React.ReactElement {
   if (!mounted) return <div aria-hidden="true" className="min-h-32" />;
 
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend id={headingId} className="text-lg font-medium">
+    <section aria-labelledby={headingId} className="flex flex-col gap-5">
+      <h2 id={headingId} className="font-serif text-xl">
         Appearance
-      </legend>
-      <p className="text-sm text-muted-foreground">
-        Choose how Lexon looks on this device.
-      </p>
-      <RadioGroup
-        aria-labelledby={headingId}
-        value={theme ?? 'system'}
-        onValueChange={(value) => setTheme(String(value))}
-        className="mt-3 w-full max-w-[35.75rem] grid-cols-1 gap-4 min-[768px]:grid-cols-3"
-      >
-        {themes.map(({ value, label }) => {
-          const id = `${headingId}-${value}`;
-          return (
-            <Label
-              key={value}
-              htmlFor={id}
-              data-slot="appearance-option"
-              className="flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-[var(--radius)] outline-none focus-within:ring-2 focus-within:ring-ring"
-            >
-              <div
-                aria-hidden="true"
-                data-slot="appearance-preview"
-                data-theme-preview={value}
-                data-selected={theme === value}
-                className="flex h-24 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-muted p-1 data-[selected=true]:border-primary"
+      </h2>
+      <Field orientation="responsive" className="border-b py-4 first:pt-0">
+        <FieldContent>
+          <FieldLabel id={`${headingId}-label`}>Theme</FieldLabel>
+          <FieldDescription>
+            Choose how Lexon looks on this device.
+          </FieldDescription>
+        </FieldContent>
+        <RadioGroup
+          aria-labelledby={headingId}
+          value={theme ?? 'system'}
+          onValueChange={(value) => setTheme(String(value))}
+          className="w-full max-w-[22rem] grid-cols-3 gap-3"
+        >
+          {themes.map(({ value, label }) => {
+            const id = `${headingId}-${value}`;
+            return (
+              <Label
+                key={value}
+                htmlFor={id}
+                data-slot="appearance-option"
+                className="flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-[var(--radius)] outline-none focus-within:ring-2 focus-within:ring-ring"
               >
-                <span
+                <div
                   aria-hidden="true"
-                  data-preview-theme={value === 'system' ? 'light' : value}
-                  className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-card p-1"
+                  data-slot="appearance-preview"
+                  data-theme-preview={value}
+                  data-selected={theme === value}
+                  className="flex h-16 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-muted p-1 data-[selected=true]:border-primary"
                 >
-                  <span className="h-1.5 w-full rounded bg-muted" />
-                  <span className="h-1.5 w-2/3 rounded bg-muted" />
-                </span>
-                <span
-                  data-preview-theme={value === 'system' ? 'dark' : value}
-                  className="flex min-w-0 flex-1 flex-col gap-2 rounded-[var(--radius)] bg-[var(--background)] p-2"
-                >
-                  <span className="h-2 w-1/2 rounded bg-muted" />
-                  <span className="h-1.5 w-full rounded bg-muted/70" />
-                  <span className="h-1.5 w-4/5 rounded bg-muted/70" />
-                </span>
-              </div>
-              <div className="flex min-h-8 items-center gap-2">
-                <RadioGroupItem id={id} value={value} aria-label={label} />
-                <span>{label}</span>
-              </div>
-            </Label>
-          );
-        })}
-      </RadioGroup>
-    </fieldset>
+                  <span
+                    aria-hidden="true"
+                    data-preview-theme={value === 'system' ? 'light' : value}
+                    className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-card p-1"
+                  >
+                    <span className="h-1.5 w-full rounded bg-muted" />
+                    <span className="h-1.5 w-2/3 rounded bg-muted" />
+                  </span>
+                  <span
+                    data-preview-theme={value === 'system' ? 'dark' : value}
+                    className="flex min-w-0 flex-1 flex-col gap-2 rounded-[var(--radius)] bg-[var(--background)] p-2"
+                  >
+                    <span className="h-2 w-1/2 rounded bg-muted" />
+                    <span className="h-1.5 w-full rounded bg-muted/70" />
+                    <span className="h-1.5 w-4/5 rounded bg-muted/70" />
+                  </span>
+                </div>
+                <div className="flex min-h-8 items-center gap-2">
+                  <RadioGroupItem id={id} value={value} aria-label={label} />
+                  <span>{label}</span>
+                </div>
+              </Label>
+            );
+          })}
+        </RadioGroup>
+      </Field>
+    </section>
   );
 }

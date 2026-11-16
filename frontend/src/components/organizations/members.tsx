@@ -173,7 +173,7 @@ export function Members({
   return (
     <section aria-labelledby="members-heading" className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="members-heading" className="text-lg font-medium">
+        <h2 id="members-heading" className="font-serif text-xl">
           Members
         </h2>
         {canInvite ? (

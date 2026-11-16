@@ -303,3 +303,14 @@ test('a job title over 80 characters shows an error and does not call the API', 
   await view.unmount();
   update.mockRestore();
 });
+
+test('profile title is a serif h2 and each row separates label from control', async () => {
+  const view = await render(<ProfileSettings />);
+  const heading = view.container.querySelector('h2');
+  expect(heading?.textContent).toBe('Profile');
+  expect(heading?.className).toContain('font-serif');
+  const rows = [...view.container.querySelectorAll('[data-slot="field"]')];
+  expect(rows).toHaveLength(3);
+  for (const row of rows) expect(row.className).toContain('border-b');
+  await view.unmount();
+});

@@ -646,3 +646,60 @@ test('demotion cancels and removes a delayed invitation response while Settings 
   await view.unmount();
   vi.unstubAllGlobals();
 });
+
+test('the no-access state and the navigation use the new title and group styling', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  locationState.search = '?settings=unknown';
+  const view = await renderWithQuery(<SettingsDialog />);
+  const title = [...document.body.querySelectorAll('h2')].find(
+    (heading) => heading.textContent === 'No access',
+  );
+  expect(title?.className).toContain('font-serif');
+  const labels = [
+    ...document.body.querySelectorAll('[data-slot="sidebar-group-label"]'),
+  ];
+  expect(labels.length).toBeGreaterThan(0);
+  expect(new Set(labels.map((label) => label.textContent))).toEqual(
+    new Set(['Account']),
+  );
+  for (const label of labels) {
+    expect(label.className).toContain('text-muted-foreground');
+    expect(label.className).not.toContain('text-sidebar-foreground');
+  }
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('team navigation groups are Account and the team name', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  workspaceState.identity = {
+    ...(workspaceState.identity as object),
+    organization: {
+      version: 1,
+      id: TEAM_A,
+      kind: 'team',
+      name: 'Hukum Nusantara',
+      slug: 'hukum-nusantara',
+      state: 'active',
+      require2fa: false,
+      role: 'owner',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+  };
+  const view = await render(<SettingsNavigation section="profile" />);
+  expect(
+    [
+      ...view.container.querySelectorAll('[data-slot="sidebar-group-label"]'),
+    ].map((label) => label.textContent),
+  ).toEqual(['Account', 'Hukum Nusantara']);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});

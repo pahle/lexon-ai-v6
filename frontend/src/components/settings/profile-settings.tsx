@@ -52,7 +52,7 @@ export function ProfileSettings(): React.ReactElement {
   return (
     <section aria-labelledby="profile-heading" className="flex flex-col gap-5">
       <header>
-        <h2 id="profile-heading" className="text-lg font-medium">
+        <h2 id="profile-heading" className="font-serif text-xl">
           Profile
         </h2>
       </header>

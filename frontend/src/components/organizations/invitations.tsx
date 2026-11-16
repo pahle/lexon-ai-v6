@@ -153,7 +153,7 @@ export function Invitations({
       className="flex flex-col gap-5"
     >
       <header>
-        <h2 id="invitations-heading" className="text-lg font-medium">
+        <h2 id="invitations-heading" className="font-serif text-xl">
           Invitations
         </h2>
         <p className="text-sm text-muted-foreground">

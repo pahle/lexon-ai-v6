@@ -710,22 +710,15 @@ async function expectAppearanceGeometry(
   });
 
   expect(metrics.count).toBe(3);
-  expect(metrics.width).toBeLessThanOrEqual(572);
+  expect(metrics.width).toBeLessThanOrEqual(352);
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-  if (viewportWidth >= 768) {
-    expect(metrics.columnGap).toBe(16);
-    expect(metrics.tops[0]).toBeCloseTo(metrics.tops[1]!, 0);
-    expect(metrics.tops[1]).toBeCloseTo(metrics.tops[2]!, 0);
-    expect(metrics.gaps[0]).toBeCloseTo(16, 0);
-    expect(metrics.gaps[1]).toBeCloseTo(16, 0);
-    expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(181);
-    expect(Math.min(...metrics.widths)).toBeGreaterThanOrEqual(
-      viewportWidth === 1440 ? 170 : 100,
-    );
-  } else {
-    expect(metrics.tops[0]).toBeLessThan(metrics.tops[1]!);
-    expect(metrics.tops[1]).toBeLessThan(metrics.tops[2]!);
-  }
+  expect(metrics.columnGap).toBe(12);
+  expect(metrics.tops[0]).toBeCloseTo(metrics.tops[1]!, 0);
+  expect(metrics.tops[1]).toBeCloseTo(metrics.tops[2]!, 0);
+  expect(metrics.gaps[0]).toBeCloseTo(12, 0);
+  expect(metrics.gaps[1]).toBeCloseTo(12, 0);
+  expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(112);
+  expect(Math.min(...metrics.widths)).toBeGreaterThanOrEqual(70);
 }
 
 test('real API-authenticated Home captures Task 6A shell states', async ({
