@@ -13,7 +13,8 @@
     "test": "vitest run --config ../vitest.config.ts --project frontend",
     "test:e2e": "node ../scripts/e2e.mjs --package frontend",
     "dev": "node ../scripts/dev.mjs --package frontend",
-    "format": "prettier --write --ignore-path ../.prettierignore ."
+    "format": "prettier --write --ignore-path ../.prettierignore .",
+    "test:mutation:indicator": "stryker run stryker.indicator.config.mjs"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.163",
@@ -45,6 +46,8 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
