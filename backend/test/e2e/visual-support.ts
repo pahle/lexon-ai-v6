@@ -623,6 +623,7 @@ export async function installTask9SessionExpiryNormalization(
 export async function installTask9InvitationExpiryNormalization(
   page: Page,
   activeTeamId: string,
+  emails?: readonly string[],
 ) {
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
@@ -632,7 +633,9 @@ export async function installTask9InvitationExpiryNormalization(
     };
   };
   const expiresAt = index.normalizations.invitationExpiresAt.fixedIso;
-  const orderedEmails = index.normalizations.invitationExpiresAt.orderedEmails;
+  const orderedEmails = [
+    ...(emails ?? index.normalizations.invitationExpiresAt.orderedEmails),
+  ];
   const pending = new Set<Promise<void>>();
   const invitationUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/invitations`;
@@ -683,13 +686,16 @@ export async function installTask9InvitationExpiryNormalization(
 export async function installTask9MemberOrderNormalization(
   page: Page,
   activeTeamId: string,
+  emails?: readonly string[],
 ) {
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
   ) as {
     normalizations: { memberOrder: { orderedEmails: string[] } };
   };
-  const orderedEmails = index.normalizations.memberOrder.orderedEmails;
+  const orderedEmails = [
+    ...(emails ?? index.normalizations.memberOrder.orderedEmails),
+  ];
   const pending = new Set<Promise<void>>();
   const memberUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/members`;

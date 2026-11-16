@@ -40,7 +40,7 @@ test('sign-in states', async ({ page }) => {
 
   await page
     .getByLabel('Email', { exact: true })
-    .fill('synthetic-review@example.test');
+    .fill('synthetic-review.bv@example.test');
   await page
     .getByLabel('Password', { exact: true })
     .fill('Synthetic-review-password-42!');
@@ -271,14 +271,14 @@ test('team shell, menus, mobile sheet, and Settings', async ({
     page,
     {
       name: 'Maya Chen',
-      email: 'maya.chen@example.test',
+      email: 'maya.chen.bv@example.test',
       password,
     },
     'Senior Associate',
   );
   const teamResponse = await page.request.post(
     stack.apiUrl + '/api/organizations',
-    { headers, data: { name: 'Harbor Legal', slug: 'harbor-legal-review' } },
+    { headers, data: { name: 'Harbor Legal', slug: 'harbor-legal-review-bv' } },
   );
   expect(teamResponse.status()).toBe(201);
   const team = (await teamResponse.json()) as { id: string };
@@ -291,8 +291,12 @@ test('team shell, menus, mobile sheet, and Settings', async ({
     ).status(),
   ).toBe(200);
   for (const invitee of [
-    { name: 'Alex Rivera', email: 'alex.rivera@example.test', role: 'member' },
-    { name: 'Jordan Lee', email: 'jordan.lee@example.test', role: 'admin' },
+    {
+      name: 'Alex Rivera',
+      email: 'alex.rivera.bv@example.test',
+      role: 'member',
+    },
+    { name: 'Jordan Lee', email: 'jordan.lee.bv@example.test', role: 'admin' },
   ] as const) {
     const invitation = await page.request.post(
       stack.apiUrl + `/api/organizations/${team.id}/invitations`,
@@ -324,7 +328,7 @@ test('team shell, menus, mobile sheet, and Settings', async ({
         stack.apiUrl + `/api/organizations/${team.id}/invitations`,
         {
           headers,
-          data: { email: 'sam.taylor@example.test', role: 'member' },
+          data: { email: 'sam.taylor.bv@example.test', role: 'member' },
         },
       )
     ).status(),
@@ -448,13 +452,17 @@ test('team shell, menus, mobile sheet, and Settings', async ({
   } finally {
     await sessions.remove();
   }
-  const members = await installTask9MemberOrderNormalization(page, team.id);
+  const members = await installTask9MemberOrderNormalization(page, team.id, [
+    'maya.chen.bv@example.test',
+    'jordan.lee.bv@example.test',
+    'alex.rivera.bv@example.test',
+  ]);
   try {
     await captureBrandViews(
       page,
       'settings-members',
       settingsHooks('Members', (p) =>
-        p.getByText('alex.rivera@example.test', { exact: true }),
+        p.getByText('alex.rivera.bv@example.test', { exact: true }),
       ),
     );
   } finally {
@@ -463,13 +471,18 @@ test('team shell, menus, mobile sheet, and Settings', async ({
   const invitations = await installTask9InvitationExpiryNormalization(
     page,
     team.id,
+    [
+      'sam.taylor.bv@example.test',
+      'alex.rivera.bv@example.test',
+      'jordan.lee.bv@example.test',
+    ],
   );
   try {
     await captureBrandViews(
       page,
       'settings-invitations',
       settingsHooks('Invitations', (p) =>
-        p.getByText('sam.taylor@example.test', { exact: true }),
+        p.getByText('sam.taylor.bv@example.test', { exact: true }),
       ),
     );
   } finally {
