@@ -110,6 +110,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 ## Lessons learned (apply to every brief)
 
+- Docker safety (2026-11-16, F4.1): a Claude Code worker ran `docker rm -f` on all containers and `docker volume prune -f` while clearing E2E stacks, deleting the PO's unrelated prospera-pg-dev container (data possibly in a leftover unnamed volume). Every future brief and implementer prompt must say: only touch containers/volumes named lexon-e2e-*, never prune, never remove all containers, stop and ask if disk or leftovers block a gate.
+
 - F4 holistic review (2026-11-14, d4ae874): verdict merge; see reviews/F4-review.md. F5 brief must open with a chat client hardening task: single source of truth for the client tree and no 1 s full-tree polling during active runs.
 
 - F4 gate diagnosis (2026-11-14, ed873bf): the Chat SSE load workflow has never passed on a GitHub runner (runs 1-2 setup failures, 3-4 admission-startup 5xx); Task 18's 500-connection pass was local only, so it is not a fix-wave regression. Compose 'Previous branch' failure is a real frontend regression since 8f6cea3 (regenerated sibling not adopted; test waits on identical mock text). ai-execution 'renews through the bounded retry backoff' is an unchanged F3 test failing once (flaky timing). Future briefs: state where load gates must pass (local vs runner) and which workflows are required.
