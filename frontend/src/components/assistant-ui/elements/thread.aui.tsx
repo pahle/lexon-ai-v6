@@ -72,7 +72,14 @@ const EditFocusContext = createContext<{
       waitForReplacement: boolean;
     } | null,
   ) => void;
-}>({ target: null, setTarget: () => {} });
+  readonly editingId: string | null;
+  readonly setEditingId: (id: string | null) => void;
+}>({
+  target: null,
+  setTarget: () => {},
+  editingId: null,
+  setEditingId: () => {},
+});
 
 export type ThreadProps = {
   displayName: string;
@@ -122,9 +129,15 @@ export const Thread: FC<ThreadProps> = ({
     parentId: string | null;
     waitForReplacement: boolean;
   } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const editFocus = useMemo(
-    () => ({ target: editFocusTarget, setTarget: setEditFocusTarget }),
-    [editFocusTarget],
+    () => ({
+      target: editFocusTarget,
+      setTarget: setEditFocusTarget,
+      editingId,
+      setEditingId,
+    }),
+    [editFocusTarget, editingId],
   );
 
   return (
@@ -299,6 +312,10 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       className={cn(
         'group/turn text-foreground px-2 leading-relaxed wrap-break-word',
         role === 'user' && 'ms-auto max-w-[80%] px-0',
+        role === 'assistant' &&
+          parentId !== null &&
+          editFocus.editingId === parentId &&
+          'opacity-50',
       )}
     >
       {role === 'assistant' ? (
@@ -364,11 +381,6 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
           <BranchPicker />
         </div>
       )}
-      {role === 'assistant' ? (
-        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
-          <BranchPicker />
-        </div>
-      ) : null}
     </MessagePrimitive.Root>
   );
 };
@@ -569,46 +581,52 @@ const AssistantActions: FC<{
       .catch(() => {});
   };
   return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      className="text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100"
+    <div
+      data-slot="aui_message-actions"
+      className="text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 empty:hidden md:opacity-0 [@media(hover:none)]:opacity-100"
     >
-      <ActionBarPrimitive.Copy
-        className="size-9 rounded-md p-2 hover:bg-muted"
-        aria-label="Copy answer"
+      <ActionBarPrimitive.Root
+        hideWhenRunning
+        className="flex items-center gap-1"
       >
-        {copied ? (
-          <CheckIcon className="size-4" />
-        ) : (
-          <CopyIcon className="size-4" />
-        )}
-      </ActionBarPrimitive.Copy>
-      <button
-        type="button"
-        aria-label="Good answer"
-        aria-pressed={rating === 'good'}
-        onClick={() => submitFeedback('good')}
-        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
-      >
-        <ThumbsUpIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Bad answer"
-        aria-pressed={rating === 'bad'}
-        onClick={() => submitFeedback('bad')}
-        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
-      >
-        <ThumbsDownIcon className="size-4" />
-      </button>
-      <ActionBarPrimitive.Reload
-        className="size-9 rounded-md p-2 hover:bg-muted"
-        aria-label="Regenerate answer"
-        disabled={serverActive}
-      >
-        <RefreshCwIcon className="size-4" />
-      </ActionBarPrimitive.Reload>
-    </ActionBarPrimitive.Root>
+        <ActionBarPrimitive.Copy
+          className="size-9 rounded-md p-2 hover:bg-muted"
+          aria-label="Copy answer"
+        >
+          {copied ? (
+            <CheckIcon className="size-4" />
+          ) : (
+            <CopyIcon className="size-4" />
+          )}
+        </ActionBarPrimitive.Copy>
+        <button
+          type="button"
+          aria-label="Good answer"
+          aria-pressed={rating === 'good'}
+          onClick={() => submitFeedback('good')}
+          className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
+        >
+          <ThumbsUpIcon className="size-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Bad answer"
+          aria-pressed={rating === 'bad'}
+          onClick={() => submitFeedback('bad')}
+          className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
+        >
+          <ThumbsDownIcon className="size-4" />
+        </button>
+        <ActionBarPrimitive.Reload
+          className="size-9 rounded-md p-2 hover:bg-muted"
+          aria-label="Regenerate answer"
+          disabled={serverActive}
+        >
+          <RefreshCwIcon className="size-4" />
+        </ActionBarPrimitive.Reload>
+      </ActionBarPrimitive.Root>
+      <BranchPicker />
+    </div>
   );
 };
 
@@ -660,6 +678,11 @@ const ThreadEditComposer: FC<{
   const serverActive = useChatActiveRun();
   const [tooLong, setTooLong] = useState(false);
   const editFocus = useContext(EditFocusContext);
+  const { setEditingId } = editFocus;
+  useEffect(() => {
+    setEditingId(messageId);
+    return () => setEditingId(null);
+  }, [messageId, setEditingId]);
   const validateAndArmEdit = (event: { preventDefault: () => void }) => {
     if (serverActive) {
       event.preventDefault();
@@ -680,7 +703,8 @@ const ThreadEditComposer: FC<{
   };
   return (
     <ComposerPrimitive.Root
-      className="my-2 flex flex-col gap-2"
+      data-slot="aui_user-edit-bubble"
+      className="my-2 ms-auto flex w-full max-w-[80%] flex-col gap-2 rounded-2xl bg-(--lexon-user-bubble) px-4 py-2.5"
       onSubmit={validateAndArmEdit}
     >
       <ComposerPrimitive.Input

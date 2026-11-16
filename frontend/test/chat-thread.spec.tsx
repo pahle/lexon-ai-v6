@@ -1841,3 +1841,174 @@ it('lays out the thread for reading: bare answers, a user bubble, a fade, and a 
     vi.stubGlobal('fetch', originalFetch);
   }
 });
+
+it('shows the loading skeleton at the top with a disabled composer beneath it', async () => {
+  const client = { get: vi.fn(() => new Promise<ChatTree>(() => {})) };
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId="11111111-1111-4111-8111-111111111111"
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const status = view.container.querySelector('[role="status"]');
+    expect(status?.textContent).toContain('Loading conversation');
+    const skeletons = view.container.querySelectorAll('[data-slot="skeleton"]');
+    expect(skeletons.length).toBeGreaterThanOrEqual(3);
+    expect(view.container.querySelectorAll('.animate-pulse').length).toBe(
+      skeletons.length,
+    );
+    const input = view.container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message input"]',
+    );
+    expect(input).not.toBeNull();
+    expect(input?.disabled).toBe(true);
+    expect(
+      view.container.querySelector<HTMLButtonElement>(
+        '[aria-label="Send message"]',
+      )?.disabled,
+    ).toBe(true);
+    expect(
+      status &&
+        input &&
+        status.compareDocumentPosition(input) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  } finally {
+    await view.unmount();
+  }
+});
+
+function makeEditedFixture() {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userMessageId = '22222222-2222-4222-8222-222222222222';
+  const answerId = '33333333-3333-4333-8333-333333333333';
+  return {
+    answerId,
+    client: {
+      get: vi.fn().mockResolvedValue({
+        id: chatId,
+        title: 'Thread fixture',
+        messages: [
+          {
+            id: userMessageId,
+            role: 'user',
+            parentId: null,
+            text: 'Review this clause',
+            effort: 'high',
+            createdAt: '2026-11-12T00:00:00.000Z',
+          },
+          {
+            id: answerId,
+            role: 'assistant',
+            parentId: userMessageId,
+            runId: '44444444-4444-4444-8444-444444444444',
+            text: 'The clause limits liability.',
+            status: 'completed',
+            reasoningSummary: null,
+            reasoningDurationMs: null,
+            feedback: null,
+            createdAt: '2026-11-12T00:00:01.000Z',
+          },
+        ],
+        viewedLeafId: answerId,
+        createdAt: '2026-11-12T00:00:00.000Z',
+        updatedAt: '2026-11-12T00:00:01.000Z',
+      }),
+    },
+    chatId,
+  };
+}
+
+it('keeps the edit controls inside the bubble and dims the answer below while editing', async () => {
+  const { client, chatId, answerId } = makeEditedFixture();
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const answer = () =>
+      view.container.querySelector(`[data-message-id="${answerId}"]`);
+    expect(answer()?.className).not.toContain('opacity-50');
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Edit message"]')
+        ?.click(),
+    );
+    await settle();
+    const input = view.container.querySelector(
+      '[aria-label="Edit message input"]',
+    );
+    const bubble = input?.closest('[data-slot="aui_user-edit-bubble"]');
+    expect(bubble).not.toBeNull();
+    const cancel = bubble?.querySelector('[aria-label="Cancel edit"]');
+    const send = bubble?.querySelector('[aria-label="Send edit"]');
+    expect(cancel).not.toBeNull();
+    expect(send).not.toBeNull();
+    expect(
+      input &&
+        cancel &&
+        send &&
+        input.compareDocumentPosition(cancel) &
+          Node.DOCUMENT_POSITION_FOLLOWING &&
+        cancel.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(answer()?.className).toContain('opacity-50');
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Cancel edit"]')
+        ?.click(),
+    );
+    await settle();
+    expect(answer()?.className).not.toContain('opacity-50');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('places the branch picker in the action row of the answer', async () => {
+  const tree = {
+    ...makeBranchTree(false),
+    viewedLeafId: '66666666-6666-4666-8666-666666666666',
+  };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 204 })),
+  );
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const previous = view.container.querySelector(
+      '[aria-label="Previous branch"]',
+    );
+    const row = previous?.closest('[data-slot="aui_message-actions"]');
+    expect(row).not.toBeNull();
+    expect(row?.querySelector('[aria-label="Copy answer"]')).not.toBeNull();
+    expect(row?.textContent).toContain('2 / 2');
+    expect(row?.querySelector('[aria-label="Next branch"]')).not.toBeNull();
+  } finally {
+    await view.unmount();
+  }
+});

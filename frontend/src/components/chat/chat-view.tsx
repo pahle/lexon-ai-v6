@@ -2,6 +2,7 @@
 
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -227,14 +228,42 @@ function ChatViewSession({
 
   if (chatId && loading)
     return (
-      <div
-        role="status"
-        className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 p-6"
-      >
-        <span className="sr-only">Loading conversation</span>
-        <div className="bg-muted h-9 w-2/5 animate-pulse rounded-xl motion-reduce:animate-none" />
-        <div className="bg-muted h-4 w-full animate-pulse rounded motion-reduce:animate-none" />
-        <div className="bg-muted h-4 w-4/5 animate-pulse rounded motion-reduce:animate-none" />
+      <div className="mx-auto flex min-h-0 w-full max-w-[880px] flex-1 flex-col px-4 pt-4">
+        <div role="status" className="flex flex-col gap-y-6">
+          <span className="sr-only">Loading conversation</span>
+          <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
+          <div className="flex flex-col gap-y-2">
+            <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
+            <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
+            <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
+          </div>
+        </div>
+        <div className="mt-auto pb-4 md:pb-6">
+          <div data-slot="aui_composer-shell" className={composerClasses.shell}>
+            <Textarea
+              aria-label="Message input"
+              placeholder="Ask Lexon about a contract, a regulation, or a case..."
+              disabled
+              rows={1}
+              className={cn(
+                composerClasses.input,
+                'min-h-20 border-0 shadow-none focus-visible:ring-0',
+              )}
+            />
+            <div className={cn(composerClasses.toolbar, 'pt-2')}>
+              <div />
+              <Button
+                type="button"
+                disabled
+                size="icon"
+                className={composerClasses.send}
+                aria-label="Send message"
+              >
+                <ArrowUpIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   if (chatId && notFound) return <WorkspaceNotFound />;
