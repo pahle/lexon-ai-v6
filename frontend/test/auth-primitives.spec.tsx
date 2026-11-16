@@ -36,7 +36,11 @@ test('auth card fields have linked labels and errors with no social or decorativ
     'email-error',
   );
   expect(host.textContent).toContain('Sign in');
-  expect(host.querySelector('h1')?.className).toContain('--font-size-heading');
+  expect(host.querySelector('h1')?.className).toContain('font-serif');
+  expect(host.querySelector('h1')?.className).toContain('text-3xl');
+  expect(host.querySelector('h1')?.className).not.toContain(
+    '--font-size-heading',
+  );
   expect(host.querySelector('img')).toBeNull();
   expect(host.textContent).not.toMatch(/Google|GitHub|Facebook/);
   await act(async () => root.unmount());

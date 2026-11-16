@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { expect, test } from 'vitest';
 import AuthLayout from '../src/app/(auth)/layout';
 import { render } from './render';
+import { AUTH_COVER_STATEMENT } from '../src/components/auth/auth-frame';
 import { LoginForm } from '../src/components/auth/login-form';
 import { SignupForm } from '../src/components/auth/signup-form';
 
@@ -13,10 +14,55 @@ test('account layout uses the published frame and one labeled heading', async ()
     'lg:grid-cols-2',
   );
   expect(view.container.querySelector('.w-full.max-w-xs')).not.toBeNull();
+  const cover = view.container.querySelector('[aria-hidden="true"].lg\\:block');
+  expect(cover?.className).toContain('hidden');
+  expect(cover?.className).toContain('bg-(--lexon-night)');
+  expect(cover?.firstElementChild?.className).toContain('flex-col');
+  expect(cover?.className.split(' ')).toContain('dark');
+  expect(cover?.className).toContain('text-white');
+  const rule = cover?.querySelector('div[aria-hidden="true"]');
+  expect(rule?.className).toContain('bg-(--lexon-red-text)');
+  const tagline = [...(cover?.querySelectorAll('p') ?? [])].find((el) =>
+    el.textContent?.startsWith('The AI workspace'),
+  );
+  expect(tagline?.className).toContain('text-(--lexon-red-text)');
+  const url = [...(cover?.querySelectorAll('span') ?? [])].find(
+    (el) => el.textContent === 'lexon-ai.com',
+  );
+  expect(url?.className).toContain('text-muted-foreground');
+  for (const el of [rule, tagline, url, cover]) {
+    expect(el?.className).not.toContain('[#');
+  }
+  expect(cover?.querySelector('[aria-hidden="true"]:not(img)')).not.toBeNull();
+  expect(cover?.textContent).toContain(
+    'The AI workspace for Indonesian legal practitioners',
+  );
+  expect(cover?.textContent).toContain('lexon-ai.com');
+  expect(cover?.textContent).not.toContain('Every answer names the article');
+  const statement = [...(cover?.querySelectorAll('*') ?? [])].find(
+    (el) => el.children.length === 0 && el.textContent === AUTH_COVER_STATEMENT,
+  );
+  expect(AUTH_COVER_STATEMENT).toBe(
+    'Read, draft, and check Indonesian law in one quiet workspace.',
+  );
+  expect(statement?.className).toContain('font-serif');
   expect(
-    view.container.querySelector('[aria-hidden="true"].lg\\:block')
-      ?.textContent,
+    cover?.querySelector('img[src*="wordmark-compact-white"]'),
+  ).not.toBeNull();
+  expect(
+    cover
+      ?.querySelector('img[src*="wordmark-compact-white"]')
+      ?.getAttribute('alt'),
   ).toBe('');
+  expect(view.container.querySelectorAll('img[alt="Lexon"]')).toHaveLength(2);
+  expect(
+    cover?.querySelectorAll('a, button, input, select, textarea, [tabindex]'),
+  ).toHaveLength(0);
+  expect(
+    view.container
+      .querySelector('main > div:first-child')
+      ?.querySelector('img[src*="wordmark-compact-ink"]'),
+  ).not.toBeNull();
   expect(view.container.querySelectorAll('h1')).toHaveLength(1);
   expect(
     view.container
@@ -32,16 +78,17 @@ test('account layout uses the published frame and one labeled heading', async ()
   await view.unmount();
 });
 
-test('real sign-in and sign-up use the centered published form heading hierarchy', async () => {
+test('real sign-in and sign-up use the left-aligned serif form heading hierarchy', async () => {
   for (const Form of [LoginForm, SignupForm]) {
     const view = await render(
       createElement(AuthLayout, null, createElement(Form)),
     );
     const heading = view.container.querySelector('h1');
-    expect(heading?.parentElement?.className).toContain('items-center');
-    expect(heading?.parentElement?.className).toContain('text-center');
+    expect(heading?.parentElement?.className).toContain('items-start');
+    expect(heading?.parentElement?.className).toContain('text-left');
+    expect(heading?.parentElement?.className).not.toContain('text-center');
     expect(heading?.className).toContain('font-serif');
-    expect(heading?.className).toContain('text-2xl');
+    expect(heading?.className).toContain('text-3xl');
     expect(heading?.className).toContain('font-bold');
     expect(
       heading?.parentElement?.parentElement?.getAttribute('data-slot'),

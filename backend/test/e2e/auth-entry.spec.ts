@@ -199,7 +199,13 @@ test('entry pages are accessible and validate without social entry points', asyn
       'width',
       '128',
     );
-    await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(0);
+    // The only other image is the cover's decorative white wordmark.
+    await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(1);
+    await expect(
+      page.locator(
+        '[aria-hidden="true"] img[alt=""][src*="LEXON-wordmark-compact-white"]',
+      ),
+    ).toHaveCount(1);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
 });

@@ -101,8 +101,8 @@ export function LoginForm({
       )}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-serif text-2xl font-bold">Sign in to Lexon</h1>
+        <div className="flex flex-col items-start gap-1 text-left">
+          <h1 className="font-serif text-3xl font-bold">Sign in to Lexon</h1>
           <p className="text-sm text-balance text-muted-foreground">
             Enter your email and password to continue.
           </p>

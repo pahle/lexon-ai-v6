@@ -26,13 +26,19 @@ export function AuthCard({
   const inAuthFrame = presentation === 'page';
   const content = (
     <>
-      <header className="flex flex-col items-center gap-1 text-center">
+      <header
+        className={
+          inAuthFrame
+            ? 'flex flex-col items-start gap-1 text-left'
+            : 'flex flex-col items-center gap-1 text-center'
+        }
+      >
         <Heading
           className={
             inAuthFrame
-              ? 'font-serif text-2xl font-bold'
+              ? 'font-serif text-3xl font-bold'
               : headingLevel === 1
-                ? 'text-[length:var(--font-size-heading)] leading-[1.5] font-semibold'
+                ? 'font-serif text-3xl leading-[1.2] font-bold'
                 : headingLevel === 2
                   ? 'text-2xl leading-[1.5] font-semibold'
                   : 'text-xl leading-[1.5] font-semibold'
@@ -57,7 +63,7 @@ export function AuthCard({
   );
   const fallbackHeadingClass =
     headingLevel === 1
-      ? 'text-[length:var(--font-size-heading)] leading-[1.5] font-semibold'
+      ? 'font-serif text-3xl leading-[1.2] font-bold'
       : headingLevel === 2
         ? 'text-2xl leading-[1.5] font-semibold'
         : 'text-xl leading-[1.5] font-semibold';
