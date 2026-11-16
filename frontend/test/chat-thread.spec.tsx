@@ -1296,12 +1296,114 @@ it('renders a persisted failed response with a retry action after reload', async
   );
   try {
     await settle();
-    expect(view.container.textContent).toContain(
+    const alerts = view.container.querySelectorAll(
+      '[data-message-id="33333333-3333-4333-8333-333333333333"] [role="alert"]',
+    );
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0]!;
+    expect(alert.getAttribute('data-slot')).toBe('alert');
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
       'The response could not be completed.',
     );
+    const retry = alert.querySelector<HTMLButtonElement>(
+      'button[aria-label="Try again"]',
+    );
+    expect(retry).not.toBeNull();
+    expect(retry?.getAttribute('data-slot')).toBe('button');
+    expect(retry?.className).toContain('border-border');
+    expect(alert.textContent).not.toMatch(/because|due to|error:|timed out/i);
+  } finally {
+    await view.unmount();
+  }
+});
+
+function cancelledTree(): ChatTree {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  return {
+    id: chatId,
+    title: 'Stopped fixture',
+    messages: [
+      {
+        id: userId,
+        role: 'user',
+        parentId: null,
+        text: 'Review this clause',
+        effort: 'high',
+        createdAt: '2026-11-12T00:00:00.000Z',
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333333',
+        role: 'assistant',
+        parentId: userId,
+        runId: '44444444-4444-4444-8444-444444444444',
+        text: 'Partial answer kept',
+        status: 'cancelled',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        createdAt: '2026-11-12T00:00:01.000Z',
+      },
+    ],
+    viewedLeafId: '33333333-3333-4333-8333-333333333333',
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:01.000Z',
+  } as ChatTree;
+}
+
+it('shows a Stopped row with an icon directly above the action bar and keeps the partial text', async () => {
+  const tree = cancelledTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const root = view.container.querySelector(
+      '[data-message-id="33333333-3333-4333-8333-333333333333"]',
+    )!;
+    expect(root.textContent).toContain('Partial answer kept');
+    const row = Array.from(root.querySelectorAll('div,p,span')).find(
+      (element) => element.textContent?.trim() === 'Stopped',
+    )!;
+    expect(row).toBeDefined();
+    expect(row.querySelector('svg')).not.toBeNull();
     expect(
-      view.container.querySelector('[aria-label="Try again"]'),
+      row.nextElementSibling?.querySelector('[aria-label="Copy answer"]'),
     ).not.toBeNull();
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('renders Reconnecting after the last message inside the viewport', async () => {
+  const tree = cancelledTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" reconnecting />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const status = Array.from(
+      view.container.querySelectorAll('[role="status"]'),
+    ).find((element) => element.textContent === 'Reconnecting…')!;
+    expect(status).toBeDefined();
+    const viewport = view.container.querySelector(
+      '[data-slot="aui_thread-viewport"]',
+    )!;
+    expect(viewport.contains(status)).toBe(true);
+    const group = view.container.querySelector(
+      '[data-slot="aui_message-group"]',
+    )!;
+    expect(
+      group.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   } finally {
     await view.unmount();
   }

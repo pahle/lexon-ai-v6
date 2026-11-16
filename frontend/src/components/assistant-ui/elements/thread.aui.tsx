@@ -1,6 +1,7 @@
 'use client';
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +34,8 @@ import {
   ArrowUpIcon,
   Brain as BrainIcon,
   CheckIcon,
+  CircleAlertIcon,
+  CircleStopIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -150,16 +153,6 @@ export const Thread: FC<ThreadProps> = ({
             <AuiIf condition={isHistoryLoadingView}>
               <ThreadHistorySkeleton />
             </AuiIf>
-            {reconnecting ? (
-              <p
-                role="status"
-                aria-live="polite"
-                className="text-muted-foreground mb-3 text-sm"
-              >
-                Reconnecting…
-              </p>
-            ) : null}
-
             <div
               data-slot="aui_message-group"
               className="mb-14 flex flex-col gap-y-6 empty:hidden"
@@ -168,6 +161,15 @@ export const Thread: FC<ThreadProps> = ({
                 {() => <ThreadMessage onFeedback={onFeedback} />}
               </ThreadPrimitive.Messages>
             </div>
+            {reconnecting ? (
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-muted-foreground mb-6 -mt-8 px-2 text-sm"
+              >
+                Reconnecting…
+              </p>
+            ) : null}
 
             <ThreadPrimitive.ViewportFooter
               className={cn(
@@ -328,38 +330,17 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       (metadata?.status === 'cancelled' ||
         (assistantStatus?.type === 'incomplete' &&
           assistantStatus.reason === 'cancelled')) ? (
-        <span className="text-muted-foreground text-xs">Stopped</span>
+        <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+          <CircleStopIcon className="size-3.5" aria-hidden="true" />
+          Stopped
+        </div>
       ) : null}
       {role === 'assistant' && metadata?.status === 'failed' ? (
-        <div
-          role="alert"
-          className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
-        >
-          The response could not be completed.{' '}
-          <ActionBarPrimitive.Reload
-            aria-label="Try again"
-            disabled={serverActive}
-            className="underline"
-          >
-            Try again
-          </ActionBarPrimitive.Reload>
-        </div>
+        <ResponseFailed disabled={serverActive} />
       ) : null}
       <MessagePrimitive.Error>
         {metadata?.status === 'failed' ? null : (
-          <div
-            role="alert"
-            className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
-          >
-            The response could not be completed.{' '}
-            <ActionBarPrimitive.Reload
-              aria-label="Try again"
-              disabled={serverActive}
-              className="underline"
-            >
-              Try again
-            </ActionBarPrimitive.Reload>
-          </div>
+          <ResponseFailed disabled={serverActive} />
         )}
       </MessagePrimitive.Error>
       {role === 'assistant' && announcement.active ? (
@@ -391,6 +372,26 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
     </MessagePrimitive.Root>
   );
 };
+
+const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
+  <Alert className="mt-3">
+    <CircleAlertIcon aria-hidden="true" />
+    <AlertTitle>The response could not be completed.</AlertTitle>
+    <ActionBarPrimitive.Reload
+      aria-label="Try again"
+      disabled={disabled}
+      render={
+        <Button
+          variant="outline"
+          size="sm"
+          className="col-start-2 mt-2 justify-self-start"
+        />
+      }
+    >
+      Try again
+    </ActionBarPrimitive.Reload>
+  </Alert>
+);
 
 const announcementSegmentLength = 160;
 const announcementSegmentIntervalMs = 500;
