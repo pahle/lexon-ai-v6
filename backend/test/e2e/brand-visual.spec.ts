@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
@@ -1669,16 +1669,11 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
   // no tolerance.
   const strictBytes = process.platform === 'linux';
   let pinned: Buffer | undefined;
-  let diagCount = 0;
-  const pinFrame = async (label: string) => {
-    const first = await shot();
-    const firstState = await indicatorState();
-    const second = await shot();
-    const secondState = await indicatorState();
-    await diagnoseFrame(label, first, second, firstState, secondState);
-    expect(second.equals(first), `${label}: two full-page captures`).toBe(true);
-    return second;
-  };
+  const options = {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+  } as const;
   const indicator = page.locator('[data-slot="reasoning-mark"] svg').first();
   const scrollState = () =>
     indicator.evaluate((element) => {
@@ -1703,189 +1698,36 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
         });
       }
     }, positions);
-  /** Animations and SVG attributes of the indicator, read without side effects. */
-  const indicatorState = () =>
-    page.evaluate(() => {
-      const describe = (node: Element | null | undefined) =>
-        node
-          ? `${node.tagName.toLowerCase()}[data-slot=${node.getAttribute('data-slot') ?? ''}][class=${node.getAttribute('class') ?? ''}]`
-          : 'none';
-      const animations = document.getAnimations().map((animation) => {
-        const named = animation as Animation & {
-          animationName?: string;
-          transitionProperty?: string;
-        };
-        return {
-          name: named.animationName ?? named.transitionProperty ?? null,
-          target: describe((animation.effect as KeyframeEffect | null)?.target),
-          playState: animation.playState,
-        };
-      });
-      const svg = document.querySelector('[data-slot="reasoning-mark"] svg');
-      const read = (node: Element, names: string[]) =>
-        Object.fromEntries(
-          names.map((name) => [
-            name,
-            {
-              attribute: node.getAttribute(name),
-              computed: getComputedStyle(node).getPropertyValue(name),
-            },
-          ]),
-        );
-      return {
-        animations,
-        circles: svg
-          ? [...svg.querySelectorAll('circle')].map((node) => ({
-              cx: node.getAttribute('cx'),
-              cy: node.getAttribute('cy'),
-              r: node.getAttribute('r'),
-              ...read(node, ['fill-opacity']),
-            }))
-          : [],
-        paths: svg
-          ? [...svg.querySelectorAll('path')].map((node) => ({
-              dLength: node.getAttribute('d')?.length ?? 0,
-              ...read(node, [
-                'stroke-dashoffset',
-                'stroke-opacity',
-                'fill-opacity',
-              ]),
-            }))
-          : [],
-        outerHTML: svg?.outerHTML ?? null,
-      };
-    });
-  /** Bounding box of differing pixels of two PNGs, computed in the page. */
-  const diffBoxOf = (a: Buffer, b: Buffer) =>
-    page.evaluate(
-      async ([left, right]) => {
-        const load = async (base64: string) => {
-          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-          const bitmap = await createImageBitmap(
-            new Blob([bytes], { type: 'image/png' }),
-          );
-          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-          const context = canvas.getContext('2d')!;
-          context.drawImage(bitmap, 0, 0);
-          return context.getImageData(0, 0, bitmap.width, bitmap.height);
-        };
-        const one = await load(left!);
-        const two = await load(right!);
-        if (one.width !== two.width || one.height !== two.height)
-          return {
-            sizeMismatch: [one.width, one.height, two.width, two.height],
-          };
-        let minX = one.width;
-        let minY = one.height;
-        let maxX = -1;
-        let maxY = -1;
-        let count = 0;
-        for (let y = 0; y < one.height; y++)
-          for (let x = 0; x < one.width; x++) {
-            const i = (y * one.width + x) * 4;
-            if (
-              one.data[i] !== two.data[i] ||
-              one.data[i + 1] !== two.data[i + 1] ||
-              one.data[i + 2] !== two.data[i + 2] ||
-              one.data[i + 3] !== two.data[i + 3]
-            ) {
-              count++;
-              if (x < minX) minX = x;
-              if (y < minY) minY = y;
-              if (x > maxX) maxX = x;
-              if (y > maxY) maxY = y;
-            }
-          }
-        return count === 0
-          ? { box: null, count }
-          : {
-              box: {
-                x: minX,
-                y: minY,
-                width: maxX - minX + 1,
-                height: maxY - minY + 1,
-              },
-              count,
-            };
-      },
-      [a.toString('base64'), b.toString('base64')] as const,
-    );
   /**
-   * Diagnostics for a pair of frozen-frame captures, on every platform. The
-   * element captures run after both full-page captures, and the scroll
-   * position is restored, so they cannot disturb the pair under test.
+   * Warm-up so Chromium's rasterization of the indicator has settled: one
+   * indicator-only screenshot and one full-page screenshot, both discarded. A
+   * capture-only step with no product change; owner decision 2026-11-16.
+   * Chromium rasterizes the same SVG differently after the first screenshot of
+   * a frame. On the 390 px finished frame the indicator is outside the
+   * viewport, so the element screenshot scrolls it into view; the scroll
+   * position is saved and restored around it and asserted, and the full-page
+   * screenshot comes after the restore, so the frame that follows is at the
+   * scroll position it had before the warm-up.
    */
-  const diagnoseFrame = async (
-    label: string,
-    first: Buffer,
-    second: Buffer,
-    firstState: unknown,
-    secondState: unknown,
-  ) => {
-    const info = test.info();
-    const name = `${String(++diagCount).padStart(2, '0')}-${label}`;
-    const indicatorBox = await indicator.boundingBox();
+  const warmUp = async (frame: string) => {
     const saved = await scrollState();
-    const options = {
-      animations: 'disabled',
-      caret: 'hide',
-      scale: 'css',
-    } as const;
-    const elementFirst = await indicator.screenshot(options);
-    const elementSecond = await indicator.screenshot(options);
+    await indicator.screenshot(options);
     await restoreScroll(saved);
-    const diff = await diffBoxOf(first, second);
-    const box = 'box' in diff ? diff.box : null;
-    // Full-page captures are viewport sized (fullPage: false) at scroll
-    // position zero of the viewport, so the box is in viewport coordinates,
-    // the same space as boundingBox(), which is read before any element capture.
-    const intersects =
-      box !== null && indicatorBox !== null
-        ? box.x < indicatorBox.x + indicatorBox.width &&
-          box.x + box.width > indicatorBox.x &&
-          box.y < indicatorBox.y + indicatorBox.height &&
-          box.y + box.height > indicatorBox.y
-        : false;
-    const fullEqual = first.equals(second);
-    const elementEqual = elementFirst.equals(elementSecond);
-    const files: Array<[string, Buffer, string]> = [
-      [`${name}-full-1.png`, first, 'image/png'],
-      [`${name}-full-2.png`, second, 'image/png'],
-      [`${name}-element-1.png`, elementFirst, 'image/png'],
-      [`${name}-element-2.png`, elementSecond, 'image/png'],
-      [
-        `${name}.json`,
-        Buffer.from(
-          JSON.stringify(
-            {
-              label,
-              viewport: page.viewportSize(),
-              theme: await currentTheme(),
-              fullEqual,
-              elementEqual,
-              diff,
-              indicatorBox,
-              intersectsIndicator: intersects,
-              captures: [firstState, secondState],
-            },
-            null,
-            2,
-          ),
-        ),
-        'application/json',
-      ],
-    ];
-    for (const [file, body, contentType] of files) {
-      const path = info.outputPath(file);
-      writeFileSync(path, body);
-      await info.attach(file, { path, contentType });
-    }
-    const boxText = box
-      ? `${box.x},${box.y},${box.width},${box.height}`
-      : 'none';
-    console.log(
-      `[indicator-diag] ${name} fullEqual=${fullEqual} elementEqual=${elementEqual} diffBox=${boxText} intersectsIndicator=${intersects}`,
-    );
+    expect(
+      await scrollState(),
+      `${frame}: scroll restored after warm-up`,
+    ).toEqual(saved);
+    await shot();
+  };
+  const pinFrame = async (frame: string, when: string) => {
+    await warmUp(frame);
+    const first = await shot();
+    const second = await shot();
+    expect(
+      second.equals(first),
+      `${frame}: first vs second full-page capture (${when})`,
+    ).toBe(true);
+    return second;
   };
   /**
    * macOS element check. It runs in the close hook, after the full-page
@@ -1895,11 +1737,6 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
    */
   const checkIndicatorElement = async (label: string) => {
     const before = await scrollState();
-    const options = {
-      animations: 'disabled',
-      caret: 'hide',
-      scale: 'css',
-    } as const;
     const first = await indicator.screenshot(options);
     const second = await indicator.screenshot(options);
     expect(second.equals(first), `${label}: two indicator captures`).toBe(true);
@@ -1935,21 +1772,17 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       page.locator('[data-slot="reasoning-mark"] svg[width="20"]'),
     ).toBeVisible();
   };
-  const playTo = async (ms: number) => {
+  const playTo = async (frame: string, ms: number) => {
     await page.clock.runFor(ms);
-    if (strictBytes) pinned = await pinFrame('before capture');
+    if (strictBytes) pinned = await pinFrame(frame, 'before capture');
+    else await warmUp(frame);
   };
   const closeFrame = async (label: string) => {
-    if (!strictBytes) {
-      const first = await shot();
-      const firstState = await indicatorState();
-      const second = await shot();
-      const secondState = await indicatorState();
-      await diagnoseFrame(label, first, second, firstState, secondState);
-      return checkIndicatorElement(label);
-    }
-    const after = await pinFrame(label);
-    expect(after.equals(pinned!), `${label} frame bytes`).toBe(true);
+    if (!strictBytes) return checkIndicatorElement(label);
+    const after = await pinFrame(label, 'after capture');
+    expect(after.equals(pinned!), `${label}: before vs after capture`).toBe(
+      true,
+    );
     pinned = undefined;
   };
 
@@ -1957,7 +1790,7 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport, true);
-      await playTo(indicatorTimes.thinkingMs);
+      await playTo('chat-thinking', indicatorTimes.thinkingMs);
     },
     close: () => closeFrame('chat-thinking'),
   });
@@ -1967,7 +1800,7 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport);
-      await playTo(indicatorTimes.wanderMs);
+      await playTo('indicator-wander', indicatorTimes.wanderMs);
     },
     close: () => closeFrame('indicator-wander'),
   });
@@ -1975,7 +1808,7 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport);
-      await playTo(markMs);
+      await playTo('indicator-mark', markMs);
     },
     close: () => closeFrame('indicator-mark'),
   });
@@ -1992,7 +1825,7 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       );
       expect(finished).toBe(true);
       await expect(page.getByText('Thought for 14 seconds')).toBeVisible();
-      await playTo(indicatorTimes.finishedOffsetMs);
+      await playTo('indicator-finished', indicatorTimes.finishedOffsetMs);
     },
     close: async (viewport) => {
       await closeFrame('indicator-finished');
