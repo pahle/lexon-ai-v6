@@ -63,7 +63,7 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     page.getByRole('link', { name: 'New chat' }).first(),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Chat actions' }),
+    page.getByRole('button', { name: 'Chat actions', exact: true }),
   ).toBeDisabled();
   const chatHeading = page.locator('#main h1');
   const pageHeading = page.getByRole('heading', { name: 'Chats' });
@@ -347,7 +347,7 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.goto(`${stack.publicUrl}/chats/${chatId}`);
   await expect(breadcrumb).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Chat actions' }),
+    page.getByRole('button', { name: 'Chat actions', exact: true }),
   ).toBeEnabled();
   await expect(
     page.getByRole('button', { name: 'Stop generating' }),
