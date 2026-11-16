@@ -137,9 +137,30 @@ export async function captureBrandView(
   return resolve(setDirectory, `baseline/${id}.png`);
 }
 
-/** Captures one state in light and dark at both viewports. */
-export async function captureBrandViews(page: Page, state: string) {
+/**
+ * Captures one state in light and dark at both viewports. Without hooks the
+ * caller has already put the page in the state. With hooks, the theme and
+ * viewport are applied first, `open` puts the page in the state with
+ * user-like actions for that viewport, and `close` restores the resting page.
+ */
+export async function captureBrandViews(
+  page: Page,
+  state: string,
+  hooks: {
+    open?: (viewport: BrandViewport) => Promise<void>;
+    close?: (viewport: BrandViewport) => Promise<void>;
+  } = {},
+) {
   for (const viewport of brandViewports)
-    for (const theme of brandThemes)
+    for (const theme of brandThemes) {
+      if (hooks.open) {
+        const size = (await readIndex()).viewports[viewport];
+        if (!size) throw new Error(`F4.1 visual index has no ${viewport}.`);
+        await page.setViewportSize(size);
+        await applyTheme(page, theme);
+        await hooks.open(viewport);
+      }
       await captureBrandView(page, state, { theme, viewport });
+      await hooks.close?.(viewport);
+    }
 }

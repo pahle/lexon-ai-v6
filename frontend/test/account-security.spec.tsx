@@ -247,6 +247,33 @@ test('sessions render current first with shared local date and time formatting',
   await view.unmount();
 });
 
+test('the sessions table scrolls inside a focusable, named region', async () => {
+  const view = await render(
+    <SessionList
+      sessions={[
+        {
+          version: 1,
+          id: '00000000-0000-4000-8000-000000000041',
+          channel: 'cookie',
+          createdAt: '2026-11-01T00:00:00Z',
+          expiresAt: '2026-11-08T00:00:00Z',
+          current: true,
+        },
+      ]}
+      onRevoke={async () => {}}
+    />,
+  );
+  const table = view.container.querySelector('table');
+  const wrapper = table?.parentElement;
+  expect(wrapper?.getAttribute('role')).toBe('region');
+  expect(wrapper?.getAttribute('aria-label')).toBe(
+    'Signed-in sessions, scrollable',
+  );
+  expect(wrapper?.getAttribute('tabindex')).toBe('0');
+  expect(wrapper?.className).toContain('overflow-x-auto');
+  await view.unmount();
+});
+
 test('session revoke shows pending, blocks repeats, and keeps confirmation open on failure', async () => {
   let rejectRevoke!: (reason: Error) => void;
   const onRevoke = vi.fn(

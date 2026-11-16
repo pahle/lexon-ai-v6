@@ -72,7 +72,13 @@ export function SessionList({
           description="You are not signed in on any other browsers or devices."
         />
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-[var(--radius)] border border-border">
+        <div
+          role="region"
+          aria-label="Signed-in sessions, scrollable"
+          // Keyboard users must be able to scroll the table sideways.
+          tabIndex={0}
+          className="min-w-0 overflow-x-auto rounded-[var(--radius)] border border-border focus-visible:outline-2 focus-visible:outline-ring"
+        >
           <table
             aria-label="Signed-in sessions"
             className="w-full border-collapse text-left text-sm"

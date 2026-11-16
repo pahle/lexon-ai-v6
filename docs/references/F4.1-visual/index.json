@@ -396,6 +396,390 @@
       "state": "Onboarding",
       "prototypeReference": null,
       "replaces": []
+    },
+    "shell-personal-desktop-light": {
+      "path": "review/shell-personal-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": "00-personal.png",
+      "replaces": []
+    },
+    "shell-personal-desktop-dark": {
+      "path": "review/shell-personal-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-personal-mobile-light": {
+      "path": "review/shell-personal-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-personal-mobile-dark": {
+      "path": "review/shell-personal-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-team-desktop-light": {
+      "path": "review/shell-team-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Shell, team workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-team-desktop-dark": {
+      "path": "review/shell-team-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Shell, team workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-team-mobile-light": {
+      "path": "review/shell-team-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Shell, team workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "shell-team-mobile-dark": {
+      "path": "review/shell-team-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Shell, team workspace",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sidebar-collapsed-desktop-light": {
+      "path": "review/sidebar-collapsed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": "32-collapsed.png",
+      "replaces": []
+    },
+    "sidebar-collapsed-desktop-dark": {
+      "path": "review/sidebar-collapsed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sidebar-collapsed-mobile-light": {
+      "path": "review/sidebar-collapsed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "sidebar-collapsed-mobile-dark": {
+      "path": "review/sidebar-collapsed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "organization-switcher-open-desktop-light": {
+      "path": "review/organization-switcher-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Organization switcher open",
+      "prototypeReference": "30-org-switcher.png",
+      "replaces": []
+    },
+    "organization-switcher-open-desktop-dark": {
+      "path": "review/organization-switcher-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Organization switcher open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "organization-switcher-open-mobile-light": {
+      "path": "review/organization-switcher-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Organization switcher open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "organization-switcher-open-mobile-dark": {
+      "path": "review/organization-switcher-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Organization switcher open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "user-menu-open-desktop-light": {
+      "path": "review/user-menu-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "User menu open",
+      "prototypeReference": "31-user-menu.png",
+      "replaces": []
+    },
+    "user-menu-open-desktop-dark": {
+      "path": "review/user-menu-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "User menu open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "user-menu-open-mobile-light": {
+      "path": "review/user-menu-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "User menu open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "user-menu-open-mobile-dark": {
+      "path": "review/user-menu-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "User menu open",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "mobile-sheet-open-desktop-light": {
+      "path": "review/mobile-sheet-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "mobile-sheet-open-desktop-dark": {
+      "path": "review/mobile-sheet-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "mobile-sheet-open-mobile-light": {
+      "path": "review/mobile-sheet-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "mobile-sheet-open-mobile-dark": {
+      "path": "review/mobile-sheet-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-profile-desktop-light": {
+      "path": "review/settings-profile-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "33-settings-profile.png",
+      "replaces": []
+    },
+    "settings-profile-desktop-dark": {
+      "path": "review/settings-profile-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "44-settings-dark.png",
+      "replaces": []
+    },
+    "settings-profile-mobile-light": {
+      "path": "review/settings-profile-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-profile-mobile-dark": {
+      "path": "review/settings-profile-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-appearance-desktop-light": {
+      "path": "review/settings-appearance-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Appearance",
+      "prototypeReference": "34-settings-appearance.png",
+      "replaces": []
+    },
+    "settings-appearance-desktop-dark": {
+      "path": "review/settings-appearance-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Appearance",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-appearance-mobile-light": {
+      "path": "review/settings-appearance-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Appearance",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-appearance-mobile-dark": {
+      "path": "review/settings-appearance-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Appearance",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-security-desktop-light": {
+      "path": "review/settings-security-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Security",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-security-desktop-dark": {
+      "path": "review/settings-security-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Security",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-security-mobile-light": {
+      "path": "review/settings-security-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Security",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-security-mobile-dark": {
+      "path": "review/settings-security-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Security",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-members-desktop-light": {
+      "path": "review/settings-members-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Members",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-members-desktop-dark": {
+      "path": "review/settings-members-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Members",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-members-mobile-light": {
+      "path": "review/settings-members-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Members",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-members-mobile-dark": {
+      "path": "review/settings-members-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Members",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-invitations-desktop-light": {
+      "path": "review/settings-invitations-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Invitations",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-invitations-desktop-dark": {
+      "path": "review/settings-invitations-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Invitations",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-invitations-mobile-light": {
+      "path": "review/settings-invitations-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Invitations",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-invitations-mobile-dark": {
+      "path": "review/settings-invitations-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Invitations",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-general-desktop-light": {
+      "path": "review/settings-general-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, General",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-general-desktop-dark": {
+      "path": "review/settings-general-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, General",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-general-mobile-light": {
+      "path": "review/settings-general-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, General",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "settings-general-mobile-dark": {
+      "path": "review/settings-general-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, General",
+      "prototypeReference": null,
+      "replaces": []
     }
   }
 }
