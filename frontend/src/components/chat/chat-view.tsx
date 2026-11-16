@@ -31,6 +31,7 @@ import { chatListQueryKey } from '@/lib/chat-queries';
 import { composerClasses } from '@/components/chat/composer-styles';
 import { cn } from 'cn';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
+import { StarterPills } from '@/components/chat/starter-pills';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
@@ -84,6 +85,7 @@ function ChatViewSession({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCreateIdentity = useRef<PendingCreateIdentity | null>(null);
   const bytes = promptByteLength(text);
   const refreshActiveTree = useCallback(() => {
@@ -282,6 +284,7 @@ function ChatViewSession({
       <form onSubmit={submit} className="w-full max-w-[880px]">
         <div data-slot="aui_composer-shell" className={composerClasses.shell}>
           <Textarea
+            ref={textareaRef}
             aria-label="Message input"
             placeholder="Ask Lexon about a contract, a regulation, or a case..."
             value={text}
@@ -358,6 +361,12 @@ function ChatViewSession({
             Your message could not be sent. Please try again.
           </p>
         ) : null}
+        <StarterPills
+          textareaRef={textareaRef}
+          value={text}
+          onValueChange={setText}
+          disabled={sending}
+        />
         <p className="text-muted-foreground mt-3 text-center text-xs">
           Lexon can make mistakes. Verify important legal information.
         </p>

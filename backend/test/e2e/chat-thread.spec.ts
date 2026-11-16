@@ -119,6 +119,33 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
       composer.evaluate((element) => element.getBoundingClientRect().height),
     )
     .toBeGreaterThan(initialHeight);
+  await composer.fill('');
+  const chatPosts: string[] = [];
+  page.on('request', (request) => {
+    if (
+      request.method() === 'POST' &&
+      /\/api\/chats(\/|$|\?)/.test(request.url())
+    )
+      chatPosts.push(request.url());
+  });
+  const clauseTemplate =
+    'Check this clause for risks and missing terms: [paste clause]';
+  await page
+    .getByRole('group', { name: 'Starter prompts' })
+    .getByRole('button', { name: 'Check a clause' })
+    .click();
+  await expect(composer).toHaveValue(clauseTemplate);
+  await expect(composer).toBeFocused();
+  const clauseStart = clauseTemplate.indexOf('[paste clause]');
+  await expect
+    .poll(() =>
+      composer.evaluate((element) => {
+        const area = element as HTMLTextAreaElement;
+        return [area.selectionStart, area.selectionEnd];
+      }),
+    )
+    .toEqual([clauseStart, clauseStart + '[paste clause]'.length]);
+  expect(chatPosts).toEqual([]);
   await composer.fill('   ');
   await expect(sendButton).toBeDisabled();
   await composer.press('Enter');
