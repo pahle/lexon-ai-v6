@@ -418,6 +418,48 @@ export async function captureVisualView(
   }
 }
 
+/**
+ * Opens a menu whose trigger may be clicked before the page has settled
+ * (theme switch, hydration). Retries the click until aria-expanded is true,
+ * never clicking an already-expanded trigger (that would close it), then
+ * re-asserts after the open that the menu did not close by itself.
+ */
+export async function openMenuReliably(
+  page: Page,
+  trigger: Locator,
+  opened: Locator,
+  label: string,
+) {
+  let attempts = 0;
+  await expect(async () => {
+    attempts += 1;
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+      await trigger.click();
+    }
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true', {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 10000 });
+  await expect(opened).toBeVisible();
+  // Re-assert after the open settles: a menu that opens and then closes by
+  // itself must fail here instead of in a later capture step.
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => done(true))),
+  );
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(opened).toBeVisible();
+  const description = `${label} opened after ${attempts} click attempt(s)`;
+  try {
+    test.info().annotations.push({
+      type: 'menu-open-attempts',
+      description,
+    });
+  } catch {
+    // Not inside a running test.
+  }
+  console.log(`[visual] ${description}`);
+}
+
 export async function captureShellReviewView(
   page: Page,
   view: ShellReviewView,
@@ -759,14 +801,14 @@ export async function captureTask9ReviewView(
         : page.locator(
             '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
           );
-    await trigger.click();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    if (view === 'organization-switcher-open')
-      await expect(page.getByTestId('organization-popup')).toBeVisible();
-    else
-      await expect(
-        page.getByRole('menuitem', { name: 'Sign out' }),
-      ).toBeVisible();
+    await openMenuReliably(
+      page,
+      trigger,
+      view === 'organization-switcher-open'
+        ? page.getByTestId('organization-popup')
+        : page.getByRole('menuitem', { name: 'Sign out' }),
+      view,
+    );
   }
   await expect(
     page
