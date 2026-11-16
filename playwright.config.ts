@@ -51,6 +51,7 @@ export default defineConfig({
       testMatch: [
         'backend/test/e2e/chat-runtime-proof.spec.ts',
         'backend/test/e2e/chat-recovery.spec.ts',
+        'backend/test/e2e/indicator-trace.spec.ts',
       ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },

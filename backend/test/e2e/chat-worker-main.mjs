@@ -238,6 +238,15 @@ function createScriptedGateway() {
         ]);
         if (run) run.blocked = false;
         yield { type: 'text', text: 'answer suffix.' };
+      } else if (prompt.includes('[indicator-trace:long]')) {
+        // Deterministic long stream: 800 chunks of "NNNN " at ~16 ms each.
+        for (let index = 0; index < 800; index += 1) {
+          yield {
+            type: 'text',
+            text: `${String(index).padStart(4, '0')} `,
+          };
+          await new Promise((resolve) => setTimeout(resolve, 16));
+        }
       } else if (prompt.includes('[runtime-proof:error]') && count === 1) {
         yield { type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } };
         yield {
