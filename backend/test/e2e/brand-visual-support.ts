@@ -58,10 +58,24 @@ export function brandViewId(
  * The installTask9* row normalizations apply to Settings tables and are
  * installed by the specs that open those pages, not by the auth set.
  */
+export async function runBrandAxe(page: Page, id: string) {
+  const axe = await new AxeBuilder({ page }).withTags(brandAxeTags).analyze();
+  expect(
+    axe.violations.map((violation) => ({
+      id: violation.id,
+      targets: violation.nodes.map((node) => node.target),
+    })),
+    `axe violations in ${id}`,
+  ).toEqual([]);
+}
+
 export async function captureBrandView(
   page: Page,
   state: string,
   { theme, viewport }: { theme: VisualTheme; viewport: BrandViewport },
+  // A held fake clock cannot run axe (its timers never fire), so the
+  // indicator frames run axe separately and pass `axe: false`.
+  options: { axe?: boolean } = {},
 ) {
   const id = brandViewId(state, viewport, theme);
   const index = await readIndex();
@@ -90,14 +104,7 @@ export async function captureBrandView(
     .toBe(true);
   await page.mouse.move(0, 0);
 
-  const axe = await new AxeBuilder({ page }).withTags(brandAxeTags).analyze();
-  expect(
-    axe.violations.map((violation) => ({
-      id: violation.id,
-      targets: violation.nodes.map((node) => node.target),
-    })),
-    `axe violations in ${id}`,
-  ).toEqual([]);
+  if (options.axe !== false) await runBrandAxe(page, id);
 
   const mode = resolveVisualMode({
     approvalPath: resolve(setDirectory, 'approval.json'),
@@ -149,6 +156,8 @@ export async function captureBrandViews(
   hooks: {
     open?: (viewport: BrandViewport) => Promise<void>;
     close?: (viewport: BrandViewport) => Promise<void>;
+    /** Passed to captureBrandView; see its `axe` option. */
+    axe?: boolean;
   } = {},
 ) {
   for (const viewport of brandViewports)
@@ -160,7 +169,12 @@ export async function captureBrandViews(
         await applyTheme(page, theme);
         await hooks.open(viewport);
       }
-      await captureBrandView(page, state, { theme, viewport });
+      await captureBrandView(
+        page,
+        state,
+        { theme, viewport },
+        hooks.axe === undefined ? {} : { axe: hooks.axe },
+      );
       await hooks.close?.(viewport);
     }
 }

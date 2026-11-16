@@ -978,9 +978,20 @@ test('the F4.1 set records every F2.1 and F4 image it supersedes', () => {
   const f41 = Object.keys(read('F4.1-visual/index.json').views);
   for (const entry of record.supersedes)
     assert.ok(
-      entry.replacedBy === null || f41.includes(entry.replacedBy),
-      `${entry.set}:${entry.id} names an unknown replacement`,
+      typeof entry.replacedBy === 'string' && f41.includes(entry.replacedBy),
+      `${entry.set}:${entry.id} needs a replacedBy that is an F4.1 index id`,
     );
+  // Each of the 20 images the owner-approved F2.1 retirement list names
+  // is among the superseded ids.
+  const retiredF21 = read('F2.1-visual/retirements.json').images.map(
+    (image) => image.id,
+  );
+  assert.equal(retiredF21.length, 20);
+  const superseded = new Set(
+    record.supersedes.map((entry) => `${entry.set}:${entry.id}`),
+  );
+  for (const id of retiredF21)
+    assert.ok(superseded.has(`F2.1-visual:${id}`), `${id} is superseded`);
 });
 
 test('the F4.1 index lists every state in four variants and matches the captures', () => {

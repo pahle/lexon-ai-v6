@@ -5,747 +5,747 @@
     "reference": "Owner decision Q2, 2026-11-15",
     "date": "2026-11-15"
   },
-  "note": "The F4.1 set supersedes the F2.1 set (62 active and 20 retired baselines) and the unlocked F4 set. replacedBy names the F4.1 view that covers the same state; it is filled in when the F4.1 captures exist (Task 32B).",
+  "note": "The F4.1 set supersedes the F2.1 set (62 active and 20 retired baselines) and the unlocked F4 set. replacedBy names the F4.1 view that covers the same state, chosen by closest state at the same viewport and theme (Task 32B).",
   "supersedes": [
     {
       "set": "F2.1-visual",
       "id": "sign-in-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-mobile-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-up-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sign-up-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-up-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sign-up-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-up-mobile-light",
-      "replacedBy": null
+      "replacedBy": "sign-up-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-up-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "sign-up-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "forgot-password-desktop-light",
-      "replacedBy": null
+      "replacedBy": "forgot-password-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "forgot-password-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "forgot-password-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "forgot-password-mobile-light",
-      "replacedBy": null
+      "replacedBy": "forgot-password-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "forgot-password-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "forgot-password-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "two-factor-desktop-light",
-      "replacedBy": null
+      "replacedBy": "two-factor-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "two-factor-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "two-factor-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "two-factor-mobile-light",
-      "replacedBy": null
+      "replacedBy": "two-factor-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "two-factor-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "two-factor-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "onboarding-desktop-light",
-      "replacedBy": null
+      "replacedBy": "onboarding-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "onboarding-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "onboarding-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "onboarding-mobile-light",
-      "replacedBy": null
+      "replacedBy": "onboarding-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "onboarding-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "onboarding-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "home-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-new-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "home-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-new-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "home-mobile-light",
-      "replacedBy": null
+      "replacedBy": "chat-new-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "home-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "chat-new-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "profile-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-profile-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "profile-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-profile-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "profile-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-profile-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "profile-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-profile-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "security-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-security-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "security-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-security-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "security-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-security-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "security-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-security-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "appearance-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-appearance-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "appearance-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-appearance-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "appearance-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-appearance-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "appearance-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-appearance-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "members-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-members-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "members-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-members-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "members-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-members-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "members-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-members-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "invitations-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-invitations-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "invitations-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-invitations-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "invitations-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-invitations-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "invitations-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-invitations-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "general-desktop-light",
-      "replacedBy": null
+      "replacedBy": "settings-general-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "general-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "settings-general-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "general-mobile-light",
-      "replacedBy": null
+      "replacedBy": "settings-general-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "general-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "settings-general-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "provisioning-desktop-light",
-      "replacedBy": null
+      "replacedBy": "platform-provisioning-empty-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "provisioning-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "platform-provisioning-empty-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "provisioning-mobile-light",
-      "replacedBy": null
+      "replacedBy": "platform-provisioning-empty-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "provisioning-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "platform-provisioning-empty-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "organization-switcher-open-desktop-light",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "organization-switcher-open-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "organization-switcher-open-mobile-light",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "organization-switcher-open-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "user-menu-open-desktop-light",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "user-menu-open-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "user-menu-open-mobile-light",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "user-menu-open-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-field-errors-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-field-errors-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-field-errors-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-field-errors-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-field-errors-mobile-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-field-errors-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-field-errors-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-field-errors-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-password-shown-loading-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-pending-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-password-shown-loading-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-pending-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-password-shown-loading-mobile-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-pending-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-password-shown-loading-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-pending-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-form-error-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-form-alert-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-form-error-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-form-alert-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-form-error-mobile-light",
-      "replacedBy": null
+      "replacedBy": "sign-in-form-alert-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sign-in-form-error-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "sign-in-form-alert-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "settings-saved-toast-desktop-light",
-      "replacedBy": null
+      "replacedBy": "toast-success-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "settings-saved-toast-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "toast-success-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "settings-saved-toast-mobile-light",
-      "replacedBy": null
+      "replacedBy": "toast-success-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "settings-saved-toast-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "toast-success-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-expanded-desktop-light",
-      "replacedBy": null
+      "replacedBy": "shell-personal-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-expanded-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "shell-personal-desktop-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-expanded-mobile-light",
-      "replacedBy": null
+      "replacedBy": "mobile-sheet-open-mobile-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-expanded-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "mobile-sheet-open-mobile-dark"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-collapsed-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sidebar-collapsed-desktop-light"
     },
     {
       "set": "F2.1-visual",
       "id": "sidebar-header-collapsed-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sidebar-collapsed-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-new-chat-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-new-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-new-chat-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-new-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-deep-thinking-on-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-deep-thinking-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-deep-thinking-on-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-deep-thinking-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-thinking-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-thinking-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-thinking-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-thinking-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-streaming-answer-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-streaming-scroll-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-streaming-answer-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-streaming-scroll-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-reasoning-open-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-open-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-reasoning-open-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-open-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-answer-complete-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-answer-complete-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-copied-and-feedback-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-copied-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-copied-and-feedback-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-copied-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-edit-user-message-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-edit-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-edit-user-message-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-edit-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-edited-branch-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-branch-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-edited-branch-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-branch-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-stopped-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-stopped-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-stopped-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-stopped-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-run-error-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-error-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-run-error-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-error-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-reconnecting-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-reconnecting-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-reconnecting-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reconnecting-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-thread-loading-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-thread-loading-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-thread-loading-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-thread-loading-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chat-actions-menu-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-floating-menu-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chat-actions-menu-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-floating-menu-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-rename-inline-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-rename-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-rename-inline-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-rename-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-delete-confirm-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-delete-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-delete-confirm-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-delete-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-history-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chats-history-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-history-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chats-history-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-search-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chats-search-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-search-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chats-search-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-no-results-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chats-no-results-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-no-results-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chats-no-results-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-empty-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chats-empty-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-empty-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chats-empty-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-new-chat-mobile-light",
-      "replacedBy": null
+      "replacedBy": "chat-new-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "base-new-chat-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "chat-new-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-answer-complete-mobile-light",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "base-answer-complete-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-history-mobile-light",
-      "replacedBy": null
+      "replacedBy": "chats-history-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "base-chats-history-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "chats-history-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "variant-no-signal-completion-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "variant-no-signal-completion-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "variant-measured-no-summary-completion-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "variant-measured-no-summary-completion-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "variant-matching-message-highlight-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chats-search-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "variant-matching-message-highlight-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chats-search-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "variant-stopped-before-answer-desktop-light",
-      "replacedBy": null
+      "replacedBy": "chat-stopped-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "variant-stopped-before-answer-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "chat-stopped-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-organization-switcher-open-desktop-light",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-organization-switcher-open-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-organization-switcher-open-mobile-light",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-organization-switcher-open-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "organization-switcher-open-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-user-menu-open-desktop-light",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-user-menu-open-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-desktop-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-user-menu-open-mobile-light",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-user-menu-open-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "user-menu-open-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-sidebar-expanded-mobile-light",
-      "replacedBy": null
+      "replacedBy": "mobile-sheet-open-mobile-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-sidebar-collapsed-desktop-light",
-      "replacedBy": null
+      "replacedBy": "sidebar-collapsed-desktop-light"
     },
     {
       "set": "F4-visual",
       "id": "navigation-sidebar-expanded-mobile-dark",
-      "replacedBy": null
+      "replacedBy": "mobile-sheet-open-mobile-dark"
     },
     {
       "set": "F4-visual",
       "id": "navigation-sidebar-collapsed-desktop-dark",
-      "replacedBy": null
+      "replacedBy": "sidebar-collapsed-desktop-dark"
     }
   ]
 }

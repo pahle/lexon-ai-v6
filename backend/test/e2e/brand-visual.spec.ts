@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi, readCapturedMail } from './identity-support.js';
@@ -5,6 +7,7 @@ import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
 import { ChatTreeSchema, type ChatMessage } from '@lexon/contracts';
 import {
+  activeRunFrames,
   answer,
   assistantMessage,
   assistantMessageId,
@@ -15,11 +18,14 @@ import {
   installChatFixtures,
   installRunStreamFixture,
   reasoning,
+  runId,
   timestamp,
   userMessage,
   userMessageId,
 } from './chat-state-fixtures.js';
 import {
+  brandViewId,
+  runBrandAxe,
   captureBrandViews,
   brandFixedTime,
   type BrandViewport,
@@ -1255,8 +1261,9 @@ function frozenClock(page: Page) {
     install: () => page.clock.install({ time: new Date(brandFixedTime) }),
     resume: () => page.clock.resume(),
     async hold() {
-      const now = await page.evaluate(() => Date.now());
-      await page.clock.pauseAt(new Date(now + 100));
+      // A constant clock value, so the run starts on the same fake instant
+      // (and on the same animation-frame grid) in every run.
+      await page.clock.pauseAt(new Date(Date.parse(brandFixedTime) + 60_000));
       stepping = true;
       steps = 0;
       loop = (async () => {
@@ -1503,6 +1510,314 @@ test('Chats history, search with highlights, and no results', async ({
         page.getByText('No chats match “hak tanggungan”', { exact: true }),
       ).toBeVisible();
       await calm(page);
+    },
+  });
+});
+
+// Indicator frames. The thinking indicator is driven by the page clock, so
+// these captures alone run with motion allowed. The seed is made deterministic
+// without a product hook: an init script makes the one-word request the
+// indicator uses for its default seed return a fixed value, and the clock is
+// installed, paused before the run starts, and advanced with runFor().
+
+// The capture times and the seed live in one fixture (read by path from the
+// frontend test fixtures; the boundary lint forbids a frontend test from
+// importing docs/) that a frontend unit
+// test (frontend/test/indicator-capture-times.spec.tsx) checks against the
+// real createTimeline(createSeededRandom(seed)), because the backend does not
+// import the frontend (LEXON-02 section 3.4). indicator-mark is the start of
+// the hold of the round's second mark, the instant its drawing has landed.
+const indicatorTimes = JSON.parse(
+  readFileSync(
+    resolve('frontend/test/fixtures/indicator-capture-times.json'),
+    'utf8',
+  ),
+) as {
+  seed: number;
+  thinkingMs: number;
+  wanderMs: number;
+  markMs: number;
+  finishedOffsetMs: number;
+};
+const indicatorSeed = indicatorTimes.seed;
+
+async function installHeldRun(page: Page) {
+  const thinking = activeRunFrames('thinking');
+  const completed = activeRunFrames('streaming-answer').map((frame) => {
+    const copy = JSON.parse(JSON.stringify(frame)) as Record<string, unknown>;
+    if (copy.type === 'snapshot-start') {
+      const snapshot = copy.snapshot as Record<string, unknown>;
+      snapshot.status = 'completed';
+      snapshot.reasoningDurationMs = 14_000;
+    }
+    if (copy.partType === 'text') copy.text = answer;
+    return copy;
+  });
+  await page.addInitScript(
+    ({ seed, fixtureRunId, thinking, completed }) => {
+      const nativeRandom = crypto.getRandomValues.bind(crypto);
+      Object.defineProperty(crypto, 'getRandomValues', {
+        configurable: true,
+        writable: true,
+        value: (array: ArrayBufferView) => {
+          if (array instanceof Uint32Array && array.length === 1) {
+            array[0] = seed;
+            return array;
+          }
+          return nativeRandom(array as Uint8Array<ArrayBuffer>);
+        },
+      });
+      const nativeFetch = window.fetch.bind(window);
+      const held = window as Window & { __finishHeldRun?: () => boolean };
+      window.fetch = async (input, init) => {
+        const requestUrl =
+          typeof input === 'string' || input instanceof URL
+            ? String(input)
+            : input.url;
+        const url = new URL(requestUrl, window.location.href);
+        if (url.pathname !== `/api/runs/${fixtureRunId}/events`)
+          return nativeFetch(input, init);
+        const signal =
+          init?.signal ?? (input instanceof Request ? input.signal : undefined);
+        const encoder = new TextEncoder();
+        const send = (
+          controller: ReadableStreamDefaultController<Uint8Array>,
+          frames: unknown[],
+        ) => {
+          for (const frame of frames)
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(frame)}\n\n`),
+            );
+        };
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            let settled = false;
+            send(controller, thinking);
+            held.__finishHeldRun = () => {
+              if (settled) return false;
+              settled = true;
+              send(controller, completed);
+              controller.close();
+              return true;
+            };
+            signal?.addEventListener(
+              'abort',
+              () => {
+                if (settled) return;
+                settled = true;
+                controller.close();
+              },
+              { once: true },
+            );
+          },
+        });
+        return new Response(body, {
+          status: 200,
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-lexon-stream-recovery-result': 'snapshot',
+          },
+        });
+      };
+    },
+    { seed: indicatorSeed, fixtureRunId: runId, thinking, completed },
+  );
+}
+
+test('indicator frames at fixed times in a held run', async ({ page }) => {
+  test.setTimeout(900_000);
+  const markMs = indicatorTimes.markMs;
+  const env = await startChatStates(page);
+  await installHeldRun(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install({ time: new Date(brandFixedTime) });
+
+  let releaseTree!: () => void;
+  let treeGate = Promise.resolve();
+  await page.route(
+    (url) => url.pathname === `/api/chats/${chatId}`,
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      await treeGate;
+      return route.fallback();
+    },
+  );
+
+  const shot = () =>
+    page.screenshot({
+      fullPage: false,
+      caret: 'hide',
+      animations: 'disabled',
+      scale: 'css',
+    });
+  const currentTheme = async () =>
+    (await page
+      .locator('html')
+      .evaluate((element) => element.classList.contains('dark')))
+      ? 'dark'
+      : 'light';
+  // The clock is paused, so a frame must not move between screenshots.
+  // Owner decision of 2026-11-16, final: the full-page byte check is a Linux
+  // gate only. On Linux the first two full-page screenshots of a frame must be
+  // byte-identical, before and after the capture. On macOS, Chromium under
+  // suite load re-rasterizes a few page pixels between screenshots of an
+  // unchanged, frozen page (the indicator element itself stays stable), so
+  // there the full-page capture is still written but has no byte assertion;
+  // instead the indicator element alone (the 20 px indicator svg inside
+  // [data-slot="reasoning-mark"], the same element in every frame) is
+  // screenshotted twice and the two must be byte-identical, with no retry and
+  // no tolerance.
+  const strictBytes = process.platform === 'linux';
+  let pinned: Buffer | undefined;
+  const pinFrame = async (label: string) => {
+    const first = await shot();
+    const second = await shot();
+    expect(second.equals(first), `${label}: two full-page captures`).toBe(true);
+    return second;
+  };
+  const indicator = page.locator('[data-slot="reasoning-mark"] svg').first();
+  const scrollState = () =>
+    indicator.evaluate((element) => {
+      const positions: number[] = [window.scrollX, window.scrollY];
+      for (let node: Element | null = element; node; node = node.parentElement)
+        positions.push(node.scrollLeft, node.scrollTop);
+      return positions;
+    });
+  const restoreScroll = (positions: number[]) =>
+    indicator.evaluate((element, saved) => {
+      window.scrollTo({ left: saved[0]!, top: saved[1]!, behavior: 'instant' });
+      let index = 2;
+      for (
+        let node: Element | null = element;
+        node;
+        node = node.parentElement
+      ) {
+        node.scrollTo({
+          left: saved[index++]!,
+          top: saved[index++]!,
+          behavior: 'instant',
+        });
+      }
+    }, positions);
+  /**
+   * macOS element check. It runs in the close hook, after the full-page
+   * capture has been written, so the scroll that Playwright does to bring an
+   * off-screen indicator into view (the 390 px finished frame) cannot affect
+   * that capture. The scroll position is restored and compared afterwards.
+   */
+  const checkIndicatorElement = async (label: string) => {
+    const before = await scrollState();
+    const options = {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    } as const;
+    const first = await indicator.screenshot(options);
+    const second = await indicator.screenshot(options);
+    expect(second.equals(first), `${label}: two indicator captures`).toBe(true);
+    await restoreScroll(before);
+    expect(await scrollState(), `${label}: scroll restored`).toEqual(before);
+  };
+
+  /** Loads the thinking thread with the run starting at a known clock value. */
+  const openHeldRun = async (viewport: BrandViewport, thinkingAxe = false) => {
+    await page.clock.resume();
+    env.state = 'thinking';
+    if (thinkingAxe) {
+      // Axe needs live timers, so the thinking thread is checked on a first
+      // load with the clock running; the timed frame loads it again.
+      await page.goto(env.stack.frontendUrl + '/chats/' + chatId);
+      await expect(page.getByText('Thinking…')).toBeVisible();
+      await runBrandAxe(
+        page,
+        brandViewId('chat-thinking', viewport, await currentTheme()),
+      );
+    }
+    treeGate = new Promise<void>((done) => (releaseTree = done));
+    await page.goto(env.stack.frontendUrl + '/chats/' + chatId);
+    await expect(page.locator('#main [role="status"]')).toBeVisible();
+    // Pause with the tree still held, on a 16 ms boundary of the fake clock,
+    // so the run starts at a known clock value on the animation-frame grid
+    // and every later frame is a pure function of runFor().
+    const now = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(new Date(Math.ceil((now + 100) / 16) * 16));
+    releaseTree();
+    await expect(page.getByText('Thinking…')).toBeVisible();
+    await expect(
+      page.locator('[data-slot="reasoning-mark"] svg[width="20"]'),
+    ).toBeVisible();
+  };
+  const playTo = async (ms: number) => {
+    await page.clock.runFor(ms);
+    if (strictBytes) pinned = await pinFrame('before capture');
+  };
+  const closeFrame = async (label: string) => {
+    if (!strictBytes) return checkIndicatorElement(label);
+    const after = await pinFrame(label);
+    expect(after.equals(pinned!), `${label} frame bytes`).toBe(true);
+    pinned = undefined;
+  };
+
+  await captureBrandViews(page, 'chat-thinking', {
+    axe: false,
+    open: async (viewport) => {
+      await openHeldRun(viewport, true);
+      await playTo(indicatorTimes.thinkingMs);
+    },
+    close: () => closeFrame('chat-thinking'),
+  });
+  // wander and mark are not axe-checked: axe hangs on a paused fake clock, and
+  // chat-thinking runs axe on the running indicator.
+  await captureBrandViews(page, 'indicator-wander', {
+    axe: false,
+    open: async (viewport) => {
+      await openHeldRun(viewport);
+      await playTo(indicatorTimes.wanderMs);
+    },
+    close: () => closeFrame('indicator-wander'),
+  });
+  await captureBrandViews(page, 'indicator-mark', {
+    axe: false,
+    open: async (viewport) => {
+      await openHeldRun(viewport);
+      await playTo(markMs);
+    },
+    close: () => closeFrame('indicator-mark'),
+  });
+  await captureBrandViews(page, 'indicator-finished', {
+    axe: false,
+    open: async (viewport) => {
+      await openHeldRun(viewport);
+      await page.clock.runFor(markMs);
+      env.state = 'answer-complete';
+      const finished = await page.evaluate(() =>
+        (
+          window as Window & { __finishHeldRun?: () => boolean }
+        ).__finishHeldRun?.(),
+      );
+      expect(finished).toBe(true);
+      await expect(page.getByText('Thought for 14 seconds')).toBeVisible();
+      await playTo(indicatorTimes.finishedOffsetMs);
+    },
+    close: async (viewport) => {
+      await closeFrame('indicator-finished');
+      // Last, because stepping the clock for axe moves the frame.
+      let axing = true;
+      const stepper = (async () => {
+        while (axing) {
+          await page.clock.runFor(1);
+          await new Promise((done) => setTimeout(done, 5));
+        }
+      })();
+      try {
+        await runBrandAxe(
+          page,
+          brandViewId('indicator-finished', viewport, await currentTheme()),
+        );
+      } finally {
+        axing = false;
+        await stepper;
+      }
     },
   });
 });

@@ -1900,6 +1900,134 @@
       "state": "Recent chat menu in the sidebar",
       "prototypeReference": null,
       "replaces": []
+    },
+    "chat-thinking-desktop-light": {
+      "path": "review/chat-thinking-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": "12-thinking.png",
+      "replaces": []
+    },
+    "chat-thinking-desktop-dark": {
+      "path": "review/chat-thinking-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "chat-thinking-mobile-light": {
+      "path": "review/chat-thinking-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "chat-thinking-mobile-dark": {
+      "path": "review/chat-thinking-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-wander-desktop-light": {
+      "path": "review/indicator-wander-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-wander-desktop-dark": {
+      "path": "review/indicator-wander-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-wander-mobile-light": {
+      "path": "review/indicator-wander-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-wander-mobile-dark": {
+      "path": "review/indicator-wander-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-mark-desktop-light": {
+      "path": "review/indicator-mark-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-mark-desktop-dark": {
+      "path": "review/indicator-mark-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-mark-mobile-light": {
+      "path": "review/indicator-mark-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-mark-mobile-dark": {
+      "path": "review/indicator-mark-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-finished-desktop-light": {
+      "path": "review/indicator-finished-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-finished-desktop-dark": {
+      "path": "review/indicator-finished-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-finished-mobile-light": {
+      "path": "review/indicator-finished-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": null,
+      "replaces": []
+    },
+    "indicator-finished-mobile-dark": {
+      "path": "review/indicator-finished-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": null,
+      "replaces": []
     }
   }
 }
