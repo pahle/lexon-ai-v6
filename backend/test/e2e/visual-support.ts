@@ -865,6 +865,15 @@ export async function captureTask9ReviewView(
     const organizationTrigger = page.locator(
       '[data-slot="sidebar-header"] button[aria-haspopup="menu"]',
     );
+    // The sheet moves initial focus inside on a later animation frame; blur
+    // only after that has happened so it cannot land after the blur.
+    await expect
+      .poll(() =>
+        page
+          .getByRole('dialog', { name: 'Sidebar' })
+          .evaluate((dialog) => dialog.contains(document.activeElement)),
+      )
+      .toBe(true);
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement)
         document.activeElement.blur();

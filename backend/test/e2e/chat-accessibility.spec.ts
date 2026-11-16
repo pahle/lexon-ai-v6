@@ -153,12 +153,29 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
       }
     }
   }
+});
+
+// Runs on the real clock: a fixed browser clock delays the sheet's initial
+// focus, which made the Tab check below flaky.
+test('mobile navigation sheet keeps keyboard focus inside and restores it on close', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Ayu Wardani',
+    email: `chat-accessibility-sheet-${randomUUID()}@example.test`,
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-  await page.evaluate(() => localStorage.setItem('theme', 'light'));
-  await freezeMorningClock(page);
   await page.goto(`${stack.publicUrl}/workspace`);
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
   const skipLink = page.getByRole('link', { name: 'Skip to content' });
   await skipLink.focus();
   await page.keyboard.press('Enter');
@@ -169,6 +186,13 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
   await page.keyboard.press('Enter');
   const sidebar = page.getByRole('dialog', { name: 'Sidebar' });
   await expect(sidebar).toBeVisible();
+  // Initial focus moves into the sheet on a later animation frame; Tab only
+  // once that has happened.
+  await expect
+    .poll(() =>
+      sidebar.evaluate((dialog) => dialog.contains(document.activeElement)),
+    )
+    .toBe(true);
   await page.keyboard.press('Tab');
   expect(
     await sidebar.evaluate((dialog) => dialog.contains(document.activeElement)),
