@@ -17,6 +17,8 @@ import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.
 import { render, settle } from './render.js';
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
   vi.stubGlobal(
     'ResizeObserver',
     class ResizeObserver {
@@ -26,7 +28,10 @@ beforeEach(() => {
     },
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -75,7 +80,14 @@ it('renders an enabled new-chat composer without inventing attachment or model c
       'sr-only',
     );
     expect(view.container.querySelector('h1')?.textContent).toBe('New chat');
-    expect(view.container.textContent).toContain('Welcome, Ada Lovelace');
+    expect(view.container.querySelector('h2')?.textContent).toBe(
+      'Good morning, Ada',
+    );
+    expect(view.container.textContent).not.toContain('Welcome, ');
+    expect(view.container.textContent).not.toContain(
+      'Your legal workspace, ready when you are.',
+    );
+    expect(view.container.querySelector('img')).toBeNull();
     expect(view.container.textContent).toContain('No conversations yet.');
     const input = view.container.querySelector('textarea');
     expect(input?.placeholder).toBe(
@@ -131,7 +143,9 @@ it('unmounts the tenant runtime when its key changes or identity is signed out',
   const view = await render(page('tenant-1'));
   try {
     await view.rerender(page('tenant-2'));
-    expect(view.container.textContent).toContain('Welcome, Ada Lovelace');
+    expect(view.container.querySelector('h2')?.textContent).toBe(
+      'Good morning, Ada',
+    );
     await view.rerender(<></>);
     expect(view.container.querySelector('textarea')).toBeNull();
     expect(run).not.toHaveBeenCalled();

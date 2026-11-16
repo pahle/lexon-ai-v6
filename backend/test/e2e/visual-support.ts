@@ -466,7 +466,7 @@ export async function captureShellReviewView(
   theme: VisualTheme,
   viewport: VisualViewport,
   outputDirectory = '.cache/f21-task6A',
-  expectedHeading = 'Welcome, Checkpoint Preview',
+  expectedHeading = 'Good morning, Checkpoint',
   expandPlatform = false,
 ) {
   await page.setViewportSize(sizes[viewport]);

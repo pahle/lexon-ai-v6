@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { authenticateApi } from './identity-support.js';
 import { descriptor } from './runtime-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -72,7 +73,10 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
       path: '/workspace',
       ready: async () => {
         await expect(
-          page.getByRole('heading', { name: /^Welcome, / }),
+          page.getByRole('heading', {
+            name: 'Good morning, Ayu',
+            exact: true,
+          }),
         ).toBeVisible();
         await expect(
           page.getByRole('textbox', { name: 'Message input' }),
@@ -112,6 +116,7 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
     { name: 'mobile', width: 390, height: 844 },
   ];
 
+  await freezeMorningClock(page);
   await page.goto(`${stack.publicUrl}/workspace`);
   for (const viewport of viewports) {
     await page.setViewportSize({
@@ -152,6 +157,7 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await freezeMorningClock(page);
   await page.goto(`${stack.publicUrl}/workspace`);
   const skipLink = page.getByRole('link', { name: 'Skip to content' });
   await skipLink.focus();

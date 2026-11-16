@@ -445,6 +445,8 @@ it('creates a server chat only after an accepted text send and navigates to its 
     resolveSearchMatch: vi.fn(),
   };
   const push = vi.fn();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
   const view = await render(
     wrapped(
       <ChatView
@@ -466,6 +468,12 @@ it('creates a server chat only after an accepted text send and navigates to its 
     expect(input.className).toContain('field-sizing-content');
     expect(view.container.querySelector('h2')?.className).toContain(
       'font-serif',
+    );
+    expect(view.container.querySelector('h2')?.textContent).toBe(
+      'Good morning, Ada',
+    );
+    expect(view.container.textContent).not.toContain(
+      'Your legal workspace, ready when you are.',
     );
     const send = view.container.querySelector<HTMLButtonElement>(
       '[aria-label="Send message"]',
@@ -507,6 +515,7 @@ it('creates a server chat only after an accepted text send and navigates to its 
         ?.getAttribute('aria-pressed'),
     ).toBe('false');
   } finally {
+    vi.useRealTimers();
     await view.unmount();
   }
 });

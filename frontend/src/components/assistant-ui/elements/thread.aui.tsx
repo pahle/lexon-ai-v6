@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/tooltip';
 import { MarkdownText } from '@/components/chat/markdown-text';
 import { PersistedReasoning } from '@/components/chat/chat-reasoning';
+import { ChatGreeting } from '@/components/chat/chat-greeting';
 import {
   ChatComposerCancel,
   useChatActiveRun,
@@ -538,12 +539,10 @@ const ThreadScrollToBottom: FC = () => (
 
 const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
   <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
-    <h2 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-serif text-2xl font-medium tracking-tight duration-200">
-      Welcome, {displayName}
-    </h2>
-    <p className="text-muted-foreground mt-2 text-sm">
-      Your legal workspace, ready when you are.
-    </p>
+    <ChatGreeting
+      displayName={displayName}
+      className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both duration-200"
+    />
   </div>
 );
 

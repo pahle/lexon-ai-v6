@@ -10,6 +10,7 @@ import {
   ChatTreeSchema,
 } from '@lexon/contracts';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import { freezeMorningClock } from './greeting-clock.js';
 
 export const visualDirectory = resolve('docs/references/F4-visual');
 export const captureDirectory = resolve(visualDirectory, 'captures');
@@ -775,8 +776,11 @@ export async function openState(page: Page, baseUrl: string, state: string) {
     }
     return;
   }
+  await freezeMorningClock(page);
   await page.goto(`${baseUrl}/workspace`);
-  await expect(page.getByText('Welcome, Ayu Wardani')).toBeVisible();
+  await expect(
+    page.getByText('Good morning, Ayu', { exact: true }),
+  ).toBeVisible();
   if (state === 'deep-thinking-on') {
     await page
       .getByRole('textbox', { name: 'Message input' })

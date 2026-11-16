@@ -28,6 +28,7 @@ import { ChatClientError } from '@/lib/chat-errors';
 import { WorkspaceNotFound } from '@/components/states/workspace-not-found';
 import { useWorkspace } from '@/components/shell/workspace-provider';
 import { chatListQueryKey } from '@/lib/chat-queries';
+import { ChatGreeting } from '@/components/chat/chat-greeting';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
@@ -274,12 +275,7 @@ function ChatViewSession({
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
       <div className="mb-6 w-full max-w-3xl">
-        <h2 className="font-serif text-2xl font-medium">
-          Welcome, {displayName}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Your legal workspace, ready when you are.
-        </p>
+        <ChatGreeting displayName={displayName} />
       </div>
       <form onSubmit={submit} className="w-full max-w-3xl">
         <div className="border-border bg-muted/30 focus-within:border-ring rounded-2xl border p-3">

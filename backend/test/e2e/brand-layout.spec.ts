@@ -18,6 +18,7 @@ import {
   type VisualTheme,
   type VisualViewport,
 } from './visual-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 // Layout, behavior, and accessibility assertions that used to live in the
 // F2.1 visual capture spec. The helpers no longer take screenshots or compare
@@ -760,10 +761,14 @@ test('real API-authenticated Home captures Task 6A shell states', async ({
   );
   expect(selected.status()).toBe(200);
 
+  await freezeMorningClock(page);
   const response = await page.goto(stack.frontendUrl + '/workspace');
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole('heading', { name: 'Welcome, Checkpoint Preview' }),
+    page.getByRole('heading', {
+      name: 'Good morning, Checkpoint',
+      exact: true,
+    }),
   ).toBeAttached();
   for (const view of [
     'home',
@@ -1263,8 +1268,11 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   }, team.id);
   expect(requireTwoFactor).toBe(200);
 
+  await freezeMorningClock(page);
   await page.goto(stack.frontendUrl + '/workspace');
-  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Good morning, Maya', exact: true }),
+  ).toBeVisible();
   for (const theme of ['light', 'dark'] as const)
     await captureCheckpointCView(page, 'home', theme);
   await captureTask9Variants(page, 'home', 'New chat');

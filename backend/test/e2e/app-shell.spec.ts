@@ -2,6 +2,7 @@ import { test, expect, type Locator, type Route } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 test('F2 shell keeps New chat framed, collapses across reload, and renders scoped not-found routes', async ({
   page,
@@ -54,6 +55,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
       chatRequests.push(`${request.method()} ${url.pathname}${url.search}`);
     }
   });
+  await freezeMorningClock(page);
   await page.goto(stack.frontendUrl + '/workspace');
   const decodedAssetWidths = await page.evaluate(
     async (paths) => {
@@ -78,7 +80,9 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ).toHaveAttribute('aria-current', 'page');
   const message = page.getByRole('textbox', { name: 'Message input' });
   await expect(message).toBeEnabled();
-  await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Good morning, E2E', exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Send message' }),
   ).toBeDisabled();
@@ -466,8 +470,11 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     data: { organizationId: id },
   });
   await page.setViewportSize({ width: 768, height: 720 });
+  await freezeMorningClock(page);
   await page.goto(`${stack.frontendUrl}/workspace`);
-  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Good morning, E2E', exact: true }),
+  ).toBeVisible();
   const composerInput = page.getByRole('textbox', { name: 'Message input' });
   const send = page.getByRole('button', {
     name: 'Send message',
