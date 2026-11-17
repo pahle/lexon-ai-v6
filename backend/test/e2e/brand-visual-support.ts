@@ -6,10 +6,17 @@ import { resolve } from 'node:path';
 import {
   assertApprovedVisualSet,
   assertIndexedArtifact,
+  isPixelLocked,
+  hasSvgSnapshot,
   resolveVisualMode,
   visualSetDirectory,
   type VisualIndex,
 } from '../../../scripts/visual-mode.mjs';
+import {
+  assertStableSvgRead,
+  checkSvgSnapshot,
+  isSvgSnapshotUpdate,
+} from '../../../scripts/svg-snapshot.mjs';
 import { applyTheme, type VisualTheme } from './visual-support.js';
 
 export type BrandViewport = 'desktop' | 'mobile';
@@ -39,6 +46,65 @@ function readIndex() {
     (contents) => JSON.parse(contents) as VisualIndex,
   );
   return indexPromise;
+}
+
+/** False for an index view whose lock is an SVG snapshot, not a pixel golden. */
+export async function isBrandViewPixelLocked(id: string) {
+  const view = (await readIndex()).views[id];
+  if (!view) throw new Error(`F4.1 visual index has no entry for "${id}".`);
+  return isPixelLocked(view);
+}
+
+const svgSnapshotResults: { id: string; error?: string }[] = [];
+
+/**
+ * Locks the indicator SVG markup of one frame. The markup is read twice and
+ * the reads must be equal; then it is compared byte for byte with the
+ * committed snapshot, or written there when LEXON_SVG_SNAPSHOT_UPDATE=1.
+ * Nothing is normalized: the indicator markup has no generated ids. A
+ * mismatch is recorded, not thrown, so one run reports every frame;
+ * assertSvgSnapshotsMatched fails once at the end with the full list.
+ */
+export async function snapshotIndicatorSvg(
+  id: string,
+  read: () => Promise<string>,
+) {
+  try {
+    const first = await read();
+    assertStableSvgRead(id, first, await read());
+    checkSvgSnapshot({
+      file: resolve(setDirectory, 'indicator-svg-snapshots.json'),
+      id,
+      markup: first,
+      update: isSvgSnapshotUpdate(),
+    });
+    svgSnapshotResults.push({ id });
+    console.log(`SVGSNAP ${id} match`);
+  } catch (error) {
+    svgSnapshotResults.push({ id, error: (error as Error).message });
+    console.log(`SVGSNAP ${id} MISMATCH`);
+  }
+}
+
+/** Fails once, listing every frame whose SVG snapshot check failed. */
+export function assertSvgSnapshotsMatched() {
+  const failed = svgSnapshotResults.filter((result) => result.error);
+  const summary = svgSnapshotResults
+    .map((result) => `${result.id}: ${result.error ? 'MISMATCH' : 'match'}`)
+    .join('\n');
+  svgSnapshotResults.length = 0;
+  if (failed.length > 0)
+    throw new Error(
+      `${failed.length} indicator SVG snapshot mismatches.\n${summary}\n\n` +
+        failed.map((result) => `${result.id}\n${result.error}`).join('\n\n'),
+    );
+}
+
+/** False only for a view locked by the engine tests alone. */
+export async function isBrandViewSvgSnapshotted(id: string) {
+  const view = (await readIndex()).views[id];
+  if (!view) throw new Error(`F4.1 visual index has no entry for "${id}".`);
+  return hasSvgSnapshot(view);
 }
 
 export function brandViewId(
@@ -133,6 +199,8 @@ export async function captureBrandView(
     });
     validatedSets.add(validationKey);
   }
+  // An svg-snapshot view has no pixel golden; its caller locks the markup.
+  if (!isPixelLocked(view)) return resolve(captureDirectory, view.path);
   if (mode === 'compare')
     assertIndexedArtifact(index, id, setDirectory, { mode });
   await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {

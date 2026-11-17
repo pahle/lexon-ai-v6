@@ -13,6 +13,7 @@ export type VisualIndex = {
       state?: string;
       source?: string;
       applicability?: string;
+      lock?: 'svg-snapshot' | 'engine-tests';
     }
   >;
 };
@@ -75,6 +76,11 @@ export type VisualBaselineManifest = {
   viewCount: number;
   images: Record<string, ApprovedVisualImage>;
 };
+export function hasSvgSnapshot(view: { lock?: string }): boolean;
+export function isPixelLocked(view: { lock?: string }): boolean;
+export function pixelLockedViews(index: {
+  views: Record<string, { lock?: string }>;
+}): Record<string, { lock?: string }>;
 export function isSnapshotUpdateEnabled(
   updateSnapshots: 'all' | 'changed' | 'missing' | 'none' | 'default',
 ): boolean;

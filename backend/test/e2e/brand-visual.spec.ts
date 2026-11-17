@@ -25,6 +25,10 @@ import {
 } from './chat-state-fixtures.js';
 import {
   brandViewId,
+  isBrandViewPixelLocked,
+  isBrandViewSvgSnapshotted,
+  snapshotIndicatorSvg,
+  assertSvgSnapshotsMatched,
   runBrandAxe,
   captureBrandViews,
   brandFixedTime,
@@ -1624,6 +1628,10 @@ async function installHeldRun(page: Page) {
   );
 }
 
+// Constant pause instant, a few fake seconds after the clock install; the
+// page load takes about 1.5 s of fake time, and a longer jump broke the run.
+const holdOffsetMs = 3_000;
+
 test('indicator frames at fixed times in a held run', async ({ page }) => {
   test.setTimeout(900_000);
   const markMs = indicatorTimes.markMs;
@@ -1656,17 +1664,23 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       .evaluate((element) => element.classList.contains('dark')))
       ? 'dark'
       : 'light';
-  // The clock is paused, so a frame must not move between screenshots.
-  // Owner decision of 2026-11-16, final: the full-page byte check is a Linux
-  // gate only. On Linux the first two full-page screenshots of a frame must be
-  // byte-identical, before and after the capture. On macOS, Chromium under
-  // suite load re-rasterizes a few page pixels between screenshots of an
-  // unchanged, frozen page (the indicator element itself stays stable), so
-  // there the full-page capture is still written but has no byte assertion;
-  // instead the indicator element alone (the 20 px indicator svg inside
-  // [data-slot="reasoning-mark"], the same element in every frame) is
-  // screenshotted twice and the two must be byte-identical, with no retry and
-  // no tolerance.
+  // The clock is paused, so a frame must not move between captures.
+  // Owner decision of 2026-11-16: on Linux, Chromium rasterizes the identical
+  // indicator SVG differently between captures (max channel diff 14/255, only
+  // inside the indicator), so the animating frames (chat-thinking,
+  // indicator-wander, indicator-mark) carry `"lock": "svg-snapshot"` in the
+  // index. Their full-page screenshots are still written in capture mode for
+  // review, with no byte assertion on any platform; their lock is a normalized
+  // snapshot of the indicator SVG markup (see snapshotFrame). A frame without
+  // that lock (indicator-finished, the static mark) keeps the strict checks
+  // below: the full-page byte check is a Linux gate only. On Linux the first
+  // two full-page screenshots must be byte-identical, before and after the
+  // capture. On macOS, Chromium under suite load re-rasterizes a few page
+  // pixels between screenshots of an unchanged, frozen page (the indicator
+  // element itself stays stable), so there the full-page capture has no byte
+  // assertion; instead the indicator element alone (the 20 px indicator svg
+  // inside [data-slot="reasoning-mark"]) is screenshotted twice and the two
+  // must be byte-identical, with no retry and no tolerance.
   const strictBytes = process.platform === 'linux';
   let pinned: Buffer | undefined;
   const options = {
@@ -1699,7 +1713,11 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       }
     }, positions);
   /**
-   * Warm-up so Chromium's rasterization of the indicator has settled: one
+   * Warm-up, kept only for the frames that are still pixel-locked
+   * (indicator-finished): the strict Linux full-page check and the macOS
+   * element check were measured with it and stay as they were. The
+   * SVG-snapshot frames read markup and need no warm-up. Chromium's
+   * rasterization of the indicator settles with one
    * indicator-only screenshot and one full-page screenshot, both discarded. A
    * capture-only step with no product change; owner decision 2026-11-16.
    * Chromium rasterizes the same SVG differently after the first screenshot of
@@ -1761,23 +1779,52 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     treeGate = new Promise<void>((done) => (releaseTree = done));
     await page.goto(env.stack.frontendUrl + '/chats/' + chatId);
     await expect(page.locator('#main [role="status"]')).toBeVisible();
-    // Pause with the tree still held, on a 16 ms boundary of the fake clock,
-    // so the run starts at a known clock value on the animation-frame grid
-    // and every later frame is a pure function of runFor().
+    // Exact start. Pause the clock at a constant instant first, with the tree
+    // held (the run's start reaches the page only through the tree; the
+    // stream is requested later, on a page timer, which cannot fire while the
+    // clock is paused). Then release the tree; no fake time passes while the
+    // indicator registers the run, so its start is the same performance.now()
+    // value in every run and every later frame is a pure function of runFor().
+    const pauseTarget = Date.parse(brandFixedTime) + holdOffsetMs;
     const now = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(new Date(Math.ceil((now + 100) / 16) * 16));
+    expect(now, 'page load finished before the pause instant').toBeLessThan(
+      pauseTarget,
+    );
+    await page.clock.pauseAt(new Date(pauseTarget));
     releaseTree();
     await expect(page.getByText('Thinking…')).toBeVisible();
+    // The indicator has registered the run once its svg holds the first draw
+    // state: the renderer appends its circles in the same effect that notes
+    // the start. No fake time advances while this is polled.
     await expect(
-      page.locator('[data-slot="reasoning-mark"] svg[width="20"]'),
-    ).toBeVisible();
+      page
+        .locator('[data-slot="reasoning-mark"] svg[width="20"] circle')
+        .first(),
+    ).toBeAttached();
   };
-  const playTo = async (frame: string, ms: number) => {
+  const frameId = async (frame: string, viewport: BrandViewport) =>
+    brandViewId(frame, viewport, await currentTheme());
+  /**
+   * Advances the held run to a frame and locks its indicator SVG markup (two
+   * equal reads, then a byte comparison with the committed snapshot). Only a
+   * frame that is still pixel-locked in the index also gets the full-page
+   * byte checks.
+   */
+  const playTo = async (frame: string, viewport: BrandViewport, ms: number) => {
     await page.clock.runFor(ms);
+    const id = await frameId(frame, viewport);
+    // A frame locked by the engine tests ("lock": "engine-tests") has no
+    // SVG snapshot: its markup is not stable across runs.
+    if (await isBrandViewSvgSnapshotted(id))
+      await snapshotIndicatorSvg(id, () =>
+        indicator.evaluate((element) => element.outerHTML),
+      );
+    if (!(await isBrandViewPixelLocked(id))) return;
     if (strictBytes) pinned = await pinFrame(frame, 'before capture');
     else await warmUp(frame);
   };
-  const closeFrame = async (label: string) => {
+  const closeFrame = async (label: string, viewport: BrandViewport) => {
+    if (!(await isBrandViewPixelLocked(await frameId(label, viewport)))) return;
     if (!strictBytes) return checkIndicatorElement(label);
     const after = await pinFrame(label, 'after capture');
     expect(after.equals(pinned!), `${label}: before vs after capture`).toBe(
@@ -1790,9 +1837,9 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport, true);
-      await playTo('chat-thinking', indicatorTimes.thinkingMs);
+      await playTo('chat-thinking', viewport, indicatorTimes.thinkingMs);
     },
-    close: () => closeFrame('chat-thinking'),
+    close: (viewport) => closeFrame('chat-thinking', viewport),
   });
   // wander and mark are not axe-checked: axe hangs on a paused fake clock, and
   // chat-thinking runs axe on the running indicator.
@@ -1800,17 +1847,17 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport);
-      await playTo('indicator-wander', indicatorTimes.wanderMs);
+      await playTo('indicator-wander', viewport, indicatorTimes.wanderMs);
     },
-    close: () => closeFrame('indicator-wander'),
+    close: (viewport) => closeFrame('indicator-wander', viewport),
   });
   await captureBrandViews(page, 'indicator-mark', {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport);
-      await playTo('indicator-mark', markMs);
+      await playTo('indicator-mark', viewport, markMs);
     },
-    close: () => closeFrame('indicator-mark'),
+    close: (viewport) => closeFrame('indicator-mark', viewport),
   });
   await captureBrandViews(page, 'indicator-finished', {
     axe: false,
@@ -1825,10 +1872,14 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       );
       expect(finished).toBe(true);
       await expect(page.getByText('Thought for 14 seconds')).toBeVisible();
-      await playTo('indicator-finished', indicatorTimes.finishedOffsetMs);
+      await playTo(
+        'indicator-finished',
+        viewport,
+        indicatorTimes.finishedOffsetMs,
+      );
     },
     close: async (viewport) => {
-      await closeFrame('indicator-finished');
+      await closeFrame('indicator-finished', viewport);
       // Last, because stepping the clock for axe moves the frame.
       let axing = true;
       const stepper = (async () => {
@@ -1848,4 +1899,5 @@ test('indicator frames at fixed times in a held run', async ({ page }) => {
       }
     },
   });
+  assertSvgSnapshotsMatched();
 });

@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import {
   invalidateRecapturedApproval,
+  pixelLockedViews,
   visualSetDirectory,
 } from '../visual-mode.mjs';
 
@@ -26,7 +27,9 @@ assert.ok(
   ['awaiting-owner', 'approved'].includes(approval.status),
   'visual approval status is recognized',
 );
-const reviewViews = Object.entries(index.views).filter(([, view]) =>
+// svg-snapshot views are not pixel goldens: no hash, no approval, no byte
+// comparison between captures.
+const reviewViews = Object.entries(pixelLockedViews(index)).filter(([, view]) =>
   view.path.startsWith('review/'),
 );
 if (isLegacySet)

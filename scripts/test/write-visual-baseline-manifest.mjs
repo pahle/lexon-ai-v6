@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import {
   assertApprovalSourceReachable,
   buildVisualBaselineManifest,
+  pixelLockedViews,
   visualSetDirectory,
 } from '../visual-mode.mjs';
 
@@ -81,7 +82,7 @@ try {
       generatedAt: new Date().toISOString(),
       expectedViewCount: isLegacySet
         ? 82
-        : Object.values(index.views).filter((view) =>
+        : Object.values(pixelLockedViews(index)).filter((view) =>
             view.path?.startsWith('review/'),
           ).length,
       approvalSha256: sha256(approvalBytes),

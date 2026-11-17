@@ -1907,7 +1907,8 @@
       "theme": "light",
       "state": "Thinking thread, indicator and Stop generating",
       "prototypeReference": "12-thinking.png",
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "chat-thinking-desktop-dark": {
       "path": "review/chat-thinking-desktop-dark.png",
@@ -1915,7 +1916,8 @@
       "theme": "dark",
       "state": "Thinking thread, indicator and Stop generating",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "chat-thinking-mobile-light": {
       "path": "review/chat-thinking-mobile-light.png",
@@ -1923,7 +1925,8 @@
       "theme": "light",
       "state": "Thinking thread, indicator and Stop generating",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "chat-thinking-mobile-dark": {
       "path": "review/chat-thinking-mobile-dark.png",
@@ -1931,7 +1934,8 @@
       "theme": "dark",
       "state": "Thinking thread, indicator and Stop generating",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "indicator-wander-desktop-light": {
       "path": "review/indicator-wander-desktop-light.png",
@@ -1939,7 +1943,8 @@
       "theme": "light",
       "state": "Thinking indicator, dots wandering 8 s into a run",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "engine-tests"
     },
     "indicator-wander-desktop-dark": {
       "path": "review/indicator-wander-desktop-dark.png",
@@ -1947,7 +1952,8 @@
       "theme": "dark",
       "state": "Thinking indicator, dots wandering 8 s into a run",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "engine-tests"
     },
     "indicator-wander-mobile-light": {
       "path": "review/indicator-wander-mobile-light.png",
@@ -1955,7 +1961,8 @@
       "theme": "light",
       "state": "Thinking indicator, dots wandering 8 s into a run",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "engine-tests"
     },
     "indicator-wander-mobile-dark": {
       "path": "review/indicator-wander-mobile-dark.png",
@@ -1963,7 +1970,8 @@
       "theme": "dark",
       "state": "Thinking indicator, dots wandering 8 s into a run",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "engine-tests"
     },
     "indicator-mark-desktop-light": {
       "path": "review/indicator-mark-desktop-light.png",
@@ -1971,7 +1979,8 @@
       "theme": "light",
       "state": "Thinking indicator, drawn mark held (second mark of the round)",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "indicator-mark-desktop-dark": {
       "path": "review/indicator-mark-desktop-dark.png",
@@ -1979,7 +1988,8 @@
       "theme": "dark",
       "state": "Thinking indicator, drawn mark held (second mark of the round)",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "indicator-mark-mobile-light": {
       "path": "review/indicator-mark-mobile-light.png",
@@ -1987,7 +1997,8 @@
       "theme": "light",
       "state": "Thinking indicator, drawn mark held (second mark of the round)",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "indicator-mark-mobile-dark": {
       "path": "review/indicator-mark-mobile-dark.png",
@@ -1995,7 +2006,8 @@
       "theme": "dark",
       "state": "Thinking indicator, drawn mark held (second mark of the round)",
       "prototypeReference": null,
-      "replaces": []
+      "replaces": [],
+      "lock": "svg-snapshot"
     },
     "indicator-finished-desktop-light": {
       "path": "review/indicator-finished-desktop-light.png",

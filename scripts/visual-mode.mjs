@@ -6,6 +6,36 @@ export function isSnapshotUpdateEnabled(updateSnapshots) {
   return ['all', 'changed', 'missing'].includes(updateSnapshots);
 }
 
+/**
+ * An index view is a pixel golden unless it carries a `lock`. Its screenshot
+ * is then captured for owner review only, and the regression lock is:
+ * - "svg-snapshot": a committed SVG snapshot (scripts/svg-snapshot.mjs);
+ * - "engine-tests": none at the page level; the frame is covered by the
+ *   engine unit tests and the timeline fixture guard.
+ */
+export function isPixelLocked(view) {
+  if (view.lock === undefined) return true;
+  if (view.lock === 'svg-snapshot' || view.lock === 'engine-tests')
+    return false;
+  throw new Error(`Unknown visual lock "${view.lock}".`);
+}
+
+/**
+ * True when a view's indicator SVG is compared with the committed snapshot:
+ * every view except one locked by the engine tests alone. A pixel-locked view
+ * (indicator-finished) keeps its golden and also has a snapshot.
+ */
+export function hasSvgSnapshot(view) {
+  return view.lock !== 'engine-tests';
+}
+
+/** The index views that are pixel goldens, as an id-to-view object. */
+export function pixelLockedViews(index) {
+  return Object.fromEntries(
+    Object.entries(index.views).filter(([, view]) => isPixelLocked(view)),
+  );
+}
+
 export const DEFAULT_VISUAL_SET = 'F4.1-visual';
 
 /** The directory of a visual set under docs/references (default: F4.1). */
@@ -124,6 +154,7 @@ export function assertIndexedArtifact(
   const view = index.views?.[id];
   if (!view) throw new Error(`Visual index has no entry for view "${id}".`);
   assertReviewPath(id, view.path, directory, 'review');
+  if (mode !== 'capture' && !isPixelLocked(view)) return null;
   const relativePath =
     mode === 'capture'
       ? view.path
@@ -262,9 +293,16 @@ export function assertApprovedVisualSet(
     );
   }
 
-  const indexedViews = Object.entries(index.views).filter(([, view]) =>
-    view.path?.startsWith('review/'),
+  const indexedViews = Object.entries(index.views).filter(
+    ([, view]) => view.path?.startsWith('review/') && isPixelLocked(view),
   );
+  const approvedUnlocked = Object.keys(approval.images ?? {}).find(
+    (id) => index.views[id] && !isPixelLocked(index.views[id]),
+  );
+  if (approvedUnlocked)
+    throw new Error(
+      `Approved visual image "${approvedUnlocked}" is ${index.views[approvedUnlocked].lock} locked and has no pixel golden.`,
+    );
   if (indexedViews.length !== expectedViewCount) {
     throw new Error(
       `Visual index has ${indexedViews.length} review views; expected ${expectedViewCount}.`,
