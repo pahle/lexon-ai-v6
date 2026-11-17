@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "sourceSha": "16330c5c5dcd3f15f0be7366eddeef1347520beb",
-  "capturedAt": "2026-11-17T13:47:45.076Z",
+  "sourceSha": "ecd0c9626e430883b0808f123bd9672c2c348289",
+  "capturedAt": "2026-11-17T16:09:02.722Z",
   "environment": {
     "os": "Linux 7.0.0-1017-azure (linux/x64)",
     "browser": "Chromium 156.0.8078.4",
@@ -989,7 +989,7 @@
     },
     "toast-success-mobile-dark": {
       "path": "review/toast-success-mobile-dark.png",
-      "sha256": "ea2f9725432bd1c1a7c7151ed3b91bdc4de3072d797053d7f594f6f67f086ce3",
+      "sha256": "e1299a78a52c27c30c1a33a42bc63e3be9f4c7df1eca81b6736f497a7868dfb8",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1080,7 +1080,7 @@
     },
     "chat-deep-thinking-desktop-light": {
       "path": "review/chat-deep-thinking-desktop-light.png",
-      "sha256": "b0b5ca99f8ae9aa5ada45d5c5f83ad63505821d3f65e78fc837280c93980e08e",
+      "sha256": "dbf7824697986e03f5d8a2b6ba3c6493a45a5afb64da1c2cfad6e1528ce7646e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1122,7 +1122,7 @@
     },
     "chat-starter-pill-mobile-light": {
       "path": "review/chat-starter-pill-mobile-light.png",
-      "sha256": "25e575766628bb11697f5075fc067e957d94d2817b46fbc2676dfc2976666588",
+      "sha256": "a84a5d7a90a196b0cd98c62b4730b64168ce4b331713294e270e3b254aa45ddd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1150,7 +1150,7 @@
     },
     "chat-streaming-scroll-mobile-light": {
       "path": "review/chat-streaming-scroll-mobile-light.png",
-      "sha256": "3f1e42d2d3df23b3b760b2407d70c01a343d17e01f7ea39366a365d5969b1858",
+      "sha256": "8f90a5852b40469860d4054db16bab04c007a65daf59ed62a7b3b2e294bcf6fd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1171,21 +1171,21 @@
     },
     "chat-reasoning-collapsed-desktop-dark": {
       "path": "review/chat-reasoning-collapsed-desktop-dark.png",
-      "sha256": "122a2d63fc31f2dccd5581fb9d31c551bbf80908498d4f2c2c4fc5a83d02d4f8",
+      "sha256": "3f406454129d631a2d51446469691e38e9e9a7cfddcc9005844dafd31d9d5e26",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-mobile-light": {
       "path": "review/chat-reasoning-collapsed-mobile-light.png",
-      "sha256": "881b411b2a5f44fd378277d95caf5c00146c6c5c0106ac9656c8c56006082fd7",
+      "sha256": "bb87ff056c01f9fd293ccaa03c495d3e20798aa71edb7e520fddc62cb970755f",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-mobile-dark": {
       "path": "review/chat-reasoning-collapsed-mobile-dark.png",
-      "sha256": "356c56b8db8c5a867aa520475a8c3ff2fe67beb091776a9add75eff904aef5b4",
+      "sha256": "1b17bc10d297613e3f12b433a15a4713cb29b6bddafdde7c843edbab6b51fcfb",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1234,14 +1234,14 @@
     },
     "chat-answer-actions-mobile-light": {
       "path": "review/chat-answer-actions-mobile-light.png",
-      "sha256": "881b411b2a5f44fd378277d95caf5c00146c6c5c0106ac9656c8c56006082fd7",
+      "sha256": "bb87ff056c01f9fd293ccaa03c495d3e20798aa71edb7e520fddc62cb970755f",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-answer-actions-mobile-dark": {
       "path": "review/chat-answer-actions-mobile-dark.png",
-      "sha256": "1b17bc10d297613e3f12b433a15a4713cb29b6bddafdde7c843edbab6b51fcfb",
+      "sha256": "356c56b8db8c5a867aa520475a8c3ff2fe67beb091776a9add75eff904aef5b4",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1269,7 +1269,7 @@
     },
     "chat-copied-mobile-dark": {
       "path": "review/chat-copied-mobile-dark.png",
-      "sha256": "fca41c5e0a1fbaebf99bda36a05cbe6790c5985cab15e6bfc1f687e8f35815a4",
+      "sha256": "ddbc356d0c81cddb5ddf914536091590b0e394be5bc6802755687404bb693b15",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1290,7 +1290,7 @@
     },
     "chat-feedback-mobile-light": {
       "path": "review/chat-feedback-mobile-light.png",
-      "sha256": "796062ca8800ea5f44f3afdf356d24ee2b89028253a9e78a8ac434b41548ae5f",
+      "sha256": "bb97f03cbef9fcd23e31e378c765b4253e52c9cbc8dadec7feda9d62e9d5079d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1325,35 +1325,35 @@
     },
     "chat-edit-mobile-dark": {
       "path": "review/chat-edit-mobile-dark.png",
-      "sha256": "6ee07702f0af7686c35f66ee574e37b80701b4270b91c747f76177b6eda8fdd1",
+      "sha256": "8ab6d776ec7ba011a3f46e6ed02fd4cdfd8b4e016192de5e6c4e6b16f3f3cd0a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-branch-desktop-light": {
       "path": "review/chat-branch-desktop-light.png",
-      "sha256": "15d3f9769e6e1cd42d1d14cc6f64a21ceef0e6e33fae34816dd660f54be0d5cd",
+      "sha256": "0582321d9f5c5228e9a8c832b7f1d34a58b20e1364496fa90ebec12b2e356336",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-branch-desktop-dark": {
       "path": "review/chat-branch-desktop-dark.png",
-      "sha256": "b41afa00eeba463cf66f8175acb1c227dc7018fc99e5d9b5d932e01f7ef6f4fb",
+      "sha256": "c9c17b61a940d5c595cbff9161365c96c7ccf03a7fb0b8d228abcce6a2d57100",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-branch-mobile-light": {
       "path": "review/chat-branch-mobile-light.png",
-      "sha256": "35eb7a2968c75bf58b646273badb554630f166b725c59339364b254d7fe7e8dd",
+      "sha256": "83bd084b9d2821fb95e28a7eb79ef4a8646b5031c1abf44378803695808a63cd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-branch-mobile-dark": {
       "path": "review/chat-branch-mobile-dark.png",
-      "sha256": "c41b5f39ca5b0a82c2e07900b5fa989d8af5d2d43f8e7f7a87281878b85d3a58",
+      "sha256": "d0464bd6791a1afad37288f7421cac34d692305203f6c7840a8b872fad931720",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1374,14 +1374,14 @@
     },
     "chat-stopped-mobile-light": {
       "path": "review/chat-stopped-mobile-light.png",
-      "sha256": "3bb7314c79bbef46447f09e43bb9bc777535378ceb79b5cc6804827fb3561fab",
+      "sha256": "a00c0318fac37b920c05de7a6c795bb26cbb0ec51443fec8a38c8c60935e752a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-stopped-mobile-dark": {
       "path": "review/chat-stopped-mobile-dark.png",
-      "sha256": "ad0844b80d6470f00f13c8cb26e2221062732e490855ec40cfede82677c9bb1e",
+      "sha256": "ab2ad3a1ee2306b9f995135de310f8c85503ed0263e3636cbcbc948caee60b5a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1409,7 +1409,7 @@
     },
     "chat-error-mobile-dark": {
       "path": "review/chat-error-mobile-dark.png",
-      "sha256": "85c2846b3f3c429f38ba26eaf5bf634c4d85bec41787cdc091b5331f3be939db",
+      "sha256": "21f9c55a1ef1de44445b1413b86584dc3b841c7eca7ed6e77de6204adce371d5",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1423,21 +1423,21 @@
     },
     "chat-reconnecting-desktop-dark": {
       "path": "review/chat-reconnecting-desktop-dark.png",
-      "sha256": "eda1a0f8f07132b180053f38ff6a4fb9bb1156d89f310c8407f6736a3fbca6a1",
+      "sha256": "9cd058a454c6094b4471899f86c9c07fca995c52da5a8d7d7e518b997f9258cd",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-light": {
       "path": "review/chat-reconnecting-mobile-light.png",
-      "sha256": "27569d0d1710c352507e67da19a7e94ab19c2cb81c15e52b109fecbcd45f9d4f",
+      "sha256": "d2d11ec00e54083815982d2aaa3546484770e8b277d39e125936326fc9b5ccfd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-dark": {
       "path": "review/chat-reconnecting-mobile-dark.png",
-      "sha256": "7e728d38c016f0dd9921b8be53247e7e3422f0ee2a72483c024b4493c88a6e17",
+      "sha256": "c65ff2a4258554898de3c60b2b77d63790831058eaa3b55815c1182451b450f4",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1675,21 +1675,21 @@
     },
     "indicator-finished-desktop-dark": {
       "path": "review/indicator-finished-desktop-dark.png",
-      "sha256": "3f406454129d631a2d51446469691e38e9e9a7cfddcc9005844dafd31d9d5e26",
+      "sha256": "7566619a3cb2db8b2f16351c61aab13bc5df5fcd183009127e5f88b11f30a10e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "indicator-finished-mobile-light": {
       "path": "review/indicator-finished-mobile-light.png",
-      "sha256": "006cc4ad13f48a49afe04fd3047848b8b3f6089ff31b4ab26f9cf6d9cf56234e",
+      "sha256": "35a3bcc36b999d94be634ae7aaa62c8746f51e66bbdbc106e9e53e6f8bbb3aec",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "indicator-finished-mobile-dark": {
       "path": "review/indicator-finished-mobile-dark.png",
-      "sha256": "43a97e14f92dda38f45ca513afdf4d79945c0f7f26114ecea96c371c5d9e9d4f",
+      "sha256": "f24a15ed830e2eeff2b79cf131abb6b2c6ed6bbb6a22ca5b018ce6c574299e84",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
