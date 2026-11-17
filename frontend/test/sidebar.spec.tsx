@@ -650,7 +650,8 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   const dialogOverlay = document.body.querySelector(
     '[data-slot="dialog-overlay"]',
   )!;
-  expect(dialogOverlay.getAttribute('class')).toContain('bg-black/10');
+  expect(dialogOverlay.getAttribute('class')).toContain('bg-black/50');
+  expect(dialogOverlay.getAttribute('class')).not.toContain('backdrop-blur');
   expect(dialogOverlay.getAttribute('class')).toContain('duration-100');
   expect(dialog.getAttribute('class')).toContain('sm:max-w-sm');
   expect(dialog.getAttribute('class')).toContain('w-[calc(100%-2rem)]');
@@ -1036,7 +1037,8 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   const sheetContent = document.body.querySelector(
     '[data-slot="sidebar"][data-mobile="true"]',
   )!;
-  expect(sheetOverlay.className).toContain('bg-black/10');
+  expect(sheetOverlay.className).toContain('bg-black/50');
+  expect(sheetOverlay.className).not.toContain('backdrop-blur');
   expect(sheetOverlay.className).toContain('duration-150');
   expect(sheetContent.className).toContain('bg-sidebar');
   expect(sheetContent.className).toContain('w-(--sidebar-width)');
@@ -1386,7 +1388,7 @@ test('trigger accessible names contain the visible text in order and keep the ro
   }
 });
 
-test('the user menu shows the job title instead of the email, and the email without one', async () => {
+test('the sidebar row shows the job title; the menu header shows the email under the name', async () => {
   workspace.identity = {
     ...identity,
     user: { ...identity.user, jobTitle: 'Senior Associate' },
@@ -1404,8 +1406,12 @@ test('the user menu shows the job title instead of the email, and the email with
   const label = document.body.querySelector(
     '[data-slot="dropdown-menu-label"]',
   )!;
-  expect(label.textContent).toContain('Senior Associate');
-  expect(label.textContent).not.toContain('ada@example.test');
+  expect(label.textContent).toContain('ada@example.test');
+  expect(label.textContent).not.toContain('Senior Associate');
+  const lines = [...label.querySelectorAll('span.truncate')].map(
+    (el) => el.textContent,
+  );
+  expect(lines).toEqual([identity.user.name, 'ada@example.test']);
   await view.unmount();
 
   workspace.identity = identity;

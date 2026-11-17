@@ -707,14 +707,14 @@ async function expectAppearanceGeometry(page: import('@playwright/test').Page) {
   });
 
   expect(metrics.count).toBe(3);
-  expect(metrics.width).toBeLessThanOrEqual(352);
+  expect(metrics.width).toBeLessThanOrEqual(576);
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-  expect(metrics.columnGap).toBe(12);
+  expect(metrics.columnGap).toBe(16);
   expect(metrics.tops[0]).toBeCloseTo(metrics.tops[1]!, 0);
   expect(metrics.tops[1]).toBeCloseTo(metrics.tops[2]!, 0);
-  expect(metrics.gaps[0]).toBeCloseTo(12, 0);
-  expect(metrics.gaps[1]).toBeCloseTo(12, 0);
-  expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(112);
+  expect(metrics.gaps[0]).toBeCloseTo(16, 0);
+  expect(metrics.gaps[1]).toBeCloseTo(16, 0);
+  expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(192);
   expect(Math.min(...metrics.widths)).toBeGreaterThanOrEqual(70);
 }
 

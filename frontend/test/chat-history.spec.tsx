@@ -529,6 +529,29 @@ it('renders delete chat confirmation with a solid destructive button', async () 
   wrapped.client.clear();
 });
 
+it('states that the chat and all its messages are permanently deleted', async () => {
+  const api = { delete: vi.fn() } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    <ChatDeleteDialog
+      chatId={chatId}
+      title="Private chat"
+      client={api}
+      scope={scope}
+    />,
+  );
+  const view = await render(wrapped.node);
+  await act(async () => view.container.querySelector('button')?.click());
+
+  expect(
+    document.body.querySelector('[data-slot="alert-dialog-description"]')
+      ?.textContent,
+  ).toBe(
+    '“Private chat” and all its messages will be permanently deleted. This cannot be undone.',
+  );
+  await view.unmount();
+  wrapped.client.clear();
+});
+
 it('keeps row-owned refusal feedback and retry controls after optimistic unmount', async () => {
   let reject!: (error: Error) => void;
   const api = {

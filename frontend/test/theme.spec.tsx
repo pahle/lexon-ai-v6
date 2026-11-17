@@ -71,9 +71,9 @@ test('appearance selection stores and applies light and dark themes locally', as
       ?.getAttribute('aria-label'),
   ).toBe('System');
   const group = view.container.querySelector('[data-slot="radio-group"]');
-  expect(group?.className).toContain('max-w-[22rem]');
+  expect(group?.className).toContain('max-w-[36rem]');
   expect(group?.className).toContain('grid-cols-3');
-  expect(group?.className).toContain('gap-3');
+  expect(group?.className).toContain('gap-4');
   const previews = [
     ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
   ];
@@ -93,7 +93,7 @@ test('appearance selection stores and applies light and dark themes locally', as
     ).size,
   ).toBe(3);
   for (const preview of previews) {
-    expect(preview.className).toContain('h-16');
+    expect(preview.className).toContain('h-28');
     expect(preview.className).toContain('border');
     expect(preview.parentElement?.className).not.toContain(
       'rounded-[var(--radius)] border',
@@ -167,7 +167,7 @@ test('system selection follows operating system changes and uses rectangular pre
   );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
-  expect(preview?.className).toContain('h-16');
+  expect(preview?.className).toContain('h-28');
 });
 
 test('does not render a theme selection before the client mount', () => {
@@ -181,7 +181,7 @@ test('does not render a theme selection before the client mount', () => {
   expect(markup).not.toContain('role="radio"');
 });
 
-test('Appearance titles itself with a serif h2 and places the control in a label-left, control-right row', async () => {
+test('Appearance titles itself with a serif h2, a description, and three large cards under it', async () => {
   installMatchMedia();
   const view = await render(
     <ThemeProvider>
@@ -194,14 +194,58 @@ test('Appearance titles itself with a serif h2 and places the control in a label
   const heading = view.container.querySelector('h2');
   expect(heading?.textContent).toBe('Appearance');
   expect(heading?.className).toContain('font-serif');
+  const description = view.container.querySelector('p');
+  expect(description?.textContent).toBe(
+    'Choose how Lexon looks on this device.',
+  );
   const group = view.container.querySelector('[role="radiogroup"]');
   expect(group?.getAttribute('aria-labelledby')).toBe(heading?.id);
-  const row = group?.closest('[data-slot="field"]');
-  expect(row).not.toBeNull();
-  expect(row?.className).toContain('border-b');
-  const label = row?.querySelector('[data-slot="field-label"]');
-  expect(label?.textContent).toBe('Theme');
+  expect(view.container.querySelector('[data-slot="field"]')).toBeNull();
   expect(
-    label!.compareDocumentPosition(group!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    description!.compareDocumentPosition(group!) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+});
+
+test('each card shows its label, selects by card, and the System card splits light and dark', async () => {
+  installMatchMedia();
+  const view = await render(
+    <ThemeProvider>
+      <AppearanceSettings />
+    </ThemeProvider>,
+  );
+  mountedViews.push(view);
+  await settle();
+
+  const options = [
+    ...view.container.querySelectorAll<HTMLElement>(
+      '[data-slot="appearance-option"]',
+    ),
+  ];
+  expect(options.map((option) => option.textContent?.trim())).toEqual([
+    'Light',
+    'Dark',
+    'System',
+  ]);
+  const panes = options.map((option) =>
+    [...option.querySelectorAll('[data-preview-theme]')].map((pane) =>
+      pane.getAttribute('data-preview-theme'),
+    ),
+  );
+  expect(panes).toEqual([['light'], ['dark'], ['light', 'dark']]);
+  for (const option of options) {
+    const radio = option.querySelector<HTMLElement>('[role="radio"]')!;
+    expect(radio.className).toContain('absolute');
+    expect(radio.className).toContain('inset-0');
+    expect(radio.className).toContain('opacity-0');
+  }
+
+  await act(async () => options[1]!.click());
+  await settle();
+  expect(localStorage.getItem('theme')).toBe('dark');
+  expect(
+    view.container
+      .querySelector('[role="radio"][aria-checked="true"]')
+      ?.getAttribute('aria-label'),
+  ).toBe('Dark');
 });

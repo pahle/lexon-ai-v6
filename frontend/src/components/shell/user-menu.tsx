@@ -131,7 +131,7 @@ export function UserMenu({
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {subtitle}
+                  {identity?.user.email ?? ''}
                 </span>
               </div>
             </div>

@@ -128,8 +128,8 @@ export function ChatDeleteDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{title}” will be permanently deleted. This action cannot be
-              undone.
+              “{title}” and all its messages will be permanently deleted. This
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {failed ? (
