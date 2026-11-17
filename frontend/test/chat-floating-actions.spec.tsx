@@ -306,3 +306,48 @@ test('the Chats page keeps only its own Chats heading', async () => {
   expect(view.container.querySelector('#main h1')?.textContent).toBe('Chats');
   await view.unmount();
 });
+
+test('the mobile header shows the chat title after the trigger and keeps the single hidden h1', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = 'Syarat sah perjanjian';
+  window.innerWidth = 390;
+  const view = await render(tree(<ChatPage />));
+  await settle();
+  const header = view.container.querySelector('#main > header')!;
+  const title = header.querySelector<HTMLElement>(
+    '[data-slot="chat-header-title"]',
+  );
+  expect(title?.textContent).toBe('Syarat sah perjanjian');
+  expect(title?.getAttribute('aria-hidden')).toBe('true');
+  expect(title?.className).toContain('truncate');
+  const trigger = header.querySelector('button');
+  expect(
+    trigger!.compareDocumentPosition(title!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(view.container.querySelectorAll('#main h1')).toHaveLength(1);
+  expect(view.container.querySelector('#main h1')?.textContent).toBe(
+    'Syarat sah perjanjian',
+  );
+  await view.unmount();
+});
+
+test('the desktop header and non-thread mobile routes show no chat title', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = 'Syarat sah perjanjian';
+  window.innerWidth = 1280;
+  const desktop = await render(tree(<ChatPage />));
+  await settle();
+  expect(
+    desktop.container.querySelector('[data-slot="chat-header-title"]'),
+  ).toBeNull();
+  await desktop.unmount();
+  navigation.path = '/workspace';
+  window.innerWidth = 390;
+  const home = await render(
+    tree(<PageHeader title="Heading" visuallyHidden />),
+  );
+  expect(
+    home.container.querySelector('[data-slot="chat-header-title"]'),
+  ).toBeNull();
+  await home.unmount();
+});

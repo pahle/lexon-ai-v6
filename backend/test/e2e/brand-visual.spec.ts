@@ -1075,6 +1075,27 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
       'aria-expanded',
       'false',
     );
+    // Opening a thread places the last user message at the top of the
+    // viewport, on mobile and desktop alike.
+    // A thread that fits the viewport rests at its start, where the message
+    // sits under the 16px content padding; a longer one scrolls so the message
+    // is flush with the viewport top.
+    await expect
+      .poll(() =>
+        page.evaluate((id) => {
+          const viewport = document.querySelector(
+            '[data-slot="aui_thread-viewport"]',
+          );
+          const message = document.querySelector(`[data-message-id="${id}"]`);
+          if (!viewport || !message) return null;
+          const offset = Math.round(
+            message.getBoundingClientRect().top -
+              viewport.getBoundingClientRect().top,
+          );
+          return Math.abs(offset - (viewport.scrollTop === 0 ? 16 : 0));
+        }, userMessageId),
+      )
+      .toBeLessThanOrEqual(1);
   };
 
   await captureBrandViews(page, 'chat-reasoning-collapsed', {

@@ -2363,3 +2363,127 @@ it('labels Copy and Regenerate and keeps the row visible on the last and a stopp
     await view.unmount().catch(() => undefined);
   }
 });
+
+it('opens a thread with the last user message at the top of the viewport', async () => {
+  const chatId = '11111111-1111-4111-8111-111111111111';
+  const firstUser = '22222222-2222-4222-8222-222222222222';
+  const firstAnswer = '33333333-3333-4333-8333-333333333333';
+  const lastUser = '55555555-5555-4555-8555-555555555555';
+  const lastAnswer = '66666666-6666-4666-8666-666666666666';
+  const answer = (id: string, parentId: string, runId: string) => ({
+    id,
+    role: 'assistant',
+    parentId,
+    runId,
+    text: 'A long answer.',
+    status: 'completed',
+    reasoningSummary: null,
+    reasoningDurationMs: null,
+    feedback: null,
+    createdAt: '2026-11-12T00:00:01.000Z',
+  });
+  const client = {
+    get: vi.fn().mockResolvedValue({
+      id: chatId,
+      title: 'Scroll fixture',
+      messages: [
+        {
+          id: firstUser,
+          role: 'user',
+          parentId: null,
+          text: 'First question',
+          effort: 'high',
+          createdAt: '2026-11-12T00:00:00.000Z',
+        },
+        answer(firstAnswer, firstUser, '44444444-4444-4444-8444-444444444444'),
+        {
+          id: lastUser,
+          role: 'user',
+          parentId: firstAnswer,
+          text: 'Last question',
+          effort: 'high',
+          createdAt: '2026-11-12T00:00:02.000Z',
+        },
+        answer(lastAnswer, lastUser, '77777777-7777-4777-8777-777777777777'),
+      ],
+      viewedLeafId: lastAnswer,
+      createdAt: '2026-11-12T00:00:00.000Z',
+      updatedAt: '2026-11-12T00:00:03.000Z',
+    }),
+  };
+  const tops = new Map<HTMLElement, number>();
+  const writes: Array<{ element: HTMLElement; value: number }> = [];
+  const originalTop = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    'scrollTop',
+  );
+  const originalRect = HTMLElement.prototype.getBoundingClientRect;
+  Object.defineProperty(HTMLElement.prototype, 'scrollTop', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return tops.get(this) ?? 0;
+    },
+    set(this: HTMLElement, value: number) {
+      tops.set(this, value);
+      writes.push({ element: this, value });
+    },
+  });
+  // The viewport starts at y=0; the last user message sits 420px below it
+  // (content offset 420 minus the viewport scroll position).
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    const id = this.dataset.messageId;
+    const y =
+      id === lastUser
+        ? 420
+        : id === firstUser
+          ? 0
+          : id === firstAnswer
+            ? 80
+            : 0;
+    const top =
+      y -
+      (tops.get(
+        this.closest('[data-slot="aui_thread-viewport"]') as HTMLElement,
+      ) ?? 0);
+    return {
+      top,
+      bottom: top + 40,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: 40,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId={chatId}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const viewport = view.container.querySelector<HTMLElement>(
+      '[data-slot="aui_thread-viewport"]',
+    )!;
+    expect(viewport).not.toBeNull();
+    expect(tops.get(viewport)).toBe(420);
+    expect(writes.filter((w) => w.element === viewport).at(-1)?.value).toBe(
+      420,
+    );
+  } finally {
+    await view.unmount();
+    HTMLElement.prototype.getBoundingClientRect = originalRect;
+    if (originalTop)
+      Object.defineProperty(Element.prototype, 'scrollTop', originalTop);
+    delete (HTMLElement.prototype as { scrollTop?: number }).scrollTop;
+  }
+});

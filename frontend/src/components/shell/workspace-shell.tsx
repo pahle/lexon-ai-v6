@@ -122,6 +122,15 @@ export function WorkspaceShell({
                   }
                 />
               </div>
+              {isMobile && openChat ? (
+                <p
+                  data-slot="chat-header-title"
+                  aria-hidden="true"
+                  className="min-w-0 flex-1 truncate border-l pl-3 pr-24 text-sm"
+                >
+                  {openChat.title}
+                </p>
+              ) : null}
             </header>
           ) : null}
           {sidebar && sidebarState && hasChatChrome ? (

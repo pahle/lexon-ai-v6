@@ -59,6 +59,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -160,6 +161,8 @@ export const Thread: FC<ThreadProps> = ({
       >
         <ThreadPrimitive.Viewport
           turnAnchor="top"
+          scrollToBottomOnInitialize={false}
+          scrollToBottomOnThreadSwitch={false}
           data-slot="aui_thread-viewport"
           className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
@@ -199,6 +202,7 @@ export const Thread: FC<ThreadProps> = ({
               </p>
             ) : null}
             <RunAnnouncer />
+            <OpenAtLastUserMessage />
 
             <ThreadPrimitive.ViewportFooter
               className={cn(
@@ -220,6 +224,37 @@ export const Thread: FC<ThreadProps> = ({
       </ThreadPrimitive.Root>
     </EditFocusContext.Provider>
   );
+};
+
+/**
+ * Opening a thread places its last user message at the top of the viewport:
+ * not the top of the thread and not the end of the answer. It runs once per
+ * mounted thread, when its history first has messages, and never again, so
+ * live streaming and the scroll-to-bottom button keep their own behavior. A
+ * short tail cannot scroll that far; the viewport then rests at its end.
+ */
+const OpenAtLastUserMessage: FC = () => {
+  const hasMessages = useAuiState((state) => state.thread.messages.length > 0);
+  const placed = useRef(false);
+  const marker = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!hasMessages || placed.current) return;
+    const viewport = marker.current?.closest<HTMLElement>(
+      '[data-slot="aui_thread-viewport"]',
+    );
+    if (!viewport) return;
+    const users = viewport.querySelectorAll<HTMLElement>('[data-role="user"]');
+    const target = users[users.length - 1];
+    if (!target) return;
+    placed.current = true;
+    const delta =
+      target.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+    const previous = viewport.style.scrollBehavior;
+    viewport.style.scrollBehavior = 'auto';
+    viewport.scrollTop += delta;
+    viewport.style.scrollBehavior = previous;
+  }, [hasMessages]);
+  return <span ref={marker} hidden />;
 };
 
 /**
