@@ -5,12 +5,23 @@ import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import type { TextMessagePartProps } from '@assistant-ui/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { ComponentPropsWithoutRef } from 'react';
+import {
+  createContext,
+  useContext,
+  type ComponentPropsWithoutRef,
+} from 'react';
+
+// True while the answer sits under an open edit: the Markdown wrapper sets
+// its own text color, so the muted color has to be applied here to reach the
+// rendered answer text.
+export const AnswerDimmedContext = createContext(false);
 
 export function MarkdownText({
   source,
   ...props
 }: Partial<TextMessagePartProps> & { readonly source?: string }) {
+  const dimmed = useContext(AnswerDimmedContext);
+  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none`;
   const components: Components = {
     img: () => null,
     h1: ({ children }) => (
@@ -63,7 +74,7 @@ export function MarkdownText({
   };
   if (source !== undefined)
     return (
-      <div className="aui-md text-foreground max-w-none">
+      <div className={wrapperClass}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
           {source}
         </ReactMarkdown>
@@ -74,7 +85,7 @@ export function MarkdownText({
       {...props}
       remarkPlugins={[remarkGfm]}
       components={components}
-      className="aui-md text-foreground max-w-none"
+      className={wrapperClass}
       defer
     />
   );

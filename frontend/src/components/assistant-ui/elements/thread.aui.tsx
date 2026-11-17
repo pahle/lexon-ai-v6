@@ -9,7 +9,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { MarkdownText } from '@/components/chat/markdown-text';
+import {
+  AnswerDimmedContext,
+  MarkdownText,
+} from '@/components/chat/markdown-text';
 import {
   PersistedReasoning,
   type AnswerStatus,
@@ -281,6 +284,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
   );
   const assistantStatus = useAuiState((state) => state.message.status);
   const editing = useAuiState((state) => state.message.composer.isEditing);
+  const isLast = useAuiState((state) => state.message.isLast);
   const messagePosition = useAuiState((state) =>
     state.thread.messages.findIndex((message) => message.id === messageId),
   );
@@ -386,9 +390,11 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
         )}
         aria-live="off"
       >
-        <MessagePrimitive.Parts
-          components={{ Text: MarkdownText, Reasoning: () => null }}
-        />
+        <AnswerDimmedContext.Provider value={dimmed}>
+          <MessagePrimitive.Parts
+            components={{ Text: MarkdownText, Reasoning: () => null }}
+          />
+        </AnswerDimmedContext.Provider>
       </div>
       {role === 'assistant' &&
       (metadata?.status === 'cancelled' ||
@@ -415,6 +421,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       {role === 'assistant' ? (
         <AssistantActions
           messageId={messageId}
+          alwaysVisible={isLast || answerStatus === 'stopped'}
           feedback={
             metadata?.feedback === 'good' || metadata?.feedback === 'bad'
               ? metadata.feedback
@@ -615,9 +622,10 @@ const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
 
 const AssistantActions: FC<{
   messageId: string;
+  alwaysVisible: boolean;
   feedback: 'good' | 'bad' | null;
   onFeedback?: ThreadProps['onFeedback'];
-}> = ({ messageId, feedback, onFeedback }) => {
+}> = ({ messageId, alwaysVisible, feedback, onFeedback }) => {
   const serverActive = useChatActiveRun();
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
@@ -630,46 +638,64 @@ const AssistantActions: FC<{
   return (
     <div
       data-slot="aui_message-actions"
-      className="text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 empty:hidden md:opacity-0 [@media(hover:none)]:opacity-100"
+      className={cn(
+        'text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 empty:hidden [@media(hover:none)]:opacity-100',
+        !alwaysVisible && 'md:opacity-0',
+      )}
     >
       <ActionBarPrimitive.Root
         hideWhenRunning
         className="flex items-center gap-1"
       >
         <ActionBarPrimitive.Copy
-          className="size-9 rounded-md p-2 hover:bg-muted"
-          aria-label="Copy answer"
+          className={cn(
+            'inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm hover:bg-muted',
+            copied && 'text-(--lexon-red-text)',
+          )}
+          aria-label={copied ? 'Copied' : 'Copy answer'}
         >
           {copied ? (
             <CheckIcon className="size-4" />
           ) : (
             <CopyIcon className="size-4" />
           )}
+          {copied ? 'Copied' : 'Copy'}
         </ActionBarPrimitive.Copy>
         <button
           type="button"
           aria-label="Good answer"
           aria-pressed={rating === 'good'}
           onClick={() => submitFeedback('good')}
-          className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
+          className={cn(
+            'size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent',
+            rating === 'good' && 'text-(--lexon-red-text)',
+          )}
         >
-          <ThumbsUpIcon className="size-4" />
+          <ThumbsUpIcon
+            className={cn('size-4', rating === 'good' && 'fill-current')}
+          />
         </button>
         <button
           type="button"
           aria-label="Bad answer"
           aria-pressed={rating === 'bad'}
           onClick={() => submitFeedback('bad')}
-          className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
+          className={cn(
+            'size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent',
+            rating === 'bad' && 'text-(--lexon-red-text)',
+          )}
         >
-          <ThumbsDownIcon className="size-4" />
+          <ThumbsDownIcon
+            className={cn('size-4', rating === 'bad' && 'fill-current')}
+          />
         </button>
         <ActionBarPrimitive.Reload
-          className="size-9 rounded-md p-2 hover:bg-muted"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm hover:bg-muted"
           aria-label="Regenerate answer"
           disabled={serverActive}
         >
           <RefreshCwIcon className="size-4" />
+          Regenerate
         </ActionBarPrimitive.Reload>
       </ActionBarPrimitive.Root>
       <BranchPicker />

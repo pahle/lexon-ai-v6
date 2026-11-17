@@ -1265,9 +1265,10 @@ function frozenClock(page: Page) {
     install: () => page.clock.install({ time: new Date(brandFixedTime) }),
     resume: () => page.clock.resume(),
     async hold() {
-      // A constant clock value, so the run starts on the same fake instant
-      // (and on the same animation-frame grid) in every run.
-      await page.clock.pauseAt(new Date(Date.parse(brandFixedTime) + 60_000));
+      // Pause just after the current fake instant. A far-future pause would
+      // run the copied and toast timers to completion before the capture.
+      const now = await page.evaluate(() => Date.now());
+      await page.clock.pauseAt(new Date(now + 100));
       stepping = true;
       steps = 0;
       loop = (async () => {
@@ -1310,9 +1311,11 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
   await captureBrandViews(page, 'chat-copied', {
     open: async () => {
       await load();
-      const copy = page.getByRole('button', { name: 'Copy answer' });
-      await copy.click();
-      await expect(copy.locator('svg.lucide-check')).toBeVisible();
+      await page.getByRole('button', { name: 'Copy answer' }).click();
+      // The accessible name changes to "Copied" while the confirmation shows.
+      const copied = page.getByRole('button', { name: 'Copied' });
+      await expect(copied.locator('svg.lucide-check')).toBeVisible();
+      await expect(copied).toHaveText('Copied');
       await clock.hold();
     },
     close: () => clock.release(),

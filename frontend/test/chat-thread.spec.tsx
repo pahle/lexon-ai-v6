@@ -2133,3 +2133,224 @@ it('places the branch picker in the action row of the answer', async () => {
     await view.unmount();
   }
 });
+
+function twoTurnTree(firstStatus: 'completed' | 'cancelled'): ChatTree {
+  const ids = {
+    chat: '11111111-1111-4111-8111-111111111111',
+    u1: '22222222-2222-4222-8222-222222222222',
+    a1: '33333333-3333-4333-8333-333333333333',
+    u2: '55555555-5555-4555-8555-555555555555',
+    a2: '66666666-6666-4666-8666-666666666666',
+  };
+  const answer = (
+    id: string,
+    parentId: string,
+    text: string,
+    status: string,
+  ) => ({
+    id,
+    role: 'assistant',
+    parentId,
+    runId: '44444444-4444-4444-8444-444444444444',
+    text,
+    status,
+    reasoningSummary: null,
+    reasoningDurationMs: null,
+    feedback: null,
+    createdAt: '2026-11-12T00:00:01.000Z',
+  });
+  const question = (id: string, parentId: string | null, text: string) => ({
+    id,
+    role: 'user',
+    parentId,
+    text,
+    effort: 'high',
+    createdAt: '2026-11-12T00:00:00.000Z',
+  });
+  return {
+    id: ids.chat,
+    title: 'Two turns',
+    messages: [
+      question(ids.u1, null, 'First question'),
+      answer(ids.a1, ids.u1, 'First answer', firstStatus),
+      question(ids.u2, ids.a1, 'Second question'),
+      answer(ids.a2, ids.u2, 'Second answer', 'completed'),
+    ],
+    viewedLeafId: ids.a2,
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:01.000Z',
+  } as ChatTree;
+}
+
+it('dims the rendered answer text through the Markdown wrapper while an edit is open', async () => {
+  const tree = makeBranchTree(false);
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const text = () =>
+      view.container.querySelector<HTMLElement>(
+        '[data-message-id="33333333-3333-4333-8333-333333333333"] .aui-md',
+      );
+    expect(text()?.textContent).toContain('Selected branch answer');
+    expect(text()?.className).toMatch(/(^|\s)text-foreground(\s|$)/);
+    expect(text()?.className).not.toContain('text-muted-foreground');
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Edit message"]')
+        ?.click(),
+    );
+    await settle();
+    expect(text()?.textContent).toContain('Selected branch answer');
+    expect(text()?.className).toContain('text-muted-foreground');
+    expect(text()?.className).not.toMatch(/(^|\s)text-foreground(\s|$)/);
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Cancel edit"]')
+        ?.click(),
+    );
+    await settle();
+    expect(text()?.className).toMatch(/(^|\s)text-foreground(\s|$)/);
+    expect(text()?.className).not.toContain('text-muted-foreground');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('shows a visible red Copied state with a check after copying, then returns to Copy', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+  const tree = cancelledTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const copy = () =>
+      view.container.querySelector<HTMLElement>(
+        '[aria-label="Copy answer"], [aria-label="Copied"]',
+      )!;
+    expect(copy().getAttribute('aria-label')).toBe('Copy answer');
+    expect(copy().textContent).toBe('Copy');
+    expect(copy().className).not.toContain('text-(--lexon-red-text)');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await act(async () => copy().click());
+    expect(writeText).toHaveBeenCalledWith('Partial answer kept');
+    expect(copy().textContent).toBe('Copied');
+    expect(copy().getAttribute('aria-label')).toBe('Copied');
+    expect(copy().className).toContain('text-(--lexon-red-text)');
+    expect(copy().querySelector('svg')).not.toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(copy().textContent).toBe('Copy');
+    expect(copy().className).not.toContain('text-(--lexon-red-text)');
+  } finally {
+    vi.useRealTimers();
+    await view.unmount();
+  }
+});
+
+it('fills the given thumb in the red text color and thanks the user', async () => {
+  const tree = cancelledTree();
+  const client = {
+    get: vi.fn().mockResolvedValue(tree),
+    setFeedback: vi.fn().mockResolvedValue(undefined),
+  };
+  toastSpy.success.mockClear();
+  const view = await render(
+    wrapped(
+      <ChatView
+        chatId={tree.id}
+        client={client as never}
+        actorScope="org:user"
+        displayName="Ada"
+        orgId="org-id"
+        userId="user-id"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    const thumb = (name: string) =>
+      view.container.querySelector<HTMLElement>(`[aria-label="${name}"]`)!;
+    expect(thumb('Good answer').className).not.toContain(
+      'text-(--lexon-red-text)',
+    );
+    await act(async () => thumb('Good answer').click());
+    await settle();
+    expect(thumb('Good answer').getAttribute('aria-pressed')).toBe('true');
+    expect(thumb('Good answer').className).toContain('text-(--lexon-red-text)');
+    expect(
+      thumb('Good answer').querySelector('svg')?.getAttribute('class'),
+    ).toContain('fill-current');
+    expect(thumb('Bad answer').className).not.toContain(
+      'text-(--lexon-red-text)',
+    );
+    expect(toastSpy.success).toHaveBeenCalledWith('Thanks for your feedback.');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('labels Copy and Regenerate and keeps the row visible on the last and a stopped answer only', async () => {
+  const tree = twoTurnTree('cancelled');
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const row = (id: string) =>
+      view.container.querySelector<HTMLElement>(
+        `[data-message-id="${id}"] [data-slot="aui_message-actions"]`,
+      )!;
+    const last = row('66666666-6666-4666-8666-666666666666');
+    expect(last.querySelector('[aria-label="Copy answer"]')?.textContent).toBe(
+      'Copy',
+    );
+    expect(
+      last.querySelector('[aria-label="Regenerate answer"]')?.textContent,
+    ).toBe('Regenerate');
+    expect(last.className).not.toContain('md:opacity-0');
+    const stopped = row('33333333-3333-4333-8333-333333333333');
+    expect(stopped.className).not.toContain('md:opacity-0');
+    const completed = twoTurnTree('completed');
+    await view.unmount();
+    const second = await render(
+      wrapped(
+        <ChatRuntime
+          actorScope="tenant-1:user-1"
+          chatId={completed.id}
+          tree={completed}
+        >
+          <Thread displayName="Ada" />
+        </ChatRuntime>,
+      ),
+    );
+    try {
+      await settle();
+      const earlier = second.container.querySelector<HTMLElement>(
+        '[data-message-id="33333333-3333-4333-8333-333333333333"] [data-slot="aui_message-actions"]',
+      )!;
+      expect(earlier.className).toContain('md:opacity-0');
+    } finally {
+      await second.unmount();
+    }
+    return;
+  } finally {
+    await view.unmount().catch(() => undefined);
+  }
+});
