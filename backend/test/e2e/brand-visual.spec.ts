@@ -1147,11 +1147,9 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
   });
 
   const editedLeaf = '00000000-0000-4000-8000-000000000105';
-  // The branch picker on a user message is hidden on desktop until the row is
-  // hovered or holds focus, and the capture moves the pointer away, so this
-  // state is about focus: it keeps the focus that reveals the picker.
+  // The branch picker shows whenever a message has several branches, so the
+  // state needs no focus and the capture parks it.
   await captureBrandViews(page, 'chat-branch', {
-    keepFocus: true,
     open: async () => {
       await openThread(
         page,
@@ -1159,11 +1157,11 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
         'edited-branch',
         page.getByText('2 / 2', { exact: true }).first(),
       );
-      const previous = messageOf(page, editedLeaf).getByRole('button', {
-        name: 'Previous branch',
-      });
-      await previous.focus();
-      await expect(previous).toBeFocused();
+      await expect(
+        messageOf(page, editedLeaf).getByRole('button', {
+          name: 'Previous branch',
+        }),
+      ).toBeVisible();
     },
   });
 

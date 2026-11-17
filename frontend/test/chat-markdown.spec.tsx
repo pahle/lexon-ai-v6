@@ -1,5 +1,8 @@
 import { expect, it, vi } from 'vitest';
-import { MarkdownText } from '../src/components/chat/markdown-text.js';
+import {
+  AnswerDimmedContext,
+  MarkdownText,
+} from '../src/components/chat/markdown-text.js';
 import { render } from './render.js';
 
 it('drops unsafe HTML, javascript links, and remote images without fetching them', async () => {
@@ -53,6 +56,45 @@ it('renders strong text as semibold', async () => {
     expect(view.container.querySelector('strong')?.className).toContain(
       'font-semibold',
     );
+  } finally {
+    await view.unmount();
+  }
+});
+
+const dimmedSource =
+  '## Heading\n\nA **key term** and [a link](https://example.com).\n\n- First item\n\n1. Second item';
+
+it('mutes bold text, headings, list markers, and links while the answer is dimmed', async () => {
+  const view = await render(
+    <AnswerDimmedContext.Provider value={true}>
+      <MarkdownText source={dimmedSource} />
+    </AnswerDimmedContext.Provider>,
+  );
+  try {
+    const root = view.container;
+    expect(root.querySelector('strong')?.className).toContain(
+      'text-muted-foreground',
+    );
+    expect(root.querySelector('h2')?.className).toContain(
+      'text-muted-foreground',
+    );
+    expect(root.querySelector('a')?.className).toContain(
+      'text-muted-foreground',
+    );
+    const items = root.querySelectorAll('li');
+    expect(items).toHaveLength(2);
+    for (const item of items)
+      expect(item.className).toContain('marker:text-muted-foreground');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('leaves bold text, headings, list markers, and links unchanged when the answer is not dimmed', async () => {
+  const view = await render(<MarkdownText source={dimmedSource} />);
+  try {
+    expect(view.container.innerHTML).not.toContain('text-muted-foreground');
+    expect(view.container.innerHTML).not.toContain('marker:');
   } finally {
     await view.unmount();
   }

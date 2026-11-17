@@ -28,20 +28,30 @@ export function MarkdownText({
   const dimmed = useContext(AnswerDimmedContext);
   const hidePulse = useContext(HideAnswerPulseContext);
   const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
+  // Everything inside a dimmed answer is muted, not only the wrapper text:
+  // bold text, headings, list markers, and links carry the color themselves.
+  const muted = dimmed ? ' text-muted-foreground' : '';
+  const markerMuted = dimmed ? ' marker:text-muted-foreground' : '';
   const components: Components = {
     img: () => null,
     h1: ({ children }) => (
-      <h1 className="mt-6 mb-3 text-2xl font-semibold font-sans tracking-tight first:mt-0">
+      <h1
+        className={`mt-6 mb-3 text-2xl font-semibold font-sans tracking-tight first:mt-0${muted}`}
+      >
         {children}
       </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="mt-6 mb-3 text-xl font-semibold font-sans tracking-tight first:mt-0">
+      <h2
+        className={`mt-6 mb-3 text-xl font-semibold font-sans tracking-tight first:mt-0${muted}`}
+      >
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="mt-5 mb-2 text-lg font-semibold font-sans tracking-tight first:mt-0">
+      <h3
+        className={`mt-5 mb-2 text-lg font-semibold font-sans tracking-tight first:mt-0${muted}`}
+      >
         {children}
       </h3>
     ),
@@ -55,9 +65,9 @@ export function MarkdownText({
       <ol className="my-3 ms-6 list-decimal space-y-1">{children}</ol>
     ),
     strong: ({ children }) => (
-      <strong className="font-semibold">{children}</strong>
+      <strong className={`font-semibold${muted}`}>{children}</strong>
     ),
-    li: ({ children }) => <li className="ps-1">{children}</li>,
+    li: ({ children }) => <li className={`ps-1${markerMuted}`}>{children}</li>,
     blockquote: ({ children }) => (
       <blockquote className="border-border text-muted-foreground my-4 border-s-2 ps-4">
         {children}
@@ -72,7 +82,7 @@ export function MarkdownText({
           href={href}
           rel="noreferrer noopener"
           target="_blank"
-          className="underline underline-offset-2"
+          className={`underline underline-offset-2${muted}`}
         >
           {children}
         </a>

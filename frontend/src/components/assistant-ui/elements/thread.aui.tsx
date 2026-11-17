@@ -312,6 +312,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
   const serverActive = useChatActiveRun();
   const role = useAuiState((state) => state.message.role);
   const messageId = useAuiState((state) => state.message.id);
+  const branched = useAuiState((state) => state.message.branchCount > 1);
   const summary = useAuiState(
     (state) =>
       state.message.parts.find((part) => part.type === 'reasoning')?.text ??
@@ -489,7 +490,12 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
           onFeedback={onFeedback}
         />
       ) : (
-        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
+        <div
+          className={cn(
+            'mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+            !branched && 'md:opacity-0',
+          )}
+        >
           <UserEditAction />
           <BranchPicker />
         </div>
@@ -689,6 +695,7 @@ const AssistantActions: FC<{
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
   const copied = useAuiState((state) => state.message.isCopied);
+  const branched = useAuiState((state) => state.message.branchCount > 1);
   const submitFeedback = (next: 'good' | 'bad') => {
     void Promise.resolve(onFeedback?.(messageId, next))
       .then(() => setRating(next))
@@ -699,7 +706,7 @@ const AssistantActions: FC<{
       data-slot="aui_message-actions"
       className={cn(
         'text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 empty:hidden [@media(hover:none)]:opacity-100',
-        !alwaysVisible && 'md:opacity-0',
+        !alwaysVisible && !branched && 'md:opacity-0',
       )}
     >
       <ActionBarPrimitive.Root

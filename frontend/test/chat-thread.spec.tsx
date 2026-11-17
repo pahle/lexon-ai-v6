@@ -2143,6 +2143,141 @@ it('places the branch picker in the action row of the answer', async () => {
   }
 });
 
+function editedBranchTree(): ChatTree {
+  const ids = {
+    chat: '11111111-1111-4111-8111-111111111111',
+    u1: '22222222-2222-4222-8222-222222222222',
+    a1: '33333333-3333-4333-8333-333333333333',
+    u2: '55555555-5555-4555-8555-555555555555',
+    a2: '66666666-6666-4666-8666-666666666666',
+  };
+  const question = (id: string, text: string) => ({
+    id,
+    role: 'user',
+    parentId: null,
+    text,
+    effort: 'high',
+    createdAt: '2026-11-12T00:00:00.000Z',
+  });
+  const answer = (id: string, parentId: string, text: string) => ({
+    id,
+    role: 'assistant',
+    parentId,
+    runId: '44444444-4444-4444-8444-444444444444',
+    text,
+    status: 'completed',
+    reasoningSummary: null,
+    reasoningDurationMs: null,
+    feedback: null,
+    createdAt: '2026-11-12T00:00:01.000Z',
+  });
+  return {
+    id: ids.chat,
+    title: 'Edited',
+    messages: [
+      question(ids.u1, 'First wording'),
+      answer(ids.a1, ids.u1, 'First answer'),
+      question(ids.u2, 'Edited wording'),
+      answer(ids.a2, ids.u2, 'Edited answer'),
+    ],
+    viewedLeafId: ids.a2,
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:01.000Z',
+  } as ChatTree;
+}
+
+function opacityClassesAbove(element: Element, stop: Element): string[] {
+  const found: string[] = [];
+  for (
+    let node: Element | null = element;
+    node && node !== stop;
+    node = node.parentElement
+  )
+    if (/opacity-0/.test(node.className)) found.push(node.className);
+  return found;
+}
+
+it('shows the user message branch picker without hover or focus when the message has several branches', async () => {
+  const tree = editedBranchTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const message = view.container.querySelector<HTMLElement>(
+      '[data-message-id="55555555-5555-4555-8555-555555555555"]',
+    )!;
+    const previous = message.querySelector('[aria-label="Previous branch"]')!;
+    expect(previous).not.toBeNull();
+    expect(message.textContent).toContain('2 / 2');
+    expect(opacityClassesAbove(previous, message)).toEqual([]);
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('keeps the user message actions revealed by hover or focus when there is a single branch', async () => {
+  const tree = twoTurnTree('completed');
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const message = view.container.querySelector<HTMLElement>(
+      '[data-message-id="22222222-2222-4222-8222-222222222222"]',
+    )!;
+    const edit = message.querySelector('[aria-label="Edit message"]')!;
+    expect(opacityClassesAbove(edit, message).length).toBeGreaterThan(0);
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('shows an answer branch picker without hover or focus on an earlier answer with several branches', async () => {
+  const base = twoTurnTree('completed');
+  const [u1, a1, u2, a2] = base.messages;
+  const tree = {
+    ...base,
+    messages: [
+      u1,
+      a1,
+      {
+        ...a1,
+        id: '77777777-7777-4777-8777-777777777777',
+        text: 'Regenerated',
+      },
+      u2,
+      a2,
+    ],
+  } as ChatTree;
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const message = view.container.querySelector<HTMLElement>(
+      '[data-message-id="33333333-3333-4333-8333-333333333333"]',
+    )!;
+    const previous = message.querySelector('[aria-label="Previous branch"]')!;
+    expect(previous).not.toBeNull();
+    expect(opacityClassesAbove(previous, message)).toEqual([]);
+  } finally {
+    await view.unmount();
+  }
+});
+
 function twoTurnTree(firstStatus: 'completed' | 'cancelled'): ChatTree {
   const ids = {
     chat: '11111111-1111-4111-8111-111111111111',
