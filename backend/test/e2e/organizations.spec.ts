@@ -649,6 +649,12 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     await expect(
       page.getByRole('button', { name: 'Organization: Personal' }),
     ).toBeVisible();
+    // Everything the routes gate and record has been asserted. Stop
+    // intercepting before the reload: fetching and fulfilling the requests of
+    // the reloaded page raced a route the page had already handled, which
+    // threw "Route is already handled!" intermittently. 'wait' lets any
+    // handler still running finish first.
+    await page.unrouteAll({ behavior: 'wait' });
     await page.reload();
     await expect(fallback).toHaveCount(0);
     await expect(

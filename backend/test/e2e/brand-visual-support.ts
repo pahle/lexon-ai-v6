@@ -135,13 +135,38 @@ export async function runBrandAxe(page: Page, id: string) {
   ).toEqual([]);
 }
 
+/**
+ * Describes the focused element when it is interactive and shows a
+ * focus-visible ring; null when focus is parked on the body or on a
+ * non-interactive element.
+ */
+export async function focusRingLeak(page: Page) {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (
+      !active ||
+      active === document.body ||
+      active === document.documentElement
+    )
+      return null;
+    if (!active.matches(':focus-visible')) return null;
+    const interactive = active.matches(
+      'a[href], button, input, textarea, select, summary, [tabindex], [contenteditable], [role="button"], [role="menuitem"], [role="tab"], [role="link"]',
+    );
+    if (!interactive) return null;
+    const label =
+      active.getAttribute('aria-label') ?? active.textContent?.trim() ?? '';
+    return `${active.tagName.toLowerCase()} "${label.slice(0, 40)}"`;
+  });
+}
+
 export async function captureBrandView(
   page: Page,
   state: string,
   { theme, viewport }: { theme: VisualTheme; viewport: BrandViewport },
   // A held fake clock cannot run axe (its timers never fire), so the
   // indicator frames run axe separately and pass `axe: false`.
-  options: { axe?: boolean } = {},
+  options: { axe?: boolean; keepFocus?: boolean } = {},
 ) {
   const id = brandViewId(state, viewport, theme);
   const index = await readIndex();
@@ -169,6 +194,20 @@ export async function captureBrandView(
     )
     .toBe(true);
   await page.mouse.move(0, 0);
+
+  if (!options.keepFocus) {
+    // Park focus so no ring is captured. Only states about focus opt out
+    // with keepFocus (an open menu or dialog, an edited or searched field).
+    await page.evaluate(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+    });
+    const leak = await focusRingLeak(page);
+    expect(
+      leak,
+      `${id} captures a focus ring on ${leak}; the state is not about focus`,
+    ).toBeNull();
+  }
 
   if (options.axe !== false) await runBrandAxe(page, id);
 
@@ -226,6 +265,8 @@ export async function captureBrandViews(
     close?: (viewport: BrandViewport) => Promise<void>;
     /** Passed to captureBrandView; see its `axe` option. */
     axe?: boolean;
+    /** Keep focus as the state left it, for a state that is about focus. */
+    keepFocus?: boolean;
   } = {},
 ) {
   for (const viewport of brandViewports)
@@ -241,7 +282,10 @@ export async function captureBrandViews(
         page,
         state,
         { theme, viewport },
-        hooks.axe === undefined ? {} : { axe: hooks.axe },
+        {
+          ...(hooks.axe === undefined ? {} : { axe: hooks.axe }),
+          ...(hooks.keepFocus ? { keepFocus: true } : {}),
+        },
       );
       await hooks.close?.(viewport);
     }

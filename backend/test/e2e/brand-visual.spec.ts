@@ -370,6 +370,7 @@ test('team shell, menus, mobile sheet, and Settings', async ({
   });
 
   await captureBrandViews(page, 'organization-switcher-open', {
+    keepFocus: true,
     open: async (viewport) => {
       if (viewport === 'mobile') await openMobileSheet(page);
       await openMenuReliably(
@@ -390,11 +391,13 @@ test('team shell, menus, mobile sheet, and Settings', async ({
   });
 
   await captureBrandViews(page, 'user-menu-open', {
+    keepFocus: true,
     open: (viewport) => openUserMenu(page, viewport),
     close: (viewport) => closeMenu(page, viewport),
   });
 
   await captureBrandViews(page, 'mobile-sheet-open', {
+    keepFocus: true,
     open: async (viewport) => {
       if (viewport === 'mobile') await openMobileSheet(page);
       else await expectResting(page, viewport);
@@ -1075,8 +1078,6 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
       'aria-expanded',
       'false',
     );
-    // Opening a thread places the last user message at the top of the
-    // viewport, on mobile and desktop alike.
     // A thread that fits the viewport rests at its start, where the message
     // sits under the 16px content padding; a longer one scrolls so the message
     // is flush with the viewport top.
@@ -1115,14 +1116,14 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
     },
   });
 
-  // The action bar shows on hover or focus; focus keeps it open after the
-  // capture step moves the pointer away.
+  // The action row of the last answer is always visible, so no focus is
+  // needed to reveal it; the capture parks focus away from Copy.
   await captureBrandViews(page, 'chat-answer-actions', {
     open: async () => {
       await openAnswer();
-      const copy = page.getByRole('button', { name: 'Copy answer' });
-      await copy.focus();
-      await expect(copy).toBeFocused();
+      await expect(
+        page.getByRole('button', { name: 'Copy answer' }),
+      ).toBeVisible();
       await expect(page.locator('[data-slot="aui_message-actions"]')).toHaveCSS(
         'opacity',
         '1',
@@ -1131,6 +1132,7 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
   });
 
   await captureBrandViews(page, 'chat-edit', {
+    keepFocus: true,
     open: async () => {
       await openAnswer();
       const message = messageOf(page, userMessageId);
@@ -1145,7 +1147,11 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
   });
 
   const editedLeaf = '00000000-0000-4000-8000-000000000105';
+  // The branch picker on a user message is hidden on desktop until the row is
+  // hovered or holds focus, and the capture moves the pointer away, so this
+  // state is about focus: it keeps the focus that reveals the picker.
   await captureBrandViews(page, 'chat-branch', {
+    keepFocus: true,
     open: async () => {
       await openThread(
         page,
@@ -1204,6 +1210,7 @@ test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
   };
 
   await captureBrandViews(page, 'chat-floating-menu', {
+    keepFocus: true,
     open: async () => {
       await openPillMenu();
       await expect(
@@ -1214,6 +1221,7 @@ test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
   });
 
   await captureBrandViews(page, 'chat-rename', {
+    keepFocus: true,
     open: async () => {
       await openPillMenu();
       await renameItem.click();
@@ -1233,6 +1241,7 @@ test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
   });
 
   await captureBrandViews(page, 'chat-delete', {
+    keepFocus: true,
     open: async () => {
       await openPillMenu();
       await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -1253,6 +1262,7 @@ test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
     name: `Chat actions for ${fileNames.acquisition}`,
   });
   await captureBrandViews(page, 'recent-menu', {
+    keepFocus: true,
     open: async (viewport) => {
       await openThread(page, env, 'answer-complete', answerShown);
       if (viewport === 'mobile') await openMobileSheet(page);
@@ -1521,6 +1531,7 @@ test('Chats history, search with highlights, and no results', async ({
   });
 
   await captureBrandViews(page, 'chats-search', {
+    keepFocus: true,
     open: async () => {
       await openChats('chats-search');
       await search('wanprestasi');
