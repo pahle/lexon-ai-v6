@@ -22,7 +22,7 @@ export const ChatGreeting: FC<{ displayName: string; className?: string }> = ({
   return (
     <h2
       className={cn(
-        'min-h-9 font-serif text-2xl font-medium tracking-tight',
+        'min-h-11 text-center font-serif text-4xl font-medium tracking-tight',
         className,
       )}
     >

@@ -14,7 +14,7 @@ import { navigateToSearchMatch } from '@/lib/chat-search-navigation';
 import { isTenantScopeCurrent } from '@/lib/tenant-queries';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { SquarePen } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function ChatsPage() {
   const { identity } = useWorkspace();
@@ -53,7 +53,7 @@ export default function ChatsPage() {
         showDivider={false}
         actions={
           <Button render={<Link href="/workspace" />}>
-            <SquarePen aria-hidden="true" data-icon="inline-start" />
+            <Plus aria-hidden="true" data-icon="inline-start" />
             New chat
           </Button>
         }

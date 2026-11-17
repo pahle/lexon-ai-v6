@@ -247,10 +247,10 @@ function ChatViewSession({
               rows={1}
               className={cn(
                 composerClasses.input,
-                'min-h-20 border-0 shadow-none focus-visible:ring-0',
+                'min-h-15 border-0 shadow-none focus-visible:ring-0',
               )}
             />
-            <div className={cn(composerClasses.toolbar, 'pt-2')}>
+            <div className={cn(composerClasses.toolbar)}>
               <div />
               <Button
                 type="button"
@@ -307,7 +307,7 @@ function ChatViewSession({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
-      <div className="mx-auto mb-6 w-full max-w-[880px]">
+      <div className="mx-auto mb-6 w-full max-w-[880px] text-center">
         <ChatGreeting displayName={displayName} />
       </div>
       <form onSubmit={submit} className="w-full max-w-[880px]">
@@ -331,10 +331,10 @@ function ChatViewSession({
             rows={1}
             className={cn(
               composerClasses.input,
-              'min-h-20 border-0 shadow-none focus-visible:ring-0',
+              'min-h-15 border-0 shadow-none focus-visible:ring-0',
             )}
           />
-          <div className={cn(composerClasses.toolbar, 'pt-2')}>
+          <div className={cn(composerClasses.toolbar)}>
             <div className="flex min-w-0 flex-nowrap items-center gap-3">
               <Tooltip>
                 <TooltipTrigger
@@ -380,6 +380,9 @@ function ChatViewSession({
             </TooltipIconButton>
           </div>
         </div>
+        <p className="text-muted-foreground mt-2 text-center text-xs">
+          Lexon can make mistakes. Verify important legal information.
+        </p>
         {bytes > MAX_PROMPT_BYTES ? (
           <p role="alert" className="text-destructive mt-2 text-sm">
             Messages can be up to 16,384 bytes.
@@ -396,9 +399,6 @@ function ChatViewSession({
           onValueChange={setText}
           disabled={sending}
         />
-        <p className="text-muted-foreground mt-3 text-center text-xs">
-          Lexon can make mistakes. Verify important legal information.
-        </p>
       </form>
     </div>
   );

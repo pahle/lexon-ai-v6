@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { SquarePen } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { createChatClient } from '@/lib/chat-client';
 import { requestRouteHeadingFocus } from '../shell/navigation-focus';
@@ -63,7 +63,7 @@ export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
         className={buttonVariants({ variant: 'ghost', size: 'icon' })}
         onNavigate={requestRouteHeadingFocus}
       >
-        <SquarePen aria-hidden="true" />
+        <Plus aria-hidden="true" />
       </Link>
       <ChatHistoryActions
         item={chat ?? { title: '' }}

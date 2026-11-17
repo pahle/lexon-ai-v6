@@ -40,7 +40,7 @@ export function StarterPills({
     <div
       role="group"
       aria-label="Starter prompts"
-      className="mt-3 flex flex-wrap justify-center gap-2"
+      className="mt-8 flex flex-wrap justify-center gap-2"
     >
       {STARTER_TEMPLATES.map((item) => (
         <Button

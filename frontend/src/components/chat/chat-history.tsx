@@ -12,6 +12,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Pencil,
+  Plus,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -109,6 +110,7 @@ export function ChatHistory({
           </EmptyHeader>
           <EmptyContent>
             <Button nativeButton={false} render={<Link href="/workspace" />}>
+              <Plus aria-hidden="true" data-icon="inline-start" />
               New chat
             </Button>
           </EmptyContent>
