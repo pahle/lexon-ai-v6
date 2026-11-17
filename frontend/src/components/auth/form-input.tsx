@@ -44,7 +44,10 @@ export function FormInput({
     ...registration,
   };
   return (
-    <Field data-invalid={!!error}>
+    <Field
+      data-invalid={!!error}
+      className="data-[invalid=true]:text-foreground"
+    >
       {labelAside ? (
         <div className="flex items-center">
           <FieldLabel htmlFor={id}>{label}</FieldLabel>

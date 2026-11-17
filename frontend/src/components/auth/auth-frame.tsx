@@ -13,7 +13,7 @@ export function AuthFrame({ children }: { children: ReactNode }): ReactElement {
       tabIndex={-1}
       className="grid min-h-svh w-full flex-1 lg:grid-cols-2"
     >
-      <div className="flex flex-col gap-4 p-6 md:p-10">
+      <div className="flex flex-col gap-4 bg-muted p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <LexonLogo
             variant="wordmark-compact"
@@ -35,15 +35,17 @@ export function AuthFrame({ children }: { children: ReactNode }): ReactElement {
         aria-hidden="true"
         className="dark relative hidden bg-(--lexon-night) text-white lg:block"
       >
-        <div className="flex h-full flex-col justify-between gap-10 p-12">
-          <div className="flex flex-col gap-6">
+        <div className="flex h-full flex-col gap-10 p-12">
+          <div className="flex items-center gap-4">
             <div
               aria-hidden="true"
-              className="h-1 w-12 bg-(--lexon-red-text)"
+              className="h-px w-10 bg-(--lexon-red-text)"
             />
             <p className="text-sm font-medium tracking-wide text-(--lexon-red-text)">
               The AI workspace for Indonesian legal practitioners
             </p>
+          </div>
+          <div className="flex flex-1 items-center">
             <p className="max-w-md font-serif text-4xl leading-tight">
               {AUTH_COVER_STATEMENT}
             </p>

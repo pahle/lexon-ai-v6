@@ -14,6 +14,8 @@ test('account layout uses the published frame and one labeled heading', async ()
     'lg:grid-cols-2',
   );
   expect(view.container.querySelector('.w-full.max-w-xs')).not.toBeNull();
+  const formColumn = view.container.querySelector('main')?.firstElementChild;
+  expect(formColumn?.className).toContain('bg-muted');
   const cover = view.container.querySelector('[aria-hidden="true"].lg\\:block');
   expect(cover?.className).toContain('hidden');
   expect(cover?.className).toContain('bg-(--lexon-night)');
@@ -46,6 +48,10 @@ test('account layout uses the published frame and one labeled heading', async ()
     'Read, draft, and check Indonesian law in one quiet workspace.',
   );
   expect(statement?.className).toContain('font-serif');
+  // The statement sits in its own flexible row, vertically centered.
+  const statementRow = statement?.parentElement;
+  expect(statementRow?.className).toContain('flex-1');
+  expect(statementRow?.className).toContain('items-center');
   expect(
     cover?.querySelector('img[src*="wordmark-compact-white"]'),
   ).not.toBeNull();

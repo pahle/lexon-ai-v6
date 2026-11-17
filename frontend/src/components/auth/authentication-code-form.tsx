@@ -69,7 +69,10 @@ export function AuthenticationCodeForm({
             name="code"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={!!fieldState.error}>
+              <Field
+                data-invalid={!!fieldState.error}
+                className="data-[invalid=true]:text-foreground"
+              >
                 <FieldLabel htmlFor={id}>{label}</FieldLabel>
                 <InputOTP
                   {...field}

@@ -104,7 +104,7 @@ export function LoginForm({
         <div className="flex flex-col items-start gap-1 text-left">
           <h1 className="font-serif text-3xl font-bold">Sign in to Lexon</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Enter your email and password to continue.
+            Enter your work email and password.
           </p>
         </div>
         {failure ? (
@@ -128,7 +128,7 @@ export function LoginForm({
               href="/forgot-password"
               className="ml-auto text-sm underline-offset-4 hover:underline"
             >
-              Forgot your password?
+              Forgot password?
             </a>
           }
           type="password"
@@ -149,7 +149,7 @@ export function LoginForm({
         </Field>
         <Field>
           <FieldDescription className="text-center">
-            New to Lexon? <a href={signup}>Create account</a>
+            New to Lexon? <a href={signup}>Create an account</a>
           </FieldDescription>
         </Field>
       </FieldGroup>
