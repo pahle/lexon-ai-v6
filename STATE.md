@@ -114,6 +114,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 
 ## Lessons learned (apply to every brief)
 
+- F4.1 retrospective (2026-11-17): scope (44 tasks) and an over-strict visual requirement set by this brief (byte-identical goldens for every screen, both themes, both viewports, including animated mid-motion frames) caused most of the delay, on top of agent switches, quota limits, Mac disk/Docker, and the rtk hook. Future briefs: pixel goldens only for new or changed screens and key states; animations locked by SVG snapshot plus unit tests, never per pixel; strict byte gate Linux-only; locally run only affected E2E projects; full E2E in CI only. Add CI E2E sharding (2-3 parallel jobs) to F4.2. Trustworthy evidence is CI, not local summaries.
+
 - Visual determinism (2026-11-16, F4.1): macOS Chromium varies a few pixels under suite load even on frozen pages, so goldens and the strict byte gate are Linux-only; Chromium on Linux rasterizes an animated SVG differently after the first screenshot of a frame (identical markup), fixed by a discarded warm-up screenshot before pinned pairs. Future briefs with animated visuals: Linux-only byte gate, element-level checks on macOS, warm-up before pinned captures, never pixel tolerance.
 
 - Docker safety (2026-11-16, F4.1): a Claude Code worker ran `docker rm -f` on all containers and `docker volume prune -f` while clearing E2E stacks, deleting the PO's unrelated prospera-pg-dev container (data possibly in a leftover unnamed volume). Every future brief and implementer prompt must say: only touch containers/volumes named lexon-e2e-*, never prune, never remove all containers, stop and ask if disk or leftovers block a gate.
