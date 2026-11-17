@@ -1,0 +1,1698 @@
+{
+  "version": 1,
+  "sourceSha": "598ee66ca82e202bdccc1543914bf772c3e93eac",
+  "capturedAt": "2026-11-17T05:47:13.649Z",
+  "environment": {
+    "os": "Linux 7.0.0-1014-aws (linux/x64)",
+    "browser": "Chromium 156.0.8078.4",
+    "playwright": "1.64.1",
+    "node": "v24.22.1",
+    "locale": "en-US",
+    "timezone": "Asia/Jakarta"
+  },
+  "approvalStatus": "awaiting-owner",
+  "approvedImageHashesMatch": null,
+  "viewCount": 240,
+  "images": {
+    "sign-in-desktop-light": {
+      "path": "review/sign-in-desktop-light.png",
+      "sha256": "d8038fc69bd18816d920ea916b243f014b8ac7e35eb76722089e75fe1ef76f22",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-desktop-dark": {
+      "path": "review/sign-in-desktop-dark.png",
+      "sha256": "4573a0a33b0852ad45fff94de0daba8bc209c6b9af7c339a78d08abbd025c3dc",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-mobile-light": {
+      "path": "review/sign-in-mobile-light.png",
+      "sha256": "db75d920eff36efd7963dd8879ea8ef4b9d0c45c682862ec5360915aba83fb17",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-mobile-dark": {
+      "path": "review/sign-in-mobile-dark.png",
+      "sha256": "350fc7ffca0badc5dd26e3fd94831a9b59e0de630adf58c99adac3f3cf5b3d0d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-field-errors-desktop-light": {
+      "path": "review/sign-in-field-errors-desktop-light.png",
+      "sha256": "e741a55869159d76182b97971758cf8d99c3a4ad5701de0e10c804201fffc711",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-field-errors-desktop-dark": {
+      "path": "review/sign-in-field-errors-desktop-dark.png",
+      "sha256": "bd59c05180018fd138e289f8acc5a7268457770c91b5c11da34f1012468207a2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-field-errors-mobile-light": {
+      "path": "review/sign-in-field-errors-mobile-light.png",
+      "sha256": "14215d7a28da005999f5cc649bf6c716d89ca82e8b7c72fc1317821e5f08104c",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-field-errors-mobile-dark": {
+      "path": "review/sign-in-field-errors-mobile-dark.png",
+      "sha256": "f598821e9402390d8eff32ca069d046be05266a0dad8b863f90ec86ef99981fe",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-pending-desktop-light": {
+      "path": "review/sign-in-pending-desktop-light.png",
+      "sha256": "9177af4fc8d4297fc05c9be9b7cee6b1ae5041fd0754b38a1c5e1f46aca49c40",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-pending-desktop-dark": {
+      "path": "review/sign-in-pending-desktop-dark.png",
+      "sha256": "869dff4955ff1f732d9675815c7dc89f2a8e2ed6b0cc8081ad35c3d0b4adced8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-pending-mobile-light": {
+      "path": "review/sign-in-pending-mobile-light.png",
+      "sha256": "bb63985589420a5d2b58bde6732d2661de2caa697b1b18441ab80eed844c2159",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-pending-mobile-dark": {
+      "path": "review/sign-in-pending-mobile-dark.png",
+      "sha256": "0c9f6008af089908d508f296b6151c5ab9e342415a3a59732f9661db62332262",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-form-alert-desktop-light": {
+      "path": "review/sign-in-form-alert-desktop-light.png",
+      "sha256": "fabc23561a705ee066b2b45ea5e4213b2ce0aafb4e6300aa17f6ffa9af80eecb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-form-alert-desktop-dark": {
+      "path": "review/sign-in-form-alert-desktop-dark.png",
+      "sha256": "185852e262f961cf39f356e8e3ce1cdf0559eca12424435e6517aedb8f3ab6a6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-form-alert-mobile-light": {
+      "path": "review/sign-in-form-alert-mobile-light.png",
+      "sha256": "3aa2febc65edfe3b63c46e11da550df26907dc671cb89e895c5f5cec33c61e0f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-in-form-alert-mobile-dark": {
+      "path": "review/sign-in-form-alert-mobile-dark.png",
+      "sha256": "c7f5e083708edc67a246dce513cdf12745a733a96ec7f4e8e1192205b2ea92c7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-up-desktop-light": {
+      "path": "review/sign-up-desktop-light.png",
+      "sha256": "875158ce37f349f7612c0b0d7b2d5a797017c6a3311db673a54529fd57ee4f81",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-up-desktop-dark": {
+      "path": "review/sign-up-desktop-dark.png",
+      "sha256": "9ebb505f1ef1d7f48ffd9ca016ab0adaba171b793666125af6042de12e3f7cdf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sign-up-mobile-light": {
+      "path": "review/sign-up-mobile-light.png",
+      "sha256": "55fea944c12ba9b108927abc18033d3f1a175ab9f7bd0eb28f90a664da7cf4dd",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sign-up-mobile-dark": {
+      "path": "review/sign-up-mobile-dark.png",
+      "sha256": "2a9f8cad6e92debad802f03ade7806508cebfa709dc21eef6887751bd7eef774",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-desktop-light": {
+      "path": "review/forgot-password-desktop-light.png",
+      "sha256": "bd7f551ca563702a4c815134bbe0e70db54aaaa55ce04d748d554c8a8ffa1ef8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-desktop-dark": {
+      "path": "review/forgot-password-desktop-dark.png",
+      "sha256": "4666a095e97aa296898cfd6cf2e3ddc8ce73176680d0dfbec630ccba8cc0ff16",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-mobile-light": {
+      "path": "review/forgot-password-mobile-light.png",
+      "sha256": "b30ac0fbc119ed30f255f55ac0453778b297576efa2cbe4094d9553501c3cb64",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-mobile-dark": {
+      "path": "review/forgot-password-mobile-dark.png",
+      "sha256": "d4763987d50df0bdcb790362f7c512a7c856a563c6eb4d46042ecd4ee479cb38",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-desktop-light": {
+      "path": "review/reset-password-desktop-light.png",
+      "sha256": "999efc98adae8c1a3a2a463b8987c501741db5b7333a9351916ea684b8c87c3e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-desktop-dark": {
+      "path": "review/reset-password-desktop-dark.png",
+      "sha256": "a634eb87e2d767eb7bae037f397af5a1ae9f79ff0633e16ad249a7d6889b64ea",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-mobile-light": {
+      "path": "review/reset-password-mobile-light.png",
+      "sha256": "284c576fd3778656dea888557bc1defaa82af442f9fcd82e7afb387f7d1c6037",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-mobile-dark": {
+      "path": "review/reset-password-mobile-dark.png",
+      "sha256": "9fb8b7d713c63742c12055b25caf5185e8d5e2640496996469b2c0d2efc63df9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "verify-email-desktop-light": {
+      "path": "review/verify-email-desktop-light.png",
+      "sha256": "ccf52af9f870cb48115adae19c9664930f45366ccf405a3d422cb39f06dc57bf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "verify-email-desktop-dark": {
+      "path": "review/verify-email-desktop-dark.png",
+      "sha256": "a6c781e02c377abe2645278192fac8a0204245155b8773d0a2fa7884579d0dad",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "verify-email-mobile-light": {
+      "path": "review/verify-email-mobile-light.png",
+      "sha256": "f723132f4a0ac6261ae177612a53e24a26c3a5b2c9adc8e92f84f5b98152a042",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "verify-email-mobile-dark": {
+      "path": "review/verify-email-mobile-dark.png",
+      "sha256": "de7642401240eb3ada36fc97242594d73fa539f3c5fd1f9cd19306aa4dff4158",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "two-factor-desktop-light": {
+      "path": "review/two-factor-desktop-light.png",
+      "sha256": "8b2171269b1550b393a4962176702d16d622edfa5712ceba496967bf369b08b0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "two-factor-desktop-dark": {
+      "path": "review/two-factor-desktop-dark.png",
+      "sha256": "10cf4e1df9459084beb24be4093408d55fafe7b6526acfd98313daab04789f0c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "two-factor-mobile-light": {
+      "path": "review/two-factor-mobile-light.png",
+      "sha256": "0eb95f08c6fe00c7964f52e9d23688527865d51ee14ac2ad639f87ee8543c384",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "two-factor-mobile-dark": {
+      "path": "review/two-factor-mobile-dark.png",
+      "sha256": "fad4f11f01e6170c38b7daa1c6a39b6e7d829732834b65284fd94660816bc97e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-desktop-light": {
+      "path": "review/accept-invitation-desktop-light.png",
+      "sha256": "395ad98068c278ea3bba15c09aad6be3c61e1a1ab50f78bdbc8e39b588153c68",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-desktop-dark": {
+      "path": "review/accept-invitation-desktop-dark.png",
+      "sha256": "b0882093f853242f98deb8d576154999865f9170c073a58884b99f5ec63e831f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-mobile-light": {
+      "path": "review/accept-invitation-mobile-light.png",
+      "sha256": "32e86ee0ca941b76bc3e571ecf2ac6f4737bf14bbfc400e0ff912da8e9ad3ec6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-mobile-dark": {
+      "path": "review/accept-invitation-mobile-dark.png",
+      "sha256": "a3f41712d56eddbf8c086cde68d650c8602a2dd30e246580d55376f5d53b7b3c",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-desktop-light": {
+      "path": "review/admin-setup-desktop-light.png",
+      "sha256": "96fbfffbcd3efd18877d208f122bc8924b00fd38124bbc68961c0a3e4e74d5af",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-desktop-dark": {
+      "path": "review/admin-setup-desktop-dark.png",
+      "sha256": "c69718c7b711ebfc1e26330768d41a7ccbd8b08bbff138366d4efef1af3ea159",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-mobile-light": {
+      "path": "review/admin-setup-mobile-light.png",
+      "sha256": "85b5e79e0c98c8c37615fb61d25d161786b0e9ead584e8c6eb08cf3e30a36a9a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-mobile-dark": {
+      "path": "review/admin-setup-mobile-dark.png",
+      "sha256": "8964061cc74b54370b6a7501e4d3a5c4e625d392eeddf0c6078aaa6dba598ef0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-desktop-light": {
+      "path": "review/onboarding-desktop-light.png",
+      "sha256": "a3bacd2902fe0a577e17be6b2d45d16addcad025549c1fd65709a9caf2bd5768",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-desktop-dark": {
+      "path": "review/onboarding-desktop-dark.png",
+      "sha256": "43f36b69d7c80ce2821f4890addf726c6219b995e75358d9d630c6ba0a0ccea9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-mobile-light": {
+      "path": "review/onboarding-mobile-light.png",
+      "sha256": "8b3c46f365861b1b96ce743d3b9caf06484940e3ff337019cd261346d0eec35c",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-mobile-dark": {
+      "path": "review/onboarding-mobile-dark.png",
+      "sha256": "fea42bbf289cb5a744b687c1dd7295c41b353a64dd5ba68b6f8a4d406cfbb93e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "shell-personal-desktop-light": {
+      "path": "review/shell-personal-desktop-light.png",
+      "sha256": "391a58ca4787e43bd544da8ab5b6dc77634cca662543eb429f9ed9a2b73e49cb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "shell-personal-desktop-dark": {
+      "path": "review/shell-personal-desktop-dark.png",
+      "sha256": "732bce4b3f80c0342f1a3bb9beefeb7526f0d4515e7c23a868b89a4b4d208e47",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "shell-personal-mobile-light": {
+      "path": "review/shell-personal-mobile-light.png",
+      "sha256": "5fceae33feaa23a8766298d78ec2ca92b55e535489e05dd65d6d0dd331c11206",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "shell-personal-mobile-dark": {
+      "path": "review/shell-personal-mobile-dark.png",
+      "sha256": "1fe642c9bac44cdba6b93efae23902ba9b56011f4c1d42c0ec4c4de639626209",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "shell-team-desktop-light": {
+      "path": "review/shell-team-desktop-light.png",
+      "sha256": "39fa23e990d7021fa848b0a91158b3c8787cd15a9383ac5a67f35d57a7aec9f8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "shell-team-desktop-dark": {
+      "path": "review/shell-team-desktop-dark.png",
+      "sha256": "c3694d50406f1fffdc39a078721273c9bd39cd8bc83afd9c0829b8e5b2f137f5",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "shell-team-mobile-light": {
+      "path": "review/shell-team-mobile-light.png",
+      "sha256": "913272ec9b068afb14da037311e9ebfbb4af2eb079916734b6782465745045f6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "shell-team-mobile-dark": {
+      "path": "review/shell-team-mobile-dark.png",
+      "sha256": "10857fe0f3a34a173420455c2ca17576eb935ccc9b46879da442aa9b5ef79888",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sidebar-collapsed-desktop-light": {
+      "path": "review/sidebar-collapsed-desktop-light.png",
+      "sha256": "d5b78d443fe9bd19e81680d168cb041c6b77cbfaaf3ae2530e038221417c69b7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sidebar-collapsed-desktop-dark": {
+      "path": "review/sidebar-collapsed-desktop-dark.png",
+      "sha256": "111d6c8591d3f1a5388b061ccedbe81fdb29aeabea831aac73c683c7fde57e2f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "sidebar-collapsed-mobile-light": {
+      "path": "review/sidebar-collapsed-mobile-light.png",
+      "sha256": "5fceae33feaa23a8766298d78ec2ca92b55e535489e05dd65d6d0dd331c11206",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "sidebar-collapsed-mobile-dark": {
+      "path": "review/sidebar-collapsed-mobile-dark.png",
+      "sha256": "1fe642c9bac44cdba6b93efae23902ba9b56011f4c1d42c0ec4c4de639626209",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "organization-switcher-open-desktop-light": {
+      "path": "review/organization-switcher-open-desktop-light.png",
+      "sha256": "4453ee1882fd7dfd94d946839c7700e9c94cae8f53f3849de2626e9b06c78a3f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "organization-switcher-open-desktop-dark": {
+      "path": "review/organization-switcher-open-desktop-dark.png",
+      "sha256": "ce53d0eb156e2e96f5f431ec9494970cc1faa405f36bc253ddfc64b2eb860e82",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "organization-switcher-open-mobile-light": {
+      "path": "review/organization-switcher-open-mobile-light.png",
+      "sha256": "83cb4f62b92da3d56d663c3945e8fc5b6fcab1ce93eb638a0e92523f02707b62",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "organization-switcher-open-mobile-dark": {
+      "path": "review/organization-switcher-open-mobile-dark.png",
+      "sha256": "449c853e4845276ce34b42388c59d715c577b46e37b9a42d6192d27e0130d668",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "user-menu-open-desktop-light": {
+      "path": "review/user-menu-open-desktop-light.png",
+      "sha256": "45c5d8330741634d177fe65d027c6f94bdc7fde18f8d4be24c1e515daab83d84",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "user-menu-open-desktop-dark": {
+      "path": "review/user-menu-open-desktop-dark.png",
+      "sha256": "7354bb68850d2ec9520b346dcd6186a49ee3572e4d9c67ab9842f86127cc1154",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "user-menu-open-mobile-light": {
+      "path": "review/user-menu-open-mobile-light.png",
+      "sha256": "ad8c522ef1577d95095e84f235fb63d3f14502e920f65400d95c5b0a5456838b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "user-menu-open-mobile-dark": {
+      "path": "review/user-menu-open-mobile-dark.png",
+      "sha256": "09c36e5115f32978be9827d3f521114316020df21da80b88ee859da9527f8283",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "mobile-sheet-open-desktop-light": {
+      "path": "review/mobile-sheet-open-desktop-light.png",
+      "sha256": "22a4f3a599881ab0eb5754fbb591eac6021fd0c68e546f8b9b891d150b27c822",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "mobile-sheet-open-desktop-dark": {
+      "path": "review/mobile-sheet-open-desktop-dark.png",
+      "sha256": "c3eaac3ae190a776dd6d86984dc76f4346c922fdd3e6928e971d8d5e1f8f839a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "mobile-sheet-open-mobile-light": {
+      "path": "review/mobile-sheet-open-mobile-light.png",
+      "sha256": "33b985ba0643cbd954c222c023b94c1eb29a201c253448fb41ee9bd48a65ab7d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "mobile-sheet-open-mobile-dark": {
+      "path": "review/mobile-sheet-open-mobile-dark.png",
+      "sha256": "e06ca02ad91b90a42675ba726d125bf03e17d4c3970e99f86f455dd50b136238",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-desktop-light": {
+      "path": "review/settings-profile-desktop-light.png",
+      "sha256": "2587eff3cca9e283bfba107e7cbafe29aa0c35ed3f2d21a6789e3d37ffe00b27",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-desktop-dark": {
+      "path": "review/settings-profile-desktop-dark.png",
+      "sha256": "e58e31008005bafbffafe7c95644e07e360e5a55f2a8346df8a6b8739a48897e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-mobile-light": {
+      "path": "review/settings-profile-mobile-light.png",
+      "sha256": "80892541447d5687fdc82c0aec4374598aaaef1d88f4900d2ea89540abb75cca",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-mobile-dark": {
+      "path": "review/settings-profile-mobile-dark.png",
+      "sha256": "39365790e0ff724f5920744f39ae856fcf599db91c1761ba7da524da643bbd8d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-appearance-desktop-light": {
+      "path": "review/settings-appearance-desktop-light.png",
+      "sha256": "4d11ab332058b77d9415a64428fe5ff7cc29c22c6cfb75239deccc1ba519f355",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-appearance-desktop-dark": {
+      "path": "review/settings-appearance-desktop-dark.png",
+      "sha256": "f4c3405ef0eeb4e2ad185a2a3cd434588e42758dba4989ee22a1e9283ef7d31f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-appearance-mobile-light": {
+      "path": "review/settings-appearance-mobile-light.png",
+      "sha256": "4b7710700467542414669eaaeb899b02a1aae2a1c4e8e6070482cd5d5ad79e61",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-appearance-mobile-dark": {
+      "path": "review/settings-appearance-mobile-dark.png",
+      "sha256": "21c5ddcf59924c589ce20bab3ac85403415ce13bbca62fbbbff7b6aad0558329",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-security-desktop-light": {
+      "path": "review/settings-security-desktop-light.png",
+      "sha256": "fac7b83735a57a44170c3469ff54243a7673f9a7c385dad71b497c3176838e0e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-security-desktop-dark": {
+      "path": "review/settings-security-desktop-dark.png",
+      "sha256": "6fedbec0afc646485fd63e09d205b0bcd5e969fc853b8fe4ae6a79d911504d45",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-security-mobile-light": {
+      "path": "review/settings-security-mobile-light.png",
+      "sha256": "e9790cccd4f2927bb170f5c536ce67f0dbcec7c19c5a0f6d5fdb8b714fe77388",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-security-mobile-dark": {
+      "path": "review/settings-security-mobile-dark.png",
+      "sha256": "ea2fe2b12536797d946bd15915dfd6dc7a2f1b39511f76b4a2242600861175c4",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-desktop-light": {
+      "path": "review/settings-members-desktop-light.png",
+      "sha256": "e3da2fc89f6e4fe7f361f89672847eaca12f48080c1ac77af0b75c69f309cca9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-desktop-dark": {
+      "path": "review/settings-members-desktop-dark.png",
+      "sha256": "a919e09bdc96727f7cf9d56eced4cc5b5ad9584844db2dde39aa001215ffba0a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-mobile-light": {
+      "path": "review/settings-members-mobile-light.png",
+      "sha256": "49a196db78f02f10283137b324ed483382154629a4e0c5b67f2697322b99d574",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-mobile-dark": {
+      "path": "review/settings-members-mobile-dark.png",
+      "sha256": "d420fa48d15c080759fac06b7bfd6f4bc9e36295e9dc305d805e08b8360fc05d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-invitations-desktop-light": {
+      "path": "review/settings-invitations-desktop-light.png",
+      "sha256": "2615aa86c8b987595e1800fcb05d8433d5fde3e84036149d3ed276dc7c886329",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-invitations-desktop-dark": {
+      "path": "review/settings-invitations-desktop-dark.png",
+      "sha256": "2c0ec7d8cc90d14ee788af1a8130471c1c8b3688fc3143ace3e952a5183d2fcf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-invitations-mobile-light": {
+      "path": "review/settings-invitations-mobile-light.png",
+      "sha256": "1645932cd97f11d18b3b4c3cc5116e8137aeae9b9072921af2989b0e3f664c03",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-invitations-mobile-dark": {
+      "path": "review/settings-invitations-mobile-dark.png",
+      "sha256": "8619d568f5832021ff5698913d251b8440757c27cb6de49083625ff9034e4a1c",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-general-desktop-light": {
+      "path": "review/settings-general-desktop-light.png",
+      "sha256": "aafbbf7e0de7d41e6ecff10ee7f2b0387aeb7b7650be4963ae4e11b8790999a3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-general-desktop-dark": {
+      "path": "review/settings-general-desktop-dark.png",
+      "sha256": "c885eecc3f54ecf145b3bdc55fc0f23523648368adeba1fbc2398718b1b1e6ba",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-general-mobile-light": {
+      "path": "review/settings-general-mobile-light.png",
+      "sha256": "0c94275b753c7179463e0e786c52ef5addea6653636a360d23c9e9b7846e9ca2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-general-mobile-dark": {
+      "path": "review/settings-general-mobile-dark.png",
+      "sha256": "6b172f4d48dad875d3cf7c03a45f9c817e2382b9a2b860d4f75c66a29b712d90",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-no-access-desktop-light": {
+      "path": "review/platform-no-access-desktop-light.png",
+      "sha256": "140902961832b51be800d51e0a3a7043c04e14f47229398c1a808bcacfa55030",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-no-access-desktop-dark": {
+      "path": "review/platform-no-access-desktop-dark.png",
+      "sha256": "9d23208f6e929d3e164a8b3b208cbeda64348ab7502cc48809123746924b4144",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-no-access-mobile-light": {
+      "path": "review/platform-no-access-mobile-light.png",
+      "sha256": "ed80a1ccbb6ea23044d259639cedb2b489e7467466d695107db8ef72403047e7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-no-access-mobile-dark": {
+      "path": "review/platform-no-access-mobile-dark.png",
+      "sha256": "71d2d07b2b7b75a898a28bd78da8e41f0ba61d94d51c009156bf0591af792772",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-loading-desktop-light": {
+      "path": "review/platform-provisioning-loading-desktop-light.png",
+      "sha256": "9cf948166b42e0e9cce1231bd7d68702cdbd782eb8f8e8a93a799db68cae0dd2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-loading-desktop-dark": {
+      "path": "review/platform-provisioning-loading-desktop-dark.png",
+      "sha256": "9a3726b4eeb900dc617c0c5243d0e698ef85d9d2317e378721d657030da23ff0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-loading-mobile-light": {
+      "path": "review/platform-provisioning-loading-mobile-light.png",
+      "sha256": "f07959a2aaab7a862d6a057a9687639faf22564f70000caaa96dbb52ff6ad8b2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-loading-mobile-dark": {
+      "path": "review/platform-provisioning-loading-mobile-dark.png",
+      "sha256": "2de9527eb722c90f996a581bc2c4c0de6ffe93d1b872208a6557a2d29a57878b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-empty-desktop-light": {
+      "path": "review/platform-provisioning-empty-desktop-light.png",
+      "sha256": "e28528dc1500481158d4b13baa6c90d97e40bffd603e087e3383f06c0764eaa3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-empty-desktop-dark": {
+      "path": "review/platform-provisioning-empty-desktop-dark.png",
+      "sha256": "5cdfc94871ba9f13a5a39d8001286c17760866060fd9ec26aaa43b4ad167055e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-empty-mobile-light": {
+      "path": "review/platform-provisioning-empty-mobile-light.png",
+      "sha256": "128b076e46bba4e2b4db30f07a0089b6b608932301bd5f51973bd51157ae16d5",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-empty-mobile-dark": {
+      "path": "review/platform-provisioning-empty-mobile-dark.png",
+      "sha256": "c3e2a33c87bae476ed7c9cc77ce4f8ea7fdef457390d6b6612fd5ea7e017a0b2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-populated-desktop-light": {
+      "path": "review/platform-provisioning-populated-desktop-light.png",
+      "sha256": "bf7e49471e5d7e8f47d98f8f6f7eba8fab6b275cfe92f0f094f794b9a54b2683",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-populated-desktop-dark": {
+      "path": "review/platform-provisioning-populated-desktop-dark.png",
+      "sha256": "cf32e38b17fa338496f5c3ec5db689a45dd5c5ad3f7f4a437442cb9bc2188e8d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-populated-mobile-light": {
+      "path": "review/platform-provisioning-populated-mobile-light.png",
+      "sha256": "1ea1d4200dacc5f1f3ba1651ae4f684a486be4071fbccee2dbb6608db2d4ec34",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-populated-mobile-dark": {
+      "path": "review/platform-provisioning-populated-mobile-dark.png",
+      "sha256": "64296eb124db40485b4f967ae00a63e4235482d547c4faa6be50c8ce412d8c9e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-detail-desktop-light": {
+      "path": "review/platform-provisioning-detail-desktop-light.png",
+      "sha256": "ddb6735d7310d849e317ac401dbbd46ba257e8f152f270b1660e036d97cd5ebe",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-detail-desktop-dark": {
+      "path": "review/platform-provisioning-detail-desktop-dark.png",
+      "sha256": "bf063ee29ee264ba3054cc9b1ae11c278faa6bfabe2791b9bc99e3d2e12799f7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-detail-mobile-light": {
+      "path": "review/platform-provisioning-detail-mobile-light.png",
+      "sha256": "94e1d9f6a6bcaf86ac067a99a7e0d8d88bdd050be2e7911c556a4e5ba8f51d80",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-detail-mobile-dark": {
+      "path": "review/platform-provisioning-detail-mobile-dark.png",
+      "sha256": "a41b8008a69f591f5875b83681470aa4ed9756bb71a3eba17c7fb9d5e23ee9eb",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-error-desktop-light": {
+      "path": "review/platform-provisioning-error-desktop-light.png",
+      "sha256": "1956d745673d51860563e50072037e4aaf1ecef52f1869f07dbe9743b4f96d76",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-error-desktop-dark": {
+      "path": "review/platform-provisioning-error-desktop-dark.png",
+      "sha256": "959d67c3b9cc56df4cd261915b8e314bde500c6596cd27c64f69f6b02df0dd06",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-error-mobile-light": {
+      "path": "review/platform-provisioning-error-mobile-light.png",
+      "sha256": "f383ccea906ef312776f9314bbcb5e37480f96aa2e14e2bd1b2e295c3848ba2d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-provisioning-error-mobile-dark": {
+      "path": "review/platform-provisioning-error-mobile-dark.png",
+      "sha256": "9491ea8b9e7db09b70f09aa3608f07119d4d47c4faa2b9a6abc23365d81d42c4",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-desktop-light": {
+      "path": "review/platform-accounts-desktop-light.png",
+      "sha256": "31b633adf98256009b763daaf2ad7c0638005f3ae59b89ba9569bcbeb7b268ee",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-desktop-dark": {
+      "path": "review/platform-accounts-desktop-dark.png",
+      "sha256": "cf5035e9e92b0c4baac046eb90179d461fcba71c9ad5ef55e1677f9b0d38feb1",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-mobile-light": {
+      "path": "review/platform-accounts-mobile-light.png",
+      "sha256": "ee526a3577a262df0fdba8ed897aa7a85c0dfe4df633f67a8200767ed95abcf8",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-mobile-dark": {
+      "path": "review/platform-accounts-mobile-dark.png",
+      "sha256": "aeceedaa755110d1d8b4bd70882428b2d3363a07ab52b93edd9f5aa32e4f54ae",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "organizations-not-found-desktop-light": {
+      "path": "review/organizations-not-found-desktop-light.png",
+      "sha256": "6c2a304ef3bf5f4dde64a256f5238f22d6ff9b544f292edb8fae352119aaab51",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "organizations-not-found-desktop-dark": {
+      "path": "review/organizations-not-found-desktop-dark.png",
+      "sha256": "b66cb527b4740bdab99b8ac4c158d1a5621fc41d1d8ed2aeb1518e7704bdc907",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "organizations-not-found-mobile-light": {
+      "path": "review/organizations-not-found-mobile-light.png",
+      "sha256": "cf189167b2c77e95091f00bbe69b5d9d7c191dd850d3357e06a4e49d0649b6bb",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "organizations-not-found-mobile-dark": {
+      "path": "review/organizations-not-found-mobile-dark.png",
+      "sha256": "51916ef57664641a00a7c25307e000b01b7c70fef4ab0119e1e8b75b8e41a1a8",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "not-found-desktop-light": {
+      "path": "review/not-found-desktop-light.png",
+      "sha256": "91bc5e146117f36bdd3692da0d1a0aaa87ec32e19ee6ea61cdaddbcb5c4d031b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "not-found-desktop-dark": {
+      "path": "review/not-found-desktop-dark.png",
+      "sha256": "9cfb60c090aa2b6766aa1bb9e4ca318604692349b6e26589f435d5db7d741a38",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "not-found-mobile-light": {
+      "path": "review/not-found-mobile-light.png",
+      "sha256": "2ed55653668f4ffa6c4159e5abc1e7b092f97e7499a93858b15f730620ab15ca",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "not-found-mobile-dark": {
+      "path": "review/not-found-mobile-dark.png",
+      "sha256": "819e223d1a6e643288a5fdb532fac87a5c2053f214bf4c6de1dd49551d2ec6fc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "workspace-error-desktop-light": {
+      "path": "review/workspace-error-desktop-light.png",
+      "sha256": "1f0809d3ffd757a922ae5a1ec042f20de9b36ef8cddb05696fc7e5933d351381",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "workspace-error-desktop-dark": {
+      "path": "review/workspace-error-desktop-dark.png",
+      "sha256": "efa6fa0fb10c7c7cac11c0fda3921feca41ba52345ee24419e54677b967934d1",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "workspace-error-mobile-light": {
+      "path": "review/workspace-error-mobile-light.png",
+      "sha256": "6eee0eabd6919438c3ecdf44f9b9c273eee73db324a53cb5375743daad4312ee",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "workspace-error-mobile-dark": {
+      "path": "review/workspace-error-mobile-dark.png",
+      "sha256": "e1e2bf7ea1b6aeb78d33172839239dd276690534d0d0972e20d55bd3254e0e37",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "toast-success-desktop-light": {
+      "path": "review/toast-success-desktop-light.png",
+      "sha256": "79c53fc29028008ff1c883aec7ac17cff52d4832fb0747ea9696ac7086c6695f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "toast-success-desktop-dark": {
+      "path": "review/toast-success-desktop-dark.png",
+      "sha256": "c17916f9ceacb9ac6ce3ab3b89ca9468c295a4310dab46332baa4545a0ba1ffb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "toast-success-mobile-light": {
+      "path": "review/toast-success-mobile-light.png",
+      "sha256": "d4413b2c9c9d9624d5f69a2b7cd5bf2f5becad77caa43b63736487f8075487e6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "toast-success-mobile-dark": {
+      "path": "review/toast-success-mobile-dark.png",
+      "sha256": "028919c2894aceecff766abf65a4eb02f37a5d56ee265cee4a9328ff2fd07141",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-empty-desktop-light": {
+      "path": "review/chats-empty-desktop-light.png",
+      "sha256": "da48384d231e2d741037a9024b73bc47b5b4fffd7780de05261e7ed3829fde4b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-empty-desktop-dark": {
+      "path": "review/chats-empty-desktop-dark.png",
+      "sha256": "5fb0040bb123e2157c3788e3630873c4d953e1e1d319ecd2bc49403bf14ebdf3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-empty-mobile-light": {
+      "path": "review/chats-empty-mobile-light.png",
+      "sha256": "d3c0590fae92f155428bcc08d6805b747df21bf2add1eae6d19b9681d4cbcade",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-empty-mobile-dark": {
+      "path": "review/chats-empty-mobile-dark.png",
+      "sha256": "9e10dedd5607c5a27c0a4c5dbc6d87d75f372cfb6722d7116665a099500e50e9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-loading-desktop-light": {
+      "path": "review/chats-loading-desktop-light.png",
+      "sha256": "9b167804dcfffa932db516571343c04ce2f8868e3e0552fd2fb75cdb355f4df3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-loading-desktop-dark": {
+      "path": "review/chats-loading-desktop-dark.png",
+      "sha256": "dbbc5461d9b75a3653c51e8cc5ebad79265c9d4f9e106227a64dcbddcfc0d106",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-loading-mobile-light": {
+      "path": "review/chats-loading-mobile-light.png",
+      "sha256": "8dc2a24e02c878486988a54a86ae33eca9f359b45fddb643f8314d075dba357b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-loading-mobile-dark": {
+      "path": "review/chats-loading-mobile-dark.png",
+      "sha256": "10450119b6d82eb4d9c8dd10ce185190ea112cf048c374aea9ca1fed157ad79e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-new-desktop-light": {
+      "path": "review/chat-new-desktop-light.png",
+      "sha256": "3bbf60228457c0f7281eee0fd823d7b857575241753ace557876bd2b2f03e569",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-new-desktop-dark": {
+      "path": "review/chat-new-desktop-dark.png",
+      "sha256": "3f84ff011274f902ead67bf4dc8d7d3a72e3115a7c06f8035a100df80106a943",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-new-mobile-light": {
+      "path": "review/chat-new-mobile-light.png",
+      "sha256": "5fceae33feaa23a8766298d78ec2ca92b55e535489e05dd65d6d0dd331c11206",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-new-mobile-dark": {
+      "path": "review/chat-new-mobile-dark.png",
+      "sha256": "1fe642c9bac44cdba6b93efae23902ba9b56011f4c1d42c0ec4c4de639626209",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-deep-thinking-desktop-light": {
+      "path": "review/chat-deep-thinking-desktop-light.png",
+      "sha256": "5cd830533c9144058e1157eade2a2b8d06f6713e486b6f1c4a24d87134bd911a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-deep-thinking-desktop-dark": {
+      "path": "review/chat-deep-thinking-desktop-dark.png",
+      "sha256": "88e782482218202230f20b53d8c0a7780796d8c10d9f0fffcde31a7b5b7ab48d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-deep-thinking-mobile-light": {
+      "path": "review/chat-deep-thinking-mobile-light.png",
+      "sha256": "ac5a1ea6c3aa6d1dc488785001c4f71979ceb3149187283dea2d19fc10e12742",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-deep-thinking-mobile-dark": {
+      "path": "review/chat-deep-thinking-mobile-dark.png",
+      "sha256": "14b8c07f4fea88542b958db9f63c7f293cefd4c9e9fa1c94c08d5671ff4ada60",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-starter-pill-desktop-light": {
+      "path": "review/chat-starter-pill-desktop-light.png",
+      "sha256": "15ff4a62b8829b737593dac7c6e09af53356a650649b103f41eca39792e800b2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-starter-pill-desktop-dark": {
+      "path": "review/chat-starter-pill-desktop-dark.png",
+      "sha256": "1acfd77f058387374ecf84661ee0afc844be18719242eb7cb1e76a91798421db",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-starter-pill-mobile-light": {
+      "path": "review/chat-starter-pill-mobile-light.png",
+      "sha256": "27b8c3a595fae11b4334d2f5b155d0668f19468f69af1cc48202db256e74f057",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-starter-pill-mobile-dark": {
+      "path": "review/chat-starter-pill-mobile-dark.png",
+      "sha256": "3e1d458bceecd5b8be6cfe52a5ce21b1ed29d24e3f9365eec3f230969e9d6999",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-streaming-scroll-desktop-light": {
+      "path": "review/chat-streaming-scroll-desktop-light.png",
+      "sha256": "8257c01a2bb5b4c5fdf286663a7c0d156ca647326765b9eede8534703977c397",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-streaming-scroll-desktop-dark": {
+      "path": "review/chat-streaming-scroll-desktop-dark.png",
+      "sha256": "d69f44c5912cd02ddfdff26bcf6af3a4bc6453818b38e221c4aa76299eeb9530",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-streaming-scroll-mobile-light": {
+      "path": "review/chat-streaming-scroll-mobile-light.png",
+      "sha256": "6ce9c41e1ee16d8cbda262e95d82abe7d60af3d5385fed421017081bdac46f56",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-streaming-scroll-mobile-dark": {
+      "path": "review/chat-streaming-scroll-mobile-dark.png",
+      "sha256": "74101ea2e48c69b877a861a474a042560df945330aa113402388095f9fdd53c2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-collapsed-desktop-light": {
+      "path": "review/chat-reasoning-collapsed-desktop-light.png",
+      "sha256": "aef5de169b04866a645c8f8d2ca78a65f6b7c12a3190905e04015c73bb13c08c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-collapsed-desktop-dark": {
+      "path": "review/chat-reasoning-collapsed-desktop-dark.png",
+      "sha256": "91b0dcff8943c54eb74e48a0c0efa8529af81d80c7bd34c907ebd35f76fddc9c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-collapsed-mobile-light": {
+      "path": "review/chat-reasoning-collapsed-mobile-light.png",
+      "sha256": "81a0fd6f0034b309716db3b368110722413dac943731c02e7900b71356a578bc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-collapsed-mobile-dark": {
+      "path": "review/chat-reasoning-collapsed-mobile-dark.png",
+      "sha256": "e526436e4afd8e41a892811df40e640382150939628cb314aed5dbae5901ff79",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-open-desktop-light": {
+      "path": "review/chat-reasoning-open-desktop-light.png",
+      "sha256": "2646b0e08a93ae2f0413c2270b366887d490e91ea79aadfe892dd340aec8aabf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-open-desktop-dark": {
+      "path": "review/chat-reasoning-open-desktop-dark.png",
+      "sha256": "7adc509cf200601c68411346f23a5c6ecd005b8b840a45aa0769fef17ab340f2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-open-mobile-light": {
+      "path": "review/chat-reasoning-open-mobile-light.png",
+      "sha256": "5171487193b53472262e59143e7ebf6817fc0e64dc6f8da45c60c0e3ae4d74ef",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reasoning-open-mobile-dark": {
+      "path": "review/chat-reasoning-open-mobile-dark.png",
+      "sha256": "d1dbfa90b4cfed7d6f154f07deed6c25ca518d54553ad77c5bfa3aa5f09b412e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-answer-actions-desktop-light": {
+      "path": "review/chat-answer-actions-desktop-light.png",
+      "sha256": "0e8d774ab17f29ebff77ca1726cac694c7a6fd194e170193b81bd3c3f6d68b31",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-answer-actions-desktop-dark": {
+      "path": "review/chat-answer-actions-desktop-dark.png",
+      "sha256": "745e2ef4ad30648c108c5447bbf3441bdcd9d98acffefa0786d9fd6ec7ace8fc",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-answer-actions-mobile-light": {
+      "path": "review/chat-answer-actions-mobile-light.png",
+      "sha256": "278904ffc4364a92475eecc19d4a53fc31a57f77269baf2950070c5ae1462bfe",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-answer-actions-mobile-dark": {
+      "path": "review/chat-answer-actions-mobile-dark.png",
+      "sha256": "adff3f500dc04f24b8108493d1637af5e237d4742bedb4c318ca3dbfb020e7ff",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-copied-desktop-light": {
+      "path": "review/chat-copied-desktop-light.png",
+      "sha256": "afd31a02b385ead37887d2ae9297085962571dd13e74d0eca1a9883742ede3d2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-copied-desktop-dark": {
+      "path": "review/chat-copied-desktop-dark.png",
+      "sha256": "89adf5b62b64b09af80acb20bddf39730892a6dccad609350b2bd91404d9d980",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-copied-mobile-light": {
+      "path": "review/chat-copied-mobile-light.png",
+      "sha256": "81a0fd6f0034b309716db3b368110722413dac943731c02e7900b71356a578bc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-copied-mobile-dark": {
+      "path": "review/chat-copied-mobile-dark.png",
+      "sha256": "e526436e4afd8e41a892811df40e640382150939628cb314aed5dbae5901ff79",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-feedback-desktop-light": {
+      "path": "review/chat-feedback-desktop-light.png",
+      "sha256": "4f004b9125119c6c7eb532d0982490374da6fdce789a6add3797c45138fd2309",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-feedback-desktop-dark": {
+      "path": "review/chat-feedback-desktop-dark.png",
+      "sha256": "fd46acf22f7e1e4b8eee211264c6448d27cc531779c982a0858cf55ac017f0cb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-feedback-mobile-light": {
+      "path": "review/chat-feedback-mobile-light.png",
+      "sha256": "dd2a327a1af02699649a63e6320c9375bf2a53b7a0d6de6af2d47b52506858b6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-feedback-mobile-dark": {
+      "path": "review/chat-feedback-mobile-dark.png",
+      "sha256": "9c880da8be09f209f21e2d0c5a4c84620456b050380d37b8793372fc2c9c38f1",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-edit-desktop-light": {
+      "path": "review/chat-edit-desktop-light.png",
+      "sha256": "400b3f7b51b45055ca10ff39705ee61429da8509276c218c3f009e83c7e1b2b6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-edit-desktop-dark": {
+      "path": "review/chat-edit-desktop-dark.png",
+      "sha256": "d0b2e6820e4239974512706d73ada5bc805d42e33b242473bea0873c59eb562c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-edit-mobile-light": {
+      "path": "review/chat-edit-mobile-light.png",
+      "sha256": "8892a4bef5b3187b2ce2707c90025a1044600febc821c1b0f4b5c16ee47ac9e2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-edit-mobile-dark": {
+      "path": "review/chat-edit-mobile-dark.png",
+      "sha256": "e188f736bd92e55e724ff5529e128ff3c78d9461e0c7c98cc0c75ba1ddca0dfc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-branch-desktop-light": {
+      "path": "review/chat-branch-desktop-light.png",
+      "sha256": "a1f55fdf7ea961bb323230d32d1032b0dc41174faa3f1f63a3b1a8242bf9ccc2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-branch-desktop-dark": {
+      "path": "review/chat-branch-desktop-dark.png",
+      "sha256": "327a2010d79691843682b40d2ed46e06e98ac397d97a4a3dd652bf057391ed71",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-branch-mobile-light": {
+      "path": "review/chat-branch-mobile-light.png",
+      "sha256": "4630508b04d6729455969f66f38c62fe4fcbd4aeb165f8676aa2db2cc350ea06",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-branch-mobile-dark": {
+      "path": "review/chat-branch-mobile-dark.png",
+      "sha256": "a9f3b02e05fda524bd83a467a7fcde2e9a3f38a3f10389a7e794a8ce85ce3fde",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-stopped-desktop-light": {
+      "path": "review/chat-stopped-desktop-light.png",
+      "sha256": "45d780f3a2aff9f562de3d9047b3982922c91fb679485178fea1c55389f0c51a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-stopped-desktop-dark": {
+      "path": "review/chat-stopped-desktop-dark.png",
+      "sha256": "5f8e98e0d9183fe0ef7304536d0163609fc08acb054f4033c0aaf5667f40c5d4",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-stopped-mobile-light": {
+      "path": "review/chat-stopped-mobile-light.png",
+      "sha256": "387f9f05bf2555a46479d234e9768d183d4700dbb5bf55eae76805aea181174c",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-stopped-mobile-dark": {
+      "path": "review/chat-stopped-mobile-dark.png",
+      "sha256": "d56aa31e6ae882d8657dfede8d1b79fb12daa72c52691eab4f6e1b3e84219ecc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-error-desktop-light": {
+      "path": "review/chat-error-desktop-light.png",
+      "sha256": "44037e3e127574b0a01ad89a9f15b4b877ed58fcee2dbca1fd3c93d1a6dc1ea4",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-error-desktop-dark": {
+      "path": "review/chat-error-desktop-dark.png",
+      "sha256": "e67728cef1a0ad882df25d1ffc1d4769561bd6d50dadb2dec58e6f81ca5aad1b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-error-mobile-light": {
+      "path": "review/chat-error-mobile-light.png",
+      "sha256": "319aaa2ab9df1258a5704377dc30b2de7382afba6c2d6bd6ae5c8b522f12e5dd",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-error-mobile-dark": {
+      "path": "review/chat-error-mobile-dark.png",
+      "sha256": "e51f950f3f1ee46056fbb7c86bc98892a10e838e7645c4416ecbb6715ebb1092",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reconnecting-desktop-light": {
+      "path": "review/chat-reconnecting-desktop-light.png",
+      "sha256": "0f701fb05d2475e679a822d0219862c80395a7a6412233a9ecd4345e0654b135",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reconnecting-desktop-dark": {
+      "path": "review/chat-reconnecting-desktop-dark.png",
+      "sha256": "717faf10b87fae881263fea85dc52b7a052f72285b45852a7bc90d679d3d20a2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-reconnecting-mobile-light": {
+      "path": "review/chat-reconnecting-mobile-light.png",
+      "sha256": "b7a8b065e7f458557835ae4c88bfe759d90be27f98f621734a0cb0483ceec6ed",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-reconnecting-mobile-dark": {
+      "path": "review/chat-reconnecting-mobile-dark.png",
+      "sha256": "63edbed3b877001379dbc1b964ded383650a66896aba9e8adc5346c20f6eb0bc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-thread-loading-desktop-light": {
+      "path": "review/chat-thread-loading-desktop-light.png",
+      "sha256": "598d2f8697ff45c3c425eb49f8721ef9dd5715cb6f99ba125466718551adc4ce",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-thread-loading-desktop-dark": {
+      "path": "review/chat-thread-loading-desktop-dark.png",
+      "sha256": "3c1ae6504d43962ded35190c93043fd78884e7b87c2d7bb2dcd8f051476b1b36",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-thread-loading-mobile-light": {
+      "path": "review/chat-thread-loading-mobile-light.png",
+      "sha256": "956d9d3dfc9c7a57ac8e0d7dbaa00370745e118f4aa833a5721ace5cc699cf5e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-thread-loading-mobile-dark": {
+      "path": "review/chat-thread-loading-mobile-dark.png",
+      "sha256": "be0d6f6cb93bcf3ba66b141060f32e7f9fd6bab9eeab1d625ee6c2a69cb784b8",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-floating-menu-desktop-light": {
+      "path": "review/chat-floating-menu-desktop-light.png",
+      "sha256": "33f781ea56d48b37661b49eec1924311525c9d692895a5bacb614702d7db6cf3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-floating-menu-desktop-dark": {
+      "path": "review/chat-floating-menu-desktop-dark.png",
+      "sha256": "2db4ce36eacd4e4a453e3b30ecd767b86b80213896407375baf462bbf4514b60",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-floating-menu-mobile-light": {
+      "path": "review/chat-floating-menu-mobile-light.png",
+      "sha256": "1969085e51a2c29b25c519ec84515949653a9c92f3efe3fb224b21efe7be5862",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-floating-menu-mobile-dark": {
+      "path": "review/chat-floating-menu-mobile-dark.png",
+      "sha256": "705894156c1834fec95665749a26dd074ed88d8d3335ae9095609c6ce0714a4a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-rename-desktop-light": {
+      "path": "review/chat-rename-desktop-light.png",
+      "sha256": "06e23fbe52492efe1aa37684f67b6c112ba191507d51a1e409b8053403c2288c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-rename-desktop-dark": {
+      "path": "review/chat-rename-desktop-dark.png",
+      "sha256": "734b1c7305133fe2fa93e29576e79f340d4cf52bfe4895698ee520f46b3c9b8a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-rename-mobile-light": {
+      "path": "review/chat-rename-mobile-light.png",
+      "sha256": "1d7e790d6c83671358f65247cf7a1eb21570549fd04e3c5eee08102a07cdcb83",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-rename-mobile-dark": {
+      "path": "review/chat-rename-mobile-dark.png",
+      "sha256": "b718ed1021e1b8b5c0a998dbb8d6645c9eef0cc6edb37d9b9df901405126afc6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-delete-desktop-light": {
+      "path": "review/chat-delete-desktop-light.png",
+      "sha256": "53adb340b3023ab09fc7e8511d6383a5f2432041d2be5782dc569842605bd73a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-delete-desktop-dark": {
+      "path": "review/chat-delete-desktop-dark.png",
+      "sha256": "b84cd357b33ae5f694b2e0ed06ba5e98159a47bf6fc2ba51768651c25f60e586",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-delete-mobile-light": {
+      "path": "review/chat-delete-mobile-light.png",
+      "sha256": "51c2a9a587cb7627ad72c11c16081cef5a8b8e090a3b95c666fc4faafcf16d78",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-delete-mobile-dark": {
+      "path": "review/chat-delete-mobile-dark.png",
+      "sha256": "ff9606d3a6a8861dedb212617cdfbc23d8260f52a1361048adb37bd85ca4a5dc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-history-desktop-light": {
+      "path": "review/chats-history-desktop-light.png",
+      "sha256": "b532c895f73d285dc768e8be44308f15f6b508037678c73d52fa4b021f35a62e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-history-desktop-dark": {
+      "path": "review/chats-history-desktop-dark.png",
+      "sha256": "702121fca4245cadbde4dfdfbb4d0c0fc83386d5f6e33c3f169fd2c79339824a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-history-mobile-light": {
+      "path": "review/chats-history-mobile-light.png",
+      "sha256": "8526d97b650fe43496ca25ba658cc71ff9b1db4e7d2c9b8fab10f87efbcdf8fc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-history-mobile-dark": {
+      "path": "review/chats-history-mobile-dark.png",
+      "sha256": "74d58cef8a624cb53f0181280e4ac4efab5d337c060aa906fc92fd718cabfc91",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-search-desktop-light": {
+      "path": "review/chats-search-desktop-light.png",
+      "sha256": "fc181bac2e09a53ced15a516d3da1930e44d04a0cfea1b0133ab1e03b68c519f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-search-desktop-dark": {
+      "path": "review/chats-search-desktop-dark.png",
+      "sha256": "279e135e5dab047be367850e84a651765fe05c63a2b4934b3fab7f90826ae860",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-search-mobile-light": {
+      "path": "review/chats-search-mobile-light.png",
+      "sha256": "1ccfd3eb7b099acad3aad4b61203bbb0da635a461765a6ad71e5f3395ab2de8f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-search-mobile-dark": {
+      "path": "review/chats-search-mobile-dark.png",
+      "sha256": "560a33a97d9b16b1a650dff38472977749b38c06e69e5ecf4d2f85564b37c55e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-no-results-desktop-light": {
+      "path": "review/chats-no-results-desktop-light.png",
+      "sha256": "f77b94c7b29d942df3313976c5e292b00eba74810a7e82261d2d1f2fc1f64ace",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-no-results-desktop-dark": {
+      "path": "review/chats-no-results-desktop-dark.png",
+      "sha256": "4af1a2f955f3db66b66cd68ee8af133184bfdb2b9146a4e1b45e6fc65eef14a5",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-no-results-mobile-light": {
+      "path": "review/chats-no-results-mobile-light.png",
+      "sha256": "9075a46081e27e27e3dbf8f95a2f4264131f877d78f5940e6114a0af5084b0e3",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-no-results-mobile-dark": {
+      "path": "review/chats-no-results-mobile-dark.png",
+      "sha256": "5f97d9884f5280d53c67e8c04b9432feb3ac9067f23360ee079cddd1b3e21897",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "recent-menu-desktop-light": {
+      "path": "review/recent-menu-desktop-light.png",
+      "sha256": "fdadb4383f85967c1237de9957725c9e3e514429abad00a9efb06ee70eb5128c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "recent-menu-desktop-dark": {
+      "path": "review/recent-menu-desktop-dark.png",
+      "sha256": "81bd3aac34abdd5fa85ccbd9ceb129d4bcc1b3cc162c5e5a702e8661820070c0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "recent-menu-mobile-light": {
+      "path": "review/recent-menu-mobile-light.png",
+      "sha256": "fb67be376b2f081a0ba1421c643654e2dd707becab7fd6e0fe4c76ab8749c4c1",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "recent-menu-mobile-dark": {
+      "path": "review/recent-menu-mobile-dark.png",
+      "sha256": "1fda7889ae27a7cd0abbf6047e941a0fa82bde6befee89c5757f304e7939a9d0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "indicator-finished-desktop-light": {
+      "path": "review/indicator-finished-desktop-light.png",
+      "sha256": "7d0c8303e4cb73485890332d477149fa9885008929194d67149f2255ade1062b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "indicator-finished-desktop-dark": {
+      "path": "review/indicator-finished-desktop-dark.png",
+      "sha256": "91b0dcff8943c54eb74e48a0c0efa8529af81d80c7bd34c907ebd35f76fddc9c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "indicator-finished-mobile-light": {
+      "path": "review/indicator-finished-mobile-light.png",
+      "sha256": "81a0fd6f0034b309716db3b368110722413dac943731c02e7900b71356a578bc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "indicator-finished-mobile-dark": {
+      "path": "review/indicator-finished-mobile-dark.png",
+      "sha256": "e526436e4afd8e41a892811df40e640382150939628cb314aed5dbae5901ff79",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    }
+  }
+}
