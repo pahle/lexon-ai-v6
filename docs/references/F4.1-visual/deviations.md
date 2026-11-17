@@ -1,8 +1,23 @@
 # F4.1 visual deviations
 
-Status: awaiting the owner's visual review (Task 35). The per-capture comparison, the exceptions, the owner-approved differences, and the F4 carry-over follow.
+Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture comparison, the exceptions, the owner-approved differences, and the F4 carry-over follow.
 
-## Per-capture prototype comparison (Task 35 Step 4, for the owner's review)
+## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
+
+The manager compared the 43 desktop and mobile captures that have a prototype screen again. Resolved since round 1, visible in the captures: Copied state, feedback thumb and toast, Copy and Regenerate labels with the row visible on the last and stopped answer, reasoning chevrons, indented open summary, no extra pulse dot, round scroll-to-latest button, Try again on the right, reconnecting copy with icon, centered large greeting, disclaimer under the composer, composer height (128 px against 131 px), transparent dark text area, "+" for New chat, dark dim overlays without blur, Appearance cards, email in the user menu, delete copy, centered cover statement, muted form column, ink labels on error, sign-in copy, mobile thread opening at the last user message, chat title in the mobile header, no leftover focus rings.
+
+**Still open after round 2 (proposed for the owner)**
+
+| State                                               | Difference                                                                                                                                                                             | Proposed                                                                                  |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Editing a user message (`chat-edit`)                | The paragraph text is dimmed, but bold runs and list markers in the answer stay full ink, so the dimming reads as partial; prototype 17 dims everything                                | Fix: let bold text and markers inherit the muted color while editing                      |
+| Edited branch (`chat-branch`)                       | The branch picker under the user message shows only on hover or focus on desktop, so the capture keeps a focus ring on "Previous branch"; prototype 18 shows the picker always visible | Fix: show the branch picker whenever a message has more than one branch; then park focus  |
+| Failure (`chat-error`)                              | The header shows "Reasoning ›" because this fixture's failed answer has a reasoning summary; prototype 20 shows only the mark                                                          | Decide: keep the label when a summary exists (current rule), or hide it on failed answers |
+| Mobile thread (`chat-reasoning-collapsed-mobile-*`) | An Edit (pencil) button is always visible under the user message on mobile; prototype 50 shows none                                                                                    | Decide: hide it until the message is tapped, or keep it (touch has no hover)              |
+| Settings forms                                      | Labels still turn red on error (only auth forms were changed)                                                                                                                          | Decide: apply the ink-label rule to every form                                            |
+| Sign in, dark                                       | The form column uses `--muted` (`#242021`), a little lighter than prototype 03                                                                                                         | Keep (token) or Decide                                                                    |
+
+## Review round 1 (Linux captures at 598ee66)
 
 The manager compared every review capture that has a prototype screen (45 pairs, Linux captures at 598ee66) side by side with its screen. Fixture data differences (Personal versus a team workspace, names, chat titles, dates) are not listed. "Fix" means a proposed change before goldens are locked; "Keep" means the build differs on purpose or by an earlier decision.
 
