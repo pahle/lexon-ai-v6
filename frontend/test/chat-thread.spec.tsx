@@ -1426,6 +1426,9 @@ it('renders a persisted failed response with a retry action after reload', async
     expect(retry).not.toBeNull();
     expect(retry?.getAttribute('data-slot')).toBe('button');
     expect(retry?.className).toContain('border-border');
+    expect(retry?.className).toContain('col-start-3');
+    expect(retry?.className).not.toContain('mt-2');
+    expect(alert.className).toContain('has-[>svg]:grid-cols-[auto_1fr_auto]');
     expect(alert.textContent).not.toMatch(/because|due to|error:|timed out/i);
   } finally {
     await view.unmount();
@@ -1507,7 +1510,10 @@ it('renders Reconnecting after the last message inside the viewport', async () =
     await settle();
     const status = Array.from(
       view.container.querySelectorAll('[role="status"]'),
-    ).find((element) => element.textContent === 'Reconnecting…')!;
+    ).find(
+      (element) => element.textContent === 'Connection lost. Reconnecting…',
+    )!;
+    expect(status.querySelector('.lucide-wifi-off')).not.toBeNull();
     expect(status).toBeDefined();
     const viewport = view.container.querySelector(
       '[data-slot="aui_thread-viewport"]',
@@ -1957,6 +1963,9 @@ it('lays out the thread for reading: bare answers, a user bubble, a fade, and a 
     )!;
     expect(scroll.className).toContain('left-1/2');
     expect(scroll.className).toContain('-translate-x-1/2');
+    expect(scroll.className).toContain('rounded-full');
+    expect(scroll.querySelector('.lucide-chevron-down')).not.toBeNull();
+    expect(scroll.querySelector('.lucide-arrow-down')).toBeNull();
   } finally {
     await view.unmount();
     vi.stubGlobal('fetch', originalFetch);

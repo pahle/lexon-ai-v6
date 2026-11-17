@@ -11,10 +11,12 @@ import {
 } from '@/components/ui/tooltip';
 import {
   AnswerDimmedContext,
+  HideAnswerPulseContext,
   MarkdownText,
 } from '@/components/chat/markdown-text';
 import {
   PersistedReasoning,
+  showsThinkingLabel,
   type AnswerStatus,
 } from '@/components/chat/chat-reasoning';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
@@ -36,12 +38,12 @@ import {
   useAuiState,
 } from '@assistant-ui/react';
 import {
-  ArrowDownIcon,
   ArrowUpIcon,
   Brain as BrainIcon,
   CheckIcon,
   CircleAlertIcon,
   CircleStopIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -50,6 +52,7 @@ import {
   SquareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
+  WifiOffIcon,
   XIcon,
 } from 'lucide-react';
 import {
@@ -177,16 +180,22 @@ export const Thread: FC<ThreadProps> = ({
               className="mb-14 flex flex-col gap-y-6 empty:hidden"
             >
               <ThreadPrimitive.Messages>
-                {() => <ThreadMessage onFeedback={onFeedback} />}
+                {() => (
+                  <ThreadMessage
+                    onFeedback={onFeedback}
+                    reconnecting={reconnecting}
+                  />
+                )}
               </ThreadPrimitive.Messages>
             </div>
             {reconnecting ? (
               <p
                 role="status"
                 aria-live="polite"
-                className="text-muted-foreground mb-6 -mt-8 px-2 text-sm"
+                className="text-muted-foreground mb-6 -mt-8 flex items-center gap-2 px-2 text-sm"
               >
-                Reconnecting…
+                <WifiOffIcon className="size-4" aria-hidden="true" />
+                Connection lost. Reconnecting…
               </p>
             ) : null}
             <RunAnnouncer />
@@ -261,7 +270,10 @@ const ThreadHistorySkeleton: FC = () => (
   </div>
 );
 
-const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
+const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
+  onFeedback,
+  reconnecting = false,
+}) => {
   const serverActive = useChatActiveRun();
   const role = useAuiState((state) => state.message.role);
   const messageId = useAuiState((state) => state.message.id);
@@ -391,9 +403,21 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
         aria-live="off"
       >
         <AnswerDimmedContext.Provider value={dimmed}>
-          <MessagePrimitive.Parts
-            components={{ Text: MarkdownText, Reasoning: () => null }}
-          />
+          <HideAnswerPulseContext.Provider
+            value={
+              reconnecting ||
+              showsThinkingLabel(
+                answerStatus,
+                summary,
+                durationMs,
+                answerText.length > 0,
+              )
+            }
+          >
+            <MessagePrimitive.Parts
+              components={{ Text: MarkdownText, Reasoning: () => null }}
+            />
+          </HideAnswerPulseContext.Provider>
         </AnswerDimmedContext.Provider>
       </div>
       {role === 'assistant' &&
@@ -440,7 +464,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
 };
 
 const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
-  <Alert className="mt-3">
+  <Alert className="mt-3 has-[>svg]:grid-cols-[auto_1fr_auto]">
     <CircleAlertIcon aria-hidden="true" />
     <AlertTitle>The response could not be completed.</AlertTitle>
     <ActionBarPrimitive.Reload
@@ -450,7 +474,7 @@ const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
         <Button
           variant="outline"
           size="sm"
-          className="col-start-2 mt-2 justify-self-start"
+          className="col-start-3 row-span-2 row-start-1 self-center"
         />
       }
     >
@@ -607,7 +631,7 @@ const ThreadScrollToBottom: FC = () => (
       />
     }
   >
-    <ArrowDownIcon />
+    <ChevronDownIcon />
   </ThreadPrimitive.ScrollToBottom>
 );
 

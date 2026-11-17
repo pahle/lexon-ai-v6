@@ -328,3 +328,49 @@ it('a run that completes within one frame of starting ends on the static mark', 
     await view.unmount();
   }
 });
+
+it('35R2: the header chevron points right when collapsed and down when open, over an indented block with a left rule', async () => {
+  const view = await render(
+    <PersistedReasoning
+      messageId="m1"
+      status="complete"
+      summary="A summary."
+      durationMs={8_000}
+      answerHasText
+    />,
+  );
+  try {
+    const trigger = view.container.querySelector('button')!;
+    expect(trigger.querySelector('.lucide-chevron-right')).not.toBeNull();
+    expect(trigger.querySelector('.lucide-chevron-down')).toBeNull();
+    await act(async () => trigger.click());
+    expect(trigger.querySelector('.lucide-chevron-down')).not.toBeNull();
+    expect(trigger.querySelector('.lucide-chevron-right')).toBeNull();
+    const block = view.container.querySelector<HTMLElement>(
+      '[data-slot="collapsible-content"]',
+    )!;
+    expect(block.className).toContain('border-s-2');
+    expect(block.className).toContain('ms-2');
+    expect(block.className).toContain('ps-4');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('35R2: a failed answer without a summary or duration has no Reasoning label', async () => {
+  const view = await render(
+    <PersistedReasoning
+      messageId="m1"
+      status="failed"
+      summary={null}
+      durationMs={null}
+      answerHasText
+    />,
+  );
+  try {
+    expect(view.container.textContent).not.toContain('Reasoning');
+    expect(view.container.textContent).toBe('');
+  } finally {
+    await view.unmount();
+  }
+});

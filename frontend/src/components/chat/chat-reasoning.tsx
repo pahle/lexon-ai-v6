@@ -5,7 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
 import { MarkdownText } from './markdown-text';
 import { ThinkingIndicator } from './indicator/thinking-indicator';
@@ -16,6 +16,16 @@ const durationLabel = (durationMs: number) => {
   const seconds = Math.round(durationMs / 1000);
   return `Thought for ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
 };
+
+/** True while the live "Thinking…" header (animated indicator) is shown. */
+export const showsThinkingLabel = (
+  status: AnswerStatus,
+  summary: string | null,
+  durationMs: number | null,
+  answerHasText: boolean,
+) =>
+  status === 'running' &&
+  (!answerHasText || (summary === null && durationMs === null));
 
 /**
  * The answer header: the thinking indicator (animated while the run is
@@ -46,7 +56,7 @@ export function PersistedReasoning({
       />
     </span>
   );
-  if (running && (!answerHasText || (summary === null && durationMs === null)))
+  if (showsThinkingLabel(status, summary, durationMs, answerHasText))
     return (
       <span className="text-muted-foreground my-3 flex items-center gap-2 text-sm">
         {mark}
@@ -70,9 +80,13 @@ export function PersistedReasoning({
       <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm">
         {mark}
         {label}
-        <ChevronDownIcon className="size-4 transition-transform motion-reduce:transition-none" />
+        {open ? (
+          <ChevronDownIcon className="size-4" />
+        ) : (
+          <ChevronRightIcon className="size-4" />
+        )}
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-border text-muted-foreground mt-2 border-s-2 ps-4 text-sm">
+      <CollapsibleContent className="border-border text-muted-foreground ms-2 mt-2 border-s-2 ps-4 text-sm">
         <MarkdownText source={summary} />
       </CollapsibleContent>
     </Collapsible>

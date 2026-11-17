@@ -16,12 +16,18 @@ import {
 // rendered answer text.
 export const AnswerDimmedContext = createContext(false);
 
+// True while the thinking indicator is shown or the stream is reconnecting:
+// the assistant-ui pulse dot (dot.css) is suppressed then. dot.css is
+// unlayered, so it beats layered utilities; the important modifier wins.
+export const HideAnswerPulseContext = createContext(false);
+
 export function MarkdownText({
   source,
   ...props
 }: Partial<TextMessagePartProps> & { readonly source?: string }) {
   const dimmed = useContext(AnswerDimmedContext);
-  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none`;
+  const hidePulse = useContext(HideAnswerPulseContext);
+  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
   const components: Components = {
     img: () => null,
     h1: ({ children }) => (
