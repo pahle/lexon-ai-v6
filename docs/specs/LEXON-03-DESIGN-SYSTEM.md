@@ -1,5 +1,5 @@
 ---
-version: "3.0.1"
+version: "3.0.2"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -86,7 +86,7 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 3.0.1 |
+| **Version** | 3.0.2 |
 | **Date** | 14 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
@@ -252,8 +252,9 @@ behavior only; colors and type follow v3.0).
 
 - **Fields:** `Field` + `FieldLabel` + control + `FieldDescription` /
   `FieldError`. Validation runs on submit, then live for fields already
-  touched. An invalid field sets `aria-invalid`, `data-invalid` on the Field
-  (red label and border), and its error text is linked with
+  touched. An invalid field sets `aria-invalid` and `data-invalid` on the
+  Field: the border and the error text turn red (`destructive`), and the
+  label stays ink. The error text is linked with
   `aria-describedby`. Errors say what to do ("Enter a valid email address.").
 - **Passwords:** every password input (sign in, sign up, reset, change,
   confirm identity, admin setup) is an `InputGroup` with an end
@@ -357,6 +358,7 @@ The prototype README and `fm-strip.png` / `finish-strip.png` show it.
 
 | Version | Change |
 |---|---|
+| 3.0.2 | **Changed (product owner, F4.1 visual review, 2026-11-17):** invalid field labels stay ink; only the border and the error text are red (§5.1), as in the approved F4.1 prototype, for every form |
 | 3.0.1 | **Added (product owner, F4.1 spec review, 2026-11-15):** `destructive-fill` token (`--lexon-destructive-fill`, Merah Segel Deep in both themes) for the confirm button of destructive dialogs, since the dark `destructive` token is the lighter error-text red |
 | 3.0 | **Replaced (product owner, brand kit v4.1 and F4.1 prototype approval, 2026-11-13):** Royal Seal palette by brand v4.1 (White, Ink, Surface, Muted, Line Soft, Merah Segel, Merah Segel Deep, Night, Tint) with a derived dark theme and measured contrast; Georgia by EB Garamond for headlines; TeX Gyre Bonum added for legal quotations; brand source `docs/brand/lexon-2026-v4.1/`. **Added:** red-is-reserved and destructive-action rules (§2); inset shell, Tools/Recent groups, Personal monogram, job title (§4, §5); auth Night cover (§5); chat layout (§5.3); thinking indicator (§5.4). **Changed:** visual target is `docs/design/f4.1-prototype/` |
 | 2.2 | **Added (product owner, F4 prototype approval):** chat visual target and workspace navigation (New chat, Chats, Recent) in §5 |
