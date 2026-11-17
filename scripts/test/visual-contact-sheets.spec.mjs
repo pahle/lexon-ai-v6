@@ -175,11 +175,42 @@ test('renders exactly one PNG sheet per index state, named by state id', async (
   writeFileSync(resolve(outDir, 'stale-state.png'), 'stale');
   writeFileSync(resolve(outDir, 'README.txt'), 'kept');
 
-  const written = await renderContactSheets({
-    index,
-    reviewDir: resolve(dir, 'review'),
-    outDir,
+  // A fake renderer keeps this test browser-free: it records each call and
+  // writes a tiny deterministic PNG-signature file wide enough to pass below.
+  const calls = [];
+  let closed = 0;
+  const createRenderer = async () => ({
+    async render(html, target) {
+      calls.push({ html, target });
+      const bytes = Buffer.alloc(24);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes);
+      bytes.writeUInt32BE(2600, 16);
+      writeFileSync(target, bytes);
+    },
+    async close() {
+      closed += 1;
+    },
   });
+
+  const written = await renderContactSheets(
+    { index, reviewDir: resolve(dir, 'review'), outDir },
+    { createRenderer },
+  );
+
+  assert.equal(closed, 1, 'renderer is closed once');
+  assert.deepEqual(
+    calls.map((call) => call.target),
+    states.map(([stateId]) => resolve(outDir, `${stateId}.png`)),
+  );
+  for (const call of calls) {
+    assert.equal(
+      [...call.html.matchAll(/<figure[^>]*data-variant="([^"]+)"/g)]
+        .map((m) => m[1])
+        .join(','),
+      VARIANT_ORDER.join(','),
+      'renderer got the four labelled variants',
+    );
+  }
 
   const expected = states.map(([stateId]) => `${stateId}.png`);
   assert.deepEqual(

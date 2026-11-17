@@ -104,11 +104,39 @@ ${figures}
 }
 
 /**
+ * The real renderer: headless Chromium screenshotting the `#sheet` element.
+ * Returns `{ render(html, target), close() }`.
+ */
+export async function createChromiumRenderer() {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 2600, height: 900 },
+      deviceScaleFactor: 1,
+    });
+    return {
+      async render(html, target) {
+        await page.setContent(html, { waitUntil: 'load' });
+        await page.locator('#sheet').screenshot({ path: target });
+      },
+      close: () => browser.close(),
+    };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
+
+/**
  * Renders one `<state-id>.png` per index state into `outDir` and removes
  * stale sheets (PNGs for states no longer in the index). Returns the sheet
- * paths in index order.
+ * paths in index order. `createRenderer` (default: real Chromium) is injectable
+ * so tests need no browser; it resolves to `{ render(html, target), close() }`.
  */
-export async function renderContactSheets({ index, reviewDir, outDir }) {
+export async function renderContactSheets(
+  { index, reviewDir, outDir },
+  { createRenderer = createChromiumRenderer } = {},
+) {
   const sheets = groupStates(index);
   const imageFor = (variant) => resolve(reviewDir, basename(variant.path));
   const missing = sheets.flatMap((sheet) =>
@@ -123,26 +151,21 @@ export async function renderContactSheets({ index, reviewDir, outDir }) {
     if (name.endsWith('.png') && !wanted.has(name))
       rmSync(resolve(outDir, name));
 
-  const browser = await chromium.launch();
+  const renderer = await createRenderer();
   const written = [];
   try {
-    const page = await browser.newPage({
-      viewport: { width: 2600, height: 900 },
-      deviceScaleFactor: 1,
-    });
     for (const sheet of sheets) {
       const html = buildSheetHtml(
         sheet,
         (variant) =>
           `data:image/png;base64,${readFileSync(imageFor(variant)).toString('base64')}`,
       );
-      await page.setContent(html, { waitUntil: 'load' });
       const target = resolve(outDir, `${sheet.stateId}.png`);
-      await page.locator('#sheet').screenshot({ path: target });
+      await renderer.render(html, target);
       written.push(target);
     }
   } finally {
-    await browser.close();
+    await renderer.close();
   }
   return written;
 }
