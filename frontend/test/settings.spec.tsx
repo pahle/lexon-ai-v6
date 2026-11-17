@@ -185,13 +185,17 @@ test('invalid profile name uses the shared Field error and destructive label sta
   const field = name.closest('[data-slot="field"]')!;
   expect(name.getAttribute('aria-invalid')).toBe('true');
   expect(field.getAttribute('data-invalid')).toBe('true');
-  expect(field.className).toContain('data-[invalid=true]:text-destructive');
+  expect(field.className).not.toContain('text-destructive');
+  expect(field.className).toContain('data-[invalid=true]:text-foreground');
   expect(name.getAttribute('aria-describedby')).toBe(
     'profile-display-name-error',
   );
   expect(
     field.querySelector('[data-slot="field-error"]')?.textContent,
   ).toBeTruthy();
+  expect(
+    field.querySelector('[data-slot="field-error"]')?.className.split(' '),
+  ).toContain('text-destructive');
   await view.unmount();
 });
 

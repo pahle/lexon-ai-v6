@@ -46,3 +46,35 @@ test('auth card fields have linked labels and errors with no social or decorativ
   await act(async () => root.unmount());
   host.remove();
 });
+
+test('shared Field keeps an invalid label in ink while the message and input border stay red', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const invalidProps: Record<string, unknown> = { 'data-invalid': true };
+  await act(async () =>
+    root.render(
+      createElement(
+        Field,
+        invalidProps,
+        createElement(FieldLabel, { htmlFor: 'f' }, 'Name'),
+        createElement(Input, { id: 'f', 'aria-invalid': true }),
+        createElement(FieldError, null, 'Required.'),
+      ),
+    ),
+  );
+  const field = host.querySelector('[data-slot="field"]')!;
+  expect(field.className).not.toContain('text-destructive');
+  expect(field.className).toContain('data-[invalid=true]:text-foreground');
+  expect(
+    host.querySelector('[data-slot="field-label"]')!.className,
+  ).not.toContain('text-destructive');
+  expect(
+    host.querySelector('[data-slot="field-error"]')!.className.split(' '),
+  ).toContain('text-destructive');
+  expect(host.querySelector('input')!.className).toContain(
+    'aria-invalid:border-destructive',
+  );
+  await act(async () => root.unmount());
+  host.remove();
+});
