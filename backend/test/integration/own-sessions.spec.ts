@@ -349,3 +349,102 @@ test('the security state reports when the password was last changed, per user', 
     await proof.close();
   }
 });
+
+test('passwordChangedAt moves on password change and reset only, not on sign-in, 2FA, recovery codes, or email change', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const email = `${randomUUID()}@example.test`;
+    const user = await proof.signIn({
+      body: { name: 'Stamp', email, password },
+    });
+    const harness = securityHarness(proof);
+    const stamp = (headers: Headers) =>
+      harness.identity(
+        headers,
+        async (identity) =>
+          (await harness.service.state(identity)).passwordChangedAt,
+      );
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 50));
+    const initial = await stamp(user.cookieHeaders);
+    expect(initial).toEqual(expect.any(String));
+    await wait();
+    const unchanged = async (headers: Headers) => {
+      expect(await stamp(headers)).toBe(initial);
+    };
+    // Sign-in.
+    const second = responseCookies(
+      await harness.run('/sign-in/email', { email, password }, new Headers()),
+    );
+    await unchanged(second);
+    // 2FA enable.
+    const enrolled = await harness.enroll(email, password);
+    await unchanged(enrolled.headers);
+    // Recovery-code regeneration.
+    await harness.run(
+      '/two-factor/generate-backup-codes',
+      { password },
+      enrolled.headers,
+    );
+    await unchanged(enrolled.headers);
+    // 2FA disable.
+    const disabled = responseCookies(
+      await harness.run('/two-factor/disable', { password }, enrolled.headers),
+    );
+    await unchanged(disabled);
+    // Email change, confirmed through the emailed link.
+    const newEmail = `${randomUUID()}@example.test`;
+    await proof.integration.transaction((tx) =>
+      tx.call('changeEmail', {
+        headers: disabled,
+        body: { newEmail },
+      }),
+    );
+    const url = new URL(proof.dispatchedLink(newEmail)!);
+    url.searchParams.delete('callbackURL');
+    expect((await proof.integration.handle(new Request(url))).status).toBe(200);
+    await unchanged(disabled);
+    // Password change.
+    await proof.integration.transaction((tx) =>
+      tx.call('changePassword', {
+        headers: disabled,
+        body: {
+          currentPassword: password,
+          newPassword: 'Changed-password-42!',
+          revokeOtherSessions: false,
+        },
+      }),
+    );
+    const afterChange = (await stamp(disabled))!;
+    expect(Date.parse(afterChange)).toBeGreaterThan(Date.parse(initial!));
+    await wait();
+    // Password reset.
+    await proof.integration.transaction((tx) =>
+      tx.call('requestPasswordReset', {
+        body: { email: newEmail, redirectTo: proof.origin },
+      }),
+    );
+    const token = new URL(proof.dispatchedLink(newEmail, 'reset')!).pathname
+      .split('/')
+      .at(-1)!;
+    await proof.integration.transaction((tx) =>
+      tx.call('resetPassword', {
+        body: { token, newPassword: 'Reset-password-42!' },
+      }),
+    );
+    // A reset revokes sessions, so read the value through a fresh sign-in.
+    const afterReset = responseCookies(
+      await harness.run(
+        '/sign-in/email',
+        { email: newEmail, password: 'Reset-password-42!' },
+        new Headers(),
+      ),
+    );
+    expect(Date.parse((await stamp(afterReset))!)).toBeGreaterThan(
+      Date.parse(afterChange),
+    );
+  } finally {
+    await proof.close();
+  }
+});
