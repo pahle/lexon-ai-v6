@@ -20,13 +20,11 @@ import {
   teamWorld,
 } from './brand-visual-world.js';
 import { calm, openThread } from './brand-visual-chat-support.js';
+import { installPrototypeSecurity } from './brand-visual-chats-settings-security.js';
 import { startTeamChatStates } from './brand-visual-chats-settings-support.js';
 import { answerStart } from './brand-visual-chat-support.js';
 import { team, teamInvitations } from './prototype-fixtures.js';
-import {
-  installTask9MemberOrderNormalization,
-  installTask9SessionExpiryNormalization,
-} from './visual-support.js';
+import { installTask9MemberOrderNormalization } from './visual-support.js';
 import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, chats and settings group: the Chats list, search, the
@@ -165,13 +163,13 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
       await expect(page.getByRole('radio', { name: 'System' })).toBeChecked();
     },
   });
-  const sessions = await installTask9SessionExpiryNormalization(page);
+  const sessions = await installPrototypeSecurity(page);
   try {
     await captureBrandViews(
       page,
       'settings-security',
       settingsHooks('Security', (p) =>
-        p.getByRole('table', { name: 'Signed-in sessions' }),
+        p.getByRole('list', { name: 'Signed-in sessions' }),
       ),
     );
   } finally {
