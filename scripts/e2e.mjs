@@ -12,7 +12,7 @@ import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import { withOwnedStack } from './e2e-lifecycle.mjs';
 import { checkStack } from './e2e-stack-guard.mjs';
-import { buildStackDescriptor } from '../backend/test/e2e/compose-files.mjs';
+import { buildStackDescriptor } from './e2e-compose-files.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 async function port() {
   const server = createServer();

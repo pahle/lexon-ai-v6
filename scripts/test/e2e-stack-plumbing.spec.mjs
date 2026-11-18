@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import {
   buildStackDescriptor,
   stackComposeFiles,
-} from '../../backend/test/e2e/compose-files.mjs';
+} from '../e2e-compose-files.mjs';
 import { stackProblems } from '../e2e-stack-guard.mjs';
 import { acquireLock } from '../visual-capture-lock.mjs';
 

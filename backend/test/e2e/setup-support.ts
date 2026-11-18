@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { containerId, descriptor, docker } from './runtime-support.js';
-import { stackComposeFiles } from './compose-files.mjs';
+import { stackComposeFiles } from '../../../scripts/e2e-compose-files.mjs';
 async function compose(args: string[], overrides: Record<string, string> = {}) {
   const stack = descriptor();
   const env = JSON.parse(
