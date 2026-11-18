@@ -6,7 +6,7 @@
 import { expect, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import { readCapturedMail } from './identity-support.js';
-import { operatorSetup, signupMode } from './setup-support.js';
+import { operatorSetup } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
 import { sharedWorld } from './brand-visual-world.js';
 import {
@@ -18,8 +18,7 @@ const password = 'Brand-operator-42!';
 
 async function enrollAdministrator(page: Page, email: string) {
   const stack = descriptor();
-  await signupMode(false);
-  try {
+  {
     const setup = await operatorSetup(email, true);
     expect(setup.status).toBe('created');
     await page.goto(setup.mail!.actionUrl);
@@ -74,8 +73,6 @@ async function enrollAdministrator(page: Page, email: string) {
     await expect(
       page.getByRole('heading', { name: 'Administrator setup complete' }),
     ).toBeVisible();
-  } finally {
-    await signupMode(true);
   }
   expect(
     (
