@@ -18,6 +18,19 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | platform-provisioning-detail    | m-dark  | 2.29 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
 | platform-provisioning-detail    | m       | 2.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
 | platform-provisioning-loading   | m       | 2.16 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| settings-security               | m       | 3.26 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-security               | m-dark  | 3.02 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-invitations            | m       | 2.88 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-invitations            | m-dark  | 2.86 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-members                | m-dark  | 2.18 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-members                | m       | 2.12 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-general                | m       | 2.02 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-general                | m-dark  | 1.92 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-security               | d       | 1.67 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| toast-success                   | m       | 1.63 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-invitations            | d       | 1.55 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-appearance             | m       | 1.53 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| settings-security               | d-dark  | 1.53 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
