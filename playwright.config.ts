@@ -81,7 +81,11 @@ export default defineConfig({
       name: 'brand-visual',
       timeout: 240000,
       testMatch: [
-        'backend/test/e2e/brand-visual.spec.ts',
+        'backend/test/e2e/brand-visual-auth.spec.ts',
+        'backend/test/e2e/brand-visual-shell.spec.ts',
+        'backend/test/e2e/brand-visual-chat.spec.ts',
+        'backend/test/e2e/brand-visual-chats-settings.spec.ts',
+        'backend/test/e2e/brand-visual-platform.spec.ts',
         'backend/test/e2e/visual-comparison-regression.spec.ts',
       ],
       snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',

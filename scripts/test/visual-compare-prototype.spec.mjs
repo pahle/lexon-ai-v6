@@ -48,8 +48,7 @@ function png(width, height, pixel) {
   const raw = Buffer.alloc((width * 3 + 1) * height);
   for (let y = 0; y < height; y += 1) {
     const base = y * (width * 3 + 1);
-    for (let x = 0; x < width; x += 1)
-      raw.set(pixel(x, y), base + 1 + x * 3);
+    for (let x = 0; x < width; x += 1) raw.set(pixel(x, y), base + 1 + x * 3);
   }
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -158,8 +157,7 @@ test('matching capture is 0 percent, mismatch fails, missing is reported', async
     ids: ['alpha', 'beta'],
     prototype: f.prototype,
   });
-  const by = (id, key) =>
-    results.find((r) => r.id === id && r.key === key);
+  const by = (id, key) => results.find((r) => r.id === id && r.key === key);
   assert.equal(by('alpha', 'desktop-light').status, 'PASS');
   assert.equal(by('alpha', 'desktop-light').percent, 0);
   assert.equal(by('beta', 'desktop-light').status, 'FAIL');

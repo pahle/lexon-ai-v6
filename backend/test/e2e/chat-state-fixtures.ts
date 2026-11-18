@@ -11,42 +11,33 @@ import {
 } from '@lexon/contracts';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
 import { freezeMorningClock } from './greeting-clock.js';
+import {
+  answer as prototypeAnswer,
+  chatTimes,
+  chatTitles,
+  prototypeNow,
+  question as prototypeQuestion,
+  reasoningSummary,
+  searchResults,
+} from './prototype-fixtures.js';
 
 export const visualDirectory = resolve('docs/references/F4-visual');
 export const captureDirectory = resolve(visualDirectory, 'captures');
 export const indexPath = resolve(visualDirectory, 'index.json');
 export const manifestPath = resolve(visualDirectory, 'capture-manifest.json');
-export const fixedNow = '2026-11-14T04:00:00.000Z';
+export const fixedNow = prototypeNow;
 export const chatId = '00000000-0000-4000-8000-000000000101';
 export const userMessageId = '00000000-0000-4000-8000-000000000102';
 export const assistantMessageId = '00000000-0000-4000-8000-000000000103';
 export const runId = '00000000-0000-4000-8000-000000000104';
-export const fileNames = {
-  newChat: 'Syarat sah perjanjian (Pasal 1320)',
-  acquisition: 'Due diligence checklist for PT acquisition',
-  employment: 'PKWT vs PKWTT after the Job Creation Law',
-  forceMajeure: 'Force majeure clause, supply agreement',
-  default: 'Wanprestasi remedies and damages',
-  data: 'Data transfer under UU PDP Article 56',
-} as const;
-export const question =
-  'Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?';
+// Titles, question, answer and times are the prototype's (prototype-fixtures.ts).
+export const fileNames = chatTitles;
+export const question = prototypeQuestion;
 export const deepThinkingQuestion =
   'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.';
-export const answer = `Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:
-
-1. **Kesepakatan** para pihak yang mengikatkan dirinya.
-2. **Kecakapan** untuk membuat suatu perikatan.
-3. **Suatu hal tertentu** sebagai objek perjanjian.
-4. **Suatu sebab yang halal**.
-
-### Akibat jika syarat tidak terpenuhi
-
-- Syarat 1 dan 2 adalah **syarat subjektif**. Jika tidak terpenuhi, perjanjian **dapat dibatalkan** atas permintaan pihak yang dirugikan; selama belum dibatalkan, perjanjian tetap mengikat.
-- Syarat 3 dan 4 adalah **syarat objektif**. Jika tidak terpenuhi, perjanjian **batal demi hukum**, dianggap tidak pernah ada sejak semula.`;
-export const reasoning =
-  'The question asks for the four requirements in Article 1320. Distinguish subjective requirements from objective requirements, then explain the different legal consequences.';
-export const timestamp = '2026-11-14T03:30:00.000Z';
+export const answer = prototypeAnswer;
+export const reasoning = reasoningSummary;
+export const timestamp = chatTimes.newChat.at;
 
 export type VisualCapture = {
   status?: string;
@@ -185,28 +176,28 @@ export function chatTree(state: string): ChatTree {
 
 export function chatList(state: string) {
   const records = [
-    [chatId, fileNames.newChat, timestamp],
-    ['00000000-0000-4000-8000-000000000111', fileNames.acquisition, timestamp],
+    [chatId, fileNames.newChat, chatTimes.newChat.at],
+    [
+      '00000000-0000-4000-8000-000000000111',
+      fileNames.acquisition,
+      chatTimes.acquisition.at,
+    ],
     [
       '00000000-0000-4000-8000-000000000112',
       fileNames.employment,
-      '2026-11-13T03:30:00.000Z',
+      chatTimes.employment.at,
     ],
     [
       '00000000-0000-4000-8000-000000000113',
       fileNames.forceMajeure,
-      '2026-11-10T03:30:00.000Z',
+      chatTimes.forceMajeure.at,
     ],
     [
       '00000000-0000-4000-8000-000000000114',
       fileNames.default,
-      '2026-11-10T04:30:00.000Z',
+      chatTimes.default.at,
     ],
-    [
-      '00000000-0000-4000-8000-000000000115',
-      fileNames.data,
-      '2026-11-09T03:30:00.000Z',
-    ],
+    ['00000000-0000-4000-8000-000000000115', fileNames.data, chatTimes.data.at],
   ];
   return ChatPageSchema.parse({
     items:
@@ -232,36 +223,32 @@ export function searchExcerpt(excerpt: string) {
 }
 
 export function searchPage(state: string, query: string) {
+  const [wanprestasi, forceMajeure, newChat] = searchResults;
   const matches =
     state === 'chats-no-results' || query === 'hak tanggungan'
       ? []
       : [
           {
             chatId,
-            title: fileNames.default,
+            title: wanprestasi.title,
             messageId: userMessageId,
-            ...searchExcerpt(
-              'Upaya hukum atas wanprestasi meliputi pemenuhan perikatan, ganti rugi, atau pembatalan berdasarkan Pasal 1267 KUHPerdata.',
-            ),
-            updatedAt: timestamp,
+            ...searchExcerpt(wanprestasi.excerpt),
+            updatedAt: chatTimes.default.at,
           },
           {
             chatId: '00000000-0000-4000-8000-000000000113',
-            title: fileNames.forceMajeure,
+            title: forceMajeure.title,
             messageId: null,
-            ...searchExcerpt(
-              'Keadaan memaksa dapat memengaruhi tanggung jawab atas wanprestasi dalam perjanjian pasokan.',
-            ),
-            updatedAt: '2026-11-10T03:30:00.000Z',
+            ...searchExcerpt(forceMajeure.excerpt),
+            // The prototype's search list prints Nov 5 for this chat.
+            updatedAt: '2026-11-05T03:42:00.000Z',
           },
           {
             chatId: '00000000-0000-4000-8000-000000000116',
-            title: fileNames.newChat,
+            title: newChat.title,
             messageId: null,
-            ...searchExcerpt(
-              'Cacat syarat subjektif berbeda dari wanprestasi dalam pelaksanaan perjanjian.',
-            ),
-            updatedAt: '2026-11-13T03:30:00.000Z',
+            ...searchExcerpt(newChat.excerpt),
+            updatedAt: chatTimes.newChat.at,
           },
         ];
   return ChatSearchPageSchema.parse({

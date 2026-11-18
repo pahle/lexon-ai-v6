@@ -70,7 +70,11 @@ test('brand visual selects the runtime proof overlay and the F4.1 snapshot path'
   );
   assert.ok(project, 'brand-visual is missing from Playwright projects');
   assert.deepEqual(project.testMatch, [
-    'backend/test/e2e/brand-visual.spec.ts',
+    'backend/test/e2e/brand-visual-auth.spec.ts',
+    'backend/test/e2e/brand-visual-shell.spec.ts',
+    'backend/test/e2e/brand-visual-chat.spec.ts',
+    'backend/test/e2e/brand-visual-chats-settings.spec.ts',
+    'backend/test/e2e/brand-visual-platform.spec.ts',
     'backend/test/e2e/visual-comparison-regression.spec.ts',
   ]);
   assert.equal(

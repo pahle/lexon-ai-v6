@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   existsSync,
   readFileSync,
+  readdirSync,
   mkdtempSync,
   mkdirSync,
   writeFileSync,
@@ -1023,10 +1024,12 @@ test('the F4.1 index lists every state in four variants and matches the captures
         .toSorted(),
       `${state} has the four theme-and-viewport variants`,
     );
-  const source = readFileSync(
-    resolve(root, 'backend/test/e2e/brand-visual.spec.ts'),
-    'utf8',
-  );
+  const e2eDirectory = resolve(root, 'backend/test/e2e');
+  const source = readdirSync(e2eDirectory)
+    .filter((name) => /^brand-visual-.+\.spec\.ts$/.test(name))
+    .toSorted()
+    .map((name) => readFileSync(resolve(e2eDirectory, name), 'utf8'))
+    .join('\n');
   const captured = new Set(
     [...source.matchAll(/captureBrandViews\(\s*page,\s*'([a-z0-9-]+)'/g)].map(
       (match) => match[1],

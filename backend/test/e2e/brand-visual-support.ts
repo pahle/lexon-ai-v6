@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   assertApprovedVisualSet,
@@ -18,13 +18,14 @@ import {
   isSvgSnapshotUpdate,
 } from '../../../scripts/svg-snapshot.mjs';
 import { applyTheme, type VisualTheme } from './visual-support.js';
+import { prototypeNow } from './prototype-fixtures.js';
 
 export type BrandViewport = 'desktop' | 'mobile';
 export const brandThemes: readonly VisualTheme[] = ['light', 'dark'];
 export const brandViewports: readonly BrandViewport[] = ['desktop', 'mobile'];
 
 /** Every F4.1 capture runs on this instant so dates and greetings are stable. */
-export const brandFixedTime = '2026-11-14T04:00:00.000Z';
+export const brandFixedTime = prototypeNow;
 export const brandAxeTags = [
   'wcag2a',
   'wcag2aa',
@@ -160,6 +161,38 @@ export async function focusRingLeak(page: Page) {
   });
 }
 
+/** Animated parts of the app; the comparison script masks their boxes. */
+const animatedSelector = [
+  '[data-slot="spinner"]',
+  '.animate-spin',
+  'span.size-5.shrink-0 > svg[aria-hidden="true"][width="20"]',
+].join(', ');
+
+/**
+ * Writes `<image>.masks.json`: the page-pixel rectangles of the thinking
+ * indicator, every spinner, and the focused text field (its caret blinks).
+ * scripts/visual-compare-prototype.mjs masks them in both images.
+ */
+async function writeMaskSidecar(page: Page, image: string) {
+  const rects = await page.evaluate((selector) => {
+    const found: Element[] = [...document.querySelectorAll(selector)];
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLTextAreaElement ||
+      (active instanceof HTMLInputElement &&
+        !['checkbox', 'radio', 'button', 'submit'].includes(active.type))
+    )
+      found.push(active);
+    return found.flatMap((element) => {
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0
+        ? [{ x: box.x, y: box.y, width: box.width, height: box.height }]
+        : [];
+    });
+  }, animatedSelector);
+  await writeFile(`${image}.masks.json`, `${JSON.stringify(rects)}\n`);
+}
+
 export async function captureBrandView(
   page: Page,
   state: string,
@@ -224,6 +257,7 @@ export async function captureBrandView(
       animations: 'disabled',
       scale: 'css',
     });
+    await writeMaskSidecar(page, output);
     return output;
   }
 

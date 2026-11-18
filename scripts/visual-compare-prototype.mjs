@@ -13,12 +13,7 @@
 // by the `<image>.masks.json` sidecar the capture helper writes; the union of
 // both rect sets is masked in both images. Exit code is 0 unless --gate is
 // passed and a sheet is over the threshold without a listed deviation.
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -149,9 +144,12 @@ async function diffInPage(args) {
     const r2 = blend(pb[o], ba);
     const g2 = blend(pb[o + 1], ba);
     const b2 = blend(pb[o + 2], ba);
-    const y = 0.29889531 * (r1 - r2) + 0.58662247 * (g1 - g2) + 0.11448223 * (b1 - b2);
-    const iq = 0.59597799 * (r1 - r2) - 0.2741761 * (g1 - g2) - 0.32180189 * (b1 - b2);
-    const q = 0.21147017 * (r1 - r2) - 0.52261711 * (g1 - g2) + 0.31114694 * (b1 - b2);
+    const y =
+      0.29889531 * (r1 - r2) + 0.58662247 * (g1 - g2) + 0.11448223 * (b1 - b2);
+    const iq =
+      0.59597799 * (r1 - r2) - 0.2741761 * (g1 - g2) - 0.32180189 * (b1 - b2);
+    const q =
+      0.21147017 * (r1 - r2) - 0.52261711 * (g1 - g2) + 0.31114694 * (b1 - b2);
     const delta = 0.5053 * y * y + 0.299 * iq * iq + 0.1957 * q * q;
     if (delta > maxDelta) {
       differing += 1;
@@ -269,12 +267,7 @@ export async function runCompare({
           results.push({ ...row, status: 'MISSING', percent: null });
           continue;
         }
-        const proto = await renderPrototype(
-          browser,
-          prototype,
-          state,
-          variant,
-        );
+        const proto = await renderPrototype(browser, prototype, state, variant);
         const masks = [...proto.masks, ...readMasks(image)];
         const out = await diffPage.evaluate(diffInPage, {
           protoB64: proto.png.toString('base64'),
@@ -336,7 +329,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   );
   let ids = option('--ids')?.split(',').filter(Boolean);
   if (!ids) {
-    const index = JSON.parse(readFileSync(resolve(setDir, 'index.json'), 'utf8'));
+    const index = JSON.parse(
+      readFileSync(resolve(setDir, 'index.json'), 'utf8'),
+    );
     ids = [
       ...new Set(
         Object.keys(index.views).map((v) =>
