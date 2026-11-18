@@ -163,16 +163,16 @@ export async function focusRingLeak(page: Page) {
 
 /**
  * The Next dev server (the visual dev loop) mounts a dev-tools badge in a
- * shadow host; a production build has none. Hiding it keeps it out of axe
- * and out of the capture.
+ * shadow host that covers the sidebar footer; a production build has none.
+ * Every group spec calls this in beforeEach so the badge is hidden on every
+ * page load, before any click, and stays out of axe and the capture.
  */
-async function hideDevOverlay(page: Page) {
-  await page.evaluate(() => {
-    if (document.getElementById('lexon-hide-dev-overlay')) return;
-    const style = document.createElement('style');
-    style.id = 'lexon-hide-dev-overlay';
-    style.textContent = 'nextjs-portal { display: none !important; }';
-    document.head.append(style);
+export async function hideDevOverlayOnLoad(page: Page) {
+  // An adopted style sheet survives React reconciling <html> and <head>.
+  await page.addInitScript(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync('nextjs-portal { display: none !important; }');
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   });
 }
 
@@ -225,7 +225,6 @@ export async function captureBrandView(
     throw new Error(`F4.1 visual index entry "${id}" does not match its id.`);
 
   await page.clock.setFixedTime(brandFixedTime);
-  await hideDevOverlay(page);
   await page.setViewportSize(size);
   await applyTheme(page, theme);
   await page.evaluate(() => document.fonts.ready);

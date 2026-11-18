@@ -3,10 +3,13 @@ import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { captureBrandViews } from './brand-visual-support.js';
 import { ayu } from './prototype-fixtures.js';
+import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, auth group: the pages before sign-in and onboarding.
 // Every state is captured in light and dark at 1440x900 and 390x844;
 // docs/references/F4.1-visual/index.json lists them.
+
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
 test('sign-in states', async ({ page }) => {
   const base = descriptor().frontendUrl;

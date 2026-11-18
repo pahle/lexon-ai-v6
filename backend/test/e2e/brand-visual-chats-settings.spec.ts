@@ -22,6 +22,7 @@ import {
   installTask9MemberOrderNormalization,
   installTask9SessionExpiryNormalization,
 } from './visual-support.js';
+import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, chats and settings group: the Chats list, search, the
 // Settings dialog sections, and the saved-profile toast.
@@ -33,6 +34,8 @@ const recentChats = (page: Page) =>
     () => 'new-chat',
     () => undefined,
   );
+
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
 test('chats empty and loading lists', async ({ page }) => {
   const stack = descriptor();

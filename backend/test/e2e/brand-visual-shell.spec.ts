@@ -16,6 +16,7 @@ import {
 } from './brand-visual-world.js';
 import { ayu, chatTitles } from './prototype-fixtures.js';
 import { openMenuReliably } from './visual-support.js';
+import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, shell group: the Personal and team shells, menus, the
 // mobile sheet, and the status pages.
@@ -27,6 +28,8 @@ const recentChats = (page: Page) =>
     () => 'new-chat',
     () => undefined,
   );
+
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
 test('shell in the Personal workspace and the collapsed sidebar', async ({
   page,

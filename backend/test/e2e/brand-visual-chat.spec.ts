@@ -44,9 +44,12 @@ import {
   startChatStates,
 } from './brand-visual-chat-support.js';
 import { openMenuReliably } from './visual-support.js';
+import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, chat group: the chat thread states and the thinking
 // indicator frames.
+
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
 test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
   await startChatStates(page);

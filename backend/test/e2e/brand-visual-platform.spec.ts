@@ -10,6 +10,7 @@ import {
   prototypeNow,
   provisioningOrganizations,
 } from './prototype-fixtures.js';
+import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, platform group: provisioning and account status for a
 // real platform administrator.
@@ -61,6 +62,8 @@ test.afterEach(async () => {
   restoreSignupModeAfterTest = false;
   await signupMode(true);
 });
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
+
 test('Platform pages for a real platform administrator', async ({ page }) => {
   test.setTimeout(230_000);
   const stack = descriptor();

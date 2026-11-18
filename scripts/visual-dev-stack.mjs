@@ -75,7 +75,9 @@ if (command === 'up') {
   const idsAt = rest.indexOf('--ids');
   const explicitIds = idsAt >= 0 ? rest[idsAt + 1] : undefined;
   const groups = rest.filter(
-    (arg, at) => at !== idsAt && at !== idsAt + 1 && !arg.startsWith('-'),
+    (arg, at) =>
+      !(idsAt >= 0 && (at === idsAt || at === idsAt + 1)) &&
+      !arg.startsWith('-'),
   );
   if (groups.length === 0 || groups.some((g) => !GROUPS.includes(g)))
     throw new Error(`Name one or more groups: ${GROUPS.join(', ')}`);
