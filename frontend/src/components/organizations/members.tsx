@@ -275,7 +275,7 @@ export function Members({
                     data-testid={'member-' + member.userId}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="w-full max-w-0 px-0 py-3">
+                    <TableCell className="w-full px-0 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
@@ -307,7 +307,7 @@ export function Members({
                           <SelectTrigger
                             aria-label={'Role for ' + member.name}
                             disabled={submission.pending}
-                            className="data-[size=default]:h-[30px] gap-1 rounded-lg px-2.5 text-[13px] font-medium"
+                            className="data-[size=default]:h-[30px] gap-1 rounded-lg px-2.5 text-[13px] font-medium [&>svg]:size-3.5!"
                           >
                             <SelectValue>{roleLabel}</SelectValue>
                           </SelectTrigger>
@@ -349,7 +349,7 @@ export function Members({
                                   type="button"
                                   variant="ghost"
                                   size="icon-sm"
-                                  className="text-muted-foreground"
+                                  className="size-7 rounded-md text-muted-foreground"
                                   aria-label={'More actions for ' + member.name}
                                   disabled={submission.pending}
                                 />

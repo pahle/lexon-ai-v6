@@ -224,7 +224,7 @@ export function Invitations({
         ) : null}
       </form>
       {rows.length > 0 ? (
-        <h3 className="pt-5 pb-1 text-sm leading-[normal] font-semibold">
+        <h3 className="-mt-3 pt-5 pb-1 text-sm leading-[normal] font-semibold">
           Pending invitations
         </h3>
       ) : null}
@@ -295,7 +295,7 @@ export function Invitations({
                     key={invitation.id}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="w-full max-w-0 px-0 py-3">
+                    <TableCell className="w-full px-0 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
