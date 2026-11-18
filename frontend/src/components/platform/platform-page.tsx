@@ -38,7 +38,7 @@ export function PlatformHeading({
     <h1
       ref={heading}
       tabIndex={-1}
-      className="min-w-0 font-serif text-[32px] leading-[1.15] font-normal tracking-[-0.005em] text-balance outline-none"
+      className="min-w-0 font-serif text-[32px] leading-[normal] font-normal tracking-[-0.005em] text-balance outline-none"
     >
       {title}
     </h1>

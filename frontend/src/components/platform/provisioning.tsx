@@ -127,7 +127,9 @@ function FormSkeleton() {
                 index === 2 && 'md:col-span-2',
               )}
             >
-              <span className="text-sm font-medium">{label}</span>
+              <span className="text-sm leading-[1.21] font-medium">
+                {label}
+              </span>
               <div className="h-9 rounded-[8px] border border-input" />
             </div>
           ),
@@ -143,7 +145,10 @@ function FormSkeleton() {
 function SectionHeading() {
   return (
     <div>
-      <h2 id="provisioning-heading" className="text-base font-semibold">
+      <h2
+        id="provisioning-heading"
+        className="text-base leading-[1.21] font-semibold"
+      >
         Awaiting first owner
       </h2>
       <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">

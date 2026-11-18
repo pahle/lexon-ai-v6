@@ -38,7 +38,7 @@ export function PlatformField({
       .join(' ') || undefined;
   return (
     <Field data-invalid={!!error} className={cn('gap-2', className)}>
-      <FieldLabel htmlFor={id} className="text-sm font-medium">
+      <FieldLabel htmlFor={id} className="text-sm leading-[1.21] font-medium">
         {label}
       </FieldLabel>
       <Input
@@ -52,7 +52,10 @@ export function PlatformField({
         {...registration}
       />
       {hint ? (
-        <p id={id + '-hint'} className="text-[13px] text-muted-foreground">
+        <p
+          id={id + '-hint'}
+          className="text-[13px] leading-[1.21] text-muted-foreground"
+        >
           {hint}
         </p>
       ) : null}
