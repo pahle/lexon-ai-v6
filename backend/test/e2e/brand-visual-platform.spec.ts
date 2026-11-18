@@ -7,7 +7,10 @@ import {
   provisioningOrganizations,
 } from './prototype-fixtures.js';
 import { hideDevOverlayOnLoad } from './brand-visual-support.js';
-import { platformWorld } from './brand-visual-platform-world.js';
+import {
+  platformWorld,
+  reauthenticatePlatform,
+} from './brand-visual-platform-world.js';
 
 // F4.1 visual set, platform group: provisioning and account status for a
 // real platform administrator.
@@ -131,6 +134,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   }
 
   // The list shows the prototype dates and the expired invitation.
+  await reauthenticatePlatform(page, world);
   const normalized = await installProvisioningListNormalization(page);
   await page.goto(provisioning);
   await expect(
@@ -168,6 +172,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await page.unroute(detailUrl);
   }
 
+  await reauthenticatePlatform(page, world);
   await page.goto(stack.frontendUrl + '/platform/accounts');
   await expect(page.getByLabel('User ID')).toBeVisible();
   await captureBrandViews(page, 'platform-accounts');

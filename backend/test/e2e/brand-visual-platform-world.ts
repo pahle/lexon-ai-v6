@@ -16,8 +16,9 @@ import {
 
 const password = 'Brand-operator-42!';
 
-async function enrollAdministrator(page: Page, email: string) {
+async function enrollAdministrator(page: Page, email: string): Promise<string> {
   const stack = descriptor();
+  let uri = '';
   const seen: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error')
@@ -87,10 +88,10 @@ async function enrollAdministrator(page: Page, email: string) {
     await page
       .getByRole('button', { name: 'Set up authenticator', exact: true })
       .click();
-    const uri = await page.getByTestId('authenticator-uri').textContent();
+    uri = (await page.getByTestId('authenticator-uri').textContent())!;
     await page
       .getByLabel('Authenticator code', { exact: true })
-      .fill(totpForUri(uri!));
+      .fill(totpForUri(uri));
     await page
       .getByRole('button', { name: 'Verify authenticator', exact: true })
       .click();
@@ -115,20 +116,39 @@ async function enrollAdministrator(page: Page, email: string) {
       )
     ).status(),
   ).toBe(204);
+  return uri;
+}
+/**
+ * Platform routes need a fresh sign-in (300 s). The cached session ages, so
+ * the administrator confirms the password and authenticator code again.
+ */
+export async function reauthenticatePlatform(
+  page: Page,
+  world: { totpUri: string },
+) {
+  const stack = descriptor();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await page.request.post(
+      stack.apiUrl + '/api/identity/security/reauthenticate',
+      {
+        headers: { origin: stack.frontendUrl },
+        data: { password, totp: totpForUri(world.totpUri) },
+      },
+    );
+    if (response.ok()) return;
+    // The same code cannot be used twice in one 30 s window.
+    await new Promise((done) => setTimeout(done, 31_000));
+  }
+  throw new Error('Platform administrator could not reauthenticate');
 }
 
-/**
- * Signs the page's context in as the platform administrator and resolves with
- * the id of Harbor Legal Partners (the organization shown on the detail page).
- * The first caller on a stack builds the world; later callers reuse it.
- */
 export async function platformWorld(page: Page) {
   const stack = descriptor();
-  return sharedWorld(page, 'platform', async () => {
+  const world = await sharedWorld(page, 'platform', async () => {
     // The prototype shows no address for the administrator. The address is
     // unique to this world, so an administrator that an earlier run left on
     // the stack (its authenticator secret is gone) cannot block it.
-    await enrollAdministrator(
+    const totpUri = await enrollAdministrator(
       page,
       platformAdmin.email.replace('.bv@', `.${Date.now().toString(36)}@`),
     );
@@ -166,6 +186,8 @@ export async function platformWorld(page: Page) {
         if (!ids.has(item.slug)) ids.set(item.slug, item.id);
     }
     expect(ids.has(provisioningOrganizations[0].slug)).toBe(true);
-    return { harborId: ids.get(provisioningOrganizations[0].slug)! };
+    return { harborId: ids.get(provisioningOrganizations[0].slug)!, totpUri };
   });
+  await reauthenticatePlatform(page, world);
+  return world;
 }
