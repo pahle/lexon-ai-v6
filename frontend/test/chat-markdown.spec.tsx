@@ -130,6 +130,11 @@ it('keeps every Markdown utility class a complete literal token in the source', 
     .filter((line) => !line.includes('const wrapperClass'))
     .join('\n');
   expect(source).not.toMatch(/[\w:-]\$\{/);
-  for (const token of ['mb-2', 'list-disc', 'font-semibold', 'underline-offset-2'])
+  for (const token of [
+    'mb-2',
+    'list-disc',
+    'font-semibold',
+    'underline-offset-2',
+  ])
     expect(source).toMatch(new RegExp(`['"\\s]${token}['"\\s]`));
 });

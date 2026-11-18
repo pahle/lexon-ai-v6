@@ -62,7 +62,11 @@ test('settings navigation uses actionable section links and marks the current se
   ]);
   expect(links[2]?.getAttribute('aria-current')).toBe('page');
   expect(view.container.querySelector('select')).toBeNull();
-  expect(links.every((link) => link.getAttribute('data-slot') === 'settings-nav-link')).toBe(true);
+  expect(
+    links.every(
+      (link) => link.getAttribute('data-slot') === 'settings-nav-link',
+    ),
+  ).toBe(true);
   expect(view.container.querySelector('nav')?.className).toContain('min-w-0');
   await view.unmount();
   vi.unstubAllGlobals();

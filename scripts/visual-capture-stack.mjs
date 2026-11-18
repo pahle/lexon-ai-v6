@@ -99,10 +99,14 @@ if (command === 'up') {
       cwd: root,
       encoding: 'utf8',
     }).trim();
-    const dirty = execFileSync('git', ['status', '--short', 'frontend/src', 'backend/src', 'shared/src'], {
-      cwd: root,
-      encoding: 'utf8',
-    })
+    const dirty = execFileSync(
+      'git',
+      ['status', '--short', 'frontend/src', 'backend/src', 'shared/src'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    )
       .split('\n')
       .filter(Boolean).length;
     console.log(
@@ -112,7 +116,13 @@ if (command === 'up') {
     // Rebuild every image built from this repository, not only the frontend:
     // a frontend built from the working tree against an older api fails the
     // shared strict schemas (round 4: passwordChangedAt).
-    const appServices = ['api', 'ai-worker', 'document-worker', 'dispatcher', 'frontend'];
+    const appServices = [
+      'api',
+      'ai-worker',
+      'document-worker',
+      'dispatcher',
+      'frontend',
+    ];
     await run(
       'docker',
       composeArgs(stack.project, ['build', ...appServices], stack.composeFiles),

@@ -6,18 +6,18 @@ Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture
 
 Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-prototype.mjs --gate` skips the listed rows). Variant: `d` desktop, `m` mobile, `-dark` dark.
 
-| id | variant | % | reason |
-| --- | --- | --- | --- |
-| platform-provisioning-error | m-dark | 4.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-empty | m-dark | 3.48 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-populated | m-dark | 3.19 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-error | m | 2.94 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-empty | m | 2.93 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-populated | m | 2.62 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-loading | m-dark | 2.46 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-detail | m-dark | 2.29 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-detail | m | 2.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-loading | m | 2.16 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| id                              | variant | %    | reason                                                                                                            |
+| ------------------------------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------- |
+| platform-provisioning-error     | m-dark  | 4.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-empty     | m-dark  | 3.48 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-populated | m-dark  | 3.19 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-error     | m       | 2.94 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-empty     | m       | 2.93 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-populated | m       | 2.62 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-loading   | m-dark  | 2.46 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-detail    | m-dark  | 2.29 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-detail    | m       | 2.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
+| platform-provisioning-loading   | m       | 2.16 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
