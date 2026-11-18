@@ -30,7 +30,7 @@ import { OrganizationSettings } from '../organizations/organization-settings';
 
 /** The dialog has one fixed size whatever the section (LEX-DS-001 §5.5). */
 export const settingsDialogClass =
-  'flex h-[680px] w-[1000px] max-w-none flex-col gap-0 overflow-hidden rounded-[12px] border border-border p-0 shadow-[0_0_0_1px_rgba(26,23,24,.08),0_16px_40px_-12px_rgba(8,6,6,.22)] ring-0 sm:max-w-none md:max-w-none dark:shadow-[0_0_0_1px_#2C2829,0_16px_40px_-12px_#000] max-md:inset-0 max-md:top-0 max-md:left-0 max-md:h-dvh max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-0';
+  'flex h-[680px] w-[1000px] max-w-none flex-col gap-0 overflow-hidden rounded-[12px] border border-border p-0 shadow-[0_0_0_1px_rgba(26,23,24,.08),0_16px_40px_-12px_rgba(8,6,6,.22)] ring-0 sm:max-w-none md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-2rem)] dark:shadow-[0_0_0_1px_#2C2829,0_16px_40px_-12px_#000] max-md:inset-0 max-md:top-0 max-md:left-0 max-md:h-dvh max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-0';
 
 const sectionNames: Record<string, string> = {
   profile: 'Profile',
