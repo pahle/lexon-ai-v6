@@ -54,7 +54,8 @@ state of the same name.
   dialog, platform page (LEX-DS-001 §5.5).
 - Chat header shows the full chat title next to the sidebar trigger, on
   desktop and mobile.
-- Sidebar: no "Tools" label; "Recent" is the only labeled group. Platform shows
+- Sidebar: the team tile, the Assistant icon, and the user avatar keep the same
+  position when the sidebar collapses. No "Tools" label; "Recent" is the only labeled group. Platform shows
   only to platform administrators.
 - Answer actions are icon-only; stopped and reconnecting are status lines; a
   failure is one error row; edit Cancel and Save sit below the box.

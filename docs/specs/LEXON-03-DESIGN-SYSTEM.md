@@ -389,6 +389,11 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   an `overlay`.
 - Switcher and user rows 48px high. Tile and avatar 32px, radius 8px, 12px
   semibold initials; the avatar sits on `sidebar-accent`.
+- **Nothing moves when the sidebar collapses.** The tile and the avatar sit at
+  the row's left edge (x 8px, no left padding), on the same 32px column as the
+  nav icons (16px icons at x 16px). Expanded and collapsed, the tile is at
+  y 16px, the Assistant icon at y 80px (an 8px spacer replaces the group
+  label), and the avatar at the same distance from the bottom.
 - Nav item 32px high, radius 6px, padding 0 8px, 14px; active and hover
   `sidebar-accent`, active weight 500. Sub-items 28px, indented by a 1px
   `sidebar-border` line (margin-left 15px, padding-left 10px).
