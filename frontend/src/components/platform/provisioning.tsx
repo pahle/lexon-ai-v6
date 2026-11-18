@@ -118,25 +118,38 @@ function FormSkeleton() {
       description="The organization has no members or content until its first owner accepts the invitation."
     >
       <div aria-hidden="true" className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {['Organization name', 'Organization slug', 'First owner email'].map(
-          (label, index) => (
-            <div
-              key={label}
-              className={cn(
-                'flex flex-col gap-2',
-                index === 2 && 'md:col-span-2',
-              )}
-            >
-              <span className="text-sm leading-[1.21] font-medium">
-                {label}
-              </span>
-              <div className="h-9 rounded-[8px] border border-input" />
+        {[
+          ['Organization name', 'Hukum Nusantara', ''],
+          [
+            'Organization slug',
+            'hukum-nusantara',
+            'Lowercase letters, numbers, and hyphens.',
+          ],
+          ['First owner email', 'owner@firm.co.id', ''],
+        ].map(([label, placeholder, hint], index) => (
+          <div
+            key={label}
+            className={cn(
+              'flex flex-col gap-2',
+              index === 2 && 'md:col-span-2',
+            )}
+          >
+            <span className="text-sm leading-[1.21] font-medium">{label}</span>
+            <div className="flex h-9 items-center rounded-[8px] border border-input px-3 text-sm text-muted-foreground">
+              {placeholder}
             </div>
-          ),
-        )}
+            {hint ? (
+              <p className="text-[13px] leading-[1.21] text-muted-foreground">
+                {hint}
+              </p>
+            ) : null}
+          </div>
+        ))}
       </div>
       <PlatformActions>
-        <div className="h-8 w-[173px] rounded-[8px] bg-muted" />
+        <div className="inline-flex h-8 items-center rounded-[8px] bg-primary px-3 text-sm font-medium text-primary-foreground">
+          Provision organization
+        </div>
       </PlatformActions>
     </PlatformCard>
   );
@@ -294,7 +307,7 @@ export function ProvisioningList() {
             </Button>
           </div>
         ) : items.length === 0 ? (
-          <Empty className="gap-2 rounded-xl border border-dashed py-10">
+          <Empty className="gap-2 rounded-xl border border-dashed px-0 py-10 text-pretty">
             <EmptyHeader className="max-w-none gap-2">
               <EmptyMedia
                 variant="icon"
