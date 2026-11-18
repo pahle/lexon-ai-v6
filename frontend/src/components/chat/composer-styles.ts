@@ -12,7 +12,7 @@ export const composerClasses = {
   shell:
     'border-border focus-within:border-input bg-background mx-auto flex w-full max-w-[880px] cursor-text flex-col gap-2.5 rounded-[20px] border pt-4 pr-3.5 pb-3 pl-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)] transition-[border-color]',
   input:
-    'placeholder:text-muted-foreground max-h-[200px] max-md:max-h-36 overflow-y-auto min-h-14 w-full resize-none bg-transparent dark:bg-transparent p-1 text-base leading-6 outline-none',
+    'placeholder:text-muted-foreground max-h-[200px] max-md:max-h-36 overflow-y-auto min-h-14 w-full resize-none bg-transparent dark:bg-transparent p-1 text-base leading-[normal] outline-none',
   toolbar: 'flex flex-nowrap items-center justify-between gap-3',
   // 32px high, fully round, 13px weight 500, transparent border; pressed is
   // the tint background with a red-text border and label.

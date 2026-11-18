@@ -42,7 +42,7 @@ export const PlaceholderHighlightTextarea = forwardRef<
         ref={mirror}
         aria-hidden="true"
         data-slot="placeholder-mirror"
-        className="pointer-events-none absolute inset-0 overflow-hidden p-1 text-base leading-6 break-words whitespace-pre-wrap"
+        className="pointer-events-none absolute inset-0 overflow-hidden p-1 text-base leading-[normal] break-words whitespace-pre-wrap"
       >
         {split(value).map((part, index) =>
           part.mark ? (
