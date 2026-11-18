@@ -64,17 +64,16 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
   await expect(page).toHaveURL(
     /\/workspace\?filter=recent&settings=security#cases$/,
   );
-  const revoke = page.getByRole('button', {
-    name: 'Revoke browser session',
-    exact: true,
-  });
+  const revoke = page
+    .getByRole('list', { name: 'Signed-in sessions' })
+    .getByRole('button', { name: /^Sign out / });
   await expect(revoke).toBeVisible();
   // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
   await expect(revoke).toHaveClass(/border-border/);
   await expect(revoke).not.toHaveClass(/text-destructive/);
   await revoke.click();
   const confirmation = page.getByRole('alertdialog', {
-    name: 'Revoke this session?',
+    name: 'Sign out this session?',
   });
   await expect(confirmation).toBeVisible();
   await page.keyboard.press('Escape');

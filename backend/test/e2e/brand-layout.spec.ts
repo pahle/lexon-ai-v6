@@ -1183,7 +1183,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     .getByRole('button', { name: 'Back to security', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Two-factor authentication' }),
+    page.getByRole('heading', { name: 'Two-step verification' }),
   ).toBeVisible();
   const secondOwnerContext = await page.context().browser()!.newContext();
   try {
@@ -1219,13 +1219,13 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   }
   await page.goto(stack.frontendUrl + '/workspace?settings=security');
   await expect(
-    page.getByRole('heading', { name: 'Two-factor authentication' }),
+    page.getByRole('heading', { name: 'Two-step verification' }),
   ).toBeVisible();
-  const sessionsTable = page.getByRole('table', { name: 'Signed-in sessions' });
+  const sessionsTable = page.getByRole('list', { name: 'Signed-in sessions' });
   await expect(sessionsTable).toBeVisible();
-  await expect(sessionsTable.getByRole('row')).toHaveCount(3);
+  await expect(sessionsTable.getByRole('listitem')).toHaveCount(2);
   await expect(
-    sessionsTable.getByRole('button', { name: /Revoke browser session/ }),
+    sessionsTable.getByRole('button', { name: /^Sign out / }),
   ).toHaveCount(1);
   await expect(
     page.getByRole('button', { name: 'Sign out other sessions', exact: true }),
@@ -1393,7 +1393,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         await expect(
           page.getByRole('status', { name: 'Loading sessions' }),
         ).toBeVisible();
-        const sessionsTable = page.getByRole('table', {
+        const sessionsTable = page.getByRole('list', {
           name: 'Signed-in sessions',
         });
         const incompleteCapture = captureTask9ReviewView(
@@ -1451,7 +1451,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       ).toBeVisible();
     if (section === 'security')
       await expect(
-        page.getByRole('heading', { name: 'Two-factor authentication' }),
+        page.getByRole('heading', { name: 'Two-step verification' }),
       ).toBeVisible();
     if (section === 'members') {
       const membersTable = page.getByRole('table');
@@ -1489,14 +1489,14 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     }
     for (const theme of ['light', 'dark'] as const) {
       if (section === 'security') {
-        const sessionsTable = page.getByRole('table', {
+        const sessionsTable = page.getByRole('list', {
           name: 'Signed-in sessions',
         });
         await expect(sessionsTable).toBeVisible();
-        await expect(sessionsTable.getByRole('row')).toHaveCount(3);
+        await expect(sessionsTable.getByRole('listitem')).toHaveCount(2);
         await expect(
           sessionsTable.getByRole('button', {
-            name: /Revoke browser session/,
+            name: /^Sign out /,
           }),
         ).toHaveCount(1);
         await expect(
@@ -1512,7 +1512,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         section,
         'Settings',
         section === 'security'
-          ? page.getByRole('table', { name: 'Signed-in sessions' })
+          ? page.getByRole('list', { name: 'Signed-in sessions' })
           : undefined,
       );
     }
