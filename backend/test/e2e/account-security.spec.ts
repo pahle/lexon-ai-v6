@@ -206,7 +206,13 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   await page
     .getByRole('button', { name: 'Back to security', exact: true })
     .click();
-  await expect(page.getByText('Browser', { exact: true })).toBeVisible();
+  // The device name comes from the user agent, so the row is found by its
+  // current-session badge rather than by a browser name.
+  await expect(
+    page
+      .getByRole('list', { name: 'Signed-in sessions' })
+      .getByText('This device', { exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () =>

@@ -26,7 +26,9 @@ test('invitation new recipient signs up verifies and accepts without exposing an
     (await readCapturedMail(stack.project, email, 'invitation')).actionUrl,
   );
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.getByRole('link', { name: 'Create account', exact: true }).click();
+  await page
+    .getByRole('link', { name: 'create an account', exact: true })
+    .click();
   await page.getByLabel('Full name', { exact: true }).fill('Invited identity');
   await page.getByLabel('Work email', { exact: true }).fill(email);
   await page

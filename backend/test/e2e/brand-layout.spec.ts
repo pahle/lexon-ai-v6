@@ -111,8 +111,8 @@ test('a real API-authenticated incomplete identity renders onboarding checkpoint
     page.getByRole('heading', { name: 'Welcome to Lexon' }),
   ).toBeVisible();
   for (const viewport of [
-    { width: 1440, height: 900, formWidth: 320 },
-    { width: 390, height: 844, formWidth: 320 },
+    { width: 1440, height: 900, formWidth: 400 },
+    { width: 390, height: 844, formWidth: 350 },
   ]) {
     await page.setViewportSize(viewport);
     expect(
@@ -414,8 +414,8 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
       expect(navBox!.height).toBeGreaterThanOrEqual(asideBox!.height - 1);
       expect(
         await page
-          .getByRole('navigation', { name: 'Settings sections' })
-          .locator('[data-slot="sidebar"]')
+          .getByRole('dialog', { name: 'Settings' })
+          .locator('aside')
           .evaluate((element) => getComputedStyle(element).backgroundColor),
       ).not.toBe('rgba(0, 0, 0, 0)');
       await capture('01-settings-' + section + '-' + theme + '-desktop');
@@ -477,8 +477,8 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     expect(navBox!.height).toBeGreaterThanOrEqual(asideBox!.height - 1);
     expect(
       await page
-        .getByRole('navigation', { name: 'Settings sections' })
-        .locator('[data-slot="sidebar"]')
+        .getByRole('dialog', { name: 'Settings' })
+        .locator('aside')
         .evaluate((element) => getComputedStyle(element).backgroundColor),
     ).not.toBe('rgba(0, 0, 0, 0)');
     await capture('04-settings-' + section + '-light-768');
@@ -1541,7 +1541,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
               clientWidth: element.clientWidth,
               scrollWidth: element.scrollWidth,
             }));
-            expect(tableWidth.scrollWidth).toBeGreaterThan(
+            // Round 4 rows (stacked identity, role Select, row menu) fit the
+            // 390px column, so the table no longer scrolls sideways. The
+            // in-viewport checks below still guard that every control is reachable.
+            expect(tableWidth.scrollWidth).toBeLessThanOrEqual(
               tableWidth.clientWidth,
             );
             await horizontalScroll.evaluate((element) => {

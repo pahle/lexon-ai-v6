@@ -764,11 +764,15 @@ export async function openState(page: Page, baseUrl: string, state: string) {
         page.getByText('2 / 2', { exact: true }).first(),
       ).toBeVisible();
     if (state === 'stopped-before-answer') {
-      await expect(page.getByText('Stopped', { exact: true })).toBeVisible();
+      await expect(
+        page.getByText('You stopped this response.', { exact: true }),
+      ).toBeVisible();
       await expect(page.getByText(/Pasal 1320 KUHPerdata/)).toHaveCount(0);
     }
     if (state === 'stopped')
-      await expect(page.getByText('Stopped', { exact: true })).toBeVisible();
+      await expect(
+        page.getByText('You stopped this response.', { exact: true }),
+      ).toBeVisible();
     if (state === 'run-error')
       await expect(page.locator('#main').getByRole('alert')).toContainText(
         'The response could not be completed.',

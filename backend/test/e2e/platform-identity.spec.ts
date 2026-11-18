@@ -43,7 +43,7 @@ test('F2 platform navigation remains hidden and direct routes are denied for ord
   });
   await page.goto(stack.frontendUrl + '/platform/provisioning');
   await expect(page.locator('section[role="alert"]')).toContainText(
-    'You do not have access to this page.',
+    'You do not have access',
   );
   await expect(
     primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
@@ -502,7 +502,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           .actionUrl,
       );
       await recipient
-        .getByRole('link', { name: 'Create account', exact: true })
+        .getByRole('link', { name: 'create an account', exact: true })
         .click();
       await recipient
         .getByLabel('Full name', { exact: true })

@@ -85,22 +85,37 @@ test('appearance previews keep scoped light, dark, and system token surfaces', a
   await page.goto(stack.frontendUrl + '/workspace?settings=appearance');
   const previews = page.locator('[data-slot="appearance-preview"]');
   await expect(previews).toHaveCount(3);
+  // Each preview is two panes (sidebar, then page) scoped to its own theme
+  // through data-preview-theme; the container itself paints nothing.
+  const panes = (element: Element, scope: string) => {
+    const [sidebar, page] = Array.from(element.querySelector(scope)!.children);
+    return {
+      sidebar: getComputedStyle(sidebar!).backgroundColor,
+      page: getComputedStyle(page!).backgroundColor,
+    };
+  };
   const light = await previews
     .nth(0)
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
+    .evaluate(panes, '[data-preview-theme="light"]');
   const dark = await previews
     .nth(1)
-    .evaluate((element) => getComputedStyle(element).backgroundColor);
+    .evaluate(panes, '[data-preview-theme="dark"]');
   const system = await previews.nth(2).evaluate((element) => ({
     light: getComputedStyle(
-      element.querySelector('[data-preview-theme="light"]')!,
+      element.querySelector('[data-preview-theme="light"]')!.children[1]!,
     ).backgroundColor,
     dark: getComputedStyle(
-      element.querySelector('[data-preview-theme="dark"]')!,
+      element.querySelector('[data-preview-theme="dark"]')!.children[1]!,
     ).backgroundColor,
   }));
-  expect(light).toBe('rgb(245, 244, 244)');
-  expect(dark).toBe('rgb(36, 32, 33)');
+  expect(light).toEqual({
+    sidebar: 'rgb(245, 244, 244)',
+    page: 'rgb(255, 255, 255)',
+  });
+  expect(dark).toEqual({
+    sidebar: 'rgb(24, 21, 22)',
+    page: 'rgb(18, 16, 17)',
+  });
   expect(system).toEqual({
     light: 'rgb(255, 255, 255)',
     dark: 'rgb(18, 16, 17)',

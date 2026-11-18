@@ -11,6 +11,11 @@ import { totpForUri } from '../setup/totp.js';
 // Administrator setup while sign-up is OPEN: the setup token is only a
 // registration proof and the single-use key to platform rights. Open sign-up
 // must neither skip any activation step nor hand platform rights to anyone else.
+//
+// The stack is shared and a first administrator can only be provisioned once
+// (platform-identity.spec.ts does that with a plain operatorSetup). This file is
+// named to sort after it, and it provisions with `additional` so it works
+// whether or not an administrator already exists.
 test.setTimeout(180000);
 test.beforeAll(async () => {
   if (!(await currentSignupMode())) await signupMode(true);
@@ -35,7 +40,7 @@ test('open sign-up: the setup link creates a platform administrator exactly once
   const stack = descriptor();
   const password = 'Platform-open-signup-42!';
   const email = 'open.setup.operator@example.test';
-  const setup = await operatorSetup(email);
+  const setup = await operatorSetup(email, true);
   expect(setup.status).toBe('created');
   const actionUrl = setup.mail!.actionUrl;
   const token = new URL(actionUrl).searchParams.get('token')!;
@@ -153,7 +158,7 @@ test('open sign-up: the setup link creates a platform administrator exactly once
     expect(denied.status()).toBeLessThan(500);
     await ordinaryPage.goto(stack.frontendUrl + '/platform/provisioning');
     await expect(ordinaryPage.locator('section[role="alert"]')).toContainText(
-      'You do not have access to this page.',
+      'You do not have access',
     );
   } finally {
     await ordinary.close();

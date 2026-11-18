@@ -752,9 +752,9 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
     .toBe('cancelled');
   expect(cancelResponse.ok()).toBe(true);
   await workerControl('release', runId);
-  await expect(stoppedMessage).toContainText('Stopped');
+  await expect(stoppedMessage).toContainText('You stopped this response.');
   await page.reload();
-  await expect(stoppedMessage).toContainText('Stopped');
+  await expect(stoppedMessage).toContainText('You stopped this response.');
   await expect(
     page.getByRole('textbox', { name: 'Message input' }),
   ).toHaveAttribute(

@@ -62,9 +62,11 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await expect(
     page.getByRole('link', { name: 'New chat' }).first(),
   ).toBeVisible();
+  // The prototype shows the floating pill on the new chat and on a thread
+  // only; the Chats list has none.
   await expect(
     page.getByRole('button', { name: 'Chat actions', exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   const chatHeading = page.locator('#main h1');
   const pageHeading = page.getByRole('heading', { name: 'Chats' });
   expect(await pageHeading.locator('..').getAttribute('class')).not.toContain(

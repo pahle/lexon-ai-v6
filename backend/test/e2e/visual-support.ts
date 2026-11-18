@@ -354,7 +354,9 @@ export async function captureVisualView(
       .locator('main input')
       .first()
       .evaluate((input) => Math.round(input.getBoundingClientRect().width)),
-  ).toBe(320);
+    // LEX-DS-001 section 5.5: the form block is at most 400px wide inside
+    // the 20px mobile gutters.
+  ).toBe(Math.min(400, sizes[viewport].width - 40));
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('html')).toHaveClass(
     theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
