@@ -19,7 +19,19 @@ const password = 'Brand-operator-42!';
 async function enrollAdministrator(page: Page, email: string) {
   const stack = descriptor();
   const seen: string[] = [];
-  page.on('response', (response) => {
+  page.on('console', (message) => {
+    if (message.type() === 'error')
+      seen.push('console: ' + message.text().slice(0, 160));
+  });
+  page.on('pageerror', (error) =>
+    seen.push('pageerror: ' + error.message.slice(0, 160)),
+  );
+  page.on('response', async (response) => {
+    if (new URL(response.url()).pathname === '/api/identity/security')
+      seen.push(
+        'security body: ' +
+          (await response.text().catch(() => '?')).slice(0, 300),
+      );
     const url = new URL(response.url());
     if (url.pathname.startsWith('/api/'))
       seen.push(
@@ -68,7 +80,7 @@ async function enrollAdministrator(page: Page, email: string) {
           ': ' +
           (await page.locator('body').innerText()).slice(0, 200) +
           ' | api: ' +
-          seen.slice(-14).join('; '),
+          seen.slice(-24).join('; '),
       );
     }
     await enrollment.fill(password);
