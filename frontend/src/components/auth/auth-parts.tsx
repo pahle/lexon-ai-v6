@@ -49,7 +49,7 @@ export function AuthAlert({
           {title}
         </AlertTitle>
       ) : null}
-      <AlertDescription className="col-start-2 text-sm leading-normal text-wrap text-foreground md:text-wrap">
+      <AlertDescription className="col-start-2 text-sm leading-normal [text-wrap:wrap] text-foreground md:[text-wrap:wrap]">
         {children}
       </AlertDescription>
     </Alert>
