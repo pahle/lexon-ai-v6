@@ -266,3 +266,18 @@ test('the app mounts one Toaster, top right, in the root layout', async () => {
   const sonner = (await import('../src/components/ui/sonner.tsx?raw')).default;
   expect(sonner).toContain('position="top-right"');
 });
+
+test('solid buttons paint their fill under the border, as the prototype .btn (no 1px inset)', async () => {
+  const { container } = await render(
+    <>
+      <Button>Save</Button>
+      <Button variant="destructive">Delete</Button>
+      <Button variant="outline">Cancel</Button>
+    </>,
+  );
+  await settle();
+  const [save, del, cancel] = Array.from(container.querySelectorAll('button'));
+  expect(save!.className).toContain('bg-clip-border');
+  expect(del!.className).toContain('bg-clip-border');
+  expect(cancel!.className).not.toContain('bg-clip-border');
+});

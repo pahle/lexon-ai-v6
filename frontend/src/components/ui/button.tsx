@@ -10,7 +10,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        default:
+          'bg-primary bg-clip-border text-primary-foreground hover:bg-primary/90',
         outline:
           'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
         secondary:
@@ -21,7 +22,7 @@ const buttonVariants = cva(
         // solid Merah Segel Deep fill with white text in both themes. shadcn
         // publishes a translucent red tint here.
         destructive:
-          'bg-(--lexon-destructive-fill) text-white hover:brightness-110 focus-visible:border-ring focus-visible:ring-ring/50',
+          'bg-(--lexon-destructive-fill) bg-clip-border text-white hover:brightness-110 focus-visible:border-ring focus-visible:ring-ring/50',
         link: 'text-foreground underline underline-offset-4 hover:text-muted-foreground',
       },
       size: {
