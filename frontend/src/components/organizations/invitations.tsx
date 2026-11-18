@@ -295,7 +295,7 @@ export function Invitations({
                     key={invitation.id}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="w-full px-0 py-3">
+                    <TableCell className="w-full px-0 py-3 whitespace-normal">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
