@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
-import { MarkdownText } from './markdown-text';
+import { AnswerDimmedContext, MarkdownText } from './markdown-text';
 import { ThinkingIndicator } from './indicator/thinking-indicator';
 
 export type AnswerStatus = 'running' | 'complete' | 'stopped' | 'failed';
@@ -97,7 +97,10 @@ export function PersistedReasoning({
         </span>
       </CollapsibleTrigger>
       <CollapsibleContent className="border-input text-muted-foreground border-s-2 py-0.5 ps-3.5 text-sm leading-[1.6] [&_p]:m-0">
-        <MarkdownText source={summary} />
+        {/* The summary reads in muted-foreground, like the prototype. */}
+        <AnswerDimmedContext.Provider value>
+          <MarkdownText source={summary} />
+        </AnswerDimmedContext.Provider>
       </CollapsibleContent>
     </Collapsible>
   );
