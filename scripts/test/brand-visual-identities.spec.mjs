@@ -31,13 +31,5 @@ test('brand-visual fixed addresses and slugs are unique within the e2e specs', (
   for (const name of others)
     for (const address of fixedAddresses(read(name)))
       if (own.has(address)) shared.push(`${address} (also in ${name})`);
-  // Known: chat-states.spec.ts registers the prototype slug first; the team
-  // world falls back to a suffixed slug when it is taken (brand-visual-world.ts).
-  const knownCollisions = new Set([
-    'slug hukum-nusantara (also in chat-states.spec.ts)',
-  ]);
-  assert.deepEqual(
-    shared.filter((entry) => !knownCollisions.has(entry)),
-    [],
-  );
+  assert.deepEqual(shared, []);
 });

@@ -35,7 +35,7 @@ test('every indexed F4 chat state opens with its expected content and controls',
     `${stack.apiUrl}/api/organizations`,
     {
       headers,
-      data: { name: 'Hukum Nusantara', slug: 'hukum-nusantara' },
+      data: { name: 'Hukum Nusantara', slug: 'hukum-nusantara-states' },
     },
   );
   expect(createdTeam.status()).toBe(201);

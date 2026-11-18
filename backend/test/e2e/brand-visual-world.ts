@@ -238,18 +238,7 @@ export async function teamWorld(
       expect(response.status()).toBe(201);
       return (await response.json()) as { id: string };
     };
-    // chat-states.spec.ts also creates the slug "hukum-nusantara" in a
-    // shared stack, and a slug registers once. When it ran first the slug is
-    // taken and General shows this suffixed slug instead (reported to the
-    // manager; the slug is visible only on the General settings screen).
-    const createTeam = async () => {
-      const first = await page.request.post(
-        stack.apiUrl + '/api/organizations',
-        { headers, data: { name: team.name, slug: team.slug } },
-      );
-      if (first.status() === 201) return (await first.json()) as { id: string };
-      return create(team.name, `${team.slug}-review`);
-    };
+    const createTeam = () => create(team.name, team.slug);
     const activate = async (organizationId: string) =>
       expect(
         (
