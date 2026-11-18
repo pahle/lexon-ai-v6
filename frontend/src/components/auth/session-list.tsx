@@ -8,7 +8,13 @@ import { Skeleton } from '../ui/skeleton';
 import { EmptyState } from '../states/page-states';
 import { PendingButton } from '../forms/pending-button';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { dateTimeFormatter } from '../../lib/date-time';
+import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { formatRelativeTime } from '../../lib/relative-time';
+import {
+  settingsDescriptionClass,
+  settingsLabelClass,
+  settingsRowClass,
+} from '../settings/settings-section';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
+
+const deviceIcons = {
+  desktop: Monitor,
+  mobile: Smartphone,
+  tablet: Tablet,
+  unknown: Monitor,
+} as const;
 
 export function SessionList({
   sessions,
@@ -72,78 +85,59 @@ export function SessionList({
           description="You are not signed in on any other browsers or devices."
         />
       ) : (
-        <div
-          role="region"
-          aria-label="Signed-in sessions, scrollable"
-          // Keyboard users must be able to scroll the table sideways.
-          tabIndex={0}
-          className="min-w-0 overflow-x-auto rounded-[var(--radius)] border border-border focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <table
-            aria-label="Signed-in sessions"
-            className="w-full border-collapse text-left text-sm"
-          >
-            <thead className="bg-muted text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Session
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Signed in
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Expires
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {orderedSessions.map((session) => (
-                <tr key={session.id} className="border-t border-border">
-                  <th scope="row" className="px-3 py-3 font-medium">
-                    <span>
-                      {session.channel === 'cookie' ? 'Browser' : 'Bearer'}
-                    </span>
-                    {session.current ? (
-                      <Badge variant="secondary" className="ml-2">
-                        Current
-                      </Badge>
-                    ) : null}
-                  </th>
-                  <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                    {dateTimeFormatter.format(new Date(session.createdAt))}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                    {dateTimeFormatter.format(new Date(session.expiresAt))}
-                  </td>
-                  <td className="px-3 py-3 text-right">
-                    {!session.current ? (
-                      <Button
-                        variant="outline"
-                        disabled={busy !== null}
-                        onClick={() => {
-                          setRevokeFailure(false);
-                          setConfirmingId(session.id);
-                        }}
-                      >
-                        Revoke
-                        <span className="sr-only">
-                          {' '}
-                          {session.channel === 'cookie'
-                            ? 'browser'
-                            : 'Bearer'}{' '}
-                          session
-                        </span>
-                      </Button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul aria-label="Signed-in sessions" className="flex flex-col">
+          {orderedSessions.map((session) => {
+            const DeviceIcon = deviceIcons[session.deviceKind];
+            return (
+              <li
+                key={session.id}
+                data-slot="session-row"
+                className={settingsRowClass()}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    data-slot="device-tile"
+                    aria-hidden="true"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground"
+                  >
+                    <DeviceIcon className="size-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className={settingsLabelClass}>
+                      {session.deviceName}
+                      {session.current ? (
+                        <Badge
+                          variant="outline"
+                          className="ml-1.5 border-input align-middle"
+                        >
+                          This device
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className={settingsDescriptionClass}>
+                      {session.current
+                        ? 'Active now'
+                        : `Signed in ${formatRelativeTime(session.createdAt)}`}
+                    </div>
+                  </div>
+                </div>
+                {!session.current ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy !== null}
+                    aria-label={`Sign out ${session.deviceName}`}
+                    onClick={() => {
+                      setRevokeFailure(false);
+                      setConfirmingId(session.id);
+                    }}
+                  >
+                    Sign out
+                  </Button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       )}
       <AlertDialog
         open={confirming !== undefined}
@@ -156,14 +150,14 @@ export function SessionList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke this session?</AlertDialogTitle>
+            <AlertDialogTitle>Sign out this session?</AlertDialogTitle>
             <AlertDialogDescription>
               This session will lose access to your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {revokeFailure ? (
             <Alert role="alert" variant="destructive">
-              <AlertTitle>Unable to revoke the session</AlertTitle>
+              <AlertTitle>Unable to sign out the session</AlertTitle>
               <AlertDescription>Please try again.</AlertDescription>
             </Alert>
           ) : null}
@@ -175,9 +169,9 @@ export function SessionList({
               render={
                 <PendingButton
                   pending={busy !== null}
-                  pendingLabel="Revoking session…"
+                  pendingLabel="Signing out…"
                 >
-                  Revoke session
+                  Sign out
                 </PendingButton>
               }
               disabled={busy !== null}
@@ -196,7 +190,7 @@ export function SessionList({
                 }
               }}
             >
-              Revoke session
+              Sign out
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

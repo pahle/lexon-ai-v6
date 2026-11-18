@@ -10,3 +10,4 @@ export * from './security.js';
 export * from './ai-run.js';
 export * from './chat.js';
 export * from './job-title.js';
+export * from './device.js';

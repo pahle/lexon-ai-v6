@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import { LoadingState } from '../states/page-states';
 import { Button } from '../ui/button';
+import { formatRelativeTime } from '../../lib/relative-time';
 import { Badge } from '../ui/badge';
 import {
   AlertDialog,
@@ -135,12 +136,16 @@ export function AccountSecurity() {
         <SettingsHeading
           id="security-heading"
           title="Security"
-          description="Manage sign-in methods and active sessions."
+          description="Manage how you sign in and where you are signed in."
           className="mb-3"
         />
         <SecurityRow
           title="Password"
-          description="Change the password you use to sign in."
+          description={
+            security.data.passwordChangedAt
+              ? `Last changed ${formatRelativeTime(security.data.passwordChangedAt)}.`
+              : 'Change the password you use to sign in.'
+          }
           action="Change password"
           onAction={() => setActiveAction('password')}
         />
@@ -155,21 +160,20 @@ export function AccountSecurity() {
           className="flex items-center justify-between gap-6 border-b border-border py-4"
         >
           <div className="min-w-0">
-            <h3 className="text-sm font-medium">Two-factor authentication</h3>
-            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+            <h3 className="text-sm font-medium">
+              Two-step verification
               <Badge
-                variant={
-                  security.data.twoFactorEnabled ? 'secondary' : 'outline'
-                }
+                variant="outline"
+                className="ml-1.5 border-input align-middle"
               >
                 {security.data.twoFactorEnabled ? 'On' : 'Off'}
               </Badge>
-              {security.data.twoFactorEnabled ? (
-                <span>
-                  {security.data.recoveryCodesRemaining} recovery codes left
-                </span>
-              ) : null}
-            </div>
+            </h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {security.data.twoFactorEnabled
+                ? `Authenticator app. ${security.data.recoveryCodesRemaining} recovery codes left.`
+                : 'Add an authenticator app for a second step at sign-in.'}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {security.data.twoFactorEnabled ? (
@@ -206,7 +210,7 @@ export function AccountSecurity() {
           onRevoke={async (id) => {
             await api.revokeSession(id);
             await refresh();
-            toast.success('Session revoked.');
+            toast.success('Session signed out.');
           }}
         />
       ) : null}

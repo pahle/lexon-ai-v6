@@ -399,6 +399,7 @@ test('completed setup discards its proof without redeeming it again', async () =
             mfaVerified: true,
             reauthenticationExpiresAt: null,
             recoveryCodesRemaining: 10,
+            passwordChangedAt: null,
           })
         : String(input).endsWith('/complete')
           ? new Response(null, { status: 204 })

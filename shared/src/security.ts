@@ -53,6 +53,9 @@ export const OwnSessionSummarySchema = z.strictObject({
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   current: z.boolean(),
+  /** Browser and system named from the stored user agent; never the raw value. */
+  deviceName: z.string().min(1).max(80),
+  deviceKind: z.enum(['desktop', 'mobile', 'tablet', 'unknown']),
 });
 export type OwnSessionSummary = z.infer<typeof OwnSessionSummarySchema>;
 export const SecurityStateSchema = z.strictObject({
@@ -61,6 +64,8 @@ export const SecurityStateSchema = z.strictObject({
   mfaVerified: z.boolean(),
   reauthenticationExpiresAt: z.iso.datetime().nullable(),
   recoveryCodesRemaining: z.number().int().min(0),
+  /** When the credential password was last set or changed; null if unknown. */
+  passwordChangedAt: z.iso.datetime().nullable(),
 });
 export type SecurityState = z.infer<typeof SecurityStateSchema>;
 export const BearerSessionResponseSchema = z.strictObject({

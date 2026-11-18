@@ -143,26 +143,32 @@ test('recovery codes use h1 in standalone enrollment and h2 within account secur
   await embedded.unmount();
   vi.unstubAllGlobals();
 });
-test('session list distinguishes Browser and Bearer and revokes only by safe id', async () => {
+test('session list shows each device as the prototype draws it and signs out only by safe id', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-18T12:00:00.000Z'));
   const id = '00000000-0000-4000-8000-000000000001';
   let revoked = '';
   const rows = [
     {
       version: 1 as const,
       id,
-      channel: 'bearer' as const,
-      createdAt: '2026-11-01T00:00:00Z',
-      expiresAt: '2026-11-01T00:15:00Z',
+      channel: 'cookie' as const,
+      createdAt: '2026-11-15T12:00:00.000Z',
+      expiresAt: '2026-11-22T12:00:00.000Z',
       current: false,
+      deviceName: 'Safari on iPhone',
+      deviceKind: 'mobile' as const,
       token: 'token-secret-sentinel',
     },
     {
       version: 1 as const,
       id: '00000000-0000-4000-8000-000000000002',
       channel: 'cookie' as const,
-      createdAt: '2026-11-01T00:00:00Z',
-      expiresAt: '2026-11-08T00:00:00Z',
+      createdAt: '2026-11-18T08:00:00.000Z',
+      expiresAt: '2026-11-25T08:00:00.000Z',
       current: true,
+      deviceName: 'Chrome on macOS',
+      deviceKind: 'desktop' as const,
     },
   ];
   const view = await render(
@@ -173,30 +179,33 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
       }}
     />,
   );
-  expect(view.container.textContent).toContain('Browser');
-  expect(view.container.textContent).toContain('Bearer');
-  expect(view.container.querySelector('table')).not.toBeNull();
+  const items = [...view.container.querySelectorAll('li')];
+  expect(items).toHaveLength(2);
+  // Current device first: name, badge, "Active now", and no action.
+  expect(items[0]?.textContent).toBe('Chrome on macOSThis deviceActive now');
+  expect(items[0]?.querySelector('button')).toBeNull();
+  expect(items[1]?.textContent).toBe(
+    'Safari on iPhoneSigned in 3 days agoSign out',
+  );
+  const tile = items[1]!.querySelector('[data-slot="device-tile"]')!;
+  expect(tile.className).toContain('size-9');
+  expect(tile.className).toContain('rounded-[10px]');
+  expect(tile.className).toContain('bg-muted');
+  expect(tile.querySelector('svg')).not.toBeNull();
+  expect(view.container.querySelector('table')).toBeNull();
   expect(view.container.textContent).toContain('Where you are signed in');
-  expect(view.container.textContent).toContain('Expires');
-  expect(view.container.textContent).toContain('Signed in');
-  expect(view.container.textContent).not.toContain('Device');
-  expect(view.container.textContent).not.toContain('Last active');
+  for (const hidden of ['Browser', 'Bearer', 'Expires', 'Current'])
+    expect(view.container.textContent).not.toContain(hidden);
   expect(view.container.textContent?.includes('token-secret-sentinel')).toBe(
     false,
   );
-  expect(view.container.querySelector('tbody tr')?.textContent).toContain(
-    'Current',
-  );
-  expect(view.container.querySelector('tbody tr')?.textContent).toContain(
-    'Browser',
-  );
-  const revokeRowAction =
-    view.container.querySelector<HTMLButtonElement>('tbody tr button');
+  const signOut = view.container.querySelector<HTMLButtonElement>('li button')!;
+  expect(signOut.getAttribute('aria-label')).toBe('Sign out Safari on iPhone');
   // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  expect(revokeRowAction!.classList.contains('border-border')).toBe(true);
-  expect(revokeRowAction!.classList.contains('bg-background')).toBe(true);
-  expect(revokeRowAction!.className).not.toContain('text-destructive');
-  await act(async () => view.container.querySelector('button')!.click());
+  expect(signOut.classList.contains('border-border')).toBe(true);
+  expect(signOut.classList.contains('bg-background')).toBe(true);
+  expect(signOut.className).not.toContain('text-destructive');
+  await act(async () => signOut.click());
   expect(revoked).toBe('');
   const cancel = document.body.querySelector<HTMLButtonElement>(
     '[data-slot="alert-dialog-cancel"]',
@@ -204,7 +213,7 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   expect(cancel).not.toBeNull();
   await act(async () => cancel?.click());
   expect(revoked).toBe('');
-  await act(async () => view.container.querySelector('button')!.click());
+  await act(async () => signOut.click());
   const confirm = document.body.querySelector<HTMLButtonElement>(
     '[data-slot="alert-dialog-action"]',
   );
@@ -212,42 +221,62 @@ test('session list distinguishes Browser and Bearer and revokes only by safe id'
   await act(async () => confirm?.click());
   expect(revoked).toBe(id);
   await view.unmount();
+  vi.useRealTimers();
 });
 
-test('sessions render current first with shared local date and time formatting', async () => {
-  const localTime = new Date(2026, 10, 4, 18, 2).toISOString();
+test('each device kind has its own icon and the add-in is named', async () => {
+  const base = {
+    version: 1 as const,
+    channel: 'cookie' as const,
+    createdAt: '2026-11-01T00:00:00Z',
+    expiresAt: '2026-11-08T00:00:00Z',
+    current: false,
+  };
   const view = await render(
     <SessionList
       sessions={[
         {
-          version: 1,
-          id: '00000000-0000-4000-8000-000000000031',
-          channel: 'bearer',
-          createdAt: localTime,
-          expiresAt: localTime,
-          current: false,
+          ...base,
+          id: '00000000-0000-4000-8000-000000000011',
+          deviceName: 'A',
+          deviceKind: 'desktop',
         },
         {
-          version: 1,
-          id: '00000000-0000-4000-8000-000000000032',
-          channel: 'cookie',
-          createdAt: localTime,
-          expiresAt: localTime,
-          current: true,
+          ...base,
+          id: '00000000-0000-4000-8000-000000000012',
+          deviceName: 'B',
+          deviceKind: 'mobile',
+        },
+        {
+          ...base,
+          id: '00000000-0000-4000-8000-000000000013',
+          deviceName: 'C',
+          deviceKind: 'tablet',
+        },
+        {
+          ...base,
+          id: '00000000-0000-4000-8000-000000000014',
+          deviceName: 'Unknown device',
+          deviceKind: 'unknown',
         },
       ]}
       onRevoke={async () => {}}
     />,
   );
-  const rows = [...view.container.querySelectorAll('tbody tr')];
-  expect(rows[0]?.textContent).toContain('Browser');
-  expect(rows[0]?.textContent).toContain('Current');
-  expect(rows[0]?.textContent).toContain('Nov 4, 2026, 18:02');
-  expect(rows[0]?.textContent).not.toMatch(/:\d{2}:\d{2}/);
+  const icons = [...view.container.querySelectorAll('li svg')].map(
+    (icon) => icon.getAttribute('class')?.match(/lucide-([a-z-]+)/)?.[1],
+  );
+  expect(icons.slice(0, 4)).toEqual([
+    'monitor',
+    'smartphone',
+    'tablet',
+    'monitor',
+  ]);
+  expect(view.container.textContent).toContain('Unknown device');
   await view.unmount();
 });
 
-test('the sessions table scrolls inside a focusable, named region', async () => {
+test('the sessions list is a named list that wraps without sideways scrolling', async () => {
   const view = await render(
     <SessionList
       sessions={[
@@ -258,19 +287,20 @@ test('the sessions table scrolls inside a focusable, named region', async () => 
           createdAt: '2026-11-01T00:00:00Z',
           expiresAt: '2026-11-08T00:00:00Z',
           current: true,
+          deviceName: 'Chrome on macOS',
+          deviceKind: 'desktop',
         },
       ]}
       onRevoke={async () => {}}
     />,
   );
-  const table = view.container.querySelector('table');
-  const wrapper = table?.parentElement;
-  expect(wrapper?.getAttribute('role')).toBe('region');
-  expect(wrapper?.getAttribute('aria-label')).toBe(
-    'Signed-in sessions, scrollable',
+  const list = view.container.querySelector('ul');
+  expect(list?.getAttribute('aria-label')).toBe('Signed-in sessions');
+  expect(list?.parentElement?.className).not.toContain('overflow-x-auto');
+  // Rows stack the button under the label on mobile, like every settings row.
+  expect(view.container.querySelector('li')?.className).toContain(
+    'max-md:flex-col',
   );
-  expect(wrapper?.getAttribute('tabindex')).toBe('0');
-  expect(wrapper?.className).toContain('overflow-x-auto');
   await view.unmount();
 });
 
@@ -292,6 +322,8 @@ test('session revoke shows pending, blocks repeats, and keeps confirmation open 
           createdAt: '2026-11-01T00:00:00Z',
           expiresAt: '2026-11-01T00:15:00Z',
           current: false,
+          deviceName: 'Chrome on macOS',
+          deviceKind: 'desktop',
         },
       ]}
       onRevoke={onRevoke}
@@ -305,7 +337,7 @@ test('session revoke shows pending, blocks repeats, and keeps confirmation open 
   await act(async () => action.click());
   await vi.waitFor(() => expect(onRevoke).toHaveBeenCalledTimes(1));
   expect(action.disabled).toBe(true);
-  expect(action.textContent).toContain('Revoking session…');
+  expect(action.textContent).toContain('Signing out…');
   expect(action.querySelector('[data-slot="spinner"]')).not.toBeNull();
   await act(async () => action.click());
   expect(onRevoke).toHaveBeenCalledTimes(1);
@@ -315,11 +347,11 @@ test('session revoke shows pending, blocks repeats, and keeps confirmation open 
   const revokeDialog = document.body.querySelector('[role="alertdialog"]');
   expect(revokeDialog).not.toBeNull();
   expect(revokeDialog?.querySelector('[role="alert"]')?.textContent).toContain(
-    'Unable to revoke the session',
+    'Unable to sign out the session',
   );
   expect(view.container.querySelector('[role="alert"]')).toBeNull();
   expect(action.disabled).toBe(false);
-  expect(action.textContent).toContain('Revoke session');
+  expect(action.textContent).toContain('Sign out');
   await view.unmount();
 });
 
@@ -337,6 +369,8 @@ test('session revoke clears its previous error after cancel and reopen', async (
           createdAt: '2026-11-01T00:00:00Z',
           expiresAt: '2026-11-01T00:15:00Z',
           current: false,
+          deviceName: 'Chrome on macOS',
+          deviceKind: 'desktop',
         },
       ]}
       onRevoke={onRevoke}
@@ -350,7 +384,7 @@ test('session revoke clears its previous error after cancel and reopen', async (
   await act(async () => action.click());
   await settle();
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
-    'Unable to revoke the session',
+    'Unable to sign out the session',
   );
 
   await act(async () =>
@@ -403,6 +437,7 @@ test('security page embeds session errors without a nested main', async () => {
         mfaVerified: twoFactorEnabled,
         reauthenticationExpiresAt: null,
         recoveryCodesRemaining: twoFactorEnabled ? 4 : 0,
+        passwordChangedAt: '2026-09-18T12:00:00.000Z',
       });
     if (path === '/api/identity/sessions' && sessionsFail)
       return Response.json(
@@ -420,6 +455,8 @@ test('security page embeds session errors without a nested main', async () => {
           createdAt: '2026-11-01T00:00:00Z',
           expiresAt: '2026-11-08T00:00:00Z',
           current: true,
+          deviceName: 'Chrome on macOS',
+          deviceKind: 'desktop',
         },
         {
           version: 1,
@@ -428,6 +465,8 @@ test('security page embeds session errors without a nested main', async () => {
           createdAt: '2026-10-31T00:00:00Z',
           expiresAt: '2026-11-01T00:15:00Z',
           current: false,
+          deviceName: 'Word add-in',
+          deviceKind: 'desktop',
         },
       ]);
     if (path.startsWith('/api/identity/sessions/'))
@@ -459,15 +498,14 @@ test('security page embeds session errors without a nested main', async () => {
   expect(normal.container.querySelectorAll('h1')).toHaveLength(1);
   expect(normal.container.querySelectorAll('h2').length).toBeGreaterThan(0);
   await vi.waitFor(() =>
-    expect(normal.container.textContent).toContain('Browser'),
+    expect(normal.container.textContent).toContain('This device'),
   );
   expect(normal.container.textContent).toContain('person@example.test');
-  expect(normal.container.textContent).toContain('Browser');
-  expect(normal.container.textContent).toContain('Signed in');
+  expect(normal.container.textContent).toContain('Last changed');
   expect(normal.container.textContent).toContain('Where you are signed in');
-  expect(normal.container.textContent).toContain('Expires');
-  expect(normal.container.textContent).not.toContain('Device');
-  expect(normal.container.textContent).not.toContain('Last active');
+  expect(normal.container.textContent).toContain(
+    'Manage how you sign in and where you are signed in.',
+  );
   toastSuccess.mockClear();
   let signalStarted!: () => void;
   const revokeStarted = new Promise<void>((resolve) => {
@@ -476,7 +514,10 @@ test('security page embeds session errors without a nested main', async () => {
   signalRevokeStarted = signalStarted;
   await act(async () => {
     [...normal.container.querySelectorAll('button')]
-      .find((button) => button.textContent?.includes('Revoke Bearer session'))
+      .find(
+        (button) =>
+          button.getAttribute('aria-label') === 'Sign out Word add-in',
+      )
       ?.click();
   });
   await act(async () =>
@@ -491,7 +532,7 @@ test('security page embeds session errors without a nested main', async () => {
     await settle();
   });
   expect(toastSuccess).toHaveBeenCalledOnce();
-  expect(toastSuccess).toHaveBeenCalledWith('Session revoked.');
+  expect(toastSuccess).toHaveBeenCalledWith('Session signed out.');
   signalRevokeStarted = undefined;
   resolveRevokeResponse = undefined;
   const revokeOthers = [...normal.container.querySelectorAll('button')].find(
@@ -721,6 +762,7 @@ test('security title is a serif h2 and its rows separate label from action', asy
         mfaVerified: false,
         reauthenticationExpiresAt: null,
         recoveryCodesRemaining: 0,
+        passwordChangedAt: null,
       });
     return Response.json([]);
   });
@@ -745,4 +787,38 @@ test('security title is a serif h2 and its rows separate label from action', asy
     .forEach((row) => expect(row.className).toContain('border-b'));
   await view.unmount();
   vi.unstubAllGlobals();
+});
+
+test('the password and two-step rows read as the prototype does', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-18T12:00:00.000Z'));
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const path = new URL(String(input), window.location.origin).pathname;
+    if (path === '/api/identity/security')
+      return Response.json({
+        version: 1,
+        twoFactorEnabled: true,
+        mfaVerified: true,
+        reauthenticationExpiresAt: null,
+        recoveryCodesRemaining: 8,
+        passwordChangedAt: '2026-09-18T12:00:00.000Z',
+      });
+    if (path === '/api/identity/sessions') return Response.json([]);
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <AccountSecurity />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const rows = [
+    ...view.container.querySelectorAll('[data-slot="security-row"]'),
+  ].map((row) => row.textContent);
+  expect(rows[0]).toBe('PasswordLast changed 2 months ago.Change password');
+  expect(rows.at(-1)).toContain('Two-step verificationOn');
+  expect(rows.at(-1)).toContain('Authenticator app. 8 recovery codes left.');
+  await view.unmount();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });

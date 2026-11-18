@@ -11,6 +11,7 @@ interface SessionRow {
   hardExpiresAt: Date | null;
   createdAt: Date;
   expiresAt: Date;
+  userAgent: string | null;
   authenticatedAt: Date | null;
   mfaVerifiedAt: Date | null;
   reauthenticatedAt: Date | null;
@@ -136,6 +137,8 @@ export function sessionPlugin(security: SecurityPrimitives) {
               channel: row.channel,
               createdAt: row.createdAt.toISOString(),
               expiresAt: row.expiresAt.toISOString(),
+              // Server-internal: the service names the device and drops this.
+              userAgent: row.userAgent,
               current: row.id === ctx.body.currentSessionId,
             }));
         },

@@ -19,17 +19,34 @@ test('own session summaries are safe versioned identifiers for cookie and Bearer
     createdAt: '2026-11-01T00:00:00.000Z',
     expiresAt: '2026-11-08T00:00:00.000Z',
     current: true,
+    deviceName: 'Chrome on macOS',
+    deviceKind: 'desktop',
   };
   expect(OwnSessionSummarySchema.parse(session)).toEqual(session);
   expect(
     OwnSessionSummarySchema.safeParse({ ...session, channel: 'bearer' })
       .success,
   ).toBe(true);
+  for (const invalid of [
+    { deviceName: '' },
+    { deviceName: 'x'.repeat(81) },
+    { deviceKind: 'watch' },
+  ])
+    expect(
+      OwnSessionSummarySchema.safeParse({ ...session, ...invalid }).success,
+    ).toBe(false);
+  expect(
+    OwnSessionSummarySchema.safeParse({
+      ...session,
+      deviceName: undefined,
+    }).success,
+  ).toBe(false);
   for (const extra of [
     { token: 'secret' },
     { email: 'person@example.test' },
     { ipAddress: '127.0.0.1' },
     { userAgent: 'browser' },
+    { location: 'Jakarta' },
   ])
     expect(
       OwnSessionSummarySchema.safeParse({ ...session, ...extra }).success,
@@ -91,8 +108,21 @@ test('security state exposes evidence flags and counts without factor secrets', 
     mfaVerified: true,
     reauthenticationExpiresAt: null,
     recoveryCodesRemaining: 4,
+    passwordChangedAt: '2026-09-18T00:00:00.000Z',
   };
   expect(SecurityStateSchema.parse(state)).toEqual(state);
+  expect(
+    SecurityStateSchema.safeParse({ ...state, passwordChangedAt: null })
+      .success,
+  ).toBe(true);
+  expect(
+    SecurityStateSchema.safeParse({ ...state, passwordChangedAt: 'yesterday' })
+      .success,
+  ).toBe(false);
+  expect(
+    SecurityStateSchema.safeParse({ ...state, passwordChangedAt: undefined })
+      .success,
+  ).toBe(false);
   for (const extra of [
     { totpSecret: 'secret' },
     { recoveryCodes: ['secret'] },
