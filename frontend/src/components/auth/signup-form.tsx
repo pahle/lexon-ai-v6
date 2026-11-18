@@ -92,14 +92,14 @@ export function SignupForm({
           <AuthAlert title="Unable to create your account">{failure}</AuthAlert>
         ) : null}
         <FormInput
-          label="Name"
+          label="Full name"
           autoComplete="name"
           placeholder="Ayu Wardani"
           registration={form.register('name')}
           error={form.formState.errors.name}
         />
         <FormInput
-          label="Email"
+          label="Work email"
           type="email"
           autoComplete="email"
           placeholder="you@firm.co.id"

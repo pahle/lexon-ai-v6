@@ -14,6 +14,7 @@ import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { Button } from '../ui/button';
 import { cn } from 'cn';
 import { buttonVariants } from '../ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 const api = createIdentityClient({ baseUrl: '/api' });
@@ -63,7 +64,9 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         description="Your verified account is now a platform administrator."
       >
         <AuthLink href="/platform/provisioning">Provisioning</AuthLink>
-        <AuthLink href="/workspace">Return to workspace</AuthLink>
+        <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
+          Return to workspace
+        </AuthLink>
       </AuthCard>
     );
   if (phase === 'unavailable')
@@ -93,8 +96,8 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
     return (
       <AuthCard
         presentation="page"
-        title="Administrator setup"
-        description="Sign in with the account named in the setup email, or create that account. Verify your email and enroll an authenticator before activation."
+        title="Set up platform administration"
+        description="Sign in with the account named in the setup email, or create that account. Verify your email and set up two-step verification before activation."
       >
         <a
           href={'/sign-in?returnTo=' + encodeURIComponent(continuation)}
@@ -110,7 +113,9 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         >
           Create setup account
         </Button>
-        <AuthLink href="/workspace">Return to workspace</AuthLink>
+        <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
+          Return to workspace
+        </AuthLink>
       </AuthCard>
     );
   }
@@ -125,14 +130,18 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         >
           Verify your sign-in
         </AuthLink>
-        <AuthLink href="/workspace">Return to workspace</AuthLink>
+        <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
+          Return to workspace
+        </AuthLink>
       </AuthCard>
     );
   if (!security?.twoFactorEnabled)
     return (
       <div className="flex w-full flex-col gap-6">
         <TwoFactorEnrollment onComplete={refresh} presentation="page" />
-        <AuthLink href="/workspace">Return to workspace</AuthLink>
+        <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
+          Return to workspace
+        </AuthLink>
       </div>
     );
   return (
@@ -171,7 +180,9 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       >
         Activate platform administrator
       </PendingButton>
-      <AuthLink href="/workspace">Return to workspace</AuthLink>
+      <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
+        Return to workspace
+      </AuthLink>
     </AuthCard>
   );
 }
