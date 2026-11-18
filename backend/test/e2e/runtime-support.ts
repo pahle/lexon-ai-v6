@@ -6,6 +6,8 @@ export interface E2EDescriptor {
   apiUrl: string;
   publicUrl: string;
   frontendUrl: string;
+  /** Compose files the stack started with (scripts/e2e.mjs); absent in old descriptors. */
+  composeFiles?: string[];
 }
 export function descriptor(): E2EDescriptor {
   const input = process.env.LEXON_E2E_DESCRIPTOR;

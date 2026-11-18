@@ -11,6 +11,8 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import { withOwnedStack } from './e2e-lifecycle.mjs';
+import { checkStack } from './e2e-stack-guard.mjs';
+import { buildStackDescriptor } from '../backend/test/e2e/compose-files.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 async function port() {
   const server = createServer();
@@ -29,14 +31,14 @@ const { args, selectedProjects } = resolveE2ESelection(
   { includeLoad: process.env.LEXON_CHAT_LOAD === '1' },
 );
 const captureChatLoad = selectedProjects.includes('chat-sse-load');
-// LEXON_E2E_KEEP=1 (the F4.1 visual dev loop, scripts/visual-dev-stack.mjs)
-// leaves the stack running and keeps its state in .cache/visual-dev-stack.
+// LEXON_E2E_KEEP=1 (the F4.1 capture stack, scripts/visual-capture-stack.mjs)
+// leaves the stack running and keeps its state in .cache/visual-capture-stack.
 const keep = process.env.LEXON_E2E_KEEP === '1';
-const keepDirectory = join(root, '.cache/visual-dev-stack');
+const keepDirectory = join(root, '.cache/visual-capture-stack');
 if (keep) {
   if (existsSync(join(keepDirectory, 'descriptor.json')))
     throw new Error(
-      'A visual dev stack is already up: run node scripts/visual-dev-stack.mjs down first',
+      'A visual capture stack is already up: run node scripts/visual-capture-stack.mjs down first',
     );
   await rm(keepDirectory, { recursive: true, force: true });
   await mkdir(keepDirectory, { recursive: true, mode: 0o700 });
@@ -99,11 +101,7 @@ try {
   await writeFile(operatorEnvironmentPath, JSON.stringify(env), {
     mode: 0o600,
   });
-  const files = composeFilesForE2EProjects(
-    selectedProjects,
-    root,
-    process.env.LEXON_VISUAL_DEV === '1',
-  );
+  const files = composeFilesForE2EProjects(selectedProjects, root);
   const loadEvidence = await withOwnedStack({
     project,
     directory,
@@ -131,37 +129,49 @@ try {
       );
     },
     async exercise(signal) {
-      const descriptor = {
+      const descriptor = buildStackDescriptor({
         project,
         operatorEnvironmentPath,
         apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
         publicUrl,
-        frontendUrl: publicUrl,
-      };
+        composeFiles: files,
+      });
       if (keep)
         await writeFile(
           join(directory, 'descriptor.json'),
           JSON.stringify({
             ...descriptor,
-            composeFiles: files,
             directory,
           }),
           { mode: 0o600 },
         );
-      await run(
-        process.execPath,
-        [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
-        {
-          env: {
-            ...process.env,
-            LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
-            LEXON_CHAT_LOAD: captureChatLoad ? '1' : '0',
-            PLAYWRIGHT_NO_COPY_PROMPT: '1',
-            COMPOSE_PROFILES: '',
+      let testError;
+      try {
+        await run(
+          process.execPath,
+          [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
+          {
+            env: {
+              ...process.env,
+              LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+              LEXON_CHAT_LOAD: captureChatLoad ? '1' : '0',
+              PLAYWRIGHT_NO_COPY_PROMPT: '1',
+              COMPOSE_PROFILES: '',
+            },
+            signal,
           },
-          signal,
-        },
-      );
+        );
+      } catch (error) {
+        testError = error;
+      }
+      // Guard: a helper that recreates services must leave the api with
+      // sign-up open and every overlay in place, even after a failed run.
+      const problems = await checkStack(project, files);
+      if (problems.length > 0) {
+        console.error(`E2E stack guard failed:\n- ${problems.join('\n- ')}`);
+        testError ??= new Error('E2E stack guard failed');
+      }
+      if (testError) throw testError;
       if (captureChatLoad)
         return JSON.parse(
           await readFile(

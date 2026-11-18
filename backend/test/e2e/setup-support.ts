@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { descriptor } from './runtime-support.js';
+import { containerId, descriptor, docker } from './runtime-support.js';
+import { stackComposeFiles } from './compose-files.mjs';
 async function compose(args: string[], overrides: Record<string, string> = {}) {
   const stack = descriptor();
   const env = JSON.parse(
@@ -15,10 +16,10 @@ async function compose(args: string[], overrides: Record<string, string> = {}) {
           'compose',
           '--project-name',
           stack.project,
-          '--file',
-          new URL('../../../docker-compose.yml', import.meta.url).pathname,
-          '--file',
-          new URL('./compose.identity.yml', import.meta.url).pathname,
+          ...stackComposeFiles(
+            stack,
+            new URL('../../../', import.meta.url).pathname,
+          ).flatMap((file) => ['--file', file]),
           ...args,
         ],
         { env: { ...env, ...overrides }, timeout: 60000, maxBuffer: 65536 },
@@ -61,4 +62,28 @@ export async function signupMode(open: boolean) {
     ],
     { AUTH_OPEN_SIGNUP: String(open) },
   );
+}
+export async function currentSignupMode(): Promise<boolean> {
+  const env = JSON.parse(
+    await docker([
+      'inspect',
+      '--format',
+      '{{json .Config.Env}}',
+      await containerId('api'),
+    ]),
+  ) as string[];
+  return env.includes('AUTH_OPEN_SIGNUP=true');
+}
+/** Runs fn with sign-up open or closed and always restores the previous mode. */
+export async function withSignupMode<T>(
+  open: boolean,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const previous = await currentSignupMode();
+  await signupMode(open);
+  try {
+    return await fn();
+  } finally {
+    await signupMode(previous);
+  }
 }

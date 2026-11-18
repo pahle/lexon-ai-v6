@@ -20,11 +20,7 @@ export const E2E_PROJECTS = {
   evals: ['evaluation-smoke'],
 };
 
-export function composeFilesForE2EProjects(
-  selectedProjects,
-  repositoryRoot,
-  visualDev = false,
-) {
+export function composeFilesForE2EProjects(selectedProjects, repositoryRoot) {
   const files = [
     `${repositoryRoot}backend/test/e2e/compose.egress-probe.yml`,
     `${repositoryRoot}backend/test/e2e/compose.identity.yml`,
@@ -40,8 +36,6 @@ export function composeFilesForE2EProjects(
     );
   if (selectedProjects.includes('chat-sse-load'))
     files.push(`${repositoryRoot}backend/test/e2e/compose.chat-load.yml`);
-  if (visualDev)
-    files.push(`${repositoryRoot}backend/test/e2e/compose.visual-dev.yml`);
   return files;
 }
 

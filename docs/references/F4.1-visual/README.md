@@ -32,16 +32,20 @@ Options: `--set <name>` (default `F4.1-visual`, or `LEXON_VISUAL_SET`), `--revie
 
 Fixtures are the prototype's content (`backend/test/e2e/prototype-fixtures.ts`), on one frozen instant: 14 Nov 2026 11:00 in Asia/Jakarta (`2026-11-14T04:00:00.000Z`).
 
-## Dev loop: one long-lived stack for several workers
+## Capture loop: one long-lived stack serving a production build
 
-A full E2E stack needs about 3 GB, so parallel workers share one. The frontend runs `next dev` (`visual-dev` target, dev overlay off) on the working tree's `frontend/src` and `frontend/public` (bind mounts), so a saved edit hot reloads without a rebuild.
+A full E2E stack needs about 3 GB, so parallel workers share one. The frontend is the production build (`e2e-test-runtime` target: `next build` + `next start`), never the dev server, so edits and hot reloads by workers cannot change a screen mid-capture. Workers keep editing in parallel; only capture runs are serialized, because each one rebuilds the frontend image from the current working tree.
 
 ```bash
-node scripts/visual-dev-stack.mjs up                 # once; builds and keeps the stack
-node scripts/visual-dev-stack.mjs status             # project name and URL
-node scripts/visual-dev-stack.mjs run auth           # capture a group, then compare
-node scripts/visual-dev-stack.mjs run auth --ids sign-in,sign-up
-node scripts/visual-dev-stack.mjs down               # removes this stack only
+node scripts/visual-capture-stack.mjs up                 # once; builds and keeps the stack
+node scripts/visual-capture-stack.mjs status             # project name and URL
+node scripts/visual-capture-stack.mjs run auth           # capture a group, then compare
+node scripts/visual-capture-stack.mjs run auth --ids sign-in,sign-up
+node scripts/visual-capture-stack.mjs down               # removes this stack only
 ```
 
-Groups: `auth`, `shell`, `chat`, `chats-settings`, `platform` (spec `backend/test/e2e/brand-visual-<group>.spec.ts`). Captures go to `.cache/f4.1-visual/review/`, sheets to `.cache/f4.1-visual/compare/<group>/` (open `README.md` there). The first request of a route compiles it, so the first run after an edit is slower. The team world (Ayu, Hukum Nusantara) is built once per stack and reused (`brand-visual-world.ts`); the platform group builds its administrator on every run, so it can run once per stack. The stack project is `lexon-e2e-<hex>`; `scripts/e2e.mjs` with `LEXON_E2E_KEEP=1 LEXON_VISUAL_DEV=1` is what `up` runs.
+`run` takes an exclusive lock (`.cache/visual-capture-stack/capture.lock`, holding the owner pid; a lock of a dead pid is reclaimed; a second run waits quietly), prints the commit and the number of changed files in `frontend/src` (what was built), rebuilds the frontend image, recreates only the frontend container, waits until it is healthy, captures the group, runs `visual-compare-prototype.mjs`, checks the stack guard, and releases the lock.
+
+Groups: `auth`, `shell`, `chat`, `chats-settings`, `platform` (spec `backend/test/e2e/brand-visual-<group>.spec.ts`). Captures go to `.cache/f4.1-visual/review/`, sheets to `.cache/f4.1-visual/compare/<group>/` (open `README.md` there). The team world (Ayu, Hukum Nusantara) is built once per stack and reused (`brand-visual-world.ts`); the platform group builds its administrator on every run, so it can run once per stack. The stack project is `lexon-e2e-<hex>`; `scripts/e2e.mjs` with `LEXON_E2E_KEEP=1` is what `up` runs, with the same compose files as the brand-visual project (including `compose.chat-runtime-proof.yml`) and `AUTH_OPEN_SIGNUP=true`.
+
+Stack guard: `scripts/e2e.mjs` and `run` inspect the containers after a run and fail loudly if the api has `AUTH_OPEN_SIGNUP` other than `true`, or if the identity / chat-runtime-proof overlays are missing. The stack descriptor carries `composeFiles`, so test helpers (`setup-support.ts`) recreate services with the stack's own file list.
