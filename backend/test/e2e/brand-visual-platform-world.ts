@@ -18,7 +18,7 @@ const password = 'Brand-operator-42!';
 
 async function enrollAdministrator(page: Page, email: string): Promise<string> {
   const stack = descriptor();
-  let uri = '';
+  let uri: string | undefined;
   const seen: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error')
@@ -116,7 +116,7 @@ async function enrollAdministrator(page: Page, email: string): Promise<string> {
       )
     ).status(),
   ).toBe(204);
-  return uri;
+  return uri!;
 }
 /**
  * Platform routes need a fresh sign-in (300 s). The cached session ages, so
