@@ -283,14 +283,14 @@ export function Members({
                         >
                           {initials(member.name)}
                         </span>
-                        <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="flex min-w-0 flex-col leading-tight max-md:w-[150px]">
                           <span className="truncate font-medium">
                             {member.name}
                             {member.userId === identity?.user.id
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="text-xs text-muted-foreground max-md:max-w-[170px]">
+                          <span className="text-xs text-muted-foreground ">
                             {member.email}
                           </span>
                         </span>
