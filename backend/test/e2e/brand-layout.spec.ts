@@ -706,11 +706,13 @@ async function expectAppearanceGeometry(page: import('@playwright/test').Page) {
   expect(metrics.count).toBe(3);
   expect(metrics.width).toBeLessThanOrEqual(576);
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-  expect(metrics.columnGap).toBe(16);
+  // Prototype: 16px gap, 10px below the md breakpoint.
+  const expectedGap = (page.viewportSize()?.width ?? 1280) < 768 ? 10 : 16;
+  expect(metrics.columnGap).toBe(expectedGap);
   expect(metrics.tops[0]).toBeCloseTo(metrics.tops[1]!, 0);
   expect(metrics.tops[1]).toBeCloseTo(metrics.tops[2]!, 0);
-  expect(metrics.gaps[0]).toBeCloseTo(16, 0);
-  expect(metrics.gaps[1]).toBeCloseTo(16, 0);
+  expect(metrics.gaps[0]).toBeCloseTo(expectedGap, 0);
+  expect(metrics.gaps[1]).toBeCloseTo(expectedGap, 0);
   expect(Math.max(...metrics.widths)).toBeLessThanOrEqual(192);
   expect(Math.min(...metrics.widths)).toBeGreaterThanOrEqual(70);
 }

@@ -276,7 +276,7 @@ export function Members({
                     data-testid={'member-' + member.userId}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="w-full px-0 py-3 whitespace-normal">
+                    <TableCell className="w-full px-0 py-3 whitespace-normal max-md:max-w-0">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
@@ -291,7 +291,7 @@ export function Members({
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px]">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px] max-md:truncate">
                             {member.email}
                           </span>
                         </span>
