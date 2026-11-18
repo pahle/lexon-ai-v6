@@ -203,7 +203,8 @@ Rules:
   |---|---|---|---|
   | New-chat greeting | EB Garamond | 46px (mobile 32px) | 400 |
   | Auth title | EB Garamond | 36px / 1.1 (mobile 30px) | 400 |
-  | Page title (Chats, platform), status title | EB Garamond | 32px / 1.15 | 400 |
+  | Page title (Chats, platform) | EB Garamond | 32px / normal (the font's default), letter-spacing −0.005em | 400 |
+  | Status title | EB Garamond | 32px / 1.15 | 400 |
   | Settings section title | EB Garamond | 26px | 400 |
   | Auth cover statement | EB Garamond | 44px / 1.15 | 400 |
   | Answer and user message body | Inter | 16px / 1.75 (bubble 1.6); mobile 15px | 400 |
