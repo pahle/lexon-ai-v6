@@ -2,6 +2,13 @@
 
 Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture comparison, the exceptions, the owner-approved differences, and the F4 carry-over follow.
 
+## Comparison deviations (round 4)
+
+Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-prototype.mjs --gate` skips the listed rows). Variant: `d` desktop, `m` mobile, `-dark` dark.
+
+| id | variant | % | reason |
+| --- | --- | --- | --- |
+
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
 The manager compared the 43 desktop and mobile captures that have a prototype screen again. Resolved since round 1, visible in the captures: Copied state, feedback thumb and toast, Copy and Regenerate labels with the row visible on the last and stopped answer, reasoning chevrons, indented open summary, no extra pulse dot, round scroll-to-latest button, Try again on the right, reconnecting copy with icon, centered large greeting, disclaimer under the composer, composer height (128 px against 131 px), transparent dark text area, "+" for New chat, dark dim overlays without blur, Appearance cards, email in the user menu, delete copy, centered cover statement, muted form column, ink labels on error, sign-in copy, mobile thread opening at the last user message, chat title in the mobile header, no leftover focus rings.

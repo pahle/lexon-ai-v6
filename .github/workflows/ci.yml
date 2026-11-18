@@ -111,6 +111,9 @@ jobs:
         run: |
           marker="$(cat .cache/f4.1-visual/start-epoch-ms.txt)"
           node scripts/test/visual-capture-manifest.mjs --set F4.1-visual --not-before "$marker"
+      - name: Compare F4.1 captures with the prototype
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        run: node scripts/visual-compare-prototype.mjs --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/compare
       - name: Verify F4.1 approved Linux baseline manifest
         if: success() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'update'
         run: node scripts/test/write-visual-baseline-manifest.mjs --set F4.1-visual
@@ -124,6 +127,7 @@ jobs:
             docs/references/F4.1-visual/approval.json
             docs/references/F4.1-visual/capture-manifest.json
             docs/references/F4.1-visual/review/*.png
+            docs/references/F4.1-visual/compare/*
             docs/references/F4.1-visual/baseline/*.png
             .cache/f4.1-visual/baseline-manifest.json
             .cache/f4.1-visual/start-epoch-ms.txt
