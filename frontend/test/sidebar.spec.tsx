@@ -653,7 +653,7 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   expect(dialogOverlay.getAttribute('class')).toContain('bg-black/50');
   expect(dialogOverlay.getAttribute('class')).not.toContain('backdrop-blur');
   expect(dialogOverlay.getAttribute('class')).toContain('duration-100');
-  expect(dialog.getAttribute('class')).toContain('sm:max-w-sm');
+  expect(dialog.getAttribute('class')).toContain('sm:max-w-[440px]');
   expect(dialog.getAttribute('class')).toContain('w-[calc(100%-2rem)]');
   expect(dialog.querySelector('[data-slot="dialog-title"]')).not.toBeNull();
   expect(dialog.getAttribute('aria-labelledby')).not.toBeNull();
