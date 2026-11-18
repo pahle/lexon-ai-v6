@@ -57,7 +57,7 @@ function NewChatShortcutHint() {
     <span
       data-slot="shortcut-hint"
       aria-hidden="true"
-      className="ml-auto text-xs text-muted-foreground"
+      className="ml-auto text-xs tracking-[0.04em] text-muted-foreground"
     >
       {apple ? '⌘ ⌥ N' : 'Ctrl Alt N'}
     </span>

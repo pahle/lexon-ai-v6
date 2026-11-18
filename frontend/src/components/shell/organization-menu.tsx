@@ -137,7 +137,14 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
       }),
     true,
   );
-  const organizations = pages.query.data?.items ?? [identity.organization];
+  // The API orders by membership id; the menu lists Personal first, then teams by name.
+  const organizations = [
+    ...(pages.query.data?.items ?? [identity.organization]),
+  ].sort(
+    (a, b) =>
+      Number(b.kind === 'personal') - Number(a.kind === 'personal') ||
+      a.name.localeCompare(b.name),
+  );
   const restoreFocus = () => {
     window.setTimeout(() => organizationTrigger.current?.focus(), 0);
   };

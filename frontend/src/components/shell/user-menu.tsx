@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
 import { fullReload } from '../../lib/full-reload';
@@ -30,6 +30,15 @@ function initials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+/** The Settings shortcut hint; the Apple form is chosen after mount. */
+function useSettingsShortcut() {
+  const [apple, setApple] = useState(false);
+  useEffect(() => {
+    setApple(/^(Mac|iPhone|iPad|iPod)/.test(window.navigator.platform));
+  }, []);
+  return apple ? '⌘ ,' : 'Ctrl ,';
 }
 
 function UserAvatar({ name }: { name: string }) {
@@ -65,6 +74,7 @@ export function UserMenu({
     refreshIdentity,
   } = useWorkspace();
   const sidebar = useOptionalSidebar();
+  const settingsShortcut = useSettingsShortcut();
   const pathname = usePathname() ?? '/workspace';
   const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const name = identity?.user.name ?? 'Account';
@@ -175,8 +185,11 @@ export function UserMenu({
           >
             <Settings aria-hidden="true" />
             Settings
-            <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+            <DropdownMenuShortcut className="tracking-[0.04em]">
+              {settingsShortcut}
+            </DropdownMenuShortcut>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="h-8 gap-2 px-2 py-0"
             disabled={busy}

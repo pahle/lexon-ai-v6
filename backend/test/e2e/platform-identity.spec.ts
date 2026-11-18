@@ -270,7 +270,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       ).toBeVisible();
       await expect(
         page.getByRole('menuitem', { name: /Settings/ }),
-      ).toContainText('⌘,');
+      ).toContainText(/(⌘|Ctrl) ,/);
       await expect(
         primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
       ).toBeVisible();
