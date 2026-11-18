@@ -54,7 +54,7 @@ function platformPage(kind){
 }
 function platformDetail(){
  return `<div class="ppage"><a class="slink" href="#" style="align-self:flex-start;margin:0 0 -12px -10px">${sv('back',16)}Provisioning</a><div class="phead"><div class="row"><h1 class="ptitle">Harbor Legal Partners</h1><span class="badge">Provisioning</span></div><p>harbor-legal-partners · Provisioned 14 Nov 2026</p></div>
- ${pcard('Owner invitation','',`<div class="idl wide"><span>Owner email</span><b>owner@harborlegal.co.id</b><span>Status</span><b>Pending</b><span>Sent</span><b>14 Nov 2026, 11:00</b><span>Expires</span><b>21 Nov 2026, 11:00</b></div><div class="pacts" style="justify-content:flex-start"><button class="btn outline">Resend invitation</button><button class="btn outline dtext">Cancel provisioning</button></div>`)}
+ ${pcard('Owner invitation','',`<div class="idl wide"><span>State</span><b>Provisioning</b><span>Owner invitation</span><b>Pending</b><span>Expires</span><b>21 Nov 2026, 11:00</b></div><div class="pacts" style="justify-content:flex-start"><button class="btn outline">Resend invitation</button><button class="btn outline dtext">Cancel provisioning</button></div>`)}
  ${pcard('Replace owner email','Sends a new invitation to a different person. The current invitation stops working.',`${fs('re','New owner email',{ph:'owner@firm.co.id'})}<div class="pacts"><button class="btn primary">Replace and send</button></div>`)}</div>`;
 }
 function platformAccounts(){
