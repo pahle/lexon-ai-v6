@@ -1,0 +1,75 @@
+/* ===== r14: chat title, coverage of every captured route, mobile for every state ===== */
+.top .lft{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.ttl{font-size:14px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;padding-right:16px}
+.fpill{display:flex;gap:2px;padding:3px;border-radius:999px;box-shadow:0 0 0 1px var(--border),0 4px 12px -6px rgba(8,6,6,.18);background:var(--bg);position:relative;flex:none}
+.ib.act{background:var(--accent);color:var(--fg)}
+.mi.dz{color:var(--redtext)}
+.spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex:none}
+.inp:disabled{opacity:.6;cursor:not-allowed}
+.falert{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--redtext);background:var(--flag);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5}
+.falert svg{color:var(--redtext);flex:none;margin-top:2px}
+.chip.on{border-color:var(--fg);background:var(--muted)}
+.ctext{font-size:16px;padding:4px;min-height:56px;line-height:1.5}
+.ctext .ph{background:var(--muted);border-radius:4px;padding:1px 4px;color:var(--mfg)}
+.ctext .cur{display:inline-block;width:1.5px;height:19px;background:var(--fg);vertical-align:-4px}
+.dialog .field{margin-top:8px}
+.sw{width:36px;height:20px;border-radius:999px;background:var(--input);position:relative;flex:none}
+.sw:after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--bg)}
+.sw.on{background:var(--primary)}.sw.on:after{left:18px}
+.irow{display:flex;gap:8px;align-items:center}
+.irow .inp{flex:1}
+.ssub{padding:20px 0 4px;font-weight:600}
+.badge.warn{color:var(--redtext);border-color:color-mix(in srgb,var(--redtext) 45%,transparent)}
+/* platform pages */
+.ppage{width:100%;max-width:880px;padding:28px 24px 40px;display:flex;flex-direction:column;gap:24px;overflow:auto}
+.phead{display:flex;flex-direction:column;gap:6px}
+.phead .row{display:flex;align-items:center;gap:12px}
+.phead p{margin:0;color:var(--mfg);font-size:14px;line-height:1.55}
+.pcard{border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px;background:var(--bg)}
+.pcard h2,.psec h2{margin:0;font-size:16px;font-weight:600}
+.pcard .pd,.psec .pd{margin:4px 0 0;color:var(--mfg);font-size:13px;line-height:1.5}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pgrid .span{grid-column:1/-1}
+.pacts{display:flex;justify-content:flex-end;gap:8px}
+.psec{display:flex;flex-direction:column;gap:12px}
+.tbl{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tr{display:grid;grid-template-columns:1.6fr 1fr 1fr 24px;gap:16px;align-items:center;padding:0 16px;min-height:56px;border-top:1px solid var(--border);font-size:14px}
+.tr:first-child{border-top:0}
+.tr.th{min-height:40px;font-size:13px;color:var(--mfg);font-weight:500;background:var(--muted)}
+.tr .c1{display:flex;flex-direction:column;line-height:1.35}.tr .c1 small{color:var(--mfg);font-size:12px}
+.tr .go{color:var(--mfg);display:flex}
+.btn.dtext{color:var(--redtext)}
+.idl.wide{grid-template-columns:160px 1fr}
+/* mobile frame for every app state */
+.app.mobile .sb{display:none}
+.app.mobile.sheet .sb{display:flex;position:absolute;left:0;top:0;bottom:0;width:300px;z-index:35;box-shadow:var(--shadow)}
+.app.mobile .top{height:56px;padding:0 10px}
+.app.mobile .thread{padding:16px 16px 0;gap:22px}
+.app.mobile .am,.app.mobile .ubub{font-size:15px}
+.app.mobile .um{max-width:88%}
+.app.mobile .cw{padding:10px 14px 12px}
+.app.mobile .home h1{font-size:32px!important;padding:0 16px}
+.app.mobile .chips{flex-wrap:wrap;padding:0 16px}
+.app.mobile .dialog{width:calc(100% - 32px)}
+.app.mobile .hist,.app.mobile .ppage{padding:20px 16px}
+.app.mobile .scrolldown{bottom:136px}
+.app.mobile .sb .menu.om{left:8px!important;right:8px!important;top:calc(100% + 4px)!important;min-width:0!important}
+.app.mobile .sb .menu.umn{left:8px!important;right:8px!important;bottom:calc(100% + 4px)!important;min-width:0!important}
+.app.mobile .srow{flex-direction:column;align-items:stretch;gap:10px}
+.app.mobile .srow.inl{flex-direction:row;align-items:center}
+.app.mobile .srow .inp{width:100%!important}
+.app.mobile .irow{flex-wrap:wrap}.app.mobile .irow .inp{flex-basis:100%}
+.app.mobile .pgrid{grid-template-columns:1fr}
+.app.mobile .tr{grid-template-columns:1fr auto;gap:4px 12px;padding:12px 16px}
+.app.mobile .tr.th{display:none}
+.app.mobile .tr .c3{grid-column:1;color:var(--mfg);font-size:13px}
+.app.mobile .tr .go{grid-row:1/3;grid-column:2}
+.app.mobile .tr .c2{grid-column:1}
+.app.mobile .pacts{flex-wrap:wrap}
+.app.mobile .idl.wide{grid-template-columns:1fr}
+.app.mobile .tcard{width:auto;flex:1}
+.app.mobile [role=radiogroup]{gap:10px!important}
+.app.mobile .ebox textarea{min-height:100px}
+.app.mobile .phead .row{flex-wrap:wrap;gap:8px}
+.app.mobile .thread>div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important}
+.app.mobile.plain>div:first-child{text-align:center}

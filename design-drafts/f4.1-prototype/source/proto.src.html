@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 13</title>
+<title>Lexon v4.1 Prototype, revision 14</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -266,6 +266,82 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .comp.off textarea{cursor:not-allowed}.comp.off .send{opacity:.4}
 .toast{top:20px;bottom:auto}
 .app.mobile .toast{left:12px;right:12px;width:auto}
+/* ===== r14: chat title, coverage of every captured route, mobile for every state ===== */
+.top .lft{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.ttl{font-size:14px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;padding-right:16px}
+.fpill{display:flex;gap:2px;padding:3px;border-radius:999px;box-shadow:0 0 0 1px var(--border),0 4px 12px -6px rgba(8,6,6,.18);background:var(--bg);position:relative;flex:none}
+.ib.act{background:var(--accent);color:var(--fg)}
+.mi.dz{color:var(--redtext)}
+.spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex:none}
+.inp:disabled{opacity:.6;cursor:not-allowed}
+.falert{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--redtext);background:var(--flag);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5}
+.falert svg{color:var(--redtext);flex:none;margin-top:2px}
+.chip.on{border-color:var(--fg);background:var(--muted)}
+.ctext{font-size:16px;padding:4px;min-height:56px;line-height:1.5}
+.ctext .ph{background:var(--muted);border-radius:4px;padding:1px 4px;color:var(--mfg)}
+.ctext .cur{display:inline-block;width:1.5px;height:19px;background:var(--fg);vertical-align:-4px}
+.dialog .field{margin-top:8px}
+.sw{width:36px;height:20px;border-radius:999px;background:var(--input);position:relative;flex:none}
+.sw:after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--bg)}
+.sw.on{background:var(--primary)}.sw.on:after{left:18px}
+.irow{display:flex;gap:8px;align-items:center}
+.irow .inp{flex:1}
+.ssub{padding:20px 0 4px;font-weight:600}
+.badge.warn{color:var(--redtext);border-color:color-mix(in srgb,var(--redtext) 45%,transparent)}
+/* platform pages */
+.ppage{width:100%;max-width:880px;padding:28px 24px 40px;display:flex;flex-direction:column;gap:24px;overflow:auto}
+.phead{display:flex;flex-direction:column;gap:6px}
+.phead .row{display:flex;align-items:center;gap:12px}
+.phead p{margin:0;color:var(--mfg);font-size:14px;line-height:1.55}
+.pcard{border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px;background:var(--bg)}
+.pcard h2,.psec h2{margin:0;font-size:16px;font-weight:600}
+.pcard .pd,.psec .pd{margin:4px 0 0;color:var(--mfg);font-size:13px;line-height:1.5}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pgrid .span{grid-column:1/-1}
+.pacts{display:flex;justify-content:flex-end;gap:8px}
+.psec{display:flex;flex-direction:column;gap:12px}
+.tbl{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tr{display:grid;grid-template-columns:1.6fr 1fr 1fr 24px;gap:16px;align-items:center;padding:0 16px;min-height:56px;border-top:1px solid var(--border);font-size:14px}
+.tr:first-child{border-top:0}
+.tr.th{min-height:40px;font-size:13px;color:var(--mfg);font-weight:500;background:var(--muted)}
+.tr .c1{display:flex;flex-direction:column;line-height:1.35}.tr .c1 small{color:var(--mfg);font-size:12px}
+.tr .go{color:var(--mfg);display:flex}
+.btn.dtext{color:var(--redtext)}
+.idl.wide{grid-template-columns:160px 1fr}
+/* mobile frame for every app state */
+.app.mobile .sb{display:none}
+.app.mobile.sheet .sb{display:flex;position:absolute;left:0;top:0;bottom:0;width:300px;z-index:35;box-shadow:var(--shadow)}
+.app.mobile .top{height:56px;padding:0 10px}
+.app.mobile .thread{padding:16px 16px 0;gap:22px}
+.app.mobile .am,.app.mobile .ubub{font-size:15px}
+.app.mobile .um{max-width:88%}
+.app.mobile .cw{padding:10px 14px 12px}
+.app.mobile .home h1{font-size:32px!important;padding:0 16px}
+.app.mobile .chips{flex-wrap:wrap;padding:0 16px}
+.app.mobile .dialog{width:calc(100% - 32px)}
+.app.mobile .hist,.app.mobile .ppage{padding:20px 16px}
+.app.mobile .scrolldown{bottom:136px}
+.app.mobile .sb .menu.om{left:8px!important;right:8px!important;top:calc(100% + 4px)!important;min-width:0!important}
+.app.mobile .sb .menu.umn{left:8px!important;right:8px!important;bottom:calc(100% + 4px)!important;min-width:0!important}
+.app.mobile .srow{flex-direction:column;align-items:stretch;gap:10px}
+.app.mobile .srow.inl{flex-direction:row;align-items:center}
+.app.mobile .srow .inp{width:100%!important}
+.app.mobile .irow{flex-wrap:wrap}.app.mobile .irow .inp{flex-basis:100%}
+.app.mobile .pgrid{grid-template-columns:1fr}
+.app.mobile .tr{grid-template-columns:1fr auto;gap:4px 12px;padding:12px 16px}
+.app.mobile .tr.th{display:none}
+.app.mobile .tr .c3{grid-column:1;color:var(--mfg);font-size:13px}
+.app.mobile .tr .go{grid-row:1/3;grid-column:2}
+.app.mobile .tr .c2{grid-column:1}
+.app.mobile .pacts{flex-wrap:wrap}
+.app.mobile .idl.wide{grid-template-columns:1fr}
+.app.mobile .tcard{width:auto;flex:1}
+.app.mobile [role=radiogroup]{gap:10px!important}
+
+.app.mobile .ebox textarea{min-height:100px}
+.app.mobile .phead .row{flex-wrap:wrap;gap:8px}
+.app.mobile .thread>div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important}
+.app.mobile.plain>div:first-child{text-align:center}
 </style>
 <div id="root"></div>
 <script>
@@ -306,18 +382,18 @@ function sidebar(S,c){
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
    rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span><span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
    rec+=`<button class="nb" style="color:var(--mfg)">${sv('dots')}<span class="t">View all chats</span></button>`;}
- const orgMenu=S==='org'?`<div class="menu" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;border-radius:6px;background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:15px;height:15px"></span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
- const userMenu=S==='user'?`<div class="menu" role="menu" style="bottom:0;left:calc(100% + 8px);min-width:240px"><div style="display:flex;gap:8px;align-items:center;padding:6px 8px"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">ayu@hukum-nusantara.co.id</span></span></div><div class="msep"></div><button class="mi">${sv('gear')}Settings<span class="kbd">Ctrl ,</span></button><div class="msep"></div><button class="mi">${sv('out')}Sign out</button></div>`:'';
+ const orgMenu=S==='org'?`<div class="menu om" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;border-radius:6px;background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:15px;height:15px"></span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
+ const userMenu=S==='user'?`<div class="menu umn" role="menu" style="bottom:0;left:calc(100% + 8px);min-width:240px"><div style="display:flex;gap:8px;align-items:center;padding:6px 8px"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">ayu@hukum-nusantara.co.id</span></span></div><div class="msep"></div><button class="mi">${sv('gear')}Settings<span class="kbd">Ctrl ,</span></button><div class="msep"></div><button class="mi">${sv('out')}Sign out</button></div>`:'';
  return `<aside class="sb" aria-label="Sidebar">
-  <div style="position:relative"><button class="nb big">${S==='personal'?`<span class="ini" style="background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:20px;height:20px"></span><span class="two"><span class="a">Personal</span><span class="b">Your private workspace</span></span>`:`<span class="ini">HN</span><span class="two"><span class="a">Hukum Nusantara</span><span class="b">12 members</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${orgMenu}</div>
+  <div style="position:relative"><button class="nb big">${S==='personal'?`<span class="ini" style="background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:20px;height:20px"></span><span class="two"><span class="a">Personal</span><span class="b">Your private workspace</span></span>`:`<span class="ini">HN</span><span class="two"><span class="a">Hukum Nusantara</span><span class="b">3 members</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${orgMenu}</div>
   <div class="glabel">Tools</div>
   <button class="nb ${!c.page&&!c.home?'':''}">${sv('chats')}<span class="t" style="font-weight:500">Assistant</span>${sv('down2',16,'style="color:var(--mfg)"')}</button>
-  <div class="sub"><button class="nb ${c.home?'on':''}"><span class="t">New chat</span><span class="kbd">Ctrl Alt N</span></button><button class="nb ${c.page?'on':''}"><span class="t">Chats</span></button></div>
+  <div class="sub"><button class="nb ${c.home?'on':''}"><span class="t">New chat</span><span class="kbd">Ctrl Alt N</span></button><button class="nb ${c.page?'on':''}"><span class="t">Chats</span></button></div>${c.platform?`<button class="nb">${sv('shield')}<span class="t" style="font-weight:500">Platform</span>${sv('down2',16,'style="color:var(--mfg)"')}</button><div class="sub"><button class="nb ${c.platform==='prov'?'on':''}"><span class="t">Provisioning</span></button><button class="nb ${c.platform==='acct'?'on':''}"><span class="t">Account status</span></button></div>`:''}
   <div class="glabel">Recent</div>${rec}
-  <div style="margin-top:auto;position:relative"><button class="nb big"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">Senior Associate</span></span><span style="color:var(--mfg)">${sv('chev')}</span></button>${userMenu}</div>
+  <div style="margin-top:auto;position:relative"><button class="nb big">${c.platform?`<span class="avatar">DP</span><span class="two"><span class="a">Dimas Prasetyo</span><span class="b">Platform administrator</span></span>`:`<span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">Senior Associate</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${userMenu}</div>
  </aside>`;
 }
-const topbar=t=>`<header class="top" style="justify-content:space-between"><button class="ib" aria-label="Toggle sidebar">${sv('panel')}</button><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">${t.replace(/<[^>]+>/g,' ')}</span><div style="display:flex;gap:2px;padding:3px;border-radius:999px;box-shadow:0 0 0 1px var(--border),0 4px 12px -6px rgba(8,6,6,.18);background:var(--bg)"><button class="ib" style="border-radius:999px" aria-label="New chat">${sv('plus')}</button><button class="ib" style="border-radius:999px" aria-label="Chat actions">${sv('dots')}</button></div></header>`;
+const topbar=(t,o={})=>`<header class="top"><div class="lft"><button class="ib" aria-label="Toggle sidebar">${sv('panel')}</button>${t?`<div class="vsep"></div><span class="ttl">${t}</span>`:''}</div>${o.nopill?'':`<div class="fpill"><button class="ib" style="border-radius:999px" aria-label="New chat">${sv('plus')}</button><button class="ib ${UI.fmenu?'act':''}" style="border-radius:999px" aria-label="Chat actions">${sv('dots')}</button>${UI.fmenu?`<div class="menu" role="menu" style="top:calc(100% + 6px);right:0;min-width:180px"><button class="mi">${sv('pen')}Rename</button><button class="mi dz">${sv('trash')}Delete</button></div>`:''}</div>`}</header>`;
 function composer({deep=false,streaming=false,text='',mobile=false,off=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
  return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp ${off?'off':''}"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" ${off?'disabled':''} placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
@@ -423,7 +499,7 @@ const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?lq()
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
 const abar=({fb=null,copied=false,branch=false,tip=''}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ab ${copied?'on':''} ${tip==='copy'?'hov':''}" aria-label="${copied?'Copied':'Copy'}">${sv(copied?'check':'copy',16)}${tip==='copy'?'<span class="tip">Copy</span>':''}${copied?'<span class="tip">Copied</span>':''}</button><button class="ab ${fb==='up'?'on':''}" aria-label="Good response">${sv('up',16,fb==='up'?'fill="currentColor"':'')}</button><button class="ab" aria-label="Bad response">${sv('down',16)}</button><button class="ab" aria-label="Regenerate">${sv('regen',16)}</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
-const crumbT=`<span>Assistant</span>${sv('right',14)}<b>Syarat sah perjanjian (Pasal 1320)</b>`;
+const crumbT='Syarat sah perjanjian (Pasal 1320)';
 
 function thread(S){
  let b='',c=composer(),toast='';
@@ -445,13 +521,13 @@ function thread(S){
  return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${['streaming','reconnect'].includes(S)?`<div class="scrolldown" aria-label="Scroll to latest">${sv('down2',18)}</div>`:''}${c}</div>${toast}</div>`;
 }
 function home(S){const deep=S==='deep';const text=deep?'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.':'';
- return `<div class="main home">${topbar('<b>New chat</b>')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em">Good morning, Ayu</h1></div>${composer({deep,text})}<div class="chips" style="margin-top:14px"><button class="chip">Explain an article</button><button class="chip">Compare two rules</button><button class="chip">Check a clause</button><button class="chip">Summarize a regulation</button></div></div></div>`;}
+ return `<div class="main home">${topbar('')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em">Good morning, Ayu</h1></div>${composer({deep,text})}<div class="chips" style="margin-top:14px"><button class="chip">Explain an article</button><button class="chip">Compare two rules</button><button class="chip">Check a clause</button><button class="chip">Summarize a regulation</button></div></div></div>`;}
 function history(S){const q=S==='search'?'wanprestasi':S==='noresults'?'hak tanggungan':'';let l='';
  if(S==='empty') l=`<div class="empty"><div class="ic">${sv('chats',20)}</div><h2>No chats yet</h2><p style="margin:0">Start a new chat to ask Lexon about a contract, a regulation, or a case.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}New chat</button></div>`;
  else if(S==='noresults') l=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No chats match “hak tanggungan”</h2><p style="margin:0">Search looks in chat titles and messages. Try other words.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
  else if(S==='search') l=`<p style="margin:0;font-size:13px;color:var(--mfg)">3 chats</p><div class="hrow hl"><div class="ht"><span><mark>Wanprestasi</mark> remedies and damages</span><span class="hd">Nov 4</span></div><div class="hs">…debitur yang melakukan <mark>wanprestasi</mark> dapat dituntut pemenuhan perikatan, ganti rugi, atau pembatalan perjanjian berdasarkan Pasal 1267…</div></div><div class="hrow"><div class="ht"><span>Force majeure clause, supply agreement</span><span class="hd">Nov 5</span></div><div class="hs">…keadaan memaksa membebaskan debitur dari tanggung jawab atas <mark>wanprestasi</mark> jika peristiwa tidak dapat diduga…</div></div><div class="hrow"><div class="ht"><span>Syarat sah perjanjian (Pasal 1320)</span><span class="hd">Today</span></div><div class="hs">…berbeda dengan <mark>wanprestasi</mark>, cacat pada syarat subjektif membuat perjanjian dapat dibatalkan…</div></div>`;
  else {const g=['Today','Today','Yesterday','Previous 7 days','Previous 7 days','Previous 7 days'];let cur='';chats.forEach((t,i)=>{if(g[i]!==cur){cur=g[i];l+=`<div class="glabel" style="padding:10px 12px 0">${cur}</div>`;}l+=`<div class="hrow"><div class="ht"><span>${t}</span><span class="hd">${i<2?'10:42':i<3?'Yesterday':'Nov 4'}</span></div></div>`;});}
- return `<div class="main">${topbar('<span>Assistant</span>'+sv('right',14)+'<b>Chats</b>')}<div class="view"><div class="hist"><div style="display:flex;justify-content:space-between;align-items:flex-end"><h1 class="ptitle">Chats</h1><button class="btn primary">${sv('plus')}New chat</button></div><div style="position:relative"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp ${q?'focus':''}" style="padding-left:36px" aria-label="Search chats" placeholder="Search chats" value="${q}"></div>${l}</div></div></div>`;}
+ return `<div class="main">${topbar('',{nopill:true})}<div class="view"><div class="hist"><div style="display:flex;justify-content:space-between;align-items:flex-end"><h1 class="ptitle">Chats</h1><button class="btn primary">${sv('plus')}New chat</button></div><div style="position:relative"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp ${q?'focus':''}" style="padding-left:36px" aria-label="Search chats" placeholder="Search chats" value="${q}"></div>${l}</div></div></div>`;}
 function signin(S){const bad=S==='signin-errors';
  return `<div class="auth"><div class="side"><img src="${document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches)?WM_WHITE:WM_INK}" alt="Lexon" style="width:128px"><div class="formwrap"><form onsubmit="return false"><div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:36px">Sign in to Lexon</h1><p style="margin:0;color:var(--mfg)">Enter your work email and password.</p></div>
  <div class="field"><label for="em">Email</label><input id="em" class="inp ${bad?'bad':''}" value="${bad?'ayu@':''}" placeholder="you@firm.co.id">${bad?'<span class="ferr">Enter a valid email address.</span>':''}</div>
@@ -481,7 +557,7 @@ const MOB=qs.get('m')==='1';
 const isDark=()=>document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
 const wm=()=>`<img src="${isDark()?WM_WHITE:WM_INK}" alt="Lexon" style="width:128px">`;
 const backLink=(t='Back to sign in')=>`<a class="slink" href="#">${sv('back',16)}${t}</a>`;
-const head=(title,text,icon)=>`<div class="ahead">${icon?`<span class="aicon">${sv(icon,22)}</span>`:''}<h1>${title}</h1>${text?`<p>${text}</p>`:''}</div>`;
+const head=(title,text)=>`<div class="ahead"><h1>${title}</h1>${text?`<p>${text}</p>`:''}</div>`;
 const fld=(id,label,{value='',ph='',type='text',hint='',aside='',eye=false,ro=false}={})=>`<div class="field"><label for="${id}">${label}${aside}</label><div style="position:relative"><input id="${id}" class="inp lg" type="${type}" value="${value}" placeholder="${ph}" ${ro?'readonly':''}>${eye?`<button class="ib" style="position:absolute;right:6px;top:6px" aria-label="Show password">${sv('eye')}</button>`:''}</div>${hint?`<span class="fhint">${hint}</span>`:''}</div>`;
 // Shared auth frame: one wordmark (form column), form block centered at the same position on every page, Night cover with the statement only.
 function authFrame(body){
@@ -504,7 +580,7 @@ function authState(S){
  case 'reset-invalid': return authFrame(`${head('This link has expired','Reset links work once and expire after 30 minutes. Request a new link to continue.','linkoff')}<button class="btn primary lg full">Request a new link</button>${backLink()}`);
  case 'verify': return authFrame(`${head('Verify your email',`We sent a verification link to <b>${email}</b>. Open it to activate your account.`,'mail')}<button class="btn outline lg full">Resend email</button><p class="alt">Wrong email? <a href="#">Create the account again</a></p>${backLink()}`);
  case 'twofactor': return authFrame(`${head('Two-step verification','Enter the 6-digit code from your authenticator app.','shield')}<div class="field"><label for="otp">Authentication code</label><div class="otp" id="otp">${[4,8,1,'','',''].map((d,i)=>`<span class="slot ${i===3?'cur':''}">${d}</span>`).join('')}</div></div><button class="btn primary lg full">Verify</button><div class="links"><a class="slink" href="#">${sv('key',16)}Use a recovery code</a>${backLink()}</div>`);
- case 'invite': return authFrame(`${head('Join Hukum Nusantara','Rizky Pratama invited you to work together in Lexon.')}<div class="icard"><div style="display:flex;gap:12px;align-items:center"><span class="ini" style="width:40px;height:40px;border-radius:10px">HN</span><div class="two"><span class="a">Hukum Nusantara</span><span class="b">12 members</span></div></div><div class="idl"><span>Your role</span><b>Member</b><span>Invited by</span><b>Rizky Pratama</b><span>Expires</span><b>21 Nov 2026</b></div></div><button class="btn primary lg full">Accept invitation</button><button class="btn outline lg full">Decline</button><p class="alt">Signed in as ${email}. <a href="#">Not you?</a></p>`);
+ case 'invite': return authFrame(`${head('Join Hukum Nusantara','Rizky Pratama invited you to work together in Lexon.')}<div class="icard"><div style="display:flex;gap:12px;align-items:center"><span class="ini" style="width:40px;height:40px;border-radius:10px">HN</span><div class="two"><span class="a">Hukum Nusantara</span><span class="b">3 members</span></div></div><div class="idl"><span>Your role</span><b>Member</b><span>Invited by</span><b>Rizky Pratama</b><span>Expires</span><b>21 Nov 2026</b></div></div><button class="btn primary lg full">Accept invitation</button><button class="btn outline lg full">Decline</button><p class="alt">Signed in as ${email}. <a href="#">Not you?</a></p>`);
  case 'invite-invalid': return authFrame(`${head('Invitation unavailable','This invitation was cancelled, has expired, or has already been used. Ask the person who invited you to send a new one.','linkoff')}<button class="btn primary lg full">Go to Lexon</button>${backLink()}`);
  case 'setup': return authFrame(`${head('Set up the first administrator','Create the platform administrator account for this Lexon deployment. This link works once.')}${fld('nm','Full name',{ph:'Dimas Prasetyo'})}${fld('em','Email',{value:'admin@hukum-nusantara.co.id',ro:true,hint:'Set by the setup link.'})}${fld('pw','Password',{type:'password',ph:'••••••••',eye:true,hint:'Use at least 12 characters.'})}<button class="btn primary lg full">Create administrator</button>`);
  case 'setup-invalid': return authFrame(`${head('Setup link unavailable','This setup link has expired or has already been used. Ask your operator for a new link.','linkoff')}<button class="btn primary lg full">Go to sign in</button>`);
@@ -522,12 +598,12 @@ const STATUS={
 };
 function statusPage(S){
  if(S==='notfound') return `<div class="${MOB?'app mobile':'app'} plain" style="flex-direction:column"><div style="padding:${MOB?'24px':'40px'}">${wm()}</div><div class="view" style="justify-content:center;padding-bottom:120px">${status(STATUS[S])}</div></div>`;
- const main=`<div class="main">${topbar('')}<div class="view" style="justify-content:center;padding-bottom:120px">${status(STATUS[S])}</div></div>`;
+ const main=`<div class="main">${topbar('',{nopill:true})}<div class="view" style="justify-content:center;padding-bottom:120px">${status(STATUS[S])}</div></div>`;
  return MOB?`<div class="app mobile">${main}</div>`:`<div class="app">${sidebar('x',{active:null})}${main}</div>`;
 }
 function historyLoading(){
  const rows=[0,1,2,3,4,5].map(i=>`<div class="hrow"><div class="ht"><div class="skel" style="width:${[62,48,70,55,40,66][i]}%"></div><div class="skel" style="width:52px"></div></div></div>`).join('');
- return `<div class="main">${topbar('')}<div class="view"><div class="hist"><div style="display:flex;justify-content:space-between;align-items:flex-end"><h1 class="ptitle">Chats</h1><button class="btn primary">${sv('plus')}New chat</button></div><div style="position:relative"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp" style="padding-left:36px" aria-label="Search chats" placeholder="Search chats"></div><div class="glabel" style="padding:10px 12px 0"><div class="skel" style="width:56px"></div></div>${rows}</div></div></div>`;
+ return `<div class="main">${topbar('',{nopill:true})}<div class="view"><div class="hist"><div style="display:flex;justify-content:space-between;align-items:flex-end"><h1 class="ptitle">Chats</h1><button class="btn primary">${sv('plus')}New chat</button></div><div style="position:relative"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp" style="padding-left:36px" aria-label="Search chats" placeholder="Search chats"></div><div class="glabel" style="padding:10px 12px 0"><div class="skel" style="width:56px"></div></div>${rows}</div></div></div>`;
 }
 function settingsExtra(S){
  const nav=[['Account'],['Profile'],['Appearance'],['Security',S==='security'],['Hukum Nusantara'],['Members',S==='members'],['Invitations'],['General']].map(([t,on])=>on===undefined&&!['Profile','Appearance','Security','Members','Invitations','General'].includes(t)?`<div class="glabel" style="padding:12px 8px 4px">${t}</div>`:`<button class="nb ${on?'on':''}">${t}</button>`).join('');
@@ -543,22 +619,120 @@ const AUTH_STATES=['signin','signin-errors','signup','forgot','forgot-sent','res
 const STATUS_STATES=['notfound','org-notfound','ws-error','noaccess'];
 const R13_STATES=[...AUTH_STATES,...STATUS_STATES,'history-loading','security','members'];
 
+/* ===== Revision 14: one prototype state per captured route (ids = capture ids), mobile for every state ===== */
+var UI={};
+function chatShell(b,{c=composer(),toast='',scroll=false}={}){
+ return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${scroll?`<div class="scrolldown" aria-label="Scroll to latest">${sv('down2',18)}</div>`:''}${c}</div>${toast}</div>`;
+}
+const toastEl=t=>`<div class="toast" role="status">${sv('check')}<span>${t}</span></div>`;
+function starterPill(){
+ const comp=composer({text:'x'}).replace(/<textarea[^>]*>x<\/textarea>/,'<div class="ctext" role="textbox" aria-multiline="true" aria-label="Message">Explain Article <span class="ph">[number]</span> of <span class="ph">[law or regulation]</span> in plain language.<span class="cur"></span></div>');
+ return `<div class="main home">${topbar('')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em">Good morning, Ayu</h1></div>${comp}<div class="chips" style="margin-top:14px"><button class="chip on" aria-pressed="true">Explain an article</button><button class="chip">Compare two rules</button><button class="chip">Check a clause</button><button class="chip">Summarize a regulation</button></div></div></div>`;
+}
+/* sign-in variants */
+function signinVariant(kind){
+ const email='ayu@hukum-nusantara.co.id', pend=kind==='pending', al=kind==='alert';
+ return authFrame(`${head('Sign in to Lexon','Enter your work email and password.')}
+ ${al?`<div class="falert" role="alert">${sv('alert')}<span>Email or password is incorrect. Check them and try again.</span></div>`:''}
+ <div class="field"><label for="em">Email</label><input id="em" class="inp lg" value="${email}" ${pend?'disabled':''}></div>
+ <div class="field"><label for="pw">Password <a href="#">Forgot password?</a></label><div style="position:relative"><input id="pw" type="password" class="inp lg" value="password12345" ${pend?'disabled':''}><button class="ib" style="position:absolute;right:6px;top:6px" aria-label="Show password">${sv('eye')}</button></div></div>
+ <button class="btn primary lg full" ${pend?'aria-disabled="true"':''}>${pend?'<span class="spin" aria-hidden="true"></span>Signing in…':'Sign in'}</button><p class="alt">New to Lexon? <a href="#">Create an account</a></p>`);
+}
+/* settings: one dialog, six sections, fixed size; full-screen sheet on mobile */
+function settingsAll(sec,{toast=''}={}){
+ const L={profile:'Profile',appearance:'Appearance',security:'Security',members:'Members',invitations:'Invitations',general:'General'};
+ const nb=k=>`<button class="nb ${k===sec?'on':''}">${L[k]}</button>`, gl=t=>`<div class="glabel" style="padding:12px 8px 4px">${t}</div>`;
+ const nav=gl('Account')+nb('profile')+nb('appearance')+nb('security')+gl('Hukum Nusantara')+nb('members')+nb('invitations')+nb('general');
+ const save=t=>`<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn primary">${t}</button></div>`;
+ const B={};
+ B.profile=`<h3 class="sh">Profile</h3><p class="sd">How you appear to people in your organizations.</p><div class="srow"><div><div class="rt">Display name</div><div class="rd">How people in your organizations see you.</div></div><input class="inp" style="width:280px" value="Ayu Wardani" aria-label="Display name"></div><div class="srow"><div><div class="rt">Job title</div><div class="rd">Shown under your name in the sidebar.</div></div><input class="inp" style="width:280px" value="Senior Associate" aria-label="Job title"></div><div class="srow"><div><div class="rt">Email</div><div class="rd">Used to sign in. Change it in Security.</div></div><span style="color:var(--mfg)">ayu@hukum-nusantara.co.id</span></div>${save('Save')}`;
+ const t=[['Light','#F5F4F4','#FFFFFF','#DDDADA',false],['Dark','#181516','#121011','#3A3536',false],['System','linear-gradient(90deg,#F5F4F4 50%,#181516 50%)','linear-gradient(90deg,#FFFFFF 50%,#121011 50%)','#9A9495',true]];
+ B.appearance=`<h3 class="sh">Appearance</h3><p class="sd" style="margin-bottom:20px">Choose how Lexon looks on this device.</p><div role="radiogroup" aria-label="Theme" style="display:flex;gap:16px">${t.map(([n,l,r,line,on])=>`<button class="tcard ${on?'on':''}" role="radio" aria-checked="${on}"><span class="prev"><span style="flex:1;background:${l}"></span><span style="flex:2;background:${r};padding:12px;display:flex;flex-direction:column;gap:6px"><span style="height:8px;width:60%;border-radius:4px;background:${line}"></span><span style="height:8px;width:80%;border-radius:4px;background:${line}"></span></span></span><span style="font-weight:500">${n}</span></button>`).join('')}</div>`;
+ const sess=[['monitor','Chrome on macOS','Jakarta, Indonesia · Active now',true],['phone','Safari on iPhone','Jakarta, Indonesia · Signed in 3 days ago',false],['monitor','Edge on Windows','Surabaya, Indonesia · Signed in 9 days ago',false]];
+ B.security=`<h3 class="sh">Security</h3><p class="sd">Manage how you sign in and where you are signed in.</p><div class="srow inl"><div><div class="rt">Password</div><div class="rd">Last changed 2 months ago.</div></div><button class="btn outline">Change password</button></div><div class="srow inl"><div><div class="rt">Two-step verification <span class="badge">On</span></div><div class="rd">Authenticator app. 8 recovery codes left.</div></div><button class="btn outline">Manage</button></div><div class="ssub">Where you are signed in</div>${sess.map(([ic,d,m,cur])=>`<div class="srow inl"><div style="display:flex;gap:12px;align-items:center"><span class="dev">${sv(ic,18)}</span><div><div class="rt">${d}${cur?' <span class="badge">This device</span>':''}</div><div class="rd">${m}</div></div></div>${cur?'':'<button class="btn outline">Sign out</button>'}</div>`).join('')}`;
+ const mem=[['AW','Ayu Wardani (you)','ayu@hukum-nusantara.co.id','Owner'],['RP','Rizky Pratama','rizky@hukum-nusantara.co.id','Admin'],['SW','Sari Wibowo','sari@hukum-nusantara.co.id','Member']];
+ B.members=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 class="sh" style="margin:0">Members</h3><button class="btn primary">${sv('plus')}Invite people</button></div><p class="sd">3 members in Hukum Nusantara.</p>${mem.map(([i,n,e,r],k)=>`<div class="mrow"><span class="avatar">${i}</span><div class="two"><span class="a">${n}</span><span class="b">${e}</span></div>${k===0?`<span class="badge">${r}</span>`:`<button class="btn outline sm">${r}${sv('down2',14)}</button><button class="ib" aria-label="More actions for ${n}">${sv('dots')}</button>`}</div>`).join('')}`;
+ const inv=[['dimas@hukum-nusantara.co.id','Member','Expires 25 Nov 2026',false],['lina@hukum-nusantara.co.id','Admin','Expires 24 Nov 2026',false],['bagus@hukum-nusantara.co.id','Member','Expired 12 Nov 2026',true]];
+ B.invitations=`<h3 class="sh">Invitations</h3><p class="sd">Invite people by email. An invitation expires after 7 days.</p><div class="irow"><input class="inp" placeholder="name@firm.co.id" aria-label="Email to invite"><button class="btn outline">Member${sv('down2',14)}</button><button class="btn primary">Send invitation</button></div><div class="ssub">Pending invitations</div>${inv.map(([e,r,x,bad])=>`<div class="mrow"><span class="avatar">${sv('mail',16)}</span><div class="two"><span class="a">${e}</span><span class="b">${r} · <span style="${bad?'color:var(--redtext)':''}">${x}</span></span></div><button class="btn outline sm">Resend</button><button class="btn ghost sm">Cancel</button></div>`).join('')}`;
+ B.general=`<h3 class="sh">General</h3><p class="sd">Settings for everyone in Hukum Nusantara.</p><div class="srow"><div><div class="rt">Organization name</div><div class="rd">Shown in the organization switcher.</div></div><input class="inp" style="width:280px" value="Hukum Nusantara" aria-label="Organization name"></div><div class="srow"><div><div class="rt">Slug</div><div class="rd">Used in links. Lowercase letters, numbers, and hyphens.</div></div><input class="inp" style="width:280px" value="hukum-nusantara" aria-label="Slug"></div><div class="srow inl"><div><div class="rt">Require two-step verification</div><div class="rd">Members without it must set it up before they can open this workspace.</div></div><span class="sw" role="switch" aria-checked="false" aria-label="Require two-step verification"></span></div>${save('Save changes')}`;
+ if(MOB) return `<div class="app mobile"><div class="sdlg m" role="dialog" aria-modal="true" aria-label="Settings"><div class="shd"><button class="ib" aria-label="Back to sections">${sv('left')}</button><h2>${L[sec]}</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div class="sbody">${B[sec]}</div></div>${toast}</div>`;
+ return `<div class="app">${sidebar('x',{active:'a'})}${thread('thread')}<div class="overlay"></div><div class="sdlg" role="dialog" aria-modal="true" aria-label="Settings"><div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 24px;border-bottom:1px solid var(--border)"><h2 style="margin:0;font-size:16px;font-weight:600">Settings</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div style="flex:1;display:flex;min-height:0"><nav style="width:240px;flex:none;padding:12px;border-right:1px solid var(--sb-border);background:var(--sidebar);display:flex;flex-direction:column;gap:2px">${nav}</nav><div class="sbody">${B[sec]}</div></div></div>${toast}</div>`;
+}
+/* platform pages (F4.1 scope: today's provisioning and account status; F4.3 replaces them with Accounts and Organizations) */
+const fs=(id,label,{ph='',value='',hint='',span=false}={})=>`<div class="field ${span?'span':''}"><label for="${id}">${label}</label><input id="${id}" class="inp" placeholder="${ph}" value="${value}">${hint?`<span class="fhint">${hint}</span>`:''}</div>`;
+const pcard=(t,d,body)=>`<section class="pcard"><div><h2>${t}</h2>${d?`<p class="pd">${d}</p>`:''}</div>${body}</section>`;
+function platformPage(kind){
+ const prov=pcard('Provision a team organization','The organization has no members or content until its first owner accepts the invitation.',`<div class="pgrid">${fs('on','Organization name',{ph:'Hukum Nusantara'})}${fs('os','Organization slug',{ph:'hukum-nusantara',hint:'Lowercase letters, numbers, and hyphens.'})}${fs('oe','First owner email',{ph:'owner@firm.co.id',span:true})}</div><div class="pacts"><button class="btn primary">Provision organization</button></div>`);
+ const rows=[['Harbor Legal Partners','harbor-legal-partners','Pending','21 Nov 2026',false],['Sinar Hukum','sinar-hukum','Expired','12 Nov 2026',true],['Kantor Hukum Wibowo','kantor-hukum-wibowo','Pending','23 Nov 2026',false]];
+ const th=`<div class="tr th"><span>Organization</span><span>Owner invitation</span><span>Expires</span><span></span></div>`;
+ let list;
+ if(kind==='populated') list=`<div class="tbl">${th}${rows.map(([n,s,st,x,bad])=>`<div class="tr"><span class="c1"><b style="font-weight:500">${n}</b><small>${s}</small></span><span class="c2"><span class="badge ${bad?'warn':''}">${st}</span></span><span class="c3">${x}</span><span class="go">${sv('right')}</span></div>`).join('')}</div>`;
+ if(kind==='loading') list=`<div class="tbl">${th}${[60,44,52].map(w=>`<div class="tr"><span class="c1"><div class="skel" style="width:${w}%"></div></span><span class="c2"><div class="skel" style="width:64px"></div></span><span class="c3"><div class="skel" style="width:88px"></div></span><span></span></div>`).join('')}</div>`;
+ if(kind==='empty') list=`<div class="empty" style="padding:40px 0;border:1px dashed var(--border);border-radius:12px"><div class="ic">${sv('users',20)}</div><h2>No organizations are waiting for an owner</h2><p style="margin:0">Organizations you provision appear here until their first owner accepts.</p></div>`;
+ if(kind==='error') list=`<div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">We could not load organizations.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
+ const sec=`<div class="psec"><div><h2>Awaiting first owner</h2><p class="pd">Organizations stay in provisioning until the first owner accepts the invitation.</p></div>${list}</div>`;
+ return `<div class="ppage"><div class="phead"><h1 class="ptitle">Organization provisioning</h1><p>Create team organizations and track their first owner invitations.</p></div>${prov}${sec}</div>`;
+}
+function platformDetail(){
+ return `<div class="ppage"><a class="slink" href="#" style="align-self:flex-start;margin:0 0 -12px -10px">${sv('back',16)}Provisioning</a><div class="phead"><div class="row"><h1 class="ptitle">Harbor Legal Partners</h1><span class="badge">Provisioning</span></div><p>harbor-legal-partners · Provisioned 14 Nov 2026</p></div>
+ ${pcard('Owner invitation','',`<div class="idl wide"><span>Owner email</span><b>owner@harborlegal.co.id</b><span>Status</span><b>Pending</b><span>Sent</span><b>14 Nov 2026, 11:00</b><span>Expires</span><b>21 Nov 2026, 11:00</b></div><div class="pacts" style="justify-content:flex-start"><button class="btn outline">Resend invitation</button><button class="btn outline dtext">Cancel provisioning</button></div>`)}
+ ${pcard('Replace owner email','Sends a new invitation to a different person. The current invitation stops working.',`${fs('re','New owner email',{ph:'owner@firm.co.id'})}<div class="pacts"><button class="btn primary">Replace and send</button></div>`)}</div>`;
+}
+function platformAccounts(){
+ return `<div class="ppage"><div class="phead"><h1 class="ptitle">Account status</h1><p>Disable an account to sign it out everywhere and block sign-in. Its organizations and content stay unchanged.</p></div>
+ ${pcard('Find an account','Enter the user ID from the audit log or a support request.',`${fs('uid','User ID',{ph:'usr_01J…'})}<div class="pacts"><button class="btn outline">Enable account</button><button class="btn danger">Disable account</button></div>`)}</div>`;
+}
+const GROUPS=[
+ ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-unavailable','admin-setup','admin-setup-unavailable','onboarding','onboarding-invitations']],
+ ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
+ ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open']],
+ ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
+ ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading']],
+ ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','toast-success']],
+ ['Platform',['platform-accounts','platform-provisioning-populated','platform-provisioning-empty','platform-provisioning-loading','platform-provisioning-error','platform-provisioning-detail']],
+ ['Indicator',['indicator']]
+];
+const AUTHMAP={'sign-in':'signin','sign-in-field-errors':'signin-errors','sign-up':'signup','forgot-password':'forgot','forgot-password-sent':'forgot-sent','reset-password':'reset','reset-password-invalid':'reset-invalid','verify-email':'verify','two-factor':'twofactor','accept-invitation':'invite','accept-invitation-unavailable':'invite-invalid','admin-setup':'setup','admin-setup-unavailable':'setup-invalid','onboarding':'onboard-1','onboarding-invitations':'onboard-2'};
+const STATUSMAP={'not-found':'notfound','organizations-not-found':'org-notfound','workspace-error':'ws-error','platform-no-access':'noaccess'};
+const THREADMAP={'chat-thinking':'thinking','chat-streaming-scroll':'streaming','chat-reasoning-collapsed':'thread','chat-reasoning-open':'reasoning','chat-answer-actions':'actions','chat-edit':'edit','chat-branch':'branch','chat-stopped':'stopped','chat-error':'error','chat-reconnecting':'reconnect','chat-thread-loading':'loading','chat-floating-menu':'thread','chat-rename':'thread','chat-delete':'thread','organization-switcher-open':'thread','user-menu-open':'thread','recent-menu':'thread','sidebar-collapsed':'thread','mobile-sheet-open':'thread'};
+function screen(st){
+ UI={fmenu:st==='chat-floating-menu'};
+ const app=(sb,main,extra='',sheet=false)=>`<div class="app ${MOB?'mobile':''} ${MOB&&sheet?'sheet':''}">${MOB&&sheet?'<div class="overlay"></div>':''}${sb}${main}${extra}</div>`;
+ if(AUTHMAP[st]) return `<div class="app ${MOB?'mobile':''}">${authState(AUTHMAP[st])}</div>`;
+ if(st==='sign-in-form-alert'||st==='sign-in-pending') return `<div class="app ${MOB?'mobile':''}">${signinVariant(st==='sign-in-pending'?'pending':'alert')}</div>`;
+ if(STATUSMAP[st]) return statusPage(STATUSMAP[st]);
+ if(st.startsWith('settings-')) return settingsAll(st.slice(9));
+ if(st==='toast-success') return settingsAll('profile',{toast:toastEl('Changes saved.')});
+ if(st.startsWith('platform-')){const p=st==='platform-accounts'?'acct':'prov';const main=`<div class="main">${topbar('',{nopill:true})}<div class="view">${st==='platform-accounts'?platformAccounts():st==='platform-provisioning-detail'?platformDetail():platformPage(st.replace('platform-provisioning-',''))}</div></div>`;return app(sidebar('personal',{platform:p,none:true}),main);}
+ if(st==='indicator') return app(sidebar('x',{active:'a'}),thread('loaders'));
+ if(st.startsWith('chats-')){const k={'chats-history':'history','chats-search':'search','chats-no-results':'noresults','chats-empty':'empty'}[st];
+  if(st==='chats-loading') return app(sidebar('x',{page:true,loading:true}),historyLoading());
+  return app(sidebar('x',{page:true,active:'a',none:k==='empty'}),history(k));}
+ if(['shell-personal','shell-team','chat-new','chat-deep-thinking','chat-starter-pill'].includes(st)){
+  const sb=sidebar(st==='shell-personal'?'personal':'x',{home:true,active:null});
+  const main=st==='chat-starter-pill'?starterPill():home(st==='chat-deep-thinking'?'deep':'newchat');
+  return app(sb,main);}
+ const sk={'organization-switcher-open':'org','user-menu-open':'user','sidebar-collapsed':MOB?'x':'collapsed'}[st]||'x';
+ const c={active:'a',menu:st==='recent-menu'?'b':null};
+ const sheet=['mobile-sheet-open','organization-switcher-open','user-menu-open','recent-menu'].includes(st);
+ let main;
+ if(st==='chat-copied') main=chatShell(um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({copied:true})}</div>`);
+ else if(st==='chat-feedback') main=chatShell(um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up'})}</div>`,{toast:toastEl('Thanks for your feedback.')});
+ else main=thread(THREADMAP[st]||'thread');
+ let extra='';
+ if(st==='chat-delete') extra=`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dt"><h2 id="dt">Delete this chat?</h2><p>“Syarat sah perjanjian (Pasal 1320)” and all its messages will be permanently deleted. This cannot be undone.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn danger">Delete chat</button></div></div>`;
+ if(st==='chat-rename') extra=`<div class="overlay"></div><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="rt"><h2 id="rt">Rename chat</h2><div class="field"><label for="rn">Chat title</label><input id="rn" class="inp focus" value="Syarat sah perjanjian (Pasal 1320)"></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn primary">Save</button></div></div>`;
+ return app(sidebar(sk,c),main,extra,sheet);
+}
+const ALLIDS=GROUPS.flatMap(g=>g[1]);
 function render(){
- const S=(qs.get('s')||location.hash.slice(1)||'newchat'); const ALL=[...STATES.filter(x=>!['signin','signin-errors','loaders'].includes(x)),'actions',...R13_STATES,'loaders']; const st=ALL.includes(S)?S:'newchat';
- const c={home:['newchat','deep','personal'].includes(st),page:['history','search','noresults','empty'].includes(st),active:'a',menu:st==='menu'?'b':null,rename:st==='rename'?'b':null,none:st==='empty'};
- let inner;
- if(AUTH_STATES.includes(st)) inner=`<div class="app ${MOB?'mobile':''}">${authState(st)}</div>`;
- else if(STATUS_STATES.includes(st)) inner=statusPage(st);
- else if(st==='history-loading') inner=`<div class="app">${sidebar('x',{page:true,loading:true})}${historyLoading()}</div>`;
- else if(st==='security'||st==='members') inner=settingsExtra(st);
- else if(st==='mobile') inner=`<div class="app mobile">${mobile()}</div>`;
- else { let m=c.home?home(st==='personal'?'newchat':st):c.page?history(st):(['settings','appearance','org','user','collapsed'].includes(st)?thread('thread'):thread(st));
-   inner=`<div class="app">${sidebar(st,c)}${m}${st==='delete'?`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dt"><h2 id="dt">Delete this chat?</h2><p>“Due diligence checklist for PT acquisition” and all its messages will be permanently deleted. This cannot be undone.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn danger">Delete chat</button></div></div>`:''}${['settings','appearance'].includes(st)?settings(st):''}</div>`; }
- const G=[['Auth',AUTH_STATES],['Pages',[...STATUS_STATES,'history-loading','security','members']],['Chat',['personal','newchat','deep','thinking','streaming','reasoning','thread','actions','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile','loaders']]];
+ const S=(qs.get('s')||location.hash.slice(1)||'chat-new'); const st=ALLIDS.includes(S)?S:'chat-new';
+ const inner=screen(st);
  const href=(k,m)=>`?${m?'m=1&':''}${document.documentElement.dataset.theme?'theme='+document.documentElement.dataset.theme+'&':''}#${k}`;
- const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${G.map(([g,ks])=>`<b style="width:56px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:56px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">Mobile view applies to auth, pages, and settings states.</span></nav>`;
+ const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${GROUPS.map(([g,ks])=>`<b style="width:64px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:64px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop 1440×900</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile 390×844</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">State names match the F4.1 capture ids.</span></nav>`;
  document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;fit();
 }
+
 function fit(){const st=document.getElementById('stage');if(!st)return;const app=st.firstElementChild;const W=app.classList.contains('mobile')?390:1440,H=app.classList.contains('mobile')?844:900;if(isShot){st.style.height=H+'px';return;}const z=Math.min(1,st.clientWidth/W);app.style.transform=`scale(${z})`;st.style.height=(H*z)+'px';if(W===390){st.style.width='';}}
 addEventListener('hashchange',render);addEventListener('resize',fit);render();
 </script>

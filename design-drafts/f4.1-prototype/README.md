@@ -101,3 +101,23 @@ same artifact as revision 12. Source: `source/proto.src.html` + `source/r13.js`
   reconnect as status lines; error as one centered row with Try again; toasts
   top right (full width on mobile).
 - Platform admin pages move to F4.3; F4.1 platform pages use the status pattern only.
+
+## Revision 14 (2026-11-18): one state per capture id
+
+The prototype now has a state for every F4.1 capture id (66 ids), with the same
+names, each in desktop 1440x900 and mobile 390x844, light and dark
+(`screens/r14/<id>-<d|m>[-dark].png`, 264 files). Implementers build 1:1 from
+these states and design nothing themselves.
+
+- Auth pages: no icon tile above the title (owner: it looked forced). Status
+  pages keep their centered icon.
+- Chat header on desktop and mobile: sidebar toggle, divider, full chat title
+  (ellipsis only when it cannot fit), floating pill on the right. Non-chat pages
+  (Chats, status, platform) have no pill.
+- New states: sign-in form alert and pending, starter pill inserted (template
+  with highlighted placeholders, pill pressed), copied and feedback split,
+  floating chat menu, rename dialog, recent-item menu, team shell, mobile sheet,
+  settings Invitations and General, success toast, platform Account status and
+  Provisioning (populated, empty, loading, error, detail).
+- Fixtures shown: Ayu Wardani (Senior Associate) in Hukum Nusantara (3 members);
+  platform operator Dimas Prasetyo.
