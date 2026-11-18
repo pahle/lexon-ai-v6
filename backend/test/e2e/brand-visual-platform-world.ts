@@ -127,7 +127,8 @@ export async function reauthenticatePlatform(
   world: { totpUri: string },
 ) {
   const stack = descriptor();
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let last = '';
+  for (let attempt = 0; attempt < 4; attempt++) {
     const response = await page.request.post(
       stack.apiUrl + '/api/identity/security/reauthenticate',
       {
@@ -136,10 +137,11 @@ export async function reauthenticatePlatform(
       },
     );
     if (response.ok()) return;
+    last = response.status() + ' ' + (await response.text()).slice(0, 160);
     // The same code cannot be used twice in one 30 s window.
     await new Promise((done) => setTimeout(done, 31_000));
   }
-  throw new Error('Platform administrator could not reauthenticate');
+  throw new Error('Platform administrator could not reauthenticate: ' + last);
 }
 
 export async function platformWorld(page: Page) {
