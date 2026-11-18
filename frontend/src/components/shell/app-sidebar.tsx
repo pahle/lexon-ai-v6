@@ -297,7 +297,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <OrganizationMenu identity={identity} />
         {isMobile ? (
-          <div className="flex justify-end px-2">
+          <div className="sr-only focus-within:not-sr-only focus-within:absolute focus-within:top-2 focus-within:right-2 focus-within:z-10">
             <Button
               type="button"
               variant="ghost"

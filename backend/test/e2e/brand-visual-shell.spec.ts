@@ -168,7 +168,12 @@ test('team shell, menus, and the mobile sheet', async ({
     };
     const tile = await box(organizationTrigger(page).locator('span').first());
     const icon = await box(
-      page.getByRole('link', { name: 'Assistant' }).locator('svg').first(),
+      page
+        .getByRole('navigation', { name: 'Primary navigation' })
+        .locator(
+          'a[data-slot="sidebar-menu-button"] > svg, button[aria-label="Assistant navigation"] > svg',
+        )
+        .first(),
     );
     const avatar = await box(userTrigger(page).locator('[data-slot="avatar"]'));
     const height = page.viewportSize()?.height ?? 0;
@@ -186,7 +191,10 @@ test('team shell, menus, and the mobile sheet', async ({
   await expect(
     page.getByRole('button', { name: 'Expand sidebar' }),
   ).toBeVisible();
-  await expect.poll(spots).toEqual(expanded);
+  await page.waitForTimeout(600);
+  expect(JSON.stringify(await spots(), null, 1)).toBe(
+    JSON.stringify(expanded, null, 1),
+  );
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
 });
 
