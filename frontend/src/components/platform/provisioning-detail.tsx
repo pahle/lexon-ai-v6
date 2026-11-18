@@ -100,7 +100,7 @@ export function ProvisioningDetail({
     <>
       <Link
         href="/platform/provisioning"
-        className="-mb-3 -ml-2.5 inline-flex w-fit items-center gap-2 self-start rounded-[8px] px-2.5 py-1.5 text-sm font-medium text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="-mb-3 -ml-2.5 inline-flex w-fit items-center gap-2 self-start rounded-[8px] px-2.5 py-1.5 text-sm leading-[1.21] font-medium text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
         Provisioning
@@ -120,7 +120,7 @@ export function ProvisioningDetail({
         </Alert>
       ) : null}
       <PlatformCard title="Owner invitation">
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-[160px_1fr]">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm leading-[1.21] md:grid-cols-[160px_1fr]">
           <dt className="text-muted-foreground">State</dt>
           <dd className="font-medium">{capitalize(organization.state)}</dd>
           <dt className="text-muted-foreground">Owner invitation</dt>

@@ -265,7 +265,7 @@ export function ProvisioningList() {
 
       <section
         aria-labelledby="provisioning-heading"
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-3 pt-px"
       >
         <SectionHeading />
         {error ? (

@@ -21,7 +21,7 @@ export function PlatformCard({
         className,
       )}
     >
-      <CardHeader className="gap-1 px-0">
+      <CardHeader className="gap-1 px-0 pb-px">
         <CardTitle className="text-base leading-[1.21] font-semibold">
           {title}
         </CardTitle>
