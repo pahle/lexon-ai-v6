@@ -549,6 +549,19 @@ test('streaming, reconnecting, and loading chat threads', async ({
       );
       expect(disconnected).toBe(true);
       await expect(page.getByText('Reconnecting…')).toBeVisible();
+      // The prototype shows the scroll-to-latest button here too.
+      await page.addStyleTag({
+        content: '[data-slot="aui_message-group"] { padding-bottom: 1400px; }',
+      });
+      const thread = page.locator('[data-slot="aui_thread-viewport"]');
+      await thread.evaluate((element) => {
+        element.style.scrollBehavior = 'auto';
+        element.scrollTop = 0;
+        element.dispatchEvent(new Event('scroll'));
+      });
+      await expect(
+        page.getByRole('button', { name: 'Scroll to bottom' }),
+      ).toBeVisible();
     },
   });
 

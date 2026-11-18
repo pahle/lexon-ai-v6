@@ -40,6 +40,9 @@ export const reasoning = reasoningSummary;
 export const timestamp = chatTimes.newChat.at;
 // The partial answer of the streaming, reconnecting and stopped states, as in
 // the prototype (two list items, the second cut off).
+// The reconnecting state shows only the first paragraph, as in the prototype.
+export const reconnectingAnswer =
+  'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:';
 export const partialAnswer = `Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:
 
 1. **Kesepakatan** para pihak yang mengikatkan dirinya.
@@ -89,13 +92,15 @@ export function assistantMessage(
     text:
       state === 'thinking' || stoppedBeforeAnswer
         ? ''
-        : state === 'streaming-answer' || state === 'reconnecting'
-          ? partialAnswer
-          : state === 'stopped'
+        : state === 'reconnecting'
+          ? reconnectingAnswer
+          : state === 'streaming-answer'
             ? partialAnswer
-            : state === 'run-error'
-              ? 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:'
-              : answer,
+            : state === 'stopped'
+              ? partialAnswer
+              : state === 'run-error'
+                ? 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:'
+                : answer,
     createdAt: timestamp,
     status: active
       ? 'running'
@@ -288,7 +293,7 @@ export function activeRunFrames(state: string) {
             chunkIndex: 0,
             partType: 'text',
             id: 'chat-visual-answer',
-            text: partialAnswer,
+            text: state === 'reconnecting' ? reconnectingAnswer : partialAnswer,
             final: true,
           },
         ];
@@ -409,6 +414,7 @@ export async function installRunStreamFixture(page: Page) {
   const frames = {
     thinking: activeRunFrames('thinking'),
     streaming: activeRunFrames('streaming-answer'),
+    reconnecting: activeRunFrames('reconnecting'),
   };
   await page.addInitScript(
     ({
@@ -416,7 +422,11 @@ export async function installRunStreamFixture(page: Page) {
       frames,
     }: {
       fixtureRunId: string;
-      frames: { thinking: unknown[]; streaming: unknown[] };
+      frames: {
+        thinking: unknown[];
+        streaming: unknown[];
+        reconnecting: unknown[];
+      };
     }) => {
       const nativeFetch = window.fetch.bind(window);
       let reconnectAttempts = 0;
@@ -456,8 +466,9 @@ export async function installRunStreamFixture(page: Page) {
 
         const disconnectAfterPartialAnswer = state === 'reconnecting';
         if (disconnectAfterPartialAnswer) reconnectAttempts += 1;
-        const streamFrames =
-          state === 'streaming-answer' || disconnectAfterPartialAnswer
+        const streamFrames = disconnectAfterPartialAnswer
+          ? frames.reconnecting
+          : state === 'streaming-answer'
             ? frames.streaming
             : frames.thinking;
         const encoder = new TextEncoder();
