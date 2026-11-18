@@ -95,7 +95,7 @@ test('sign-up and secondary account flows', async ({ page }) => {
   await captureBrandViews(page, 'reset-password');
   await visit('two-factor', '/two-factor');
   // Three digits typed; the fourth slot is the active one.
-  await page.getByLabel('Authenticator code').pressSequentially('481');
+  await page.getByLabel('Authentication code').pressSequentially('481');
   await captureBrandViews(page, 'two-factor');
   // A well-formed invitation id; the page does not look the invitation up.
   await visit(
@@ -220,6 +220,7 @@ test('admin-setup-activate', async ({ page }) => {
         mfaVerified: true,
         reauthenticationExpiresAt: null,
         recoveryCodesRemaining: 8,
+        passwordChangedAt: null,
       }),
     }),
   );
