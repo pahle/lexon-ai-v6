@@ -12,4 +12,4 @@ services:
     volumes:
       - ${LEXON_REPO_ROOT:?Use scripts/e2e.mjs}frontend/src:/app/frontend/src
       - ${LEXON_REPO_ROOT:?Use scripts/e2e.mjs}frontend/public:/app/frontend/public
-    mem_limit: 1024m
+    mem_limit: 3072m
