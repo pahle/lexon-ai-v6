@@ -619,7 +619,7 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   const ownerRow = settings.getByRole('row').filter({ hasText: 'Alex Rivera' });
   await expect(role).toBeInViewport();
   await expect(
-    ownerRow.getByRole('button', { name: 'Remove', exact: true }),
+    ownerRow.getByRole('button', { name: 'More actions for Alex Rivera' }),
   ).toBeInViewport();
   expect(
     await page.locator('html').evaluate((element) => element.scrollWidth),
@@ -636,13 +636,11 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   await expect(settings).toBeVisible();
   await expect(role).toBeFocused();
   const remove = ownerRow.getByRole('button', {
-    name: 'Remove',
-    exact: true,
+    name: 'More actions for Alex Rivera',
   });
-  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  await expect(remove).toHaveClass(/border-border/);
   await expect(remove).not.toHaveClass(/text-destructive/);
   await remove.click();
+  await page.getByRole('menuitem', { name: 'Remove', exact: true }).click();
   const confirmation = page.getByRole('alertdialog', {
     name: 'Remove Alex Rivera from Task 7B Team?',
   });
@@ -1461,7 +1459,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       await expect(currentMember).toContainText('Maya Chen (you)');
       await expect(currentMember.getByRole('combobox')).toHaveCount(0);
       await expect(
-        currentMember.getByRole('button', { name: 'Remove', exact: true }),
+        currentMember.getByRole('button', { name: /^More actions for/ }),
       ).toHaveCount(0);
       await expect(
         page.getByText('Alex Rivera', { exact: true }),
@@ -1558,7 +1556,9 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
                 }),
               ).toBeInViewport();
               await expect(
-                ownerRow.getByRole('button', { name: 'Remove', exact: true }),
+                ownerRow.getByRole('button', {
+                  name: 'More actions for Alex Rivera',
+                }),
               ).toBeInViewport();
             } else {
               const pendingRow = settings

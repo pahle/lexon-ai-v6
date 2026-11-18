@@ -141,12 +141,13 @@ it('keeps each chat query under the approved tenant-org-chat-owner key family', 
   ]);
 });
 
-it('groups chat history into Today, Yesterday, previous seven days and month-year', () => {
+it('groups chat history into Today, Yesterday, previous 7 and 30 days, then month-year', () => {
   const now = new Date('2026-11-13T12:00:00.000Z');
   const items = [
     ['Today chat', '2026-11-13T09:00:00.000Z'],
     ['Yesterday chat', '2026-11-12T09:00:00.000Z'],
     ['Previous week chat', '2026-11-10T09:00:00.000Z'],
+    ['Last month chat', '2026-10-25T09:00:00.000Z'],
     ['Older chat', '2026-10-02T09:00:00.000Z'],
   ].map(([title, updatedAt], index) => ({
     id: `00000000-0000-4000-8000-${String(index + 10).padStart(12, '0')}`,
@@ -158,6 +159,7 @@ it('groups chat history into Today, Yesterday, previous seven days and month-yea
     'Today',
     'Yesterday',
     'Previous 7 days',
+    'Previous 30 days',
     'October 2026',
   ]);
 });

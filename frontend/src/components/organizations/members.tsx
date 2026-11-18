@@ -15,7 +15,13 @@ import {
   QueryFailure,
   useCursorPage,
 } from './page-state';
-import { Plus } from 'lucide-react';
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { initials } from '../../lib/initials';
@@ -336,18 +342,36 @@ export function Members({
                     {canManageRoles ? (
                       <TableCell className="w-px px-0 py-3 pl-3 text-right">
                         {removable ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground"
-                            disabled={submission.pending}
-                            onClick={() => {
-                              setFailure('');
-                              setRemoving(member);
-                            }}
-                          >
-                            Remove
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-muted-foreground"
+                                  aria-label={'More actions for ' + member.name}
+                                  disabled={submission.pending}
+                                />
+                              }
+                            >
+                              <MoreHorizontal aria-hidden="true" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setFailure('');
+                                  setRemoving(member);
+                                }}
+                              >
+                                <Trash2
+                                  aria-hidden="true"
+                                  data-icon="inline-start"
+                                />
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         ) : null}
                       </TableCell>
                     ) : null}

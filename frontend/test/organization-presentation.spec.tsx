@@ -1,7 +1,25 @@
 import { test, expect, vi } from 'vitest';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from './render';
+import { render, settle } from './render';
+
+// The row menu ("More actions for <name>") holds Remove.
+async function chooseRemove(container: HTMLElement) {
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label^="More actions for"]',
+      )
+      ?.click(),
+  );
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((item) => item.textContent?.trim() === 'Remove')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+  );
+  await settle();
+}
 import type { OrganizationSummary } from '@lexon/contracts';
 
 const api = vi.hoisted(() => ({
@@ -204,13 +222,12 @@ test('member removal and invitation cancellation are named confirmations', async
   expect(
     view.container.querySelector('[aria-label="Invitation role"]')?.textContent,
   ).not.toBe('member');
-  const remove = [...view.container.querySelectorAll('button')].find(
-    (button) => button.textContent?.trim() === 'Remove',
+  // The prototype's row menu: an icon button whose menu holds Remove.
+  const more = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="More actions for Dewi Lestari"]',
   )!;
-  // A ghost trigger with explicit text (prototype row actions), not a red one.
-  expect(remove.className).toContain('text-muted-foreground');
-  expect(remove.className).not.toContain('text-destructive');
-  await act(async () => remove.click());
+  expect(more.className).not.toContain('text-destructive');
+  await chooseRemove(view.container);
   expect(document.body.textContent).toContain(
     'Remove Dewi Lestari from Hukum Nusantara?',
   );
@@ -271,11 +288,7 @@ test('failed member and invitation actions expose safe errors in their open conf
     expect(view.container.querySelector('[role="alert"]')).toBeNull();
   };
 
-  await act(async () =>
-    [...view.container.querySelectorAll('button')]
-      .find((button) => button.textContent?.trim() === 'Remove')!
-      .click(),
-  );
+  await chooseRemove(view.container);
   let dialog = document.body.querySelector('[role="alertdialog"]')!;
   await act(async () =>
     dialog
@@ -500,10 +513,9 @@ test('current member is first, has plain role text, and cannot be removed', asyn
     rows[1]?.querySelector('[aria-label="Role for Avery Other"]'),
   ).not.toBeNull();
   expect(
-    [...(rows[1]?.querySelectorAll('button') ?? [])].some(
-      (button) => button.textContent?.trim() === 'Remove',
-    ),
-  ).toBe(true);
+    rows[1]?.querySelector('[aria-label="More actions for Avery Other"]'),
+  ).not.toBeNull();
+  expect(rows[0]?.querySelector('[aria-label^="More actions for"]')).toBeNull();
   presentationFixture.memberItems = null;
   presentationFixture.currentUserId = '00000000-0000-4000-8000-000000000099';
   await view.unmount();
@@ -517,11 +529,7 @@ test('removing a member refreshes the identity once after the mutation succeeds'
       <Members organization={team} />
     </QueryClientProvider>,
   );
-  await act(async () =>
-    [...view.container.querySelectorAll('button')]
-      .find((button) => button.textContent?.trim() === 'Remove')!
-      .click(),
-  );
+  await chooseRemove(view.container);
   const dialog = document.body.querySelector('[role="alertdialog"]')!;
   await act(async () =>
     dialog
@@ -541,11 +549,7 @@ test('a failed member removal does not refresh the identity', async () => {
       <Members organization={team} />
     </QueryClientProvider>,
   );
-  await act(async () =>
-    [...view.container.querySelectorAll('button')]
-      .find((button) => button.textContent?.trim() === 'Remove')!
-      .click(),
-  );
+  await chooseRemove(view.container);
   const dialog = document.body.querySelector('[role="alertdialog"]')!;
   await act(async () =>
     dialog

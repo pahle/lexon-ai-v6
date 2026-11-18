@@ -15,16 +15,14 @@ import {
   chatListRequest,
   expectResting,
   gateRequests,
-  gotoWorkspace,
   installPrototypeInvitationExpiry,
   openUserMenu,
-  prepareIdentity,
   teamWorld,
 } from './brand-visual-world.js';
 import { calm, openThread } from './brand-visual-chat-support.js';
 import { startTeamChatStates } from './brand-visual-chats-settings-support.js';
 import { answerStart } from './brand-visual-chat-support.js';
-import { ayu, team, teamInvitations } from './prototype-fixtures.js';
+import { team, teamInvitations } from './prototype-fixtures.js';
 import {
   installTask9MemberOrderNormalization,
   installTask9SessionExpiryNormalization,
@@ -147,11 +145,26 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
     'settings-profile',
     settingsHooks('Profile', (p) => p.getByLabel('Job title')),
   );
-  await captureBrandViews(
-    page,
-    'settings-appearance',
-    settingsHooks('Appearance', (p) => p.getByRole('radio', { name: 'Dark' })),
+  // The prototype shows System selected; the dark variant follows the
+  // emulated color scheme instead of a forced Dark choice.
+  const appearance = settingsHooks('Appearance', (p) =>
+    p.getByRole('radio', { name: 'Dark' }),
   );
+  await captureBrandViews(page, 'settings-appearance', {
+    ...appearance,
+    open: async (viewport: BrandViewport) => {
+      const dark = await page.evaluate(() =>
+        document.documentElement.classList.contains('dark'),
+      );
+      await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' });
+      await appearance.open(viewport);
+      await page
+        .getByRole('dialog', { name: 'Settings' })
+        .getByRole('radio', { name: 'System' })
+        .click({ force: true });
+      await expect(page.getByRole('radio', { name: 'System' })).toBeChecked();
+    },
+  });
   const sessions = await installTask9SessionExpiryNormalization(page);
   try {
     await captureBrandViews(
