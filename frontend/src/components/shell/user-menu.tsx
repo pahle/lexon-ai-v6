@@ -32,6 +32,20 @@ function initials(name: string) {
     .join('');
 }
 
+function UserAvatar({ name }: { name: string }) {
+  return (
+    <Avatar className="rounded-[8px] after:hidden">
+      <AvatarFallback
+        data-slot="avatar-initials"
+        aria-label={name}
+        className="rounded-[8px] bg-sidebar-accent text-xs font-semibold text-foreground"
+      >
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function UserMenu({
   onMobileNavigate,
 }: {
@@ -78,7 +92,7 @@ export function UserMenu({
             <SidebarMenuButton
               size="lg"
               title={collapsed ? name : undefined}
-              className="aria-expanded:bg-muted"
+              className="aria-expanded:bg-sidebar-accent"
               disabled={busy}
             />
           ) : (
@@ -91,11 +105,7 @@ export function UserMenu({
           )
         }
       >
-        <Avatar>
-          <AvatarFallback data-slot="avatar-initials" aria-label={name}>
-            {initials(name)}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar name={name} />
         {!collapsed ? (
           <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{name}</span>
@@ -105,14 +115,17 @@ export function UserMenu({
           </span>
         ) : null}
         {!collapsed ? (
-          <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
+          <ChevronsUpDown
+            aria-hidden="true"
+            className="ml-auto size-4 text-muted-foreground"
+          />
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
         side={sidebar?.isMobile ? 'bottom' : 'right'}
-        sideOffset={4}
-        className="w-fit"
+        sideOffset={8}
+        className="w-60"
         finalFocus={() => {
           if (settingsNavigationPending.current) {
             return false;
@@ -122,12 +135,8 @@ export function UserMenu({
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="p-0 font-normal">
-            <div className="flex min-w-0 items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <Avatar>
-                <AvatarFallback data-slot="avatar-initials" aria-label={name}>
-                  {initials(name)}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex min-w-0 items-center gap-2 px-2 py-1.5 text-left text-sm">
+              <UserAvatar name={name} />
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">

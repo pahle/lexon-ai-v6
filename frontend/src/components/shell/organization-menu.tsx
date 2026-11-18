@@ -55,14 +55,15 @@ function OrganizationTile({
   organization: OrganizationSummary;
   size: 'trigger' | 'item';
 }) {
-  const box = size === 'trigger' ? 'size-8 rounded-lg' : 'size-6 rounded-md';
+  const box =
+    size === 'trigger' ? 'size-8 rounded-[8px]' : 'size-6 rounded-[6px]';
   if (organization.kind === 'personal') {
     return (
       <span
         aria-hidden="true"
-        className={`flex ${box} shrink-0 items-center justify-center border border-sidebar-border bg-background`}
+        className={`flex ${box} shrink-0 items-center justify-center bg-background shadow-[0_0_0_1px_var(--border)]`}
       >
-        <LexonLogo variant="monogram" width={size === 'trigger' ? 16 : 14} />
+        <LexonLogo variant="monogram" width={size === 'trigger' ? 20 : 15} />
       </span>
     );
   }
@@ -72,7 +73,7 @@ function OrganizationTile({
       // Initials are generated content so they stay out of the visible-text
       // check of WCAG 2.5.3; the tile is decorative.
       data-initials={initials(organization.name)}
-      className={`flex ${box} shrink-0 items-center justify-center before:content-[attr(data-initials)] bg-sidebar-primary text-sidebar-primary-foreground ${size === 'trigger' ? 'text-xs' : 'text-[10px]'} font-medium`}
+      className={`flex ${box} shrink-0 items-center justify-center before:content-[attr(data-initials)] bg-sidebar-primary text-sidebar-primary-foreground ${size === 'trigger' ? 'text-xs' : 'text-[10px]'} font-semibold`}
     />
   );
 }
@@ -163,7 +164,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                   <SidebarMenuButton
                     size="lg"
                     tooltip={orgLabel(identity.organization)}
-                    className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
+                    className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
                   />
                 }
               >
@@ -175,7 +176,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                 {!collapsed ? (
                   <ChevronsUpDown
                     aria-hidden="true"
-                    className="ml-auto size-4"
+                    className="ml-auto size-4 text-muted-foreground"
                   />
                 ) : null}
               </DropdownMenuTrigger>
@@ -192,19 +193,22 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
               size="trigger"
             />
             <TriggerText identity={identity} />
-            <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
+            <ChevronsUpDown
+              aria-hidden="true"
+              className="ml-auto size-4 text-muted-foreground"
+            />
           </DropdownMenuTrigger>
         )}
         <DropdownMenuContent
           side={sidebar?.isMobile ? 'bottom' : 'right'}
           align="start"
-          sideOffset={4}
+          sideOffset={8}
           aria-label="Organizations"
           data-testid="organization-popup"
-          className="w-fit min-w-60 max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
+          className="w-[260px] max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
         >
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="px-2 py-1">
+            <DropdownMenuLabel className="px-2 py-1.5">
               Organizations
             </DropdownMenuLabel>
             {pages.query.isError ? (
@@ -235,7 +239,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                       ? 'true'
                       : undefined
                   }
-                  className="gap-2 p-2"
+                  className="gap-2 px-2 py-0"
                   onClick={async () => {
                     if (organization.id === identity.organization.id) return;
                     setBusy(true);
@@ -313,15 +317,13 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             </p>
           ) : null}
           <DropdownMenuItem
-            className="gap-2 p-2"
+            className="gap-2 px-2 py-0 text-muted-foreground"
             onClick={() => {
               setCreateOpen(true);
               setOpen(false);
             }}
           >
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-dashed bg-transparent">
-              <Plus aria-hidden="true" className="size-4" />
-            </span>
+            <Plus aria-hidden="true" className="size-4" />
             Create a team
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -335,10 +337,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
           </p>
         ) : null}
       </DropdownMenu>
-      <DialogContent
-        aria-describedby="create-team-description"
-        className="rounded-md"
-      >
+      <DialogContent aria-describedby="create-team-description">
         <DialogHeader>
           <DialogTitle>Create a team</DialogTitle>
           <DialogDescription id="create-team-description">

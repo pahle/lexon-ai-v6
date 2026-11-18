@@ -43,8 +43,6 @@ export function WorkspaceShell({
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
-  const isChatSurface =
-    pathname === '/workspace' || /^\/chats\/[0-9a-f-]{36}$/i.test(pathname);
   const hasChatChrome = isChatChromePath(pathname);
   const openChat = useOpenChat();
   const sidebarState = useOptionalSidebar();
@@ -102,34 +100,38 @@ export function WorkspaceShell({
         <SidebarInset
           id="main"
           tabIndex={-1}
-          className={
-            isChatSurface
-              ? 'relative h-dvh max-h-dvh min-h-0 min-w-0'
-              : 'relative min-w-0'
-          }
+          className="relative h-dvh max-h-dvh min-h-0 min-w-0 overflow-hidden md:h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-1rem)]"
         >
           {sidebar && sidebarState ? (
-            <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-              <div className="flex items-center gap-2 px-4">
-                <SidebarTrigger
-                  className="-ml-1"
-                  aria-label={
-                    isMobile
-                      ? 'Open navigation'
-                      : sidebarCollapsed
-                        ? 'Expand sidebar'
-                        : 'Collapse sidebar'
-                  }
-                />
-              </div>
-              {isMobile && openChat ? (
-                <p
-                  data-slot="chat-header-title"
-                  aria-hidden="true"
-                  className="min-w-0 flex-1 truncate border-l pl-3 pr-24 text-sm"
-                >
-                  {openChat.title}
-                </p>
+            <header
+              data-slot="shell-header"
+              className="flex h-14 shrink-0 items-center gap-2 px-2.5 md:h-[52px] md:px-3.5"
+            >
+              <SidebarTrigger
+                className="text-muted-foreground"
+                aria-label={
+                  isMobile
+                    ? 'Open navigation'
+                    : sidebarCollapsed
+                      ? 'Expand sidebar'
+                      : 'Collapse sidebar'
+                }
+              />
+              {openChat ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    data-slot="chat-header-divider"
+                    className="h-4 w-px shrink-0 bg-border"
+                  />
+                  <p
+                    data-slot="chat-header-title"
+                    aria-hidden="true"
+                    className="min-w-0 flex-1 truncate pr-24 text-sm text-foreground"
+                  >
+                    {openChat.title}
+                  </p>
+                </>
               ) : null}
             </header>
           ) : null}
@@ -137,7 +139,7 @@ export function WorkspaceShell({
             <ChatFloatingActions chat={openChat} />
           ) : null}
           <div className="flex min-h-0 flex-1">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
               {sidebar && !sidebarState ? (
                 <aside aria-label="Workspace navigation" className="shrink-0">
                   {sidebar}

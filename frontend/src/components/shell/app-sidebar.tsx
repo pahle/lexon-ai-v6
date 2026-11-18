@@ -57,7 +57,7 @@ function NewChatShortcutHint() {
     <span
       data-slot="shortcut-hint"
       aria-hidden="true"
-      className="ml-auto text-xs tracking-wide text-muted-foreground"
+      className="ml-auto text-xs text-muted-foreground"
     >
       {apple ? '⌘ ⌥ N' : 'Ctrl Alt N'}
     </span>
@@ -155,13 +155,13 @@ function NavigationGroup({
         render={
           <SidebarMenuAction
             aria-label={`Toggle ${title} navigation`}
-            className="size-6 peer-data-[size=default]/menu-button:top-1"
+            className="top-1 right-0 size-6 p-0"
           />
         }
       >
         <ChevronRight
           aria-hidden="true"
-          className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90"
+          className="translate-x-1 transition-transform duration-200 group-data-open/collapsible:rotate-90"
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -311,9 +311,13 @@ export function AppSidebar() {
         ) : null}
       </SidebarHeader>
       <SidebarContent>
-        <nav aria-label="Primary navigation">
+        <nav aria-label="Primary navigation" className="flex flex-col">
           <SidebarGroup>
-            <SidebarGroupLabel>Tools</SidebarGroupLabel>
+            <div
+              aria-hidden="true"
+              data-slot="sidebar-group-spacer"
+              className="h-2"
+            />
             <SidebarMenu>
               <NavigationGroup
                 title="Assistant"

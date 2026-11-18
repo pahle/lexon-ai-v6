@@ -16,7 +16,7 @@ export default function RootError({
       title="Something went wrong"
       text="We could not load this page. Your work is saved."
       action={{ label: 'Try again', onClick: retry }}
-      secondaryLink={{ label: 'Return to workspace', href: '/workspace' }}
+      secondaryLink={{ label: 'Go to my workspace', href: '/workspace' }}
     />
   );
 }

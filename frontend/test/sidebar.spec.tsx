@@ -133,7 +133,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ['Chats', '/chats'],
     ['Platform', '/platform/provisioning'],
   ]);
-  // LEX-DS-001 §5: the inset shell, a Tools group, and Assistant open by
+  // LEX-DS-001 §5.5: the inset shell, no Tools label, and Assistant open by
   // default with New chat and Chats as its sub-items.
   expect(
     view.container.querySelector('[data-slot="sidebar"][data-variant="inset"]'),
@@ -141,7 +141,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   const groupLabels = [
     ...view.container.querySelectorAll('[data-slot="sidebar-group-label"]'),
   ].map((label) => label.textContent);
-  expect(groupLabels).toEqual(['Tools', 'Recent']);
+  expect(groupLabels).toEqual(['Recent']);
   expect(
     view.container
       .querySelector('nav button[aria-label="Toggle Assistant navigation"]')
@@ -174,7 +174,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(16);
+  ).toBe(20);
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] img[alt="Lexon"]',
@@ -263,7 +263,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   ).toContain('LEXON-monogram-micro-seal.svg');
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(16);
+  ).toBe(20);
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
@@ -553,7 +553,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
     '[data-slot="dropdown-menu-content"]',
   );
   expect(organizationPopover?.className).toContain('shadow-md');
-  expect(organizationPopover?.className).toContain('w-fit');
+  expect(organizationPopover?.className).toContain('w-[260px]');
   expect(organizationPopover?.className).toContain('overflow-y-auto');
   expect(organizationPopover?.className).toContain('--available-height');
   expect(document.body.textContent).toContain('Personal');
@@ -1037,7 +1037,7 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   const sheetContent = document.body.querySelector(
     '[data-slot="sidebar"][data-mobile="true"]',
   )!;
-  expect(sheetOverlay.className).toContain('bg-black/50');
+  expect(sheetOverlay.className).toContain('bg-[rgba(8,6,6,0.45)]');
   expect(sheetOverlay.className).not.toContain('backdrop-blur');
   expect(sheetOverlay.className).toContain('duration-150');
   expect(sheetContent.className).toContain('bg-sidebar');
@@ -1135,7 +1135,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   const collapsedHeader = sidebar.querySelector(
     '[data-slot="sidebar-header"]',
   )!;
-  expect(collapsedHeader.className).toContain('p-2');
+  expect(collapsedHeader.className).toContain('p-0');
   expect(
     collapsedHeader
       .querySelector('.bg-sidebar-primary')
@@ -1144,7 +1144,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   const collapsedMenuButton = sidebar.querySelector(
     '[data-slot="sidebar-menu-button"]',
   )!;
-  expect(collapsedMenuButton.className).toContain('size-8!');
+  expect(collapsedMenuButton.className).toContain('w-8!');
   const organizationTrigger = sidebar.querySelector(
     'button[aria-label^="Organization: Lexon Team"]',
   )!;
@@ -1158,7 +1158,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(sidebar.textContent).not.toContain('ada@example.test');
   expect(
     sidebar.querySelector('[data-slot="avatar-initials"]')?.className,
-  ).toContain('rounded-full');
+  ).toContain('rounded-[8px]');
   for (const button of sidebar.querySelectorAll(
     '[data-slot="sidebar-header"] button[aria-haspopup], [data-slot="sidebar-footer"] button[aria-haspopup]',
   )) {
