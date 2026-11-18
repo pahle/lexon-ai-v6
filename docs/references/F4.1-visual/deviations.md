@@ -6,31 +6,52 @@ Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture
 
 Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-prototype.mjs --gate` skips the listed rows). Variant: `d` desktop, `m` mobile, `-dark` dark.
 
-| id                              | variant | %    | reason                                                                                                            |
-| ------------------------------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------- |
-| platform-provisioning-error     | m-dark  | 4.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-empty     | m-dark  | 3.48 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-populated | m-dark  | 3.19 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-error     | m       | 2.94 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-empty     | m       | 2.93 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-populated | m       | 2.62 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-loading   | m-dark  | 2.46 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-detail    | m-dark  | 2.29 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-detail    | m       | 2.20 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| platform-provisioning-loading   | m       | 2.16 | replaced in F4.3 (Organizations module); residual 1 px text and row offsets on the mobile stack, layout identical |
-| settings-security               | m       | 3.26 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-security               | m-dark  | 3.02 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-invitations            | m       | 2.88 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-invitations            | m-dark  | 2.86 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-members                | m-dark  | 2.18 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-members                | m       | 2.12 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-general                | m       | 2.02 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-general                | m-dark  | 1.92 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-security               | d       | 1.67 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| toast-success                   | m       | 1.63 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-invitations            | d       | 1.55 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-appearance             | m       | 1.53 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
-| settings-security               | d-dark  | 1.53 | owner review: Settings after 2 Linux rounds (cd703e0, local Linux capture)                                        |
+| id                              | variant | %    | reason                                                                |
+| ------------------------------- | ------- | ---- | --------------------------------------------------------------------- |
+| chat-deep-thinking              | m       | 2.06 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-deep-thinking              | m-dark  | 2.08 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-delete                     | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-edit                       | d       | 1.84 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-edit                       | d-dark  | 1.82 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-rename                     | m       | 1.90 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chat-rename                     | m-dark  | 2.09 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chats-no-results                | m       | 1.66 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chats-no-results                | m-dark  | 1.67 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chats-search                    | m       | 1.53 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| chats-search                    | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| mobile-sheet-open               | m       | 2.74 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| mobile-sheet-open               | m-dark  | 2.98 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| onboarding-team                 | m       | 2.11 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| onboarding-team                 | m-dark  | 2.60 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| organization-switcher-open      | m       | 3.11 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| organization-switcher-open      | m-dark  | 3.27 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-empty     | m-dark  | 3.55 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-error     | m       | 2.98 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-error     | m-dark  | 4.28 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-loading   | m       | 2.30 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-loading   | m-dark  | 2.60 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-populated | m       | 2.66 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| platform-provisioning-populated | m-dark  | 3.27 | replaced in F4.3 (owner); Linux CI 44361723767                        |
+| recent-menu                     | m       | 2.77 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| recent-menu                     | m-dark  | 2.97 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-appearance             | m       | 1.53 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-general                | m       | 2.02 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-general                | m-dark  | 1.92 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-invitations            | m       | 2.88 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-invitations            | m-dark  | 2.86 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-members                | m       | 2.12 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-members                | m-dark  | 2.18 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-security               | m       | 3.26 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| settings-security               | m-dark  | 3.02 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| sign-in-form-alert              | m       | 1.55 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| sign-in-form-alert              | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| toast-success                   | m       | 1.64 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| two-factor                      | m-dark  | 1.54 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| user-menu-open                  | m       | 3.67 | owner review: over the gate after the round cap; Linux CI 44361723767 |
+| user-menu-open                  | m-dark  | 4.09 | owner review: over the gate after the round cap; Linux CI 44361723767 |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
