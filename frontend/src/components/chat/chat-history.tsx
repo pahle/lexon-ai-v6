@@ -16,6 +16,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatActivityDate } from '@/lib/date-time';
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -83,7 +85,24 @@ export function ChatHistory({
   if (query.isPending)
     return (
       <div className="contents">
-        <p role="status">Loading chats…</p>
+        <div
+          role="status"
+          aria-label="Loading chats"
+          className="flex flex-col gap-3.5"
+        >
+          <div className="px-3 pt-2.5">
+            <Skeleton className="w-14" />
+          </div>
+          {[62, 48, 70, 55, 40, 66].map((width) => (
+            <div
+              key={width}
+              className="flex items-center justify-between gap-4 rounded-[10px] border border-transparent p-3"
+            >
+              <Skeleton style={{ width: `${width}%` }} />
+              <Skeleton className="w-[52px]" />
+            </div>
+          ))}
+        </div>
         {deleteDialog}
       </div>
     );
@@ -97,18 +116,23 @@ export function ChatHistory({
   if (!items.length)
     return (
       <div className="contents">
-        <Empty className="h-80 flex-none border-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
+        <Empty className="flex-none gap-2 border-0 px-0 py-16 text-muted-foreground">
+          <EmptyHeader className="max-w-none gap-2">
+            <EmptyMedia
+              variant="icon"
+              className="mb-0 size-10 rounded-[10px] [&_svg:not([class*='size-'])]:size-5"
+            >
               <MessageSquareText aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>No chats yet</EmptyTitle>
-            <EmptyDescription>
+            <EmptyTitle className="text-base font-semibold text-foreground">
+              No chats yet
+            </EmptyTitle>
+            <EmptyDescription className="text-sm/normal">
               Start a new chat to ask Lexon about a contract, a regulation, or a
               case.
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
+          <EmptyContent className="mt-2">
             <Button nativeButton={false} render={<Link href="/workspace" />}>
               <Plus aria-hidden="true" data-icon="inline-start" />
               New chat
@@ -121,13 +145,17 @@ export function ChatHistory({
   const groups = groupChatsByDate(items);
   return (
     <div className="contents">
-      <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-col gap-5">
+      <div className="flex min-h-0 w-full flex-col gap-3.5">
         {groups.map((group) => (
-          <section key={group.label} aria-label={group.label}>
-            <h2 className="text-muted-foreground mb-2 px-3 text-sm font-medium">
+          <section
+            key={group.label}
+            aria-label={group.label}
+            className="flex flex-col gap-3.5"
+          >
+            <h2 className="text-muted-foreground px-3 pt-2.5 text-xs font-medium">
               {group.label}
             </h2>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-3.5">
               {group.items.map((item) => (
                 <li key={item.id}>
                   <ChatHistoryRow
@@ -194,9 +222,20 @@ export function RecentChats({
   if (query.isPending)
     return (
       <>
-        <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
-          Loading recent chats…
-        </p>
+        <div
+          role="status"
+          aria-label="Loading recent chats"
+          className="flex flex-col"
+        >
+          {[70, 55, 80, 62].map((width) => (
+            <div key={width} className="flex h-8 items-center px-2">
+              <Skeleton
+                className="bg-sidebar-accent"
+                style={{ width: `${width}%` }}
+              />
+            </div>
+          ))}
+        </div>
         {viewAll}
         {deleteDialog}
       </>
@@ -214,7 +253,7 @@ export function RecentChats({
   if (!query.data.items.length)
     return (
       <>
-        <p className="px-2.5 py-2 text-sm text-muted-foreground">
+        <p className="px-2 py-1 text-[13px] text-muted-foreground">
           No chats yet.
         </p>
         {/* Keep the child slots stable so an open delete dialog survives the list emptying. */}
@@ -321,23 +360,25 @@ function ChatHistoryRow({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   return (
-    <div className="flex min-h-12 min-w-0 items-center gap-4 px-3 py-2">
+    <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm font-medium hover:bg-muted focus-within:bg-muted">
       <Link
-        className="min-w-0 flex-1 truncate font-medium hover:underline"
+        className="min-w-0 flex-1 truncate after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
         href={`/chats/${item.id}`}
         aria-current={current ? 'page' : undefined}
       >
         {item.title}
       </Link>
-      <time className="text-muted-foreground shrink-0 text-xs">
-        {formatActivityDate(item.updatedAt)}
+      <time className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap group-hover/row:invisible group-focus-within/row:invisible">
+        {formatActivityDate(item.updatedAt, { yesterday: true })}
       </time>
-      <ChatHistoryActions
-        item={item}
-        triggerRef={triggerRef}
-        onRename={() => setRenaming(true)}
-        onDelete={() => onDelete(item)}
-      />
+      <div className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+        <ChatHistoryActions
+          item={item}
+          triggerRef={triggerRef}
+          onRename={() => setRenaming(true)}
+          onDelete={() => onDelete(item)}
+        />
+      </div>
       <ChatRenameDialog
         chat={item}
         client={client}
@@ -361,25 +402,6 @@ export function finishChatRename(
 ) {
   renameChatSearchResults(queryClient, scope, chatId, title);
   void queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) });
-}
-
-function formatActivityDate(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (day.getTime() === today.getTime())
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
-  if (day.getTime() === yesterday.getTime()) return 'Yesterday';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
 }
 
 export function ChatHistoryActions({

@@ -1,6 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { installChatFixtures, fileNames } from './chat-state-fixtures.js';
+import {
+  installChatFixtures,
+  installRunStreamFixture,
+  fileNames,
+  chatId,
+} from './chat-state-fixtures.js';
 import {
   brandFixedTime,
   captureBrandViews,
@@ -16,7 +21,9 @@ import {
   prepareIdentity,
   teamWorld,
 } from './brand-visual-world.js';
-import { calm, startChatStates } from './brand-visual-chat-support.js';
+import { calm, openThread } from './brand-visual-chat-support.js';
+import { startTeamChatStates } from './brand-visual-chats-settings-support.js';
+import { answerStart } from './brand-visual-chat-support.js';
 import { ayu, team, teamInvitations } from './prototype-fixtures.js';
 import {
   installTask9MemberOrderNormalization,
@@ -27,19 +34,21 @@ import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 // F4.1 visual set, chats and settings group: the Chats list, search, the
 // Settings dialog sections, and the saved-profile toast.
 
-/** Recent lists the six prototype chats; the chat API itself is mocked. */
-const recentChats = (page: Page) =>
-  installChatFixtures(
+/** The toast capture opens the Pasal 1320 thread; the chat API is mocked. */
+const recentChats = async (page: Page) => {
+  await installChatFixtures(
     page,
-    () => 'new-chat',
+    () => 'answer-complete',
     () => undefined,
   );
+  await installRunStreamFixture(page);
+};
 
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
-test('chats empty and loading lists', async ({ page }) => {
+test('chats empty and loading lists', async ({ page, playwright }) => {
   const stack = descriptor();
-  await prepareIdentity(page, { name: ayu.name }, ayu.jobTitle);
+  await teamWorld(page, playwright);
   await page.clock.setFixedTime(brandFixedTime);
 
   await page.goto(stack.frontendUrl + '/chats');
@@ -54,7 +63,7 @@ test('chats empty and loading lists', async ({ page }) => {
     await page.goto(stack.frontendUrl + '/chats');
     await list.started;
     await expect(
-      page.getByRole('status').filter({ hasText: 'Loading chats…' }),
+      page.getByRole('status', { name: 'Loading chats' }),
     ).toBeVisible();
     await captureBrandViews(page, 'chats-loading');
   } finally {
@@ -64,16 +73,26 @@ test('chats empty and loading lists', async ({ page }) => {
 
 test('Settings sections for the team owner', async ({ page, playwright }) => {
   test.setTimeout(230_000);
-  const { teamId } = await teamWorld(page, playwright);
-  await recentChats(page);
-  await gotoWorkspace(page, ayu.firstName);
+  const env = await startTeamChatStates(page, playwright);
+  const { teamId } = env;
+  const thread = `${env.stack.frontendUrl}/chats/${chatId}`;
 
   const settingsHooks = (link: string, ready: (page: Page) => Locator) => ({
     open: async (viewport: BrandViewport) => {
+      // The prototype shows Settings over the Pasal 1320 thread.
+      await openThread(
+        page,
+        env,
+        'answer-complete',
+        page.getByText(answerStart),
+      );
       await openUserMenu(page, viewport);
       await page.getByRole('menuitem', { name: /^Settings/ }).click();
       const dialog = page.getByRole('dialog', { name: 'Settings' });
       await expect(dialog).toBeVisible();
+      // On mobile the sheet opens on a section; Back shows the sections.
+      if (viewport === 'mobile' && link !== 'Profile')
+        await dialog.getByRole('button', { name: 'Back to sections' }).click();
       await dialog
         .getByRole('navigation', { name: 'Settings sections' })
         .getByRole('link', { name: link, exact: true })
@@ -113,9 +132,12 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
       });
     },
     close: async (viewport: BrandViewport) => {
-      await page.keyboard.press('Escape');
+      await page
+        .getByRole('dialog', { name: 'Settings' })
+        .getByRole('button', { name: 'Close settings' })
+        .click();
       await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
-      await expect(page).toHaveURL(/\/workspace$/);
+      await expect(page).toHaveURL(thread);
       await expectResting(page, viewport);
     },
   });
@@ -186,7 +208,7 @@ test('toast after a saved profile', async ({ page, playwright }) => {
   // The clock is paused (not raced) so the toast cannot time out: nothing
   // advances it except the small runFor steps below.
   await page.clock.install({ time: new Date(brandFixedTime) });
-  await page.goto(stack.frontendUrl + '/workspace?settings=profile');
+  await page.goto(`${stack.frontendUrl}/chats/${chatId}?settings=profile`);
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(dialog).toBeVisible();
   await expect(page.getByLabel('Job title')).toHaveValue('Senior Associate');
@@ -250,9 +272,10 @@ test('toast after a saved profile', async ({ page, playwright }) => {
 
 test('Chats history, search with highlights, and no results', async ({
   page,
+  playwright,
 }) => {
   test.setTimeout(300_000);
-  const env = await startChatStates(page);
+  const env = await startTeamChatStates(page, playwright);
   const openChats = async (state: string) => {
     env.state = state;
     await page.clock.setFixedTime(brandFixedTime);

@@ -202,3 +202,10 @@ test('toaster: top-right, 20px/24px offsets, 320px wide, radius 10px, padding 12
   has(document.body.querySelector('[data-sonner-toast]'), 'px-4!', 'py-3!', 'text-sm');
   vi.unstubAllGlobals();
 });
+
+test('the app mounts one Toaster, top right, in the root layout', async () => {
+  const layout = (await import('../src/app/layout.tsx?raw')).default;
+  expect(layout.match(/<Toaster\b/g)).toHaveLength(1);
+  const sonner = (await import('../src/components/ui/sonner.tsx?raw')).default;
+  expect(sonner).toContain('position="top-right"');
+});

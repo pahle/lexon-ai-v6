@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '@/components/shell/workspace-provider';
-import { PageHeader } from '@/components/shell/page-header';
+import { consumeRouteHeadingFocus } from '@/components/shell/navigation-focus';
 import { LoadingState } from '@/components/states/page-states';
 import { ChatHistory } from '@/components/chat/chat-history';
 import { ChatSearch } from '@/components/chat/chat-search';
@@ -23,6 +23,19 @@ export default function ChatsPage() {
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const [searching, setSearching] = useState(false);
   const mounted = useRef(true);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const pathname = usePathname();
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    if (consumeRouteHeadingFocus()) {
+      const timer = window.setTimeout(() => heading.current?.focus(), 0);
+      return () => window.clearTimeout(timer);
+    }
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    const timer = window.setTimeout(() => heading.current?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -47,17 +60,20 @@ export default function ChatsPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-1 flex-col gap-4">
-      <PageHeader
-        title="Chats"
-        showDivider={false}
-        actions={
-          <Button render={<Link href="/workspace" />}>
-            <Plus aria-hidden="true" data-icon="inline-start" />
-            New chat
-          </Button>
-        }
-      />
+    <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-3.5 px-6 py-7 max-md:px-4 max-md:py-5">
+      <header className="flex items-end justify-between gap-4">
+        <h1
+          ref={heading}
+          tabIndex={-1}
+          className="min-w-0 font-serif text-[32px] leading-tight font-normal tracking-[-0.005em] outline-none"
+        >
+          Chats
+        </h1>
+        <Button nativeButton={false} render={<Link href="/workspace" />}>
+          <Plus aria-hidden="true" data-icon="inline-start" />
+          New chat
+        </Button>
+      </header>
       <ChatSearch
         key={scopeKey}
         client={client}

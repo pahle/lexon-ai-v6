@@ -71,8 +71,8 @@ test('appearance selection stores and applies light and dark themes locally', as
       ?.getAttribute('aria-label'),
   ).toBe('System');
   const group = view.container.querySelector('[data-slot="radio-group"]');
-  expect(group?.className).toContain('max-w-[36rem]');
-  expect(group?.className).toContain('grid-cols-3');
+  // Prototype: three 180px cards in a row.
+  expect(group?.className).toContain('flex');
   expect(group?.className).toContain('gap-4');
   const previews = [
     ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
@@ -93,7 +93,7 @@ test('appearance selection stores and applies light and dark themes locally', as
     ).size,
   ).toBe(3);
   for (const preview of previews) {
-    expect(preview.className).toContain('h-28');
+    expect(preview.className).toContain('h-[110px]');
     expect(preview.className).toContain('border');
     expect(preview.parentElement?.className).not.toContain(
       'rounded-[var(--radius)] border',
@@ -167,7 +167,7 @@ test('system selection follows operating system changes and uses rectangular pre
   );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
-  expect(preview?.className).toContain('h-28');
+  expect(preview?.className).toContain('h-[110px]');
 });
 
 test('does not render a theme selection before the client mount', () => {

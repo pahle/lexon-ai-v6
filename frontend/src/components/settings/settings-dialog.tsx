@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../shell/workspace-provider';
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { SettingsNavigation } from './settings-navigation';
 import {
   getSettingsFinalFocusTarget,
@@ -28,6 +28,19 @@ import { Members } from '../organizations/members';
 import { Invitations } from '../organizations/invitations';
 import { OrganizationSettings } from '../organizations/organization-settings';
 
+/** The dialog has one fixed size whatever the section (LEX-DS-001 §5.5). */
+export const settingsDialogClass =
+  'flex h-[680px] w-[1000px] max-w-none flex-col gap-0 overflow-hidden rounded-[12px] border border-border p-0 ring-0 sm:max-w-none max-md:inset-0 max-md:top-0 max-md:left-0 max-md:h-dvh max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-0';
+
+const sectionNames: Record<string, string> = {
+  profile: 'Profile',
+  appearance: 'Appearance',
+  security: 'Security',
+  members: 'Members',
+  invitations: 'Invitations',
+  general: 'General',
+};
+
 export function SettingsDialog(): React.ReactElement | null {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -37,6 +50,8 @@ export function SettingsDialog(): React.ReactElement | null {
     new URLSearchParams(searchParams.toString()),
   );
   const opener = useRef<HTMLElement | null>(null);
+  // Mobile only: the sheet shows either the sections or one section.
+  const [showSections, setShowSections] = useState(false);
   const titleRef = useRef<HTMLHeadingElement | null>(null);
   const hasOpened = useRef(section !== null);
   if (section !== null) hasOpened.current = true;
@@ -107,6 +122,10 @@ export function SettingsDialog(): React.ReactElement | null {
     queryClient.removeQueries({ queryKey });
   }, [allowed, identity?.organization, queryClient, section]);
 
+  useEffect(() => {
+    if (section === null) setShowSections(false);
+  }, [section]);
+
   if (section === null && !hasOpened.current) return null;
 
   return (
@@ -127,11 +146,33 @@ export function SettingsDialog(): React.ReactElement | null {
             ),
           )
         }
-        className="flex h-[min(42.5rem,calc(100dvh-2rem))] w-full max-w-[1000px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1000px]"
+        className={settingsDialogClass}
       >
-        <DialogHeader className="shrink-0 flex-row items-center justify-between border-b px-5 py-3">
-          <DialogTitle ref={titleRef} tabIndex={-1} className="outline-none">
-            Settings
+        <DialogHeader className="h-14 shrink-0 flex-row items-center justify-between gap-2 border-b py-0 pr-4 pl-6 max-md:px-2">
+          {!showSections && section !== null && section !== 'invalid' ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to sections"
+              className="md:hidden"
+              onClick={() => setShowSections(true)}
+            >
+              <ArrowLeft aria-hidden="true" />
+            </Button>
+          ) : null}
+          <DialogTitle
+            ref={titleRef}
+            tabIndex={-1}
+            className="text-base font-semibold outline-none max-md:flex-1 max-md:text-center"
+          >
+            <span className={showSections ? '' : 'max-md:sr-only'}>
+              Settings
+            </span>
+            {!showSections && section ? (
+              <span aria-hidden="true" className="md:hidden">
+                {sectionNames[section] ?? ''}
+              </span>
+            ) : null}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Manage your account and workspace preferences.
@@ -145,9 +186,12 @@ export function SettingsDialog(): React.ReactElement | null {
             <X aria-hidden="true" />
           </Button>
         </DialogHeader>
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden min-[768px]:grid-cols-[15rem_minmax(0,1fr)]">
-          <aside className="overflow-y-auto border-b min-[768px]:border-r min-[768px]:border-b-0">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[15rem_minmax(0,1fr)]">
+          <aside
+            className={`overflow-y-auto bg-sidebar md:block md:border-r md:border-sidebar-border ${showSections ? '' : 'max-md:hidden'}`}
+          >
             <SettingsNavigation
+              onSelect={() => setShowSections(false)}
               section={section}
               recoveryOnly={
                 status === 'mfa-required' || !identity?.user.onboardingCompleted
@@ -160,7 +204,7 @@ export function SettingsDialog(): React.ReactElement | null {
                 ? 'Unavailable settings section'
                 : `${section} settings`
             }
-            className="min-h-0 overflow-y-auto px-8 py-6"
+            className={`min-h-0 overflow-y-auto px-8 py-7 max-md:px-4 max-md:py-5 ${showSections ? 'max-md:hidden' : ''}`}
           >
             {!allowed ? (
               <div className="flex min-h-40 flex-col items-start justify-center gap-3">

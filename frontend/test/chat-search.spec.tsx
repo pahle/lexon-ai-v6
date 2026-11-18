@@ -318,7 +318,9 @@ it('styles matched text with theme tokens', async () => {
   const mark = view.container.querySelector('mark');
   expect(mark?.textContent).toBe('wanprestasi');
   expect(mark?.className).toContain('bg-(--lexon-tint)');
-  expect(mark?.className).toContain('text-foreground');
+  // The prototype keeps the surrounding text color and has a dark tint.
+  expect(mark?.className).toContain('text-inherit');
+  expect(mark?.className).toContain('dark:bg-[#4A1E23]');
   await view.unmount();
 });
 

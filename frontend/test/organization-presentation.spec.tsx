@@ -207,9 +207,8 @@ test('member removal and invitation cancellation are named confirmations', async
   const remove = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Remove',
   )!;
-  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  expect(remove.classList.contains('border-border')).toBe(true);
-  expect(remove.classList.contains('bg-background')).toBe(true);
+  // A ghost trigger with explicit text (prototype row actions), not a red one.
+  expect(remove.className).toContain('text-muted-foreground');
   expect(remove.className).not.toContain('text-destructive');
   await act(async () => remove.click());
   expect(document.body.textContent).toContain(
@@ -227,8 +226,7 @@ test('member removal and invitation cancellation are named confirmations', async
     (button) => button.textContent?.trim() === 'Cancel',
   )!;
   // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  expect(cancelInvitation.classList.contains('border-border')).toBe(true);
-  expect(cancelInvitation.classList.contains('bg-background')).toBe(true);
+  expect(cancelInvitation.className).toContain('text-muted-foreground');
   expect(cancelInvitation.className).not.toContain('text-destructive');
   await act(async () => cancelInvitation.click());
   expect(document.body.textContent).toContain(
@@ -423,7 +421,7 @@ test('resending one invitation labels only that row pending and resets after fai
   await view.unmount();
 });
 
-test('invitation expiry copy points to each returned Expires date without a fixed duration', async () => {
+test('invitation rows print the 7-day copy and day-month-year expiry dates', async () => {
   presentationFixture.invitationItems = [
     {
       version: 1,
@@ -455,10 +453,10 @@ test('invitation expiry copy points to each returned Expires date without a fixe
       <Invitations organization={team} />
     </QueryClientProvider>,
   );
-  expect(view.container.textContent).not.toContain('7 days');
-  expect(view.container.textContent).toContain('Nov 15, 2026');
-  expect(view.container.textContent).toContain('Nov 22, 2026');
-  expect(view.container.textContent).toContain('Nov 15, 2026, 18:02');
+  // Prototype copy and format: "expires after 7 days", "Expires 15 Nov 2026".
+  expect(view.container.textContent).toContain('expires after 7 days');
+  expect(view.container.textContent).toContain('Expires 15 Nov 2026');
+  expect(view.container.textContent).toContain('Expires 22 Nov 2026');
   presentationFixture.invitationItems = null;
   await view.unmount();
 });

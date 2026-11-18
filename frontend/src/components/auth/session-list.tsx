@@ -46,7 +46,7 @@ export function SessionList({
       className="flex min-w-0 flex-col gap-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id="sessions-heading" className="text-sm font-medium">
+        <h3 id="sessions-heading" className="pt-5 text-sm font-semibold">
           Where you are signed in
         </h3>
         {hasOtherSessions && onSignOutOthers ? (

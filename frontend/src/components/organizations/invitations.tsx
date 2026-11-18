@@ -17,10 +17,12 @@ import {
   QueryFailure,
   useCursorPage,
 } from './page-state';
-import { FormInput } from '../auth/form-input';
-import { dateTimeFormatter } from '../../lib/date-time';
+import { Mail } from 'lucide-react';
+import { formatDayMonthYear } from '../../lib/date-time';
+import { Input } from '../ui/input';
+import { SettingsHeading } from '../settings/settings-section';
 import { Button } from '../ui/button';
-import { FieldGroup } from '../ui/field';
+import { FieldError } from '../ui/field';
 import {
   Table,
   TableBody,
@@ -150,71 +152,82 @@ export function Invitations({
   return (
     <section
       aria-labelledby="invitations-heading"
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-3"
     >
-      <header>
-        <h2 id="invitations-heading" className="font-serif text-xl">
-          Invitations
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Invite people by email. The Expires column shows each invitation’s
-          expiration date.
-        </p>
-      </header>
+      <SettingsHeading
+        id="invitations-heading"
+        title="Invitations"
+        description="Invite people by email. An invitation expires after 7 days."
+      />
       {failure && !cancelling ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       ) : null}
-      <form noValidate onSubmit={form.handleSubmit(sendInvitation)}>
-        <FieldGroup className="grid gap-3 min-[768px]:grid-cols-[minmax(0,1fr)_6rem_auto] min-[768px]:items-start">
-          <FormInput
-            label="Invitation email"
+      <form
+        noValidate
+        onSubmit={form.handleSubmit(sendInvitation)}
+        className="flex flex-col gap-1.5"
+      >
+        <div className="flex items-center gap-2 max-md:flex-wrap">
+          <Input
             type="email"
             autoComplete="email"
+            aria-label="Invitation email"
+            placeholder="name@firm.co.id"
             disabled={submission.pending}
-            registration={form.register('email')}
-            error={form.formState.errors.email}
+            aria-invalid={!!form.formState.errors.email}
+            aria-describedby={
+              form.formState.errors.email ? 'invitation-email-error' : undefined
+            }
+            className="flex-1 max-md:basis-full"
+            {...form.register('email')}
           />
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Role</span>
-            <Select
-              value={form.watch('role')}
-              onValueChange={(value) => {
-                if (value === 'member' || value === 'admin')
-                  form.setValue('role', value, { shouldDirty: true });
-              }}
-            >
-              <SelectTrigger
-                aria-label="Invitation role"
-                disabled={submission.pending}
-              >
-                <SelectValue>
-                  {form.watch('role') === 'admin' ? 'Admin' : 'Member'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="member">Member</SelectItem>
-                  {organization.role === 'owner' ? (
-                    <SelectItem value="admin">Admin</SelectItem>
-                  ) : null}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex justify-end pt-7">
-            <PendingButton
-              type="submit"
-              pending={submission.pending && pendingAction?.type === 'send'}
+          <Select
+            value={form.watch('role')}
+            onValueChange={(value) => {
+              if (value === 'member' || value === 'admin')
+                form.setValue('role', value, { shouldDirty: true });
+            }}
+          >
+            <SelectTrigger
+              aria-label="Invitation role"
               disabled={submission.pending}
-              pendingLabel="Sending…"
+              className="data-[size=default]:h-8 gap-1.5 px-3 text-sm font-medium"
             >
-              Send invitation
-            </PendingButton>
-          </div>
-        </FieldGroup>
+              <SelectValue>
+                {form.watch('role') === 'admin' ? 'Admin' : 'Member'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="member">Member</SelectItem>
+                {organization.role === 'owner' ? (
+                  <SelectItem value="admin">Admin</SelectItem>
+                ) : null}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <PendingButton
+            type="submit"
+            pending={submission.pending && pendingAction?.type === 'send'}
+            disabled={submission.pending}
+            pendingLabel="Sending…"
+          >
+            Send invitation
+          </PendingButton>
+        </div>
+        {form.formState.errors.email ? (
+          <FieldError id="invitation-email-error">
+            {form.formState.errors.email.message}
+          </FieldError>
+        ) : null}
       </form>
+      {rows.length > 0 ? (
+        <h3 className="pt-5 pb-1 text-base font-semibold">
+          Pending invitations
+        </h3>
+      ) : null}
       {invitations.error ? <QueryFailure error={invitations.error} /> : null}
       {!invitations.error && !invitations.data ? (
         <div
@@ -253,9 +266,9 @@ export function Invitations({
         </Empty>
       ) : null}
       {rows.length > 0 ? (
-        <div className="min-w-0 overflow-x-auto">
-          <Table className="min-w-[680px]">
-            <TableHeader>
+        <div className="min-w-0">
+          <Table className="w-full">
+            <TableHeader className="sr-only">
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
@@ -265,29 +278,61 @@ export function Invitations({
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="[&_tr:last-child]:border-b">
               {rows.map((invitation) => {
                 const actionable =
                   invitation.status === 'pending' ||
                   invitation.status === 'expired';
+                const role =
+                  invitation.role === 'admin'
+                    ? 'Admin'
+                    : invitation.role === 'owner'
+                      ? 'Owner'
+                      : 'Member';
+                const expiry = formatDayMonthYear(invitation.expiresAt);
                 return (
-                  <TableRow key={invitation.id}>
-                    <TableCell>{invitation.email}</TableCell>
-                    <TableCell>
-                      {invitation.role === 'admin'
-                        ? 'Admin'
-                        : invitation.role === 'owner'
-                          ? 'Owner'
-                          : 'Member'}
+                  <TableRow
+                    key={invitation.id}
+                    className="hover:bg-transparent"
+                  >
+                    <TableCell className="px-0 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-8 flex-none items-center justify-center rounded-lg bg-sidebar-accent"
+                        >
+                          <Mail className="size-4" />
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate font-medium">
+                            {invitation.email}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {role} ·{' '}
+                            <span
+                              className={
+                                invitation.status === 'expired'
+                                  ? 'text-lexon-red-text'
+                                  : ''
+                              }
+                            >
+                              {invitation.status === 'pending'
+                                ? `Expires ${expiry}`
+                                : invitation.status === 'expired'
+                                  ? `Expired ${expiry}`
+                                  : invitation.status}
+                            </span>
+                          </span>
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      {dateTimeFormatter.format(new Date(invitation.expiresAt))}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="w-px px-0 py-3 pl-3 text-right">
                       {actionable ? (
                         <div className="flex justify-end gap-2">
                           <PendingButton
                             variant="outline"
+                            size="sm"
+                            className="h-[30px] px-2.5 text-[13px]"
                             pending={
                               submission.pending &&
                               pendingAction?.type === 'resend' &&
@@ -318,7 +363,9 @@ export function Invitations({
                             Resend
                           </PendingButton>
                           <Button
-                            variant="outline"
+                            variant="ghost"
+                            size="sm"
+                            className="h-[30px] px-2.5 text-[13px] text-muted-foreground"
                             disabled={submission.pending}
                             onClick={() => {
                               setFailure('');
@@ -328,11 +375,7 @@ export function Invitations({
                             Cancel
                           </Button>
                         </div>
-                      ) : (
-                        <span className="capitalize text-muted-foreground">
-                          {invitation.status}
-                        </span>
-                      )}
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 );

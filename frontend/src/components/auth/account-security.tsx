@@ -20,6 +20,7 @@ import { AuthCard } from './auth-card';
 import { SessionBoundary } from './session-boundary';
 import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { SessionList } from './session-list';
+import { SettingsHeading } from '../settings/settings-section';
 import { RecoveryCodes } from './recovery-codes';
 import { FormInput } from './form-input';
 import { FieldGroup } from '../ui/field';
@@ -130,18 +131,13 @@ export function AccountSecurity() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <section
-        aria-labelledby="security-heading"
-        className="flex flex-col gap-4"
-      >
-        <div>
-          <h2 id="security-heading" className="font-serif text-xl">
-            Security
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Manage sign-in methods and active sessions.
-          </p>
-        </div>
+      <section aria-labelledby="security-heading" className="flex flex-col">
+        <SettingsHeading
+          id="security-heading"
+          title="Security"
+          description="Manage sign-in methods and active sessions."
+          className="mb-3"
+        />
         <SecurityRow
           title="Password"
           description="Change the password you use to sign in."
@@ -156,11 +152,11 @@ export function AccountSecurity() {
         />
         <div
           data-slot="security-row"
-          className="flex flex-wrap items-center justify-between gap-3 py-4"
+          className="flex items-center justify-between gap-6 border-b border-border py-4"
         >
           <div className="min-w-0">
             <h3 className="text-sm font-medium">Two-factor authentication</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
               <Badge
                 variant={
                   security.data.twoFactorEnabled ? 'secondary' : 'outline'
@@ -294,11 +290,13 @@ function SecurityRow({
   return (
     <div
       data-slot="security-row"
-      className="flex flex-wrap items-center justify-between gap-3 border-b py-4"
+      className="flex items-center justify-between gap-6 border-b border-border py-4"
     >
       <div className="min-w-0">
         <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          {description}
+        </p>
       </div>
       <Button variant="outline" onClick={onAction}>
         {action}

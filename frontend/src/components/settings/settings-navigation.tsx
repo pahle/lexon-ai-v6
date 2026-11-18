@@ -3,17 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useWorkspace } from '../shell/workspace-provider';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from '../ui/sidebar';
 import { settingsHref, type SettingsSection } from './settings-url';
 
 const accountSections: { id: SettingsSection; label: string }[] = [
@@ -25,9 +14,11 @@ const accountSections: { id: SettingsSection; label: string }[] = [
 export function SettingsNavigation({
   section,
   recoveryOnly = false,
+  onSelect,
 }: {
   section: SettingsSection | 'invalid' | null;
   recoveryOnly?: boolean;
+  onSelect?: () => void;
 }) {
   const router = useRouter();
   const pathname = usePathname() ?? '/workspace';
@@ -63,43 +54,31 @@ export function SettingsNavigation({
       return;
     }
     event.preventDefault();
+    onSelect?.();
     router.replace(settingsHref(window.location.href, id), { scroll: false });
   };
 
   return (
     <nav
       aria-label="Settings sections"
-      className="h-full min-w-0 max-[767px]:h-auto"
+      className="flex h-full min-w-0 flex-col gap-0.5 bg-sidebar p-3 max-md:h-auto"
     >
-      <SidebarProvider
-        defaultOpen
-        style={{ '--sidebar-width': '15rem' } as React.CSSProperties}
-        className="h-full min-h-0 min-w-0 flex-1 items-start max-[767px]:h-auto"
-      >
-        <Sidebar
-          collapsible="none"
-          className="h-full max-[767px]:h-auto max-[767px]:w-full max-[767px]:border-b"
-        >
-          <SidebarContent className="max-[767px]:overflow-visible">
-            <SettingsGroup
-              title="Account"
-              items={accountItems}
-              section={section}
-              pathname={pathname}
-              onNavigate={navigate}
-            />
-            {team ? (
-              <SettingsGroup
-                title={identity.organization.name}
-                items={organizationSections}
-                section={section}
-                pathname={pathname}
-                onNavigate={navigate}
-              />
-            ) : null}
-          </SidebarContent>
-        </Sidebar>
-      </SidebarProvider>
+      <SettingsGroup
+        title="Account"
+        items={accountItems}
+        section={section}
+        pathname={pathname}
+        onNavigate={navigate}
+      />
+      {team ? (
+        <SettingsGroup
+          title={identity.organization.name}
+          items={organizationSections}
+          section={section}
+          pathname={pathname}
+          onNavigate={navigate}
+        />
+      ) : null}
     </nav>
   );
 }
@@ -121,35 +100,30 @@ function SettingsGroup({
   ) => void;
 }) {
   return (
-    <SidebarGroup className="py-2">
-      <SidebarGroupLabel className="text-muted-foreground">
+    <>
+      <div
+        data-slot="settings-group-label"
+        className="px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground"
+      >
         {title}
-      </SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map(({ id, label }) => (
-            <SidebarMenuItem key={id}>
-              <SidebarMenuButton
-                render={
-                  <Link
-                    href={settingsHref(
-                      typeof window === 'undefined'
-                        ? pathname + '?settings=' + id
-                        : window.location.href,
-                      id,
-                    )}
-                    aria-current={section === id ? 'page' : undefined}
-                    onClick={(event) => onNavigate(event, id)}
-                  />
-                }
-                isActive={section === id}
-              >
-                {label}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+      </div>
+      {items.map(({ id, label }) => (
+        <Link
+          key={id}
+          data-slot="settings-nav-link"
+          href={settingsHref(
+            typeof window === 'undefined'
+              ? pathname + '?settings=' + id
+              : window.location.href,
+            id,
+          )}
+          aria-current={section === id ? 'page' : undefined}
+          onClick={(event) => onNavigate(event, id)}
+          className="flex h-8 w-full items-center truncate rounded-md px-2 text-sm outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
+        >
+          {label}
+        </Link>
+      ))}
+    </>
   );
 }

@@ -15,7 +15,11 @@ import {
   QueryFailure,
   useCursorPage,
 } from './page-state';
+import { Plus } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { initials } from '../../lib/initials';
+import { SettingsHeading } from '../settings/settings-section';
 import {
   Table,
   TableBody,
@@ -171,15 +175,24 @@ export function Members({
   };
 
   return (
-    <section aria-labelledby="members-heading" className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="members-heading" className="font-serif text-xl">
-          Members
-        </h2>
-        {canInvite ? (
-          <Button onClick={goToInvitations}>Invite people</Button>
-        ) : null}
-      </header>
+    <section aria-labelledby="members-heading" className="flex flex-col gap-3">
+      <SettingsHeading
+        id="members-heading"
+        title="Members"
+        description={
+          members.data
+            ? `${rows.length} ${rows.length === 1 ? 'member' : 'members'} in ${organization.name}.`
+            : undefined
+        }
+        action={
+          canInvite ? (
+            <Button onClick={goToInvitations}>
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              Invite people
+            </Button>
+          ) : undefined
+        }
+      />
       {failure && !removing && !confirmLeave ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
@@ -218,9 +231,9 @@ export function Members({
         </Empty>
       ) : null}
       {rows.length > 0 ? (
-        <div className="min-w-0 overflow-x-auto">
-          <Table className="min-w-[620px]">
-            <TableHeader>
+        <div className="min-w-0">
+          <Table className="w-full">
+            <TableHeader className="sr-only">
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
@@ -232,7 +245,7 @@ export function Members({
                 ) : null}
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="[&_tr:last-child]:border-b">
               {rows.map((member) => {
                 const currentUser = member.userId === currentUserId;
                 const manageable =
@@ -244,17 +257,40 @@ export function Members({
                   (organization.role === 'owner' ||
                     (organization.role === 'admin' &&
                       member.role === 'member'));
+                const roleLabel =
+                  member.role === 'owner'
+                    ? 'Owner'
+                    : member.role === 'admin'
+                      ? 'Admin'
+                      : 'Member';
                 return (
                   <TableRow
                     key={member.id}
                     data-testid={'member-' + member.userId}
+                    className="hover:bg-transparent"
                   >
-                    <TableCell className="font-medium">
-                      {member.name}
-                      {member.userId === identity?.user.id ? ' (you)' : ''}
+                    <TableCell className="px-0 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-8 flex-none items-center justify-center rounded-lg bg-sidebar-accent text-xs font-semibold"
+                        >
+                          {initials(member.name)}
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate font-medium">
+                            {member.name}
+                            {member.userId === identity?.user.id
+                              ? ' (you)'
+                              : ''}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground max-md:max-w-[170px]">
+                            {member.email}
+                          </span>
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>
+                    <TableCell className="w-px px-0 py-3 pl-3">
                       {manageable ? (
                         <Select
                           value={member.role}
@@ -265,14 +301,9 @@ export function Members({
                           <SelectTrigger
                             aria-label={'Role for ' + member.name}
                             disabled={submission.pending}
+                            className="data-[size=default]:h-[30px] gap-1 rounded-lg px-2.5 text-[13px] font-medium"
                           >
-                            <SelectValue>
-                              {member.role === 'owner'
-                                ? 'Owner'
-                                : member.role === 'admin'
-                                  ? 'Admin'
-                                  : 'Member'}
-                            </SelectValue>
+                            <SelectValue>{roleLabel}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
@@ -297,16 +328,18 @@ export function Members({
                           </SelectContent>
                         </Select>
                       ) : (
-                        member.role.charAt(0).toUpperCase() +
-                        member.role.slice(1)
+                        <Badge variant="outline" className="border-input">
+                          {roleLabel}
+                        </Badge>
                       )}
                     </TableCell>
                     {canManageRoles ? (
-                      <TableCell className="text-right">
+                      <TableCell className="w-px px-0 py-3 pl-3 text-right">
                         {removable ? (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
+                            className="text-muted-foreground"
                             disabled={submission.pending}
                             onClick={() => {
                               setFailure('');

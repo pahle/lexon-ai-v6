@@ -5,9 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DisplayNameSchema, JOB_TITLE_MAX_LENGTH } from '@lexon/contracts';
+import {
+  SettingsField,
+  SettingsHeading,
+  settingsDescriptionClass,
+  settingsLabelClass,
+} from './settings-section';
 import { useWorkspace } from '../shell/workspace-provider';
 import {
-  Field,
   FieldContent,
   FieldDescription,
   FieldError,
@@ -50,12 +55,12 @@ export function ProfileSettings(): React.ReactElement {
   if (!identity) return <p role="status">Loading profile…</p>;
 
   return (
-    <section aria-labelledby="profile-heading" className="flex flex-col gap-5">
-      <header>
-        <h2 id="profile-heading" className="font-serif text-xl">
-          Profile
-        </h2>
-      </header>
+    <section aria-labelledby="profile-heading" className="flex flex-col gap-3">
+      <SettingsHeading
+        id="profile-heading"
+        title="Profile"
+        description="How you appear to people in your organizations."
+      />
       <form
         noValidate
         onSubmit={form.handleSubmit((input) =>
@@ -74,7 +79,7 @@ export function ProfileSettings(): React.ReactElement {
           }),
         )}
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3">
           {failure ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to save your profile</AlertTitle>
@@ -82,20 +87,19 @@ export function ProfileSettings(): React.ReactElement {
             </Alert>
           ) : null}
           <FieldGroup className="gap-0">
-            <Field
-              orientation="responsive"
-              data-invalid={Boolean(form.formState.errors.name)}
-              className="border-b py-4 first:pt-0"
-            >
-              <FieldContent>
-                <FieldLabel htmlFor="profile-display-name">
+            <SettingsField data-invalid={Boolean(form.formState.errors.name)}>
+              <FieldContent className="gap-0">
+                <FieldLabel
+                  htmlFor="profile-display-name"
+                  className={settingsLabelClass}
+                >
                   Display name
                 </FieldLabel>
-                <FieldDescription>
+                <FieldDescription className={settingsDescriptionClass}>
                   How people in your organizations see you.
                 </FieldDescription>
               </FieldContent>
-              <FieldContent className="md:items-end md:text-right">
+              <FieldContent className="flex-none gap-1 md:items-end md:text-right">
                 <Input
                   id="profile-display-name"
                   autoComplete="name"
@@ -105,7 +109,7 @@ export function ProfileSettings(): React.ReactElement {
                       ? 'profile-display-name-error'
                       : undefined
                   }
-                  className="w-full md:max-w-[17.5rem]"
+                  className="w-full md:w-[280px] md:max-w-[280px]"
                   {...form.register('name')}
                 />
                 {form.formState.errors.name ? (
@@ -114,19 +118,22 @@ export function ProfileSettings(): React.ReactElement {
                   </FieldError>
                 ) : null}
               </FieldContent>
-            </Field>
-            <Field
-              orientation="responsive"
+            </SettingsField>
+            <SettingsField
               data-invalid={Boolean(form.formState.errors.jobTitle)}
-              className="border-b py-4"
             >
-              <FieldContent>
-                <FieldLabel htmlFor="profile-job-title">Job title</FieldLabel>
-                <FieldDescription>
+              <FieldContent className="gap-0">
+                <FieldLabel
+                  htmlFor="profile-job-title"
+                  className={settingsLabelClass}
+                >
+                  Job title
+                </FieldLabel>
+                <FieldDescription className={settingsDescriptionClass}>
                   Shown under your name in the sidebar.
                 </FieldDescription>
               </FieldContent>
-              <FieldContent className="md:items-end md:text-right">
+              <FieldContent className="flex-none gap-1 md:items-end md:text-right">
                 <Input
                   id="profile-job-title"
                   autoComplete="organization-title"
@@ -136,7 +143,7 @@ export function ProfileSettings(): React.ReactElement {
                       ? 'profile-job-title-error'
                       : undefined
                   }
-                  className="w-full md:max-w-[17.5rem]"
+                  className="w-full md:w-[280px] md:max-w-[280px]"
                   {...form.register('jobTitle')}
                 />
                 {form.formState.errors.jobTitle ? (
@@ -145,22 +152,22 @@ export function ProfileSettings(): React.ReactElement {
                   </FieldError>
                 ) : null}
               </FieldContent>
-            </Field>
-            <Field orientation="responsive" className="border-b py-4">
-              <FieldContent>
-                <FieldTitle>Email</FieldTitle>
-                <FieldDescription>
+            </SettingsField>
+            <SettingsField>
+              <FieldContent className="gap-0">
+                <FieldTitle className={settingsLabelClass}>Email</FieldTitle>
+                <FieldDescription className={settingsDescriptionClass}>
                   Used to sign in. Change it in Security.
                 </FieldDescription>
               </FieldContent>
-              <FieldContent className="md:items-end md:text-right">
-                <p className="min-w-0 break-words text-sm">
+              <FieldContent className="flex-none gap-1 md:items-end md:text-right">
+                <p className="min-w-0 text-sm break-words text-muted-foreground">
                   {identity.user.email}
                 </p>
               </FieldContent>
-            </Field>
+            </SettingsField>
           </FieldGroup>
-          <div className="flex justify-end">
+          <div className="mt-1 flex justify-end">
             <PendingButton
               type="submit"
               pending={submission.pending}

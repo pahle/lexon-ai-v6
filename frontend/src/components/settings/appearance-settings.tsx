@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { SettingsHeading } from './settings-section';
 
 const themes = [
   { value: 'light', label: 'Light' },
@@ -22,12 +23,12 @@ function PreviewPane({
     <span
       aria-hidden="true"
       data-preview-theme={theme}
-      className={`flex min-w-0 gap-1.5 bg-[var(--background)] p-2 ${className}`}
+      className={`flex min-w-0 ${className}`}
     >
-      <span className="w-1/4 shrink-0 rounded-sm bg-[var(--muted)]" />
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1">
-        <span className="h-1.5 w-4/5 rounded bg-[var(--border)]" />
-        <span className="h-1.5 w-full rounded bg-[var(--border)]" />
+      <span className="flex-1 bg-[var(--sidebar)]" />
+      <span className="flex flex-[2] flex-col gap-1.5 bg-[var(--background)] p-3">
+        <span className="h-2 w-3/5 rounded-[4px] bg-[var(--input)]" />
+        <span className="h-2 w-4/5 rounded-[4px] bg-[var(--input)]" />
       </span>
     </span>
   );
@@ -43,20 +44,17 @@ export function AppearanceSettings(): React.ReactElement {
   if (!mounted) return <div aria-hidden="true" className="min-h-32" />;
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 id={headingId} className="font-serif text-xl">
-          Appearance
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Choose how Lexon looks on this device.
-        </p>
-      </div>
+    <section aria-labelledby={headingId} className="flex flex-col gap-5">
+      <SettingsHeading
+        id={headingId}
+        title="Appearance"
+        description="Choose how Lexon looks on this device."
+      />
       <RadioGroup
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="w-full max-w-[36rem] grid-cols-3 gap-4"
+        className="flex w-full gap-4"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -65,14 +63,14 @@ export function AppearanceSettings(): React.ReactElement {
               key={value}
               htmlFor={id}
               data-slot="appearance-option"
-              className="relative flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-[var(--radius)] outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background"
+              className="relative flex w-[180px] min-w-0 cursor-pointer flex-col gap-2 rounded-[10px] outline-none max-md:w-auto max-md:flex-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background"
             >
               <div
                 aria-hidden="true"
                 data-slot="appearance-preview"
                 data-theme-preview={value}
                 data-selected={theme === value}
-                className="flex h-28 w-full min-w-0 overflow-hidden rounded-[var(--radius)] border border-border bg-muted data-[selected=true]:border-2 data-[selected=true]:border-primary"
+                className="flex h-[110px] w-full min-w-0 overflow-hidden rounded-[10px] border border-input data-[selected=true]:border-2 data-[selected=true]:border-ring"
               >
                 {value === 'system' ? (
                   <>
@@ -89,7 +87,7 @@ export function AppearanceSettings(): React.ReactElement {
                 aria-label={label}
                 className="absolute inset-0 size-full opacity-0 after:hidden"
               />
-              <span className="text-sm">{label}</span>
+              <span className="text-sm font-medium">{label}</span>
             </Label>
           );
         })}

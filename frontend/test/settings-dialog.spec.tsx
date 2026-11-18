@@ -307,7 +307,9 @@ test.each(['invitations', 'general'] as const)(
     expect(document.body.textContent).toContain(
       'You do not have access to this section.',
     );
-    expect(document.body.textContent).not.toContain('Invitation email');
+    expect(
+      document.body.querySelector('[aria-label="Invitation email"]'),
+    ).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
     await view.unmount();
     vi.unstubAllGlobals();
@@ -368,7 +370,9 @@ test('organization navigation updates owner, admin, and member links and content
       <SettingsDialog />
     </QueryClientProvider>,
   );
-  expect(document.body.textContent).toContain('Invitation email');
+  expect(
+    document.body.querySelector('[aria-label="Invitation email"]'),
+  ).not.toBeNull();
   const adminLinks = [
     ...document.body.querySelectorAll('nav[aria-label="Settings sections"] a'),
   ].map((link) => link.textContent);
@@ -660,7 +664,7 @@ test('the no-access state and the navigation use the new title and group styling
   );
   expect(title?.className).toContain('font-serif');
   const labels = [
-    ...document.body.querySelectorAll('[data-slot="sidebar-group-label"]'),
+    ...document.body.querySelectorAll('[data-slot="settings-group-label"]'),
   ];
   expect(labels.length).toBeGreaterThan(0);
   expect(new Set(labels.map((label) => label.textContent))).toEqual(
@@ -697,9 +701,41 @@ test('team navigation groups are Account and the team name', async () => {
   const view = await render(<SettingsNavigation section="profile" />);
   expect(
     [
-      ...view.container.querySelectorAll('[data-slot="sidebar-group-label"]'),
+      ...view.container.querySelectorAll('[data-slot="settings-group-label"]'),
     ].map((label) => label.textContent),
   ).toEqual(['Account', 'Hukum Nusantara']);
   await view.unmount();
   vi.unstubAllGlobals();
+});
+
+test('the Settings dialog has the same fixed 1000x680 size for every section', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const classes: string[] = [];
+  for (const section of ['profile', 'appearance', 'unknown']) {
+    locationState.search = '?settings=' + section;
+    const view = await renderWithQuery(<SettingsDialog />);
+    await settle();
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog, section).not.toBeNull();
+    classes.push(dialog!.className);
+    await view.unmount();
+  }
+  expect(new Set(classes).size).toBe(1);
+  for (const token of ['h-[680px]', 'w-[1000px]', 'rounded-[12px]'])
+    expect(classes[0]).toContain(token);
+  expect(classes[0]).not.toContain('min-h');
+  expect(classes[0]).not.toContain('h-[min(');
+  vi.unstubAllGlobals();
+});
+
+test('the Settings dialog is a full-screen sheet with a back button on mobile', async () => {
+  const { settingsDialogClass } =
+    await import('../src/components/settings/settings-dialog');
+  expect(settingsDialogClass).toContain('max-md:h-dvh');
+  expect(settingsDialogClass).toContain('max-md:w-full');
+  expect(settingsDialogClass).toContain('max-md:rounded-none');
 });
