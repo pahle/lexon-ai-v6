@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14, approved 2026-11-18) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.3, approved 2026-11-18) |
 
 ## Rationale
 
@@ -479,7 +479,7 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   22px digits; the active slot has the focus ring.
 - Invitation card: 1px `border`, radius 12px, padding 16px; organization tile
   40px; details as a two-column list (labels `muted-foreground`).
-- Onboarding steps: 28×4px bars, the done ones `foreground`, "Step N of 2"
+- Onboarding steps: 28×4px bars, the done ones `foreground`, "Step N of 3"
   13px.
 
 **Status pages** (not found, organization not found, workspace error, no access)
