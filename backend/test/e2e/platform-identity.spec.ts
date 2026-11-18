@@ -444,7 +444,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('link', { name: 'Provisioned team', exact: true })
       .click();
-    await expect(page.getByText('provisioning', { exact: true })).toBeVisible();
+    await expect(
+      page.locator('[data-slot="badge"]', { hasText: 'Provisioning' }),
+    ).toBeVisible();
     markOperatorStage('provisioned detail opened');
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {

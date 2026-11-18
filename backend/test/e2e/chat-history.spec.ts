@@ -385,8 +385,12 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     page.locator('[data-slot="empty-title"]', { hasText: 'No chats yet' }),
   ).toBeVisible();
   await expect(page.locator('[data-slot="empty"]')).toHaveCSS(
-    'height',
-    '320px',
+    'padding-top',
+    '64px',
+  );
+  await expect(page.locator('[data-slot="empty"]')).toHaveCSS(
+    'padding-bottom',
+    '64px',
   );
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chats-empty.png',

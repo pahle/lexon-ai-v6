@@ -215,6 +215,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(stack.frontendUrl + '/workspace');
+  console.log('[shell-375 stage] opened sidebar first time');
   const open = page.getByRole('button', { name: 'Open navigation' });
   await open.click();
   const dialog = page.getByRole('dialog', { name: 'Sidebar' });
@@ -234,6 +235,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await dialog
     .getByRole('button', { name: 'Close navigation', exact: true })
     .click();
+  console.log('[shell-375 stage] closed via button');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
@@ -257,6 +259,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       dialog.evaluate((element) => element.contains(document.activeElement)),
     )
     .toBe(true);
+  console.log('[shell-375 stage] reopened, before organization popup');
   const mobileOrganization = dialog.getByRole('button', {
     name: 'Organization: Personal',
   });
@@ -288,6 +291,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       dialog.evaluate((element) => element.contains(document.activeElement)),
     )
     .toBe(true);
+  console.log('[shell-375 stage] after organization Escape, before user menu');
   const mobileUser = dialog.locator(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
   );
@@ -309,6 +313,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
+  console.log('[shell-375 stage] settings navigation reached');
   const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(settingsDialog).toBeVisible();
   await expect
@@ -325,6 +330,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
         .map((animation) => animation.finished.catch(() => undefined)),
     );
   });
+  console.log('[shell-375 stage] first settings closed');
   await page.keyboard.press('Escape');
   await expect(settingsDialog).toBeHidden();
   await expect(open).toBeFocused();
@@ -352,6 +358,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  console.log('[shell-375 stage] before viewport boundary checks');
   await page.setViewportSize({ width: 767, height: 900 });
   await expect(
     page.getByRole('button', { name: 'Open navigation' }),

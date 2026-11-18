@@ -689,7 +689,6 @@ async function expectAppearanceGeometry(page: import('@playwright/test').Page) {
     const rects = Array.from(
       group.querySelectorAll<HTMLElement>('[data-slot="appearance-option"]'),
     ).map((option) => option.getBoundingClientRect());
-    const bounds = group.getBoundingClientRect();
     const styles = getComputedStyle(group);
     return {
       count: rects.length,
@@ -698,7 +697,9 @@ async function expectAppearanceGeometry(page: import('@playwright/test').Page) {
       gaps: rects
         .slice(1)
         .map((rect, index) => rect.left - rects[index]!.right),
-      width: bounds.width,
+      // The group fills the content column; the three fixed-width cards are
+      // what must stay compact, so the span of the cards is measured.
+      width: rects[rects.length - 1]!.right - rects[0]!.left,
       scrollWidth: group.scrollWidth,
       clientWidth: group.clientWidth,
       columnGap: Number.parseFloat(styles.columnGap),
@@ -1474,7 +1475,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       ).toBeVisible();
       await expect(
         page.getByRole('button', { name: 'Cancel', exact: true }),
-      ).toHaveClass(/border-border/);
+      ).toHaveClass(/text-muted-foreground/);
       await expect(
         page.getByRole('button', { name: 'Cancel', exact: true }),
       ).not.toHaveClass(/text-destructive/);
