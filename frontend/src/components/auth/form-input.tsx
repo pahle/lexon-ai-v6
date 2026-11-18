@@ -56,7 +56,7 @@ export function FormInput({
   return (
     <Field data-invalid={!!error}>
       {labelAside ? (
-        <div className="flex items-center">
+        <div className="flex h-[17px] items-center">
           <FieldLabel htmlFor={id} className="leading-[1.21]">
             {label}
           </FieldLabel>
@@ -98,12 +98,14 @@ export function FormInput({
         <Input {...inputProps} className={authInputClass} />
       )}
       {hint && !error ? (
-        <span className="text-[13px] text-muted-foreground">{hint}</span>
+        <span className="text-[13px] leading-4 text-muted-foreground">
+          {hint}
+        </span>
       ) : null}
       {error ? (
         <FieldError
           id={id + '-error'}
-          className="text-[13px] text-lexon-red-text"
+          className="text-[13px] leading-4 text-lexon-red-text"
         >
           {error.message}
         </FieldError>

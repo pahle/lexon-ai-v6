@@ -57,7 +57,7 @@ export function AuthAlert({
 }
 
 export const authLinkClass =
-  'inline-flex items-center justify-center gap-2 self-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4 [&_svg]:shrink-0';
+  'inline-flex items-center justify-center gap-2 self-center rounded-lg px-2.5 py-1.5 text-sm leading-[1.21] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4 [&_svg]:shrink-0';
 
 // Secondary link: 14px weight 500 muted-foreground, 16px icon, centered.
 export function AuthLink({
@@ -105,7 +105,7 @@ export function AuthSteps({
           )}
         />
       ))}
-      <span className="ml-1.5 text-[13px] text-muted-foreground">
+      <span className="ml-1.5 text-[13px] leading-4 text-muted-foreground">
         Step {step} of {total}
       </span>
     </div>

@@ -78,7 +78,12 @@ export function AuthenticationCodeForm({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={!!fieldState.error}>
-                <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                <FieldLabel
+                  htmlFor={id}
+                  className={auth ? 'leading-[1.21]' : ''}
+                >
+                  {label}
+                </FieldLabel>
                 <InputOTP
                   {...field}
                   containerClassName={auth ? 'w-full' : ''}

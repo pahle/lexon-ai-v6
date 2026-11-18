@@ -119,7 +119,7 @@ export function LoginForm({
           labelAside={
             <a
               href="/forgot-password"
-              className="ml-auto text-[13px] font-normal text-foreground underline underline-offset-4"
+              className="ml-auto text-[13px] leading-[1.2] font-normal text-foreground underline underline-offset-4"
             >
               Forgot password?
             </a>
@@ -144,7 +144,7 @@ export function LoginForm({
           </PendingButton>
         </Field>
         <Field>
-          <FieldDescription className="text-center text-sm text-muted-foreground [&>a]:text-foreground">
+          <FieldDescription className="text-center text-sm leading-[1.21] text-muted-foreground [&>a]:text-foreground">
             New to Lexon? <a href={signup}>Create an account</a>
           </FieldDescription>
         </Field>

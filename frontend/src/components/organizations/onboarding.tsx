@@ -9,6 +9,7 @@ import {
   type SafeProfile,
   type InvitationSummary,
 } from '@lexon/contracts';
+import { initials } from '../../lib/initials';
 import { AuthCard } from '../auth/auth-card';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup } from '../ui/field';
@@ -169,7 +170,7 @@ function PendingInvitations({
                   aria-hidden="true"
                   className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-primary text-xs font-semibold tracking-wide text-sidebar-primary-foreground"
                 >
-                  {invitation.organizationName.slice(0, 2).toUpperCase()}
+                  {initials(invitation.organizationName)}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
                   <span className="truncate font-medium">
@@ -187,7 +188,7 @@ function PendingInvitations({
             </li>
           ))}
       </ul>
-      {pagination}
+      <div className="hidden has-[button]:block">{pagination}</div>
     </>
   );
 }

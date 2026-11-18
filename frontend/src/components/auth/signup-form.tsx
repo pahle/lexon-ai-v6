@@ -127,7 +127,7 @@ export function SignupForm({
           </PendingButton>
         </Field>
         <Field>
-          <FieldDescription className="text-center text-sm text-muted-foreground [&>a]:text-foreground">
+          <FieldDescription className="text-center text-sm leading-[1.21] text-muted-foreground [&>a]:text-foreground">
             Already have an account?{' '}
             <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>
               Sign in
