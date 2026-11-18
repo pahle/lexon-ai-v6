@@ -880,7 +880,7 @@ const ThreadEditComposer: FC<{
         <ComposerPrimitive.Send
           render={
             <Button
-              aria-label="Send edit"
+              aria-label="Save"
               disabled={serverActive}
               onClick={validateAndArmEdit}
             >

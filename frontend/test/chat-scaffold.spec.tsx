@@ -620,7 +620,7 @@ it('preserves the regenerated assistant sibling across canonical active and term
       editInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
     const sendEdit = view.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Send edit"]',
+      '[aria-label="Save"]',
     );
     if (!sendEdit) throw new Error('The send edit control is missing.');
     await act(async () => sendEdit.click());
@@ -933,7 +933,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
       editInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
     const sendEdit = view.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Send edit"]',
+      '[aria-label="Save"]',
     );
     if (!sendEdit) throw new Error('The send edit control is missing.');
     await act(async () => sendEdit.click());

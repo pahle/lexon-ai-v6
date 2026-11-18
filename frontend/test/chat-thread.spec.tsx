@@ -259,7 +259,7 @@ it('locks send, an already-open edit, and regeneration when an off-branch run ap
       '[aria-label="Send message"]',
     );
     const sendEdit = view.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Send edit"]',
+      '[aria-label="Save"]',
     );
     const regenerate = view.container.querySelector<HTMLButtonElement>(
       '[aria-label="Regenerate answer"]',
@@ -791,7 +791,7 @@ it('does not create a duplicate per-thread title invalidation subscription', asy
   }
 });
 
-it('renders the edit submit as Save after Cancel with accessible name Send edit', async () => {
+it('renders the edit submit as Save after Cancel with accessible name Save', async () => {
   const chatId = '11111111-1111-4111-8111-111111111111';
   const userMessageId = '22222222-2222-4222-8222-222222222222';
   const answerId = '33333333-3333-4333-8333-333333333333';
@@ -852,14 +852,14 @@ it('renders the edit submit as Save after Cancel with accessible name Send edit'
       '[aria-label="Cancel edit"]',
     );
     const sendEdit = view.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Send edit"]',
+      '[aria-label="Save"]',
     );
     expect(cancel).not.toBeNull();
     expect(sendEdit).not.toBeNull();
     if (!cancel || !sendEdit) return;
     expect(cancel.textContent).toContain('Cancel');
     expect(sendEdit.tagName).toBe('BUTTON');
-    expect(sendEdit.getAttribute('aria-label')).toBe('Send edit');
+    expect(sendEdit.getAttribute('aria-label')).toBe('Save');
     expect(sendEdit.textContent?.trim()).toBe('Save');
     expect(sendEdit.hidden).toBe(false);
     expect(
@@ -1063,7 +1063,7 @@ it('renders a persisted answer through the proven runtime and saves feedback aga
       view.container.querySelector('[aria-label="Edit message input"]'),
     ).not.toBeNull();
     expect(
-      view.container.querySelector('[aria-label="Send edit"]'),
+      view.container.querySelector('[aria-label="Save"]'),
     ).not.toBeNull();
     expect(
       view.container.querySelector('[aria-label="Send message"]'),
@@ -2096,7 +2096,7 @@ it('keeps the edit controls inside the bubble and dims the answer below while ed
     const bubble = input?.closest('[data-slot="aui_user-edit-bubble"]');
     expect(bubble).not.toBeNull();
     const cancel = bubble?.querySelector('[aria-label="Cancel edit"]');
-    const send = bubble?.querySelector('[aria-label="Send edit"]');
+    const send = bubble?.querySelector('[aria-label="Save"]');
     expect(cancel).not.toBeNull();
     expect(send).not.toBeNull();
     expect(
