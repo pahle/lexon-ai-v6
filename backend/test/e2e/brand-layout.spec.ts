@@ -604,23 +604,24 @@ test('Task 7B member role Select is a nested Settings layer and Escape restores 
   await expect(settings).toBeVisible();
   const membersTable = settings.getByRole('table');
   await membersTable.scrollIntoViewIfNeeded();
+  // DS v3.1 mobile: rows stack, nothing scrolls sideways.
   const tableViewport = membersTable.locator('xpath=..');
   const tableMetrics = await tableViewport.evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
   }));
-  expect(tableMetrics.scrollWidth).toBeGreaterThan(tableMetrics.clientWidth);
-  await tableViewport.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
-  });
+  expect(tableMetrics.scrollWidth).toBeLessThanOrEqual(
+    tableMetrics.clientWidth,
+  );
   const role = settings.getByRole('combobox', {
     name: 'Role for Alex Rivera',
   });
   const ownerRow = settings.getByRole('row').filter({ hasText: 'Alex Rivera' });
   await expect(role).toBeInViewport();
+  await expect(ownerRow.getByText('Alex Rivera')).toBeInViewport({ ratio: 1 });
   await expect(
     ownerRow.getByRole('button', { name: 'More actions for Alex Rivera' }),
-  ).toBeInViewport();
+  ).toBeInViewport({ ratio: 1 });
   expect(
     await page.locator('html').evaluate((element) => element.scrollWidth),
   ).toBeLessThanOrEqual(390);
