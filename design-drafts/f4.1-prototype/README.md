@@ -75,3 +75,29 @@ Highlighter → Column → ¶ → again.
   (about 3 s), and the motion stops. `screens/finish-strip.png` shows both cases.
 - PO decision (2026-11-13): the finished Lexon mark STAYS on every completed answer, next to
   "Thought for N seconds"; while an answer runs the morphing indicator takes its place.
+
+## Revision 13 (2026-11-18): page patterns for round 4
+
+Covers every screen the F4.1 round-4 review found undesigned. Published to the
+same artifact as revision 12. Source: `source/proto.src.html` + `source/r13.js`
+(inserted before `render()`), built by `source/build.py`; screens in
+`screens/r13/` (`-d` desktop 1440x900, `-m` mobile 390x844, `-dark`).
+
+- **Auth frame (all auth pages):** one wordmark top left of the form column;
+  Night cover keeps rule, tagline, statement and domain only; form block
+  centered, max 400 px; 44 px inputs; secondary links styled with a back arrow.
+  States: sign-in (+errors), sign-up, forgot (+sent), reset (+invalid), verify,
+  two-factor (6 OTP slots, recovery code), invite (org card, role, inviter,
+  expiry, Accept/Decline, "Signed in as… Not you?") + invalid, setup + invalid,
+  onboarding step 1 (name, job title) and step 2 (pending invitations).
+- **Status pattern:** icon tile, serif title, one sentence, primary button,
+  secondary link. Not found, organization not found, workspace error, no access.
+- **Loading:** skeleton rows (Chats page and sidebar Recent); chat loading keeps
+  a disabled normal composer.
+- **Settings:** sessions with device name, location, "This device", Sign out;
+  members as stacked rows on mobile; full-screen settings sheet on mobile.
+- **Chat:** icon-only action bar (32 px targets, tooltip, aria-label); edit box
+  with Cancel/Save outside, right aligned, later answer dimmed; stopped and
+  reconnect as status lines; error as one centered row with Try again; toasts
+  top right (full width on mobile).
+- Platform admin pages move to F4.3; F4.1 platform pages use the status pattern only.

@@ -1,4 +1,5 @@
-<title>Lexon v4.1 Prototype</title>
+<meta charset="utf-8">
+<title>Lexon v4.1 Prototype, revision 13</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -212,6 +213,59 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .tcard .prev{height:110px;border-radius:10px;border:1px solid var(--input);display:flex;overflow:hidden}
 .tcard.on .prev{border:2px solid var(--ring)}
 .badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--input)}
+
+/* ===== r13: page patterns ===== */
+.inp.lg{height:44px;font-size:15px;padding:0 14px}
+.ablock{width:100%;max-width:400px;display:flex;flex-direction:column;gap:20px}
+.ahead{display:flex;flex-direction:column;gap:10px}
+.ahead h1{margin:0;font-family:var(--serif);font-weight:400;font-size:36px;line-height:1.1;letter-spacing:-.01em}
+.ahead p{margin:0;color:var(--mfg);font-size:15px;line-height:1.55}.ahead p b{color:var(--fg);font-weight:500}
+.aicon{width:48px;height:48px;border-radius:12px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:6px}
+.fhint{font-size:13px;color:var(--mfg)}.opt{font-weight:400;color:var(--mfg);font-size:13px}
+.alt{margin:0;text-align:center;color:var(--mfg);font-size:14px}.alt a{color:var(--fg);text-underline-offset:4px}
+.slink{display:inline-flex;align-items:center;justify-content:center;gap:8px;align-self:center;color:var(--mfg);font-size:14px;font-weight:500;text-decoration:none;padding:6px 10px;border-radius:8px}
+.slink:hover{color:var(--fg);background:var(--accent)}
+.links{display:flex;flex-direction:column;align-items:center;gap:2px}
+.otp{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.otp .slot{height:56px;border:1px solid var(--input);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:500;background:var(--bg)}
+.otp .slot.cur{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 22%,transparent)}
+.icard{border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;background:var(--bg)}
+.icard.row{flex-direction:row;align-items:center;gap:12px}
+.idl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}.idl span{color:var(--mfg)}.idl b{font-weight:500}
+.steps{display:flex;align-items:center;gap:6px}.steps span{width:28px;height:4px;border-radius:2px;background:var(--border)}.steps span.on{background:var(--fg)}.steps em{font-style:normal;font-size:13px;color:var(--mfg);margin-left:6px}
+.auth .side{background:var(--sidebar)}
+.sb .skel{background:var(--sb-accent)}
+.auth .aicon{background:var(--bg);box-shadow:0 0 0 1px var(--border)}
+.authm{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:40px;padding:28px 20px;background:var(--bg)}
+.authm .ahead h1{font-size:30px}
+.status{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;max-width:440px;padding:0 24px}
+.status h1{margin:4px 0 0;font-family:var(--serif);font-weight:400;font-size:32px;line-height:1.15}
+.status p{margin:0;color:var(--mfg);font-size:15px;line-height:1.55}
+.sicon{width:56px;height:56px;border-radius:14px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--fg)}
+.sact{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:12px}
+.sbody{flex:1;overflow:auto;padding:28px 32px}
+.sh{margin:0 0 4px;font-family:var(--serif);font-weight:400;font-size:26px}.sd{margin:0 0 12px;color:var(--mfg);font-size:13px}
+.dev{width:36px;height:36px;border-radius:10px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--fg);flex:none}
+.mrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.btn.sm{height:30px;padding:0 10px;font-size:13px;gap:4px}
+.sdlg.m{position:absolute;inset:0;left:0;top:0;transform:none;width:100%;height:100%;border-radius:0;border:0}
+.sdlg.m .shd{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;border-bottom:1px solid var(--border)}.sdlg.m .shd h2{margin:0;font-size:16px;font-weight:600}
+.sdlg.m .sbody{padding:20px 16px}.sdlg.m .mrow .two .b{max-width:170px}
+/* chat: icon-only action row, status lines, edit, error row */
+.bar .ab{all:unset;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;cursor:pointer;color:var(--mfg);position:relative}
+.bar .ab:hover,.bar .ab.hov{background:var(--accent);color:var(--fg)}.bar .ab.on{color:var(--redtext)}
+.bar .ab .tip{bottom:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.sline{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--mfg);line-height:1.6;margin-top:4px}
+.ebox{align-self:stretch;display:flex;flex-direction:column;gap:10px}
+.ebox .box{border:1px solid var(--ring);border-radius:16px;background:var(--bg);padding:14px 16px;box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 18%,transparent)}
+.ebox textarea{border:0;outline:none;resize:none;background:transparent;font-size:16px;line-height:1.55;width:100%;min-height:52px}
+.ebox .acts{display:flex;justify-content:flex-end;gap:8px}
+.am.dim,.am.dim b,.am.dim li::marker,.am.dim h3{color:var(--mfg)}
+.erow{display:flex;align-items:center;gap:12px;border:1px solid var(--border);background:var(--muted);border-radius:12px;padding:10px 10px 10px 14px;font-size:15px}
+.erow .ic{display:flex;color:var(--mfg)}.erow .tx{flex:1}
+.comp.off textarea{cursor:not-allowed}.comp.off .send{opacity:.4}
+.toast{top:20px;bottom:auto}
+.app.mobile .toast{left:12px;right:12px;width:auto}
 </style>
 <div id="root"></div>
 <script>
@@ -246,7 +300,8 @@ function sidebar(S,c){
  const icon=S==='collapsed';
  if(icon) return `<aside class="sb icon" aria-label="Sidebar"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="ini">HN</span></button><div style="height:12px"></div><button class="nb on" style="padding:0;justify-content:center;width:32px" title="Assistant">${sv('chats')}</button><div style="margin-top:auto"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="avatar">AW</span></button></div></aside>`;
  let rec='';
- if(c.none) rec='<p style="margin:0;padding:4px 8px;font-size:13px;color:var(--mfg)">No chats yet.</p>';
+ if(c.loading) rec=[70,55,80,62].map(w=>`<div style="height:32px;display:flex;align-items:center;padding:0 8px"><div class="skel" style="width:${w}%"></div></div>`).join('');
+ else if(c.none) rec='<p style="margin:0;padding:4px 8px;font-size:13px;color:var(--mfg)">No chats yet.</p>';
  else { chats.forEach((t,i)=>{const id='abcdef'[i];const on=c.active===id&&!c.page;
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
    rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span><span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
@@ -263,9 +318,9 @@ function sidebar(S,c){
  </aside>`;
 }
 const topbar=t=>`<header class="top" style="justify-content:space-between"><button class="ib" aria-label="Toggle sidebar">${sv('panel')}</button><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">${t.replace(/<[^>]+>/g,' ')}</span><div style="display:flex;gap:2px;padding:3px;border-radius:999px;box-shadow:0 0 0 1px var(--border),0 4px 12px -6px rgba(8,6,6,.18);background:var(--bg)"><button class="ib" style="border-radius:999px" aria-label="New chat">${sv('plus')}</button><button class="ib" style="border-radius:999px" aria-label="Chat actions">${sv('dots')}</button></div></header>`;
-function composer({deep=false,streaming=false,text='',mobile=false}={}){
+function composer({deep=false,streaming=false,text='',mobile=false,off=false}={}){
  const send=streaming?`<button class="send" aria-label="Stop generating">${sv('stop')}</button>`:`<button class="send" aria-label="Send message" ${text?'':'aria-disabled="true"'}>${sv('arrowup',18)}</button>`;
- return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
+ return `<div class="cw" ${mobile?'style="padding:10px 14px 12px"':''}><div class="comp ${off?'off':''}"><label for="cmp" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><textarea id="cmp" rows="2" ${off?'disabled':''} placeholder="${streaming?'Lexon is answering…':'Ask Lexon about a contract, a regulation, or a case…'}">${text}</textarea><div class="crow"><span style="position:relative;display:inline-flex"><button class="pill" aria-pressed="${deep}">${sv('brain')}Deep thinking</button>${deep?'<span class="tip" role="tooltip" style="top:40px;left:0">Takes longer and uses more of your budget</span>':''}</span>${send}</div></div><div class="disc">Lexon can make mistakes. Verify important legal information.</div></div>`;
 }
 
 
@@ -366,7 +421,7 @@ const lxl=(k,xl=false)=>`<span class="lx lx-${k}${xl?' xl':''}" aria-hidden="tru
 const LOADER={col:'<span class="ld" aria-hidden="true"><span class="ld-col"><i></i><i></i><i></i></span></span>',arc:'<span class="ld" aria-hidden="true"><svg class="ld-arc" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--redtext)" stroke-width="1.75" stroke-linecap="round"/></svg></span>'};
 const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?lq():`<img src="${MONO}" alt="" style="width:20px;height:20px">`}${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
-const abar=({fb=null,copied=false,branch=false}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="lb ${copied?'on':''}">${sv(copied?'check':'copy',15)}${copied?'Copied':'Copy'}</button><button class="lb ${fb==='up'?'on':''}" aria-label="Good response" aria-pressed="${fb==='up'}">${sv('up',15,fb==='up'?'fill="currentColor"':'')}</button><button class="lb" aria-label="Bad response">${sv('down',15)}</button><button class="lb">${sv('regen',15)}Regenerate</button></div>`;
+const abar=({fb=null,copied=false,branch=false,tip=''}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ab ${copied?'on':''} ${tip==='copy'?'hov':''}" aria-label="${copied?'Copied':'Copy'}">${sv(copied?'check':'copy',16)}${tip==='copy'?'<span class="tip">Copy</span>':''}${copied?'<span class="tip">Copied</span>':''}</button><button class="ab ${fb==='up'?'on':''}" aria-label="Good response">${sv('up',16,fb==='up'?'fill="currentColor"':'')}</button><button class="ab" aria-label="Bad response">${sv('down',16)}</button><button class="ab" aria-label="Regenerate">${sv('regen',16)}</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
 const crumbT=`<span>Assistant</span>${sv('right',14)}<b>Syarat sah perjanjian (Pasal 1320)</b>`;
 
@@ -378,12 +433,13 @@ function thread(S){
   case 'streaming': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu<span class="caret"></span></li></ol></div>`; c=composer({streaming:true}); break;
   case 'reasoning': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',true)}${SUMMARY}${A1}${abar()}</div>`; break;
   case 'feedback': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({fb:'up',copied:true})}</div>`; toast=`<div class="toast" role="status">${sv('check')}<span>Thanks for your feedback.</span></div>`; break;
-  case 'edit': b=`<div class="edit"><textarea aria-label="Edit message">Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.</textarea><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn outline">Cancel</button><button class="btn primary">Send</button></div></div><div class="am" style="opacity:.5">${who('Thought for 14 seconds',false)}${A1}</div>`; break;
+  case 'edit': b=`<div class="ebox"><div class="box"><textarea aria-label="Edit message">Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?</textarea></div><div class="acts"><button class="btn outline">Cancel</button><button class="btn primary">Save</button></div></div><div class="am dim">${who('Thought for 14 seconds',false)}${A1}</div>`; break;
   case 'branch': b=um('Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.',{branch:true,show:true})+`<div class="am">${who('Thought for 6 seconds',false)}${A1b}${abar()}</div>`; break;
-  case 'stopped': b=um(Q1)+`<div class="am">${who('Thought for 9 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu</li></ol><div class="note">${sv('square',14)}Stopped</div>${abar()}</div>`; break;
-  case 'error': b=um(Q1)+`<div class="am">${who('',null)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="alert" role="alert">${sv('alert',18,'style="color:var(--redtext);flex:none;margin-top:1px"')}<div style="flex:1"><div class="ttl">The answer could not be completed</div><div style="color:var(--mfg);margin-top:2px">The AI service is temporarily unavailable. Your message is saved; try again in a moment.</div></div><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div></div>`; break;
-  case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="note" role="status">${sv('wifi',14)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
-  case 'loading': b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; break;
+  case 'stopped': b=um(Q1)+`<div class="am">${who('Thought for 9 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu</li></ol><div class="sline">You stopped this response.</div>${abar()}</div>`; break;
+  case 'error': b=um(Q1)+`<div class="am">${who('',null)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The response could not be completed.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>${abar()}</div>`; break;
+  case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="sline" role="status">${sv('wifi',18)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
+  case 'loading': b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; c=composer({off:true}); break;
+  case 'actions': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({tip:'copy'})}</div>`; break;
   default: b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar()}</div>`;
  }
  return `<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${['streaming','reconnect'].includes(S)?`<div class="scrolldown" aria-label="Scroll to latest">${sv('down2',18)}</div>`:''}${c}</div>${toast}</div>`;
@@ -409,15 +465,98 @@ function settings(S){const app=S==='appearance';
  const appr=`<h3 style="margin:0 0 4px;font-family:var(--serif);font-weight:400;font-size:26px">Appearance</h3><p style="margin:0 0 20px;color:var(--mfg);font-size:13px">Choose how Lexon looks on this device.</p><div role="radiogroup" aria-label="Theme" style="display:flex;gap:16px">${t.map(([n,l,r,line,on])=>`<button class="tcard ${on?'on':''}" role="radio" aria-checked="${on}"><span class="prev"><span style="flex:1;background:${l}"></span><span style="flex:2;background:${r};padding:12px;display:flex;flex-direction:column;gap:6px"><span style="height:8px;width:60%;border-radius:4px;background:${line}"></span><span style="height:8px;width:80%;border-radius:4px;background:${line}"></span></span></span><span style="font-weight:500">${n}</span></button>`).join('')}</div>`;
  return `<div class="overlay"></div><div class="sdlg" role="dialog" aria-modal="true" aria-label="Settings"><div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 24px;border-bottom:1px solid var(--border)"><h2 style="margin:0;font-size:16px;font-weight:600">Settings</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div style="flex:1;display:flex;min-height:0"><nav style="width:240px;flex:none;padding:12px;border-right:1px solid var(--sb-border);background:var(--sidebar);display:flex;flex-direction:column;gap:2px">${nav}</nav><div style="flex:1;padding:28px 32px;overflow:auto">${app?appr:prof}</div></div></div>`;}
 function mobile(){return `<div class="main"><header class="top" style="height:56px"><button class="ib" aria-label="Open sidebar">${sv('panel')}</button><div class="vsep"></div><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Syarat sah perjanjian</span></header><div class="view"><div style="flex:1;width:100%;overflow:hidden"><div class="thread" style="padding:20px 16px 0;gap:22px">${um('Apa saja syarat sahnya perjanjian menurut KUHPerdata?')}<div class="am" style="font-size:15px">${who('Thought for 14 seconds',false)}${A1}</div></div></div>${composer({mobile:true})}</div></div>`;}
+/* ===== Revision 13 (owner review round 4): page patterns for every remaining screen ===== */
+Object.assign(I,{
+ mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+ lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ linkoff:'<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h4"/><path d="m2 2 20 20"/>',
+ back:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+ monitor:'<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>',
+ phone:'<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+ users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+ compass:'<circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/>',
+ key:'<path d="M2.6 18.4A2 2 0 0 0 2 19.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5"/>'
+});
+const MOB=qs.get('m')==='1';
+const isDark=()=>document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
+const wm=()=>`<img src="${isDark()?WM_WHITE:WM_INK}" alt="Lexon" style="width:128px">`;
+const backLink=(t='Back to sign in')=>`<a class="slink" href="#">${sv('back',16)}${t}</a>`;
+const head=(title,text,icon)=>`<div class="ahead">${icon?`<span class="aicon">${sv(icon,22)}</span>`:''}<h1>${title}</h1>${text?`<p>${text}</p>`:''}</div>`;
+const fld=(id,label,{value='',ph='',type='text',hint='',aside='',eye=false,ro=false}={})=>`<div class="field"><label for="${id}">${label}${aside}</label><div style="position:relative"><input id="${id}" class="inp lg" type="${type}" value="${value}" placeholder="${ph}" ${ro?'readonly':''}>${eye?`<button class="ib" style="position:absolute;right:6px;top:6px" aria-label="Show password">${sv('eye')}</button>`:''}</div>${hint?`<span class="fhint">${hint}</span>`:''}</div>`;
+// Shared auth frame: one wordmark (form column), form block centered at the same position on every page, Night cover with the statement only.
+function authFrame(body){
+ if(MOB) return `<div class="authm">${wm()}<div class="ablock">${body}</div></div>`;
+ return `<div class="auth"><div class="side">${wm()}<div class="formwrap"><div class="ablock">${body}</div></div><div style="height:44px"></div></div>
+ <div class="cover"><div class="rule">The AI workspace for Indonesian legal practitioners</div><div class="quote">Read, draft, and check Indonesian law in one quiet workspace.</div><div style="display:flex;justify-content:flex-end"><small>lexon-ai.com</small></div></div></div>`;
+}
+function authState(S){
+ const email='ayu@hukum-nusantara.co.id';
+ switch(S){
+ case 'signin': case 'signin-errors': {const bad=S==='signin-errors';
+  return authFrame(`${head('Sign in to Lexon','Enter your work email and password.')}
+  <div class="field"><label for="em">Email</label><input id="em" class="inp lg ${bad?'bad':''}" value="${bad?'ayu@':''}" placeholder="you@firm.co.id">${bad?'<span class="ferr">Enter a valid email address.</span>':''}</div>
+  <div class="field"><label for="pw">Password <a href="#">Forgot password?</a></label><div style="position:relative"><input id="pw" type="password" class="inp lg ${bad?'bad':''}" placeholder="••••••••"><button class="ib" style="position:absolute;right:6px;top:6px" aria-label="Show password">${sv('eye')}</button></div>${bad?'<span class="ferr">Enter your password.</span>':''}</div>
+  <button class="btn primary lg full">Sign in</button><p class="alt">New to Lexon? <a href="#">Create an account</a></p>`);}
+ case 'signup': return authFrame(`${head('Create your account','Your legal workspace starts here.')}${fld('nm','Full name',{ph:'Ayu Wardani'})}${fld('em','Work email',{ph:'you@firm.co.id'})}${fld('pw','Password',{type:'password',ph:'••••••••',eye:true,hint:'Use at least 12 characters.'})}<button class="btn primary lg full">Create account</button><p class="alt">Already have an account? <a href="#">Sign in</a></p>`);
+ case 'forgot': return authFrame(`${head('Reset your password','Enter the email you use for Lexon and we will send you a link to reset your password.')}${fld('em','Email',{ph:'you@firm.co.id'})}<button class="btn primary lg full">Send reset link</button>${backLink()}`);
+ case 'forgot-sent': return authFrame(`${head('Check your email',`If an account exists for <b>${email}</b>, we sent a link to reset your password. The link expires in 30 minutes.`,'mail')}<button class="btn outline lg full">Resend link</button>${backLink()}`);
+ case 'reset': return authFrame(`${head('Choose a new password','Use at least 12 characters. You will be signed out on your other devices.')}${fld('pw','New password',{type:'password',ph:'••••••••',eye:true})}${fld('pw2','Confirm new password',{type:'password',ph:'••••••••',eye:true})}<button class="btn primary lg full">Update password</button>${backLink()}`);
+ case 'reset-invalid': return authFrame(`${head('This link has expired','Reset links work once and expire after 30 minutes. Request a new link to continue.','linkoff')}<button class="btn primary lg full">Request a new link</button>${backLink()}`);
+ case 'verify': return authFrame(`${head('Verify your email',`We sent a verification link to <b>${email}</b>. Open it to activate your account.`,'mail')}<button class="btn outline lg full">Resend email</button><p class="alt">Wrong email? <a href="#">Create the account again</a></p>${backLink()}`);
+ case 'twofactor': return authFrame(`${head('Two-step verification','Enter the 6-digit code from your authenticator app.','shield')}<div class="field"><label for="otp">Authentication code</label><div class="otp" id="otp">${[4,8,1,'','',''].map((d,i)=>`<span class="slot ${i===3?'cur':''}">${d}</span>`).join('')}</div></div><button class="btn primary lg full">Verify</button><div class="links"><a class="slink" href="#">${sv('key',16)}Use a recovery code</a>${backLink()}</div>`);
+ case 'invite': return authFrame(`${head('Join Hukum Nusantara','Rizky Pratama invited you to work together in Lexon.')}<div class="icard"><div style="display:flex;gap:12px;align-items:center"><span class="ini" style="width:40px;height:40px;border-radius:10px">HN</span><div class="two"><span class="a">Hukum Nusantara</span><span class="b">12 members</span></div></div><div class="idl"><span>Your role</span><b>Member</b><span>Invited by</span><b>Rizky Pratama</b><span>Expires</span><b>21 Nov 2026</b></div></div><button class="btn primary lg full">Accept invitation</button><button class="btn outline lg full">Decline</button><p class="alt">Signed in as ${email}. <a href="#">Not you?</a></p>`);
+ case 'invite-invalid': return authFrame(`${head('Invitation unavailable','This invitation was cancelled, has expired, or has already been used. Ask the person who invited you to send a new one.','linkoff')}<button class="btn primary lg full">Go to Lexon</button>${backLink()}`);
+ case 'setup': return authFrame(`${head('Set up the first administrator','Create the platform administrator account for this Lexon deployment. This link works once.')}${fld('nm','Full name',{ph:'Dimas Prasetyo'})}${fld('em','Email',{value:'admin@hukum-nusantara.co.id',ro:true,hint:'Set by the setup link.'})}${fld('pw','Password',{type:'password',ph:'••••••••',eye:true,hint:'Use at least 12 characters.'})}<button class="btn primary lg full">Create administrator</button>`);
+ case 'setup-invalid': return authFrame(`${head('Setup link unavailable','This setup link has expired or has already been used. Ask your operator for a new link.','linkoff')}<button class="btn primary lg full">Go to sign in</button>`);
+ case 'onboard-1': return authFrame(`<div class="steps"><span class="on"></span><span></span><em>Step 1 of 2</em></div>${head('Welcome to Lexon','Tell your colleagues who you are. You can change this later in Settings.')}${fld('nm','Display name',{value:'Ayu Wardani'})}${fld('jt','Job title',{ph:'Senior Associate',aside:'<span class="opt">Optional</span>',hint:'Shown under your name in the sidebar.'})}<button class="btn primary lg full">Continue</button>`);
+ case 'onboard-2': return authFrame(`<div class="steps"><span class="on"></span><span class="on"></span><em>Step 2 of 2</em></div>${head('You have an invitation','Join your team now, or keep working in your personal workspace.')}<div class="icard row"><span class="ini" style="width:40px;height:40px;border-radius:10px">HN</span><div class="two"><span class="a">Hukum Nusantara</span><span class="b">Member · invited by Rizky Pratama</span></div><button class="btn primary">Join</button></div><button class="btn outline lg full">Continue to my workspace</button><p class="alt">You can accept invitations later from the organization switcher.</p>`);
+ }
+}
+// Shared status pattern: centered icon, serif title, one sentence, primary action, secondary link. Never a full-width button.
+const status=({icon,title,text,primary,secondary})=>`<div class="status"><span class="sicon">${sv(icon,24)}</span><h1>${title}</h1><p>${text}</p><div class="sact">${primary?`<button class="btn primary lg">${primary}</button>`:''}${secondary?`<a class="slink" href="#">${secondary}</a>`:''}</div></div>`;
+const STATUS={
+ 'notfound':{icon:'compass',title:'Page not found',text:'The page you are looking for does not exist or has moved.',primary:'Go to Lexon'},
+ 'org-notfound':{icon:'users',title:'Workspace not found',text:'This organization does not exist, or you are no longer a member.',primary:'Go to my workspace'},
+ 'ws-error':{icon:'alert',title:'Something went wrong',text:'We could not load this page. Your work is saved.',primary:'Try again',secondary:'Go to my workspace'},
+ 'noaccess':{icon:'lock',title:'You do not have access',text:'This page is available to platform administrators only.',primary:'Go to my workspace'}
+};
+function statusPage(S){
+ if(S==='notfound') return `<div class="${MOB?'app mobile':'app'} plain" style="flex-direction:column"><div style="padding:${MOB?'24px':'40px'}">${wm()}</div><div class="view" style="justify-content:center;padding-bottom:120px">${status(STATUS[S])}</div></div>`;
+ const main=`<div class="main">${topbar('')}<div class="view" style="justify-content:center;padding-bottom:120px">${status(STATUS[S])}</div></div>`;
+ return MOB?`<div class="app mobile">${main}</div>`:`<div class="app">${sidebar('x',{active:null})}${main}</div>`;
+}
+function historyLoading(){
+ const rows=[0,1,2,3,4,5].map(i=>`<div class="hrow"><div class="ht"><div class="skel" style="width:${[62,48,70,55,40,66][i]}%"></div><div class="skel" style="width:52px"></div></div></div>`).join('');
+ return `<div class="main">${topbar('')}<div class="view"><div class="hist"><div style="display:flex;justify-content:space-between;align-items:flex-end"><h1 class="ptitle">Chats</h1><button class="btn primary">${sv('plus')}New chat</button></div><div style="position:relative"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp" style="padding-left:36px" aria-label="Search chats" placeholder="Search chats"></div><div class="glabel" style="padding:10px 12px 0"><div class="skel" style="width:56px"></div></div>${rows}</div></div></div>`;
+}
+function settingsExtra(S){
+ const nav=[['Account'],['Profile'],['Appearance'],['Security',S==='security'],['Hukum Nusantara'],['Members',S==='members'],['Invitations'],['General']].map(([t,on])=>on===undefined&&!['Profile','Appearance','Security','Members','Invitations','General'].includes(t)?`<div class="glabel" style="padding:12px 8px 4px">${t}</div>`:`<button class="nb ${on?'on':''}">${t}</button>`).join('');
+ const sess=[['monitor','Chrome on macOS','Jakarta, Indonesia · Active now',true],['phone','Safari on iPhone','Jakarta, Indonesia · Signed in 3 days ago',false],['monitor','Edge on Windows','Surabaya, Indonesia · Signed in 9 days ago',false]];
+ const secBody=`<h3 class="sh">Security</h3><p class="sd">Manage how you sign in and where you are signed in.</p><div class="srow"><div><div class="rt">Password</div><div class="rd">Last changed 2 months ago.</div></div><button class="btn outline">Change password</button></div><div class="srow"><div><div class="rt">Two-step verification <span class="badge">On</span></div><div class="rd">Authenticator app. 8 recovery codes left.</div></div><button class="btn outline">Manage</button></div><div style="padding:20px 0 8px;font-weight:600">Where you are signed in</div>${sess.map(([ic,d,m,cur])=>`<div class="srow"><div style="display:flex;gap:12px;align-items:center"><span class="dev">${sv(ic,18)}</span><div><div class="rt">${d}${cur?' <span class="badge">This device</span>':''}</div><div class="rd">${m}</div></div></div>${cur?'':'<button class="btn outline">Sign out</button>'}</div>`).join('')}`;
+ const mem=[['MC','Maya Chen (you)','maya.chen@hukum-nusantara.co.id','Owner'],['JL','Jordan Lee','jordan.lee@hukum-nusantara.co.id','Admin'],['AR','Alex Rivera','alex.rivera@hukum-nusantara.co.id','Member']];
+ const memBody=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 class="sh" style="margin:0">Members</h3><button class="btn primary">${sv('plus')}Invite people</button></div><p class="sd">3 members in Hukum Nusantara.</p>${mem.map(([i,n,e,r],k)=>`<div class="mrow"><span class="avatar">${i}</span><div class="two"><span class="a">${n}</span><span class="b">${e}</span></div>${k===0?`<span class="badge">${r}</span>`:`<button class="btn outline sm">${r}${sv('down2',14)}</button><button class="ib" aria-label="More actions for ${n}">${sv('dots')}</button>`}</div>`).join('')}`;
+ const body=S==='security'?secBody:memBody;
+ if(MOB) return `<div class="app mobile"><div class="sdlg m" role="dialog" aria-modal="true" aria-label="Settings"><div class="shd"><button class="ib" aria-label="Back to sections">${sv('left')}</button><h2>${S==='security'?'Security':'Members'}</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div class="sbody">${body}</div></div></div>`;
+ return `<div class="app">${sidebar('x',{active:'a'})}${thread('thread')}<div class="overlay"></div><div class="sdlg" role="dialog" aria-modal="true" aria-label="Settings"><div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 24px;border-bottom:1px solid var(--border)"><h2 style="margin:0;font-size:16px;font-weight:600">Settings</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div style="flex:1;display:flex;min-height:0"><nav style="width:240px;flex:none;padding:12px;border-right:1px solid var(--sb-border);background:var(--sidebar);display:flex;flex-direction:column;gap:2px">${nav}</nav><div class="sbody">${body}</div></div></div></div>`;
+}
+const AUTH_STATES=['signin','signin-errors','signup','forgot','forgot-sent','reset','reset-invalid','verify','twofactor','invite','invite-invalid','setup','setup-invalid','onboard-1','onboard-2'];
+const STATUS_STATES=['notfound','org-notfound','ws-error','noaccess'];
+const R13_STATES=[...AUTH_STATES,...STATUS_STATES,'history-loading','security','members'];
+
 function render(){
- const S=(qs.get('s')||location.hash.slice(1)||'newchat'); const st=STATES.includes(S)?S:'newchat';
+ const S=(qs.get('s')||location.hash.slice(1)||'newchat'); const ALL=[...STATES.filter(x=>!['signin','signin-errors','loaders'].includes(x)),'actions',...R13_STATES,'loaders']; const st=ALL.includes(S)?S:'newchat';
  const c={home:['newchat','deep','personal'].includes(st),page:['history','search','noresults','empty'].includes(st),active:'a',menu:st==='menu'?'b':null,rename:st==='rename'?'b':null,none:st==='empty'};
  let inner;
- if(st==='signin'||st==='signin-errors') inner=`<div class="app">${signin(st)}</div>`;
+ if(AUTH_STATES.includes(st)) inner=`<div class="app ${MOB?'mobile':''}">${authState(st)}</div>`;
+ else if(STATUS_STATES.includes(st)) inner=statusPage(st);
+ else if(st==='history-loading') inner=`<div class="app">${sidebar('x',{page:true,loading:true})}${historyLoading()}</div>`;
+ else if(st==='security'||st==='members') inner=settingsExtra(st);
  else if(st==='mobile') inner=`<div class="app mobile">${mobile()}</div>`;
  else { let m=c.home?home(st==='personal'?'newchat':st):c.page?history(st):(['settings','appearance','org','user','collapsed'].includes(st)?thread('thread'):thread(st));
    inner=`<div class="app">${sidebar(st,c)}${m}${st==='delete'?`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dt"><h2 id="dt">Delete this chat?</h2><p>“Due diligence checklist for PT acquisition” and all its messages will be permanently deleted. This cannot be undone.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn danger">Delete chat</button></div></div>`:''}${['settings','appearance'].includes(st)?settings(st):''}</div>`; }
- const picker=isShot?'':`<nav class="picker" aria-label="Prototype states"><b>State</b>${STATES.map(k=>`<a class="${k===st?'cur':''}" href="#${k}">${k}</a>`).join('')}<span style="margin-left:auto;display:flex;gap:6px"><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a></span></nav>`;
+ const G=[['Auth',AUTH_STATES],['Pages',[...STATUS_STATES,'history-loading','security','members']],['Chat',['personal','newchat','deep','thinking','streaming','reasoning','thread','actions','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile','loaders']]];
+ const href=(k,m)=>`?${m?'m=1&':''}${document.documentElement.dataset.theme?'theme='+document.documentElement.dataset.theme+'&':''}#${k}`;
+ const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${G.map(([g,ks])=>`<b style="width:56px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:56px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">Mobile view applies to auth, pages, and settings states.</span></nav>`;
  document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;fit();
 }
 function fit(){const st=document.getElementById('stage');if(!st)return;const app=st.firstElementChild;const W=app.classList.contains('mobile')?390:1440,H=app.classList.contains('mobile')?844:900;if(isShot){st.style.height=H+'px';return;}const z=Math.min(1,st.clientWidth/W);app.style.transform=`scale(${z})`;st.style.height=(H*z)+'px';if(W===390){st.style.width='';}}
