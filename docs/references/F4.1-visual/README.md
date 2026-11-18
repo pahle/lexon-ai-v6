@@ -41,10 +41,13 @@ node scripts/visual-capture-stack.mjs up                 # once; builds and keep
 node scripts/visual-capture-stack.mjs status             # project name and URL
 node scripts/visual-capture-stack.mjs run auth           # capture a group, then compare
 node scripts/visual-capture-stack.mjs run auth --ids sign-in,sign-up
+node scripts/visual-capture-stack.mjs run auth --ids sign-in --linux   # CI-equal numbers
 node scripts/visual-capture-stack.mjs down               # removes this stack only
 ```
 
 `run` takes an exclusive lock (`.cache/visual-capture-stack/capture.lock`, holding the owner pid; a lock of a dead pid is reclaimed; a second run waits quietly), prints the commit and the number of changed files in `frontend/src` (what was built), rebuilds the frontend image, recreates only the frontend container, waits until it is healthy, captures the group, runs `visual-compare-prototype.mjs`, checks the stack guard, and releases the lock.
+
+`--linux` makes the numbers match Linux CI (Mac font rendering is up to 2 points off). It starts `mcr.microsoft.com/playwright:v1.64.1-noble` (the `@playwright/test` version in `package.json`; `--rm`, 2 GB memory limit, host uid, repo mounted read-only with only `.cache/f4.1-visual/` writable) as a Playwright browser server and the test runner on the host connects to it (`PW_TEST_CONNECT_WS_ENDPOINT`, with `PW_TEST_CONNECT_EXPOSE_NETWORK=<loopback>`, so the Linux browser reaches the stack's `127.0.0.1` ports and the specs keep using the docker CLI). The browser, and so the font rendering, is Linux. `visual-compare-prototype.mjs` runs in a second container of the same image. The browser container is named `lexon-e2e-visual-linux-<pid>` and is stopped when the run ends. Lock, rebuild and guard are unchanged. Check: `run auth --ids sign-in --linux` gave 0.82 / 0.66 / 0.41 / 0.36 for m-dark / m / d-dark / d, identical to CI.
 
 Groups: `auth`, `shell`, `chat`, `chats-settings`, `platform` (spec `backend/test/e2e/brand-visual-<group>.spec.ts`). Captures go to `.cache/f4.1-visual/review/`, sheets to `.cache/f4.1-visual/compare/<group>/` (open `README.md` there). The team world (Ayu, Hukum Nusantara) is built once per stack and reused (`brand-visual-world.ts`); the platform group builds its administrator on every run, so it can run once per stack. The stack project is `lexon-e2e-<hex>`; `scripts/e2e.mjs` with `LEXON_E2E_KEEP=1` is what `up` runs, with the same compose files as the brand-visual project (including `compose.chat-runtime-proof.yml`) and `AUTH_OPEN_SIGNUP=true`.
 

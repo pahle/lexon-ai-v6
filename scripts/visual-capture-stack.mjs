@@ -7,6 +7,7 @@
 //   node scripts/visual-capture-stack.mjs up        start the stack and keep it
 //   node scripts/visual-capture-stack.mjs status    print the project and URLs
 //   node scripts/visual-capture-stack.mjs run <group...> [--ids a,b]
+//        [--linux]  (browser + compare inside the Playwright Linux image, CI numbers)
 //        lock, rebuild + recreate the frontend, capture the groups (auth,
 //        shell, chat, chats-settings, platform), compare with the prototype
 //   node scripts/visual-capture-stack.mjs down      remove this stack only
@@ -25,6 +26,7 @@ import { root } from './compose-environment.mjs';
 
 const stackDirectory = resolve(root, '.cache/visual-capture-stack');
 const descriptorFile = resolve(stackDirectory, 'descriptor.json');
+const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.64.1-noble';
 const GROUPS = ['auth', 'shell', 'chat', 'chats-settings', 'platform'];
 
 function readDescriptor() {
@@ -58,6 +60,82 @@ export function groupIds(group) {
   ];
 }
 
+function capture(command, args) {
+  return new Promise((done, fail) => {
+    const child = spawn(command, args, { cwd: root });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.once('error', fail);
+    child.once('exit', (code) => done({ code: code ?? 1, out: out.trim() }));
+  });
+}
+
+/** Arguments shared by the Linux containers: user, memory, repo mount. */
+export function linuxContainerArgs(uid, gid) {
+  return [
+    '--rm',
+    '--init',
+    '--ipc=host',
+    '--memory',
+    '2g',
+    '--user',
+    `${uid}:${gid}`,
+    '-e',
+    'HOME=/tmp',
+    '-v',
+    `${root}:/work:ro`,
+    '-v',
+    `${resolve(root, '.cache/f4.1-visual')}:/work/.cache/f4.1-visual`,
+    '-w',
+    '/work',
+  ];
+}
+
+/**
+ * Starts the Playwright browser server in the official Linux image (the
+ * browser, and so the font rendering, is Linux; the test runner stays on the
+ * host next to docker and the stack). Resolves the ws endpoint and a stop().
+ */
+async function startLinuxBrowser() {
+  const name = `lexon-e2e-visual-linux-${process.pid}`;
+  const started = await capture('docker', [
+    'run',
+    '--detach',
+    '--name',
+    name,
+    ...linuxContainerArgs(process.getuid(), process.getgid()),
+    '-p',
+    '127.0.0.1::3000',
+    PLAYWRIGHT_IMAGE,
+    'node',
+    '/work/node_modules/@playwright/test/cli.js',
+    'run-server',
+    '--host',
+    '0.0.0.0',
+    '--port',
+    '3000',
+  ]);
+  if (started.code !== 0) throw new Error('Could not start the Linux browser');
+  const stop = () => capture('docker', ['stop', '--time', '3', name]);
+  try {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const port = await capture('docker', ['port', name, '3000/tcp']);
+      const logs = await capture('docker', ['logs', name]);
+      if (port.code === 0 && /Listening on/.test(logs.out)) {
+        return {
+          endpoint: `ws://127.0.0.1:${port.out.split(':').pop()}/`,
+          stop,
+        };
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error('The Linux browser server did not start');
+  } catch (error) {
+    await stop();
+    throw error;
+  }
+}
+
 const [command, ...rest] = process.argv.slice(2);
 
 if (command === 'up') {
@@ -79,6 +157,7 @@ if (command === 'up') {
   const stack = readDescriptor();
   const idsAt = rest.indexOf('--ids');
   const explicitIds = idsAt >= 0 ? rest[idsAt + 1] : undefined;
+  const linux = rest.includes('--linux');
   const groups = rest.filter(
     (arg, at) =>
       !(idsAt >= 0 && (at === idsAt || at === idsAt + 1)) &&
@@ -90,7 +169,11 @@ if (command === 'up') {
     onWait: (pid) =>
       console.error(`Waiting for the capture run of pid ${pid}...`),
   });
-  const stopRelease = () => release().finally(() => process.exit(130));
+  let linuxBrowser;
+  const stopRelease = () =>
+    Promise.resolve(linuxBrowser?.stop())
+      .then(() => release())
+      .finally(() => process.exit(130));
   process.once('SIGINT', stopRelease);
   process.once('SIGTERM', stopRelease);
   let failed = 0;
@@ -146,6 +229,7 @@ if (command === 'up') {
       ),
       { env },
     );
+    if (linux) linuxBrowser = await startLinuxBrowser();
     for (const group of groups) {
       const captureCode = await exit(
         process.execPath,
@@ -172,23 +256,44 @@ if (command === 'up') {
           LEXON_CHAT_LOAD: '0',
           PLAYWRIGHT_NO_COPY_PROMPT: '1',
           COMPOSE_PROFILES: '',
+          ...(linuxBrowser && {
+            PW_TEST_CONNECT_WS_ENDPOINT: linuxBrowser.endpoint,
+            PW_TEST_CONNECT_EXPOSE_NETWORK: '<loopback>',
+          }),
         },
       );
       if (captureCode !== 0) failed = captureCode;
       const ids = explicitIds ?? groupIds(group).join(',');
-      await exit(
-        process.execPath,
-        [
-          resolve(root, 'scripts/visual-compare-prototype.mjs'),
-          '--capture-dir',
-          resolve(root, '.cache/f4.1-visual/review'),
-          '--out-dir',
-          resolve(root, `.cache/f4.1-visual/compare/${group}`),
-          '--ids',
-          ids,
-        ],
-        process.env,
-      );
+      const compareArgs = [
+        'scripts/visual-compare-prototype.mjs',
+        '--capture-dir',
+        '.cache/f4.1-visual/review',
+        '--out-dir',
+        `.cache/f4.1-visual/compare/${group}`,
+        '--ids',
+        ids,
+      ];
+      await (linux
+        ? exit(
+            'docker',
+            [
+              'run',
+              ...linuxContainerArgs(process.getuid(), process.getgid()),
+              PLAYWRIGHT_IMAGE,
+              'node',
+              ...compareArgs,
+            ],
+            process.env,
+          )
+        : exit(
+            process.execPath,
+            compareArgs.map((a) =>
+              a.startsWith('.') || a.startsWith('scripts')
+                ? resolve(root, a)
+                : a,
+            ),
+            process.env,
+          ));
     }
     const problems = await checkStack(stack.project, stack.composeFiles);
     if (problems.length > 0) {
@@ -198,6 +303,7 @@ if (command === 'up') {
   } finally {
     process.off('SIGINT', stopRelease);
     process.off('SIGTERM', stopRelease);
+    await linuxBrowser?.stop();
     await release();
   }
   process.exitCode = failed;
