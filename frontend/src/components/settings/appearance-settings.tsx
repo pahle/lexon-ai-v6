@@ -65,7 +65,7 @@ export function AppearanceSettings(): React.ReactElement {
               key={value}
               htmlFor={id}
               data-slot="appearance-option"
-              className="relative flex w-[180px] min-w-0 cursor-pointer flex-col gap-2 rounded-[10px] outline-none max-md:w-auto max-md:flex-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background"
+              className="relative flex w-[180px] min-w-0 cursor-pointer flex-col items-start gap-2 rounded-[10px] outline-none max-md:w-auto max-md:flex-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background"
             >
               <div
                 aria-hidden="true"

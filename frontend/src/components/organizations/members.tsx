@@ -184,6 +184,7 @@ export function Members({
     <section aria-labelledby="members-heading" className="flex flex-col gap-3">
       <SettingsHeading
         id="members-heading"
+        className="gap-y-0"
         title="Members"
         description={
           members.data
@@ -283,14 +284,14 @@ export function Members({
                         >
                           {initials(member.name)}
                         </span>
-                        <span className="flex min-w-0 flex-col leading-tight max-md:w-[150px]">
+                        <span className="flex min-w-0 flex-col leading-tight">
                           <span className="truncate font-medium">
                             {member.name}
                             {member.userId === identity?.user.id
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="text-xs text-muted-foreground ">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px]">
                             {member.email}
                           </span>
                         </span>

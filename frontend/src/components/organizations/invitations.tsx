@@ -225,7 +225,7 @@ export function Invitations({
         ) : null}
       </form>
       {rows.length > 0 ? (
-        <h3 className="-mt-3 pt-5 pb-1 text-sm leading-[normal] font-semibold">
+        <h3 className="-mt-3 -mb-3 pt-5 pb-1 text-sm leading-[normal] font-semibold">
           Pending invitations
         </h3>
       ) : null}
@@ -304,11 +304,11 @@ export function Invitations({
                         >
                           <Mail className="size-4" />
                         </span>
-                        <span className="flex min-w-0 flex-col leading-tight max-md:w-[150px]">
+                        <span className="flex min-w-0 flex-col leading-tight">
                           <span className="font-medium">
                             {invitation.email}
                           </span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px]">
                             {role} ·{' '}
                             <span
                               className={

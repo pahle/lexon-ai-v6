@@ -162,7 +162,7 @@ export function ProfileSettings(): React.ReactElement {
                 </FieldDescription>
               </FieldContent>
               <FieldContent className="flex-none gap-1 md:items-end md:text-right">
-                <p className="min-w-0 text-sm break-words text-muted-foreground">
+                <p className="min-w-0 text-sm leading-[normal] break-words text-muted-foreground">
                   {identity.user.email}
                 </p>
               </FieldContent>
