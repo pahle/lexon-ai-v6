@@ -297,7 +297,12 @@ export function Members({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="w-px px-0 py-3 pl-3">
+                    <TableCell
+                      className="w-px px-0 py-3 pl-3 text-right"
+                      colSpan={
+                        canManageRoles && !manageable && !removable ? 2 : 1
+                      }
+                    >
                       {manageable ? (
                         <Select
                           value={member.role}
@@ -340,7 +345,7 @@ export function Members({
                         </Badge>
                       )}
                     </TableCell>
-                    {canManageRoles ? (
+                    {canManageRoles && (manageable || removable) ? (
                       <TableCell className="w-px px-0 py-3 pl-3 text-right">
                         {removable ? (
                           <DropdownMenu>
@@ -384,7 +389,7 @@ export function Members({
         </div>
       ) : null}
       {pagination}
-      <div className="flex justify-end pt-4">
+      <div className="-mt-3 flex justify-end pt-4">
         <Button
           variant="outline"
           disabled={submission.pending}

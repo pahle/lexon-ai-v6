@@ -109,10 +109,7 @@ export function SessionList({
                     <div className={settingsLabelClass}>
                       {session.deviceName}
                       {session.current ? (
-                        <Badge
-                          variant="outline"
-                          className="ml-1.5 border-input align-middle"
-                        >
+                        <Badge variant="outline" className="ml-1 border-input">
                           This device
                         </Badge>
                       ) : null}

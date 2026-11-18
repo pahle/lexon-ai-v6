@@ -56,7 +56,7 @@ export function AppearanceSettings(): React.ReactElement {
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="flex w-full gap-4"
+        className="flex w-full gap-4 max-md:gap-2.5"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -79,12 +79,12 @@ export function AppearanceSettings(): React.ReactElement {
                     <PreviewPane
                       theme="light"
                       bar="bg-[var(--lexon-deleted)]"
-                      className="absolute inset-0 [clip-path:inset(0_50%_0_0)]"
+                      className="absolute inset-0 [clip-path:polygon(0_0,16.667%_0,16.667%_100%,33.333%_100%,33.333%_0,66.667%_0,66.667%_100%,0_100%)]"
                     />
                     <PreviewPane
                       theme="dark"
                       bar="bg-[var(--lexon-deleted)]"
-                      className="absolute inset-0 [clip-path:inset(0_0_0_50%)]"
+                      className="absolute inset-0 [clip-path:polygon(16.667%_0,33.333%_0,33.333%_100%,66.667%_100%,66.667%_0,100%_0,100%_100%,16.667%_100%)]"
                     />
                   </>
                 ) : (

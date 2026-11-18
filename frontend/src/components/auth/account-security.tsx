@@ -162,10 +162,7 @@ export function AccountSecurity() {
           <div className="min-w-0 flex-1">
             <h3 className="text-sm leading-[normal] font-medium">
               Two-step verification
-              <Badge
-                variant="outline"
-                className="ml-1.5 border-input align-middle"
-              >
+              <Badge variant="outline" className="ml-1 border-input">
                 {security.data.twoFactorEnabled ? 'On' : 'Off'}
               </Badge>
             </h3>

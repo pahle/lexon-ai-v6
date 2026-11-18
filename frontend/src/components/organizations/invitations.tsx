@@ -329,7 +329,7 @@ export function Invitations({
                     </TableCell>
                     <TableCell className="w-px px-0 py-3 pl-3 text-right">
                       {actionable ? (
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-3">
                           <PendingButton
                             variant="outline"
                             size="sm"
