@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.3).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -14,7 +14,7 @@ gate is in §5.6.
   `prototype.html?shot=1&m=1&theme=dark#chat-edit`. It is a design artifact;
   build the product from shadcn and assistant-ui, styled to match it.
 - `screens/r14/<state>-<d|m>[-dark].png`: every state at 1440×900 (`d`) and
-  390×844 (`m`), light and dark (264 files).
+  390×844 (`m`), light and dark (276 files).
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
 - The numbered PNGs in `screens/` (`00-personal.png` to `51-mobile-dark.png`)
   are revision 12, kept for history. Revision 14 supersedes them.
@@ -25,16 +25,16 @@ gate is in §5.6.
 State names are the F4.1 visual capture ids. Each capture is compared with the
 state of the same name.
 
-| Group     | States                                                                                                                                                                                                                                                                                                                                                              |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth      | `sign-in`, `sign-in-field-errors`, `sign-in-form-alert`, `sign-in-pending`, `sign-up`, `forgot-password`, `forgot-password-sent`, `reset-password`, `reset-password-invalid`, `verify-email`, `two-factor`, `accept-invitation`, `accept-invitation-unavailable`, `admin-setup`, `admin-setup-unavailable`, `onboarding`, `onboarding-invitations`                  |
-| Status    | `not-found`, `organizations-not-found`, `workspace-error`, `platform-no-access`                                                                                                                                                                                                                                                                                     |
-| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`                                                                                                                                                                                                                             |
-| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete` |
-| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`                                                                                                                                                                                                                                                                                 |
-| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `toast-success`                                                                                                                                                                                                                     |
-| Platform  | `platform-accounts`, `platform-provisioning-populated`, `platform-provisioning-empty`, `platform-provisioning-loading`, `platform-provisioning-error`, `platform-provisioning-detail`                                                                                                                                                                               |
-| Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                     |
+| Group     | States                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth      | `sign-in`, `sign-in-field-errors`, `sign-in-form-alert`, `sign-in-pending`, `sign-up`, `forgot-password`, `forgot-password-sent`, `reset-password`, `reset-password-invalid`, `verify-email`, `two-factor`, `accept-invitation`, `accept-invitation-declined`, `accept-invitation-unavailable`, `admin-setup`, `admin-setup-activate`, `admin-setup-unavailable`, `onboarding`, `onboarding-invitations`, `onboarding-team` |
+| Status    | `not-found`, `organizations-not-found`, `workspace-error`, `platform-no-access`                                                                                                                                                                                                                                                                                                                                             |
+| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`                                                                                                                                                                                                                                                                                     |
+| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`                                                         |
+| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`                                                                                                                                                                                                                                                                                                                                         |
+| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `toast-success`                                                                                                                                                                                                                                                                             |
+| Platform  | `platform-accounts`, `platform-provisioning-populated`, `platform-provisioning-empty`, `platform-provisioning-loading`, `platform-provisioning-error`, `platform-provisioning-detail`                                                                                                                                                                                                                                       |
+| Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                             |
 
 ## Fixtures shown
 
@@ -62,6 +62,20 @@ state of the same name.
 - Toasts appear at the top right, never over the composer.
 - Platform pages keep today's functions (provisioning, account status) in the
   platform page pattern; F4.3 replaces them with Accounts and Organizations.
+
+## Revision 14.3 (2026-11-18): auth flows as F4 delivered them
+
+Revision 14 drew four auth flows that Lexon does not have. They now show
+today's behavior (the brief: behavior stays as F4 delivered it):
+
+- Onboarding has three steps: display name, pending invitations, then create a
+  team or start on your own (`onboarding-team`).
+- Reset password has one New password field.
+- Accept invitation shows Accept and Decline with no organization details, and
+  Sign in or create an account for the wrong account; `accept-invitation-declined`
+  added.
+- Administrator setup is sign in or create the setup account, then email and
+  two-step verification, then `admin-setup-activate`.
 
 ## Thinking indicator
 
