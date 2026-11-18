@@ -206,10 +206,12 @@ test('access denied and not-found pages', async ({ page, playwright }) => {
   const organizations = await page.goto(stack.frontendUrl + '/organizations');
   expect(organizations?.status()).toBe(404);
   await expect(
-    page.getByRole('heading', { name: 'Page not found' }),
+    page.getByRole('heading', { name: 'Workspace not found' }),
   ).toBeVisible();
   await expect(
-    page.getByText('The page you are looking for does not exist or has moved.'),
+    page.getByText(
+      'This organization does not exist, or you are no longer a member.',
+    ),
   ).toBeVisible();
   await captureBrandViews(page, 'organizations-not-found');
 

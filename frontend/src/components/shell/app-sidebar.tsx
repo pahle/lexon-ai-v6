@@ -155,7 +155,7 @@ function NavigationGroup({
         render={
           <SidebarMenuAction
             aria-label={`Toggle ${title} navigation`}
-            className="top-1 right-0 size-6 p-0"
+            className="top-1 right-0 size-6 p-0 peer-data-[size=default]/menu-button:top-1"
           />
         }
       >

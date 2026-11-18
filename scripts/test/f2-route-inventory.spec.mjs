@@ -60,18 +60,19 @@ test('F2 route inventory retains descriptive titles and shell not-found routes',
     'unmatched organization routes must use notFound',
   );
   const notFound = await readFile(
-    'frontend/src/app/(workspace)/not-found.tsx',
+    'frontend/src/components/states/workspace-not-found.tsx',
     'utf8',
   );
+  assert.match(notFound, /Workspace not found/);
   assert.match(notFound, /Page not found/);
-  assert.match(notFound, /href="\/workspace"/);
+  assert.match(notFound, /href: '\/workspace'/);
   const error = await readFile(
     'frontend/src/app/(workspace)/error.tsx',
     'utf8',
   );
   assert.match(error, /Something went wrong/);
-  assert.match(error, /ErrorState/);
-  assert.match(error, /href="\/workspace"/);
+  assert.match(error, /StatusPage/);
+  assert.match(error, /href: '\/workspace'/);
 });
 
 test('F2 legacy settings page entrypoints remain removed', async () => {

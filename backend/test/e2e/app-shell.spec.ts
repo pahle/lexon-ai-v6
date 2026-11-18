@@ -139,10 +139,10 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ]) {
     await page.goto(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', { name: 'Workspace not found' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Return to workspace' }),
+      page.getByRole('link', { name: 'Go to my workspace' }),
     ).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
     await expect(
@@ -160,10 +160,18 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
     await page.goto(stack.frontendUrl + path);
     await expect(page).toHaveURL(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', {
+        name: path.startsWith('/organizations/')
+          ? 'Workspace not found'
+          : 'Page not found',
+      }),
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Return to workspace' }),
+      page.getByRole('link', {
+        name: path.startsWith('/organizations/')
+          ? 'Go to my workspace'
+          : 'Go to Lexon',
+      }),
     ).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
     if (path.startsWith('/organizations/')) {
@@ -178,7 +186,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ]) {
     await page.goto(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', { name: 'Workspace not found' }),
     ).toBeVisible();
     await expect(
       page.getByRole('complementary', { name: 'Workspace navigation' }),
