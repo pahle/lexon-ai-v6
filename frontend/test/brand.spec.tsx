@@ -47,14 +47,13 @@ test('the auth frame shows the compact wordmark for each theme', () => {
   expect(frame).toContain('/LEXON-wordmark-compact-ink.svg');
 });
 
-test('the auth cover carries a decorative white wordmark on Night', () => {
+test('the auth cover is Night and carries no wordmark (one wordmark, in the form column)', () => {
   const frame = renderToStaticMarkup(
     <AuthFrame>
       <h1>Sign in</h1>
     </AuthFrame>,
   );
   expect(frame).toContain('bg-(--lexon-night)');
-  expect(frame).toMatch(
-    /<img alt="" [^>]*src="[^"]*LEXON-wordmark-compact-white\.svg/,
-  );
+  expect(frame).not.toMatch(/<img alt=""/);
+  expect(frame.match(/<img /g)).toHaveLength(2);
 });

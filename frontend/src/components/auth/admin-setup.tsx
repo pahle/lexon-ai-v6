@@ -12,7 +12,9 @@ import { AuthCard } from './auth-card';
 import { SignupForm } from './signup-form';
 import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { Button } from '../ui/button';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { cn } from 'cn';
+import { buttonVariants } from '../ui/button';
+import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 const api = createIdentityClient({ baseUrl: '/api' });
 export function AdminSetup({ setupToken }: { setupToken: string }) {
@@ -60,8 +62,8 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         title="Administrator setup complete"
         description="Your verified account is now a platform administrator."
       >
-        <a href="/platform/provisioning">Provisioning</a>
-        <a href="/workspace">Return to workspace</a>
+        <AuthLink href="/platform/provisioning">Provisioning</AuthLink>
+        <AuthLink href="/workspace">Return to workspace</AuthLink>
       </AuthCard>
     );
   if (phase === 'unavailable')
@@ -69,9 +71,14 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       <AuthCard
         presentation="page"
         title="Setup link unavailable"
-        description="Request a new setup link from an operator, or try again later."
+        description="This setup link has expired or has already been used. Ask your operator for a new link."
       >
-        <a href="/workspace">Return to workspace</a>
+        <a
+          href="/sign-in"
+          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+        >
+          Go to sign in
+        </a>
       </AuthCard>
     );
   if (phase === 'loading')
@@ -89,11 +96,21 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         title="Administrator setup"
         description="Sign in with the account named in the setup email, or create that account. Verify your email and enroll an authenticator before activation."
       >
-        <a href={'/sign-in?returnTo=' + encodeURIComponent(continuation)}>
+        <a
+          href={'/sign-in?returnTo=' + encodeURIComponent(continuation)}
+          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+        >
           Sign in
         </a>
-        <Button onClick={() => setSignup(true)}>Create setup account</Button>
-        <a href="/workspace">Return to workspace</a>
+        <Button
+          size="lg"
+          variant="outline"
+          className={authButtonClass}
+          onClick={() => setSignup(true)}
+        >
+          Create setup account
+        </Button>
+        <AuthLink href="/workspace">Return to workspace</AuthLink>
       </AuthCard>
     );
   }
@@ -103,17 +120,19 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
   )
     return (
       <AuthCard presentation="page" title="Verify administrator setup">
-        <a href={'/two-factor?returnTo=' + encodeURIComponent(continuation)}>
+        <AuthLink
+          href={'/two-factor?returnTo=' + encodeURIComponent(continuation)}
+        >
           Verify your sign-in
-        </a>
-        <a href="/workspace">Return to workspace</a>
+        </AuthLink>
+        <AuthLink href="/workspace">Return to workspace</AuthLink>
       </AuthCard>
     );
   if (!security?.twoFactorEnabled)
     return (
       <div className="flex w-full flex-col gap-6">
         <TwoFactorEnrollment onComplete={refresh} presentation="page" />
-        <a href="/workspace">Return to workspace</a>
+        <AuthLink href="/workspace">Return to workspace</AuthLink>
       </div>
     );
   return (
@@ -123,14 +142,15 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       description="Activate only for the verified account named in the setup email. The account must have no team memberships."
     >
       {failure ? (
-        <Alert role="alert" variant="destructive">
-          <AlertTitle>Unable to complete administrator setup</AlertTitle>
-          <AlertDescription>{failure}</AlertDescription>
-        </Alert>
+        <AuthAlert title="Unable to complete administrator setup">
+          {failure}
+        </AuthAlert>
       ) : null}
       <PendingButton
         pending={busy}
         pendingLabel="Activating administrator access…"
+        size="lg"
+        className={authButtonClass}
         onClick={async () => {
           setBusy(true);
           setFailure('');
@@ -151,7 +171,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       >
         Activate platform administrator
       </PendingButton>
-      <a href="/workspace">Return to workspace</a>
+      <AuthLink href="/workspace">Return to workspace</AuthLink>
     </AuthCard>
   );
 }

@@ -12,7 +12,7 @@ import { AuthCard } from '../auth/auth-card';
 import { FormInput } from '../auth/form-input';
 import { FieldGroup } from '../ui/field';
 import { Button } from '../ui/button';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AuthAlert, authButtonClass } from '../auth/auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import { CreateTeam } from './create-team';
@@ -63,21 +63,23 @@ export function Onboarding({
         >
           <FieldGroup>
             {failure ? (
-              <Alert role="alert" variant="destructive">
-                <AlertTitle>Unable to save your profile</AlertTitle>
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
+              <AuthAlert title="Unable to save your profile">
+                {failure}
+              </AuthAlert>
             ) : null}
             <FormInput
               label="Display name"
               autoComplete="name"
               registration={form.register('name')}
               error={form.formState.errors.name}
+              placeholder="Ayu Wardani"
             />
             <PendingButton
               type="submit"
               pending={submission.pending}
               pendingLabel="Saving profile…"
+              size="lg"
+              className={authButtonClass}
             >
               Continue
             </PendingButton>
@@ -93,7 +95,13 @@ export function Onboarding({
         description="Accept an invitation explicitly, or continue with your Personal organization."
       >
         <PendingInvitations initial={invitations} />
-        <Button onClick={() => setStep(2)}>Continue</Button>
+        <Button
+          size="lg"
+          className={authButtonClass}
+          onClick={() => setStep(2)}
+        >
+          Continue
+        </Button>
       </AuthCard>
     );
   return (
@@ -104,14 +112,13 @@ export function Onboarding({
     >
       <CreateTeam />
       {failure ? (
-        <Alert role="alert" variant="destructive">
-          <AlertTitle>Unable to finish onboarding</AlertTitle>
-          <AlertDescription>{failure}</AlertDescription>
-        </Alert>
+        <AuthAlert title="Unable to finish onboarding">{failure}</AuthAlert>
       ) : null}
       <PendingButton
         pending={busy}
         pendingLabel="Finishing onboarding…"
+        size="lg"
+        className={authButtonClass}
         onClick={async () => {
           setBusy(true);
           try {
@@ -145,12 +152,24 @@ function PendingInvitations({
   if (query.error) return <QueryFailure error={query.error} />;
   return (
     <>
-      <ul>
+      <ul className="flex flex-col gap-3">
         {(query.data?.items ?? initial)
           .filter((invitation) => invitation.status === 'pending')
           .map((invitation) => (
-            <li key={invitation.id}>
-              <a href={'/accept-invitation?invitationId=' + invitation.id}>
+            <li
+              key={invitation.id}
+              className="flex items-center gap-3 rounded-xl border border-border bg-background p-4"
+            >
+              <span
+                aria-hidden="true"
+                className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-primary text-xs font-semibold tracking-wide text-sidebar-primary-foreground"
+              >
+                {invitation.organizationName.slice(0, 2).toUpperCase()}
+              </span>
+              <a
+                className="min-w-0 flex-1 truncate font-medium underline-offset-4 hover:underline"
+                href={'/accept-invitation?invitationId=' + invitation.id}
+              >
                 {invitation.organizationName}
               </a>
             </li>

@@ -6,6 +6,8 @@ import type {
   UseFormRegisterReturn,
   FieldError as FormError,
 } from 'react-hook-form';
+import { cn } from 'cn';
+import { authInputClass } from './auth-parts';
 import { Field, FieldLabel, FieldError } from '../ui/field';
 import { Input } from '../ui/input';
 import {
@@ -22,6 +24,9 @@ export function FormInput({
   type = 'text',
   autoComplete,
   disabled = false,
+  placeholder,
+  hint,
+  readOnly = false,
 }: {
   label: string;
   labelAside?: ReactNode;
@@ -30,6 +35,9 @@ export function FormInput({
   type?: string | undefined;
   autoComplete?: string | undefined;
   disabled?: boolean | undefined;
+  placeholder?: string | undefined;
+  hint?: string | undefined;
+  readOnly?: boolean | undefined;
 }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
@@ -39,6 +47,8 @@ export function FormInput({
     type: type === 'password' && visible ? 'text' : type,
     autoComplete,
     disabled,
+    placeholder,
+    readOnly,
     'aria-invalid': invalid,
     'aria-describedby': error ? id + '-error' : undefined,
     ...registration,
@@ -47,32 +57,56 @@ export function FormInput({
     <Field data-invalid={!!error}>
       {labelAside ? (
         <div className="flex items-center">
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldLabel htmlFor={id} className="leading-[1.21]">
+            {label}
+          </FieldLabel>
           {labelAside}
         </div>
       ) : (
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        <FieldLabel htmlFor={id} className="leading-[1.21]">
+          {label}
+        </FieldLabel>
       )}
       {type === 'password' ? (
-        <InputGroup>
-          <InputGroupInput {...inputProps} />
-          <InputGroupAddon align="inline-end">
+        <InputGroup
+          className={cn(
+            authInputClass,
+            'h-11 px-0 has-disabled:opacity-60 has-[[data-slot][aria-invalid=true]]:border-lexon-red-text has-[[data-slot][aria-invalid=true]]:ring-0 has-disabled:bg-background dark:has-disabled:bg-background',
+          )}
+        >
+          <InputGroupInput
+            {...inputProps}
+            className="h-full px-3.5 text-[15px] disabled:opacity-100 md:text-[15px]"
+          />
+          <InputGroupAddon align="inline-end" className="pr-1.5">
             <InputGroupButton
               aria-label={visible ? 'Hide password' : 'Show password'}
               aria-pressed={visible}
               disabled={disabled}
               onClick={() => setVisible((value) => !value)}
-              size="icon-xs"
+              size="icon-sm"
             >
-              {visible ? <EyeOff /> : <Eye />}
+              {visible ? (
+                <EyeOff className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
       ) : (
-        <Input {...inputProps} />
+        <Input {...inputProps} className={authInputClass} />
       )}
+      {hint && !error ? (
+        <span className="text-[13px] text-muted-foreground">{hint}</span>
+      ) : null}
       {error ? (
-        <FieldError id={id + '-error'}>{error.message}</FieldError>
+        <FieldError
+          id={id + '-error'}
+          className="text-[13px] text-lexon-red-text"
+        >
+          {error.message}
+        </FieldError>
       ) : null}
     </Field>
   );

@@ -6,15 +6,21 @@ import { LexonLogo } from '../lexon-logo';
 export const AUTH_COVER_STATEMENT =
   'Read, draft, and check Indonesian law in one quiet workspace.';
 
+// LEX-DS-001 v3.1 §5.5 "Auth pages": two equal columns from 768px. The form
+// column carries the only wordmark; the Night cover has the rule, tagline,
+// statement, and domain. Below 768px: one column on `background`.
 export function AuthFrame({ children }: { children: ReactNode }): ReactElement {
   return (
     <main
       id="main"
       tabIndex={-1}
-      className="grid min-h-svh w-full flex-1 lg:grid-cols-2"
+      className="flex min-h-svh w-full flex-1 flex-col bg-background md:grid md:grid-cols-2"
     >
-      <div className="flex flex-col gap-4 bg-muted p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
+      <div
+        data-slot="auth-form-column"
+        className="flex flex-col items-center gap-10 px-5 py-7 md:items-stretch md:gap-6 md:bg-sidebar md:p-10"
+      >
+        <div className="flex justify-center md:justify-start">
           <LexonLogo
             variant="wordmark-compact"
             width={128}
@@ -27,38 +33,31 @@ export function AuthFrame({ children }: { children: ReactNode }): ReactElement {
             className="hidden dark:block"
           />
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">{children}</div>
+        <div className="flex w-full justify-center md:flex-1 md:items-center">
+          <div className="w-full max-w-[400px]">{children}</div>
         </div>
+        <div aria-hidden="true" className="hidden h-11 md:block" />
       </div>
       <div
         aria-hidden="true"
-        className="dark relative hidden bg-(--lexon-night) text-white lg:block"
+        className="dark hidden flex-col justify-between bg-(--lexon-night) p-12 text-foreground md:flex"
       >
-        <div className="flex h-full flex-col gap-10 p-12">
-          <div className="flex items-center gap-4">
-            <div
-              aria-hidden="true"
-              className="h-px w-10 bg-(--lexon-red-text)"
-            />
-            <p className="text-sm font-medium tracking-wide text-(--lexon-red-text)">
-              The AI workspace for Indonesian legal practitioners
-            </p>
-          </div>
-          <div className="flex flex-1 items-center">
-            <p className="max-w-md font-serif text-4xl leading-tight">
-              {AUTH_COVER_STATEMENT}
-            </p>
-          </div>
-          <div className="flex items-end justify-between gap-4">
-            <LexonLogo
-              variant="wordmark-compact"
-              tone="white"
-              width={128}
-              alt=""
-            />
-            <span className="text-sm text-muted-foreground">lexon-ai.com</span>
-          </div>
+        <div className="flex items-center gap-3">
+          <div
+            aria-hidden="true"
+            className="h-0.5 w-10 shrink-0 bg-(--lexon-red-text)"
+          />
+          <p className="text-[13px] font-medium text-(--lexon-red-text)">
+            The AI workspace for Indonesian legal practitioners
+          </p>
+        </div>
+        <p className="max-w-[520px] font-serif text-[44px] leading-[1.15] font-normal tracking-[-0.01em]">
+          {AUTH_COVER_STATEMENT}
+        </p>
+        <div className="flex justify-end">
+          <span className="text-[13px] text-muted-foreground">
+            lexon-ai.com
+          </span>
         </div>
       </div>
     </main>

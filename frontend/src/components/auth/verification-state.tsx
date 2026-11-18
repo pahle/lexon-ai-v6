@@ -11,7 +11,8 @@ import { safeReturnPath } from '../../lib/return-path';
 import { AuthCard } from './auth-card';
 import { FormInput, authFailure } from './form-input';
 import { FieldGroup } from '../ui/field';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { ArrowLeft } from 'lucide-react';
+import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
@@ -45,9 +46,16 @@ export function VerificationState({
             : 'Check your email'
       }
       description={
-        state === 'confirmed'
-          ? 'Sign in to continue.'
-          : 'If eligible, you will receive a verification link. Check your inbox.'
+        state === 'confirmed' ? (
+          'Sign in to continue.'
+        ) : email ? (
+          <>
+            We sent a verification link to <b>{email}</b>. Open it to activate
+            your account.
+          </>
+        ) : (
+          'If eligible, you will receive a verification link. Check your inbox.'
+        )
       }
     >
       {state !== 'confirmed' ? (
@@ -87,15 +95,15 @@ export function VerificationState({
         >
           <FieldGroup>
             {failure ? (
-              <Alert role="alert" variant="destructive">
-                <AlertTitle>Unable to resend the verification email</AlertTitle>
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
+              <AuthAlert title="Unable to resend the verification email">
+                {failure}
+              </AuthAlert>
             ) : null}
             <FormInput
               label="Email"
               type="email"
               autoComplete="email"
+              placeholder="you@firm.co.id"
               registration={form.register('email')}
               error={form.formState.errors.email}
             />
@@ -104,13 +112,21 @@ export function VerificationState({
               type="submit"
               pending={submission.pending}
               pendingLabel="Sending verification email…"
+              size="lg"
+              variant="outline"
+              className={authButtonClass}
             >
               Resend verification email
             </PendingButton>
           </FieldGroup>
         </form>
       ) : null}
-      <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>Sign in</a>
+      <AuthLink
+        href={'/sign-in?returnTo=' + encodeURIComponent(next)}
+        icon={<ArrowLeft aria-hidden="true" />}
+      >
+        Sign in
+      </AuthLink>
     </AuthCard>
   );
 }

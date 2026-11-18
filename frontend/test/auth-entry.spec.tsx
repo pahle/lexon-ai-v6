@@ -114,7 +114,7 @@ test('invalid sign-in is field-linked and corrects live after its first submit',
   expect(emailField.className).toContain('data-[invalid=true]:text-foreground');
   expect(
     emailField.querySelector('[data-slot="field-error"]')?.className.split(' '),
-  ).toContain('text-destructive');
+  ).toContain('text-lexon-red-text');
   expect(email.getAttribute('aria-describedby')).toContain('error');
   expect(
     [...view.container.querySelectorAll('[data-slot="field-error"]')].map(

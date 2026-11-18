@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { captureBrandViews } from './brand-visual-support.js';
-import { ayu } from './prototype-fixtures.js';
+import { ayu, team, invitationToTeam } from './prototype-fixtures.js';
 import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 // F4.1 visual set, auth group: the pages before sign-in and onboarding.
@@ -86,19 +86,125 @@ test('sign-up and secondary account flows', async ({ page }) => {
   await captureBrandViews(page, 'sign-up');
   await visit('forgot-password', '/forgot-password');
   await captureBrandViews(page, 'forgot-password');
-  await visit('reset-password', '/reset-password');
+  // A link in hand shows the form; the token is read client side only.
+  await visit(
+    'reset-password',
+    '/reset-password?token=visual-preview-token',
+    'Choose a new password',
+  );
   await captureBrandViews(page, 'reset-password');
-  await visit('verify-email', '/verify-email?state=pending');
-  await captureBrandViews(page, 'verify-email');
   await visit('two-factor', '/two-factor');
+  // Three digits typed; the fourth slot is the active one.
+  await page.getByLabel('Authenticator code').pressSequentially('481');
   await captureBrandViews(page, 'two-factor');
-  await visit('accept-invitation', '/accept-invitation?invitationId=invalid');
+  // A well-formed invitation id; the page does not look the invitation up.
+  await visit(
+    'accept-invitation',
+    '/accept-invitation?invitationId=00000000-0000-4000-8000-000000000001',
+    'Accept invitation',
+  );
   await captureBrandViews(page, 'accept-invitation');
-  await visit('admin-setup', '/admin-setup');
+});
+
+test('verify-email after sign-up', async ({ page }) => {
+  const base = descriptor().frontendUrl;
+  await page.goto(base + '/sign-up');
+  await page.getByLabel('Name', { exact: true }).fill(ayu.name);
+  await page.getByLabel('Email', { exact: true }).fill(ayu.email);
+  await page.getByLabel('Password', { exact: true }).fill('password12345');
+  // The sign-up request is answered by a route, so no account is created.
+  await page.route('**/api/auth/sign-up/email', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: null, user: null }),
+    }),
+  );
+  await page
+    .getByRole('button', { name: 'Create account', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Check your email' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'verify-email');
+});
+
+test('forgot-password-sent', async ({ page }) => {
+  const base = descriptor().frontendUrl;
+  await page.goto(base + '/forgot-password');
+  await page.getByLabel('Email', { exact: true }).fill(ayu.email);
+  await page.route('**/api/auth/request-password-reset', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: true }),
+    }),
+  );
+  await page
+    .getByRole('button', { name: 'Send reset link', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Check your email' }),
+  ).toBeVisible();
+  // The confirmation toast leaves on its own; the prototype state has none.
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, {
+    timeout: 15000,
+  });
+  await captureBrandViews(page, 'forgot-password-sent');
+});
+
+test('reset-password-invalid', async ({ page }) => {
+  await page.goto(
+    descriptor().frontendUrl + '/reset-password?error=INVALID_TOKEN',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'This link has expired' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'reset-password-invalid');
+});
+
+test('accept-invitation-unavailable', async ({ page }) => {
+  await page.goto(
+    descriptor().frontendUrl + '/accept-invitation?invitationId=invalid',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Invitation unavailable' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'accept-invitation-unavailable');
+});
+
+test('admin-setup-unavailable', async ({ page }) => {
+  await page.goto(descriptor().frontendUrl + '/admin-setup');
+  await expect(
+    page.getByRole('heading', { name: 'Setup link unavailable' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'admin-setup-unavailable');
+});
+
+test('admin-setup', async ({ page }) => {
+  // The setup link redeems; the visitor has no session yet, so the page asks
+  // for sign-in. The two API answers are routed, nothing is redeemed.
+  await page.route('**/api/identity/admin-setup/redeem', (route) =>
+    route.fulfill({ status: 204 }),
+  );
+  await page.route('**/api/identity/security', (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: { code: 'AUTH_REQUIRED', message: 'Sign in required' },
+      }),
+    }),
+  );
+  await page.goto(descriptor().frontendUrl + '/admin-setup?token=visual-setup');
+  await expect(
+    page.getByRole('heading', { name: 'Administrator setup' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await captureBrandViews(page, 'admin-setup');
 });
 
-test('onboarding for a real API-created identity', async ({ page }) => {
+async function openOnboarding(page: import('@playwright/test').Page) {
   const stack = descriptor();
   const headers = await authenticateApi(page.request, {
     name: 'Brand Preview',
@@ -113,35 +219,43 @@ test('onboarding for a real API-created identity', async ({ page }) => {
     page.getByRole('heading', { name: 'Welcome to Lexon' }),
   ).toBeVisible();
   await expect(page.getByLabel('Display name')).toHaveValue('Brand Preview');
+}
+
+test('onboarding for a real API-created identity', async ({ page }) => {
+  await openOnboarding(page);
   await captureBrandViews(page, 'onboarding');
 });
 
-// TODO(W2): implement this capture (Forgot password, link sent); the prototype state is
-// `forgot-password-sent`. The index already lists the four variants.
-test.fixme('forgot-password-sent', async ({ page }) => {
-  await captureBrandViews(page, 'forgot-password-sent');
-});
-
-// TODO(W2): implement this capture (Reset password, invalid or expired link); the prototype state is
-// `reset-password-invalid`. The index already lists the four variants.
-test.fixme('reset-password-invalid', async ({ page }) => {
-  await captureBrandViews(page, 'reset-password-invalid');
-});
-
-// TODO(W2): implement this capture (Accept invitation, unavailable); the prototype state is
-// `accept-invitation-unavailable`. The index already lists the four variants.
-test.fixme('accept-invitation-unavailable', async ({ page }) => {
-  await captureBrandViews(page, 'accept-invitation-unavailable');
-});
-
-// TODO(W2): implement this capture (Administrator setup, unavailable); the prototype state is
-// `admin-setup-unavailable`. The index already lists the four variants.
-test.fixme('admin-setup-unavailable', async ({ page }) => {
-  await captureBrandViews(page, 'admin-setup-unavailable');
-});
-
-// TODO(W2): implement this capture (Onboarding, pending invitations); the prototype state is
-// `onboarding-invitations`. The index already lists the four variants.
-test.fixme('onboarding-invitations', async ({ page }) => {
+test('onboarding-invitations', async ({ page }) => {
+  await openOnboarding(page);
+  // The invitation list is answered by a route with the prototype invitation.
+  await page.route('**/api/identity/invitations?*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            version: 1,
+            id: '00000000-0000-4000-8000-0000000000a1',
+            organizationId: '00000000-0000-4000-8000-0000000000b1',
+            organizationName: team.name,
+            email: ayu.email,
+            role: 'member',
+            purpose: 'team',
+            status: 'pending',
+            createdAt: '2026-11-14T04:00:00.000Z',
+            expiresAt: invitationToTeam.expiresAt,
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      }),
+    }),
+  );
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Pending invitations' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: team.name })).toBeVisible();
   await captureBrandViews(page, 'onboarding-invitations');
 });

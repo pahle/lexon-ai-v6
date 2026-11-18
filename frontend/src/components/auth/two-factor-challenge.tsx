@@ -4,7 +4,8 @@ import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
 import { AuthenticationCodeForm } from './authentication-code-form';
 import { AuthCard } from './auth-card';
-import { Button } from '../ui/button';
+import { ArrowLeft, KeyRound } from 'lucide-react';
+import { AuthLink, authLinkClass } from './auth-parts';
 export function TwoFactorChallenge({
   returnTo,
 }: {
@@ -15,11 +16,16 @@ export function TwoFactorChallenge({
     <AuthCard
       presentation="page"
       title="Verify your sign-in"
-      description="Use your authenticator app or a recovery code to continue."
+      description={
+        recovery
+          ? 'Enter one of your recovery codes to continue.'
+          : 'Enter the 6-digit code from your authenticator app.'
+      }
     >
       <AuthenticationCodeForm
         key={String(recovery)}
         recovery={recovery}
+        presentation="auth"
         submitLabel={recovery ? 'Verify recovery code' : 'Verify authenticator'}
         onSubmit={async (input) => {
           const result = recovery
@@ -29,9 +35,19 @@ export function TwoFactorChallenge({
           window.location.assign(safeReturnPath(returnTo));
         }}
       />
-      <Button variant="link" onClick={() => setRecovery((value) => !value)}>
-        {recovery ? 'Use an authenticator code' : 'Use a recovery code'}
-      </Button>
+      <div className="flex flex-col items-center gap-0.5">
+        <button
+          type="button"
+          className={authLinkClass}
+          onClick={() => setRecovery((value) => !value)}
+        >
+          <KeyRound aria-hidden="true" />
+          {recovery ? 'Use an authenticator code' : 'Use a recovery code'}
+        </button>
+        <AuthLink href="/sign-in" icon={<ArrowLeft aria-hidden="true" />}>
+          Back to sign in
+        </AuthLink>
+      </div>
     </AuthCard>
   );
 }

@@ -12,7 +12,10 @@ import { authClient } from '../../lib/auth-client';
 import { AuthCard } from './auth-card';
 import { FormInput, authFailure } from './form-input';
 import { FieldGroup } from '../ui/field';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { ArrowLeft } from 'lucide-react';
+import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
+import { buttonVariants } from '../ui/button';
+import { cn } from 'cn';
 import { PendingButton } from '../forms/pending-button';
 import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
@@ -39,11 +42,21 @@ function RequestReset() {
     mode: 'onSubmit',
     reValidateMode: 'onChange',
   });
+  const sent = !!message;
   return (
     <AuthCard
       presentation="page"
-      title="Reset your password"
-      description="Request a password reset link."
+      title={sent ? 'Check your email' : 'Reset your password'}
+      description={
+        sent ? (
+          <>
+            If an account exists for <b>{form.getValues('email')}</b>, we sent a
+            link to reset your password. The link expires in 30 minutes.
+          </>
+        ) : (
+          'Enter the email you use for Lexon and we will send you a link to reset your password.'
+        )
+      }
     >
       <form
         noValidate
@@ -51,7 +64,6 @@ function RequestReset() {
         onSubmit={form.handleSubmit((input) =>
           submission.run(async () => {
             setFailure('');
-            setMessage('');
             try {
               const result = await authClient.requestPasswordReset({
                 ...input,
@@ -78,30 +90,45 @@ function RequestReset() {
       >
         <FieldGroup>
           {failure ? (
-            <Alert role="alert" variant="destructive">
-              <AlertTitle>Unable to request a reset link</AlertTitle>
-              <AlertDescription>{failure}</AlertDescription>
-            </Alert>
+            <AuthAlert title="Unable to request a reset link">
+              {failure}
+            </AuthAlert>
           ) : null}
-          <FormInput
-            label="Email"
-            type="email"
-            autoComplete="email"
-            registration={form.register('email')}
-            error={form.formState.errors.email}
-          />
-          {message ? <p role="status">{message}</p> : null}
+          {sent ? (
+            <p role="status" className="sr-only">
+              {message}
+            </p>
+          ) : (
+            <FormInput
+              label="Email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@firm.co.id"
+              registration={form.register('email')}
+              error={form.formState.errors.email}
+            />
+          )}
           <PendingButton
             type="submit"
             pending={submission.pending}
             pendingLabel="Sending reset link…"
+            size="lg"
+            variant={sent ? 'outline' : 'default'}
+            className={authButtonClass}
           >
-            Send reset link
+            {sent ? 'Resend link' : 'Send reset link'}
           </PendingButton>
-          <a href="/sign-in">Sign in</a>
+          <BackToSignIn />
         </FieldGroup>
       </form>
     </AuthCard>
+  );
+}
+function BackToSignIn() {
+  return (
+    <AuthLink href="/sign-in" icon={<ArrowLeft aria-hidden="true" />}>
+      Back to sign in
+    </AuthLink>
   );
 }
 function ResetPassword({ token }: { token?: string | undefined }) {
@@ -117,14 +144,17 @@ function ResetPassword({ token }: { token?: string | undefined }) {
   useEffect(() => {
     window.history.replaceState(null, '', '/reset-password');
   }, []);
+  const unavailable = !token && !done;
   return (
     <AuthCard
       presentation="page"
-      title="Choose a new password"
+      title={unavailable ? 'This link has expired' : 'Choose a new password'}
       description={
-        !token
-          ? 'Unable to use this reset link. Request a new link.'
-          : undefined
+        unavailable
+          ? 'Reset links work once and expire after 30 minutes. Request a new link to continue.'
+          : done
+            ? undefined
+            : 'Use at least 12 characters. You will be signed out on your other devices.'
       }
     >
       {token && !done ? (
@@ -150,15 +180,15 @@ function ResetPassword({ token }: { token?: string | undefined }) {
         >
           <FieldGroup>
             {failure ? (
-              <Alert role="alert" variant="destructive">
-                <AlertTitle>Unable to reset your password</AlertTitle>
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
+              <AuthAlert title="Unable to reset your password">
+                {failure}
+              </AuthAlert>
             ) : null}
             <FormInput
               label="New password"
               type="password"
               autoComplete="new-password"
+              placeholder="••••••••"
               registration={form.register('newPassword')}
               error={form.formState.errors.newPassword}
             />
@@ -166,20 +196,32 @@ function ResetPassword({ token }: { token?: string | undefined }) {
               type="submit"
               pending={submission.pending}
               pendingLabel="Resetting password…"
+              size="lg"
+              className={authButtonClass}
             >
               Reset password
             </PendingButton>
+            <BackToSignIn />
           </FieldGroup>
         </form>
       ) : (
-        <p role="status">
-          {done
-            ? 'Password reset. Sign in with your new password.'
-            : 'This link is unavailable.'}
-        </p>
+        <>
+          {done ? (
+            <p role="status" className="text-[15px] leading-[1.55]">
+              Password reset. Sign in with your new password.
+            </p>
+          ) : null}
+          {done ? null : (
+            <a
+              href="/forgot-password"
+              className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+            >
+              Request a new reset link
+            </a>
+          )}
+          <BackToSignIn />
+        </>
       )}
-      <a href="/forgot-password">Request a new reset link</a>
-      <a href="/sign-in">Sign in</a>
     </AuthCard>
   );
 }
