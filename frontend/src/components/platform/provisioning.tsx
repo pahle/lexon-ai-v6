@@ -272,7 +272,9 @@ export function ProvisioningList() {
               aria-hidden="true"
               className="size-[18px] shrink-0 text-muted-foreground"
             />
-            <span className="min-w-0 flex-1">{identityMessage(error)}</span>
+            <span className="min-w-0 flex-1">
+              We could not load organizations.
+            </span>
             <Button
               variant="outline"
               className="shrink-0"
@@ -296,7 +298,7 @@ export function ProvisioningList() {
                 <UsersIcon aria-hidden="true" />
               </EmptyMedia>
               <EmptyTitle className="text-base font-semibold tracking-normal">
-                No provisioning organizations
+                No organizations are waiting for an owner
               </EmptyTitle>
               <EmptyDescription className="text-sm/normal">
                 Organizations you provision appear here until their first owner

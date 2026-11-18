@@ -121,7 +121,9 @@ export function ProvisioningDetail({
       ) : null}
       <PlatformCard title="Owner invitation">
         <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-[160px_1fr]">
-          <dt className="text-muted-foreground">Status</dt>
+          <dt className="text-muted-foreground">State</dt>
+          <dd className="font-medium">{capitalize(organization.state)}</dd>
+          <dt className="text-muted-foreground">Owner invitation</dt>
           <dd className="font-medium">
             {capitalize(organization.invitation.status)}
           </dd>
@@ -150,7 +152,7 @@ export function ProvisioningDetail({
               })
             }
           >
-            Resend owner invitation
+            Resend invitation
           </PendingButton>
           <Button
             variant="outline"
@@ -187,7 +189,7 @@ export function ProvisioningDetail({
           )}
         >
           <PlatformField
-            label="Replacement owner email"
+            label="New owner email"
             type="email"
             autoComplete="email"
             placeholder="owner@firm.co.id"
@@ -202,7 +204,7 @@ export function ProvisioningDetail({
               disabled={submission.pending}
               pendingLabel="Replacing…"
             >
-              Replace owner email
+              Replace and send
             </PendingButton>
           </PlatformActions>
         </form>

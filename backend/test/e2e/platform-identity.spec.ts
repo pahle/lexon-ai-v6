@@ -212,7 +212,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       page.getByRole('heading', { name: 'Provisioning' }),
     ).toBeVisible();
     const emptyProvisioningList = page.getByText(
-      'No provisioning organizations',
+      'No organizations are waiting for an owner',
       { exact: true },
     );
     await expect(emptyProvisioningList).toBeVisible();
@@ -350,7 +350,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     expect(await duplicateProvisioningRequest).toBe(200);
     await expect(
-      page.getByText('No provisioning organizations', { exact: true }),
+      page.getByText('No organizations are waiting for an owner', {
+        exact: true,
+      }),
     ).toBeVisible();
 
     await page.route(platformListUrl, (route) =>
@@ -363,7 +365,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     try {
       await page.reload();
       await expect(
-        page.getByText('Service temporarily unavailable. Please try again.', {
+        page.getByText('We could not load organizations.', {
           exact: true,
         }),
       ).toBeVisible();
@@ -376,7 +378,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     await page.reload();
     await expect(
-      page.getByText('No provisioning organizations', { exact: true }),
+      page.getByText('No organizations are waiting for an owner', {
+        exact: true,
+      }),
     ).toBeVisible();
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
@@ -459,7 +463,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     const originalId = new URL(originalMail.actionUrl).searchParams.get('id')!;
     const replacementEmail = randomUUID() + '@example.test';
     await page
-      .getByLabel('Replacement owner email', { exact: true })
+      .getByLabel('New owner email', { exact: true })
       .fill(replacementEmail);
     const replaced = page.waitForResponse(
       (response) =>
@@ -467,7 +471,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         response.url().endsWith('/owner-email'),
     );
     await page
-      .getByRole('button', { name: 'Replace owner email', exact: true })
+      .getByRole('button', { name: 'Replace and send', exact: true })
       .click();
     expect((await replaced).status()).toBe(200);
     expect(
@@ -484,7 +488,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         response.url().endsWith('/resend'),
     );
     await page
-      .getByRole('button', { name: 'Resend owner invitation', exact: true })
+      .getByRole('button', { name: 'Resend invitation', exact: true })
       .click();
     expect((await resent).status()).toBe(200);
     markOperatorStage('replacement owner invite resent');

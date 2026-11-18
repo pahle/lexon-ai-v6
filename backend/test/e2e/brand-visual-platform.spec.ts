@@ -81,7 +81,9 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await page.goto(provisioning);
     await expect(page.locator('h1')).toHaveText('Organization provisioning');
     await expect(
-      page.getByText('No provisioning organizations', { exact: true }),
+      page.getByText('No organizations are waiting for an owner', {
+        exact: true,
+      }),
     ).toBeVisible();
     await captureBrandViews(page, 'platform-provisioning-empty');
   } finally {
@@ -115,7 +117,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await expect(async () => {
       await page.reload();
       await expect(
-        page.getByText('Service temporarily unavailable. Please try again.', {
+        page.getByText('We could not load organizations.', {
           exact: true,
         }),
       ).toBeVisible({ timeout: 5000 });
@@ -156,7 +158,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
       .getByRole('link', { name: 'Harbor Legal Partners', exact: true })
       .click();
     await expect(
-      page.getByRole('button', { name: 'Resend owner invitation' }),
+      page.getByRole('button', { name: 'Resend invitation' }),
     ).toBeVisible();
     await expect(
       page.getByText('21 Nov 2026, 11:00', { exact: true }),

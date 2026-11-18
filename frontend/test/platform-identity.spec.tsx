@@ -94,7 +94,9 @@ test('platform provisioning uses a published Card, Empty state, and semantic tab
   await settle();
   expect(view.container.querySelector('[data-slot="card"]')).not.toBeNull();
   expect(view.container.querySelector('[data-slot="empty"]')).not.toBeNull();
-  expect(view.container.textContent).toContain('No provisioning organizations');
+  expect(view.container.textContent).toContain(
+    'No organizations are waiting for an owner',
+  );
   expect(view.container.textContent).toContain(
     'Organizations you provision appear here until their first owner accepts.',
   );
@@ -317,13 +319,13 @@ test('resending owner invitation labels only Resend pending and resets after fai
   await settle();
   const resend = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
-  ].find((button) => button.textContent?.includes('Resend owner invitation'))!;
+  ].find((button) => button.textContent?.includes('Resend invitation'))!;
   const cancel = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
   ].find((button) => button.textContent?.includes('Cancel provisioning'))!;
   const replace = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
-  ].find((button) => button.textContent?.includes('Replace owner email'))!;
+  ].find((button) => button.textContent?.includes('Replace and send'))!;
   const replacementEmail = view.container.querySelector<HTMLInputElement>(
     'input[name="email"]',
   )!;
