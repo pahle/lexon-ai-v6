@@ -528,7 +528,11 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     }
     await expect(page.getByText('On', { exact: true })).toBeVisible();
     await expect(page.getByText(/recovery codes left/)).toBeVisible();
-    await expect(page.getByText('Browser', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole('list', { name: 'Signed-in sessions' })
+        .getByText('This device', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByTestId('recovery-codes')).toHaveCount(0);
     await capture('05-settings-security-2fa-enabled-' + theme + '-desktop');
   }
