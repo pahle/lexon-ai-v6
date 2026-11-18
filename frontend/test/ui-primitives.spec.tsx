@@ -58,7 +58,9 @@ test('buttons: 32px default, 30px small, 40px large, radius 8px, 14px weight 500
       <Button size="icon-sm">I</Button>
     </>,
   );
-  const [d, sm, lg, icon, iconSm] = [...view.container.querySelectorAll('button')];
+  const [d, sm, lg, icon, iconSm] = [
+    ...view.container.querySelectorAll('button'),
+  ];
   has(d, 'h-8', 'px-3', 'rounded-[8px]', 'text-sm', 'font-medium');
   has(sm, 'h-[30px]', 'px-2.5', 'text-[13px]');
   has(lg, 'h-10', 'px-4');
@@ -76,7 +78,12 @@ test('inputs and textarea: 36px, radius 8px, padding 0 12px, 14px', async () => 
   const input = view.container.querySelector('input');
   has(input, 'h-9', 'px-3', 'rounded-[8px]', 'text-sm');
   expect(cls(input)).not.toMatch(/(^|\s)(text-base|md:text-sm|px-2\.5)(\s|$)/);
-  has(view.container.querySelector('textarea'), 'rounded-[8px]', 'px-3', 'text-sm');
+  has(
+    view.container.querySelector('textarea'),
+    'rounded-[8px]',
+    'px-3',
+    'text-sm',
+  );
 });
 
 test('badge: 20px, fully round, 12px weight 500', async () => {
@@ -115,11 +122,25 @@ test('dialog: 440px, padding 24px, radius 12px, 18px semibold title, footer righ
   );
   await settle();
   const content = document.body.querySelector('[data-slot="dialog-content"]');
-  has(content, 'p-6', 'rounded-[12px]', 'sm:max-w-[440px]', 'max-w-[calc(100%-2rem)]');
-  has(document.body.querySelector('[data-slot="dialog-title"]'), 'text-lg', 'font-semibold');
-  has(document.body.querySelector('[data-slot="dialog-description"]'), 'text-muted-foreground', 'leading-normal');
+  has(
+    content,
+    'p-6',
+    'rounded-[12px]',
+    'md:max-w-[440px]',
+    'max-w-[calc(100%-2rem)]',
+  );
+  has(
+    document.body.querySelector('[data-slot="dialog-title"]'),
+    'text-lg',
+    'font-semibold',
+  );
+  has(
+    document.body.querySelector('[data-slot="dialog-description"]'),
+    'text-muted-foreground',
+    'leading-normal',
+  );
   const footer = document.body.querySelector('[data-slot="dialog-footer"]');
-  has(footer, 'gap-2', 'sm:justify-end');
+  has(footer, 'gap-2', 'md:justify-end');
   expect(cls(footer)).not.toContain('bg-muted/50');
   expect(cls(footer)).not.toContain('-mx-4');
 });
@@ -139,12 +160,23 @@ test('alert dialog: 440px, padding 24px, radius 12px, plain right-aligned footer
     </AlertDialog>,
   );
   await settle();
-  const content = document.body.querySelector('[data-slot="alert-dialog-content"]');
-  has(content, 'p-6', 'rounded-[12px]', 'data-[size=default]:sm:max-w-[440px]');
-  has(document.body.querySelector('[data-slot="alert-dialog-title"]'), 'text-lg', 'font-semibold');
-  has(document.body.querySelector('[data-slot="alert-dialog-description"]'), 'leading-normal');
-  const footer = document.body.querySelector('[data-slot="alert-dialog-footer"]');
-  has(footer, 'gap-2', 'sm:justify-end');
+  const content = document.body.querySelector(
+    '[data-slot="alert-dialog-content"]',
+  );
+  has(content, 'p-6', 'rounded-[12px]', 'data-[size=default]:md:max-w-[440px]');
+  has(
+    document.body.querySelector('[data-slot="alert-dialog-title"]'),
+    'text-lg',
+    'font-semibold',
+  );
+  has(
+    document.body.querySelector('[data-slot="alert-dialog-description"]'),
+    'leading-normal',
+  );
+  const footer = document.body.querySelector(
+    '[data-slot="alert-dialog-footer"]',
+  );
+  has(footer, 'gap-2', 'md:justify-end');
   expect(cls(footer)).not.toContain('bg-muted/50');
 });
 
@@ -159,8 +191,19 @@ test('menu: radius 8px, padding 4px, 32px items, radius 4px, 14px', async () => 
   );
   await act(async () => view.container.querySelector('button')!.click());
   await settle();
-  has(document.body.querySelector('[data-slot="dropdown-menu-content"]'), 'rounded-[8px]', 'p-1');
-  has(document.body.querySelector('[role="menuitem"]'), 'h-8', 'rounded-[4px]', 'px-2', 'text-sm', 'gap-2');
+  has(
+    document.body.querySelector('[data-slot="dropdown-menu-content"]'),
+    'rounded-[8px]',
+    'p-1',
+  );
+  has(
+    document.body.querySelector('[role="menuitem"]'),
+    'h-8',
+    'rounded-[4px]',
+    'px-2',
+    'text-sm',
+    'gap-2',
+  );
 });
 
 test('tooltip: 12px text on foreground, padding 4px 8px, radius 6px', async () => {
@@ -171,7 +214,14 @@ test('tooltip: 12px text on foreground, padding 4px 8px, radius 6px', async () =
     </Tooltip>,
   );
   await settle();
-  has(document.body.querySelector('[data-slot="tooltip-content"]'), 'bg-foreground', 'text-xs', 'px-2', 'py-1', 'rounded-[6px]');
+  has(
+    document.body.querySelector('[data-slot="tooltip-content"]'),
+    'bg-foreground',
+    'text-xs',
+    'px-2',
+    'py-1',
+    'rounded-[6px]',
+  );
 });
 
 test('toaster: top-right, 20px/24px offsets, 320px wide, radius 10px, padding 12px 16px', async () => {
@@ -190,7 +240,9 @@ test('toaster: top-right, 20px/24px offsets, 320px wide, radius 10px, padding 12
     toast('Saved');
   });
   await settle();
-  const list = document.body.querySelector('[data-sonner-toaster]') as HTMLElement;
+  const list = document.body.querySelector(
+    '[data-sonner-toaster]',
+  ) as HTMLElement;
   expect(list.getAttribute('data-y-position')).toBe('top');
   expect(list.getAttribute('data-x-position')).toBe('right');
   expect(list.style.getPropertyValue('--offset-top')).toBe('20px');
@@ -199,7 +251,12 @@ test('toaster: top-right, 20px/24px offsets, 320px wide, radius 10px, padding 12
   expect(list.style.getPropertyValue('--mobile-offset-right')).toBe('12px');
   expect(list.style.getPropertyValue('--width')).toBe('320px');
   expect(list.style.getPropertyValue('--border-radius')).toBe('10px');
-  has(document.body.querySelector('[data-sonner-toast]'), 'px-4!', 'py-3!', 'text-sm');
+  has(
+    document.body.querySelector('[data-sonner-toast]'),
+    'px-4!',
+    'py-3!',
+    'text-sm',
+  );
   vi.unstubAllGlobals();
 });
 

@@ -99,7 +99,12 @@ export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
         >
           <MoreHorizontal aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={6} className="w-[180px]">
+        <DropdownMenuContent
+          align="end"
+          alignOffset={-3}
+          sideOffset={9}
+          className="w-[180px]"
+        >
           <DropdownMenuItem onClick={() => setRenaming(true)}>
             <Pencil aria-hidden="true" data-icon="inline-start" />
             Rename

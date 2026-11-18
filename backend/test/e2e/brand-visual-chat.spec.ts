@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { ChatTreeSchema, type ChatMessage } from '@lexon/contracts';
@@ -484,6 +484,8 @@ test('streaming, reconnecting, and loading chat threads', async ({
           })
         : route.fallback(),
   );
+  let cursor: { x: number; y: number; width: number; height: number } | null =
+    null;
   await captureBrandViews(page, 'chat-streaming-scroll', {
     open: async (viewport) => {
       await openThread(
@@ -525,6 +527,34 @@ test('streaming, reconnecting, and loading chat threads', async ({
       await expect
         .poll(() => viewportBox.evaluate((element) => element.scrollTop))
         .toBe(0);
+      // The streaming cursor after the last word animates (DS 5.6): its box
+      // goes into the mask sidecar, next to the prototype's masked caret.
+      cursor = await page.evaluate(() => {
+        const items = document.querySelectorAll('[data-role="assistant"] li');
+        const last = items[items.length - 1];
+        if (!last) return null;
+        const range = document.createRange();
+        range.selectNodeContents(last);
+        const rects = range.getClientRects();
+        const end = rects[rects.length - 1];
+        return end
+          ? { x: end.right - 2, y: end.top - 2, width: 24, height: 24 }
+          : null;
+      });
+    },
+    close: async (viewport) => {
+      const theme = await page
+        .locator('html')
+        .evaluate((element) =>
+          element.classList.contains('dark') ? 'dark' : 'light',
+        );
+      const sidecar = resolve(
+        '.cache/f4.1-visual/review',
+        `${brandViewId('chat-streaming-scroll', viewport, theme)}.png.masks.json`,
+      );
+      if (!cursor || !existsSync(sidecar)) return;
+      const rects = JSON.parse(readFileSync(sidecar, 'utf8')) as object[];
+      writeFileSync(sidecar, `${JSON.stringify([...rects, cursor])}\n`);
     },
   });
 

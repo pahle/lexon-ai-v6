@@ -504,7 +504,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
 const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
   <div
     role="alert"
-    className="bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px] leading-normal"
+    className="bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px] leading-[1.75]"
   >
     <CircleAlertIcon
       className="text-muted-foreground size-[18px] shrink-0"

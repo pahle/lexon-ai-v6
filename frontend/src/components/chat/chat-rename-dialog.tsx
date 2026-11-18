@@ -51,7 +51,7 @@ export function ChatRenameDialog({
         {...(returnFocusRef ? { finalFocus: returnFocusRef } : {})}
       >
         <DialogHeader>
-          <DialogTitle>Rename chat</DialogTitle>
+          <DialogTitle className="leading-[normal]">Rename chat</DialogTitle>
         </DialogHeader>
         <RenameForm
           chat={chat}

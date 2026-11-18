@@ -57,16 +57,33 @@ export function hoverWhenParked(page: Page, target: () => Locator) {
     move: (x: number, y: number, options?: object) => Promise<void>;
   };
   const move = mouse.move.bind(mouse);
-  mouse.move = async (x, y, options) => {
-    await move(x, y, options);
-    if (x !== 0 || y !== 0) return;
+  const showTooltip = async () => {
     await target().hover();
     await expect(
       page.locator('[data-slot="tooltip-content"][data-open]'),
     ).toBeVisible();
   };
+  mouse.move = async (x, y, options) => {
+    await move(x, y, options);
+    if (x === 0 && y === 0) await showTooltip();
+  };
+  // Focus changes after the pointer is parked (the helper blurs the active
+  // element) can close the tooltip again, so it is shown once more right
+  // before the screenshot.
+  const holder = page as unknown as {
+    screenshot: (options?: object) => Promise<Buffer>;
+  };
+  const screenshot = holder.screenshot.bind(page);
+  holder.screenshot = async (options) => {
+    if (
+      !(await page.locator('[data-slot="tooltip-content"][data-open]').count())
+    )
+      await showTooltip();
+    return screenshot(options);
+  };
   return () => {
     delete (mouse as { move?: unknown }).move;
+    delete (holder as { screenshot?: unknown }).screenshot;
   };
 }
 
