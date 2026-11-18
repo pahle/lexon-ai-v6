@@ -1,5 +1,6 @@
 'use client';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
@@ -17,9 +18,12 @@ export const ThreadList: FC = () => {
       className="flex flex-col gap-0.5"
     >
       {isLoading && threadIds.length === 0 ? (
-        <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
-          Loading conversations…
-        </p>
+        <div role="status" className="flex flex-col gap-2 px-2.5 py-2">
+          <span className="sr-only">Loading conversations</span>
+          <Skeleton className="w-[70%]" />
+          <Skeleton className="w-[55%]" />
+          <Skeleton className="w-[80%]" />
+        </div>
       ) : threadIds.length === 0 ? (
         <p className="break-words px-2.5 py-2 text-sm text-muted-foreground">
           No conversations yet.

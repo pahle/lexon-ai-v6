@@ -5,6 +5,7 @@ import type { ChatApi, ChatSearchPage } from '@lexon/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Empty,
   EmptyContent,
@@ -261,7 +262,14 @@ function ChatSearchSession({
               disabled={loadingMore}
               onClick={() => void loadMore()}
             >
-              {loadingMore ? 'Loading results…' : 'Load more results'}
+              {loadingMore ? (
+                <>
+                  <Spinner aria-hidden="true" />
+                  <span className="sr-only">Loading more</span>
+                </>
+              ) : (
+                'Load more results'
+              )}
             </Button>
           ) : null}
         </div>

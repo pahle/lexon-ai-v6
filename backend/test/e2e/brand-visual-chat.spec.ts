@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { ChatTreeSchema, type ChatMessage } from '@lexon/contracts';
+import { ChatTreeSchema } from '@lexon/contracts';
 import {
   activeRunFrames,
   answer,
@@ -24,6 +24,7 @@ import {
   snapshotIndicatorSvg,
   assertSvgSnapshotsMatched,
   runBrandAxe,
+  runBrandAxeOnHeldClock,
   captureBrandViews,
   brandFixedTime,
   type BrandViewport,
@@ -949,15 +950,20 @@ test('indicator frames at fixed times in a held run', async ({
     },
     close: (viewport) => closeFrame('chat-thinking', viewport),
   });
-  // wander and mark are not axe-checked: axe hangs on a paused fake clock, and
-  // chat-thinking runs axe on the running indicator.
+  // wander and mark run axe on the held clock after their frame is closed.
   await captureBrandViews(page, 'indicator-wander', {
     axe: false,
     open: async (viewport) => {
       await openHeldRun(viewport);
       await playTo('indicator-wander', viewport, indicatorTimes.wanderMs);
     },
-    close: (viewport) => closeFrame('indicator-wander', viewport),
+    close: async (viewport) => {
+      await closeFrame('indicator-wander', viewport);
+      await runBrandAxeOnHeldClock(
+        page,
+        brandViewId('indicator-wander', viewport, await currentTheme()),
+      );
+    },
   });
   await captureBrandViews(page, 'indicator-mark', {
     axe: false,
@@ -965,7 +971,13 @@ test('indicator frames at fixed times in a held run', async ({
       await openHeldRun(viewport);
       await playTo('indicator-mark', viewport, markMs);
     },
-    close: (viewport) => closeFrame('indicator-mark', viewport),
+    close: async (viewport) => {
+      await closeFrame('indicator-mark', viewport);
+      await runBrandAxeOnHeldClock(
+        page,
+        brandViewId('indicator-mark', viewport, await currentTheme()),
+      );
+    },
   });
   await captureBrandViews(page, 'indicator-finished', {
     axe: false,
@@ -989,22 +1001,10 @@ test('indicator frames at fixed times in a held run', async ({
     close: async (viewport) => {
       await closeFrame('indicator-finished', viewport);
       // Last, because stepping the clock for axe moves the frame.
-      let axing = true;
-      const stepper = (async () => {
-        while (axing) {
-          await page.clock.runFor(1);
-          await new Promise((done) => setTimeout(done, 5));
-        }
-      })();
-      try {
-        await runBrandAxe(
-          page,
-          brandViewId('indicator-finished', viewport, await currentTheme()),
-        );
-      } finally {
-        axing = false;
-        await stepper;
-      }
+      await runBrandAxeOnHeldClock(
+        page,
+        brandViewId('indicator-finished', viewport, await currentTheme()),
+      );
     },
   });
   assertSvgSnapshotsMatched();

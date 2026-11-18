@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,11 +52,30 @@ export function useOpenChat(): OpenChat | null {
 }
 
 // 28px round icon buttons with 16px icons (LEX-DS-001 v3.1 §5.5 Header).
+/**
+ * True while a status page (not found, workspace error, no access) is in the
+ * document. An error boundary keeps the route's path, so the path cannot tell;
+ * the prototype shows no pill on those pages.
+ */
+function useStatusPageShown() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      setShown(document.querySelector('[data-slot="status-page"]') !== null);
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+  return shown;
+}
+
 const pillButton =
   'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 items-center justify-center rounded-full outline-none focus-visible:ring-3 [&_svg]:size-4';
 
 export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
   const pathname = usePathname();
+  const statusPageShown = useStatusPageShown();
   const { identity, setChatTitle } = useWorkspace();
   const queryClient = useQueryClient();
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
@@ -68,11 +87,11 @@ export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
     : null;
   // The prototype shows the pill on the new chat and on a thread only: the
   // Chats list has none (and a status page hides it, below).
-  if (pathname === '/chats') return null;
+  if (pathname === '/chats' || statusPageShown) return null;
   return (
     <div
       data-slot="chat-floating-pill"
-      className="bg-background [#main:has([data-slot=status-page])_&]:hidden absolute top-[9px] right-3.5 z-10 flex items-center gap-0.5 rounded-full p-[3px] shadow-[0_0_0_1px_var(--border),0_4px_12px_-6px_rgba(8,6,6,.18)] max-md:top-[11px] max-md:right-2.5"
+      className="bg-background absolute top-[9px] right-3.5 z-10 flex items-center gap-0.5 rounded-full p-[3px] shadow-[0_0_0_1px_var(--border),0_4px_12px_-6px_rgba(8,6,6,.18)] max-md:top-[11px] max-md:right-2.5"
     >
       <Link
         href="/workspace"

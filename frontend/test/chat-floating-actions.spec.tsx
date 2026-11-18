@@ -1,3 +1,4 @@
+import { StatusPage } from '../src/components/states/status-page';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -390,5 +391,27 @@ test('the pill is a fully round ring with two 28px round icon buttons and a 180p
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
   ].find((item) => item.textContent === 'Delete')!;
   expect(remove.className).toContain('text-(--lexon-red-text)');
+  await view.unmount();
+});
+
+test('a status page (for example the workspace error) shows no pill', async () => {
+  navigation.path = '/workspace';
+  const view = await render(
+    tree(
+      <StatusPage
+        role="alert"
+        icon={<span />}
+        title="Something went wrong"
+        text="We could not load this page. Your work is saved."
+      />,
+    ),
+  );
+  await settle();
+  const { newChat, actions } = pill(view);
+  expect(
+    view.container.querySelector('[data-slot="status-page"]'),
+  ).not.toBeNull();
+  expect(newChat).toBeNull();
+  expect(actions).toBeNull();
   await view.unmount();
 });

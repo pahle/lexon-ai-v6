@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import { useRef, useState, type ReactNode, type Ref } from 'react';
 import type { ChatApi } from '@lexon/contracts';
 import {
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { formatActivityDate } from '@/lib/date-time';
 import {
   SidebarMenu,
@@ -177,7 +179,14 @@ export function ChatHistory({
             disabled={query.isFetchingNextPage}
             onClick={() => void query.fetchNextPage()}
           >
-            {query.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
+            {query.isFetchingNextPage ? (
+              <>
+                <Spinner aria-hidden="true" />
+                <span className="sr-only">Loading more</span>
+              </>
+            ) : (
+              'Load more chats'
+            )}
           </Button>
         ) : null}
       </div>
@@ -324,6 +333,9 @@ function RecentChatRow({
       <ChatHistoryActions
         item={item}
         sidebar
+        // Only the open chat's row shows its menu button; the others reveal
+        // it on hover or focus (the prototype, LEX-DS-001 §5.5 Shell).
+        className={current ? 'md:opacity-100' : 'max-md:opacity-0'}
         triggerRef={triggerRef}
         onRename={() => setRenaming(true)}
         onDelete={onDelete}
@@ -412,6 +424,7 @@ export function ChatHistoryActions({
   label = `Chat actions for ${item.title}`,
   disabled = false,
   triggerRef,
+  className,
 }: {
   item: { title: string };
   onRename: () => void;
@@ -420,6 +433,7 @@ export function ChatHistoryActions({
   label?: string;
   disabled?: boolean;
   triggerRef?: Ref<HTMLButtonElement>;
+  className?: string;
 }) {
   return (
     <DropdownMenu>
@@ -429,7 +443,10 @@ export function ChatHistoryActions({
             <SidebarMenuAction
               type="button"
               showOnHover
-              className="size-6 peer-data-[size=default]/menu-button:top-1"
+              className={cn(
+                'size-6 peer-data-[size=default]/menu-button:top-1',
+                className,
+              )}
               aria-label={label}
               disabled={disabled}
               ref={triggerRef}

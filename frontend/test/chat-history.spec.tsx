@@ -202,6 +202,37 @@ it('gives the Recent chat actions button a 24 px target', async () => {
   }
 });
 
+it('shows the menu button on the open chat row only; the others reveal it on hover or focus', async () => {
+  const api = {
+    list: vi.fn(async () =>
+      page([{ ...item(1, 'Open row'), id: chatId }, item(2, 'Other row')]),
+    ),
+  } as unknown as ChatApi;
+  const wrapped = withQueryClient(
+    <RecentChats client={api} scope={scope} currentChatId={chatId} />,
+  );
+  const view = await render(wrapped.node);
+  try {
+    await settle();
+    const open = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Chat actions for Open row"]',
+    )!;
+    const other = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Chat actions for Other row"]',
+    )!;
+    expect(open.className).toContain('md:opacity-100');
+    expect(open.className).not.toContain('max-md:opacity-0');
+    expect(other.className).toContain('max-md:opacity-0');
+    expect(other.className).toContain('md:opacity-0');
+    expect(other.className).toContain(
+      'group-focus-within/menu-item:opacity-100',
+    );
+    expect(other.className).toContain('group-hover/menu-item:opacity-100');
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('renames a Recent chat in a dialog and keeps the row title link in place', async () => {
   let serverTitle = 'Original recent title';
   const api = {
