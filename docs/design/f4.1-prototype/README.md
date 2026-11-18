@@ -13,6 +13,9 @@ gate is in §5.6.
   `&theme=dark` for dark, and `#<state>` for the state, for example
   `prototype.html?shot=1&m=1&theme=dark#chat-edit`. It is a design artifact;
   build the product from shadcn and assistant-ui, styled to match it.
+- `source/prototype.src.html`: the same markup, CSS, and script as
+  `prototype.html` without the embedded fonts and marks (about 110 KB instead of
+  380 KB). **Read this file for values**; open `prototype.html` to view states.
 - `screens/r14/<state>-<d|m>[-dark].png`: every state at 1440×900 (`d`) and
   390×844 (`m`), light and dark (276 files).
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
