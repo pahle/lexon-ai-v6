@@ -81,7 +81,7 @@ export function StatusPage({
             {secondaryLink ? (
               <Link
                 href={secondaryLink.href}
-                className="inline-flex items-center justify-center rounded-[8px] px-2.5 py-1.5 text-sm font-medium text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="inline-flex items-center justify-center rounded-[8px] px-2.5 py-1.5 text-sm leading-[normal] font-medium text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 {secondaryLink.label}
               </Link>
