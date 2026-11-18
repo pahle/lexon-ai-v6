@@ -1,0 +1,2574 @@
+{
+  "threshold": 1.5,
+  "over": 56,
+  "results": [
+    {
+      "id": "indicator-finished",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 11.22,
+      "status": "FAIL",
+      "sheet": "indicator-finished-m-dark.png"
+    },
+    {
+      "id": "indicator-finished",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 10.99,
+      "status": "FAIL",
+      "sheet": "indicator-finished-m.png"
+    },
+    {
+      "id": "indicator-wander",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 7.11,
+      "status": "FAIL",
+      "sheet": "indicator-wander-m-dark.png"
+    },
+    {
+      "id": "indicator-mark",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 7.11,
+      "status": "FAIL",
+      "sheet": "indicator-mark-m-dark.png"
+    },
+    {
+      "id": "indicator-wander",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 7.08,
+      "status": "FAIL",
+      "sheet": "indicator-wander-m.png"
+    },
+    {
+      "id": "indicator-mark",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 7.08,
+      "status": "FAIL",
+      "sheet": "indicator-mark-m.png"
+    },
+    {
+      "id": "settings-invitations",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-invitations",
+      "percent": 5.19,
+      "status": "FAIL",
+      "sheet": "settings-invitations-m-dark.png"
+    },
+    {
+      "id": "settings-invitations",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-invitations",
+      "percent": 4.96,
+      "status": "FAIL",
+      "sheet": "settings-invitations-m.png"
+    },
+    {
+      "id": "platform-provisioning-error",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 4.28,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-error-m-dark.png"
+    },
+    {
+      "id": "user-menu-open",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "user-menu-open",
+      "percent": 4.09,
+      "status": "FAIL",
+      "sheet": "user-menu-open-m-dark.png"
+    },
+    {
+      "id": "indicator-finished",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 3.78,
+      "status": "FAIL",
+      "sheet": "indicator-finished-d-dark.png"
+    },
+    {
+      "id": "user-menu-open",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "user-menu-open",
+      "percent": 3.67,
+      "status": "FAIL",
+      "sheet": "user-menu-open-m.png"
+    },
+    {
+      "id": "indicator-finished",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 3.67,
+      "status": "FAIL",
+      "sheet": "indicator-finished-d.png"
+    },
+    {
+      "id": "platform-provisioning-empty",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 3.55,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-empty-m-dark.png"
+    },
+    {
+      "id": "organization-switcher-open",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "organization-switcher-open",
+      "percent": 3.27,
+      "status": "FAIL",
+      "sheet": "organization-switcher-open-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-populated",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-populated",
+      "percent": 3.27,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-populated-m-dark.png"
+    },
+    {
+      "id": "settings-security",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-security",
+      "percent": 3.26,
+      "status": "FAIL",
+      "sheet": "settings-security-m.png"
+    },
+    {
+      "id": "settings-members",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-members",
+      "percent": 3.16,
+      "status": "FAIL",
+      "sheet": "settings-members-m-dark.png"
+    },
+    {
+      "id": "organization-switcher-open",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "organization-switcher-open",
+      "percent": 3.11,
+      "status": "FAIL",
+      "sheet": "organization-switcher-open-m.png"
+    },
+    {
+      "id": "settings-members",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-members",
+      "percent": 3.03,
+      "status": "FAIL",
+      "sheet": "settings-members-m.png"
+    },
+    {
+      "id": "settings-security",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-security",
+      "percent": 3.02,
+      "status": "FAIL",
+      "sheet": "settings-security-m-dark.png"
+    },
+    {
+      "id": "mobile-sheet-open",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "mobile-sheet-open",
+      "percent": 2.98,
+      "status": "FAIL",
+      "sheet": "mobile-sheet-open-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-error",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 2.98,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-error-m.png"
+    },
+    {
+      "id": "platform-provisioning-empty",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 2.97,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-empty-m.png"
+    },
+    {
+      "id": "recent-menu",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "recent-menu",
+      "percent": 2.97,
+      "status": "FAIL",
+      "sheet": "recent-menu-m-dark.png"
+    },
+    {
+      "id": "recent-menu",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "recent-menu",
+      "percent": 2.77,
+      "status": "FAIL",
+      "sheet": "recent-menu-m.png"
+    },
+    {
+      "id": "mobile-sheet-open",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "mobile-sheet-open",
+      "percent": 2.74,
+      "status": "FAIL",
+      "sheet": "mobile-sheet-open-m.png"
+    },
+    {
+      "id": "platform-provisioning-populated",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-provisioning-populated",
+      "percent": 2.66,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-populated-m.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "onboarding-team",
+      "percent": 2.6,
+      "status": "FAIL",
+      "sheet": "onboarding-team-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-loading",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 2.6,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-loading-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-detail",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-detail",
+      "percent": 2.51,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-detail-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-detail",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-provisioning-detail",
+      "percent": 2.31,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-detail-m.png"
+    },
+    {
+      "id": "platform-provisioning-loading",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 2.3,
+      "status": "FAIL",
+      "sheet": "platform-provisioning-loading-m.png"
+    },
+    {
+      "id": "indicator-wander",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 2.23,
+      "status": "FAIL",
+      "sheet": "indicator-wander-d-dark.png"
+    },
+    {
+      "id": "indicator-mark",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 2.23,
+      "status": "FAIL",
+      "sheet": "indicator-mark-d-dark.png"
+    },
+    {
+      "id": "indicator-wander",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 2.17,
+      "status": "FAIL",
+      "sheet": "indicator-wander-d.png"
+    },
+    {
+      "id": "indicator-mark",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "indicator",
+      "note": "layout only (state: indicator)",
+      "percent": 2.17,
+      "status": "FAIL",
+      "sheet": "indicator-mark-d.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding-team",
+      "percent": 2.11,
+      "status": "FAIL",
+      "sheet": "onboarding-team-m.png"
+    },
+    {
+      "id": "chat-rename",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-rename",
+      "percent": 2.09,
+      "status": "FAIL",
+      "sheet": "chat-rename-m-dark.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 2.08,
+      "status": "FAIL",
+      "sheet": "chat-deep-thinking-m-dark.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 2.06,
+      "status": "FAIL",
+      "sheet": "chat-deep-thinking-m.png"
+    },
+    {
+      "id": "settings-general",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-general",
+      "percent": 2.02,
+      "status": "FAIL",
+      "sheet": "settings-general-m.png"
+    },
+    {
+      "id": "settings-general",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-general",
+      "percent": 1.92,
+      "status": "FAIL",
+      "sheet": "settings-general-m-dark.png"
+    },
+    {
+      "id": "chat-rename",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-rename",
+      "percent": 1.9,
+      "status": "FAIL",
+      "sheet": "chat-rename-m.png"
+    },
+    {
+      "id": "chat-edit",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-edit",
+      "percent": 1.84,
+      "status": "FAIL",
+      "sheet": "chat-edit-d.png"
+    },
+    {
+      "id": "chat-edit",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-edit",
+      "percent": 1.82,
+      "status": "FAIL",
+      "sheet": "chat-edit-d-dark.png"
+    },
+    {
+      "id": "chats-no-results",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-no-results",
+      "percent": 1.67,
+      "status": "FAIL",
+      "sheet": "chats-no-results-m-dark.png"
+    },
+    {
+      "id": "chats-no-results",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chats-no-results",
+      "percent": 1.66,
+      "status": "FAIL",
+      "sheet": "chats-no-results-m.png"
+    },
+    {
+      "id": "toast-success",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "toast-success",
+      "percent": 1.64,
+      "status": "FAIL",
+      "sheet": "toast-success-m.png"
+    },
+    {
+      "id": "sign-in-form-alert",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-in-form-alert",
+      "percent": 1.55,
+      "status": "FAIL",
+      "sheet": "sign-in-form-alert-m.png"
+    },
+    {
+      "id": "sign-in-form-alert",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-in-form-alert",
+      "percent": 1.55,
+      "status": "FAIL",
+      "sheet": "sign-in-form-alert-m-dark.png"
+    },
+    {
+      "id": "chat-delete",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-delete",
+      "percent": 1.55,
+      "status": "FAIL",
+      "sheet": "chat-delete-m-dark.png"
+    },
+    {
+      "id": "chats-search",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-search",
+      "percent": 1.55,
+      "status": "FAIL",
+      "sheet": "chats-search-m-dark.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "two-factor",
+      "percent": 1.54,
+      "status": "FAIL",
+      "sheet": "two-factor-m-dark.png"
+    },
+    {
+      "id": "settings-appearance",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-appearance",
+      "percent": 1.53,
+      "status": "FAIL",
+      "sheet": "settings-appearance-m.png"
+    },
+    {
+      "id": "chats-search",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chats-search",
+      "percent": 1.53,
+      "status": "FAIL",
+      "sheet": "chats-search-m.png"
+    },
+    {
+      "id": "settings-appearance",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-appearance",
+      "percent": 1.5,
+      "status": "PASS",
+      "sheet": "settings-appearance-m-dark.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "two-factor",
+      "percent": 1.49,
+      "status": "PASS",
+      "sheet": "two-factor-m.png"
+    },
+    {
+      "id": "toast-success",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "toast-success",
+      "percent": 1.49,
+      "status": "PASS",
+      "sheet": "toast-success-m-dark.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-error",
+      "percent": 1.49,
+      "status": "PASS",
+      "sheet": "chat-error-m-dark.png"
+    },
+    {
+      "id": "chat-starter-pill",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-starter-pill",
+      "percent": 1.48,
+      "status": "PASS",
+      "sheet": "chat-starter-pill-m-dark.png"
+    },
+    {
+      "id": "chat-starter-pill",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-starter-pill",
+      "percent": 1.47,
+      "status": "PASS",
+      "sheet": "chat-starter-pill-m.png"
+    },
+    {
+      "id": "settings-profile",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "settings-profile",
+      "percent": 1.42,
+      "status": "PASS",
+      "sheet": "settings-profile-m.png"
+    },
+    {
+      "id": "chat-floating-menu",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-floating-menu",
+      "percent": 1.32,
+      "status": "PASS",
+      "sheet": "chat-floating-menu-m-dark.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "reset-password",
+      "percent": 1.25,
+      "status": "PASS",
+      "sheet": "reset-password-m-dark.png"
+    },
+    {
+      "id": "settings-profile",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-profile",
+      "percent": 1.25,
+      "status": "PASS",
+      "sheet": "settings-profile-m-dark.png"
+    },
+    {
+      "id": "chat-floating-menu",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-floating-menu",
+      "percent": 1.24,
+      "status": "PASS",
+      "sheet": "chat-floating-menu-m.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-reconnecting",
+      "percent": 1.23,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-m.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-reconnecting",
+      "percent": 1.23,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-empty",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 1.22,
+      "status": "PASS",
+      "sheet": "platform-provisioning-empty-d-dark.png"
+    },
+    {
+      "id": "chat-edit",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-edit",
+      "percent": 1.21,
+      "status": "PASS",
+      "sheet": "chat-edit-m-dark.png"
+    },
+    {
+      "id": "chat-stopped",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-stopped",
+      "percent": 1.21,
+      "status": "PASS",
+      "sheet": "chat-stopped-m.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "reset-password",
+      "percent": 1.2,
+      "status": "PASS",
+      "sheet": "reset-password-m.png"
+    },
+    {
+      "id": "chat-stopped",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-stopped",
+      "percent": 1.2,
+      "status": "PASS",
+      "sheet": "chat-stopped-m-dark.png"
+    },
+    {
+      "id": "settings-security",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-security",
+      "percent": 1.19,
+      "status": "PASS",
+      "sheet": "settings-security-d.png"
+    },
+    {
+      "id": "chat-edit",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-edit",
+      "percent": 1.19,
+      "status": "PASS",
+      "sheet": "chat-edit-m.png"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-accounts",
+      "percent": 1.18,
+      "status": "PASS",
+      "sheet": "platform-accounts-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-error",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 1.15,
+      "status": "PASS",
+      "sheet": "platform-provisioning-error-d-dark.png"
+    },
+    {
+      "id": "forgot-password",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "forgot-password",
+      "percent": 1.12,
+      "status": "PASS",
+      "sheet": "forgot-password-m-dark.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "onboarding",
+      "percent": 1.12,
+      "status": "PASS",
+      "sheet": "onboarding-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-detail",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-detail",
+      "percent": 1.12,
+      "status": "PASS",
+      "sheet": "platform-provisioning-detail-d-dark.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding",
+      "percent": 1.11,
+      "status": "PASS",
+      "sheet": "onboarding-m.png"
+    },
+    {
+      "id": "settings-security",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-security",
+      "percent": 1.11,
+      "status": "PASS",
+      "sheet": "settings-security-d-dark.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-up",
+      "percent": 1.08,
+      "status": "PASS",
+      "sheet": "sign-up-m-dark.png"
+    },
+    {
+      "id": "settings-invitations",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-invitations",
+      "percent": 1.08,
+      "status": "PASS",
+      "sheet": "settings-invitations-d.png"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-accounts",
+      "percent": 1.08,
+      "status": "PASS",
+      "sheet": "platform-accounts-m.png"
+    },
+    {
+      "id": "platform-provisioning-empty",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 1.07,
+      "status": "PASS",
+      "sheet": "platform-provisioning-empty-d.png"
+    },
+    {
+      "id": "platform-provisioning-populated",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-populated",
+      "percent": 1.07,
+      "status": "PASS",
+      "sheet": "platform-provisioning-populated-d-dark.png"
+    },
+    {
+      "id": "settings-invitations",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-invitations",
+      "percent": 1.06,
+      "status": "PASS",
+      "sheet": "settings-invitations-d-dark.png"
+    },
+    {
+      "id": "platform-provisioning-detail",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-detail",
+      "percent": 1.06,
+      "status": "PASS",
+      "sheet": "platform-provisioning-detail-d.png"
+    },
+    {
+      "id": "forgot-password",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "forgot-password",
+      "percent": 1.01,
+      "status": "PASS",
+      "sheet": "forgot-password-m.png"
+    },
+    {
+      "id": "chat-feedback",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-feedback",
+      "percent": 1,
+      "status": "PASS",
+      "sheet": "chat-feedback-m-dark.png"
+    },
+    {
+      "id": "chat-feedback",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-feedback",
+      "percent": 0.99,
+      "status": "PASS",
+      "sheet": "chat-feedback-m.png"
+    },
+    {
+      "id": "platform-provisioning-populated",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-populated",
+      "percent": 0.92,
+      "status": "PASS",
+      "sheet": "platform-provisioning-populated-d.png"
+    },
+    {
+      "id": "platform-provisioning-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 0.9,
+      "status": "PASS",
+      "sheet": "platform-provisioning-loading-d-dark.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 0.9,
+      "status": "PASS",
+      "sheet": "chat-deep-thinking-d-dark.png"
+    },
+    {
+      "id": "accept-invitation",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "accept-invitation",
+      "percent": 0.89,
+      "status": "PASS",
+      "sheet": "accept-invitation-d-dark.png"
+    },
+    {
+      "id": "settings-members",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-members",
+      "percent": 0.89,
+      "status": "PASS",
+      "sheet": "settings-members-d.png"
+    },
+    {
+      "id": "settings-members",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-members",
+      "percent": 0.89,
+      "status": "PASS",
+      "sheet": "settings-members-d-dark.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 0.88,
+      "status": "PASS",
+      "sheet": "chat-deep-thinking-d.png"
+    },
+    {
+      "id": "chat-delete",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-delete",
+      "percent": 0.88,
+      "status": "PASS",
+      "sheet": "chat-delete-m.png"
+    },
+    {
+      "id": "platform-provisioning-loading",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 0.87,
+      "status": "PASS",
+      "sheet": "platform-provisioning-loading-d.png"
+    },
+    {
+      "id": "chat-reasoning-open",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-reasoning-open",
+      "percent": 0.86,
+      "status": "PASS",
+      "sheet": "chat-reasoning-open-m.png"
+    },
+    {
+      "id": "chat-reasoning-open",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-reasoning-open",
+      "percent": 0.86,
+      "status": "PASS",
+      "sheet": "chat-reasoning-open-m-dark.png"
+    },
+    {
+      "id": "sidebar-collapsed",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sidebar-collapsed",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "sidebar-collapsed-m.png"
+    },
+    {
+      "id": "sidebar-collapsed",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sidebar-collapsed",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "sidebar-collapsed-m-dark.png"
+    },
+    {
+      "id": "toast-success",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "toast-success",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "toast-success-d.png"
+    },
+    {
+      "id": "chat-streaming-scroll",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-m-dark.png"
+    },
+    {
+      "id": "chat-reasoning-collapsed",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-reasoning-collapsed",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-reasoning-collapsed-m.png"
+    },
+    {
+      "id": "chat-reasoning-collapsed",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-reasoning-collapsed",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-reasoning-collapsed-m-dark.png"
+    },
+    {
+      "id": "chat-answer-actions",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-answer-actions",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-answer-actions-m.png"
+    },
+    {
+      "id": "chat-answer-actions",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-answer-actions",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-answer-actions-m-dark.png"
+    },
+    {
+      "id": "chat-copied",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-copied",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-copied-m.png"
+    },
+    {
+      "id": "chat-copied",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-copied",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-copied-m-dark.png"
+    },
+    {
+      "id": "chat-streaming-scroll",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.84,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-m.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-up",
+      "percent": 0.83,
+      "status": "PASS",
+      "sheet": "sign-up-m.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "verify-email",
+      "percent": 0.83,
+      "status": "PASS",
+      "sheet": "verify-email-d-dark.png"
+    },
+    {
+      "id": "settings-general",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-general",
+      "percent": 0.83,
+      "status": "PASS",
+      "sheet": "settings-general-d.png"
+    },
+    {
+      "id": "sign-in",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-in",
+      "percent": 0.82,
+      "status": "PASS",
+      "sheet": "sign-in-m-dark.png"
+    },
+    {
+      "id": "settings-appearance",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-appearance",
+      "percent": 0.8,
+      "status": "PASS",
+      "sheet": "settings-appearance-d.png"
+    },
+    {
+      "id": "accept-invitation",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "accept-invitation",
+      "percent": 0.79,
+      "status": "PASS",
+      "sheet": "accept-invitation-d.png"
+    },
+    {
+      "id": "platform-provisioning-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 0.79,
+      "status": "PASS",
+      "sheet": "platform-provisioning-error-d.png"
+    },
+    {
+      "id": "chat-starter-pill",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-starter-pill",
+      "percent": 0.79,
+      "status": "PASS",
+      "sheet": "chat-starter-pill-d-dark.png"
+    },
+    {
+      "id": "sign-in-pending",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-in-pending",
+      "percent": 0.78,
+      "status": "PASS",
+      "sheet": "sign-in-pending-m-dark.png"
+    },
+    {
+      "id": "settings-general",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-general",
+      "percent": 0.78,
+      "status": "PASS",
+      "sheet": "settings-general-d-dark.png"
+    },
+    {
+      "id": "chat-starter-pill",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-starter-pill",
+      "percent": 0.78,
+      "status": "PASS",
+      "sheet": "chat-starter-pill-d.png"
+    },
+    {
+      "id": "settings-appearance",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-appearance",
+      "percent": 0.77,
+      "status": "PASS",
+      "sheet": "settings-appearance-d-dark.png"
+    },
+    {
+      "id": "toast-success",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "toast-success",
+      "percent": 0.77,
+      "status": "PASS",
+      "sheet": "toast-success-d-dark.png"
+    },
+    {
+      "id": "chats-no-results",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-no-results",
+      "percent": 0.77,
+      "status": "PASS",
+      "sheet": "chats-no-results-d-dark.png"
+    },
+    {
+      "id": "sign-in-pending",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-in-pending",
+      "percent": 0.76,
+      "status": "PASS",
+      "sheet": "sign-in-pending-m.png"
+    },
+    {
+      "id": "chats-no-results",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-no-results",
+      "percent": 0.76,
+      "status": "PASS",
+      "sheet": "chats-no-results-d.png"
+    },
+    {
+      "id": "sign-in-field-errors",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-in-field-errors",
+      "percent": 0.74,
+      "status": "PASS",
+      "sheet": "sign-in-field-errors-m-dark.png"
+    },
+    {
+      "id": "chat-rename",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-rename",
+      "percent": 0.74,
+      "status": "PASS",
+      "sheet": "chat-rename-d-dark.png"
+    },
+    {
+      "id": "chats-search",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-search",
+      "percent": 0.74,
+      "status": "PASS",
+      "sheet": "chats-search-d-dark.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "verify-email",
+      "percent": 0.73,
+      "status": "PASS",
+      "sheet": "verify-email-d.png"
+    },
+    {
+      "id": "settings-profile",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "settings-profile",
+      "percent": 0.73,
+      "status": "PASS",
+      "sheet": "settings-profile-d.png"
+    },
+    {
+      "id": "sign-in-form-alert",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in-form-alert",
+      "percent": 0.72,
+      "status": "PASS",
+      "sheet": "sign-in-form-alert-d.png"
+    },
+    {
+      "id": "sign-in-form-alert",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in-form-alert",
+      "percent": 0.72,
+      "status": "PASS",
+      "sheet": "sign-in-form-alert-d-dark.png"
+    },
+    {
+      "id": "chats-search",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-search",
+      "percent": 0.72,
+      "status": "PASS",
+      "sheet": "chats-search-d.png"
+    },
+    {
+      "id": "chat-branch",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-branch",
+      "percent": 0.71,
+      "status": "PASS",
+      "sheet": "chat-branch-m.png"
+    },
+    {
+      "id": "chat-branch",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-branch",
+      "percent": 0.71,
+      "status": "PASS",
+      "sheet": "chat-branch-m-dark.png"
+    },
+    {
+      "id": "sign-in-field-errors",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-in-field-errors",
+      "percent": 0.69,
+      "status": "PASS",
+      "sheet": "sign-in-field-errors-m.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.69,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-m-dark.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "verify-email",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "verify-email-m.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "verify-email",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "verify-email-m-dark.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-error",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "chat-error-m.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-m.png"
+    },
+    {
+      "id": "sign-in",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-in",
+      "percent": 0.66,
+      "status": "PASS",
+      "sheet": "sign-in-m.png"
+    },
+    {
+      "id": "settings-profile",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-profile",
+      "percent": 0.66,
+      "status": "PASS",
+      "sheet": "settings-profile-d-dark.png"
+    },
+    {
+      "id": "chat-rename",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-rename",
+      "percent": 0.66,
+      "status": "PASS",
+      "sheet": "chat-rename-d.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-thinking",
+      "percent": 0.65,
+      "status": "PASS",
+      "sheet": "chat-thinking-m.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-thinking",
+      "percent": 0.65,
+      "status": "PASS",
+      "sheet": "chat-thinking-m-dark.png"
+    },
+    {
+      "id": "chats-empty",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-empty",
+      "percent": 0.64,
+      "status": "PASS",
+      "sheet": "chats-empty-m-dark.png"
+    },
+    {
+      "id": "accept-invitation",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "accept-invitation",
+      "percent": 0.62,
+      "status": "PASS",
+      "sheet": "accept-invitation-m-dark.png"
+    },
+    {
+      "id": "chats-history",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-history",
+      "percent": 0.62,
+      "status": "PASS",
+      "sheet": "chats-history-m-dark.png"
+    },
+    {
+      "id": "accept-invitation",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "accept-invitation",
+      "percent": 0.61,
+      "status": "PASS",
+      "sheet": "accept-invitation-m.png"
+    },
+    {
+      "id": "user-menu-open",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "user-menu-open",
+      "percent": 0.58,
+      "status": "PASS",
+      "sheet": "user-menu-open-d.png"
+    },
+    {
+      "id": "user-menu-open",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "user-menu-open",
+      "percent": 0.58,
+      "status": "PASS",
+      "sheet": "user-menu-open-d-dark.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-error",
+      "percent": 0.56,
+      "status": "PASS",
+      "sheet": "chat-error-d-dark.png"
+    },
+    {
+      "id": "organization-switcher-open",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "organization-switcher-open",
+      "percent": 0.52,
+      "status": "PASS",
+      "sheet": "organization-switcher-open-d-dark.png"
+    },
+    {
+      "id": "chats-empty",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chats-empty",
+      "percent": 0.52,
+      "status": "PASS",
+      "sheet": "chats-empty-m.png"
+    },
+    {
+      "id": "organization-switcher-open",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "organization-switcher-open",
+      "percent": 0.51,
+      "status": "PASS",
+      "sheet": "organization-switcher-open-d.png"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-accounts",
+      "percent": 0.51,
+      "status": "PASS",
+      "sheet": "platform-accounts-d-dark.png"
+    },
+    {
+      "id": "chats-history",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chats-history",
+      "percent": 0.51,
+      "status": "PASS",
+      "sheet": "chats-history-m.png"
+    },
+    {
+      "id": "admin-setup",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "admin-setup",
+      "percent": 0.5,
+      "status": "PASS",
+      "sheet": "admin-setup-m-dark.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-reconnecting",
+      "percent": 0.5,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-d-dark.png"
+    },
+    {
+      "id": "chat-delete",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-delete",
+      "percent": 0.5,
+      "status": "PASS",
+      "sheet": "chat-delete-d-dark.png"
+    },
+    {
+      "id": "admin-setup",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "admin-setup",
+      "percent": 0.49,
+      "status": "PASS",
+      "sheet": "admin-setup-m.png"
+    },
+    {
+      "id": "chat-feedback",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-feedback",
+      "percent": 0.49,
+      "status": "PASS",
+      "sheet": "chat-feedback-d-dark.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-reconnecting",
+      "percent": 0.49,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-d.png"
+    },
+    {
+      "id": "onboarding-invitations",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.48,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-m.png"
+    },
+    {
+      "id": "onboarding-invitations",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.48,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-m-dark.png"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-accounts",
+      "percent": 0.48,
+      "status": "PASS",
+      "sheet": "platform-accounts-d.png"
+    },
+    {
+      "id": "chat-feedback",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-feedback",
+      "percent": 0.48,
+      "status": "PASS",
+      "sheet": "chat-feedback-d.png"
+    },
+    {
+      "id": "chat-copied",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-copied",
+      "percent": 0.47,
+      "status": "PASS",
+      "sheet": "chat-copied-d-dark.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "reset-password",
+      "percent": 0.46,
+      "status": "PASS",
+      "sheet": "reset-password-d-dark.png"
+    },
+    {
+      "id": "chat-copied",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-copied",
+      "percent": 0.46,
+      "status": "PASS",
+      "sheet": "chat-copied-d.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-up",
+      "percent": 0.45,
+      "status": "PASS",
+      "sheet": "sign-up-d-dark.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "reset-password",
+      "percent": 0.45,
+      "status": "PASS",
+      "sheet": "reset-password-d.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "onboarding-team",
+      "percent": 0.45,
+      "status": "PASS",
+      "sheet": "onboarding-team-d-dark.png"
+    },
+    {
+      "id": "recent-menu",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "recent-menu",
+      "percent": 0.45,
+      "status": "PASS",
+      "sheet": "recent-menu-d-dark.png"
+    },
+    {
+      "id": "chat-floating-menu",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-floating-menu",
+      "percent": 0.44,
+      "status": "PASS",
+      "sheet": "chat-floating-menu-d.png"
+    },
+    {
+      "id": "shell-team",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "shell-team",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "shell-team-d-dark.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-new",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "chat-new-d-dark.png"
+    },
+    {
+      "id": "chat-floating-menu",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-floating-menu",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "chat-floating-menu-d-dark.png"
+    },
+    {
+      "id": "recent-menu",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "recent-menu",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "recent-menu-d.png"
+    },
+    {
+      "id": "forgot-password",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "forgot-password",
+      "percent": 0.42,
+      "status": "PASS",
+      "sheet": "forgot-password-d-dark.png"
+    },
+    {
+      "id": "shell-team",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "shell-team",
+      "percent": 0.42,
+      "status": "PASS",
+      "sheet": "shell-team-d.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-new",
+      "percent": 0.42,
+      "status": "PASS",
+      "sheet": "chat-new-d.png"
+    },
+    {
+      "id": "sign-in",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "sign-in-d-dark.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-up",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "sign-up-d.png"
+    },
+    {
+      "id": "shell-personal",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "shell-personal",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "shell-personal-d-dark.png"
+    },
+    {
+      "id": "sign-in-pending",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in-pending",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "sign-in-pending-d-dark.png"
+    },
+    {
+      "id": "admin-setup",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "admin-setup",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "admin-setup-d-dark.png"
+    },
+    {
+      "id": "shell-personal",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "shell-personal",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "shell-personal-d.png"
+    },
+    {
+      "id": "chat-streaming-scroll",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-d-dark.png"
+    },
+    {
+      "id": "chat-reasoning-open",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-reasoning-open",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "chat-reasoning-open-d-dark.png"
+    },
+    {
+      "id": "sign-in-field-errors",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in-field-errors",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "sign-in-field-errors-d-dark.png"
+    },
+    {
+      "id": "sign-in-pending",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in-pending",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "sign-in-pending-d.png"
+    },
+    {
+      "id": "forgot-password",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "forgot-password",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "forgot-password-d.png"
+    },
+    {
+      "id": "chat-streaming-scroll",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-d.png"
+    },
+    {
+      "id": "chat-reasoning-open",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-reasoning-open",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-reasoning-open-d.png"
+    },
+    {
+      "id": "chat-answer-actions",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-answer-actions",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-answer-actions-d-dark.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "two-factor",
+      "percent": 0.38,
+      "status": "PASS",
+      "sheet": "two-factor-d.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "onboarding-team",
+      "percent": 0.38,
+      "status": "PASS",
+      "sheet": "onboarding-team-d.png"
+    },
+    {
+      "id": "chat-answer-actions",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-answer-actions",
+      "percent": 0.38,
+      "status": "PASS",
+      "sheet": "chat-answer-actions-d.png"
+    },
+    {
+      "id": "sign-in-field-errors",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in-field-errors",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "sign-in-field-errors-d.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "two-factor",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "two-factor-d-dark.png"
+    },
+    {
+      "id": "chat-branch",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-branch",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "chat-branch-d-dark.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-d-dark.png"
+    },
+    {
+      "id": "chat-delete",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-delete",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "chat-delete-d.png"
+    },
+    {
+      "id": "sign-in",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in",
+      "percent": 0.36,
+      "status": "PASS",
+      "sheet": "sign-in-d.png"
+    },
+    {
+      "id": "chat-branch",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-branch",
+      "percent": 0.36,
+      "status": "PASS",
+      "sheet": "chat-branch-d.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.36,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-d.png"
+    },
+    {
+      "id": "mobile-sheet-open",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "mobile-sheet-open",
+      "percent": 0.35,
+      "status": "PASS",
+      "sheet": "mobile-sheet-open-d-dark.png"
+    },
+    {
+      "id": "chat-reasoning-collapsed",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-reasoning-collapsed",
+      "percent": 0.35,
+      "status": "PASS",
+      "sheet": "chat-reasoning-collapsed-d-dark.png"
+    },
+    {
+      "id": "chat-stopped",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-stopped",
+      "percent": 0.35,
+      "status": "PASS",
+      "sheet": "chat-stopped-d-dark.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-thinking",
+      "percent": 0.35,
+      "status": "PASS",
+      "sheet": "chat-thinking-d-dark.png"
+    },
+    {
+      "id": "mobile-sheet-open",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "mobile-sheet-open",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "mobile-sheet-open-d.png"
+    },
+    {
+      "id": "chat-reasoning-collapsed",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-reasoning-collapsed",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-reasoning-collapsed-d.png"
+    },
+    {
+      "id": "chat-stopped",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-stopped",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-stopped-d.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-error",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-error-d.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-thinking",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-thinking-d.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "onboarding",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "onboarding-d.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "onboarding",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "onboarding-d-dark.png"
+    },
+    {
+      "id": "onboarding-invitations",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-d.png"
+    },
+    {
+      "id": "onboarding-invitations",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-d-dark.png"
+    },
+    {
+      "id": "chats-empty",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-empty",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "chats-empty-d-dark.png"
+    },
+    {
+      "id": "admin-setup",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "admin-setup",
+      "percent": 0.31,
+      "status": "PASS",
+      "sheet": "admin-setup-d.png"
+    },
+    {
+      "id": "chats-history",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-history",
+      "percent": 0.31,
+      "status": "PASS",
+      "sheet": "chats-history-d-dark.png"
+    },
+    {
+      "id": "chats-empty",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-empty",
+      "percent": 0.3,
+      "status": "PASS",
+      "sheet": "chats-empty-d.png"
+    },
+    {
+      "id": "reset-password-invalid",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "reset-password-invalid",
+      "percent": 0.29,
+      "status": "PASS",
+      "sheet": "reset-password-invalid-d.png"
+    },
+    {
+      "id": "reset-password-invalid",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "reset-password-invalid",
+      "percent": 0.29,
+      "status": "PASS",
+      "sheet": "reset-password-invalid-d-dark.png"
+    },
+    {
+      "id": "chats-history",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-history",
+      "percent": 0.28,
+      "status": "PASS",
+      "sheet": "chats-history-d.png"
+    },
+    {
+      "id": "shell-personal",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "shell-personal",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "shell-personal-m.png"
+    },
+    {
+      "id": "shell-team",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "shell-team",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "shell-team-m.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-new",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "chat-new-m.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "admin-setup-activate",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "admin-setup-activate-d.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "admin-setup-activate",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "admin-setup-activate-d-dark.png"
+    },
+    {
+      "id": "shell-personal",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "shell-personal",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "shell-personal-m-dark.png"
+    },
+    {
+      "id": "shell-team",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "shell-team",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "shell-team-m-dark.png"
+    },
+    {
+      "id": "chats-loading",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-loading",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "chats-loading-m-dark.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-new",
+      "percent": 0.26,
+      "status": "PASS",
+      "sheet": "chat-new-m-dark.png"
+    },
+    {
+      "id": "chats-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-loading",
+      "percent": 0.25,
+      "status": "PASS",
+      "sheet": "chats-loading-d-dark.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.24,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-d.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.24,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-d-dark.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.24,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-d.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.24,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-d-dark.png"
+    },
+    {
+      "id": "platform-no-access",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-no-access",
+      "percent": 0.24,
+      "status": "PASS",
+      "sheet": "platform-no-access-d-dark.png"
+    },
+    {
+      "id": "platform-no-access",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-no-access",
+      "percent": 0.23,
+      "status": "PASS",
+      "sheet": "platform-no-access-d.png"
+    },
+    {
+      "id": "chats-loading",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-loading",
+      "percent": 0.22,
+      "status": "PASS",
+      "sheet": "chats-loading-d.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-d.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-d-dark.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-d.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-d-dark.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "admin-setup-activate",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "admin-setup-activate-m.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "admin-setup-activate",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "admin-setup-activate-m-dark.png"
+    },
+    {
+      "id": "workspace-error",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "workspace-error",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "workspace-error-d-dark.png"
+    },
+    {
+      "id": "sidebar-collapsed",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sidebar-collapsed",
+      "percent": 0.18,
+      "status": "PASS",
+      "sheet": "sidebar-collapsed-d.png"
+    },
+    {
+      "id": "sidebar-collapsed",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sidebar-collapsed",
+      "percent": 0.18,
+      "status": "PASS",
+      "sheet": "sidebar-collapsed-d-dark.png"
+    },
+    {
+      "id": "organizations-not-found",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.18,
+      "status": "PASS",
+      "sheet": "organizations-not-found-d.png"
+    },
+    {
+      "id": "organizations-not-found",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.18,
+      "status": "PASS",
+      "sheet": "organizations-not-found-d-dark.png"
+    },
+    {
+      "id": "workspace-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "workspace-error",
+      "percent": 0.18,
+      "status": "PASS",
+      "sheet": "workspace-error-d.png"
+    },
+    {
+      "id": "not-found",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "not-found",
+      "percent": 0.16,
+      "status": "PASS",
+      "sheet": "not-found-m.png"
+    },
+    {
+      "id": "not-found",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "not-found",
+      "percent": 0.15,
+      "status": "PASS",
+      "sheet": "not-found-m-dark.png"
+    },
+    {
+      "id": "chats-loading",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chats-loading",
+      "percent": 0.15,
+      "status": "PASS",
+      "sheet": "chats-loading-m.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.13,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-m.png"
+    },
+    {
+      "id": "reset-password-invalid",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "reset-password-invalid",
+      "percent": 0.13,
+      "status": "PASS",
+      "sheet": "reset-password-invalid-m.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.13,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-m.png"
+    },
+    {
+      "id": "workspace-error",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "workspace-error",
+      "percent": 0.13,
+      "status": "PASS",
+      "sheet": "workspace-error-m.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-m-dark.png"
+    },
+    {
+      "id": "reset-password-invalid",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "reset-password-invalid",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "reset-password-invalid-m-dark.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-m-dark.png"
+    },
+    {
+      "id": "workspace-error",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "workspace-error",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "workspace-error-m-dark.png"
+    },
+    {
+      "id": "platform-no-access",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-no-access",
+      "percent": 0.04,
+      "status": "PASS",
+      "sheet": "platform-no-access-m.png"
+    },
+    {
+      "id": "organizations-not-found",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.04,
+      "status": "PASS",
+      "sheet": "organizations-not-found-m.png"
+    },
+    {
+      "id": "not-found",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "not-found",
+      "percent": 0.04,
+      "status": "PASS",
+      "sheet": "not-found-d.png"
+    },
+    {
+      "id": "not-found",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "not-found",
+      "percent": 0.04,
+      "status": "PASS",
+      "sheet": "not-found-d-dark.png"
+    },
+    {
+      "id": "platform-no-access",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-no-access",
+      "percent": 0.03,
+      "status": "PASS",
+      "sheet": "platform-no-access-m-dark.png"
+    },
+    {
+      "id": "organizations-not-found",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.03,
+      "status": "PASS",
+      "sheet": "organizations-not-found-m-dark.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-m.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-m-dark.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-m.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-m-dark.png"
+    }
+  ]
+}
