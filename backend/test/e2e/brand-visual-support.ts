@@ -137,6 +137,28 @@ export async function runBrandAxe(page: Page, id: string) {
 }
 
 /**
+ * Runs axe on a page whose fake clock is paused (the held thinking-indicator
+ * frames). Axe waits on page timers, which never fire on a paused clock, so
+ * the clock is stepped by 1 ms in the background while axe runs. Stepping
+ * moves the frame, so call it after the capture and the byte checks.
+ */
+export async function runBrandAxeOnHeldClock(page: Page, id: string) {
+  let axing = true;
+  const stepper = (async () => {
+    while (axing) {
+      await page.clock.runFor(1);
+      await new Promise((done) => setTimeout(done, 5));
+    }
+  })();
+  try {
+    await runBrandAxe(page, id);
+  } finally {
+    axing = false;
+    await stepper;
+  }
+}
+
+/**
  * Describes the focused element when it is interactive and shows a
  * focus-visible ring; null when focus is parked on the body or on a
  * non-interactive element.
