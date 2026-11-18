@@ -18,6 +18,14 @@ const password = 'Brand-operator-42!';
 
 async function enrollAdministrator(page: Page, email: string) {
   const stack = descriptor();
+  const seen: string[] = [];
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    if (url.pathname.startsWith('/api/'))
+      seen.push(
+        `${response.status()} ${response.request().method()} ${url.pathname}`,
+      );
+  });
   {
     const setup = await operatorSetup(email, true);
     expect(setup.status).toBe('created');
@@ -58,7 +66,9 @@ async function enrollAdministrator(page: Page, email: string) {
         'Administrator setup did not reach enrollment at ' +
           page.url() +
           ': ' +
-          (await page.locator('body').innerText()).slice(0, 400),
+          (await page.locator('body').innerText()).slice(0, 200) +
+          ' | api: ' +
+          seen.slice(-14).join('; '),
       );
     }
     await enrollment.fill(password);
