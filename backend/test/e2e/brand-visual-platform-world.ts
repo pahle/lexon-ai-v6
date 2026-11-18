@@ -25,14 +25,14 @@ async function enrollAdministrator(page: Page, email: string) {
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
-    await page.getByLabel('Name', { exact: true }).fill(platformAdmin.name);
-    await page.getByLabel('Email', { exact: true }).fill(email);
+    await page.getByLabel('Full name', { exact: true }).fill(platformAdmin.name);
+    await page.getByLabel('Work email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page
       .getByRole('button', { name: 'Create account', exact: true })
       .click();
     await expect(
-      page.getByRole('heading', { name: 'Check your email' }),
+      page.getByRole('heading', { name: 'Verify your email' }),
     ).toBeVisible();
     await page.goto(
       (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
