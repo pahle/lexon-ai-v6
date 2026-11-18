@@ -275,7 +275,7 @@ export function Members({
                     data-testid={'member-' + member.userId}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="px-0 py-3">
+                    <TableCell className="w-full max-w-0 px-0 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"

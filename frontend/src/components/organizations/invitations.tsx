@@ -295,7 +295,7 @@ export function Invitations({
                     key={invitation.id}
                     className="hover:bg-transparent"
                   >
-                    <TableCell className="px-0 py-3">
+                    <TableCell className="w-full max-w-0 px-0 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
@@ -304,10 +304,10 @@ export function Invitations({
                           <Mail className="size-4" />
                         </span>
                         <span className="flex min-w-0 flex-col leading-tight">
-                          <span className="truncate font-medium">
+                          <span className="font-medium">
                             {invitation.email}
                           </span>
-                          <span className="truncate text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {role} ·{' '}
                             <span
                               className={

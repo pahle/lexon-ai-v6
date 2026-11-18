@@ -362,7 +362,7 @@ function ChatHistoryRow({
   return (
     <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm leading-[normal] font-medium hover:bg-muted focus-within:bg-muted">
       <Link
-        className="min-w-0 flex-1 truncate after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+        className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
         href={`/chats/${item.id}`}
         aria-current={current ? 'page' : undefined}
       >

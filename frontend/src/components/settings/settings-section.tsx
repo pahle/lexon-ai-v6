@@ -49,7 +49,7 @@ export const settingsRowClass = (inline = false) =>
     'flex justify-between gap-6 border-b border-border py-4 data-[invalid=true]:text-foreground',
     inline
       ? 'items-center'
-      : 'items-center max-md:flex-col max-md:items-stretch max-md:gap-2.5',
+      : 'items-center max-md:flex-col max-md:items-stretch max-md:gap-3',
   );
 
 export const settingsLabelClass = 'text-sm leading-[normal] font-medium';
