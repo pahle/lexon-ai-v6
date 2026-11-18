@@ -131,6 +131,20 @@ it('sizes the new-chat composer like the prototype: 56px text area and no extra 
   await view.unmount();
 });
 
+it('grows the new-chat text area with its content from 56px to 200px (mobile 144px), then scrolls inside', async () => {
+  const view = await renderNewChat();
+  const input = view.container.querySelector('textarea')!;
+  for (const token of [
+    'min-h-14',
+    'max-h-[200px]',
+    'max-md:max-h-36',
+    'overflow-y-auto',
+  ])
+    expect(input.className).toContain(token);
+  expect(input.className).not.toContain('max-h-48');
+  await view.unmount();
+});
+
 it('marks the floating New chat pill with a plus icon', async () => {
   const view = await render(wrap(<ChatFloatingActions chat={null} />));
   await settle();

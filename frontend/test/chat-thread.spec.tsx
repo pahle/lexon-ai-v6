@@ -486,6 +486,15 @@ it('creates a server chat only after an accepted text send and navigates to its 
     if (!input) return;
     expect(input.className).toContain('resize-none');
     expect(input.className).toContain('field-sizing-content');
+    // Auto-grow: 56px up to 200px (mobile 144px), then it scrolls inside.
+    for (const token of [
+      'min-h-14',
+      'max-h-[200px]',
+      'max-md:max-h-36',
+      'overflow-y-auto',
+    ])
+      expect(input.className).toContain(token);
+    expect(input.className).not.toContain('max-h-48');
     expect(view.container.querySelector('h2')?.className).toContain(
       'font-serif',
     );
