@@ -25,7 +25,9 @@ async function enrollAdministrator(page: Page, email: string) {
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
-    await page.getByLabel('Full name', { exact: true }).fill(platformAdmin.name);
+    await page
+      .getByLabel('Full name', { exact: true })
+      .fill(platformAdmin.name);
     await page.getByLabel('Work email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page
@@ -48,9 +50,18 @@ async function enrollAdministrator(page: Page, email: string) {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     expect((await signedIn).status()).toBe(200);
     await expect(page).toHaveURL(/admin-setup/);
-    await page
-      .getByLabel('Enrollment password', { exact: true })
-      .fill(password);
+    const enrollment = page.getByLabel('Enrollment password', { exact: true });
+    try {
+      await enrollment.waitFor({ timeout: 30_000 });
+    } catch {
+      throw new Error(
+        'Administrator setup did not reach enrollment at ' +
+          page.url() +
+          ': ' +
+          (await page.locator('body').innerText()).slice(0, 400),
+      );
+    }
+    await enrollment.fill(password);
     await page
       .getByRole('button', { name: 'Set up authenticator', exact: true })
       .click();
