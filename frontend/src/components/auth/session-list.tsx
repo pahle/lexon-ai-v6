@@ -56,10 +56,13 @@ export function SessionList({
   return (
     <section
       aria-labelledby="sessions-heading"
-      className="flex min-w-0 flex-col gap-3"
+      className="flex min-w-0 flex-col"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id="sessions-heading" className="pt-5 text-sm font-semibold">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-5">
+        <h3
+          id="sessions-heading"
+          className="text-sm leading-[normal] font-semibold"
+        >
           Where you are signed in
         </h3>
         {hasOtherSessions && onSignOutOthers ? (
@@ -92,7 +95,7 @@ export function SessionList({
               <li
                 key={session.id}
                 data-slot="session-row"
-                className={settingsRowClass()}
+                className={settingsRowClass(true)}
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span

@@ -297,8 +297,8 @@ test('the sessions list is a named list that wraps without sideways scrolling', 
   const list = view.container.querySelector('ul');
   expect(list?.getAttribute('aria-label')).toBe('Signed-in sessions');
   expect(list?.parentElement?.className).not.toContain('overflow-x-auto');
-  // Rows stack the button under the label on mobile, like every settings row.
-  expect(view.container.querySelector('li')?.className).toContain(
+  // Prototype 14.5: session rows keep the button at the right on mobile.
+  expect(view.container.querySelector('li')?.className).not.toContain(
     'max-md:flex-col',
   );
   await view.unmount();

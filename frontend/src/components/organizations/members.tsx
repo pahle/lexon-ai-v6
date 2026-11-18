@@ -383,7 +383,7 @@ export function Members({
         </div>
       ) : null}
       {pagination}
-      <div className="flex justify-end border-t pt-4">
+      <div className="flex justify-end pt-4">
         <Button
           variant="outline"
           disabled={submission.pending}

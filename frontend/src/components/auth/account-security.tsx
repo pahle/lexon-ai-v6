@@ -160,7 +160,7 @@ export function AccountSecurity() {
           className="flex items-center justify-between gap-6 border-b border-border py-4"
         >
           <div className="min-w-0">
-            <h3 className="text-sm font-medium">
+            <h3 className="text-sm leading-[normal] font-medium">
               Two-step verification
               <Badge
                 variant="outline"
@@ -169,13 +169,13 @@ export function AccountSecurity() {
                 {security.data.twoFactorEnabled ? 'On' : 'Off'}
               </Badge>
             </h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
+            <p className="mt-0.5 text-[13px] leading-[normal] text-muted-foreground">
               {security.data.twoFactorEnabled
                 ? `Authenticator app. ${security.data.recoveryCodesRemaining} recovery codes left.`
                 : 'Add an authenticator app for a second step at sign-in.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {security.data.twoFactorEnabled ? (
               <>
                 <Button
@@ -297,8 +297,8 @@ function SecurityRow({
       className="flex items-center justify-between gap-6 border-b border-border py-4"
     >
       <div className="min-w-0">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
+        <h3 className="text-sm leading-[normal] font-medium">{title}</h3>
+        <p className="mt-0.5 text-[13px] leading-[normal] text-muted-foreground">
           {description}
         </p>
       </div>
