@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
+import { ArrowLeftIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   PasswordResetRequestInputSchema,
@@ -14,17 +16,9 @@ import {
   identityMessage,
   QueryFailure,
 } from '../organizations/page-state';
-import { FormInput } from '../auth/form-input';
-import { FieldGroup } from '../ui/field';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
@@ -38,6 +32,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
+import { PlatformActions, PlatformCard } from './platform-card';
+import { PlatformField } from './platform-field';
+import { PlatformHeading } from './platform-page';
+import {
+  capitalize,
+  formatPlatformDate,
+  formatPlatformDateTime,
+} from './platform-format';
 
 export function ProvisioningDetail({
   organizationId,
@@ -79,127 +81,132 @@ export function ProvisioningDetail({
   if (result.error) return <QueryFailure error={result.error} />;
   if (!result.data) {
     return (
-      <section
+      <div
         role="status"
         aria-label="Loading provisioning metadata"
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-6"
       >
-        <p className="text-sm text-muted-foreground">
-          Loading provisioning metadata…
-        </p>
-        <Skeleton className="h-32 w-full" />
-      </section>
+        <h1 className="sr-only">Organization provisioning details</h1>
+        <div aria-hidden="true" className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="w-1/3" />
+        </div>
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
     );
   }
   const organization = result.data;
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <Link
+        href="/platform/provisioning"
+        className="-mb-3 -ml-2.5 inline-flex w-fit items-center gap-2 self-start rounded-[8px] px-2.5 py-1.5 text-sm font-medium text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <ArrowLeftIcon aria-hidden="true" className="size-4" />
+        Provisioning
+      </Link>
+      <PlatformHeading
+        title={organization.name}
+        description={`${organization.slug} · Provisioned ${formatPlatformDate(organization.createdAt)}`}
+        aside={
+          <Badge variant="outline" className="border-input">
+            {capitalize(organization.state)}
+          </Badge>
+        }
+      />
       {failure && !confirmCancel ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>{organization.name}</CardTitle>
-          <CardDescription>
-            Provisioning metadata and invitation status only.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <dl className="grid gap-3 text-sm sm:grid-cols-[auto_1fr]">
-            <dt className="font-medium">State</dt>
-            <dd className="capitalize text-muted-foreground">
-              {organization.state}
-            </dd>
-            <dt className="font-medium">Owner invitation</dt>
-            <dd className="capitalize text-muted-foreground">
-              {organization.invitation.status}
-            </dd>
-            <dt className="font-medium">Expires</dt>
-            <dd className="text-muted-foreground">
-              {new Date(organization.invitation.expiresAt).toLocaleString(
-                'en-US',
-                { dateStyle: 'medium', timeStyle: 'short' },
-              )}
-            </dd>
-          </dl>
-          <div className="flex flex-wrap gap-2">
-            <PendingButton
-              variant="outline"
-              pending={submission.pending && pendingOperation === 'resend'}
-              disabled={submission.pending}
-              pendingLabel="Resending…"
-              onClick={() =>
-                void submission.run(async () => {
-                  setPendingOperation('resend');
-                  try {
-                    await mutate(
-                      () => identityApi.resendOwnerInvitation(organizationId),
-                      'Owner invitation resent.',
-                    );
-                  } finally {
-                    setPendingOperation(null);
-                  }
-                })
-              }
-            >
-              Resend owner invitation
-            </PendingButton>
-            <Button
-              variant="outline"
-              disabled={submission.pending}
-              onClick={() => {
-                setFailure('');
-                setConfirmCancel(true);
-              }}
-            >
-              Cancel provisioning
-            </Button>
-          </div>
-          <form
-            noValidate
-            onSubmit={form.handleSubmit((input) =>
-              submission.run(async () => {
-                setPendingOperation('replace');
+      <PlatformCard title="Owner invitation">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-[160px_1fr]">
+          <dt className="text-muted-foreground">Status</dt>
+          <dd className="font-medium">
+            {capitalize(organization.invitation.status)}
+          </dd>
+          <dt className="text-muted-foreground">Expires</dt>
+          <dd className="font-medium">
+            {formatPlatformDateTime(organization.invitation.expiresAt)}
+          </dd>
+        </dl>
+        <PlatformActions className="justify-start">
+          <PendingButton
+            variant="outline"
+            pending={submission.pending && pendingOperation === 'resend'}
+            disabled={submission.pending}
+            pendingLabel="Resending…"
+            onClick={() =>
+              void submission.run(async () => {
+                setPendingOperation('resend');
                 try {
-                  await mutate(async () => {
-                    await identityApi.replaceOwnerEmail(organizationId, input);
-                    form.reset();
-                  }, 'Owner invitation updated.');
+                  await mutate(
+                    () => identityApi.resendOwnerInvitation(organizationId),
+                    'Owner invitation resent.',
+                  );
                 } finally {
                   setPendingOperation(null);
                 }
-              }),
-            )}
+              })
+            }
           >
-            <FieldGroup>
-              <FormInput
-                label="Replacement owner email"
-                type="email"
-                autoComplete="email"
-                disabled={submission.pending}
-                registration={form.register('email')}
-                error={form.formState.errors.email}
-              />
-              <PendingButton
-                type="submit"
-                pending={submission.pending && pendingOperation === 'replace'}
-                disabled={submission.pending}
-                pendingLabel="Replacing…"
-              >
-                Replace owner email
-              </PendingButton>
-            </FieldGroup>
-          </form>
-          <a
-            className="text-sm underline underline-offset-4"
-            href="/workspace?settings=security"
+            Resend owner invitation
+          </PendingButton>
+          <Button
+            variant="outline"
+            className="text-lexon-red-text"
+            disabled={submission.pending}
+            onClick={() => {
+              setFailure('');
+              setConfirmCancel(true);
+            }}
           >
-            Account security
-          </a>
-        </CardContent>
-      </Card>
+            Cancel provisioning
+          </Button>
+        </PlatformActions>
+      </PlatformCard>
+      <PlatformCard
+        title="Replace owner email"
+        description="Sends a new invitation to a different person. The current invitation stops working."
+      >
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={form.handleSubmit((input) =>
+            submission.run(async () => {
+              setPendingOperation('replace');
+              try {
+                await mutate(async () => {
+                  await identityApi.replaceOwnerEmail(organizationId, input);
+                  form.reset();
+                }, 'Owner invitation updated.');
+              } finally {
+                setPendingOperation(null);
+              }
+            }),
+          )}
+        >
+          <PlatformField
+            label="Replacement owner email"
+            type="email"
+            autoComplete="email"
+            placeholder="owner@firm.co.id"
+            disabled={submission.pending}
+            registration={form.register('email')}
+            error={form.formState.errors.email}
+          />
+          <PlatformActions>
+            <PendingButton
+              type="submit"
+              pending={submission.pending && pendingOperation === 'replace'}
+              disabled={submission.pending}
+              pendingLabel="Replacing…"
+            >
+              Replace owner email
+            </PendingButton>
+          </PlatformActions>
+        </form>
+      </PlatformCard>
       <AlertDialog
         open={confirmCancel}
         onOpenChange={(open) => {
@@ -265,6 +272,6 @@ export function ProvisioningDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

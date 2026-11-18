@@ -96,7 +96,7 @@ test('platform provisioning uses a published Card, Empty state, and semantic tab
   expect(view.container.querySelector('[data-slot="empty"]')).not.toBeNull();
   expect(view.container.textContent).toContain('No provisioning organizations');
   expect(view.container.textContent).toContain(
-    'New teams waiting for an owner will appear here.',
+    'Organizations you provision appear here until their first owner accepts.',
   );
   expect(view.container.textContent).not.toContain(
     'Provision an organization above to begin.',
@@ -432,7 +432,7 @@ test('provisioning list shows a skeleton while loading', async () => {
   await view.unmount();
 });
 
-test('provisioning list section heading uses the serif treatment', async () => {
+test('provisioning list section heading is a 16px semibold platform heading', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () =>
@@ -446,7 +446,8 @@ test('provisioning list section heading uses the serif treatment', async () => {
   );
   await settle();
   const heading = view.container.querySelector('#provisioning-heading');
-  expect(heading?.className).toContain('font-serif');
-  expect(heading?.className).toContain('text-xl');
+  expect(heading?.textContent).toBe('Awaiting first owner');
+  expect(heading?.className).toContain('text-base');
+  expect(heading?.className).toContain('font-semibold');
   await view.unmount();
 });

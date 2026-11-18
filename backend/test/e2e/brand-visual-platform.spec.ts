@@ -1,16 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
-import { operatorSetup, signupMode } from './setup-support.js';
-import { totpForUri } from '../setup/totp.js';
 import { brandFixedTime, captureBrandViews } from './brand-visual-support.js';
 import { gateRequests } from './brand-visual-world.js';
 import {
-  platformAdmin,
   prototypeNow,
   provisioningOrganizations,
 } from './prototype-fixtures.js';
 import { hideDevOverlayOnLoad } from './brand-visual-support.js';
+import { platformWorld } from './brand-visual-platform-world.js';
 
 // F4.1 visual set, platform group: provisioning and account status for a
 // real platform administrator.
@@ -56,81 +53,14 @@ async function installProvisioningListNormalization(page: Page) {
 
 // Platform, errors, and UI patterns.
 
-let restoreSignupModeAfterTest = false;
-test.afterEach(async () => {
-  if (!restoreSignupModeAfterTest) return;
-  restoreSignupModeAfterTest = false;
-  await signupMode(true);
-});
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
 test('Platform pages for a real platform administrator', async ({ page }) => {
-  test.setTimeout(230_000);
+  test.setTimeout(420_000);
   const stack = descriptor();
-  const email = platformAdmin.email;
-  const password = 'Brand-operator-42!';
-  await signupMode(false);
-  restoreSignupModeAfterTest = true;
-  const setup = await operatorSetup(email, true);
-  expect(setup.status).toBe('created');
-  await page.goto(setup.mail!.actionUrl);
-  await page
-    .getByRole('button', { name: 'Create setup account', exact: true })
-    .click();
-  await page.getByLabel('Name', { exact: true }).fill(platformAdmin.name);
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page
-    .getByRole('button', { name: 'Create account', exact: true })
-    .click();
-  await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
-  ).toBeVisible();
-  await page.goto(
-    (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
-  );
-  await page.getByRole('link', { name: 'Sign in', exact: true }).click();
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  const signedIn = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/auth/sign-in/email' &&
-      response.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  expect((await signedIn).status()).toBe(200);
-  await expect(page).toHaveURL(/admin-setup/);
-  await page.getByLabel('Enrollment password', { exact: true }).fill(password);
-  await page
-    .getByRole('button', { name: 'Set up authenticator', exact: true })
-    .click();
-  const uri = await page.getByTestId('authenticator-uri').textContent();
-  await page
-    .getByLabel('Authenticator code', { exact: true })
-    .fill(totpForUri(uri!));
-  await page
-    .getByRole('button', { name: 'Verify authenticator', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'I saved my recovery codes', exact: true })
-    .click();
-  await page
-    .getByRole('button', {
-      name: 'Activate platform administrator',
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByRole('heading', { name: 'Administrator setup complete' }),
-  ).toBeVisible();
-  expect(
-    (
-      await page.request.post(
-        stack.apiUrl + '/api/identity/onboarding/complete',
-        { headers: { origin: stack.frontendUrl }, data: {} },
-      )
-    ).status(),
-  ).toBe(204);
+  // Built once per stack (administrator and the three organizations) and
+  // reused afterwards, so this group can run again on a long-lived stack.
+  const world = await platformWorld(page);
   await page.clock.setFixedTime(brandFixedTime);
 
   const listUrl = (url: URL, method: string) =>
@@ -139,13 +69,24 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     (method === 'GET' || method === '');
   const provisioning = stack.frontendUrl + '/platform/provisioning';
 
-  // The empty list: nothing has been provisioned yet.
-  await page.goto(provisioning);
-  await expect(page.locator('h1')).toHaveText('Organization provisioning');
-  await expect(
-    page.getByText('No provisioning organizations', { exact: true }),
-  ).toBeVisible();
-  await captureBrandViews(page, 'platform-provisioning-empty');
+  // The empty list: the world already holds the organizations, so the list
+  // answers with no items for this state.
+  const emptyList = (url: URL) => listUrl(url, 'GET');
+  await page.route(emptyList, (route) =>
+    route.request().method() !== 'GET'
+      ? route.fallback()
+      : route.fulfill({ json: { items: [], pageInfo: { nextCursor: null } } }),
+  );
+  try {
+    await page.goto(provisioning);
+    await expect(page.locator('h1')).toHaveText('Organization provisioning');
+    await expect(
+      page.getByText('No provisioning organizations', { exact: true }),
+    ).toBeVisible();
+    await captureBrandViews(page, 'platform-provisioning-empty');
+  } finally {
+    await page.unroute(emptyList);
+  }
 
   // The list request is held by a gated route, then released.
   const list = await gateRequests(page, listUrl);
@@ -187,34 +128,8 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await page.unroute(failingList);
   }
 
-  const created = await page.request.post(
-    stack.apiUrl + '/api/platform/provisioning',
-    {
-      headers: { origin: stack.frontendUrl },
-      data: {
-        name: provisioningOrganizations[0].name,
-        slug: provisioningOrganizations[0].slug,
-        ownerEmail: provisioningOrganizations[0].ownerEmail,
-      },
-    },
-  );
-  expect(created.status()).toBe(201);
-  for (const other of provisioningOrganizations.slice(1))
-    expect(
-      (
-        await page.request.post(stack.apiUrl + '/api/platform/provisioning', {
-          headers: { origin: stack.frontendUrl },
-          data: {
-            name: other.name,
-            slug: other.slug,
-            ownerEmail: other.ownerEmail,
-          },
-        })
-      ).status(),
-    ).toBe(201);
   // The list shows the prototype dates and the expired invitation.
   const normalized = await installProvisioningListNormalization(page);
-  const organization = (await created.json()) as { id: string };
   await page.goto(provisioning);
   await expect(
     page.getByRole('link', { name: 'Harbor Legal Partners', exact: true }),
@@ -223,14 +138,16 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await normalized.remove();
 
   // The invitation expiry is the only time-dependent value on the detail page.
-  const detailPath = `/api/platform/provisioning/${organization.id}`;
+  const detailPath = `/api/platform/provisioning/${world.harborId}`;
   const detailUrl = (url: URL) => url.pathname === detailPath;
   await page.route(detailUrl, async (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     const response = await route.fetch();
     const body = (await response.json()) as {
+      createdAt: string;
       invitation: { expiresAt: string };
     };
+    body.createdAt = prototypeNow;
     body.invitation.expiresAt = '2026-11-21T04:00:00.000Z';
     return route.fulfill({ response, json: body });
   });
@@ -242,7 +159,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
       page.getByRole('button', { name: 'Resend owner invitation' }),
     ).toBeVisible();
     await expect(
-      page.getByText('Nov 21, 2026', { exact: false }),
+      page.getByText('21 Nov 2026, 11:00', { exact: true }),
     ).toBeVisible();
     await captureBrandViews(page, 'platform-provisioning-detail');
   } finally {

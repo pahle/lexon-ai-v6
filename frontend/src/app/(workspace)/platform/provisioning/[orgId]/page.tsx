@@ -6,7 +6,7 @@ export default async function ProvisioningDetailPage({
   params: Promise<{ orgId: string }>;
 }) {
   return (
-    <PlatformPage title="Organization provisioning details">
+    <PlatformPage>
       <ProvisioningDetail organizationId={(await params).orgId} />
     </PlatformPage>
   );
