@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.3).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.5).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -76,6 +76,22 @@ today's behavior (the brief: behavior stays as F4 delivered it):
   added.
 - Administrator setup is sign in or create the setup account, then email and
   two-step verification, then `admin-setup-activate`.
+
+## Revision 14.5 (2026-11-18): owner decisions during round 4
+
+Drawn from the round-4 code on `f4.1-brand-refresh`, not from memory:
+
+- Settings → Security: Password ("Last changed …"), Email with Change email,
+  Two-step verification with Recovery codes and Manage, "Where you are signed
+  in" with Sign out other sessions; each session shows the device, "This
+  device", and "Active now" or "Signed in N days ago". No location.
+- Settings → Members: a Leave organization button below the list.
+- Chats: date groups Today, Yesterday, Previous 7 days, Previous 30 days, then
+  months; the Nov 4 chats sit under Previous 30 days, and search shows the same
+  dates.
+- Composer: grows with its text up to 200px (mobile 144px), then scrolls inside.
+- Mobile: Copy and Edit under a user message stay visible (no hover on touch).
+- Editing a message keeps the action row under the muted answer.
 
 ## Thinking indicator
 

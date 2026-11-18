@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.3, approved 2026-11-18) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.5, approved 2026-11-18) |
 
 ## Rationale
 
@@ -446,7 +446,8 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   on thread pages.
 - Box: radius 20px, 1px `border`, padding 16px 14px 12px 16px, 10px gap,
   shadow `0 10px 30px -14px rgba(8,6,6,.22), 0 2px 6px -2px rgba(8,6,6,.06)`.
-  Text 16px, minimum 56px tall.
+  Text 16px, minimum 56px tall; it grows with its text up to 200px (mobile
+  144px), then scrolls inside. Typed text is never clipped.
 - Deep thinking pill 32px high, fully round, padding 0 10px, 13px weight 500.
   Send and stop: 36px round `primary`; disabled send at 40% opacity.
 - Disclaimer 12px `muted-foreground`, 8px below, centered.
