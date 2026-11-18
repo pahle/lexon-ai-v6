@@ -84,7 +84,9 @@ test('new chat, Deep thinking, and a starter prompt', async ({
       await expect(toggle).toHaveAttribute('aria-pressed', 'true');
       await calm(page);
       // The prototype shows the tooltip under the pressed pill.
-      undoHover = hoverWhenParked(page, () => toggle);
+      // Touch emulation opens no hover tooltip, so only desktop shows it.
+      if (viewport === 'desktop')
+        undoHover = hoverWhenParked(page, () => toggle);
     },
     close: async () => undoHover?.(),
   });
@@ -515,7 +517,6 @@ test('streaming, reconnecting, and loading chat threads', async ({
         }
       });
       await page.mouse.move(viewport === 'desktop' ? 840 : 195, 400);
-      await page.mouse.wheel(0, -6000);
       await viewportBox.evaluate((element) => {
         element.style.scrollBehavior = 'auto';
         element.scrollTop = 0;

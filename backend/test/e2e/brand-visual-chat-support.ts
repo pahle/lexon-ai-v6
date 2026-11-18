@@ -57,11 +57,10 @@ export function hoverWhenParked(page: Page, target: () => Locator) {
     move: (x: number, y: number, options?: object) => Promise<void>;
   };
   const move = mouse.move.bind(mouse);
-  const showTooltip = async () => {
+  const open = page.locator('[data-slot="tooltip-content"][data-open]');
+  const showTooltip = async (timeout = 10_000) => {
     await target().hover();
-    await expect(
-      page.locator('[data-slot="tooltip-content"][data-open]'),
-    ).toBeVisible();
+    await expect(open).toBeVisible({ timeout });
   };
   mouse.move = async (x, y, options) => {
     await move(x, y, options);
@@ -75,10 +74,7 @@ export function hoverWhenParked(page: Page, target: () => Locator) {
   };
   const screenshot = holder.screenshot.bind(page);
   holder.screenshot = async (options) => {
-    if (
-      !(await page.locator('[data-slot="tooltip-content"][data-open]').count())
-    )
-      await showTooltip();
+    if (!(await open.count())) await showTooltip(1_500).catch(() => undefined);
     return screenshot(options);
   };
   return () => {

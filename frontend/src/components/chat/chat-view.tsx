@@ -322,7 +322,7 @@ function ChatViewSession({
     );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[22px] pb-20">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[22px] pb-20 max-md:pb-[79px]">
       <ChatGreeting displayName={displayName} />
       <form onSubmit={submit} className={composerClasses.wrapper}>
         <div data-slot="aui_composer-shell" className={composerClasses.shell}>
@@ -408,7 +408,7 @@ function ChatViewSession({
           </p>
         ) : null}
       </form>
-      <div className="mt-3.5 w-full max-w-[880px]">
+      <div className="mt-3.5 w-full max-w-[880px] max-md:mt-[13px]">
         <StarterPills
           textareaRef={textareaRef}
           value={text}
