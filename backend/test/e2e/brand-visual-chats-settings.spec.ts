@@ -326,6 +326,7 @@ test('Chats history, search with highlights, and no results', async ({
   });
 
   await captureBrandViews(page, 'chats-no-results', {
+    keepFocus: true,
     open: async () => {
       await openChats('chats-no-results');
       await search('hak tanggungan');

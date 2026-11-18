@@ -190,6 +190,7 @@ export function OrganizationSettings({
           </SettingsField>
           <div className="flex justify-end pt-4">
             <PendingButton
+              className="[&_.invisible]:hidden"
               type="submit"
               pending={submission.pending}
               pendingLabel="Saving…"

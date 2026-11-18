@@ -224,7 +224,7 @@ export function Invitations({
         ) : null}
       </form>
       {rows.length > 0 ? (
-        <h3 className="pt-5 pb-1 text-base font-semibold">
+        <h3 className="pt-5 pb-1 text-sm leading-[normal] font-semibold">
           Pending invitations
         </h3>
       ) : null}
@@ -332,7 +332,7 @@ export function Invitations({
                           <PendingButton
                             variant="outline"
                             size="sm"
-                            className="h-[30px] px-2.5 text-[13px]"
+                            className="h-[30px] px-2.5 text-[13px] [&_.invisible]:hidden"
                             pending={
                               submission.pending &&
                               pendingAction?.type === 'resend' &&

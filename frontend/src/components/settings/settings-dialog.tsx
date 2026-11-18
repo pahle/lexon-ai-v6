@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { ArrowLeft, X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import { SettingsNavigation } from './settings-navigation';
 import {
   getSettingsFinalFocusTarget,
@@ -157,7 +157,7 @@ export function SettingsDialog(): React.ReactElement | null {
               className="md:hidden"
               onClick={() => setShowSections(true)}
             >
-              <ArrowLeft aria-hidden="true" />
+              <ChevronLeft aria-hidden="true" />
             </Button>
           ) : null}
           <DialogTitle

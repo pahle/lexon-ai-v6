@@ -207,10 +207,10 @@ function ChatSearchSession({
                 >
                   <Search aria-hidden="true" />
                 </EmptyMedia>
-                <EmptyTitle className="text-base font-semibold text-foreground">
+                <EmptyTitle className="text-base leading-[normal] font-semibold text-foreground">
                   No chats match “{submittedQuery}”
                 </EmptyTitle>
-                <EmptyDescription className="max-w-none text-sm/normal">
+                <EmptyDescription className="max-w-none text-sm leading-[normal]">
                   Search looks in chat titles and messages. Try other words.
                 </EmptyDescription>
               </EmptyHeader>
@@ -241,7 +241,7 @@ function ChatSearchSession({
                       </time>
                     </span>
                     {item.excerpt ? (
-                      <span className="text-muted-foreground line-clamp-2 text-[13px]/[1.5]">
+                      <span className="text-muted-foreground text-[13px]/[1.5]">
                         {highlightExcerpt(
                           item.excerpt,
                           item.matchStart,

@@ -124,10 +124,10 @@ export function ChatHistory({
             >
               <MessageCircle aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle className="text-base font-semibold text-foreground">
+            <EmptyTitle className="text-base leading-[normal] font-semibold text-foreground">
               No chats yet
             </EmptyTitle>
-            <EmptyDescription className="text-sm/normal">
+            <EmptyDescription className="text-sm leading-[normal]">
               Start a new chat to ask Lexon about a contract, a regulation, or a
               case.
             </EmptyDescription>
