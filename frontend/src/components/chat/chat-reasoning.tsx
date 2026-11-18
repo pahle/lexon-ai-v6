@@ -71,7 +71,9 @@ export function PersistedReasoning({
       : null;
   if (summary === null)
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm leading-[1.75]">
+      <div
+        className={`text-muted-foreground flex items-center gap-2 text-sm${measured ? ' leading-[1.75]' : ''}`}
+      >
         {mark}
         {measured}
       </div>

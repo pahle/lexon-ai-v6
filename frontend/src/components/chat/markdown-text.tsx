@@ -37,21 +37,30 @@ export function MarkdownText({
     img: () => null,
     h1: ({ children }) => (
       <h1
-        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
+        className={cn(
+          'mt-1.5 mb-1 text-base leading-[1.75] font-semibold font-sans',
+          muted,
+        )}
       >
         {children}
       </h1>
     ),
     h2: ({ children }) => (
       <h2
-        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
+        className={cn(
+          'mt-1.5 mb-1 text-base leading-[1.75] font-semibold font-sans',
+          muted,
+        )}
       >
         {children}
       </h2>
     ),
     h3: ({ children }) => (
       <h3
-        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
+        className={cn(
+          'mt-1.5 mb-1 text-base leading-[1.75] font-semibold font-sans',
+          muted,
+        )}
       >
         {children}
       </h3>

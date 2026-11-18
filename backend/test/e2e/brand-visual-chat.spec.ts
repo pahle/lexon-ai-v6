@@ -112,7 +112,7 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
       'false',
     );
     // A thread that fits the viewport rests at its start, where the message
-    // sits under the 16px content padding; a longer one scrolls so the message
+    // sits under the content padding (24px, mobile 16px); a longer one scrolls so the message
     // is flush with the viewport top.
     await expect
       .poll(() =>
@@ -126,7 +126,9 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
             message.getBoundingClientRect().top -
               viewport.getBoundingClientRect().top,
           );
-          return Math.abs(offset - (viewport.scrollTop === 0 ? 16 : 0));
+          // Thread padding-top: 24px (mobile 16px), LEX-DS-001 v3.1 §5.5.
+          const rest = window.innerWidth < 768 ? 16 : 24;
+          return Math.abs(offset - rest);
         }, userMessageId),
       )
       .toBeLessThanOrEqual(1);
@@ -204,7 +206,7 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
         page,
         env,
         'stopped',
-        page.getByText('Stopped', { exact: true }),
+        page.getByText('You stopped this response.', { exact: true }),
       );
     },
   });

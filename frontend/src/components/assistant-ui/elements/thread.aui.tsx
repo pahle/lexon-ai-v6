@@ -227,7 +227,8 @@ export const Thread: FC<ThreadProps> = ({
 
 /**
  * Opening a thread places its last user message at the top of the viewport:
- * not the top of the thread and not the end of the answer. It runs once per
+ * not the top of the thread and not the end of the answer (it keeps the
+ * thread's top padding above it). It runs once per
  * mounted thread, when its history first has messages, and never again, so
  * live streaming and the scroll-to-bottom button keep their own behavior. A
  * short tail cannot scroll that far; the viewport then rests at its end.
@@ -246,8 +247,16 @@ const OpenAtLastUserMessage: FC = () => {
     const target = users[users.length - 1];
     if (!target) return;
     placed.current = true;
+    // The message rests under the thread's top padding, as it does when the
+    // whole thread fits (LEX-DS-001 v3.1 §5.5), not flush with the viewport.
+    const padding =
+      Number.parseFloat(
+        getComputedStyle(marker.current?.parentElement ?? viewport).paddingTop,
+      ) || 0;
     const delta =
-      target.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+      target.getBoundingClientRect().top -
+      viewport.getBoundingClientRect().top -
+      padding;
     const previous = viewport.style.scrollBehavior;
     viewport.style.scrollBehavior = 'auto';
     viewport.scrollTop += delta;
@@ -422,7 +431,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
       <div
         className={cn(
           role === 'user'
-            ? 'rounded-[20px] bg-(--lexon-user-bubble) px-[18px] py-3 text-base leading-[1.6] max-md:text-[15px]'
+            ? 'rounded-[20px] bg-(--lexon-user-bubble) px-[18px] py-3 text-base leading-[1.6] max-md:text-[15px] [&_p]:mb-0'
             : 'flex flex-col gap-3 text-base leading-[1.75] max-md:text-[15px]',
         )}
         aria-live="off"
@@ -480,7 +489,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
       ) : (
         <div
           className={cn(
-            '-mt-1 flex items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+            '-mt-1 flex min-h-7 items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
             !branched && 'md:opacity-0',
           )}
         >
