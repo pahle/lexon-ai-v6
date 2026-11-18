@@ -232,9 +232,15 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await first.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
-  await dialog
-    .getByRole('button', { name: 'Close navigation', exact: true })
-    .click();
+  // The close button is screen-reader and keyboard only (it shows on focus), so
+  // a pointer click cannot hit it; activate it from the keyboard.
+  const closeNavigation = dialog.getByRole('button', {
+    name: 'Close navigation',
+    exact: true,
+  });
+  await closeNavigation.focus();
+  await expect(closeNavigation).toBeFocused();
+  await page.keyboard.press('Enter');
   console.log('[shell-375 stage] closed via button');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();

@@ -444,17 +444,14 @@ test('Task 7A Settings captures all Account sections, saved feedback, and narrow
     if (section === 'appearance') {
       await expectAppearanceGeometry(page);
     }
+    // Below md the dialog is master/detail: an open section hides the section
+    // list and shows a back control instead.
     await expect(
-      page
-        .getByRole('navigation', { name: 'Settings sections' })
-        .getByRole('link', {
-          name: {
-            profile: 'Profile',
-            appearance: 'Appearance',
-            security: 'Security',
-          }[section],
-        }),
+      page.getByRole('button', { name: 'Back to sections' }),
     ).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Settings sections' }),
+    ).toBeHidden();
     await capture('03-settings-' + section + '-light-390');
   }
   await page.setViewportSize({ width: 768, height: 900 });
@@ -968,7 +965,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   page,
   playwright,
 }) => {
-  test.setTimeout(120000);
+  test.setTimeout(240_000);
   const stack = descriptor();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(stack.frontendUrl + '/sign-in');

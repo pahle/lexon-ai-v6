@@ -54,6 +54,8 @@ jobs:
         run: pnpm --filter @lexon/contracts test:mutation
       - name: Thinking indicator mutation gate
         run: pnpm --filter @lexon/frontend test:mutation:indicator
+      - name: Install Chromium for the visual comparison tooling tests
+        run: pnpm exec playwright install --with-deps chromium
       - name: Tooling and cleanup assertions
         run: node --test scripts/test/*.spec.mjs
   compose-e2e:
