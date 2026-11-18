@@ -99,19 +99,23 @@ if (command === 'up') {
       cwd: root,
       encoding: 'utf8',
     }).trim();
-    const dirty = execFileSync('git', ['status', '--short', 'frontend/src'], {
+    const dirty = execFileSync('git', ['status', '--short', 'frontend/src', 'backend/src', 'shared/src'], {
       cwd: root,
       encoding: 'utf8',
     })
       .split('\n')
       .filter(Boolean).length;
     console.log(
-      `Capture run: commit ${sha}, ${dirty} changed files in frontend/src, groups ${groups.join(',')}`,
+      `Capture run: commit ${sha}, ${dirty} changed files in frontend/src backend/src shared/src, groups ${groups.join(',')}`,
     );
     const env = JSON.parse(readFileSync(stack.operatorEnvironmentPath, 'utf8'));
+    // Rebuild every image built from this repository, not only the frontend:
+    // a frontend built from the working tree against an older api fails the
+    // shared strict schemas (round 4: passwordChangedAt).
+    const appServices = ['api', 'ai-worker', 'document-worker', 'dispatcher', 'frontend'];
     await run(
       'docker',
-      composeArgs(stack.project, ['build', 'frontend'], stack.composeFiles),
+      composeArgs(stack.project, ['build', ...appServices], stack.composeFiles),
       { env },
     );
     await run(
@@ -125,8 +129,8 @@ if (command === 'up') {
           '--force-recreate',
           '--wait',
           '--wait-timeout',
-          '120',
-          'frontend',
+          '180',
+          ...appServices,
         ],
         stack.composeFiles,
       ),
