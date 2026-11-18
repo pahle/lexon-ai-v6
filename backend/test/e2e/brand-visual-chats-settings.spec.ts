@@ -154,6 +154,12 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
   );
   await captureBrandViews(page, 'settings-appearance', {
     ...appearance,
+    // A fresh page drops the storage guard installed by open.
+    close: async (viewport: BrandViewport) => {
+      await appearance.close(viewport);
+      await page.reload();
+      await expectResting(page, viewport);
+    },
     open: async (viewport: BrandViewport) => {
       const dark = await page.evaluate(() =>
         document.documentElement.classList.contains('dark'),
