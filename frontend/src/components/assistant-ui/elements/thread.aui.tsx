@@ -859,7 +859,7 @@ const ThreadEditComposer: FC<{
           rows={2}
           addAttachmentOnPaste={false}
           submitMode="none"
-          className="block min-h-[52px] w-full resize-none bg-transparent text-base leading-[1.55] outline-none max-md:min-h-[100px] max-md:text-[15px]"
+          className="box-content block min-h-[52px] w-full resize-none bg-transparent p-0.5 text-base leading-[1.55] outline-none max-md:min-h-[100px] max-md:text-[15px]"
         />
       </div>
       {tooLong ? (
@@ -974,8 +974,8 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
             >
               <BrainIcon aria-hidden="true" /> Deep thinking
             </TooltipTrigger>
-            <TooltipContent side="bottom">
-              Deep thinking: takes longer and uses more of your budget.
+            <TooltipContent side="bottom" align="start" sideOffset={8}>
+              Takes longer and uses more of your budget
             </TooltipContent>
           </Tooltip>
           {running ? (

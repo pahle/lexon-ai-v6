@@ -1,7 +1,12 @@
 // Helpers shared by the chat and chats/settings group specs: the signed-in
 // identity with the deterministic chat API and run-stream fixtures, and the
 // calming and opening helpers of the chat states.
-import { expect, type Locator, type Page } from '@playwright/test';
+import {
+  expect,
+  type Locator,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import {
   answer,
@@ -10,7 +15,7 @@ import {
   installRunStreamFixture,
 } from './chat-state-fixtures.js';
 import { brandFixedTime } from './brand-visual-support.js';
-import { gotoWorkspace, prepareIdentity } from './brand-visual-world.js';
+import { gotoWorkspace, teamWorld } from './brand-visual-world.js';
 import { ayu } from './prototype-fixtures.js';
 
 // Chat states. The chat API and the run stream are the deterministic fixtures
@@ -20,13 +25,14 @@ import { ayu } from './prototype-fixtures.js';
 
 export type ChatEnv = { stack: ReturnType<typeof descriptor>; state: string };
 
-export async function startChatStates(page: Page): Promise<ChatEnv> {
-  const { stack } = await prepareIdentity(
-    page,
-    { name: ayu.name },
-    ayu.jobTitle,
-  );
-  const env: ChatEnv = { stack, state: 'new-chat' };
+// The chat captures run in the team world of the prototype (Ayu, Hukum
+// Nusantara, three members, the six Recent chats).
+export async function startChatStates(
+  page: Page,
+  playwright: PlaywrightWorkerArgs['playwright'],
+): Promise<ChatEnv> {
+  await teamWorld(page, playwright);
+  const env: ChatEnv = { stack: descriptor(), state: 'new-chat' };
   await installChatFixtures(
     page,
     () => env.state,
@@ -35,8 +41,33 @@ export async function startChatStates(page: Page): Promise<ChatEnv> {
   await installRunStreamFixture(page);
   // The theme is stored per origin, so the page is on the app before the
   // first capture applies it.
-  await gotoWorkspace(page, 'Ayu');
+  await gotoWorkspace(page, ayu.firstName);
   return env;
+}
+
+/**
+ * The shared capture helper parks the pointer at (0, 0) just before it
+ * screenshots, which closes every tooltip. A state whose prototype shows a
+ * tooltip calls this in `open`: when the helper parks the pointer, the target
+ * is hovered again and its real tooltip must be visible. Returns the undo to
+ * call from `close`.
+ */
+export function hoverWhenParked(page: Page, target: () => Locator) {
+  const mouse = page.mouse as unknown as {
+    move: (x: number, y: number, options?: object) => Promise<void>;
+  };
+  const move = mouse.move.bind(mouse);
+  mouse.move = async (x, y, options) => {
+    await move(x, y, options);
+    if (x !== 0 || y !== 0) return;
+    await target().hover();
+    await expect(
+      page.locator('[data-slot="tooltip-content"][data-open]'),
+    ).toBeVisible();
+  };
+  return () => {
+    delete (mouse as { move?: unknown }).move;
+  };
 }
 
 export const messageOf = (page: Page, id: string) =>

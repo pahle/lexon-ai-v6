@@ -371,8 +371,8 @@ function ChatViewSession({
                 >
                   <BrainIcon aria-hidden="true" /> Deep thinking
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Deep thinking: takes longer and uses more of your budget.
+                <TooltipContent side="bottom" align="start" sideOffset={8}>
+                  Takes longer and uses more of your budget
                 </TooltipContent>
               </Tooltip>
               {bytes >= MAX_PROMPT_BYTES - 512 && bytes <= MAX_PROMPT_BYTES ? (

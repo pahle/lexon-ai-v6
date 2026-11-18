@@ -369,10 +369,7 @@ it('explains Deep thinking on hover and focus in the new-chat composer', async (
     expect(button).not.toBeNull();
     expect(button?.getAttribute('aria-label')).toBe('Deep thinking');
     if (button)
-      await hoverAndFocus(
-        button,
-        'Deep thinking: takes longer and uses more of your budget.',
-      );
+      await hoverAndFocus(button, 'Takes longer and uses more of your budget');
   } finally {
     await view.unmount();
   }
@@ -435,10 +432,7 @@ it('explains Deep thinking on hover and focus in the thread composer', async () 
     expect(button).not.toBeNull();
     expect(button?.getAttribute('aria-label')).toBe('Deep thinking');
     if (button)
-      await hoverAndFocus(
-        button,
-        'Deep thinking: takes longer and uses more of your budget.',
-      );
+      await hoverAndFocus(button, 'Takes longer and uses more of your budget');
   } finally {
     await view.unmount();
   }
@@ -1062,9 +1056,7 @@ it('renders a persisted answer through the proven runtime and saves feedback aga
     expect(
       view.container.querySelector('[aria-label="Edit message input"]'),
     ).not.toBeNull();
-    expect(
-      view.container.querySelector('[aria-label="Save"]'),
-    ).not.toBeNull();
+    expect(view.container.querySelector('[aria-label="Save"]')).not.toBeNull();
     expect(
       view.container.querySelector('[aria-label="Send message"]'),
     ).not.toBeNull();

@@ -38,6 +38,12 @@ export const deepThinkingQuestion =
 export const answer = prototypeAnswer;
 export const reasoning = reasoningSummary;
 export const timestamp = chatTimes.newChat.at;
+// The partial answer of the streaming, reconnecting and stopped states, as in
+// the prototype (two list items, the second cut off).
+export const partialAnswer = `Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:
+
+1. **Kesepakatan** para pihak yang mengikatkan dirinya.
+2. **Kecakapan** untuk membuat suatu`;
 
 export type VisualCapture = {
   status?: string;
@@ -84,9 +90,9 @@ export function assistantMessage(
       state === 'thinking' || stoppedBeforeAnswer
         ? ''
         : state === 'streaming-answer' || state === 'reconnecting'
-          ? 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian: kesepakatan dan kecakapan sebagai syarat subjektif'
+          ? partialAnswer
           : state === 'stopped'
-            ? 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian: kesepakatan para pihak dan kecakapan untuk membuat perikatan.'
+            ? partialAnswer
             : state === 'run-error'
               ? 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:'
               : answer,
@@ -145,7 +151,7 @@ export function chatTree(state: string): ChatTree {
     );
     const editedUser = {
       ...userMessage('00000000-0000-4000-8000-000000000105'),
-      text: 'Apa saja syarat sah perjanjian menurut KUHPerdata? Jawab singkat.',
+      text: 'Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.',
     };
     const editedAssistant = {
       ...assistantMessage(
@@ -153,7 +159,8 @@ export function chatTree(state: string): ChatTree {
         '00000000-0000-4000-8000-000000000106',
         editedUser.id,
       ),
-      text: 'Singkatnya, ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syarat objektif (hal tertentu dan sebab yang halal) dalam Pasal 1320 KUHPerdata.\n\nPelanggaran syarat subjektif membuat perjanjian dapat dibatalkan; pelanggaran syarat objektif membuatnya batal demi hukum.',
+      text: 'Ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syarat objektif (hal tertentu dan sebab yang halal) dalam Pasal 1320 KUHPerdata.\n\nPelanggaran syarat subjektif membuat perjanjian dapat dibatalkan; pelanggaran syarat objektif membuatnya batal demi hukum.',
+      reasoningDurationMs: 6_000,
     };
     return ChatTreeSchema.parse({
       id: chatId,
@@ -279,7 +286,7 @@ export function activeRunFrames(state: string) {
             chunkIndex: 0,
             partType: 'text',
             id: 'chat-visual-answer',
-            text: 'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian: kesepakatan dan kecakapan sebagai syarat subjektif',
+            text: partialAnswer,
             final: true,
           },
         ];
@@ -781,7 +788,7 @@ export async function openState(page: Page, baseUrl: string, state: string) {
     const tooltip = page.locator('[data-slot="tooltip-content"][data-open]');
     await expect(tooltip).toBeVisible();
     await expect(tooltip).toHaveText(
-      'Deep thinking: takes longer and uses more of your budget.',
+      'Takes longer and uses more of your budget',
     );
   }
   if (state === 'organization-switcher-open' || state === 'user-menu-open') {

@@ -41,6 +41,7 @@ import {
   openThread,
   reasoningToggle,
   settleAnimations,
+  hoverWhenParked,
   startChatStates,
 } from './brand-visual-chat-support.js';
 import { openMenuReliably } from './visual-support.js';
@@ -51,8 +52,11 @@ import { hideDevOverlayOnLoad } from './brand-visual-support.js';
 
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
-test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
-  await startChatStates(page);
+test('new chat, Deep thinking, and a starter prompt', async ({
+  page,
+  playwright,
+}) => {
+  await startChatStates(page, playwright);
   const openNewChat = async (viewport: BrandViewport) => {
     await gotoWorkspace(page, 'Ayu');
     await expectResting(page, viewport);
@@ -68,6 +72,7 @@ test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
   };
   await captureBrandViews(page, 'chat-new', { open: openNewChat });
 
+  let undoHover: (() => void) | undefined;
   await captureBrandViews(page, 'chat-deep-thinking', {
     open: async (viewport) => {
       await openNewChat(viewport);
@@ -78,7 +83,10 @@ test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
       await toggle.click();
       await expect(toggle).toHaveAttribute('aria-pressed', 'true');
       await calm(page);
+      // The prototype shows the tooltip under the pressed pill.
+      undoHover = hoverWhenParked(page, () => toggle);
     },
+    close: async () => undoHover?.(),
   });
 
   const template =
@@ -100,9 +108,10 @@ test('new chat, Deep thinking, and a starter prompt', async ({ page }) => {
 
 test('completed answers, editing, branches, stopped, and failed runs', async ({
   page,
+  playwright,
 }) => {
   test.setTimeout(300_000);
-  const env = await startChatStates(page);
+  const env = await startChatStates(page, playwright);
   const answerShown = page.getByText(answerStart);
   const thought = 'Thought for 14 seconds';
   const openAnswer = async () => {
@@ -153,17 +162,21 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
 
   // The action row of the last answer is always visible, so no focus is
   // needed to reveal it; the capture parks focus away from Copy.
+  let undoActionsHover: (() => void) | undefined;
   await captureBrandViews(page, 'chat-answer-actions', {
-    open: async () => {
+    open: async (viewport) => {
       await openAnswer();
-      await expect(
-        page.getByRole('button', { name: 'Copy answer' }),
-      ).toBeVisible();
+      const copy = page.getByRole('button', { name: 'Copy answer' });
+      await expect(copy).toBeVisible();
       await expect(page.locator('[data-slot="aui_message-actions"]')).toHaveCSS(
         'opacity',
         '1',
       );
+      // The desktop prototype shows the Copy tooltip on the hovered button.
+      if (viewport === 'desktop')
+        undoActionsHover = hoverWhenParked(page, () => copy);
     },
+    close: async () => undoActionsHover?.(),
   });
 
   await captureBrandViews(page, 'chat-edit', {
@@ -226,9 +239,12 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
   });
 });
 
-test('chat menus, rename, delete, and the Recent menu', async ({ page }) => {
+test('chat menus, rename, delete, and the Recent menu', async ({
+  page,
+  playwright,
+}) => {
   test.setTimeout(300_000);
-  const env = await startChatStates(page);
+  const env = await startChatStates(page, playwright);
   const answerShown = page.getByText(answerStart);
   const pill = page.getByRole('button', { name: 'Chat actions', exact: true });
   const renameItem = page.getByRole('menuitem', { name: 'Rename' });
@@ -375,9 +391,12 @@ const threadScroll = (page: Page) => ({
     }, top),
 });
 
-test('copied answer and given feedback hold their timers', async ({ page }) => {
+test('copied answer and given feedback hold their timers', async ({
+  page,
+  playwright,
+}) => {
   test.setTimeout(300_000);
-  const env = await startChatStates(page);
+  const env = await startChatStates(page, playwright);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], {
     origin: env.stack.frontendUrl,
   });
@@ -393,8 +412,9 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
     await expect(page.getByText(answerStart)).toBeVisible();
   };
 
+  let undoCopiedHover: (() => void) | undefined;
   await captureBrandViews(page, 'chat-copied', {
-    open: async () => {
+    open: async (viewport) => {
       await load();
       const scroll = threadScroll(page);
       const top = await scroll.save();
@@ -405,8 +425,13 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
       await expect(copied.locator('svg.lucide-check')).toBeVisible();
       await expect(copied).toHaveText('Copied');
       await clock.hold();
+      if (viewport === 'desktop')
+        undoCopiedHover = hoverWhenParked(page, () => copied);
     },
-    close: () => clock.release(),
+    close: () => {
+      undoCopiedHover?.();
+      return clock.release();
+    },
   });
 
   await captureBrandViews(page, 'chat-feedback', {
@@ -427,42 +452,26 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
   });
 });
 
-function scrollableStreamingTree() {
-  const messages: ChatMessage[] = [];
-  let parentId: string | null = null;
-  for (let turn = 0; turn < 3; turn++) {
-    const user: Extract<ChatMessage, { role: 'user' }> = {
-      ...userMessage(`00000000-0000-4000-8000-00000000020${turn}`),
-      parentId,
-    };
-    const reply: Extract<ChatMessage, { role: 'assistant' }> = {
-      ...assistantMessage(
-        'answer-complete',
-        `00000000-0000-4000-8000-00000000021${turn}`,
-        user.id,
-      ),
-      runId: `00000000-0000-4000-8000-00000000022${turn}`,
-    };
-    messages.push(user, reply);
-    parentId = reply.id;
-  }
-  messages.push(
-    { ...userMessage(), parentId },
-    assistantMessage('streaming-answer'),
-  );
+// One turn, as the prototype shows it. A capture-only filler below the answer
+// makes the thread scrollable, so the thread can rest at its start with the
+// scroll-to-latest button showing.
+function streamingTree() {
   return ChatTreeSchema.parse({
     id: chatId,
     title: fileNames.newChat,
-    messages,
+    messages: [userMessage(), assistantMessage('streaming-answer')],
     viewedLeafId: assistantMessageId,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
 }
 
-test('streaming, reconnecting, and loading chat threads', async ({ page }) => {
+test('streaming, reconnecting, and loading chat threads', async ({
+  page,
+  playwright,
+}) => {
   test.setTimeout(300_000);
-  const env = await startChatStates(page);
+  const env = await startChatStates(page, playwright);
 
   await page.route(
     (url) => url.pathname === `/api/chats/${chatId}`,
@@ -471,7 +480,7 @@ test('streaming, reconnecting, and loading chat threads', async ({ page }) => {
         ? route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(scrollableStreamingTree()),
+            body: JSON.stringify(streamingTree()),
           })
         : route.fallback(),
   );
@@ -485,6 +494,9 @@ test('streaming, reconnecting, and loading chat threads', async ({ page }) => {
         '?capture_state=streaming-answer',
       );
       await expect(page.getByText('Thought for 8 seconds')).toBeVisible();
+      await page.addStyleTag({
+        content: '[data-slot="aui_message-group"] { padding-bottom: 1400px; }',
+      });
       const viewportBox = page.locator('[data-slot="aui_thread-viewport"]');
       // Wait until the thread is pinned to the bottom and has stopped
       // changing size, so nothing later pulls it back down.
@@ -676,10 +688,13 @@ async function installHeldRun(page: Page) {
 // page load takes about 1.5 s of fake time, and a longer jump broke the run.
 const holdOffsetMs = 3_000;
 
-test('indicator frames at fixed times in a held run', async ({ page }) => {
+test('indicator frames at fixed times in a held run', async ({
+  page,
+  playwright,
+}) => {
   test.setTimeout(900_000);
   const markMs = indicatorTimes.markMs;
-  const env = await startChatStates(page);
+  const env = await startChatStates(page, playwright);
   await installHeldRun(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.clock.install({ time: new Date(brandFixedTime) });
