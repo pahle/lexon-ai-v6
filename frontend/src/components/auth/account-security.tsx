@@ -90,7 +90,7 @@ export function AccountSecurity() {
     await query.invalidateQueries({ queryKey: ['account'] });
   };
   if (!security.data)
-    return <LoadingState message="Loading account security…" />;
+    return <LoadingState message="Loading account security" />;
   if (activeAction) {
     return (
       <div className="flex flex-col gap-4">

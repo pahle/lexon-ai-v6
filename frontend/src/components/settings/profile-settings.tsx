@@ -1,5 +1,6 @@
 'use client';
 
+import { LoadingState } from '../states/page-states';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,7 +53,7 @@ export function ProfileSettings(): React.ReactElement {
     },
   });
 
-  if (!identity) return <p role="status">Loading profile…</p>;
+  if (!identity) return <LoadingState message="Loading profile" />;
 
   return (
     <section aria-labelledby="profile-heading" className="flex flex-col gap-3">

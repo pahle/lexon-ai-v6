@@ -28,9 +28,31 @@ test('no source renders visible loading copy', () => {
   expect(offenders).toEqual([]);
 });
 
-test('the shared LoadingState never defaults to plain loading copy', async () => {
+test('the shared LoadingState default shows no visible text', async () => {
   const view = await render(createElement(LoadingState, {}));
-  const text = view.container.textContent ?? '';
-  expect(text).not.toMatch(/^\s*Loading\b/);
+  const status = view.container.querySelector('[role="status"]');
+  const visible = [...(status?.childNodes ?? [])].filter(
+    (node) =>
+      !(node as Element).classList?.contains('sr-only') &&
+      node.textContent?.trim(),
+  );
+  expect(visible).toEqual([]);
+  await view.unmount();
+});
+
+test('loading shows skeleton rows with an sr-only accessible name, no visible text', async () => {
+  const view = await render(
+    createElement(LoadingState, { message: 'Loading profile' }),
+  );
+  const status = view.container.querySelector('[role="status"]');
+  expect(
+    status?.querySelectorAll('[data-slot="skeleton"]').length,
+  ).toBeGreaterThan(3);
+  const label = status?.querySelector('.sr-only');
+  expect(label?.textContent).toBe('Loading profile');
+  const visible = [...(status?.childNodes ?? [])].filter(
+    (node) => node !== label && node.textContent?.trim(),
+  );
+  expect(visible).toEqual([]);
   await view.unmount();
 });

@@ -29,7 +29,7 @@ export function OrganizationPage({
     queryClient.removeQueries({ queryKey });
   }, [allowed, organization, queryClient]);
 
-  if (!organization) return <LoadingState message="Loading organization…" />;
+  if (!organization) return <LoadingState message="Loading organization" />;
   if (!allowed)
     return (
       <NoAccessState message="You do not have access to this organization setting." />
