@@ -147,7 +147,7 @@ function RenameForm({
         ) : null}
         {empty ? <FieldError>Enter a chat title.</FieldError> : null}
       </Field>
-      <DialogFooter>
+      <DialogFooter className="flex-row justify-end">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>

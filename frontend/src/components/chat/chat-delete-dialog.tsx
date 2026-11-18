@@ -125,7 +125,7 @@ export function ChatDeleteDialog({
         }}
       >
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader className="place-items-start text-left">
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
               “{title}” and all its messages will be permanently deleted. This
@@ -137,7 +137,7 @@ export function ChatDeleteDialog({
               The chat could not be deleted. You can try again.
             </p>
           ) : null}
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-row justify-end">
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"

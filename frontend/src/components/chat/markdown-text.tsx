@@ -75,7 +75,7 @@ export function MarkdownText({
       <ol className="mb-2 ps-[22px] list-decimal">{children}</ol>
     ),
     strong: ({ children }) => (
-      <strong className={cn('font-semibold', muted)}>{children}</strong>
+      <strong className={cn('font-bold', muted)}>{children}</strong>
     ),
     li: ({ children }) => (
       <li className={cn('my-[3px]', markerMuted)}>{children}</li>

@@ -51,11 +51,11 @@ it('keeps heading hierarchy and visible ordered and unordered list markers', asy
   }
 });
 
-it('renders strong text as semibold', async () => {
+it('renders strong text as bold, as the prototype does', async () => {
   const view = await render(<MarkdownText source={'A **key term** here'} />);
   try {
     expect(view.container.querySelector('strong')?.className).toContain(
-      'font-semibold',
+      'font-bold',
     );
   } finally {
     await view.unmount();
@@ -115,7 +115,7 @@ it('renders ordered lists, unordered lists, and bold text with the exact baselin
     );
     for (const item of root.querySelectorAll('li'))
       expect(item.className).toBe('my-[3px]');
-    expect(root.querySelector('strong')?.className).toBe('font-semibold');
+    expect(root.querySelector('strong')?.className).toBe('font-bold');
   } finally {
     await view.unmount();
   }

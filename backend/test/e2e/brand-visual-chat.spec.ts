@@ -353,6 +353,28 @@ function frozenClock(page: Page) {
   };
 }
 
+// A click on an action below the fold scrolls the thread (Playwright brings
+// the target into view). The states show the thread as it opened, so the
+// scroll position is saved before the click and put back after it.
+const threadScroll = (page: Page) => ({
+  save: () =>
+    page.evaluate(
+      () =>
+        document.querySelector('[data-slot="aui_thread-viewport"]')
+          ?.scrollTop ?? 0,
+    ),
+  restore: (top: number) =>
+    page.evaluate((value) => {
+      const viewport = document.querySelector<HTMLElement>(
+        '[data-slot="aui_thread-viewport"]',
+      );
+      if (!viewport) return;
+      viewport.style.scrollBehavior = 'auto';
+      viewport.scrollTop = value;
+      viewport.style.scrollBehavior = '';
+    }, top),
+});
+
 test('copied answer and given feedback hold their timers', async ({ page }) => {
   test.setTimeout(300_000);
   const env = await startChatStates(page);
@@ -374,7 +396,10 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
   await captureBrandViews(page, 'chat-copied', {
     open: async () => {
       await load();
+      const scroll = threadScroll(page);
+      const top = await scroll.save();
       await page.getByRole('button', { name: 'Copy answer' }).click();
+      await scroll.restore(top);
       // The accessible name changes to "Copied" while the confirmation shows.
       const copied = page.getByRole('button', { name: 'Copied' });
       await expect(copied.locator('svg.lucide-check')).toBeVisible();
@@ -387,8 +412,11 @@ test('copied answer and given feedback hold their timers', async ({ page }) => {
   await captureBrandViews(page, 'chat-feedback', {
     open: async () => {
       await load();
+      const scroll = threadScroll(page);
+      const top = await scroll.save();
       const good = page.getByRole('button', { name: 'Good answer' });
       await good.click();
+      await scroll.restore(top);
       await expect(good).toHaveAttribute('aria-pressed', 'true');
       const toast = page.locator('[data-sonner-toast]');
       await expect(toast).toContainText('Thanks for your feedback.');
