@@ -125,8 +125,10 @@ export function ChatDeleteDialog({
         }}
       >
         <AlertDialogContent>
-          <AlertDialogHeader className="place-items-start text-left">
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+          <AlertDialogHeader className="gap-2 place-items-start text-left">
+            <AlertDialogTitle className="leading-[normal]">
+              Delete this chat?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-wrap md:text-wrap">
               “{title}” and all its messages will be permanently deleted. This
               cannot be undone.

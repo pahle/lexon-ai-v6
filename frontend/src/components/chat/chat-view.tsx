@@ -394,7 +394,7 @@ function ChatViewSession({
             </TooltipIconButton>
           </div>
         </div>
-        <p className={composerClasses.disclaimer}>
+        <p className={cn(composerClasses.disclaimer, 'leading-4')}>
           Lexon can make mistakes. Verify important legal information.
         </p>
         {bytes > MAX_PROMPT_BYTES ? (

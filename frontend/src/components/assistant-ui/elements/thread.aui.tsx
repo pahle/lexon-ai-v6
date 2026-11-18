@@ -779,7 +779,10 @@ const UserEditAction = () => {
   const serverActive = useChatActiveRun();
   const copied = useAuiState((state) => state.message.isCopied);
   return (
-    <ActionBarPrimitive.Root hideWhenRunning className="flex items-center gap-0.5">
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      className="flex items-center gap-0.5"
+    >
       <ActionBarPrimitive.Copy
         render={
           <TooltipIconButton

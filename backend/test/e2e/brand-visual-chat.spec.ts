@@ -282,6 +282,13 @@ test('chat menus, rename, delete, and the Recent menu', async ({
       await expect(
         dialog.getByRole('textbox', { name: 'Chat title' }),
       ).toBeFocused();
+      // The prototype shows the caret, not the select-all highlight; collapse
+      // the selection for the capture only.
+      await dialog
+        .getByRole('textbox', { name: 'Chat title' })
+        .evaluate((el: HTMLInputElement) =>
+          el.setSelectionRange(el.value.length, el.value.length),
+        );
       await settleAnimations(page);
     },
     close: async () => {

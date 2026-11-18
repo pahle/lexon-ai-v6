@@ -20,7 +20,7 @@ export const composerClasses = {
     'h-8 shrink-0 gap-1.5 rounded-full border-transparent bg-transparent px-2.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent',
   deepThinkingPressed:
     'border-(--lexon-red-text) bg-(--lexon-tint) text-(--lexon-red-text) hover:bg-(--lexon-tint) dark:bg-(--lexon-tint) dark:hover:bg-(--lexon-tint)',
-  disclaimer: 'text-muted-foreground mt-2 text-center text-xs',
+  disclaimer: 'text-muted-foreground mt-2 text-center text-xs leading-[normal]',
   send: 'size-9 shrink-0 rounded-full disabled:opacity-40 [&_svg]:size-[18px]',
   // ChatComposerCancel wraps the render element in a second Button, whose
   // default size and radius are appended after these classes; the important
