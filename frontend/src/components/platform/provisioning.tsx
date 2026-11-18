@@ -315,7 +315,7 @@ export function ProvisioningList() {
               >
                 <UsersIcon aria-hidden="true" />
               </EmptyMedia>
-              <EmptyTitle className="text-base font-semibold tracking-normal">
+              <EmptyTitle className="text-base leading-[1.21] font-semibold tracking-normal">
                 No organizations are waiting for an owner
               </EmptyTitle>
               <EmptyDescription className="text-sm/normal">
