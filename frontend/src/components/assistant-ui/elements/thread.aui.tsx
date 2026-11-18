@@ -779,7 +779,7 @@ const UserEditAction = () => {
   const serverActive = useChatActiveRun();
   const copied = useAuiState((state) => state.message.isCopied);
   return (
-    <ActionBarPrimitive.Root hideWhenRunning className="flex items-center">
+    <ActionBarPrimitive.Root hideWhenRunning className="flex items-center gap-0.5">
       <ActionBarPrimitive.Copy
         render={
           <TooltipIconButton
@@ -876,7 +876,7 @@ const ThreadEditComposer: FC<{
           rows={2}
           addAttachmentOnPaste={false}
           submitMode="none"
-          className="box-content block min-h-[52px] w-full resize-none bg-transparent px-0.5 pt-[3px] pb-0 text-base leading-[1.55] outline-none max-md:box-border max-md:min-h-[100px] max-md:text-[15px]"
+          className="box-border block min-h-[52px] w-full resize-none bg-transparent p-0.5 text-base leading-[1.55] outline-none max-md:box-border max-md:min-h-[100px] max-md:text-[15px]"
         />
       </div>
       {tooLong ? (

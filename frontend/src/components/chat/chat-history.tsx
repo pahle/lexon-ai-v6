@@ -12,9 +12,9 @@ import {
 import {
   MessageCircle,
   MoreHorizontal,
-  Pencil,
+  PencilLine,
   Plus,
-  Trash2,
+  Trash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -318,6 +318,7 @@ function RecentChatRow({
         isActive={current}
         aria-current={current ? 'page' : undefined}
         tooltip={item.title}
+        className="group-has-[[aria-expanded=true]]/menu-item:pr-8"
         onClick={onCloseMobile}
         render={
           <Link
@@ -465,13 +466,18 @@ export function ChatHistoryActions({
       >
         <MoreHorizontal aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        alignOffset={sidebar ? -4 : 0}
+        sideOffset={sidebar ? 3 : 4}
+        className={sidebar ? 'min-w-40' : undefined}
+      >
         <DropdownMenuItem onClick={onRename}>
-          <Pencil aria-hidden="true" data-icon="inline-start" />
+          <PencilLine aria-hidden="true" data-icon="inline-start" />
           Rename
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onDelete}>
-          <Trash2 aria-hidden="true" data-icon="inline-start" />
+          <Trash aria-hidden="true" data-icon="inline-start" />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

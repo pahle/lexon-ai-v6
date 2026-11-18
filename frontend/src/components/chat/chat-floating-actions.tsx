@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, Pencil, Plus, Trash } from 'lucide-react';
+import { MoreHorizontal, PencilLine, Plus, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,7 +125,7 @@ export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
           className="w-[180px]"
         >
           <DropdownMenuItem onClick={() => setRenaming(true)}>
-            <Pencil aria-hidden="true" data-icon="inline-start" />
+            <PencilLine aria-hidden="true" data-icon="inline-start" />
             Rename
           </DropdownMenuItem>
           <DropdownMenuItem
