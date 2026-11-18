@@ -290,7 +290,7 @@ export function Members({
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="truncate text-xs text-muted-foreground max-md:max-w-[170px]">
+                          <span className="text-xs text-muted-foreground max-md:max-w-[170px]">
                             {member.email}
                           </span>
                         </span>

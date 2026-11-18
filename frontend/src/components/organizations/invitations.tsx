@@ -303,7 +303,7 @@ export function Invitations({
                         >
                           <Mail className="size-4" />
                         </span>
-                        <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="flex min-w-0 flex-col leading-tight max-md:max-w-[150px]">
                           <span className="font-medium">
                             {invitation.email}
                           </span>
