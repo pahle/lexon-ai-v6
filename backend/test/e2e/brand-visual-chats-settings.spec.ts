@@ -86,13 +86,17 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
       await page.getByRole('menuitem', { name: /^Settings/ }).click();
       const dialog = page.getByRole('dialog', { name: 'Settings' });
       await expect(dialog).toBeVisible();
-      // On mobile the sheet opens on a section; Back shows the sections.
-      if (viewport === 'mobile' && link !== 'Profile')
-        await dialog.getByRole('button', { name: 'Back to sections' }).click();
-      await dialog
-        .getByRole('navigation', { name: 'Settings sections' })
-        .getByRole('link', { name: link, exact: true })
-        .click();
+      // On mobile the sheet opens on Profile; Back shows the sections.
+      if (viewport !== 'mobile' || link !== 'Profile') {
+        if (viewport === 'mobile')
+          await dialog
+            .getByRole('button', { name: 'Back to sections' })
+            .click();
+        await dialog
+          .getByRole('navigation', { name: 'Settings sections' })
+          .getByRole('link', { name: link, exact: true })
+          .click();
+      }
       await expect(page).toHaveURL(
         new RegExp(`settings=${link.toLowerCase()}$`),
       );

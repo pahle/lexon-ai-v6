@@ -193,13 +193,13 @@ function ChatSearchSession({
             <p role="alert">Search could not be completed. Try again.</p>
           ) : null}
           {!loading && !failed && results?.items.length ? (
-            <p className="text-muted-foreground text-[13px]">
+            <p className="text-muted-foreground text-[13px] leading-[normal]">
               {results.items.length}{' '}
               {results.items.length === 1 ? 'chat' : 'chats'}
             </p>
           ) : null}
           {!loading && !failed && results?.items.length === 0 ? (
-            <Empty className="flex-none gap-2 border-0 px-0 py-16 text-muted-foreground">
+            <Empty className="flex-none gap-2 border-0 px-0 py-16 text-wrap text-muted-foreground">
               <EmptyHeader className="max-w-none gap-2">
                 <EmptyMedia
                   variant="icon"
@@ -227,12 +227,12 @@ function ChatSearchSession({
                 <li key={`${item.chatId}:${item.messageId ?? 'title'}`}>
                   <button
                     type="button"
-                    className={`flex w-full flex-col items-start gap-1 rounded-[10px] border p-3 text-left hover:bg-muted ${index === 0 ? 'border-border bg-muted' : 'border-transparent'}`}
+                    className={`flex w-full flex-col items-start gap-1 rounded-[10px] border p-3 text-left leading-[normal] hover:bg-muted ${index === 0 ? 'border-border bg-muted' : 'border-transparent'}`}
                     onClick={() =>
                       void onOpenMatch?.(item.chatId, item.messageId)
                     }
                   >
-                    <span className="flex w-full justify-between gap-4 text-sm font-medium">
+                    <span className="flex w-full justify-between gap-4 text-sm leading-[normal] font-medium">
                       <span>{item.title}</span>
                       <time className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap">
                         {formatActivityDate(item.updatedAt, {
@@ -241,7 +241,7 @@ function ChatSearchSession({
                       </time>
                     </span>
                     {item.excerpt ? (
-                      <span className="text-muted-foreground line-clamp-2 text-[13px]/normal">
+                      <span className="text-muted-foreground line-clamp-2 text-[13px]/[1.5]">
                         {highlightExcerpt(
                           item.excerpt,
                           item.matchStart,

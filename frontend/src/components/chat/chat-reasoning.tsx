@@ -58,7 +58,7 @@ export function PersistedReasoning({
   );
   if (showsThinkingLabel(status, summary, durationMs, answerHasText))
     return (
-      <span className="flex items-center gap-2 text-sm">
+      <span className="flex items-center gap-2 text-sm leading-[1.75]">
         {mark}
         <span className="from-muted-foreground via-foreground to-muted-foreground bg-linear-to-r bg-clip-text text-transparent">
           Thinking…
@@ -71,7 +71,7 @@ export function PersistedReasoning({
       : null;
   if (summary === null)
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="text-muted-foreground flex items-center gap-2 text-sm leading-[1.75]">
         {mark}
         {measured}
       </div>
@@ -83,7 +83,7 @@ export function PersistedReasoning({
       onOpenChange={setOpen}
       className="flex flex-col gap-3"
     >
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 text-sm">
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 text-sm leading-[1.75]">
         {mark}
         <span className="inline-flex items-center gap-1">
           {label}

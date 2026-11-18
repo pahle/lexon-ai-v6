@@ -9,7 +9,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
-  MessageSquareText,
+  MessageCircle,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -116,13 +116,13 @@ export function ChatHistory({
   if (!items.length)
     return (
       <div className="contents">
-        <Empty className="flex-none gap-2 border-0 px-0 py-16 text-muted-foreground">
+        <Empty className="flex-none gap-2 border-0 px-0 py-16 text-wrap text-muted-foreground">
           <EmptyHeader className="max-w-none gap-2">
             <EmptyMedia
               variant="icon"
               className="mb-0 size-10 rounded-[10px] [&_svg:not([class*='size-'])]:size-5"
             >
-              <MessageSquareText aria-hidden="true" />
+              <MessageCircle aria-hidden="true" />
             </EmptyMedia>
             <EmptyTitle className="text-base font-semibold text-foreground">
               No chats yet
@@ -152,7 +152,7 @@ export function ChatHistory({
             aria-label={group.label}
             className="flex flex-col gap-3.5"
           >
-            <h2 className="text-muted-foreground px-3 pt-2.5 text-xs font-medium">
+            <h2 className="text-muted-foreground px-3 pt-2.5 text-xs leading-[normal] font-medium">
               {group.label}
             </h2>
             <ul className="flex flex-col gap-3.5">
@@ -360,7 +360,7 @@ function ChatHistoryRow({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   return (
-    <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm font-medium hover:bg-muted focus-within:bg-muted">
+    <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm leading-[normal] font-medium hover:bg-muted focus-within:bg-muted">
       <Link
         className="min-w-0 flex-1 truncate after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
         href={`/chats/${item.id}`}

@@ -22,12 +22,15 @@ export function SettingsHeading({
         className,
       )}
     >
-      <h2 id={id} className="font-serif text-[26px] leading-tight font-normal">
+      <h2
+        id={id}
+        className="font-serif text-[26px] leading-[normal] font-normal"
+      >
         {title}
       </h2>
       {action}
       {description ? (
-        <p className="w-full text-[13px] text-muted-foreground">
+        <p className="w-full text-[13px] leading-[normal] text-muted-foreground">
           {description}
         </p>
       ) : null}
@@ -49,9 +52,9 @@ export const settingsRowClass = (inline = false) =>
       : 'items-center max-md:flex-col max-md:items-stretch max-md:gap-2.5',
   );
 
-export const settingsLabelClass = 'text-sm font-medium';
+export const settingsLabelClass = 'text-sm leading-[normal] font-medium';
 export const settingsDescriptionClass =
-  'mt-0.5 text-[13px] text-muted-foreground';
+  'mt-0.5 text-[13px] leading-[normal] text-muted-foreground';
 
 export function SettingsField({
   inline = false,
