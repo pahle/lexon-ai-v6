@@ -94,6 +94,27 @@ test('auth layout includes a visible-on-focus skip link to its focusable main', 
   await view.unmount();
 });
 
+test('every status route renders the shared StatusPage', async () => {
+  const retry = vi.fn();
+  for (const element of [
+    <WorkspaceNotFound key="workspace-not-found" />,
+    <RootNotFound key="root-not-found" />,
+    <WorkspaceError
+      key="workspace-error"
+      error={new Error('x')}
+      retry={retry}
+    />,
+    <RootError key="root-error" error={new Error('x')} retry={retry} />,
+  ]) {
+    const view = await render(element);
+    expect(
+      view.container.querySelector('[data-slot="status-page"]'),
+    ).not.toBeNull();
+    expect(view.container.querySelectorAll('h1')).toHaveLength(1);
+    await view.unmount();
+  }
+});
+
 test('page and error titles use the serif heading treatment without the retired size variable', async () => {
   const retry = vi.fn();
   for (const element of [
@@ -104,8 +125,8 @@ test('page and error titles use the serif heading treatment without the retired 
     const view = await render(element);
     const heading = view.container.querySelector('h1');
     expect(heading?.className).toContain('font-serif');
-    expect(heading?.className).toContain('text-2xl');
-    expect(heading?.className).toContain('font-bold');
+    expect(heading?.className).toContain('text-[32px]');
+    expect(heading?.className).toContain('font-normal');
     expect(heading?.className).not.toContain('--font-size-heading');
     await view.unmount();
   }

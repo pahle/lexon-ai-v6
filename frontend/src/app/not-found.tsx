@@ -1,25 +1,14 @@
-import Link from 'next/link';
+import { CompassIcon } from 'lucide-react';
+import { StandaloneStatusPage } from '@/components/states/status-page';
 
 export default function NotFound() {
   return (
-    <>
-      <a
-        className="sr-only inline-flex min-h-11 items-center focus:not-sr-only"
-        href="#main"
-      >
-        Skip to content
-      </a>
-      <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
-        <h1 className="font-serif text-2xl font-bold">Page not found</h1>
-        <p className="mt-4">The requested page could not be found.</p>
-        <Link
-          className="mt-4 inline-flex min-h-11 items-center underline"
-          href="/workspace"
-        >
-          Return to workspace
-        </Link>
-      </main>
-    </>
+    <StandaloneStatusPage
+      icon={<CompassIcon />}
+      title="Page not found"
+      text="The page you are looking for does not exist or has moved."
+      action={{ label: 'Go to Lexon', href: '/workspace' }}
+    />
   );
 }
 

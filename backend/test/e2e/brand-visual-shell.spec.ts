@@ -146,7 +146,7 @@ test('access denied and not-found pages', async ({ page, playwright }) => {
     page.getByRole('heading', { name: 'Page not found' }),
   ).toBeVisible();
   await expect(
-    page.getByText('The requested workspace page could not be found.'),
+    page.getByText('The page you are looking for does not exist or has moved.'),
   ).toBeVisible();
   await captureBrandViews(page, 'organizations-not-found');
 
@@ -156,7 +156,12 @@ test('access denied and not-found pages', async ({ page, playwright }) => {
     page.getByRole('heading', { name: 'Page not found' }),
   ).toBeVisible();
   await expect(
-    page.getByText('The requested page could not be found.', { exact: true }),
+    page.getByText(
+      'The page you are looking for does not exist or has moved.',
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   await captureBrandViews(page, 'not-found');
 });

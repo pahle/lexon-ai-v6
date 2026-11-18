@@ -1,8 +1,7 @@
 'use client';
 
-import { ErrorState } from '../../components/states/page-states';
-import { PageHeader } from '../../components/shell/page-header';
-import Link from 'next/link';
+import { AlertCircleIcon } from 'lucide-react';
+import { StatusPage } from '../../components/states/status-page';
 
 export default function WorkspaceError({
   retry,
@@ -11,15 +10,13 @@ export default function WorkspaceError({
   retry: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Something went wrong" />
-      <ErrorState onRetry={retry} />
-      <Link
-        className="inline-flex min-h-11 items-center underline"
-        href="/workspace"
-      >
-        Return to workspace
-      </Link>
-    </div>
+    <StatusPage
+      role="alert"
+      icon={<AlertCircleIcon />}
+      title="Something went wrong"
+      text="We could not load this page. Your work is saved."
+      action={{ label: 'Try again', onClick: retry }}
+      secondaryLink={{ label: 'Return to workspace', href: '/workspace' }}
+    />
   );
 }
