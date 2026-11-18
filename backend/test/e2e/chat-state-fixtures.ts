@@ -107,7 +107,9 @@ export function assistantMessage(
     reasoningSummary:
       state === 'no-signal-completion' ||
       state === 'measured-no-summary-completion' ||
-      state === 'stopped-before-answer'
+      state === 'stopped-before-answer' ||
+      // The prototype's failed answer shows the mark only, no label.
+      state === 'run-error'
         ? null
         : reasoning,
     reasoningDurationMs:
