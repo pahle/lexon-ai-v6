@@ -1,5 +1,5 @@
 ---
-version: "3.0.2"
+version: "3.1"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -76,7 +76,7 @@ fonts:
 
 radius: 10px # shadcn --radius (0.625rem); the composer uses 20px
 
-components: "shadcn/ui base-nova blocks and components, assistant-ui registry and examples, as published (sizes, spacing, type scale)"
+components: "shadcn/ui base-nova and assistant-ui for structure, behavior, and accessibility; sizes, spacing, and type scale from the approved prototype (§5.5)"
 
 breakpoints: [768px]
 ---
@@ -86,11 +86,11 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 3.0.2 |
-| **Date** | 14 November 2026 |
+| **Version** | 3.1 |
+| **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (approved 2026-11-13) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14, approved 2026-11-18) |
 
 ## Rationale
 
@@ -109,11 +109,15 @@ reads a 60-page contract.
   for both themes, type roles, logo placement, chat layout, the thinking
   indicator, and accessibility.
 - **shadcn/ui `base-nova` blocks and components and the assistant-ui registry
-  and examples** own component structure, sizes, spacing, and type scale.
-  They are used as published and adapted through CSS variables, copy, and
-  data wiring, not by resizing or restructuring them. Deliberate exceptions
-  are listed here (composer, thread width) and come from an approved
-  prototype.
+  and examples** own component structure, behavior, keyboard handling, and
+  accessibility. Build every screen from them.
+- **The approved prototype** owns what the screen looks like: layout, sizes,
+  spacing, type scale, copy, and states. Every screen is built **1:1** with
+  its prototype state, adjusting the shadcn and assistant-ui components through
+  classes and CSS variables. The page patterns in §5.5 write the prototype's
+  measurements down; the prototype file is the reference when a value is not
+  listed. Implementers do not design: a screen or state that is not in the
+  prototype is added to the prototype first (§5.6).
 
 ## 1. Visual theme
 
@@ -193,8 +197,20 @@ Rules:
   aligned clause numbers, and ids.
 - All three families ship with their licenses (OFL, GUST) and use a
   `font-display` value that never shows unreadable text.
-- Sizes, weights, and line heights follow the shadcn/assistant-ui component or
-  block in use. Assistant answers use 16px with line-height about 1.75.
+- Sizes, weights, and line heights follow the prototype (§5.5). Type scale:
+
+  | Role | Family | Size / line height | Weight |
+  |---|---|---|---|
+  | New-chat greeting | EB Garamond | 46px (mobile 32px) | 400 |
+  | Auth title | EB Garamond | 36px / 1.1 (mobile 30px) | 400 |
+  | Page title (Chats, platform), status title | EB Garamond | 32px / 1.15 | 400 |
+  | Settings section title | EB Garamond | 26px | 400 |
+  | Auth cover statement | EB Garamond | 44px / 1.15 | 400 |
+  | Answer and user message body | Inter | 16px / 1.75 (bubble 1.6); mobile 15px | 400 |
+  | Answer heading | Inter | 16px | 600 |
+  | Interface text, inputs, buttons | Inter | 14px (large inputs 15px) | 400 / 500 |
+  | Descriptions, hints, errors | Inter | 13px | 400 |
+  | Group labels, dates, disclaimer, badges | Inter | 12px | 500 / 400 |
 
 ## 4. Brand assets in the interface
 
@@ -219,8 +235,9 @@ Rules:
 ## 5. Components, spacing, and layout
 
 - Start every screen from the closest published shadcn `base-nova` block or
-  component, or assistant-ui example, and keep its structure, sizes, and
-  spacing. Do not hard-code colors; colors come from the tokens.
+  component, or assistant-ui example, and keep its structure and behavior;
+  set sizes and spacing to the prototype (§5.5). Do not hard-code colors;
+  colors come from the tokens.
 - Use the component's own variants (`default`, `secondary`, `outline`,
   `ghost`, `destructive`, sizes).
 - **Radius:** shadcn `--radius` is `0.625rem` (10px); component radii derive
@@ -228,21 +245,23 @@ Rules:
 - **App shell:** shadcn `sidebar-07` in its **inset** form: the content is a
   rounded card on the sidebar canvas, with no hard header border.
   - Sidebar header: the team switcher (§4).
-  - Groups: **Tools** with **Assistant** (sub-items New chat and Chats); later
-    tools (Tabular Review, Editor) join this group. **Matters** (F6) follows.
-    **Recent** lists the six latest chats with a per-chat menu (Rename,
-    Delete), then View all chats. Platform keeps its gate.
+  - Tools, with no group label: **Assistant** (sub-items New chat and Chats);
+    later tools (Tabular Review, Editor) join it. **Platform** (sub-items
+    Provisioning and Account status) shows only to platform administrators.
+    **Matters** (F6) follows. **Recent** is the only labeled group: the six
+    latest chats with a per-chat menu (Rename, Delete), then View all chats.
   - Footer: `NavUser` with name and **job title** (email when no job title).
-- **Page header:** pages other than chat keep the sidebar trigger and page
-  title. Chat pages have no breadcrumb header (§5.3).
+- **Page header:** the sidebar trigger at the top left. Chat pages add a
+  divider and the full chat title, plus the floating pill (§5.3). Other pages
+  show their title in the page body, not in the header.
 - **Auth layout:** shadcn `login-02` with the form on the left and a **Night
   cover** on the right: a short red rule, the tagline "The AI workspace for
-  Indonesian legal practitioners", and an EB Garamond statement.
+  Indonesian legal practitioners", an EB Garamond statement, and the domain.
+  One wordmark only, in the form column (§5.5).
 - New layouts with no published block use the Tailwind spacing scale.
 - **Visual target:** a slice that changes UI starts from a prototype the
-  product owner approves (current: `docs/design/f4.1-prototype/`). Layout,
-  hierarchy, content, and states follow the prototype; component internals
-  and sizes follow shadcn/assistant-ui.
+  product owner approves (current: `docs/design/f4.1-prototype/`, revision 14).
+  Screens are built 1:1 with it and checked as §5.6 requires.
 
 ### 5.1 UI patterns (required in every slice)
 
@@ -299,10 +318,11 @@ behavior only; colors and type follow v3.0).
 
 ### 5.3 Chat
 
-- **Chat page chrome:** no breadcrumb header. The sidebar trigger sits at the
-  top left. A floating pill at the top right holds **New chat (+)** and
-  **chat actions (⋯)** with Rename and Delete (the same flows as the Recent
-  menu).
+- **Chat page chrome:** the sidebar trigger at the top left, then a divider
+  and the **full chat title** (truncated with an ellipsis only when it does
+  not fit), on desktop and mobile. A floating pill at the top right holds
+  **New chat (+)** and **chat actions (⋯)** with Rename (a dialog) and Delete
+  (an alert dialog), the same flows as the Recent menu.
 - **New chat:** an EB Garamond greeting with no logo, the composer centered,
   and one row of short starter pills under it with no label. A pill inserts
   an editable template into the composer, focuses the editable part, and
@@ -317,6 +337,16 @@ behavior only; colors and type follow v3.0).
   scroll-to-latest button appears while streaming.
 - **Reasoning and status:** "Thought for N seconds" with a collapsible
   reasoning summary, next to the indicator or finished mark (§5.4).
+- **Answer actions:** icon-only buttons (Copy, Good response, Bad response,
+  Regenerate) with a tooltip and `aria-label`; Copy turns into a check with
+  "Copied". Feedback confirms with a toast.
+- **Stopped, reconnecting, failed:** a stopped answer keeps its partial text
+  and ends with the status line "You stopped this response."; a dropped
+  stream shows "Connection lost. Reconnecting…" with a wifi icon; a failure
+  shows one error row with "The response could not be completed." and Try
+  again.
+- **Editing a message:** the message becomes an edit box with Cancel and Save
+  below it, right-aligned; the answers after it are muted until saved.
 
 ### 5.4 Thinking indicator
 
@@ -345,6 +375,195 @@ The prototype README and `fm-strip.png` / `finish-strip.png` show it.
   "Thinking" and "Answer complete".
 - **Performance:** animation never blocks rendering of streamed text.
 
+### 5.5 Page patterns (required in every slice)
+
+Every page uses one of these patterns. Values are measured from the approved
+prototype (revision 14) at 1440×900 and 390×844; a value not listed here is
+read from the prototype source. Colors are tokens (§2). "Mobile" means below
+768px.
+
+**Shell**
+
+- Canvas `sidebar`. Sidebar 256px wide, padding 8px, item gap 4px; collapsed
+  (icon) 49px. Mobile: hidden; a `Sheet` 300px wide opens from the left over
+  an `overlay`.
+- Switcher and user rows 48px high. Tile and avatar 32px, radius 8px, 12px
+  semibold initials; the avatar sits on `sidebar-accent`.
+- Nav item 32px high, radius 6px, padding 0 8px, 14px; active and hover
+  `sidebar-accent`, active weight 500. Sub-items 28px, indented by a 1px
+  `sidebar-border` line (margin-left 15px, padding-left 10px).
+- Group label ("Recent" only): 12px, weight 500, `muted-foreground`, padding
+  14px 8px 6px. Empty Recent: "No chats yet." 13px `muted-foreground`.
+- Content card: margin 8px 8px 8px 0, radius 12px, `background`, a 1px
+  `border` ring plus `0 1px 3px rgba(8,6,6,.04)`. Mobile: full screen, no
+  margin, radius, or ring.
+
+**Header**
+
+- 52px high (mobile 56px), padding 0 14px (mobile 0 10px). Sidebar trigger:
+  icon button 28px, radius 6px.
+- Chat pages: a 1×16px `border` divider, then the chat title (14px,
+  `foreground`, one line, ellipsis). Right: the floating pill (padding 3px,
+  fully round, `background`, a 1px `border` ring plus
+  `0 4px 12px -6px rgba(8,6,6,.18)`) with two 28px round icon buttons. Its
+  menu opens 6px below, right-aligned, 180px wide; Delete uses `red-text`.
+- Chats, status, and platform pages: the trigger only.
+
+**Chat thread**
+
+- Thread and composer max 880px, thread padding 24px 24px 40px, 32px between
+  turns. Mobile: padding 16px 16px 0, 22px between turns.
+- User bubble: `user-bubble`, radius 20px, padding 12px 18px, 16px / 1.6, max
+  80% wide (mobile 88%), right-aligned.
+- Answer: 16px / 1.75 (mobile 15px), 12px gap between blocks; paragraphs and
+  lists 8px bottom margin, list indent 22px, list items 3px apart; headings
+  16px semibold with 6px above and 4px below.
+- Answer header: 20px mark, 8px gap, 14px `muted-foreground` label with a
+  14px chevron.
+- Action row: 32×32px icon buttons, radius 8px, 16px icons, 2px apart,
+  aligned to the text edge (margin-left −8px); tooltip 12px on `foreground`
+  above the button. Pressed or copied: `red-text`.
+- Status line (stopped, reconnecting): 16px / 1.6 `muted-foreground`, 18px
+  icon, 8px gap.
+- Error row: `muted` with a 1px `border`, radius 12px, padding 10px 10px 10px
+  14px, 15px text, 12px gap, outline Try again at the right.
+- Edit box: radius 16px, padding 14px 16px, `ring` border plus a 3px ring at
+  18%; Cancel (outline) and Save (primary) 10px below, right-aligned, 8px
+  apart; later answers in `muted-foreground`.
+- Thread loading: skeletons (a 44px bubble at 55% width, then four 12px
+  lines) and the normal composer, disabled.
+- Scroll-to-latest: 36px round button, centered, 150px above the bottom
+  (mobile 136px).
+
+**Composer**
+
+- Wrapper padding 0 24px 14px (mobile 10px 14px 12px); a 40px fade above it
+  on thread pages.
+- Box: radius 20px, 1px `border`, padding 16px 14px 12px 16px, 10px gap,
+  shadow `0 10px 30px -14px rgba(8,6,6,.22), 0 2px 6px -2px rgba(8,6,6,.06)`.
+  Text 16px, minimum 56px tall.
+- Deep thinking pill 32px high, fully round, padding 0 10px, 13px weight 500.
+  Send and stop: 36px round `primary`; disabled send at 40% opacity.
+- Disclaimer 12px `muted-foreground`, 8px below, centered.
+- New chat: greeting (§3), composer, and starter pills stacked with 22px gaps,
+  centered with 80px extra space below. Starter pills: 14px, padding 8px
+  14px, fully round, 1px `border`, 8px apart, one row (wrapping on mobile).
+  The chosen pill shows `foreground` border on `muted`; its template appears
+  in the composer with each placeholder on `muted`, radius 4px.
+
+**Auth pages**
+
+- Two equal columns. Left: `sidebar` background, padding 40px, the compact
+  wordmark (128px) top left; the form block (max 400px wide, 20px gaps) is
+  centered in the remaining height. Right: the Night cover, padding 48px, the
+  rule (40×2px) and tagline at the top, the statement (§3, max 520px), the
+  domain (13px) at the bottom right. No second wordmark.
+- Mobile: one column on `background`, padding 28px 20px, wordmark centered
+  at the top, 40px gap, form block full width.
+- Title block: title (§3) and description (15px / 1.55 `muted-foreground`)
+  10px apart. No icon above the title.
+- Inputs 44px high, 15px, radius 8px, padding 0 14px. Primary button 40px,
+  full width. Secondary links ("Back to sign in", "Use a recovery code"):
+  14px weight 500 `muted-foreground` with a 16px arrow or icon, centered.
+- Form alert (wrong credentials): `flag` with a 1px `red-text` border, radius
+  10px, padding 12px 14px, 16px alert icon, 14px / 1.5 text, above the
+  fields.
+- Pending: inputs disabled at 60% opacity; the button keeps its width and
+  shows a 16px spinner and "Signing in…".
+- Two-step code: six slots in one row, 56px high, 8px apart, radius 10px,
+  22px digits; the active slot has the focus ring.
+- Invitation card: 1px `border`, radius 12px, padding 16px; organization tile
+  40px; details as a two-column list (labels `muted-foreground`).
+- Onboarding steps: 28×4px bars, the done ones `foreground`, "Step N of 2"
+  13px.
+
+**Status pages** (not found, organization not found, workspace error, no access)
+
+- Centered stack, max 440px wide, 12px gaps, shifted up by 120px of bottom
+  padding. Icon tile 56px, radius 14px, `muted`, 24px icon. Title (§3), one
+  sentence 15px / 1.55 `muted-foreground`, a 40px primary button, and an
+  optional secondary link. Inside the shell when the user is signed in; the
+  standalone not-found page shows the wordmark at the top left (centered on
+  mobile).
+
+**List pages** (Chats)
+
+- Column max 768px, padding 28px 24px (mobile 20px 16px), 14px gaps. Title
+  (§3) with the primary New chat button on the same line; a 36px search input
+  with a 16px icon at 12px.
+- Rows: padding 12px, radius 10px; title 14px weight 500; date 12px
+  `muted-foreground`; search snippets 13px / 1.5 with matches highlighted (light `tint`; dark #4A1E23, as in the prototype).
+  Date group labels 12px weight 500.
+- Loading: a skeleton row per item (title 40–70% wide, date 52px). Empty and
+  no results: the `Empty` pattern (40px icon tile radius 10px, 16px semibold
+  title, one sentence, one button).
+
+**Settings dialog**
+
+- Fixed 1000×680px whatever the section, radius 12px. Header 56px with
+  "Settings" (16px semibold) and the close button. Navigation 240px on
+  `sidebar`, padding 12px, group labels as the shell. Body padding 28px 32px,
+  scrolling inside.
+- Section: title (§3), description 13px `muted-foreground`, then rows (padding
+  16px 0, 1px `border` below): label 14px weight 500 with a 13px description
+  on the left, control on the right (inputs 280px × 36px). Save at the bottom
+  right.
+- Members and invitations: rows of avatar (32px), name and email, role
+  control, and actions. Sessions: device icon tile (36px, radius 10px),
+  device name ("Chrome on macOS"), location and last activity, "This device"
+  badge, Sign out.
+- Mobile: a full-screen sheet; 56px header with back, section name, and
+  close; body padding 20px 16px; rows stack the control under the label
+  (switches and single buttons stay on the right).
+
+**Dialogs, menus, toasts**
+
+- Dialog 440px wide (mobile: screen width minus 32px), padding 24px, radius
+  12px; title 18px semibold; text `muted-foreground` / 1.5; buttons
+  right-aligned, 8px apart, 16px above. Destructive confirm uses
+  `destructive-fill`.
+- Menus: radius 8px, padding 4px, items 32px, radius 4px, 14px with 16px
+  icons.
+- Toast: top right, 20px from the top and 24px from the right, 320px wide,
+  radius 10px, padding 12px 16px, 14px with a check icon. Mobile: 12px from
+  both sides. Never over the composer.
+
+**Platform pages**
+
+- Column max 880px, padding 28px 24px 40px, 24px gaps; title (§3) and a 14px
+  description. Cards: 1px `border`, radius 12px, padding 20px, 16px gaps;
+  card title 16px semibold with a 13px description. Fields 36px in two
+  columns (one on mobile); actions right-aligned.
+- Tables: 1px `border`, radius 12px; header row 40px on `muted`, 13px weight
+  500; rows 56px; status as badges (warning badges in `red-text`); a chevron
+  opens the detail. Mobile: each row stacks its cells. Loading, empty, and
+  error use the skeleton, `Empty`, and error-row patterns.
+
+**Controls**
+
+- Buttons 32px (small 30px, large 40px), radius 8px, padding 0 12px, 14px
+  weight 500. Inputs 36px (auth 44px), radius 8px, padding 0 12px. Badges
+  20px, fully round, 12px weight 500. Switch 36×20px. Skeleton lines 12px,
+  radius 6px, `muted` (`sidebar-accent` inside the sidebar).
+
+### 5.6 Prototype fidelity (required in every slice that changes UI)
+
+- **One state per capture.** The visual capture ids of a slice and the state
+  names in its prototype are the same list. A screen or state without a
+  prototype state is added to the prototype and approved before it is built.
+- **Same content.** Visual fixtures use the prototype's data (names,
+  organizations, chats, dates) so captures and prototype states can be
+  compared directly.
+- **Comparison sheets.** For every capture id, viewport (1440×900,
+  390×844), and theme, the slice produces a sheet with the prototype state,
+  the capture, and a difference overlay, rendered in the same browser with
+  the same fonts, and reports the share of differing pixels. Animated parts
+  (thinking indicator, caret, spinners) are masked.
+- **Gate.** A sheet over 1.5% differing pixels fails. It is fixed, or listed
+  in the slice's `deviations.md` with the reason and approved by the product
+  owner before the goldens are locked. Review happens on the sheets, not on
+  captures alone.
+
 ## 6. Accessibility (required, not advisory)
 
 - WCAG 2.2 AA is the bar: text contrast ≥ 4.5:1, non-text UI ≥ 3:1.
@@ -358,6 +577,7 @@ The prototype README and `fm-strip.png` / `finish-strip.png` show it.
 
 | Version | Change |
 |---|---|
+| 3.1 | **Changed (product owner, F4.1 visual review round 4, 2026-11-18):** the approved prototype now owns sizes, spacing, and type scale, and screens are built 1:1 with it; shadcn/ui and assistant-ui keep structure, behavior, and accessibility (rationale, §3, §5). This reverses the sizing rule of 1.3. **Added:** type scale (§3); page patterns with measured values (§5.5); prototype fidelity gate with comparison sheets (§5.6); chat title in the header, icon-only answer actions, status lines, error row, edit box (§5.3); Platform group in the sidebar. **Removed:** the "Tools" group label. Visual target: `docs/design/f4.1-prototype/` revision 14 |
 | 3.0.2 | **Changed (product owner, F4.1 visual review, 2026-11-17):** invalid field labels stay ink; only the border and the error text are red (§5.1), as in the approved F4.1 prototype, for every form |
 | 3.0.1 | **Added (product owner, F4.1 spec review, 2026-11-15):** `destructive-fill` token (`--lexon-destructive-fill`, Merah Segel Deep in both themes) for the confirm button of destructive dialogs, since the dark `destructive` token is the lighter error-text red |
 | 3.0 | **Replaced (product owner, brand kit v4.1 and F4.1 prototype approval, 2026-11-13):** Royal Seal palette by brand v4.1 (White, Ink, Surface, Muted, Line Soft, Merah Segel, Merah Segel Deep, Night, Tint) with a derived dark theme and measured contrast; Georgia by EB Garamond for headlines; TeX Gyre Bonum added for legal quotations; brand source `docs/brand/lexon-2026-v4.1/`. **Added:** red-is-reserved and destructive-action rules (§2); inset shell, Tools/Recent groups, Personal monogram, job title (§4, §5); auth Night cover (§5); chat layout (§5.3); thinking indicator (§5.4). **Changed:** visual target is `docs/design/f4.1-prototype/` |
