@@ -62,7 +62,8 @@ async function renderNewChat() {
 it('centers a large greeting above the composer', async () => {
   const view = await renderNewChat();
   const heading = view.container.querySelector('h2');
-  expect(heading?.className).toContain('text-4xl');
+  expect(heading?.className).toContain('text-[46px]');
+  expect(heading?.className).toContain('max-md:text-[32px]');
   expect(heading?.className).toContain('text-center');
   await view.unmount();
 });
@@ -90,7 +91,7 @@ it('keeps the composer text area transparent in dark mode and the focus ring on 
   const shell = view.container.querySelector(
     '[data-slot="aui_composer-shell"]',
   )!;
-  expect(shell.className).toContain('focus-within:border-ring');
+  expect(shell.className).toContain('focus-within:border-input');
   await view.unmount();
 });
 
@@ -118,10 +119,10 @@ it('marks New chat with a plus icon in the empty state', async () => {
   await view.unmount();
 });
 
-it('sizes the new-chat composer like the prototype: 60px text area and no extra toolbar padding', async () => {
+it('sizes the new-chat composer like the prototype: 56px text area and no extra toolbar padding', async () => {
   const view = await renderNewChat();
   const input = view.container.querySelector('textarea')!;
-  expect(input.className).toContain('min-h-15');
+  expect(input.className).toContain('min-h-14');
   expect(input.className).not.toContain('min-h-20');
   const toolbar = view.container.querySelector(
     '[data-slot="aui_composer-shell"] > div',

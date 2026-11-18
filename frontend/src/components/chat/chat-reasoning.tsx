@@ -58,9 +58,11 @@ export function PersistedReasoning({
   );
   if (showsThinkingLabel(status, summary, durationMs, answerHasText))
     return (
-      <span className="text-muted-foreground my-3 flex items-center gap-2 text-sm">
+      <span className="flex items-center gap-2 text-sm">
         {mark}
-        Thinking…
+        <span className="from-muted-foreground via-foreground to-muted-foreground bg-linear-to-r bg-clip-text text-transparent">
+          Thinking…
+        </span>
       </span>
     );
   const measured =
@@ -69,24 +71,30 @@ export function PersistedReasoning({
       : null;
   if (summary === null)
     return (
-      <div className="text-muted-foreground my-3 flex items-center gap-2 text-sm">
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
         {mark}
         {measured}
       </div>
     );
   const label = measured ?? 'Reasoning';
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="my-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="flex flex-col gap-3"
+    >
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 text-sm">
         {mark}
-        {label}
-        {open ? (
-          <ChevronDownIcon className="size-4" />
-        ) : (
-          <ChevronRightIcon className="size-4" />
-        )}
+        <span className="inline-flex items-center gap-1">
+          {label}
+          {open ? (
+            <ChevronDownIcon className="size-3.5" />
+          ) : (
+            <ChevronRightIcon className="size-3.5" />
+          )}
+        </span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-border text-muted-foreground ms-2 mt-2 border-s-2 ps-4 text-sm">
+      <CollapsibleContent className="border-input text-muted-foreground border-s-2 py-0.5 ps-3.5 text-sm leading-[1.6] [&_p]:m-0">
         <MarkdownText source={summary} />
       </CollapsibleContent>
     </Collapsible>

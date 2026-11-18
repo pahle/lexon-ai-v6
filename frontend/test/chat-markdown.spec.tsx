@@ -108,13 +108,13 @@ it('renders ordered lists, unordered lists, and bold text with the exact baselin
   try {
     const root = view.container;
     expect(root.querySelector('ul')?.className).toBe(
-      'my-3 ms-6 list-disc space-y-1',
+      'mb-2 ps-[22px] list-disc',
     );
     expect(root.querySelector('ol')?.className).toBe(
-      'my-3 ms-6 list-decimal space-y-1',
+      'mb-2 ps-[22px] list-decimal',
     );
     for (const item of root.querySelectorAll('li'))
-      expect(item.className).toBe('ps-1');
+      expect(item.className).toBe('my-[3px]');
     expect(root.querySelector('strong')?.className).toBe('font-semibold');
   } finally {
     await view.unmount();
@@ -130,6 +130,6 @@ it('keeps every Markdown utility class a complete literal token in the source', 
     .filter((line) => !line.includes('const wrapperClass'))
     .join('\n');
   expect(source).not.toMatch(/[\w:-]\$\{/);
-  for (const token of ['ps-1', 'font-semibold', 'underline-offset-2'])
+  for (const token of ['mb-2', 'list-disc', 'font-semibold', 'underline-offset-2'])
     expect(source).toMatch(new RegExp(`['"\\s]${token}['"\\s]`));
 });

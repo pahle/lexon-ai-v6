@@ -28,7 +28,7 @@ export function MarkdownText({
 }: Partial<TextMessagePartProps> & { readonly source?: string }) {
   const dimmed = useContext(AnswerDimmedContext);
   const hidePulse = useContext(HideAnswerPulseContext);
-  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
+  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none flex flex-col gap-3${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
   // Everything inside a dimmed answer is muted, not only the wrapper text:
   // bold text, headings, list markers, and links carry the color themselves.
   const muted = dimmed && 'text-muted-foreground';
@@ -37,48 +37,39 @@ export function MarkdownText({
     img: () => null,
     h1: ({ children }) => (
       <h1
-        className={cn(
-          'mt-6 mb-3 text-2xl font-semibold font-sans tracking-tight first:mt-0',
-          muted,
-        )}
+        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
       >
         {children}
       </h1>
     ),
     h2: ({ children }) => (
       <h2
-        className={cn(
-          'mt-6 mb-3 text-xl font-semibold font-sans tracking-tight first:mt-0',
-          muted,
-        )}
+        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
       >
         {children}
       </h2>
     ),
     h3: ({ children }) => (
       <h3
-        className={cn(
-          'mt-5 mb-2 text-lg font-semibold font-sans tracking-tight first:mt-0',
-          muted,
-        )}
+        className={cn('mt-1.5 mb-1 text-base font-semibold font-sans', muted)}
       >
         {children}
       </h3>
     ),
     p: ({ children }: ComponentPropsWithoutRef<'p'>) => (
-      <p className="my-3 first:mt-0 last:mb-0">{children}</p>
+      <p className="mb-2">{children}</p>
     ),
     ul: ({ children }) => (
-      <ul className="my-3 ms-6 list-disc space-y-1">{children}</ul>
+      <ul className="mb-2 ps-[22px] list-disc">{children}</ul>
     ),
     ol: ({ children }) => (
-      <ol className="my-3 ms-6 list-decimal space-y-1">{children}</ol>
+      <ol className="mb-2 ps-[22px] list-decimal">{children}</ol>
     ),
     strong: ({ children }) => (
       <strong className={cn('font-semibold', muted)}>{children}</strong>
     ),
     li: ({ children }) => (
-      <li className={cn('ps-1', markerMuted)}>{children}</li>
+      <li className={cn('my-[3px]', markerMuted)}>{children}</li>
     ),
     blockquote: ({ children }) => (
       <blockquote className="border-border text-muted-foreground my-4 border-s-2 ps-4">

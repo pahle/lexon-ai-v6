@@ -350,8 +350,9 @@ it('35R2: the header chevron points right when collapsed and down when open, ove
       '[data-slot="collapsible-content"]',
     )!;
     expect(block.className).toContain('border-s-2');
-    expect(block.className).toContain('ms-2');
-    expect(block.className).toContain('ps-4');
+    expect(block.className).toContain('border-input');
+    expect(block.className).toContain('ps-3.5');
+    expect(block.className).toContain('text-sm');
   } finally {
     await view.unmount();
   }

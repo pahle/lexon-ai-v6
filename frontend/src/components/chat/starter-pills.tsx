@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   STARTER_TEMPLATES,
   insertTemplate,
@@ -40,25 +40,33 @@ export function StarterPills({
     <div
       role="group"
       aria-label="Starter prompts"
-      className="mt-8 flex flex-wrap justify-center gap-2"
+      className="flex flex-nowrap justify-center gap-2 max-md:flex-wrap max-md:px-4"
     >
-      {STARTER_TEMPLATES.map((item) => (
-        <Button
-          key={item.label}
-          type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
-          disabled={disabled}
-          onClick={() => {
-            const next = insertTemplate(value, item.template);
-            pending.current = next;
-            onValueChange(next.text);
-          }}
-        >
-          {item.label}
-        </Button>
-      ))}
+      {STARTER_TEMPLATES.map((item) => {
+        // The chosen pill is the one whose template is in the composer.
+        const chosen = value.includes(item.template);
+        return (
+          <button
+            key={item.label}
+            type="button"
+            aria-pressed={chosen}
+            className={cn(
+              'hover:bg-accent text-foreground focus-visible:ring-ring/50 rounded-full border px-3.5 py-2 text-sm outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50',
+              chosen
+                ? 'border-foreground bg-muted'
+                : 'border-border bg-background',
+            )}
+            disabled={disabled}
+            onClick={() => {
+              const next = insertTemplate(value, item.template);
+              pending.current = next;
+              onValueChange(next.text);
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

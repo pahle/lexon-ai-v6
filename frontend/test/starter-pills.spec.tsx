@@ -150,3 +150,32 @@ test('pills are keyboard-activatable buttons and disabled while sending', async 
   ).toBe(true);
   await busy.unmount();
 });
+
+test('the chosen pill shows a foreground border on muted and is pressed', async () => {
+  const view = await render(<Harness onSend={vi.fn()} />);
+  const find = (label: string) =>
+    [...view.container.querySelectorAll('button')].find(
+      (button) => button.textContent === label,
+    )!;
+  expect(find('Check a clause').getAttribute('aria-pressed')).toBe('false');
+  await act(async () => find('Check a clause').click());
+  const chosen = find('Check a clause');
+  expect(chosen.getAttribute('aria-pressed')).toBe('true');
+  expect(chosen.className).toContain('border-foreground');
+  expect(chosen.className).toContain('bg-muted');
+  expect(find('Explain an article').getAttribute('aria-pressed')).toBe('false');
+  expect(find('Explain an article').className).toContain('border-border');
+  await view.unmount();
+});
+
+test('pills are 14px, padded 8px 14px, fully round, 8px apart, in one row', async () => {
+  const view = await render(<Harness onSend={vi.fn()} />);
+  const group = view.container.querySelector('[role="group"]')!;
+  expect(group.className).toContain('gap-2');
+  expect(group.className).toContain('flex-nowrap');
+  expect(group.className).toContain('max-md:flex-wrap');
+  const pill = group.querySelector('button')!;
+  for (const token of ['rounded-full', 'text-sm', 'px-3.5', 'py-2'])
+    expect(pill.className).toContain(token);
+  await view.unmount();
+});

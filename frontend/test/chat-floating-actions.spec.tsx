@@ -118,7 +118,7 @@ const pill = (view: { container: HTMLElement }) => {
   };
 };
 
-for (const path of ['/workspace', '/chats', `/chats/${CHAT_ID}`]) {
+for (const path of ['/workspace', `/chats/${CHAT_ID}`]) {
   test(`chat route ${path} has no breadcrumb, a leading trigger, and the pill`, async () => {
     navigation.path = path;
     const view = await render(
@@ -139,6 +139,17 @@ for (const path of ['/workspace', '/chats', `/chats/${CHAT_ID}`]) {
     await view.unmount();
   });
 }
+
+test('the Chats page, like the prototype, has no pill', async () => {
+  navigation.path = '/chats';
+  const view = await render(
+    tree(<PageHeader title="Heading" visuallyHidden />),
+  );
+  const { newChat, actions } = pill(view);
+  expect(newChat).toBeNull();
+  expect(actions).toBeNull();
+  await view.unmount();
+});
 
 test('Chat actions opens Rename and Delete on an open chat', async () => {
   navigation.path = `/chats/${CHAT_ID}`;
@@ -331,15 +342,19 @@ test('the mobile header shows the chat title after the trigger and keeps the sin
   await view.unmount();
 });
 
-test('the desktop header and non-thread mobile routes show no chat title', async () => {
+test('the desktop header shows the title and the divider; non-thread mobile routes show no chat title', async () => {
   navigation.path = `/chats/${CHAT_ID}`;
   fixture.title = 'Syarat sah perjanjian';
   window.innerWidth = 1280;
   const desktop = await render(tree(<ChatPage />));
   await settle();
   expect(
-    desktop.container.querySelector('[data-slot="chat-header-title"]'),
-  ).toBeNull();
+    desktop.container.querySelector('[data-slot="chat-header-title"]')
+      ?.textContent,
+  ).toBe('Syarat sah perjanjian');
+  expect(
+    desktop.container.querySelector('[data-slot="chat-header-divider"]'),
+  ).not.toBeNull();
   await desktop.unmount();
   navigation.path = '/workspace';
   window.innerWidth = 390;
@@ -350,4 +365,30 @@ test('the desktop header and non-thread mobile routes show no chat title', async
     home.container.querySelector('[data-slot="chat-header-title"]'),
   ).toBeNull();
   await home.unmount();
+});
+
+test('the pill is a fully round ring with two 28px round icon buttons and a 180px menu with a red Delete', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  const view = await render(
+    tree(<PageHeader title="Heading" visuallyHidden />),
+  );
+  const { newChat, actions } = pill(view);
+  const root = actions!.parentElement!;
+  for (const token of ['rounded-full', 'p-[3px]', 'bg-background', 'gap-0.5'])
+    expect(root.className).toContain(token);
+  for (const button of [newChat!, actions!]) {
+    expect(button.className).toContain('size-7');
+    expect(button.className).toContain('rounded-full');
+  }
+  await act(async () => actions!.click());
+  await settle();
+  const menu = document.body.querySelector<HTMLElement>(
+    '[data-slot="dropdown-menu-content"]',
+  )!;
+  expect(menu.className).toContain('w-[180px]');
+  const remove = [
+    ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((item) => item.textContent === 'Delete')!;
+  expect(remove.className).toContain('text-(--lexon-red-text)');
+  await view.unmount();
 });

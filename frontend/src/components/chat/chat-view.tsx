@@ -1,8 +1,9 @@
 'use client';
 
 import { Textarea } from '@/components/ui/textarea';
+import { ChatSkeleton } from '@/components/chat/chat-skeleton';
+import { PlaceholderHighlightTextarea } from '@/components/chat/placeholder-highlight-textarea';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -228,17 +229,16 @@ function ChatViewSession({
 
   if (chatId && loading)
     return (
-      <div className="mx-auto flex min-h-0 w-full max-w-[880px] flex-1 flex-col px-4 pt-4">
-        <div role="status" className="flex flex-col gap-y-6">
-          <span className="sr-only">Loading conversation</span>
-          <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
-          <div className="flex flex-col gap-y-2">
-            <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
-            <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
-            <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
-          </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mx-auto w-full max-w-[880px] flex-1 px-6 pt-6 max-md:px-4 max-md:pt-4">
+          <ChatSkeleton />
         </div>
-        <div className="mt-auto pb-4 md:pb-6">
+        <div className={composerClasses.wrapper}>
+          <div
+            data-slot="aui_thread-fade"
+            aria-hidden="true"
+            className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
+          />
           <div data-slot="aui_composer-shell" className={composerClasses.shell}>
             <Textarea
               aria-label="Message input"
@@ -247,11 +247,24 @@ function ChatViewSession({
               rows={1}
               className={cn(
                 composerClasses.input,
-                'min-h-15 border-0 shadow-none focus-visible:ring-0',
+                'cursor-not-allowed border-0 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:disabled:bg-transparent',
               )}
             />
             <div className={cn(composerClasses.toolbar)}>
-              <div />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled
+                className={cn(
+                  composerClasses.deepThinking,
+                  'disabled:opacity-100',
+                )}
+                aria-label="Deep thinking"
+                aria-pressed={false}
+              >
+                <BrainIcon aria-hidden="true" /> Deep thinking
+              </Button>
               <Button
                 type="button"
                 disabled
@@ -259,10 +272,13 @@ function ChatViewSession({
                 className={composerClasses.send}
                 aria-label="Send message"
               >
-                <ArrowUpIcon className="size-4" />
+                <ArrowUpIcon />
               </Button>
             </div>
           </div>
+          <p className={composerClasses.disclaimer}>
+            Lexon can make mistakes. Verify important legal information.
+          </p>
         </div>
       </div>
     );
@@ -306,13 +322,11 @@ function ChatViewSession({
     );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
-      <div className="mx-auto mb-6 w-full max-w-[880px] text-center">
-        <ChatGreeting displayName={displayName} />
-      </div>
-      <form onSubmit={submit} className="w-full max-w-[880px]">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[22px] pb-20">
+      <ChatGreeting displayName={displayName} />
+      <form onSubmit={submit} className={composerClasses.wrapper}>
         <div data-slot="aui_composer-shell" className={composerClasses.shell}>
-          <Textarea
+          <PlaceholderHighlightTextarea
             ref={textareaRef}
             aria-label="Message input"
             placeholder="Ask Lexon about a contract, a regulation, or a case..."
@@ -331,7 +345,7 @@ function ChatViewSession({
             rows={1}
             className={cn(
               composerClasses.input,
-              'min-h-15 border-0 shadow-none focus-visible:ring-0',
+              'border-0 shadow-none focus-visible:ring-0',
             )}
           />
           <div className={cn(composerClasses.toolbar)}>
@@ -341,7 +355,7 @@ function ChatViewSession({
                   render={
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       className={cn(
                         composerClasses.deepThinking,
@@ -376,11 +390,11 @@ function ChatViewSession({
               className={composerClasses.send}
               aria-label="Send message"
             >
-              <ArrowUpIcon className="size-4" />
+              <ArrowUpIcon />
             </TooltipIconButton>
           </div>
         </div>
-        <p className="text-muted-foreground mt-2 text-center text-xs">
+        <p className={composerClasses.disclaimer}>
           Lexon can make mistakes. Verify important legal information.
         </p>
         {bytes > MAX_PROMPT_BYTES ? (
@@ -393,13 +407,15 @@ function ChatViewSession({
             Your message could not be sent. Please try again.
           </p>
         ) : null}
+      </form>
+      <div className="mt-3.5 w-full max-w-[880px]">
         <StarterPills
           textareaRef={textareaRef}
           value={text}
           onValueChange={setText}
           disabled={sending}
         />
-      </form>
+      </div>
     </div>
   );
 }
