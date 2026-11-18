@@ -5,4 +5,11 @@ services:
     environment:
       NODE_ENV: development
       LEXON_VISUAL_DEV: '1'
+      # Bind mounts on Docker Desktop do not deliver file events.
+      WATCHPACK_POLLING: 'true'
+    # The working tree's frontend sources, so edits hot reload while the
+    # stack stays up (scripts/visual-dev-stack.mjs). LEXON_REPO_ROOT ends in /.
+    volumes:
+      - ${LEXON_REPO_ROOT:?Use scripts/e2e.mjs}frontend/src:/app/frontend/src
+      - ${LEXON_REPO_ROOT:?Use scripts/e2e.mjs}frontend/public:/app/frontend/public
     mem_limit: 1024m

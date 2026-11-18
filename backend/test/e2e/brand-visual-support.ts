@@ -161,6 +161,21 @@ export async function focusRingLeak(page: Page) {
   });
 }
 
+/**
+ * The Next dev server (the visual dev loop) mounts a dev-tools badge in a
+ * shadow host; a production build has none. Hiding it keeps it out of axe
+ * and out of the capture.
+ */
+async function hideDevOverlay(page: Page) {
+  await page.evaluate(() => {
+    if (document.getElementById('lexon-hide-dev-overlay')) return;
+    const style = document.createElement('style');
+    style.id = 'lexon-hide-dev-overlay';
+    style.textContent = 'nextjs-portal { display: none !important; }';
+    document.head.append(style);
+  });
+}
+
 /** Animated parts of the app; the comparison script masks their boxes. */
 const animatedSelector = [
   '[data-slot="spinner"]',
@@ -210,6 +225,7 @@ export async function captureBrandView(
     throw new Error(`F4.1 visual index entry "${id}" does not match its id.`);
 
   await page.clock.setFixedTime(brandFixedTime);
+  await hideDevOverlay(page);
   await page.setViewportSize(size);
   await applyTheme(page, theme);
   await page.evaluate(() => document.fonts.ready);

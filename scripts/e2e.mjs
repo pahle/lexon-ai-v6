@@ -2,6 +2,7 @@ import {
   composeFilesForE2EProjects,
   resolveE2ESelection,
 } from './e2e-projects.mjs';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -28,7 +29,21 @@ const { args, selectedProjects } = resolveE2ESelection(
   { includeLoad: process.env.LEXON_CHAT_LOAD === '1' },
 );
 const captureChatLoad = selectedProjects.includes('chat-sse-load');
-const directory = await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
+// LEXON_E2E_KEEP=1 (the F4.1 visual dev loop, scripts/visual-dev-stack.mjs)
+// leaves the stack running and keeps its state in .cache/visual-dev-stack.
+const keep = process.env.LEXON_E2E_KEEP === '1';
+const keepDirectory = join(root, '.cache/visual-dev-stack');
+if (keep) {
+  if (existsSync(join(keepDirectory, 'descriptor.json')))
+    throw new Error(
+      'A visual dev stack is already up: run node scripts/visual-dev-stack.mjs down first',
+    );
+  await rm(keepDirectory, { recursive: true, force: true });
+  await mkdir(keepDirectory, { recursive: true, mode: 0o700 });
+}
+const directory = keep
+  ? keepDirectory
+  : await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
 const secret = () => randomBytes(24).toString('hex');
 let env;
@@ -73,6 +88,7 @@ try {
     directory,
   );
   env.AUTH_PUBLIC_ORIGIN = publicUrl;
+  env.LEXON_REPO_ROOT = root;
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
   env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
   env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
@@ -93,6 +109,7 @@ try {
     directory,
     signal: controller.signal,
     captureChatLoad,
+    keep,
     async start(signal) {
       await run('docker', composeArgs(project, ['config', '--quiet'], files), {
         env,
@@ -121,6 +138,16 @@ try {
         publicUrl,
         frontendUrl: publicUrl,
       };
+      if (keep)
+        await writeFile(
+          join(directory, 'descriptor.json'),
+          JSON.stringify({
+            ...descriptor,
+            composeFiles: files,
+            directory,
+          }),
+          { mode: 0o600 },
+        );
       await run(
         process.execPath,
         [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
@@ -187,5 +214,6 @@ try {
 } finally {
   process.off('SIGINT', stop);
   process.off('SIGTERM', stop);
-  await rm(directory, { recursive: true, force: true });
+  if (!keep || process.exitCode === 1)
+    await rm(directory, { recursive: true, force: true });
 }
