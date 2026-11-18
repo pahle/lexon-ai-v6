@@ -239,9 +239,13 @@ test('access denied and not-found pages', async ({ page, playwright }) => {
   await captureBrandViews(page, 'not-found');
 });
 
-test('workspace error page after a render failure', async ({ page }) => {
+test('workspace error page after a render failure', async ({
+  page,
+  playwright,
+}) => {
   const stack = descriptor();
-  await prepareIdentity(page, { name: ayu.name }, ayu.jobTitle);
+  await teamWorld(page, playwright);
+  await recentChats(page);
   await page.clock.setFixedTime(brandFixedTime);
   // One chat from an earlier month makes the Chats page format a month-and-year
   // heading; the init script makes exactly that formatter fail, so the real
@@ -264,7 +268,8 @@ test('workspace error page after a render failure', async ({ page }) => {
   await page.route(
     (url) => chatListRequest(url, 'GET'),
     (route) =>
-      route.request().method() !== 'GET'
+      route.request().method() !== 'GET' ||
+      new URL(route.request().url()).searchParams.get('limit') === '6'
         ? route.fallback()
         : route.fulfill({
             status: 200,

@@ -202,10 +202,11 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
         <DropdownMenuContent
           side={sidebar?.isMobile ? 'bottom' : 'right'}
           align="start"
-          sideOffset={8}
+          sideOffset={sidebar?.isMobile ? 4 : 8}
+          alignOffset={sidebar?.isMobile ? 8 : 0}
           aria-label="Organizations"
           data-testid="organization-popup"
-          className="w-[260px] max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
+          className="w-[268px] md:w-[260px] max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
         >
           <DropdownMenuGroup>
             <DropdownMenuLabel className="px-2 py-1.5">
@@ -239,7 +240,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                       ? 'true'
                       : undefined
                   }
-                  className="gap-2 px-2 py-0"
+                  className="h-8 gap-2 px-2 py-0"
                   onClick={async () => {
                     if (organization.id === identity.organization.id) return;
                     setBusy(true);
@@ -317,7 +318,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             </p>
           ) : null}
           <DropdownMenuItem
-            className="gap-2 px-2 py-0 text-muted-foreground"
+            className="h-8 gap-2 px-2 py-0 text-muted-foreground"
             onClick={() => {
               setCreateOpen(true);
               setOpen(false);

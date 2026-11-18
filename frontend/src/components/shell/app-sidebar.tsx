@@ -134,7 +134,7 @@ function NavigationGroup({
     >
       <SidebarMenuButton
         tooltip={title}
-        isActive={active}
+        isActive={title === 'Platform' ? active : false}
         onClick={() => {
           if (isMobile) setOpenMobile(false);
         }}

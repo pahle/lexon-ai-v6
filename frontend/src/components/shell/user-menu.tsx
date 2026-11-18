@@ -122,10 +122,11 @@ export function UserMenu({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        align="end"
-        side={sidebar?.isMobile ? 'bottom' : 'right'}
-        sideOffset={8}
-        className="w-60"
+        align={sidebar?.isMobile ? 'start' : 'end'}
+        alignOffset={sidebar?.isMobile ? 8 : 0}
+        side={sidebar?.isMobile ? 'top' : 'right'}
+        sideOffset={sidebar?.isMobile ? 4 : 8}
+        className="w-[268px] md:w-60"
         finalFocus={() => {
           if (settingsNavigationPending.current) {
             return false;
@@ -149,6 +150,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem
+            className="h-8 gap-2 px-2 py-0"
             render={
               <Link
                 href={settingsHref(
@@ -176,6 +178,7 @@ export function UserMenu({
             <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
+            className="h-8 gap-2 px-2 py-0"
             disabled={busy}
             onClick={async () => {
               setBusy(true);
