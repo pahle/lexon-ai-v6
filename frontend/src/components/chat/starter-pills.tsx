@@ -51,7 +51,7 @@ export function StarterPills({
             type="button"
             aria-pressed={chosen}
             className={cn(
-              'hover:bg-accent text-foreground focus-visible:ring-ring/50 rounded-full border px-3.5 py-2 text-sm outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50',
+              'hover:bg-accent text-foreground focus-visible:ring-ring/50 rounded-full border px-3.5 py-2 text-sm leading-[normal] outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50',
               chosen
                 ? 'border-foreground bg-muted'
                 : 'border-border bg-background',
