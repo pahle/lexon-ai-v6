@@ -15,7 +15,9 @@ export function AuthCard({
   headingLevel = 1,
   presentation = 'card',
   showBrandFooter = true,
+  eyebrow,
 }: {
+  eyebrow?: ReactNode;
   title: string;
   description?: ReactNode;
   children?: ReactNode;
@@ -33,6 +35,7 @@ export function AuthCard({
   if (presentation === 'page')
     return (
       <section className="flex w-full flex-col gap-5">
+        {eyebrow}
         <AuthHeader
           title={title}
           description={description}

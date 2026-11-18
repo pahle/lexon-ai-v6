@@ -48,10 +48,10 @@ test('scripts-blocked signup and two-factor forms POST safely while sign-in stay
         path: '/sign-up',
         fill: async () => {
           await page
-            .getByLabel('Name', { exact: true })
+            .getByLabel('Full name', { exact: true })
             .fill('Synthetic identity');
           await page
-            .getByLabel('Email', { exact: true })
+            .getByLabel('Work email', { exact: true })
             .fill('synthetic@example.test');
           await page
             .getByLabel('Password', { exact: true })
@@ -62,7 +62,7 @@ test('scripts-blocked signup and two-factor forms POST safely while sign-in stay
         path: '/two-factor',
         fill: async () => {
           await page
-            .getByLabel('Authenticator code', { exact: true })
+            .getByLabel('Authentication code', { exact: true })
             .fill('123456');
         },
       },
@@ -78,7 +78,7 @@ test('scripts-blocked signup and two-factor forms POST safely while sign-in stay
       );
       await page
         .getByRole('button', {
-          name: /Sign in|Create account|Verify authenticator/,
+          name: /Sign in|Create account|Verify/,
         })
         .click();
       const request = await navigation;
@@ -199,13 +199,8 @@ test('entry pages are accessible and validate without social entry points', asyn
       'width',
       '128',
     );
-    // The only other image is the cover's decorative white wordmark.
-    await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(1);
-    await expect(
-      page.locator(
-        '[aria-hidden="true"] img[alt=""][src*="LEXON-wordmark-compact-white"]',
-      ),
-    ).toHaveCount(1);
+    // The cover carries no wordmark (LEX-DS-001 v3.1 section 5.5).
+    await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(0);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
 });
@@ -216,8 +211,8 @@ test('entry signup verifies email before authenticated continuation', async ({
   const email = randomUUID() + '@example.test';
   await page.goto(stack.frontendUrl + '/sign-up');
   await waitForVisualAuthFormReady(page);
-  await page.getByLabel('Name', { exact: true }).fill('Browser identity');
-  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Full name', { exact: true }).fill('Browser identity');
+  await page.getByLabel('Work email', { exact: true }).fill(email);
   await page
     .getByLabel('Password', { exact: true })
     .fill('Browser-password-42!');
@@ -225,7 +220,7 @@ test('entry signup verifies email before authenticated continuation', async ({
     .getByRole('button', { name: 'Create account', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
+    page.getByRole('heading', { name: 'Verify your email' }),
   ).toBeVisible();
   const mail = await readCapturedMail(stack.project, email, 'verification');
   await page.goto(mail.actionUrl);
@@ -250,14 +245,14 @@ test('credential-checked unverified sign-in offers safe verification resend', as
   const returnTo = '/workspace';
   await page.goto(stack.frontendUrl + '/sign-up?returnTo=%2Fworkspace');
   await waitForVisualAuthFormReady(page);
-  await page.getByLabel('Name', { exact: true }).fill('Pending identity');
-  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Full name', { exact: true }).fill('Pending identity');
+  await page.getByLabel('Work email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page
     .getByRole('button', { name: 'Create account', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
+    page.getByRole('heading', { name: 'Verify your email' }),
   ).toBeVisible();
 
   await page.goto(
@@ -282,11 +277,11 @@ test('credential-checked unverified sign-in offers safe verification resend', as
   });
   expect(response.headers()['set-cookie']).toBeUndefined();
   await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
+    page.getByRole('heading', { name: 'Verify your email' }),
   ).toBeVisible();
-  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email);
+  await expect(page.getByRole('main')).toContainText(email);
   await expect(
-    page.getByRole('button', { name: 'Resend verification email' }),
+    page.getByRole('button', { name: 'Resend email' }),
   ).toBeVisible();
   expect(page.url()).not.toContain(email);
   const hrefs = await page
@@ -295,7 +290,7 @@ test('credential-checked unverified sign-in offers safe verification resend', as
       links.map((link) => (link as HTMLAnchorElement).href),
     );
   expect(hrefs.join('\n')).not.toContain(email);
-  await page.getByRole('button', { name: 'Resend verification email' }).click();
+  await page.getByRole('button', { name: 'Resend email' }).click();
   await expect(page.getByRole('status')).toHaveText(
     'If eligible, you will receive a verification link.',
   );
@@ -304,7 +299,7 @@ test('credential-checked unverified sign-in offers safe verification resend', as
   expect(callback).not.toBeNull();
   expect(new URL(callback!).searchParams.get('returnTo')).toBe(returnTo);
   await expect(
-    page.getByRole('link', { name: 'Sign in', exact: true }),
+    page.getByRole('link', { name: 'Back to sign in', exact: true }),
   ).toHaveAttribute('href', '/sign-in?returnTo=%2Fworkspace');
   await expect(page.locator('body')).not.toContainText(password);
 });
@@ -340,10 +335,10 @@ test('entry failures never disclose account existence and dependency errors stay
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.goto(base + '/reset-password?error=INVALID_TOKEN');
   await expect(
-    page.getByRole('link', { name: 'Request a new reset link' }),
+    page.getByRole('link', { name: 'Request a new link' }),
   ).toBeVisible();
   await page.goto(base + '/verify-email?error=INVALID_TOKEN');
   await expect(
-    page.getByRole('button', { name: 'Resend verification email' }),
+    page.getByRole('button', { name: 'Resend email' }),
   ).toBeVisible();
 });

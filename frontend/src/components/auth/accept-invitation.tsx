@@ -27,8 +27,17 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
     '/accept-invitation?invitationId=' + encodeURIComponent(invitationId);
   if (declined)
     return (
-      <AuthCard presentation="page" title="Invitation declined">
-        <AuthLink href="/workspace">Return to workspace</AuthLink>
+      <AuthCard
+        presentation="page"
+        title="Invitation declined"
+        description="You will not join this organization. Ask the person who invited you if you change your mind."
+      >
+        <a
+          href="/workspace"
+          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+        >
+          Go to my workspace
+        </a>
       </AuthCard>
     );
   if (!valid)
@@ -53,7 +62,7 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
     <AuthCard
       presentation="page"
       title="Accept invitation"
-      description="Sign in with the invited account to accept this invitation."
+      description="Join the organization that invited you. Use the account the invitation was sent to."
     >
       <>
         <PendingButton
@@ -116,19 +125,28 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
         >
           Decline invitation
         </PendingButton>
-        <AuthLink href={'/sign-in?returnTo=' + encodeURIComponent(next)}>
-          Sign in
-        </AuthLink>
-        <AuthLink
-          href={
-            '/sign-up?invitationId=' +
-            encodeURIComponent(invitationId) +
-            '&returnTo=' +
-            encodeURIComponent(next)
-          }
-        >
-          Create account
-        </AuthLink>
+        <p className="text-center text-sm text-muted-foreground">
+          Not the invited account?{' '}
+          <a
+            className="text-foreground underline underline-offset-4"
+            href={'/sign-in?returnTo=' + encodeURIComponent(next)}
+          >
+            Sign in
+          </a>{' '}
+          or{' '}
+          <a
+            className="text-foreground underline underline-offset-4"
+            href={
+              '/sign-up?invitationId=' +
+              encodeURIComponent(invitationId) +
+              '&returnTo=' +
+              encodeURIComponent(next)
+            }
+          >
+            create an account
+          </a>
+          .
+        </p>
       </>
       {failure ? (
         <>

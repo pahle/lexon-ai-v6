@@ -239,3 +239,21 @@ test('the onboarding page renders through the shared AuthFrame', () => {
   expect(onboarding).not.toMatch(/<main\b/);
   expect(onboarding).toContain('presentation="page"');
 });
+
+test('onboarding shows three steps with 28x4px bars and "Step N of 3"', async () => {
+  const { AuthSteps } = await import('../src/components/auth/auth-parts');
+  const view = await render(createElement(AuthSteps, { step: 2 }));
+  const bars = [...view.container.querySelectorAll('span[aria-hidden="true"]')];
+  expect(bars).toHaveLength(3);
+  expect(bars.map((bar) => bar.className.includes('bg-foreground'))).toEqual([
+    true,
+    true,
+    false,
+  ]);
+  for (const bar of bars) {
+    expect(bar.className).toContain('h-1');
+    expect(bar.className).toContain('w-7');
+  }
+  expect(view.container.textContent).toBe('Step 2 of 3');
+  await view.unmount();
+});

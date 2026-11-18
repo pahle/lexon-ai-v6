@@ -84,3 +84,30 @@ export const authInputClass =
 
 // Full-width primary button, 40px.
 export const authButtonClass = 'w-full disabled:opacity-100';
+
+// Onboarding progress: 28x4px bars (done = foreground) and "Step N of 3".
+export function AuthSteps({
+  step,
+  total = 3,
+}: {
+  step: number;
+  total?: number;
+}) {
+  return (
+    <div data-slot="auth-steps" className="flex items-center gap-1.5">
+      {Array.from({ length: total }, (_, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className={cn(
+            'h-1 w-7 rounded-xs',
+            index < step ? 'bg-foreground' : 'bg-border',
+          )}
+        />
+      ))}
+      <span className="ml-1.5 text-[13px] text-muted-foreground">
+        Step {step} of {total}
+      </span>
+    </div>
+  );
+}

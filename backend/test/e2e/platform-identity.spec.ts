@@ -83,14 +83,16 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
-    await page.getByLabel('Name', { exact: true }).fill('Platform operator');
-    await page.getByLabel('Email', { exact: true }).fill(email);
+    await page
+      .getByLabel('Full name', { exact: true })
+      .fill('Platform operator');
+    await page.getByLabel('Work email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page
       .getByRole('button', { name: 'Create account', exact: true })
       .click();
     await expect(
-      page.getByRole('heading', { name: 'Check your email' }),
+      page.getByRole('heading', { name: 'Verify your email' }),
     ).toBeVisible();
     await page.goto(
       (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
@@ -502,9 +504,11 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await recipient
         .getByRole('link', { name: 'Create account', exact: true })
         .click();
-      await recipient.getByLabel('Name', { exact: true }).fill('First owner');
       await recipient
-        .getByLabel('Email', { exact: true })
+        .getByLabel('Full name', { exact: true })
+        .fill('First owner');
+      await recipient
+        .getByLabel('Work email', { exact: true })
         .fill(replacementEmail);
       await recipient
         .getByLabel('Password', { exact: true })
@@ -513,7 +517,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         .getByRole('button', { name: 'Create account', exact: true })
         .click();
       await expect(
-        recipient.getByRole('heading', { name: 'Check your email' }),
+        recipient.getByRole('heading', { name: 'Verify your email' }),
       ).toBeVisible();
       await recipient.goto(
         (

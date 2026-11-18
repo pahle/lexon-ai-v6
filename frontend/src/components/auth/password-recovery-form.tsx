@@ -199,7 +199,7 @@ function ResetPassword({ token }: { token?: string | undefined }) {
               size="lg"
               className={authButtonClass}
             >
-              Reset password
+              Update password
             </PendingButton>
             <BackToSignIn />
           </FieldGroup>
@@ -216,7 +216,7 @@ function ResetPassword({ token }: { token?: string | undefined }) {
               href="/forgot-password"
               className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
             >
-              Request a new reset link
+              Request a new link
             </a>
           )}
           <BackToSignIn />

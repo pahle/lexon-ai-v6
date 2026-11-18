@@ -15,7 +15,7 @@ export function TwoFactorChallenge({
   return (
     <AuthCard
       presentation="page"
-      title="Verify your sign-in"
+      title="Two-step verification"
       description={
         recovery
           ? 'Enter one of your recovery codes to continue.'
@@ -26,7 +26,8 @@ export function TwoFactorChallenge({
         key={String(recovery)}
         recovery={recovery}
         presentation="auth"
-        submitLabel={recovery ? 'Verify recovery code' : 'Verify authenticator'}
+        submitLabel={recovery ? 'Verify recovery code' : 'Verify'}
+        label="Authentication code"
         onSubmit={async (input) => {
           const result = recovery
             ? await authClient.twoFactor.verifyBackupCode(input)

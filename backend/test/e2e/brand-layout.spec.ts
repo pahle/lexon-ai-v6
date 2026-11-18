@@ -143,12 +143,12 @@ test('a real API-authenticated incomplete identity renders onboarding checkpoint
   }
 });
 
-test('auth frame cover follows the published 1024px desktop boundary without overflow', async ({
+test('auth frame cover follows the published 768px two-column boundary without overflow', async ({
   page,
 }) => {
   await page.goto(descriptor().frontendUrl + '/sign-in');
-  await page.setViewportSize({ width: 1023, height: 900 });
-  await expect(page.locator('[aria-hidden="true"].lg\\:block')).toBeHidden();
+  await page.setViewportSize({ width: 767, height: 900 });
+  await expect(page.locator('[aria-hidden="true"].md\\:flex')).toBeHidden();
   expect(
     await page
       .locator('form')
@@ -156,9 +156,9 @@ test('auth frame cover follows the published 1024px desktop boundary without ove
   ).toBeGreaterThan(0);
   expect(
     await page.locator('html').evaluate((node) => node.scrollWidth),
-  ).toBeLessThanOrEqual(1023);
-  await page.setViewportSize({ width: 1024, height: 900 });
-  await expect(page.locator('[aria-hidden="true"].lg\\:block')).toBeVisible();
+  ).toBeLessThanOrEqual(767);
+  await page.setViewportSize({ width: 768, height: 900 });
+  await expect(page.locator('[aria-hidden="true"].md\\:flex')).toBeVisible();
   expect(
     await page
       .locator('form')
@@ -166,7 +166,7 @@ test('auth frame cover follows the published 1024px desktop boundary without ove
   ).toBeGreaterThan(0);
   expect(
     await page.locator('html').evaluate((node) => node.scrollWidth),
-  ).toBeLessThanOrEqual(1024);
+  ).toBeLessThanOrEqual(768);
 });
 
 test('font and image assets load from the application origin with Inter available', async ({
@@ -225,7 +225,7 @@ test('secondary account flows render inside the shared auth frame', async ({
     await expect(page.locator('main'), route.name).toHaveCount(1);
     await expect(page.locator('h1'), route.name).toHaveCount(1);
     await expect(
-      page.locator('[aria-hidden="true"].lg\\:block'),
+      page.locator('[aria-hidden="true"].md\\:flex'),
       route.name,
     ).toHaveCount(1);
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
@@ -1201,10 +1201,10 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       .click();
     await expect(secondOwnerPage).toHaveURL(/two-factor/);
     await secondOwnerPage
-      .getByLabel('Authenticator code', { exact: true })
+      .getByLabel('Authentication code', { exact: true })
       .fill(totpForUri(authenticatorUri!));
     await secondOwnerPage
-      .getByRole('button', { name: 'Verify authenticator', exact: true })
+      .getByRole('button', { name: 'Verify', exact: true })
       .click();
     await expect(secondOwnerPage).toHaveURL(/workspace/);
     await expect(

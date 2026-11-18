@@ -43,7 +43,7 @@ export function VerificationState({
           ? 'Email verified'
           : state === 'expired'
             ? 'Unable to verify email'
-            : 'Check your email'
+            : 'Verify your email'
       }
       description={
         state === 'confirmed' ? (
@@ -99,14 +99,16 @@ export function VerificationState({
                 {failure}
               </AuthAlert>
             ) : null}
-            <FormInput
-              label="Email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@firm.co.id"
-              registration={form.register('email')}
-              error={form.formState.errors.email}
-            />
+            {email ? null : (
+              <FormInput
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@firm.co.id"
+                registration={form.register('email')}
+                error={form.formState.errors.email}
+              />
+            )}
             {message ? <p role="status">{message}</p> : null}
             <PendingButton
               type="submit"
@@ -116,16 +118,27 @@ export function VerificationState({
               variant="outline"
               className={authButtonClass}
             >
-              Resend verification email
+              Resend email
             </PendingButton>
           </FieldGroup>
         </form>
+      ) : null}
+      {state === 'pending' && email ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Wrong email?{' '}
+          <a
+            className="text-foreground underline underline-offset-4"
+            href={'/sign-up?returnTo=' + encodeURIComponent(next)}
+          >
+            Create the account again
+          </a>
+        </p>
       ) : null}
       <AuthLink
         href={'/sign-in?returnTo=' + encodeURIComponent(next)}
         icon={<ArrowLeft aria-hidden="true" />}
       >
-        Sign in
+        {state === 'confirmed' ? 'Sign in' : 'Back to sign in'}
       </AuthLink>
     </AuthCard>
   );

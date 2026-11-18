@@ -397,6 +397,38 @@
       "prototypeReference": "r14/accept-invitation-m-dark.png",
       "replaces": []
     },
+    "accept-invitation-declined-desktop-light": {
+      "path": "review/accept-invitation-declined-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-d.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-desktop-dark": {
+      "path": "review/accept-invitation-declined-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-d-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-mobile-light": {
+      "path": "review/accept-invitation-declined-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-m.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-mobile-dark": {
+      "path": "review/accept-invitation-declined-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-m-dark.png",
+      "replaces": []
+    },
     "accept-invitation-unavailable-desktop-light": {
       "path": "review/accept-invitation-unavailable-desktop-light.png",
       "viewport": "desktop",
@@ -459,6 +491,38 @@
       "theme": "dark",
       "state": "Admin setup",
       "prototypeReference": "r14/admin-setup-m-dark.png",
+      "replaces": []
+    },
+    "admin-setup-activate-desktop-light": {
+      "path": "review/admin-setup-activate-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-d.png",
+      "replaces": []
+    },
+    "admin-setup-activate-desktop-dark": {
+      "path": "review/admin-setup-activate-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-d-dark.png",
+      "replaces": []
+    },
+    "admin-setup-activate-mobile-light": {
+      "path": "review/admin-setup-activate-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-m.png",
+      "replaces": []
+    },
+    "admin-setup-activate-mobile-dark": {
+      "path": "review/admin-setup-activate-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-m-dark.png",
       "replaces": []
     },
     "admin-setup-unavailable-desktop-light": {
@@ -555,6 +619,38 @@
       "theme": "dark",
       "state": "Onboarding, pending invitations",
       "prototypeReference": "r14/onboarding-invitations-m-dark.png",
+      "replaces": []
+    },
+    "onboarding-team-desktop-light": {
+      "path": "review/onboarding-team-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-d.png",
+      "replaces": []
+    },
+    "onboarding-team-desktop-dark": {
+      "path": "review/onboarding-team-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-d-dark.png",
+      "replaces": []
+    },
+    "onboarding-team-mobile-light": {
+      "path": "review/onboarding-team-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-m.png",
+      "replaces": []
+    },
+    "onboarding-team-mobile-dark": {
+      "path": "review/onboarding-team-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-m-dark.png",
       "replaces": []
     },
     "shell-personal-desktop-light": {

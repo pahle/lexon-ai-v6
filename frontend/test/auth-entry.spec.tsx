@@ -277,7 +277,7 @@ test('verification resend appears only after credential-checked unverified sign-
   const email = 'person@example.test';
   const returnTo = '/workspace?tab=recent';
   const view = await render(<LoginForm returnTo={returnTo} />);
-  expect(view.container.textContent).not.toContain('Resend verification email');
+  expect(view.container.textContent).not.toContain('Resend email');
   const inputs = view.container.querySelectorAll<HTMLInputElement>('input');
   const setInput = async (input: HTMLInputElement, value: string) => {
     await act(async () => {
@@ -306,12 +306,11 @@ test('verification resend appears only after credential-checked unverified sign-
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   });
   await settle();
-  expect(view.container.textContent).toContain('Check your email');
-  expect(view.container.textContent).toContain('Resend verification email');
-  expect(
-    view.container.querySelector<HTMLInputElement>('input[type="email"]')
-      ?.value,
-  ).toBe(email);
+  expect(view.container.textContent).toContain('Verify your email');
+  expect(view.container.textContent).toContain('Resend email');
+  // The address is known, so it is named in the text and not asked again.
+  expect(view.container.querySelector('b')?.textContent).toBe(email);
+  expect(view.container.querySelector('input[type="email"]')).toBeNull();
   expect(
     [...view.container.querySelectorAll<HTMLAnchorElement>('a')].some((a) =>
       a.href.includes(email),
@@ -392,7 +391,7 @@ test('unrelated forbidden sign-in errors stay generic and do not show verificati
         .closest('[data-slot="field"]')!,
     ),
   );
-  expect(view.container.textContent).not.toContain('Resend verification email');
+  expect(view.container.textContent).not.toContain('Resend email');
   await view.unmount();
 });
 import { authFailure } from '../src/components/auth/form-input';

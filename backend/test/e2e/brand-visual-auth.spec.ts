@@ -109,8 +109,8 @@ test('sign-up and secondary account flows', async ({ page }) => {
 test('verify-email after sign-up', async ({ page }) => {
   const base = descriptor().frontendUrl;
   await page.goto(base + '/sign-up');
-  await page.getByLabel('Name', { exact: true }).fill(ayu.name);
-  await page.getByLabel('Email', { exact: true }).fill(ayu.email);
+  await page.getByLabel('Full name', { exact: true }).fill(ayu.name);
+  await page.getByLabel('Work email', { exact: true }).fill(ayu.email);
   await page.getByLabel('Password', { exact: true }).fill('password12345');
   // The sign-up request is answered by a route, so no account is created.
   await page.route('**/api/auth/sign-up/email', (route) =>
@@ -124,7 +124,7 @@ test('verify-email after sign-up', async ({ page }) => {
     .getByRole('button', { name: 'Create account', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
+    page.getByRole('heading', { name: 'Verify your email' }),
   ).toBeVisible();
   await captureBrandViews(page, 'verify-email');
 });
@@ -198,10 +198,71 @@ test('admin-setup', async ({ page }) => {
   );
   await page.goto(descriptor().frontendUrl + '/admin-setup?token=visual-setup');
   await expect(
-    page.getByRole('heading', { name: 'Administrator setup' }),
+    page.getByRole('heading', { name: 'Set up platform administration' }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await captureBrandViews(page, 'admin-setup');
+});
+
+test('admin-setup-activate', async ({ page }) => {
+  // A verified account with two-step verification: the page offers Activate.
+  // The three API answers are routed, nothing is redeemed or activated.
+  await page.route('**/api/identity/admin-setup/redeem', (route) =>
+    route.fulfill({ status: 204 }),
+  );
+  await page.route('**/api/identity/security', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 1,
+        twoFactorEnabled: true,
+        mfaVerified: true,
+        reauthenticationExpiresAt: null,
+        recoveryCodesRemaining: 8,
+      }),
+    }),
+  );
+  await page.route('**/api/identity/profile', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 1,
+        id: '00000000-0000-4000-8000-0000000000c1',
+        email: 'dimas@hukum-nusantara.co.id',
+        name: 'Dimas Prasetyo',
+        emailVerified: true,
+        twoFactorEnabled: true,
+        jobTitle: null,
+        onboardingCompleted: true,
+      }),
+    }),
+  );
+  await page.goto(descriptor().frontendUrl + '/admin-setup?token=visual-setup');
+  await expect(
+    page.getByRole('heading', { name: 'Activate administrator access' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'admin-setup-activate');
+});
+
+test('accept-invitation-declined', async ({ page }) => {
+  const invitationId = '00000000-0000-4000-8000-000000000001';
+  await page.route('**/api/**/invitations/*/decline', (route) =>
+    route.fulfill({ status: 204 }),
+  );
+  await page.goto(
+    descriptor().frontendUrl +
+      '/accept-invitation?invitationId=' +
+      invitationId,
+  );
+  await page
+    .getByRole('button', { name: 'Decline invitation', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Invitation declined' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'accept-invitation-declined');
 });
 
 async function openOnboarding(page: import('@playwright/test').Page) {
@@ -258,4 +319,18 @@ test('onboarding-invitations', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole('link', { name: team.name })).toBeVisible();
   await captureBrandViews(page, 'onboarding-invitations');
+});
+
+test('onboarding-team', async ({ page }) => {
+  await openOnboarding(page);
+  // Steps 1 and 2 are real: the profile is saved, the invitation list is empty.
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Pending invitations' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Create a team, or start on your own' }),
+  ).toBeVisible();
+  await captureBrandViews(page, 'onboarding-team');
 });

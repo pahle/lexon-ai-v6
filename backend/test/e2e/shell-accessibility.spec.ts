@@ -145,7 +145,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         } else {
           await expect(
             page.getByRole('heading', {
-              name: 'Verify your sign-in',
+              name: 'Two-step verification',
               exact: true,
             }),
           ).toBeVisible();
