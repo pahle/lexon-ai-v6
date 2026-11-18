@@ -170,7 +170,7 @@ export function ProfileSettings(): React.ReactElement {
           </FieldGroup>
           <div className="mt-1 flex justify-end">
             <PendingButton
-              className="[&_.invisible]:hidden"
+              className="bg-clip-border [&_.invisible]:hidden"
               type="submit"
               pending={submission.pending}
               pendingLabel="Saving…"

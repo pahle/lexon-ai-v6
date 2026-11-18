@@ -210,6 +210,7 @@ export function Invitations({
           </Select>
           <PendingButton
             type="submit"
+            className="bg-clip-border"
             pending={submission.pending && pendingAction?.type === 'send'}
             disabled={submission.pending}
             pendingLabel="Sending…"

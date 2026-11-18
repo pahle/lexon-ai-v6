@@ -165,6 +165,20 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
         .getByRole('radio', { name: 'System' })
         .click({ force: true });
       await expect(page.getByRole('radio', { name: 'System' })).toBeChecked();
+      // The capture helper re-applies the stored theme; keep System selected
+      // by ignoring those writes, the color scheme is emulated instead.
+      await page.evaluate(() => {
+        const set = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key: string, value: string) {
+          if (key === 'theme') return;
+          set.call(this, key, value);
+        };
+        const dispatch = window.dispatchEvent.bind(window);
+        window.dispatchEvent = (event: Event) =>
+          event instanceof StorageEvent && event.key === 'theme'
+            ? true
+            : dispatch(event);
+      });
     },
   });
   const sessions = await installPrototypeSecurity(page);

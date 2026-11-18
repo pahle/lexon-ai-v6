@@ -131,7 +131,7 @@ export function AccountSecurity() {
     );
   }
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col">
       <section aria-labelledby="security-heading" className="flex flex-col">
         <SettingsHeading
           id="security-heading"
@@ -159,7 +159,7 @@ export function AccountSecurity() {
           data-slot="security-row"
           className="flex items-center justify-between gap-6 border-b border-border py-4"
         >
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h3 className="text-sm leading-[normal] font-medium">
               Two-step verification
               <Badge
@@ -175,7 +175,7 @@ export function AccountSecurity() {
                 : 'Add an authenticator app for a second step at sign-in.'}
             </p>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2 max-md:w-[134px] max-md:shrink-0">
             {security.data.twoFactorEnabled ? (
               <>
                 <Button

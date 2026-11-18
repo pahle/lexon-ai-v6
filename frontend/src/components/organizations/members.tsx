@@ -192,7 +192,7 @@ export function Members({
         }
         action={
           canInvite ? (
-            <Button onClick={goToInvitations}>
+            <Button className="bg-clip-border" onClick={goToInvitations}>
               <Plus aria-hidden="true" data-icon="inline-start" />
               Invite people
             </Button>

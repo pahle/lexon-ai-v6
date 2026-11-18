@@ -69,7 +69,11 @@ export default function ChatsPage() {
         >
           Chats
         </h1>
-        <Button nativeButton={false} render={<Link href="/workspace" />}>
+        <Button
+          nativeButton={false}
+          className="bg-clip-border"
+          render={<Link href="/workspace" />}
+        >
           <Plus aria-hidden="true" data-icon="inline-start" />
           New chat
         </Button>

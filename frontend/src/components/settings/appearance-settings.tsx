@@ -15,9 +15,11 @@ const themes = [
 function PreviewPane({
   theme,
   className,
+  bar = 'bg-[var(--input)]',
 }: {
   theme: 'light' | 'dark';
   className: string;
+  bar?: string;
 }): React.ReactElement {
   return (
     <span
@@ -27,8 +29,8 @@ function PreviewPane({
     >
       <span className="flex-1 bg-[var(--sidebar)]" />
       <span className="flex flex-[2] flex-col gap-1.5 bg-[var(--background)] p-3">
-        <span className="h-2 w-3/5 rounded-[4px] bg-[var(--input)]" />
-        <span className="h-2 w-4/5 rounded-[4px] bg-[var(--input)]" />
+        <span className={`h-2 w-3/5 rounded-[4px] ${bar}`} />
+        <span className={`h-2 w-4/5 rounded-[4px] ${bar}`} />
       </span>
     </span>
   );
@@ -70,12 +72,20 @@ export function AppearanceSettings(): React.ReactElement {
                 data-slot="appearance-preview"
                 data-theme-preview={value}
                 data-selected={theme === value}
-                className="flex h-[110px] w-full min-w-0 overflow-hidden rounded-[10px] border border-input data-[selected=true]:border-2 data-[selected=true]:border-ring"
+                className="relative flex h-[110px] w-full min-w-0 overflow-hidden rounded-[10px] border border-input data-[selected=true]:border-2 data-[selected=true]:border-ring"
               >
                 {value === 'system' ? (
                   <>
-                    <PreviewPane theme="light" className="w-1/2" />
-                    <PreviewPane theme="dark" className="w-1/2" />
+                    <PreviewPane
+                      theme="light"
+                      bar="bg-[var(--lexon-deleted)]"
+                      className="absolute inset-0 [clip-path:inset(0_50%_0_0)]"
+                    />
+                    <PreviewPane
+                      theme="dark"
+                      bar="bg-[var(--lexon-deleted)]"
+                      className="absolute inset-0 [clip-path:inset(0_0_0_50%)]"
+                    />
                   </>
                 ) : (
                   <PreviewPane theme={value} className="w-full" />
