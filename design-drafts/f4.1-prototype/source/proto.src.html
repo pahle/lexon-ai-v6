@@ -342,6 +342,8 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .phead .row{flex-wrap:wrap;gap:8px}
 .app.mobile .thread>div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important}
 .app.mobile.plain>div:first-child{text-align:center}
+/* r14.2: switcher tile and user avatar sit on the 32px icon column (x 8px) so nothing moves when the sidebar collapses */
+.sb .nb.big{padding-left:0}
 </style>
 <div id="root"></div>
 <script>
@@ -374,7 +376,7 @@ const A1b=`<p>Ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syara
 
 function sidebar(S,c){
  const icon=S==='collapsed';
- if(icon) return `<aside class="sb icon" aria-label="Sidebar"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="ini">HN</span></button><div style="height:12px"></div><button class="nb on" style="padding:0;justify-content:center;width:32px" title="Assistant">${sv('chats')}</button><div style="margin-top:auto"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="avatar">AW</span></button></div></aside>`;
+ if(icon) return `<aside class="sb icon" aria-label="Sidebar"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="ini">HN</span></button><div style="height:8px"></div><button class="nb on" style="padding:0;justify-content:center;width:32px" title="Assistant">${sv('chats')}</button><div style="margin-top:auto"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="avatar">AW</span></button></div></aside>`;
  let rec='';
  if(c.loading) rec=[70,55,80,62].map(w=>`<div style="height:32px;display:flex;align-items:center;padding:0 8px"><div class="skel" style="width:${w}%"></div></div>`).join('');
  else if(c.none) rec='<p style="margin:0;padding:4px 8px;font-size:13px;color:var(--mfg)">No chats yet.</p>';
