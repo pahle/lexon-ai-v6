@@ -121,3 +121,4 @@ these states and design nothing themselves.
   Provisioning (populated, empty, loading, error, detail).
 - Fixtures shown: Ayu Wardani (Senior Associate) in Hukum Nusantara (3 members);
   platform operator Dimas Prasetyo.
+- Sidebar: no "Tools" group label; only "Recent" has a section title (owner, 2026-11-18).
