@@ -514,6 +514,11 @@ test('streaming, reconnecting, and loading chat threads', async ({
       });
       await page.mouse.move(viewport === 'desktop' ? 840 : 195, 400);
       await page.mouse.wheel(0, -6000);
+      await viewportBox.evaluate((element) => {
+        element.style.scrollBehavior = 'auto';
+        element.scrollTop = 0;
+        element.dispatchEvent(new Event('scroll'));
+      });
       await expect(
         page.getByRole('button', { name: 'Scroll to bottom' }),
       ).toBeVisible();
