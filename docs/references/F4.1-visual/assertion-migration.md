@@ -62,3 +62,7 @@ Proof: `pnpm test:e2e --project chat-browser` passes with the new spec; `chat-vi
 | brand-layout.spec.ts Task 7A appearance geometry | `columnGap` 16 and option gaps 16 at every width                   | 10 below 768px, 16 otherwise                                          | Prototype source sets `.app.mobile [role=radiogroup]{gap:10px!important}`; settings round 2 matched it. Presentation only.                                                                                              |
 
 | backend/test/e2e/brand-layout.spec.ts:531 | `getByText('Browser', { exact: true })` visible | `getByRole('list', { name: 'Signed-in sessions' }).getByText('This device')` visible | Sessions show a device name derived from the user agent (owner decision, round 4); same replacement as account-security.spec.ts |
+
+## Checkpoint C timeout diagnostics (brand-layout.spec.ts "Task 7B Checkpoint C")
+
+No assertion changed. CI run 44367399910 timed out at 240s with no call log, and static reading found no stale locator. Added `[checkpoint-c stage]` console.log markers (start, enrollment, home captures, sidebar, organization popup, each settings section, populated widths, responsive states, profile save) so the next CI log shows the last step reached.

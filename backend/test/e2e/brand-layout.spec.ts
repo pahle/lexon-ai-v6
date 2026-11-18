@@ -972,6 +972,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   playwright,
 }) => {
   test.setTimeout(240_000);
+  console.log('[checkpoint-c stage] start');
   const stack = descriptor();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(stack.frontendUrl + '/sign-in');
@@ -1159,6 +1160,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   );
   expect(pending.status()).toBe(201);
 
+  console.log('[checkpoint-c stage] before enrollment');
   await page.goto(stack.frontendUrl + '/workspace?settings=security');
   await page
     .getByRole('button', { name: 'Set up authenticator', exact: true })
@@ -1189,6 +1191,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(
     page.getByRole('heading', { name: 'Two-step verification' }),
   ).toBeVisible();
+  console.log('[checkpoint-c stage] enrolled, before second owner');
   const secondOwnerContext = await page.context().browser()!.newContext();
   try {
     const secondOwnerPage = await secondOwnerContext.newPage();
@@ -1261,6 +1264,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   }, team.id);
   expect(requireTwoFactor).toBe(200);
 
+  console.log('[checkpoint-c stage] before home captures');
   await freezeMorningClock(page);
   await page.goto(stack.frontendUrl + '/workspace');
   await expect(
@@ -1285,6 +1289,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
       );
     if (viewport === 'mobile') await page.keyboard.press('Escape');
   }
+  console.log('[checkpoint-c stage] sidebar mobile done');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   for (const theme of ['light', 'dark'] as const)
@@ -1306,6 +1311,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   await expect(
     page.getByRole('button', { name: 'Collapse sidebar' }),
   ).toBeVisible();
+  console.log('[checkpoint-c stage] before organization popup');
   await page
     .getByRole('button', { name: /Organization: Harbor Legal/ })
     .click();
@@ -1345,6 +1351,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
   // only by the real operator/MFA flow in platform-identity.spec.ts.
   await page.keyboard.press('Escape');
 
+  console.log('[checkpoint-c stage] before settings sections');
   const sections = [
     'profile',
     'appearance',
@@ -1354,6 +1361,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     'general',
   ] as const;
   for (const section of sections) {
+    console.log('[checkpoint-c stage] section ' + section + ' start');
     const invitationCapture =
       section === 'invitations'
         ? await installTask9InvitationExpiryNormalization(page, team.id)
@@ -1491,6 +1499,9 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
         page.getByRole('switch', { name: 'Require two-factor authentication' }),
       ).toBeChecked();
     }
+    console.log(
+      '[checkpoint-c stage] section ' + section + ' desktop captures',
+    );
     for (const theme of ['light', 'dark'] as const) {
       if (section === 'security') {
         const sessionsTable = page.getByRole('list', {
@@ -1527,6 +1538,9 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     ) {
       for (const width of [390, 768] as const) {
         for (const theme of ['light', 'dark'] as const) {
+          console.log(
+            `[checkpoint-c stage] ${section} ${width} ${theme} populated`,
+          );
           await captureTask7BViewportReview(
             page,
             `${section}-populated`,
@@ -1600,6 +1614,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     await memberCapture?.remove();
   }
 
+  console.log('[checkpoint-c stage] before responsive states');
   const captureResponsiveState = async (name: string) => {
     const target =
       name === 'general-error'
@@ -1641,6 +1656,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
           });
           await expect(target).toBeInViewport();
         }
+        console.log(`[checkpoint-c stage] state ${name} ${width} ${theme}`);
         await captureTask7BViewportReview(page, name, width, theme);
         if (target) await expect(target).toBeInViewport();
       }
@@ -1816,6 +1832,7 @@ test('Task 7B Checkpoint C captures the indexed organization and settings states
     await page.unroute(settingsUpdateUrl);
   }
 
+  console.log('[checkpoint-c stage] before profile save');
   await page.goto(stack.frontendUrl + '/workspace?settings=profile');
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
   await page
