@@ -772,16 +772,33 @@ const AssistantActions: FC<{
   );
 };
 
+const USER_ACTION =
+  'text-muted-foreground hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md [&_svg]:size-3.5';
+
 const UserEditAction = () => {
   const serverActive = useChatActiveRun();
+  const copied = useAuiState((state) => state.message.isCopied);
   return (
-    <ActionBarPrimitive.Root hideWhenRunning>
+    <ActionBarPrimitive.Root hideWhenRunning className="flex items-center">
+      <ActionBarPrimitive.Copy
+        render={
+          <TooltipIconButton
+            tooltip={copied ? 'Copied' : 'Copy'}
+            side="top"
+            sideOffset={6}
+            className={cn(USER_ACTION, copied && ACTION_ON)}
+            aria-label={copied ? 'Copied' : 'Copy message'}
+          />
+        }
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Edit
-        className="text-muted-foreground hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md"
+        className={USER_ACTION}
         aria-label="Edit message"
         disabled={serverActive}
       >
-        <PencilIcon className="size-3.5" />
+        <PencilIcon />
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );

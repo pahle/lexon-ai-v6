@@ -2416,6 +2416,50 @@ it('shows a visible red Copied state with a check after copying, then returns to
   }
 });
 
+it('copies a user message with a Copy message action beside Edit, and shows Copied', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+  const tree = cancelledTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const user =
+      view.container.querySelector<HTMLElement>('[data-role="user"]')!;
+    const copy = () =>
+      user.querySelector<HTMLElement>(
+        '[aria-label="Copy message"], [aria-label="Copied"]',
+      )!;
+    const edit = user.querySelector('[aria-label="Edit message"]')!;
+    expect(copy().getAttribute('aria-label')).toBe('Copy message');
+    // Copy comes first, then Edit; both are visible on touch.
+    expect(
+      copy().compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(copy().parentElement?.parentElement?.className).toContain(
+      '[@media(hover:none)]:opacity-100',
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await act(async () => copy().click());
+    expect(writeText).toHaveBeenCalledWith('Review this clause');
+    expect(copy().getAttribute('aria-label')).toBe('Copied');
+    expect(copy().className).toContain('text-(--lexon-red-text)');
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(copy().getAttribute('aria-label')).toBe('Copy message');
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    await view.unmount();
+  }
+});
+
 it('fills the given thumb in the red text color and thanks the user', async () => {
   const tree = cancelledTree();
   const client = {
