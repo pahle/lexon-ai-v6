@@ -155,8 +155,8 @@ test('profile save failures render a safe alert before profile rows', async () =
   });
   const alert = view.container.querySelector('[role="alert"]')!;
   expect(alert).not.toBeNull();
-  expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
-    'Unable to save your profile',
+  expect(alert.textContent).toBe(
+    'We could not save your profile. Your changes are still here. Try again.',
   );
   expect(alert.textContent).not.toContain('private server detail');
   expect(

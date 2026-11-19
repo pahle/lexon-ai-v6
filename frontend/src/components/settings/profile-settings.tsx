@@ -24,8 +24,8 @@ import {
 import { Input } from '../ui/input';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { identityApi, identityMessage } from '../organizations/page-state';
+import { FormAlert } from '../forms/form-alert';
+import { identityApi, saveFailureMessage } from '../organizations/page-state';
 import { toast } from 'sonner';
 
 const ProfileFormSchema = z.object({
@@ -75,18 +75,13 @@ export function ProfileSettings(): React.ReactElement {
               await refreshIdentity();
               toast.success('Changes saved.');
             } catch (error) {
-              setFailure(identityMessage(error));
+              setFailure(saveFailureMessage('your profile', error));
             }
           }),
         )}
       >
         <div className="flex flex-col gap-3">
-          {failure ? (
-            <Alert variant="destructive">
-              <AlertTitle>Unable to save your profile</AlertTitle>
-              <AlertDescription>{failure}</AlertDescription>
-            </Alert>
-          ) : null}
+          {failure ? <FormAlert>{failure}</FormAlert> : null}
           <FieldGroup className="gap-0">
             <SettingsField data-invalid={Boolean(form.formState.errors.name)}>
               <FieldContent className="gap-0">

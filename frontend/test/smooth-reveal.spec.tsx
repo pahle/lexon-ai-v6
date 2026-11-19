@@ -18,7 +18,7 @@ vi.mock('@assistant-ui/react-markdown', async (original) => {
   const Spy = forwardRef<HTMLDivElement, Record<string, unknown>>(
     (props, ref) => {
       smoothSeen.push(props.smooth);
-      return <Real {...(props as object)} ref={ref} />;
+      return <Real {...(props as object)} {...({ ref } as object)} />;
     },
   );
   Spy.displayName = 'SpyMarkdownTextPrimitive';

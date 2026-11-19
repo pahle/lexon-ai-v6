@@ -63,6 +63,16 @@ export function QueryFailure({
     </SessionBoundary>
   );
 }
+/**
+ * The form alert for a failed save: the draft is still on screen, so say so.
+ * A failure that needs a specific action (confirm identity) keeps its own text.
+ */
+export function saveFailureMessage(thing: string, error: unknown): string {
+  return error instanceof IdentityClientError &&
+    error.code === 'AUTH_REAUTH_REQUIRED'
+    ? identityMessage(error)
+    : `We could not save ${thing}. Your changes are still here. Try again.`;
+}
 export function useCursorPage<T>(
   key: readonly unknown[],
   load: (cursor?: string) => Promise<Page<T>>,

@@ -19,14 +19,14 @@ import {
 } from '../ui/field';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Alert, AlertDescription } from '../ui/alert';
+import { FormAlert } from '../forms/form-alert';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import {
   IdentityClientError,
   SLUG_TAKEN_MESSAGE,
 } from '../../lib/identity-client';
-import { identityApi, identityMessage } from './page-state';
+import { identityApi, identityMessage, saveFailureMessage } from './page-state';
 import {
   SettingsField,
   SettingsHeading,
@@ -79,10 +79,12 @@ export function OrganizationSettings({
           error instanceof IdentityClientError &&
           error.code === 'ORG_SLUG_TAKEN'
         ) {
+          // Only the rejected value reverts; the other typed values stay.
+          form.setValue('slug', current.slug);
           form.setError('slug', { message: SLUG_TAKEN_MESSAGE });
           return;
         }
-        setFailure(identityMessage(error));
+        setFailure(saveFailureMessage('the organization settings', error));
       }
     });
   }
@@ -111,11 +113,7 @@ export function OrganizationSettings({
         title="General"
         description={`Settings for everyone in ${current.name}.`}
       />
-      {failure ? (
-        <Alert variant="destructive">
-          <AlertDescription>{failure}</AlertDescription>
-        </Alert>
-      ) : null}
+      {failure ? <FormAlert>{failure}</FormAlert> : null}
       <form noValidate onSubmit={form.handleSubmit(saveDetails)}>
         <FieldGroup className="gap-0">
           <SettingsField data-invalid={!!form.formState.errors.name}>
