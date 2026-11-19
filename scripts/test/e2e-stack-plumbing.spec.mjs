@@ -93,6 +93,25 @@ test('guard names a lost identity overlay and a stopped api', () => {
   assert.match(stopped.join('\n'), /not running/);
 });
 
+test('guard expects the load api entry when the chat-load overlay replaces the identity entry', () => {
+  const load = `${root}backend/test/e2e/compose.chat-load.yml`;
+  const loaded = {
+    ...healthy,
+    composeFiles: [identity, proof, load],
+    api: {
+      running: true,
+      env: ['AUTH_OPEN_SIGNUP=true'],
+      cmd: ['node', 'backend/test/e2e/chat-load-api-main.mjs'],
+    },
+  };
+  assert.deepEqual(stackProblems(loaded), []);
+  const lost = stackProblems({
+    ...loaded,
+    api: { ...loaded.api, cmd: ['node', 'x.js'] },
+  });
+  assert.match(lost.join('\n'), /chat-load/);
+});
+
 test('guard does not demand the proof overlay when the stack has none', () => {
   assert.deepEqual(
     stackProblems({

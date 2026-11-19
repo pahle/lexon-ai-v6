@@ -68,7 +68,7 @@ export function approvedReviewSha256(approval, id) {
 export function invalidateRecapturedApproval(approval, capturedImages) {
   if (approval.status !== 'approved') return { approval, invalidated: [] };
   const changed = Object.entries(approval.images ?? {}).filter(
-    ([id, image]) =>
+    ([id]) =>
       capturedImages[id] !== undefined &&
       capturedImages[id].sha256 !== approvedReviewSha256(approval, id),
   );

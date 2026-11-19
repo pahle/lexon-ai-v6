@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const identityFile = 'backend/test/e2e/compose.identity.yml';
+const loadFile = 'backend/test/e2e/compose.chat-load.yml';
 const proofFile = 'backend/test/e2e/compose.chat-runtime-proof.yml';
 
 export function stackProblems({ composeFiles, api, aiWorker, frontend }) {
@@ -16,7 +17,12 @@ export function stackProblems({ composeFiles, api, aiWorker, frontend }) {
       problems.push(
         `api ends the run with ${api.env.find((v) => v.startsWith('AUTH_OPEN_SIGNUP=')) ?? 'AUTH_OPEN_SIGNUP unset'} (expected AUTH_OPEN_SIGNUP=true)`,
       );
-    if (
+    if (has(loadFile)) {
+      if (!api.cmd.includes('backend/test/e2e/chat-load-api-main.mjs'))
+        problems.push(
+          'api lost the chat-load overlay (chat-load-api-main.mjs command)',
+        );
+    } else if (
       has(identityFile) &&
       !api.cmd.includes('backend/test/e2e/auth-api-main.mjs')
     )
