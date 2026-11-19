@@ -1426,7 +1426,7 @@ it('renders a persisted failed response with a retry action after reload', async
     );
     expect(retry).not.toBeNull();
     expect(retry?.getAttribute('data-slot')).toBe('button');
-    expect(retry?.className).toContain('border-border');
+    expect(retry?.className).toContain('border-input');
     expect(retry?.className).toContain('shrink-0');
     expect(retry?.querySelector('.lucide-refresh-cw')).not.toBeNull();
     expect(alert.querySelector('[data-slot="alert-title"]')).toBeNull();
