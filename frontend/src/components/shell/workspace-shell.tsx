@@ -3,6 +3,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
 import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
+import { Skeleton } from '../ui/skeleton';
 import {
   ChatFloatingActions,
   isChatChromePath,
@@ -129,7 +130,12 @@ export function WorkspaceShell({
                     aria-hidden="true"
                     className="min-w-0 flex-1 truncate pr-24 text-sm text-foreground"
                   >
-                    {openChat.title}
+                    {openChat.title ?? (
+                      <Skeleton
+                        data-slot="chat-header-title-skeleton"
+                        className="mt-1 h-3 w-40"
+                      />
+                    )}
                   </p>
                 </>
               ) : null}

@@ -96,7 +96,8 @@ test('sign-up and secondary account flows', async ({ page }) => {
   await visit('two-factor', '/two-factor');
   // Three digits typed; the fourth slot is the active one.
   await page.getByLabel('Authentication code').pressSequentially('481');
-  await captureBrandViews(page, 'two-factor');
+  // The code input is focused on mount, so the capture keeps its focus ring.
+  await captureBrandViews(page, 'two-factor', { keepFocus: true });
   // A well-formed invitation id; the page does not look the invitation up.
   await visit(
     'accept-invitation',

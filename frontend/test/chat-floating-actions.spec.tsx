@@ -452,3 +452,45 @@ test('a status page (for example the workspace error) shows no pill', async () =
   expect(actions).toBeNull();
   await view.unmount();
 });
+
+test('the open chat title loads without the sidebar mounted, never as "Chat"', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = null;
+  const { useOpenChat } =
+    await import('../src/components/chat/chat-floating-actions');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({
+        items: [
+          {
+            id: CHAT_ID,
+            title: 'Lease dispute memo',
+            updatedAt: '2026-11-01T00:00:00Z',
+            lastMessageAt: null,
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      }),
+    ),
+  );
+  function Title() {
+    const chat = useOpenChat();
+    return chat?.title === 'Chat' ? (
+      <p>generic</p>
+    ) : chat ? (
+      <p data-testid="title">{chat.title}</p>
+    ) : null;
+  }
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <Title />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  expect(view.container.textContent).not.toContain('generic');
+  await settle();
+  expect(view.container.textContent).toBe('Lease dispute memo');
+  await view.unmount();
+});

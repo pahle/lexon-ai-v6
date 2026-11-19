@@ -27,7 +27,8 @@ import { ChatDeleteDialog } from './chat-delete-dialog';
 import { finishChatRename } from './chat-history';
 import { ChatRenameDialog } from './chat-rename-dialog';
 
-export type OpenChat = { id: string; title: string };
+/** `title` is null only while it cannot be known yet (render a skeleton). */
+export type OpenChat = { id: string; title: string | null };
 
 type ListCacheData =
   | { items?: { id: string; title: string }[] }
@@ -79,6 +80,25 @@ export function useOpenChat(): OpenChat | null {
     },
     () => null,
   );
+  const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
+  const published =
+    !!chatTitle &&
+    chatTitle.chatId === id &&
+    chatTitle.actorScope === `${orgId}:${userId}`;
+  // Not in the cache (the sidebar's lists are not mounted, as on mobile): ask
+  // for the Recent list, the same query the sidebar uses, so it is shared.
+  const needsList =
+    !!id && !!orgId && !!userId && !published && listedTitle === null;
+  useEffect(() => {
+    if (!needsList || !orgId || !userId) return;
+    void queryClient
+      .fetchQuery({
+        queryKey: chatListQueryKey({ orgId, userId }, 6),
+        queryFn: ({ signal }) => client.list({ limit: 6 }, signal),
+        staleTime: 30_000,
+      })
+      .catch(() => undefined);
+  }, [client, needsList, orgId, queryClient, userId]);
   if (!id) return null;
   const actorScope = identity
     ? `${identity.organization.id}:${identity.user.id}`
@@ -86,7 +106,7 @@ export function useOpenChat(): OpenChat | null {
   const title =
     chatTitle && chatTitle.chatId === id && chatTitle.actorScope === actorScope
       ? chatTitle.title
-      : (listedTitle ?? 'Chat');
+      : listedTitle;
   return { id, title };
 }
 
@@ -112,7 +132,9 @@ function useStatusPageShown() {
 const pillButton =
   'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 items-center justify-center rounded-full outline-none focus-visible:ring-3 [&_svg]:size-4';
 
-export function ChatFloatingActions({ chat }: { chat: OpenChat | null }) {
+export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
+  // Dialogs need a string; the generic word never reaches the header.
+  const chat = open ? { id: open.id, title: open.title ?? 'Chat' } : null;
   const pathname = usePathname();
   const statusPageShown = useStatusPageShown();
   const { identity, setChatTitle } = useWorkspace();

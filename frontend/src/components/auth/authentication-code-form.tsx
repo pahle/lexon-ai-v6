@@ -88,6 +88,7 @@ export function AuthenticationCodeForm({
                   {...field}
                   containerClassName={auth ? 'w-full' : ''}
                   id={id}
+                  autoFocus
                   maxLength={6}
                   pattern="^[0-9]*$"
                   inputMode="numeric"
