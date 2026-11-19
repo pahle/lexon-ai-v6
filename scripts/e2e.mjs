@@ -7,6 +7,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
@@ -25,6 +26,41 @@ async function port() {
   return value;
 }
 const allocatedPorts = new Set();
+// Bounded, redacted service log tails so a failed chat load run is diagnosable
+// from the job log before the stack is torn down.
+async function printServiceLogTails(project, files, env) {
+  const secrets = Object.entries(env)
+    .filter(
+      ([name, value]) =>
+        /(PASSWORD|SECRET|TOKEN|KEY|URL)/iu.test(name) &&
+        typeof value === 'string' &&
+        value.length >= 6,
+    )
+    .map(([, value]) => value);
+  const output = await new Promise((resolveLogs) => {
+    execFile(
+      'docker',
+      composeArgs(
+        project,
+        [
+          'logs',
+          '--no-color',
+          '--tail',
+          '60',
+          'api',
+          'ai-worker',
+          'dispatcher',
+        ],
+        files,
+      ),
+      { env, maxBuffer: 4 * 1024 * 1024, timeout: 30_000 },
+      (_error, stdout, stderr) => resolveLogs(`${stdout}${stderr}`),
+    );
+  });
+  let text = output;
+  for (const value of secrets) text = text.split(value).join('[redacted]');
+  console.error(`--- service log tails ---\n${text}\n--- end service logs ---`);
+}
 const { args, selectedProjects } = resolveE2ESelection(
   process.argv.slice(2),
   undefined,
@@ -163,6 +199,7 @@ try {
         );
       } catch (error) {
         testError = error;
+        if (captureChatLoad) await printServiceLogTails(project, files, env);
       }
       // Guard: a helper that recreates services must leave the api with
       // sign-up open and every overlay in place, even after a failed run.
