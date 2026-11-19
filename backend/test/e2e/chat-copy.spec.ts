@@ -50,7 +50,11 @@ test('copy failure shows the alert state, then the next click recovers', async (
   });
   await expect(failed).toBeVisible();
   await failed.hover();
-  await expect(page.getByText('Could not copy', { exact: true })).toBeVisible();
+  await expect(
+    page
+      .locator('[data-slot="tooltip-content"]')
+      .getByText('Could not copy', { exact: true }),
+  ).toBeVisible();
   await page.evaluate(() => {
     (window as unknown as { __copyFails: boolean }).__copyFails = false;
   });

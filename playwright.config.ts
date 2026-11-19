@@ -69,6 +69,8 @@ export default defineConfig({
         'backend/test/e2e/chat-accessibility.spec.ts',
         'backend/test/e2e/chat-states.spec.ts',
         'backend/test/e2e/chat-copy.spec.ts',
+        'backend/test/e2e/chat-long-stress.spec.ts',
+        'backend/test/e2e/mobile-sheet.spec.ts',
       ],
       use: {
         trace: 'off',

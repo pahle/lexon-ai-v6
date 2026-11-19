@@ -785,8 +785,15 @@ for (const viewport of [
     await openState(page, stack.publicUrl, 'answer-complete');
     const scrollport = page.locator('[data-slot="aui_thread-viewport"]');
     const button = page.locator('button.aui-thread-scroll-to-bottom');
+    // A thread opens at its last user message, so the long answer below can
+    // overflow: go to the bottom first, where the button is hidden.
+    await scrollport.evaluate((element) =>
+      element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }),
+    );
     await expect(button).toBeHidden();
-    await scrollport.evaluate((element) => element.scrollTo({ top: 0 }));
+    await scrollport.evaluate((element) =>
+      element.scrollTo({ top: 0, behavior: 'instant' }),
+    );
     await expect(button).toBeVisible();
     const box = await button.boundingBox();
     const shell = await page

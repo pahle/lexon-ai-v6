@@ -870,15 +870,18 @@ export function viewportWidth(page: Page) {
  */
 export async function setupAnsweredChat(page: Page, slug: string) {
   const stack = descriptor();
+  // A fresh identity and slug per call: the account rate limit and the unique
+  // slug both reject a second test that reuses either.
+  const unique = Math.random().toString(16).slice(2, 10);
   const headers = await authenticateApi(page.request, {
     name: 'Ayu Wardani',
-    email: 'ayu.wardani@hukum-nusantara.co.id',
+    email: `ayu.wardani.${unique}@hukum-nusantara.co.id`,
   });
   const createdTeam = await page.request.post(
     `${stack.apiUrl}/api/organizations`,
     {
       headers,
-      data: { name: 'Hukum Nusantara', slug: slug },
+      data: { name: 'Hukum Nusantara', slug: `${slug}-${unique}` },
     },
   );
   expect(createdTeam.status()).toBe(201);
