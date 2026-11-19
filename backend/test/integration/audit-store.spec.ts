@@ -55,12 +55,12 @@ test('app tenant writer requires matching org; auth writer accepts events withou
       db.withTenant({ orgId }, (tx) =>
         audit.append(tx, orgEvent(randomUUID())),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ message: 'Audit organization differs from tenant session' });
     await expect(
       db.withTenant({ orgId }, (tx) =>
         audit.append(tx, failed() as unknown as OrgAuditEvent),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ message: 'Organization required for tenant audit' });
     expect(await inspect.count('organization.created.v1')).toBe(before + 1);
     const attempts = await inspect.count('identity.sign_in_failed.v1');
     await proof.integration.transaction((tx) => appendAuthAudit(tx, failed()));
@@ -191,7 +191,7 @@ test('auth state and success audit roll back together; independent failure attem
         await tx.call('signUpEmail', input);
         await appendAuthAudit(tx, failed());
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { message: 'injected-audit-failure' } });
     expect(await proof.inspect.countUsers(input.body.email)).toBe(0);
   } finally {
     await Promise.all([inspect.close(), proof.close()]);

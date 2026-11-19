@@ -8,7 +8,7 @@ test('cross-tenant child foreign keys reject a run from another organization', a
   const ai = await createAiFixture(services);
   try {
     const run = await ai.start(0);
-    await expect(ai.insertCrossTenantStep(1, run.id)).rejects.toThrow();
+    await expect(ai.insertCrossTenantStep(1, run.id)).rejects.toMatchObject({ code: '23514' });
   } finally {
     await ai.close();
   }
