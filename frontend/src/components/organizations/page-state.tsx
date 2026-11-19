@@ -5,20 +5,23 @@ import type { Page } from '@lexon/contracts';
 import {
   createIdentityClient,
   IdentityClientError,
+  SLUG_TAKEN_MESSAGE,
 } from '../../lib/identity-client';
 import { SessionBoundary } from '../auth/session-boundary';
 import { Button } from '../ui/button';
 import { ErrorState } from '../states/page-states';
 export const identityApi = createIdentityClient({ baseUrl: '/api' });
 export function identityMessage(error: unknown): string {
-  return error instanceof IdentityClientError && error.code === 'ORG_LAST_OWNER'
-    ? 'Promote another owner before leaving or removing the last owner.'
-    : error instanceof IdentityClientError &&
-        error.code === 'AUTH_REAUTH_REQUIRED'
-      ? 'Confirm your identity in account security, then try again.'
-      : error instanceof IdentityClientError && error.status === 503
-        ? 'Service temporarily unavailable. Please try again.'
-        : 'Unable to complete this action. Refresh and check your access.';
+  return error instanceof IdentityClientError && error.code === 'ORG_SLUG_TAKEN'
+    ? SLUG_TAKEN_MESSAGE
+    : error instanceof IdentityClientError && error.code === 'ORG_LAST_OWNER'
+      ? 'Promote another owner before leaving or removing the last owner.'
+      : error instanceof IdentityClientError &&
+          error.code === 'AUTH_REAUTH_REQUIRED'
+        ? 'Confirm your identity in account security, then try again.'
+        : error instanceof IdentityClientError && error.status === 503
+          ? 'Service temporarily unavailable. Please try again.'
+          : 'Unable to complete this action. Refresh and check your access.';
 }
 export function QueryFailure({ error }: { error: unknown }) {
   if (error instanceof IdentityClientError && error.status === 403)

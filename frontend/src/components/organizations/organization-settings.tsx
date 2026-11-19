@@ -22,6 +22,10 @@ import { Switch } from '../ui/switch';
 import { Alert, AlertDescription } from '../ui/alert';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
+import {
+  IdentityClientError,
+  SLUG_TAKEN_MESSAGE,
+} from '../../lib/identity-client';
 import { identityApi, identityMessage } from './page-state';
 import {
   SettingsField,
@@ -71,6 +75,13 @@ export function OrganizationSettings({
         form.reset({ name: updated.name, slug: updated.slug });
         toast.success('Organization settings saved.');
       } catch (error) {
+        if (
+          error instanceof IdentityClientError &&
+          error.code === 'ORG_SLUG_TAKEN'
+        ) {
+          form.setError('slug', { message: SLUG_TAKEN_MESSAGE });
+          return;
+        }
         setFailure(identityMessage(error));
       }
     });

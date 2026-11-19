@@ -13,6 +13,10 @@ import { FieldGroup } from '../ui/field';
 import { Alert, AlertDescription } from '../ui/alert';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
+import {
+  IdentityClientError,
+  SLUG_TAKEN_MESSAGE,
+} from '../../lib/identity-client';
 import { identityApi, identityMessage } from './page-state';
 export function CreateTeam({
   onCreated,
@@ -42,6 +46,13 @@ export function CreateTeam({
               'Team created. Your current organization is unchanged.',
             );
           } catch (error) {
+            if (
+              error instanceof IdentityClientError &&
+              error.code === 'ORG_SLUG_TAKEN'
+            ) {
+              form.setError('slug', { message: SLUG_TAKEN_MESSAGE });
+              return;
+            }
             setFailure(identityMessage(error));
           }
         }),
