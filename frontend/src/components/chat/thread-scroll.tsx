@@ -67,7 +67,7 @@ export const BottomSentinel: FC = () => (
   <div
     data-slot="aui_thread-bottom-sentinel"
     aria-hidden="true"
-    className="h-px shrink-0"
+    className="h-0 shrink-0"
   />
 );
 

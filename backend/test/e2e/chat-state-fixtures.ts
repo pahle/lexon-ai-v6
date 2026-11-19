@@ -688,7 +688,9 @@ export async function openState(page: Page, baseUrl: string, state: string) {
         : '';
     await page.goto(`${baseUrl}/chats/${chatId}${captureState}`);
     if (state === 'thread-loading') {
-      await expect(page.locator('#main [role="status"]')).toBeVisible();
+      await expect(
+        page.locator('#main [data-slot="aui_thread-history-skeleton"]'),
+      ).toBeVisible();
       return;
     }
     if (state === 'thinking')

@@ -21,6 +21,9 @@ test('no source renders visible loading copy', () => {
       if (!loadingCopy.test(line)) return;
       // Assistive-only labels are allowed.
       if (/aria-label=|aria-description|sr-only/.test(line)) return;
+      // The composer line (LEX-DS-001 v3.2 §5.5, revision 15) is the one
+      // visible loading line: a muted status under the skeleton rows.
+      if (path.endsWith('components/chat/composer-reason.tsx')) return;
       offenders.push(
         `${path.replace('../src/', '')}:${index + 1}: ${line.trim()}`,
       );

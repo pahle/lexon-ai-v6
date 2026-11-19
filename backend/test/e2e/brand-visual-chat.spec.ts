@@ -182,6 +182,40 @@ test('completed answers, editing, branches, stopped, and failed runs', async ({
     close: async () => undoActionsHover?.(),
   });
 
+  // F4.2 revision 15: the clipboard write is rejected, so Copy shows the
+  // alert icon and the tooltip "Could not copy". On mobile the thread scrolls
+  // to the bottom so the action row is visible, as the prototype does.
+  let undoFailedHover: (() => void) | undefined;
+  await captureBrandViews(page, 'chat-copy-failed', {
+    open: async (viewport) => {
+      await openAnswer();
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: {
+            writeText: () =>
+              Promise.reject(new DOMException('denied', 'NotAllowedError')),
+          },
+        });
+      });
+      await page.getByRole('button', { name: 'Copy answer' }).click();
+      const failed = page.getByRole('button', {
+        name: 'Could not copy. Try again',
+      });
+      await expect(failed).toBeVisible();
+      if (viewport === 'mobile')
+        await page
+          .locator('[data-slot="aui_thread-viewport"]')
+          .evaluate((element) => {
+            element.style.scrollBehavior = 'auto';
+            element.scrollTop = element.scrollHeight;
+          });
+      await expect(failed).toBeInViewport();
+      undoFailedHover = hoverWhenParked(page, () => failed);
+    },
+    close: async () => undoFailedHover?.(),
+  });
+
   await captureBrandViews(page, 'chat-edit', {
     keepFocus: true,
     open: async () => {
@@ -500,75 +534,95 @@ test('streaming, reconnecting, and loading chat threads', async ({
   );
   let cursor: { x: number; y: number; width: number; height: number } | null =
     null;
+  const openStreaming = async (viewport: BrandViewport) => {
+    await openThread(
+      page,
+      env,
+      'streaming-scroll',
+      page.getByRole('button', { name: 'Stop generating' }),
+      '?capture_state=streaming-answer',
+    );
+    await expect(page.getByText('Thought for 8 seconds')).toBeVisible();
+    await page.addStyleTag({
+      content: '[data-slot="aui_message-group"] { padding-bottom: 1400px; }',
+    });
+    const viewportBox = page.locator('[data-slot="aui_thread-viewport"]');
+    // Wait until the thread is pinned to the bottom and has stopped
+    // changing size, so nothing later pulls it back down.
+    await viewportBox.evaluate(async (element) => {
+      const frame = () =>
+        new Promise<void>((done) => requestAnimationFrame(() => done()));
+      let still = 0;
+      let last = '';
+      for (let tries = 0; still < 30 && tries < 600; tries++) {
+        await frame();
+        const next = `${element.scrollHeight}|${element.scrollTop}`;
+        still = next === last ? still + 1 : 0;
+        last = next;
+      }
+    });
+    await page.mouse.move(viewport === 'desktop' ? 840 : 195, 400);
+    await viewportBox.evaluate((element) => {
+      element.style.scrollBehavior = 'auto';
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await expect(
+      page.getByRole('button', { name: 'Scroll to bottom' }),
+    ).toBeVisible();
+    await expect
+      .poll(() => viewportBox.evaluate((element) => element.scrollTop))
+      .toBe(0);
+    // The streaming cursor after the last word animates (DS 5.6): its box
+    // goes into the mask sidecar, next to the prototype's masked caret.
+    cursor = await page.evaluate(() => {
+      const items = document.querySelectorAll('[data-role="assistant"] li');
+      const last = items[items.length - 1];
+      if (!last) return null;
+      const range = document.createRange();
+      range.selectNodeContents(last);
+      const rects = range.getClientRects();
+      const end = rects[rects.length - 1];
+      return end
+        ? { x: end.right - 2, y: end.top - 2, width: 24, height: 24 }
+        : null;
+    });
+  };
+  const closeStreaming = (id: string) => async (viewport: BrandViewport) => {
+    const theme = await page
+      .locator('html')
+      .evaluate((element) =>
+        element.classList.contains('dark') ? 'dark' : 'light',
+      );
+    const sidecar = resolve(
+      '.cache/f4.1-visual/review',
+      `${brandViewId(id, viewport, theme)}.png.masks.json`,
+    );
+    if (!cursor || !existsSync(sidecar)) return;
+    const rects = JSON.parse(readFileSync(sidecar, 'utf8')) as object[];
+    writeFileSync(sidecar, `${JSON.stringify([...rects, cursor])}\n`);
+  };
+
   await captureBrandViews(page, 'chat-streaming-scroll', {
+    open: openStreaming,
+    close: closeStreaming('chat-streaming-scroll'),
+  });
+
+  // F4.2 revision 15: the user tried to send while the answer was arriving.
+  await captureBrandViews(page, 'chat-composer-running', {
     open: async (viewport) => {
-      await openThread(
-        page,
-        env,
-        'streaming-scroll',
-        page.getByRole('button', { name: 'Stop generating' }),
-        '?capture_state=streaming-answer',
-      );
-      await expect(page.getByText('Thought for 8 seconds')).toBeVisible();
-      await page.addStyleTag({
-        content: '[data-slot="aui_message-group"] { padding-bottom: 1400px; }',
-      });
-      const viewportBox = page.locator('[data-slot="aui_thread-viewport"]');
-      // Wait until the thread is pinned to the bottom and has stopped
-      // changing size, so nothing later pulls it back down.
-      await viewportBox.evaluate(async (element) => {
-        const frame = () =>
-          new Promise<void>((done) => requestAnimationFrame(() => done()));
-        let still = 0;
-        let last = '';
-        for (let tries = 0; still < 30 && tries < 600; tries++) {
-          await frame();
-          const next = `${element.scrollHeight}|${element.scrollTop}`;
-          still = next === last ? still + 1 : 0;
-          last = next;
-        }
-      });
-      await page.mouse.move(viewport === 'desktop' ? 840 : 195, 400);
-      await viewportBox.evaluate((element) => {
-        element.style.scrollBehavior = 'auto';
-        element.scrollTop = 0;
-        element.dispatchEvent(new Event('scroll'));
-      });
+      await openStreaming(viewport);
+      const input = page.getByRole('textbox', { name: 'Message input' });
+      await input.fill('Bagaimana jika salah satu pihak masih di bawah umur?');
+      await input.press('Enter');
       await expect(
-        page.getByRole('button', { name: 'Scroll to bottom' }),
+        page.getByText('Wait for the answer to finish, or stop it.'),
       ).toBeVisible();
-      await expect
-        .poll(() => viewportBox.evaluate((element) => element.scrollTop))
-        .toBe(0);
-      // The streaming cursor after the last word animates (DS 5.6): its box
-      // goes into the mask sidecar, next to the prototype's masked caret.
-      cursor = await page.evaluate(() => {
-        const items = document.querySelectorAll('[data-role="assistant"] li');
-        const last = items[items.length - 1];
-        if (!last) return null;
-        const range = document.createRange();
-        range.selectNodeContents(last);
-        const rects = range.getClientRects();
-        const end = rects[rects.length - 1];
-        return end
-          ? { x: end.right - 2, y: end.top - 2, width: 24, height: 24 }
-          : null;
-      });
-    },
-    close: async (viewport) => {
-      const theme = await page
-        .locator('html')
-        .evaluate((element) =>
-          element.classList.contains('dark') ? 'dark' : 'light',
-        );
-      const sidecar = resolve(
-        '.cache/f4.1-visual/review',
-        `${brandViewId('chat-streaming-scroll', viewport, theme)}.png.masks.json`,
+      await expect(input).toHaveValue(
+        'Bagaimana jika salah satu pihak masih di bawah umur?',
       );
-      if (!cursor || !existsSync(sidecar)) return;
-      const rects = JSON.parse(readFileSync(sidecar, 'utf8')) as object[];
-      writeFileSync(sidecar, `${JSON.stringify([...rects, cursor])}\n`);
     },
+    close: closeStreaming('chat-composer-running'),
   });
 
   await captureBrandViews(page, 'chat-reconnecting', {
@@ -632,7 +686,9 @@ test('streaming, reconnecting, and loading chat threads', async ({
         env.state = 'thread-loading';
         await page.clock.setFixedTime(brandFixedTime);
         await page.goto(`${env.stack.frontendUrl}/chats/${chatId}`);
-        await expect(page.locator('#main [role="status"]')).toBeVisible();
+        await expect(
+          page.locator('#main [data-slot="aui_thread-history-skeleton"]'),
+        ).toBeVisible();
       },
     });
   } finally {
@@ -903,7 +959,9 @@ test('indicator frames at fixed times in a held run', async ({
     }
     treeGate = new Promise<void>((done) => (releaseTree = done));
     await page.goto(env.stack.frontendUrl + '/chats/' + chatId);
-    await expect(page.locator('#main [role="status"]')).toBeVisible();
+    await expect(
+      page.locator('#main [data-slot="aui_thread-history-skeleton"]'),
+    ).toBeVisible();
     // Exact start. Pause the clock at a constant instant first, with the tree
     // held (the run's start reaches the page only through the tree; the
     // stream is requested later, on a page timer, which cannot fire while the

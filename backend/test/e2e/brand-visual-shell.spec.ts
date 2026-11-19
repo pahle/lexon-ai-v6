@@ -69,6 +69,40 @@ test('shell in the Personal workspace', async ({ page }) => {
   });
 });
 
+test('Recent failing to load in the Personal workspace', async ({ page }) => {
+  await prepareIdentity(page, { name: ayu.name }, ayu.jobTitle);
+  await recentChats(page);
+  // The chat list request fails; the later route wins over the fixture.
+  await page.route(
+    (url) => chatListRequest(url, 'GET'),
+    (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'unavailable' }),
+          })
+        : route.fallback(),
+  );
+  await gotoWorkspace(page, 'Ayu');
+  await captureBrandViews(page, 'recent-load-failed', {
+    keepFocus: true,
+    open: async (viewport) => {
+      await expectResting(page, viewport);
+      if (viewport === 'mobile') await openMobileSheet(page);
+      await expect(
+        page.getByText('We could not load recent chats.'),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Try again' }),
+      ).toBeVisible();
+    },
+    close: async (viewport) => {
+      if (viewport === 'mobile') await closeMobileSheet(page);
+    },
+  });
+});
+
 test('team shell, menus, and the mobile sheet', async ({
   page,
   playwright,

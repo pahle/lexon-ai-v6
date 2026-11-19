@@ -108,7 +108,10 @@ test('long conversation, fast stream, 4x CPU: no render loop, settles, scrolls',
           contentType: 'application/json',
           body: JSON.stringify(treeNow()),
         });
-      if (request.method() === 'POST' && path === `/api/chats/${chatId}/messages`) {
+      if (
+        request.method() === 'POST' &&
+        path === `/api/chats/${chatId}/messages`
+      ) {
         sentUserId = (request.postDataJSON() as { userMessageId: string })
           .userMessageId;
         phase = 'sent';
@@ -263,16 +266,16 @@ test('long conversation, fast stream, 4x CPU: no render loop, settles, scrolls',
     )
     .toBeLessThan(80);
 
-  await expect(page.getByRole('button', { name: 'Stop generating' })).toBeHidden({
+  await expect(
+    page.getByRole('button', { name: 'Stop generating' }),
+  ).toBeHidden({
     timeout: 120_000,
   });
   await expect(page.getByText(/Thought for/).last()).toBeVisible();
   await expect
     .poll(
       async () =>
-        (
-          await page.locator('[data-role="assistant"]').last().innerText()
-        )
+        (await page.locator('[data-role="assistant"]').last().innerText())
           .replace(/\s+/g, ' ')
           .trim(),
       { timeout: 30_000 },
