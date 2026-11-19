@@ -59,6 +59,9 @@ export function hoverWhenParked(page: Page, target: () => Locator) {
   const move = mouse.move.bind(mouse);
   const open = page.locator('[data-slot="tooltip-content"][data-open]');
   const showTooltip = async (timeout = 10_000) => {
+    // The pointer is already over the target after a blur closed its tooltip;
+    // leaving and re-entering opens it again.
+    await move(1, 1);
     await target().hover();
     await expect(open).toBeVisible({ timeout });
   };
