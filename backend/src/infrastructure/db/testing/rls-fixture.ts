@@ -74,11 +74,6 @@ export function createRlsInspector(options: {
      * The owner cannot prove this: it has no SELECT policy on every table.
      */
     async visibility() {
-      const tenant = (
-        await migrator.query<{ org_id: string; user_id: string }>(
-          'SELECT org_id, initiating_user_id AS user_id FROM app.ai_runs ORDER BY created_at, id LIMIT 1',
-        )
-      ).rows[0]!;
       const tables = (
         await migrator.query<{ relname: string }>(
           `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
@@ -88,25 +83,7 @@ export function createRlsInspector(options: {
       const result: Record<string, { withContext: number; noContext: number }> =
         {};
       for (const table of tables) {
-        const client = await app.connect();
-        let withContext = 0;
-        try {
-          await client.query('BEGIN');
-          await client.query(
-            "SELECT set_config('app.org_id',$1,true), set_config('app.user_id',$2,true)",
-            [tenant.org_id, tenant.user_id],
-          );
-          withContext = Number(
-            (
-              await client.query<{ count: string }>(
-                `SELECT count(*) FROM app."${table}"`,
-              )
-            ).rows[0]!.count,
-          );
-        } finally {
-          await client.query('ROLLBACK').catch(() => undefined);
-          client.release();
-        }
+        const withContext = await contextCount(table);
         result[table] = { withContext, noContext: await count(app, table) };
       }
       return result;
