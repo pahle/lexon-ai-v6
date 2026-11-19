@@ -79,6 +79,10 @@ export function readAuthConfig(env: Record<string, string | undefined>) {
   );
   if (!secureCookies && !(value.AUTH_LOCAL_DEVELOPMENT && loopback))
     invalid.push('AUTH_PUBLIC_ORIGIN', 'AUTH_LOCAL_DEVELOPMENT');
+  const trustedProxies = readTrustedProxies(env.AUTH_TRUSTED_PROXIES);
+  // Behind a proxy every client shares the proxy's address unless it is trusted.
+  if (!value.AUTH_LOCAL_DEVELOPMENT && !trustedProxies.length)
+    invalid.push('AUTH_TRUSTED_PROXIES');
   if (invalid.length) throw new RuntimeConfigurationError(invalid);
   return {
     origin: value.AUTH_PUBLIC_ORIGIN,
@@ -103,7 +107,7 @@ export function readAuthConfig(env: Record<string, string | undefined>) {
     database: { authUrl: value.DATABASE_AUTH_URL },
     smtp: { url: value.SMTP_URL, from: value.SMTP_FROM },
     rateRules: readAuthRateRules(env.AUTH_RATE_RULES_JSON),
-    trustedProxies: readTrustedProxies(env.AUTH_TRUSTED_PROXIES),
+    trustedProxies,
   };
 }
 export type AuthConfig = ReturnType<typeof readAuthConfig>;

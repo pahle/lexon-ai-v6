@@ -12,7 +12,10 @@ export default defineConfig({
   projects: [
     {
       name: 'identity-api',
-      testMatch: 'backend/test/e2e/identity-api.spec.ts',
+      testMatch: [
+        'backend/test/e2e/identity-api.spec.ts',
+        'backend/test/e2e/rate-limit-proxy.spec.ts',
+      ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },
     {
