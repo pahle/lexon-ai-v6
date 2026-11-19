@@ -9,6 +9,7 @@ const RETIRED_PATTERN =
 // docs/specs/ is never allowlisted.
 const HISTORICAL = [
   'scripts/test/retired-sets.spec.mjs',
+  'docs/references/F4.2-acceptance.md',
   'docs/briefs/F2.1-visual-rework.md',
   'docs/briefs/F4-chat.md',
   'docs/briefs/F4.1-brand-refresh.md',
@@ -57,7 +58,12 @@ function retiredHits() {
     });
 }
 
-const PNG_PATHSPECS = ['*/compare/*.png', '*/contact-sheets/*.png'];
+const PNG_PATHSPECS = [
+  '*/compare/*.png',
+  '*/contact-sheets/*.png',
+  'compare/*.png',
+  'contact-sheets/*.png',
+];
 
 test('no tracked file references a retired path', () => {
   const regex = new RegExp(RETIRED_PATTERN);
