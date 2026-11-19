@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CircleAlertIcon, RefreshCwIcon } from 'lucide-react';
 import type { FC } from 'react';
@@ -17,10 +18,10 @@ export const ListFailure: FC<{
   <div
     role="alert"
     data-slot="list-failure"
-    className={
-      'bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px] ' +
-      (className ?? '')
-    }
+    className={cn(
+      'bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px]',
+      className,
+    )}
   >
     <CircleAlertIcon
       className="text-muted-foreground size-[18px] shrink-0"

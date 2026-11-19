@@ -11,6 +11,10 @@ import {
 import { Thread } from '../src/components/assistant-ui/elements/thread.aui.js';
 import { render, settle } from './render.js';
 
+const workspace = vi.hoisted(() => ({
+  setChatTitle: vi.fn(),
+  chatTitleRefreshVersion: 0,
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/workspace',
@@ -19,7 +23,7 @@ vi.mock('../src/lib/chat-title-invalidation.js', () => ({
   subscribeToChatInvalidations: vi.fn(() => vi.fn()),
 }));
 vi.mock('../src/components/shell/workspace-provider.js', () => ({
-  useWorkspace: () => ({ setChatTitle: vi.fn(), chatTitleRefreshVersion: 0 }),
+  useWorkspace: () => workspace,
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
@@ -307,6 +311,53 @@ it('a whitespace-only paste is ignored and a multi-line paste is kept', async ()
     expect(blank.defaultPrevented).toBe(true);
     const lines = await paste(el, 'a\nb');
     expect(lines.defaultPrevented).toBe(false);
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('reload during a run: no run is known while history loads; Stop appears enabled the moment it has loaded and cancels the run', async () => {
+  const fetch = stubStream();
+  const resolvers: Array<(value: ChatTree) => void> = [];
+  const client = {
+    get: vi.fn(
+      () =>
+        new Promise<ChatTree>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    ),
+  };
+  const view = await render(
+    wrapped(
+      <ChatView
+        client={client as never}
+        actorScope="tenant-1:user-1"
+        chatId={chatId}
+        displayName="Ada"
+        orgId="tenant-1"
+        userId="user-1"
+      />,
+    ),
+  );
+  try {
+    await settle();
+    // Loading: the composer is the idle-loading look; the run is not known yet,
+    // so there is nothing a Stop could cancel (revision 15 shows no Stop).
+    expect(status(view.container)!.textContent).toBe('Loading this chat…');
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    await act(async () => resolvers.forEach((resolve) => resolve(tree(true))));
+    await settle();
+    const stop = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop generating"]',
+    )!;
+    expect(stop.disabled).toBe(false);
+    await act(async () => stop.click());
+    expect(fetch.mock.calls.map(([url]) => String(url))).toContain(
+      '/api/runs/77777777-7777-4777-8777-777777777777/cancel',
+    );
   } finally {
     await view.unmount();
   }
