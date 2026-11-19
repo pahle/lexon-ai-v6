@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.5).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.7).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -95,6 +95,15 @@ Drawn from the round-4 code on `f4.1-brand-refresh`, not from memory:
 - Composer: grows with its text up to 200px (mobile 144px), then scrolls inside.
 - Mobile: Copy and Edit under a user message stay visible (no hover on touch).
 - Editing a message keeps the action row under the muted answer.
+
+## Revision 14.6–14.7 (2026-11-19)
+
+- Auth wordmark 96px on desktop and 88px on mobile, down from 128px (owner).
+
+- Mobile auth: the wordmark stays at the top and the form block is centered
+  vertically in the remaining height (owner).
+- User message Copy and Edit are hidden while an answer is thinking, streaming,
+  or reconnecting, as the app already does.
 
 ## Thinking indicator
 
