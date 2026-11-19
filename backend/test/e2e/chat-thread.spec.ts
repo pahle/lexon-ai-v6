@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
+import { openState, setupAnsweredChat } from './chat-state-fixtures.js';
 
 async function workerControl(
   op:
@@ -762,3 +763,40 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
     'Ask Lexon about a contract, a regulation, or a case...',
   );
 });
+
+// G3 (F4.2): scroll-to-latest sits 12px above the composer box and follows
+// the bottom sentinel. A short viewport makes the answered thread overflow.
+for (const viewport of [
+  { name: 'desktop', width: 1440, height: 420 },
+  { name: 'mobile', width: 390, height: 520 },
+]) {
+  test(`scroll-to-latest bottom edge is 12px above the composer box top (${viewport.name})`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    const stack = await setupAnsweredChat(
+      page,
+      `hukum-nusantara-scroll-${viewport.name}`,
+    );
+    await openState(page, stack.publicUrl, 'answer-complete');
+    const scrollport = page.locator('[data-slot="aui_thread-viewport"]');
+    const button = page.locator('button.aui-thread-scroll-to-bottom');
+    await expect(button).toBeHidden();
+    await scrollport.evaluate((element) => element.scrollTo({ top: 0 }));
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    const shell = await page
+      .locator('[data-slot="aui_composer-shell"]')
+      .boundingBox();
+    expect(box).not.toBeNull();
+    expect(shell).not.toBeNull();
+    expect(box!.width).toBeCloseTo(36, 0);
+    expect(box!.y + box!.height).toBeCloseTo(shell!.y - 12, 0);
+    await button.click();
+    await expect(button).toBeHidden();
+  });
+}

@@ -10,6 +10,12 @@ import {
   ChatTreeSchema,
 } from '@lexon/contracts';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import {
+  OrganizationSummarySchema,
+  SwitchResultSchema,
+} from '@lexon/contracts';
+import { authenticateApi } from './identity-support.js';
+import { descriptor } from './runtime-support.js';
 import { freezeMorningClock } from './greeting-clock.js';
 import {
   answer as prototypeAnswer,
@@ -856,4 +862,50 @@ export async function openState(page: Page, baseUrl: string, state: string) {
 
 export function viewportWidth(page: Page) {
   return page.viewportSize()?.width ?? 1440;
+}
+
+/**
+ * Signs in the fixture user, creates the fixture team, and installs the
+ * mocked chat API in the `answer-complete` state (F4.2 G1/G3 browser tests).
+ */
+export async function setupAnsweredChat(page: Page, slug: string) {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Ayu Wardani',
+    email: 'ayu.wardani@hukum-nusantara.co.id',
+  });
+  const createdTeam = await page.request.post(
+    `${stack.apiUrl}/api/organizations`,
+    {
+      headers,
+      data: { name: 'Hukum Nusantara', slug: slug },
+    },
+  );
+  expect(createdTeam.status()).toBe(201);
+  const team = OrganizationSummarySchema.parse(await createdTeam.json());
+  expect(team).toMatchObject({
+    name: 'Hukum Nusantara',
+    kind: 'team',
+    role: 'owner',
+  });
+  const activeTeam = await page.request.post(
+    `${stack.apiUrl}/api/organizations/active`,
+    { headers, data: { organizationId: team.id } },
+  );
+  expect(activeTeam.status()).toBe(200);
+  expect(SwitchResultSchema.parse(await activeTeam.json())).toMatchObject({
+    status: 'switched',
+    organization: { id: team.id, name: 'Hukum Nusantara', role: 'owner' },
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
+  await installChatFixtures(
+    page,
+    () => 'answer-complete',
+    () => {},
+  );
+  return stack;
 }

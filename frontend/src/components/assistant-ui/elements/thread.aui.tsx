@@ -23,6 +23,11 @@ import {
   ChatComposerCancel,
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
+import {
+  BottomSentinel,
+  ScrollOnNewRun,
+  ScrollToLatest,
+} from '@/components/chat/thread-scroll';
 import { CopyAction } from '@/components/chat/copy-action';
 import {
   ComposerReason,
@@ -47,7 +52,6 @@ import {
   ArrowUpIcon,
   Brain as BrainIcon,
   CircleAlertIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PenIcon,
@@ -165,6 +169,8 @@ export const Thread: FC<ThreadProps> = ({
           turnAnchor="top"
           scrollToBottomOnInitialize={false}
           scrollToBottomOnThreadSwitch={false}
+          scrollToBottomOnRunStart={false}
+          autoScroll={false}
           data-slot="aui_thread-viewport"
           className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
@@ -205,10 +211,12 @@ export const Thread: FC<ThreadProps> = ({
             ) : null}
             <RunAnnouncer />
             <OpenAtLastUserMessage />
+            <ScrollOnNewRun />
             {isEmpty ? null : (
               <div aria-hidden="true" className="h-10 shrink-0 max-md:h-0" />
             )}
 
+            <BottomSentinel />
             <ThreadPrimitive.ViewportFooter
               className={cn(
                 'aui-thread-viewport-footer bg-background relative flex flex-col overflow-visible pb-3.5 max-md:-mx-0.5 max-md:pt-2.5 max-md:pb-3',
@@ -221,7 +229,6 @@ export const Thread: FC<ThreadProps> = ({
                 aria-hidden="true"
                 className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
               />
-              <ThreadScrollToBottom />
               <Composer effort={effort} onEffortChange={onEffortChange} />
             </ThreadPrimitive.ViewportFooter>
           </div>
@@ -435,7 +442,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
       className={cn(
         'group/turn wrap-break-word',
         role === 'user'
-          ? 'ms-auto flex max-w-[80%] flex-col items-end gap-1 max-md:max-w-[88%]'
+          ? 'ms-auto flex max-w-[80%] scroll-mt-6 flex-col items-end gap-1 max-md:max-w-[88%] max-md:scroll-mt-4'
           : 'flex flex-col gap-3',
         dimmed ? 'text-muted-foreground' : 'text-foreground',
       )}
@@ -680,20 +687,6 @@ export function useIncrementalAnnouncement(
     ? announcement
     : { messageId, text: '', sequence: 0, active: running };
 }
-
-const ThreadScrollToBottom: FC = () => (
-  <ThreadPrimitive.ScrollToBottom
-    render={
-      <TooltipIconButton
-        tooltip="Scroll to bottom"
-        variant="ghost"
-        className="aui-thread-scroll-to-bottom bg-background text-muted-foreground hover:bg-background absolute top-0 left-1/2 z-10 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-0 p-0 shadow-[0_0_0_1px_var(--border),0_6px_16px_-6px_rgba(8,6,6,.25)] max-md:top-[22px] disabled:invisible dark:hover:bg-background [&_svg]:size-[18px]"
-      />
-    }
-  >
-    <ChevronDownIcon />
-  </ThreadPrimitive.ScrollToBottom>
-);
 
 const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
   <div className="aui-thread-welcome-root mb-6 flex flex-col">
@@ -987,6 +980,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onPaste={preventFilePaste}
       onSubmit={validatePrompt}
     >
+      <ScrollToLatest />
       <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={

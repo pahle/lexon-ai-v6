@@ -1,55 +1,10 @@
 import { expect, test } from '@playwright/test';
-import {
-  OrganizationSummarySchema,
-  SwitchResultSchema,
-} from '@lexon/contracts';
-import { authenticateApi } from './identity-support.js';
-import { descriptor } from './runtime-support.js';
-import { installChatFixtures, openState } from './chat-state-fixtures.js';
+import { openState, setupAnsweredChat } from './chat-state-fixtures.js';
 
 // G1 (F4.2): the copy button reports a failed clipboard write and recovers.
 // Chromium only; the clipboard permission model follows Playwright R6c.
-async function setup(page: import('@playwright/test').Page) {
-  const stack = descriptor();
-  const headers = await authenticateApi(page.request, {
-    name: 'Ayu Wardani',
-    email: 'ayu.wardani@hukum-nusantara.co.id',
-  });
-  const createdTeam = await page.request.post(
-    `${stack.apiUrl}/api/organizations`,
-    {
-      headers,
-      data: { name: 'Hukum Nusantara', slug: 'hukum-nusantara-copy' },
-    },
-  );
-  expect(createdTeam.status()).toBe(201);
-  const team = OrganizationSummarySchema.parse(await createdTeam.json());
-  expect(team).toMatchObject({
-    name: 'Hukum Nusantara',
-    kind: 'team',
-    role: 'owner',
-  });
-  const activeTeam = await page.request.post(
-    `${stack.apiUrl}/api/organizations/active`,
-    { headers, data: { organizationId: team.id } },
-  );
-  expect(activeTeam.status()).toBe(200);
-  expect(SwitchResultSchema.parse(await activeTeam.json())).toMatchObject({
-    status: 'switched',
-    organization: { id: team.id, name: 'Hukum Nusantara', role: 'owner' },
-  });
-  const onboarded = await page.request.post(
-    `${stack.apiUrl}/api/identity/onboarding/complete`,
-    { headers, data: {} },
-  );
-  expect(onboarded.status()).toBe(204);
-  await installChatFixtures(
-    page,
-    () => 'answer-complete',
-    () => {},
-  );
-  return stack;
-}
+const setup = (page: import('@playwright/test').Page) =>
+  setupAnsweredChat(page, 'hukum-nusantara-copy');
 
 test('copy succeeds with clipboard-write granted and shows Copied', async ({
   page,
