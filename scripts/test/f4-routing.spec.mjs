@@ -11,12 +11,12 @@ const caddyImage =
 const k6Image =
   'grafana/k6:2.3.0@sha256:2dd4756ec6e14e62778916e1eb850108e4b499304c02df56760fa0bdb0fba0b8';
 
-test('LEX-TS-001 v1.12 approves the exact official Caddy and k6 images', async () => {
+test('LEX-TS-001 v1.13 approves the exact official Caddy and k6 images', async () => {
   const spec = await readFile(
     'docs/specs/LEXON-01-TECHNOLOGY-STACK.md',
     'utf8',
   );
-  assert.match(spec, /\*\*Version\*\* \| 1\.12/);
+  assert.match(spec, /\*\*Version\*\* \| 1\.13/);
   assert.match(spec, /\*\*Date\*\* \| 9 November 2026/);
   assert.match(spec, /\*\*Supersedes\*\* \| v1\.11 \(3 November 2026\)/);
   assert.match(

@@ -15,10 +15,6 @@ docs/specs/
 docs/briefs/
 # Product owner brand package; checksums in 08_QA must keep matching.
 docs/brand/
-# Immutable Task 1 source evidence retains its captured formatting.
-docs/references/F2.1-visual/reference/default-theme.css
-docs/references/F2.1-visual/reference/source-manifest.json
-docs/references/F2.1-visual/index.json
 # Design-canvas prototype sources keep their exported bytes.
 docs/design/*/source/
 **/next-env.d.ts
@@ -27,3 +23,5 @@ docs/design/*/source/
 
 # Brand handoff manifest is validated byte-for-byte against its source.
 frontend/src/app/manifest.webmanifest
+# Archived records of retired design sets keep their original formatting.
+docs/references/archive/

@@ -9,7 +9,6 @@ The screenshot set for slice F4.1 (brand v4.1 and the chat experience). It super
 | `review/`                | Linux CI captures the owner reviews (added in Task 35)                                      |
 | `review/contact-sheets/` | One sheet per state with its four variants                                                  |
 | `baseline/`              | Linux goldens, produced by CI after approval                                                |
-| `retirements.json`       | The F2.1 and F4 images this set supersedes                                                  |
 | `deviations.md`          | Differences from the prototype, then the F4 carry-over table                                |
 
 ## Modes

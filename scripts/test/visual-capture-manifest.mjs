@@ -16,7 +16,6 @@ const root = resolve(import.meta.dirname, '../..');
 const setIndex = process.argv.indexOf('--set');
 const visualSet = setIndex >= 0 ? process.argv[setIndex + 1] : undefined;
 const visualRoot = visualSetDirectory(visualSet, root);
-const isLegacySet = visualRoot.endsWith('F2.1-visual');
 const index = JSON.parse(
   await readFile(resolve(visualRoot, 'index.json'), 'utf8'),
 );
@@ -33,13 +32,7 @@ assert.ok(
 const reviewViews = Object.entries(pixelLockedViews(index)).filter(([, view]) =>
   view.path.startsWith('review/'),
 );
-if (isLegacySet)
-  assert.equal(
-    reviewViews.length,
-    82,
-    'Task 9 manifest includes exactly 82 indexed review PNGs.',
-  );
-else assert.ok(reviewViews.length > 0, 'the visual index lists review views');
+assert.ok(reviewViews.length > 0, 'the visual index lists review views');
 
 const freshnessIndex = process.argv.indexOf('--not-before');
 let notBefore;
@@ -156,7 +149,7 @@ try {
     await writeFile(outputPath, JSON.stringify(current, null, 2) + '\n');
     // F4 follow-up M3: a recaptured image with different bytes loses its
     // approval, and the set returns to awaiting-owner.
-    if (outputIndex < 0 && !isLegacySet) {
+    if (outputIndex < 0) {
       const { approval: next, invalidated } = invalidateRecapturedApproval(
         approval,
         images,

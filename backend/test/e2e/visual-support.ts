@@ -1,18 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { mkdir, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import {
-  assertApprovedVisualSet,
-  assertIndexedArtifact,
-  assertReviewArtifact,
-  isSnapshotUpdateEnabled,
-  resolveVisualMode,
-  type VisualIndex,
-} from '../../../scripts/visual-mode.mjs';
 import { orderExactCaptureRows } from '../../../scripts/test/visual-capture-normalizations.mjs';
 
-export type VisualView = 'sign-in' | 'sign-up' | 'onboarding';
 export type VisualTheme = 'light' | 'dark';
 export type VisualViewport = 'desktop' | 'mobile';
 export type ReviewWidth = 390 | 768 | 1440;
@@ -57,76 +46,10 @@ async function ensureMobileSidebarOpen(page: Page) {
   await expect(sidebarDialog).toBeVisible();
 }
 
-export function parseCheckpointCViewFilter(
-  value: string,
-  indexedViews: readonly string[],
-): ReadonlySet<string> | null {
-  const names = value
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean);
-  if (names.length === 0)
-    throw new Error(
-      'LEXON_CHECKPOINT_C_VIEWS must contain at least one indexed view.',
-    );
-  const indexed = new Set(indexedViews);
-  const unknown = names.filter((name) => !indexed.has(name));
-  if (unknown.length > 0)
-    throw new Error(
-      `Unknown Checkpoint C capture view(s): ${unknown.join(', ')}`,
-    );
-  return new Set(names);
-}
-
-let checkpointCFilterValue: string | undefined;
-let checkpointCFilter: Promise<ReadonlySet<string> | null> | undefined;
-
-async function shouldCaptureCheckpointCView(view: CheckpointCView) {
-  const value = process.env.LEXON_CHECKPOINT_C_VIEWS;
-  if (value === undefined) return true;
-  if (value !== checkpointCFilterValue) {
-    checkpointCFilterValue = value;
-    checkpointCFilter = readFile(
-      resolve('docs/references/F2.1-visual/index.json'),
-      'utf8',
-    ).then((contents) => {
-      const index = JSON.parse(contents) as {
-        checkpointC: { views: { id: string }[] };
-      };
-      return parseCheckpointCViewFilter(
-        value,
-        index.checkpointC.views.map(({ id }) => id),
-      );
-    });
-  }
-  if (!checkpointCFilter)
-    throw new Error('Checkpoint C capture filter was not initialized.');
-  const selected = await checkpointCFilter;
-  return selected === null || selected.has(view);
-}
-
 const sizes = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
 } as const;
-const validatedApprovedSets = new Set<string>();
-
-// The F2.1 screenshot set is retired (superseded by the F4.1 set, owner
-// decision 2026-11-15). The layout and behavior assertions in these helpers
-// stay; screenshots and golden comparisons are off unless a caller turns them
-// on to inspect the old set by hand.
-let screenshotsEnabled = false;
-export function setVisualScreenshots(enabled: boolean) {
-  screenshotsEnabled = enabled;
-}
-
-function resolveCurrentVisualMode() {
-  return resolveVisualMode({
-    updateSnapshots: isSnapshotUpdateEnabled(
-      test.info().config.updateSnapshots,
-    ),
-  });
-}
 
 export async function captureTask7BViewportReview(
   page: Page,
@@ -211,16 +134,6 @@ export async function captureTask7BViewportReview(
     width,
   );
   await page.mouse.move(0, 0);
-  if (!screenshotsEnabled) return;
-  const output = resolve('.cache/f21-task7B', `${view}-${width}-${theme}.png`);
-  await mkdir(resolve(output, '..'), { recursive: true });
-  await page.screenshot({
-    path: output,
-    fullPage: false,
-    caret: 'hide',
-    animations: 'disabled',
-    scale: 'css',
-  });
 }
 
 /**
@@ -256,7 +169,6 @@ export async function captureCheckpointCView(
   view: CheckpointCView,
   theme: VisualTheme,
 ) {
-  if (!(await shouldCaptureCheckpointCView(view))) return;
   await page.setViewportSize(sizes.desktop);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('main')).toHaveCount(1);
@@ -300,20 +212,6 @@ export async function captureCheckpointCView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (screenshotsEnabled && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
-    const output = resolve(
-      'docs/references/F2.1-visual/checkpoints',
-      `c-${view}-${theme}.png`,
-    );
-    await mkdir(resolve(output, '..'), { recursive: true });
-    await page.screenshot({
-      path: output,
-      fullPage: false,
-      caret: 'hide',
-      animations: 'disabled',
-      scale: 'css',
-    });
-  }
 }
 
 export async function waitForVisualAuthFormReady(page: Page) {
@@ -322,102 +220,6 @@ export async function waitForVisualAuthFormReady(page: Page) {
     'data-lexon-visual-auth-ready',
     'true',
   );
-}
-
-export async function captureVisualView(
-  page: Page,
-  view: VisualView,
-  theme: VisualTheme,
-  viewport: VisualViewport,
-) {
-  const mode = resolveCurrentVisualMode();
-  await page.setViewportSize(sizes[viewport]);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate((value) => localStorage.setItem('theme', value), theme);
-  const response = await page.reload();
-  expect(response?.status()).toBe(200);
-  if (view === 'onboarding') {
-    await expect(page.getByLabel('Display name')).toHaveValue(
-      'Checkpoint Preview',
-    );
-  } else {
-    await waitForVisualAuthFormReady(page);
-  }
-  await expect(page.locator('main')).toHaveCount(1);
-  expect(
-    await page
-      .locator('main')
-      .evaluate((main) => Math.round(main.getBoundingClientRect().width)),
-  ).toBe(sizes[viewport].width);
-  expect(
-    await page
-      .locator('main input')
-      .first()
-      .evaluate((input) => Math.round(input.getBoundingClientRect().width)),
-    // LEX-DS-001 section 5.5: the form block is at most 400px wide inside
-    // the 20px mobile gutters.
-  ).toBe(Math.min(400, sizes[viewport].width - 40));
-  await expect(page.locator('h1')).toBeVisible();
-  await expect(page.locator('html')).toHaveClass(
-    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
-  );
-  await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        await document.fonts.ready;
-        return Array.from(document.fonts).some(
-          (font) => font.status === 'loaded' && /inter/i.test(font.family),
-        );
-      }),
-    )
-    .toBe(true);
-  await page.evaluate(async () => {
-    await Promise.all(Array.from(document.images, (image) => image.decode()));
-  });
-  await expect
-    .poll(() =>
-      page.locator('img[alt="Lexon"]').evaluateAll((images) =>
-        images.every((image) => {
-          const logo = image as HTMLImageElement;
-          return logo.naturalWidth > 0 && logo.naturalHeight > 0;
-        }),
-      ),
-    )
-    .toBe(true);
-  await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
-  expect(
-    await page
-      .locator('img[alt="Lexon"]:visible')
-      .evaluate((image) => image.getBoundingClientRect().width),
-  ).toBeGreaterThan(0);
-  const overlayText = await page
-    .locator('nextjs-portal')
-    .evaluateAll((elements) =>
-      elements
-        .map((element) => element.shadowRoot?.textContent ?? '')
-        .join('\n'),
-    );
-  expect(overlayText).not.toMatch(
-    /Build Error|Runtime Error|Unhandled Runtime Error/,
-  );
-  if (
-    screenshotsEnabled &&
-    mode === 'capture' &&
-    process.env.LEXON_CAPTURE_CHECKPOINTS === '1'
-  ) {
-    const output = resolve(
-      'docs/references/F2.1-visual/checkpoints',
-      `a-${view}-${viewport}-${theme}.png`,
-    );
-    await mkdir(resolve(output, '..'), { recursive: true });
-    await page.screenshot({
-      path: output,
-      fullPage: false,
-      caret: 'hide',
-      animations: 'disabled',
-      scale: 'css',
-    });
-  }
 }
 
 /**
@@ -467,7 +269,6 @@ export async function captureShellReviewView(
   view: ShellReviewView,
   theme: VisualTheme,
   viewport: VisualViewport,
-  outputDirectory = '.cache/f21-task6A',
   expectedHeading = 'Good morning, Checkpoint',
   expandPlatform = false,
 ) {
@@ -544,160 +345,14 @@ export async function captureShellReviewView(
     ).toBeVisible();
   }
   await page.mouse.move(0, 0);
-  const index: Record<ShellReviewView, string> = {
-    home: '10',
-    'sidebar-expanded': '10',
-    'sidebar-collapsed': '12',
-    'organization-switcher-open': '13',
-    'user-menu-open': '14',
-  };
-  if (!screenshotsEnabled) return;
-  const output = resolve(
-    outputDirectory,
-    `${index[view]}-${view}-${viewport}-${theme}.png`,
-  );
-  await mkdir(resolve(output, '..'), { recursive: true });
-  await page.screenshot({
-    path: output,
-    fullPage: false,
-    caret: 'hide',
-    animations: 'disabled',
-    scale: 'css',
-  });
-}
-
-export async function installTask9SessionExpiryNormalization(
-  page: Page,
-  options: { hold?: Promise<void>; onRequest?: () => void } = {},
-) {
-  const index = JSON.parse(
-    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as {
-    normalizations: {
-      sessions: {
-        fields: {
-          createdAt: { fixedIso: string };
-          expiresAt: { fixedIso: string };
-        };
-      };
-    };
-  };
-  const createdAt = index.normalizations.sessions.fields.createdAt.fixedIso;
-  const expiresAt = index.normalizations.sessions.fields.expiresAt.fixedIso;
-  const pending = new Set<Promise<void>>();
-  const sessionUrl = (url: URL) =>
-    url.pathname === '/api/identity/sessions' && url.search === '';
-  const sessionHandler = (route: import('@playwright/test').Route) => {
-    if (route.request().method() !== 'GET') return route.continue();
-    const handler = (async () => {
-      options.onRequest?.();
-      await options.hold;
-      const response = await route.fetch();
-      if (!response.ok()) {
-        await route.fulfill({ response });
-        return;
-      }
-      const rows = (await response.json()) as Array<Record<string, unknown>>;
-      await route.fulfill({
-        response,
-        json: rows.map((row) => ({ ...row, createdAt, expiresAt })),
-      });
-    })();
-    pending.add(handler);
-    void handler.then(
-      () => pending.delete(handler),
-      () => pending.delete(handler),
-    );
-    return handler;
-  };
-  await page.route(sessionUrl, sessionHandler);
-  return {
-    async drain() {
-      await Promise.all([...pending]);
-    },
-    async remove() {
-      await page.unroute(sessionUrl, sessionHandler);
-      await Promise.all([...pending]);
-    },
-  };
-}
-
-export async function installTask9InvitationExpiryNormalization(
-  page: Page,
-  activeTeamId: string,
-  emails?: readonly string[],
-) {
-  const index = JSON.parse(
-    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as {
-    normalizations: {
-      invitationExpiresAt: { fixedIso: string; orderedEmails: string[] };
-    };
-  };
-  const expiresAt = index.normalizations.invitationExpiresAt.fixedIso;
-  const orderedEmails = [
-    ...(emails ?? index.normalizations.invitationExpiresAt.orderedEmails),
-  ];
-  const pending = new Set<Promise<void>>();
-  const invitationUrl = (url: URL) =>
-    url.pathname === `/api/organizations/${activeTeamId}/invitations`;
-  const invitationHandler = (route: import('@playwright/test').Route) => {
-    if (route.request().method() !== 'GET') return route.continue();
-    const handler = (async () => {
-      const response = await route.fetch();
-      if (!response.ok()) {
-        await route.fulfill({ response });
-        return;
-      }
-      const body = (await response.json()) as {
-        items: Array<Record<string, unknown>>;
-        [key: string]: unknown;
-      };
-      const orderedBody = orderExactCaptureRows(
-        body as { items: Array<{ email: string }>; [key: string]: unknown },
-        orderedEmails,
-        'Invitation',
-      );
-      await route.fulfill({
-        response,
-        json: {
-          ...orderedBody,
-          items: orderedBody.items.map((invitation) => ({
-            ...invitation,
-            expiresAt,
-          })),
-        },
-      });
-    })();
-    pending.add(handler);
-    void handler.then(
-      () => pending.delete(handler),
-      () => pending.delete(handler),
-    );
-    return handler;
-  };
-  await page.route(invitationUrl, invitationHandler);
-  return {
-    async remove() {
-      await page.unroute(invitationUrl, invitationHandler);
-      await Promise.all([...pending]);
-    },
-  };
 }
 
 export async function installTask9MemberOrderNormalization(
   page: Page,
   activeTeamId: string,
-  emails?: readonly string[],
+  emails: readonly string[],
 ) {
-  const index = JSON.parse(
-    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as {
-    normalizations: { memberOrder: { orderedEmails: string[] } };
-  };
-  const orderedEmails = [
-    ...(emails ?? index.normalizations.memberOrder.orderedEmails),
-  ];
+  const orderedEmails = [...emails];
   const pending = new Set<Promise<void>>();
   const memberUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/members`;
@@ -742,16 +397,6 @@ export async function captureTask9ReviewView(
   expectedIdentity: string,
   options: { loadedContent?: Locator; loadedContentTimeoutMs?: number } = {},
 ) {
-  const mode = resolveCurrentVisualMode();
-  const index = JSON.parse(
-    await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
-  ) as VisualIndex;
-  const id =
-    view === 'sidebar-header-collapsed-desktop'
-      ? `${view}-${theme}`
-      : `${view}-${viewport}-${theme}`;
-  const entry = index.views[id];
-  if (!entry) throw new Error(`Visual index has no entry for view "${id}".`);
   const size = sizes[viewport];
   await page.setViewportSize(size);
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
@@ -888,75 +533,11 @@ export async function captureTask9ReviewView(
     });
     await expect(organizationTrigger).not.toBeFocused();
   }
-  if (!screenshotsEnabled) {
-    if (view === 'organization-switcher-open' || view === 'user-menu-open') {
-      await page.keyboard.press('Escape');
-      if (viewport === 'mobile') await page.keyboard.press('Escape');
-    } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
-      await page.keyboard.press('Escape');
-    }
-    return null;
-  }
-  if (mode === 'compare' || mode === 'update') {
-    const directory = resolve('docs/references/F2.1-visual');
-    const approval = JSON.parse(
-      await readFile(resolve(directory, 'approval.json'), 'utf8'),
-    );
-    const validationKey = `${mode}:${JSON.stringify(approval)}:${JSON.stringify(index.views)}`;
-    if (!validatedApprovedSets.has(validationKey)) {
-      assertApprovedVisualSet(index, approval, directory, {
-        requireBaselines: mode === 'compare',
-      });
-      validatedApprovedSets.add(validationKey);
-    }
-    const artifactPath =
-      mode === 'compare'
-        ? assertIndexedArtifact(index, id, directory, {
-            mode,
-            retirements: JSON.parse(
-              await readFile(resolve(directory, 'retirements.json'), 'utf8'),
-            ),
-          })
-        : resolve(directory, `baseline/${id}.png`);
-    if (artifactPath !== null) {
-      await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {
-        animations: 'disabled',
-        caret: 'hide',
-        scale: 'css',
-        maxDiffPixelRatio: 0.001,
-      });
-    } else {
-      await test.info().attach('visual-retirement', {
-        body: `Screenshot comparison retired by approved policy: ${id}`,
-        contentType: 'text/plain',
-      });
-    }
-    if (view === 'organization-switcher-open' || view === 'user-menu-open') {
-      await page.keyboard.press('Escape');
-      if (viewport === 'mobile') await page.keyboard.press('Escape');
-    } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
-      await page.keyboard.press('Escape');
-    }
-    return resolve(directory, `baseline/${id}.png`);
-  }
-  const output = assertReviewArtifact(
-    index,
-    id,
-    resolve('docs/references/F2.1-visual'),
-  );
-  await mkdir(resolve(output, '..'), { recursive: true });
-  await page.screenshot({
-    path: output,
-    fullPage: false,
-    caret: 'hide',
-    animations: 'disabled',
-    scale: 'css',
-  });
   if (view === 'organization-switcher-open' || view === 'user-menu-open') {
     await page.keyboard.press('Escape');
     if (viewport === 'mobile') await page.keyboard.press('Escape');
   } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
     await page.keyboard.press('Escape');
   }
-  return output;
+  return null;
 }

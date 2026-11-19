@@ -21,10 +21,10 @@ import {
   searchResults,
 } from './prototype-fixtures.js';
 
-export const visualDirectory = resolve('docs/references/F4-visual');
-export const captureDirectory = resolve(visualDirectory, 'captures');
-export const indexPath = resolve(visualDirectory, 'index.json');
-export const manifestPath = resolve(visualDirectory, 'capture-manifest.json');
+// The F4 chat state list is kept as an archived record (index only).
+export const indexPath = resolve(
+  'docs/references/archive/f4-chat-state-index.json',
+);
 export const fixedNow = prototypeNow;
 export const chatId = '00000000-0000-4000-8000-000000000101';
 export const userMessageId = '00000000-0000-4000-8000-000000000102';

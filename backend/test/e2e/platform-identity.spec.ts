@@ -184,7 +184,6 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         'sidebar-expanded',
         theme,
         'desktop',
-        '.cache/f21-task6A/platform-admin',
         'New chat',
         true,
       );
@@ -193,7 +192,6 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         'user-menu-open',
         theme,
         'desktop',
-        '.cache/f21-task6A/platform-admin',
         'New chat',
       );
     }

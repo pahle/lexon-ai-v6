@@ -86,10 +86,6 @@ test('the F4.1 set is the default visual set', () => {
     visualSetDirectory(undefined, '/repository'),
     resolve('/repository/docs/references/F4.1-visual'),
   );
-  assert.equal(
-    visualSetDirectory('F2.1-visual', '/repository'),
-    resolve('/repository/docs/references/F2.1-visual'),
-  );
   assert.throws(() => visualSetDirectory('../secrets', '/repository'));
 });
 

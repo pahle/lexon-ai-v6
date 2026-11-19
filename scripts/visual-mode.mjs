@@ -106,7 +106,7 @@ export function assertApprovalSourceReachable(approval, isAncestor) {
 
 export function resolveVisualMode({
   explicitMode = process.env.LEXON_VISUAL_MODE,
-  approvalPath = resolve('docs/references/F2.1-visual/approval.json'),
+  approvalPath = resolve('docs/references/F4.1-visual/approval.json'),
   updateSnapshots = process.argv.includes('--update-snapshots'),
   runtime = { ci: process.env.CI === 'true', platform: process.platform },
 } = {}) {
