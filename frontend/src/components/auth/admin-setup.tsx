@@ -55,6 +55,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
       return;
     }
     void refresh().catch(() => setPhase('unavailable'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per token; refresh is recreated every render and re-running would restart the signup check
   }, [token]);
   if (phase === 'done')
     return (

@@ -79,6 +79,7 @@ export function SettingsDialog(): React.ReactElement | null {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one global keydown listener for the dialog lifetime; replaceSection is not stable
   }, []);
 
   const canShowSecurity = status === 'ready' || status === 'mfa-required';

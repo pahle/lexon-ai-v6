@@ -143,6 +143,7 @@ function ChatRuntimeSession({
         ...(activeRun ? { initialRunId: activeRun.runId } : {}),
         onRunId: handleRunId,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transport is created once per actor and chat; effort, active run and callbacks are read through setters and refs, and recreating it would drop the open stream
     [actorScope, chatId],
   );
 
@@ -191,6 +192,7 @@ function ChatRuntimeSession({
       setServerActiveRunId(activeRun.runId);
       setRunId(activeRun.runId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the run id only; activeRun is rebuilt from the tree each render
   }, [activeRun?.runId, transport]);
 
   const refreshTree = async (signal: AbortSignal) => {
@@ -267,6 +269,7 @@ function ChatRuntimeSession({
     if (!chat.messages.some((message) => message.id === activeRun?.id)) return;
     resumedRunRef.current = initialRunId;
     void chat.resumeStream();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the active-run message and its arrival; chat is a new object each render and would re-resume the stream
   }, [activeRun?.id, chat.messages, chat.resumeStream, initialRunId]);
 
   const stop = useCallback(async () => {
