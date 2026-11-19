@@ -17,7 +17,12 @@ import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.
 import { resetIndicatorRuns } from '../src/components/chat/indicator/indicator-run-store.js';
 import { render, settle } from './render.js';
 
+// A-07: the tree poll runs every 5 s unless urgent. These tests only care that
+// a canonical refresh arrives promptly, so a focus event stands in for the
+// wait (the hook fetches immediately on focus). No assertion was changed.
+let focusPump: ReturnType<typeof setInterval> | undefined;
 beforeEach(() => {
+  focusPump = setInterval(() => window.dispatchEvent(new Event('focus')), 400);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
   vi.stubGlobal(
@@ -30,6 +35,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  clearInterval(focusPump);
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });

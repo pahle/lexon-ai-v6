@@ -27,6 +27,7 @@ import type {
 import type { CreateUIMessage, UIMessage } from 'ai';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
 import { Button } from '@/components/ui/button';
+import { useTreePolling } from './use-tree-polling';
 import { createChatClient } from '@/lib/chat-client';
 import { LexonChatTransport, type ChatUIMessage } from '@/lib/chat-transport';
 
@@ -82,6 +83,7 @@ function ChatRuntimeSession({
   const onRunIdRef = useRef(onRunId);
   const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
+  const streamReconnectingRef = useRef(false);
   useEffect(() => {
     onRunIdRef.current = onRunId;
   }, [onRunId]);
@@ -107,7 +109,10 @@ function ChatRuntimeSession({
         actorScope,
         selectedLeafId: tree.viewedLeafId,
         effort,
-        onStreamState: (state) => onStreamStateRef.current?.(state),
+        onStreamState: (state) => {
+          streamReconnectingRef.current = state === 'reconnecting';
+          onStreamStateRef.current?.(state);
+        },
         ...(activeRun ? { initialRunId: activeRun.runId } : {}),
         onRunId: handleRunId,
       }),
@@ -161,14 +166,12 @@ function ChatRuntimeSession({
     }
   }, [activeRun?.runId, transport]);
 
-  useEffect(() => {
-    if (!serverActiveRunId || !onTreeRefresh) return;
-    let active = true;
-    let timer: number | undefined;
-    const refresh = async () => {
+  const refreshTree = async (signal: AbortSignal) => {
+    if (!onTreeRefresh) return;
+    {
       try {
         const freshTree = await onTreeRefresh();
-        if (!active) return;
+        if (signal.aborted) return;
         const selectedLeafId = selectedLeafIdRef.current;
         const refreshedTree =
           selectedLeafId !== null &&
@@ -191,7 +194,7 @@ function ChatRuntimeSession({
             chatStatusRef.current === 'streaming';
           transport.invalidateActiveRunStream();
           if (sdkRunIsActive) await chat.stop();
-          if (!active) return;
+          if (signal.aborted) return;
           const currentThreadRuntime = threadRuntimeRef.current;
           if (currentThreadRuntime) {
             const currentRepository = currentThreadRuntime.export();
@@ -214,24 +217,21 @@ function ChatRuntimeSession({
           setRunId(undefined);
           transport.syncActiveRun(undefined);
         }
-      } catch {
-        // Keep controls locked until an authoritative refresh succeeds.
+      } catch (error) {
+        // Keep controls locked until an authoritative refresh succeeds; the
+        // polling hook counts the failure and keeps going.
+        if (signal.aborted) return;
+        throw error;
       }
-      if (active) timer = window.setTimeout(() => void refresh(), 1_000);
-    };
-    timer = window.setTimeout(() => void refresh(), 1_000);
-    return () => {
-      active = false;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [
-    chat.setMessages,
-    chat.stop,
-    onTreeRefresh,
-    onTreeUpdate,
-    serverActiveRunId,
-    transport,
-  ]);
+    }
+  };
+  useTreePolling({
+    enabled: Boolean(serverActiveRunId && onTreeRefresh),
+    fetchTree: refreshTree,
+    isUrgent: () =>
+      streamReconnectingRef.current || chatStatusRef.current === 'submitted',
+    onFailures: () => onStreamStateRef.current?.('reconnecting'),
+  });
 
   const initialRunId = activeRun?.runId;
   const resumedRunRef = useRef<string | undefined>(undefined);
