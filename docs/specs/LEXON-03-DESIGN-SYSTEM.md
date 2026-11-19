@@ -1,5 +1,5 @@
 ---
-version: "3.1"
+version: "3.2"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -267,9 +267,8 @@ Rules:
 
 ### 5.1 UI patterns (required in every slice)
 
-Built from shadcn `base-nova` components; examples in
-`docs/design/f2.1-prototype/screens/30-ui-patterns-*.png` (structure and
-behavior only; colors and type follow v3.0).
+Built from shadcn `base-nova` components. Each pattern appears in a state of
+the approved prototype (`docs/design/f4.1-prototype/`).
 
 - **Fields:** `Field` + `FieldLabel` + control + `FieldDescription` /
   `FieldError`. Validation runs on submit, then live for fields already
@@ -293,6 +292,16 @@ behavior only; colors and type follow v3.0).
 - **Empty and loading:** `Empty` (icon, title, one sentence, optional action)
   for empty lists; `Skeleton` rows for loading lists and tables; a spinner
   only inside the control that is busy.
+- **Load failures are never empty states:** a list or page whose request
+  fails shows what failed ("We could not load members.") with Try again,
+  never its `Empty` state or a blank area. Lists in the main area and in
+  Settings use the error row (§5.5); the sidebar uses one inline line
+  (§5.5 Shell).
+- **Save failures keep the draft:** a failed save keeps every value the user
+  typed, shows the form alert above the fields ("We could not save your
+  profile. Your changes are still here. Try again."), and leaves Save
+  enabled to retry. Only a value the server rejected reverts, with its own
+  field error.
 - **Destructive actions:** an outline trigger with explicit text, then an
   `AlertDialog` that names the object ("Remove Dewi Lestari from Hukum
   Nusantara?") with a `destructive` confirm button (§2).
@@ -413,6 +422,9 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   `sidebar-border` line (margin-left 15px, padding-left 10px).
 - Group label ("Recent" only): 12px, weight 500, `muted-foreground`, padding
   14px 8px 6px. Empty Recent: "No chats yet." 13px `muted-foreground`.
+  Recent that fails to load: "We could not load recent chats." 13px / 1.5
+  `muted-foreground`, padding 4px 8px, followed by a "Try again" text button
+  (13px weight 500 `foreground`, underlined).
 - Content card: margin 8px 8px 8px 0, radius 12px, `background`, a 1px
   `border` ring plus `0 1px 3px rgba(8,6,6,.04)`. Mobile: full screen, no
   margin, radius, or ring.
@@ -444,7 +456,11 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   on touch.
 - Action row: 32×32px icon buttons, radius 8px, 16px icons, 2px apart,
   aligned to the text edge (margin-left −8px); tooltip 12px on `foreground`
-  above the button. Pressed or copied: `red-text`.
+  above the button (on mobile, the first button's tooltip aligns with its
+  left edge so it never leaves the screen). Pressed or copied: `red-text`.
+  Copy that fails: the copy icon becomes the 16px alert icon in the normal
+  icon color, with the tooltip "Could not copy" and the accessible name
+  "Could not copy. Try again"; the next click tries again.
 - Status line (stopped, reconnecting): 16px / 1.6 `muted-foreground`, 18px
   icon, 8px gap.
 - Error row: `muted` with a 1px `border`, radius 12px, padding 10px 10px 10px
@@ -453,9 +469,10 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   18%; Cancel (outline) and Save (primary) 10px below, right-aligned, 8px
   apart; later answers in `muted-foreground`.
 - Thread loading: skeletons (a 44px bubble at 55% width, then four 12px
-  lines) and the normal composer, disabled.
-- Scroll-to-latest: 36px round button, centered, 150px above the bottom
-  (mobile 136px).
+  lines) and the normal composer, disabled, with the reason line "Loading
+  this chat…" (Composer).
+- Scroll-to-latest: 36px round button, centered, 12px above the top of the
+  composer box; it moves up as the composer grows and never covers it.
 
 **Composer**
 
@@ -468,6 +485,14 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 - Deep thinking pill 32px high, fully round, padding 0 10px, 13px weight 500.
   Send and stop: 36px round `primary`; disabled send at 40% opacity.
 - Disclaimer 12px `muted-foreground`, 8px below, centered.
+- Reason line: when the composer cannot send, the disclaimer line shows why
+  instead, announced politely (`role="status"`). While the chat is loading it
+  reads "Loading this chat…" in `muted-foreground`. While an answer is
+  arriving it stays the disclaimer until the user tries to send (Enter with
+  text); then it reads "Wait for the answer to finish, or stop it." in
+  `foreground` until the answer ends. Send's accessible name adds the
+  reason: "Send (unavailable: the chat is loading)", "Send (unavailable: an
+  answer is still arriving)".
 - New chat: greeting (§3), composer, and starter pills stacked with 22px gaps,
   centered with 80px extra space below. Starter pills: 14px, padding 8px
   14px, fully round, 1px `border`, 8px apart, one row (wrapping on mobile).
@@ -534,8 +559,10 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   right.
 - Members and invitations: rows of avatar (32px), name and email, role
   control, and actions. Sessions: device icon tile (36px, radius 10px),
-  device name ("Chrome on macOS"), location and last activity, "This device"
-  badge, Sign out.
+  device name ("Chrome on macOS"), last activity ("Active now", "Signed in
+  N days ago"; no location), "This device" badge, Sign out. When the list
+  fails to load, the error row replaces the rows, under the section title
+  and description.
 - Mobile: a full-screen sheet; 56px header with back, section name, and
   close; body padding 20px 16px; rows stack the control under the label
   (switches and single buttons stay on the right).
@@ -601,13 +628,14 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 
 | Version | Change |
 |---|---|
+| 3.2 | **Added (product owner, F4.2 spec review, 2026-11-19):** load failures are never empty states, and save failures keep the draft (§5.1); Recent load failure, copy failure, and the composer reason line (§5.5), from prototype revision 15. **Changed:** scroll-to-latest sits 12px above the composer box instead of a fixed offset, so it never covers the composer; sessions show no location (as built in F4.1); the §5.1 pattern examples point to the F4.1 prototype. **Removed:** references to the retired F2.1 prototype and the v1.0 brand package |
 | 3.1 | **Changed (product owner, F4.1 visual review round 4, 2026-11-18):** the approved prototype now owns sizes, spacing, and type scale, and screens are built 1:1 with it; shadcn/ui and assistant-ui keep structure, behavior, and accessibility (rationale, §3, §5). This reverses the sizing rule of 1.3. **Added:** type scale (§3); page patterns with measured values (§5.5); prototype fidelity gate with comparison sheets (§5.6); chat title in the header, icon-only answer actions, status lines, error row, edit box (§5.3); Platform group in the sidebar. **Removed:** the "Tools" group label. Visual target: `docs/design/f4.1-prototype/` revision 14 |
 | 3.0.2 | **Changed (product owner, F4.1 visual review, 2026-11-17):** invalid field labels stay ink; only the border and the error text are red (§5.1), as in the approved F4.1 prototype, for every form |
 | 3.0.1 | **Added (product owner, F4.1 spec review, 2026-11-15):** `destructive-fill` token (`--lexon-destructive-fill`, Merah Segel Deep in both themes) for the confirm button of destructive dialogs, since the dark `destructive` token is the lighter error-text red |
 | 3.0 | **Replaced (product owner, brand kit v4.1 and F4.1 prototype approval, 2026-11-13):** Royal Seal palette by brand v4.1 (White, Ink, Surface, Muted, Line Soft, Merah Segel, Merah Segel Deep, Night, Tint) with a derived dark theme and measured contrast; Georgia by EB Garamond for headlines; TeX Gyre Bonum added for legal quotations; brand source `docs/brand/lexon-2026-v4.1/`. **Added:** red-is-reserved and destructive-action rules (§2); inset shell, Tools/Recent groups, Personal monogram, job title (§4, §5); auth Night cover (§5); chat layout (§5.3); thinking indicator (§5.4). **Changed:** visual target is `docs/design/f4.1-prototype/` |
 | 2.2 | **Added (product owner, F4 prototype approval):** chat visual target and workspace navigation (New chat, Chats, Recent) in §5 |
 | 2.1 | **Added (product owner, prototype approval):** UI patterns (§5.1: fields and errors, password visibility toggle, pending buttons, form alerts, toasts, empty and loading states, destructive confirmation); one Settings dialog (§5.2, shadcn `sidebar-13`) for personal and organization settings; visual-target rule. **Changed:** logo placement (§4): tile mark in the organization switcher instead of a sidebar wordmark; sign-in pages use the compact wordmark at 128px; brand package v1.1 (more space around the L in marks and icons) |
-| 2.0 | **Replaced (product owner, brand package v1.0):** the measured gray palette by the Lexon "Royal Seal" brand (Parchment, Vellum, Mist, Ink, Muted, Seal, Seal Deep, Sage, Midnight, Slate) with a full light/dark mapping onto shadcn variables and measured contrast; status colors re-measured on the new surfaces. **Added:** brand package in `docs/brand/lexon-2026/`; logo usage in the interface (§4); Inter (self-hosted) for the interface and Georgia for headlines (§3). **Changed:** radius token 5px → 10px (shadcn default, matches the brand scale) |
+| 2.0 | **Replaced (product owner, brand package v1.0):** the measured gray palette by the Lexon "Royal Seal" brand (Parchment, Vellum, Mist, Ink, Muted, Seal, Seal Deep, Sage, Midnight, Slate) with a full light/dark mapping onto shadcn variables and measured contrast; status colors re-measured on the new surfaces. **Added:** brand package v1.0 (removed from the repository in F4.2); logo usage in the interface (§4); Inter (self-hosted) for the interface and Georgia for headlines (§3). **Changed:** radius token 5px → 10px (shadcn default, matches the brand scale) |
 | 1.3 | **Changed (product owner, after F2 visual review):** component structure, sizes, spacing, and type scale come from shadcn/ui `base-nova` blocks/components and assistant-ui examples as published; this document keeps color tokens, fonts, the radius token, themes, and accessibility. Removed: the 8px-grid and 400ms motion rules, 40px/44px control sizes (target size is WCAG 2.2 AA 2.5.8), Lexon type scale for UI, the single-shadow rule, and the rectangular-only radius rule |
 | 1.2 | Clarified (F2 design review): the 5px radius applies to rectangular elements; radio indicators, switch thumbs, initials avatars, and status dots stay circular (§4) |
 | 1.1 | Dark theme added by product-owner decision (F2): `colors-dark` token set with measured contrast (§2.1); Light / Dark / System selection with System as default (§1). Light values unchanged |

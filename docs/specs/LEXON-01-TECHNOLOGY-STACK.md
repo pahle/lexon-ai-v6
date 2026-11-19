@@ -4,7 +4,7 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.12 |
+| **Version** | 1.13 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
 | **Date** | 9 November 2026 |
 | **Supersedes** | v1.11 (3 November 2026) |
@@ -59,7 +59,7 @@ The full list is in §11. Business and legal decisions remain open and are recor
 | Area | Technology | Role |
 |---|---|---|
 | Styling | Tailwind CSS 4 | Utility styles, responsiveness, and design tokens |
-| Fonts and brand assets | Inter through `next/font` (built into Next.js; files downloaded at build time and served from Lexon's own origin, no runtime request to a font host); Georgia as a system serif (not embedded); brand SVG/PNG/ICO assets from `docs/brand/lexon-2026/` served from `frontend/public/` | Interface and headline typography and the logo (Design System §3, §4). No other web font and no font CDN |
+| Fonts and brand assets | Inter, EB Garamond, and TeX Gyre Bonum through `next/font/local` (built into Next.js), self-hosted from `frontend/src/fonts/` with their licenses (OFL, GUST) and served from Lexon's own origin, no runtime request to a font host; brand SVG/PNG/ICO assets from `docs/brand/lexon-2026-v4.1/` served from `frontend/public/` | Interface, headline, and legal-quotation typography and the logo (Design System §3, §4). No other web font and no font CDN |
 | UI foundation | shadcn/ui (style `base-nova`) + Base UI (`@base-ui/react`) | Interface components and primitives. Base UI was chosen for three reasons: it is the default of the assistant-ui template and component registry (chat components need no rewrite), it is actively maintained, and shadcn/ui fully supports it. Radix UI is not used in Lexon-owned code; one primitives library for the whole `frontend/`. A transitive dependency of a pinned library (assistant-ui depends on `radix-ui` internally) is allowed, but Lexon code never imports `radix-ui` or `@radix-ui/*` directly, and registry components that need it are not added (enforced by lint) |
 | Theme switching | `next-themes` | Light / Dark / System theme on the `class` attribute, applied before first paint; the approach of shadcn/ui's official Next.js dark-mode guide. Preference stored in the browser only (Design System §1) |
 | Toast notifications | `sonner` (through the shadcn/ui `Sonner` component) | Non-blocking confirmations (Design System §5.1) |
@@ -220,6 +220,14 @@ Record the remaining new lockfile dependency closure and licenses in F4
 acceptance evidence. Exact npm metadata, registry and image provenance is in
 [F4 Research notes](../superpowers/specs/2026-11-09-f4-chat-design.md#planning-research-supplement-2026-11-09).
 
+### F4.2 additions (v1.13)
+
+Product-owner-approved revision, 19 November 2026.
+
+| Package | Exact version | Purpose |
+|---|---|---|
+| `eslint-plugin-react-hooks` | `7.1.1` | Lint for `frontend/` only. Enable exactly two rules, `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps`, both as errors. Do not use the plugin's `recommended` preset: its React Compiler rules do not apply, because Lexon does not use React Compiler. |
+
 ## 8. Integration Principles
 
 1. **One source of contracts:** the frontend, backend, workers, and add-in use the same Zod schemas and event contracts from `shared/`; domain logic lives only in the backend.
@@ -306,3 +314,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.10 | **Added (product owner, brand package):** Inter self-hosted through `next/font` and Georgia as a system serif; Lexon brand assets served from `frontend/public/` (Design System v2.0). No new npm dependency |
 | 1.11 | **Added (product owner, F2.1 prototype):** `sonner` for toast notifications through the shadcn/ui `Sonner` component (Design System v2.1 §5.1) |
 | 1.12 | **Added (product owner, F4):** Caddy 2.11.9 for loopback HTTP development/E2E routing and immediate SSE flushing, sharing `infra/Caddyfile` with future production work; official digest-pinned k6 2.3.0 load-test tool. **Recorded:** exact F4 Markdown/GFM dependencies and notable transitives, plus the explicit assistant-ui 0.15.33 registry-compatible patch and matching internal pins. No new dependency is installed before being listed. Production TLS/hardening/add-in domain remain F20 |
+| 1.13 | **Changed (product owner, F4.2, 2026-11-19):**<br>• fonts and brand assets now record what F4.1 shipped: Inter, EB Garamond, and TeX Gyre Bonum through `next/font/local`, and brand assets from `docs/brand/lexon-2026-v4.1/`<br>• Georgia and the v1.0 brand package are retired; the v1.0 package was removed from the repository in F4.2<br>**Added:** `eslint-plugin-react-hooks` 7.1.1 for `frontend/`, with two rules only (§7, F4.2 additions) |
