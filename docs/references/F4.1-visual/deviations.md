@@ -11,8 +11,8 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | chat-deep-thinking              | m       | 2.06 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | chat-deep-thinking              | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | chat-delete                     | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
-| chat-edit                       | d       | 1.84 | owner review: round 5 (Linux CI 44453383597)                                                    |
-| chat-edit                       | d-dark  | 1.82 | owner review: round 5 (Linux CI 44453383597)                                                    |
+| chat-edit                       | d       | 1.84 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| chat-edit                       | d-dark  | 1.82 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
 | chat-rename                     | m       | 1.95 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | chat-rename                     | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | chats-no-results                | m       | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
@@ -39,10 +39,10 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | settings-appearance             | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | settings-general                | m       | 2.02 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | settings-general                | m-dark  | 1.92 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
-| settings-invitations            | m       | 2.81 | owner review: round 5 (Linux CI 44453383597)                                                    |
-| settings-invitations            | m-dark  | 2.78 | owner review: round 5 (Linux CI 44453383597)                                                    |
-| settings-members                | m       | 2.15 | owner review: round 5 (Linux CI 44453383597)                                                    |
-| settings-members                | m-dark  | 2.11 | owner review: round 5 (Linux CI 44453383597)                                                    |
+| settings-invitations            | m       | 2.81 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-invitations            | m-dark  | 2.78 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-members                | m       | 2.15 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-members                | m-dark  | 2.11 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
 | settings-security               | m       | 3.26 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | settings-security               | m-dark  | 3.01 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | sign-in-form-alert              | m       | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
