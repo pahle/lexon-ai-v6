@@ -105,9 +105,8 @@ it('the visible text is never longer than the received text and the full text ap
     'Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian.';
   const view = await render(<Harness text={full.slice(0, 10)} running />);
   const visible = () => view.container.textContent ?? '';
-  let received = full.slice(0, 10);
   for (let end = 20; end < full.length; end += 10) {
-    received = full.slice(0, end);
+    const received = full.slice(0, end);
     await view.rerender(<Harness text={received} running />);
     await frames(40);
     expect(visible().length).toBeLessThanOrEqual(received.length);
