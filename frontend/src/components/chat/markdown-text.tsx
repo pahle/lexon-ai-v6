@@ -2,15 +2,34 @@
 
 import '@assistant-ui/react-markdown/styles/dot.css';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
-import type { TextMessagePartProps } from '@assistant-ui/react';
+import { useAuiState, type TextMessagePartProps } from '@assistant-ui/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import {
   createContext,
   useContext,
+  useSyncExternalStore,
   type ComponentPropsWithoutRef,
 } from 'react';
+
+// Smoothing values (F4.2 G2). minCommitMs is tuned once against the G4 stress
+// run (plan step 3.10); drainMs and minCommitMs start at the library defaults.
+export const SMOOTH_REVEAL = { drainMs: 250, minCommitMs: 0 } as const;
+
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia?.(REDUCED_MOTION);
+  query?.addEventListener('change', onChange);
+  return () => query?.removeEventListener('change', onChange);
+}
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia?.(REDUCED_MOTION).matches ?? false,
+    () => false,
+  );
+}
 
 // True while the answer sits under an open edit: the Markdown wrapper sets
 // its own text color, so the muted color has to be applied here to reach the
@@ -22,10 +41,32 @@ export const AnswerDimmedContext = createContext(false);
 // unlayered, so it beats layered utilities; the important modifier wins.
 export const HideAnswerPulseContext = createContext(false);
 
-export function MarkdownText({
+type MarkdownProps = Partial<TextMessagePartProps> & {
+  readonly source?: string;
+};
+
+export function MarkdownText(props: MarkdownProps) {
+  return props.source === undefined ? (
+    <LiveMarkdownText {...props} />
+  ) : (
+    <MarkdownBody {...props} smooth={false} />
+  );
+}
+
+function LiveMarkdownText(props: MarkdownProps) {
+  // Only the live message is revealed gradually; history renders in full.
+  // When the run ends smoothing turns off, so the full text appears.
+  const live = useAuiState((state) => state.message.status?.type === 'running');
+  const reducedMotion = usePrefersReducedMotion();
+  const smooth = live && !reducedMotion ? SMOOTH_REVEAL : false;
+  return <MarkdownBody {...props} smooth={smooth} />;
+}
+
+function MarkdownBody({
   source,
+  smooth,
   ...props
-}: Partial<TextMessagePartProps> & { readonly source?: string }) {
+}: MarkdownProps & { readonly smooth: false | typeof SMOOTH_REVEAL }) {
   const dimmed = useContext(AnswerDimmedContext);
   const hidePulse = useContext(HideAnswerPulseContext);
   const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none flex flex-col gap-3${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
@@ -114,6 +155,7 @@ export function MarkdownText({
       remarkPlugins={[remarkGfm]}
       components={components}
       className={wrapperClass}
+      smooth={smooth}
       defer
     />
   );
