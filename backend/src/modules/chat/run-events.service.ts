@@ -8,7 +8,9 @@ import {
   type ChatStreamRecoveryMode,
 } from '@lexon/contracts';
 import {
+  IdentityError,
   RUN_SSE_REVALIDATION,
+  RevalidationCache,
   RunAuthorizationService,
   type RunActor,
   type VerifiedIdentity,
@@ -33,6 +35,7 @@ const PROCESS_ID = randomUUID();
 const MAX_PENDING_TITLE_INVALIDATIONS = 64;
 const TITLE_INVALIDATION_HEARTBEAT_MS = 15_000;
 const TITLE_INVALIDATION_DRAIN_MS = 5000;
+const REVALIDATION_INTERVAL_MS = 5000;
 interface AuthorizationCheck {
   expiresAt: number;
   readonly pending: Promise<void>;
@@ -114,6 +117,15 @@ export class RunEventsService {
     @Inject(RUN_SSE_REVALIDATION)
     private readonly revalidation: RunSseRevalidation,
   ) {}
+
+  // One single-flight cache for every stream's session assert in this process.
+  readonly #revalidation = new RevalidationCache({ ttlMs: 1000 });
+  #revalidate(identity: VerifiedIdentity, orgId: string): Promise<void> {
+    return this.#revalidation.get(
+      { userId: identity.userId, sessionId: identity.sessionId, orgId },
+      () => this.revalidation.assert(identity, orgId),
+    );
+  }
 
   readonly #local = new Map<
     string,
@@ -210,7 +222,7 @@ export class RunEventsService {
             chatId = nextChatId;
           }
           try {
-            await this.revalidation.assert(identity, orgId);
+            await this.#revalidate(identity, orgId);
           } catch {
             await close('revoked');
             return;
@@ -291,6 +303,10 @@ export class RunEventsService {
         })();
       }, TITLE_INVALIDATION_HEARTBEAT_MS);
       heartbeat.unref();
+      // Lease renewal every 1 s; session revalidation every 5 s. Only a 401 or
+      // 403 (revoked session) closes the stream: an outage keeps it open and
+      // the next 5 s attempt decides.
+      let lastRevalidation = Date.now();
       renewal = setInterval(() => {
         if (closed || !lease || checkingLease) return;
         checkingLease = true;
@@ -298,7 +314,17 @@ export class RunEventsService {
           const current = await this.registry.renew(lease!);
           if (!current) return close('evicted');
           lease = current;
-          await this.revalidation.assert(identity, orgId);
+          if (Date.now() - lastRevalidation < REVALIDATION_INTERVAL_MS) return;
+          lastRevalidation = Date.now();
+          try {
+            await this.#revalidate(identity, orgId);
+          } catch (error) {
+            if (
+              error instanceof IdentityError &&
+              (error.status === 401 || error.status === 403)
+            )
+              return close('revoked');
+          }
         })()
           .catch(() => close('revoked'))
           .finally(() => {
@@ -385,7 +411,7 @@ export class RunEventsService {
             pending: Promise.resolve(),
           };
           const pending = (async () => {
-            await this.revalidation.assert(identity, orgId);
+            await this.#revalidate(identity, orgId);
             const owned = await this.database.withTenant(
               { orgId, userId },
               (tx) => this.runs.existsForOwnedChat(tx, runId, userId),
@@ -456,7 +482,7 @@ export class RunEventsService {
       }
       const reloadFallback = async () => {
         const refreshed = await sharedSnapshotRead(snapshotKey, async () => {
-          await this.revalidation.assert(identity, orgId);
+          await this.#revalidate(identity, orgId);
           const value = await this.database.withTenant(
             { orgId, userId },
             (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),
