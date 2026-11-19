@@ -131,3 +131,14 @@ test('page and error titles use the serif heading treatment without the retired 
     await view.unmount();
   }
 });
+
+test('the workspace error page flags the body so the sidebar drops its active highlight', async () => {
+  const { default: WorkspaceError } =
+    await import('../src/app/(workspace)/error');
+  const view = await render(
+    <WorkspaceError error={new Error('x')} retry={() => {}} />,
+  );
+  expect(document.body.hasAttribute('data-workspace-error')).toBe(true);
+  await view.unmount();
+  expect(document.body.hasAttribute('data-workspace-error')).toBe(false);
+});

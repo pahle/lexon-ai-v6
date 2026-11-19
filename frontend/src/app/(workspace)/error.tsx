@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertCircleIcon } from 'lucide-react';
+import { useEffect } from 'react';
 import { StatusPage } from '../../components/states/status-page';
 
 export default function WorkspaceError({
@@ -9,6 +10,14 @@ export default function WorkspaceError({
   error: Error;
   retry: () => void;
 }) {
+  // The sidebar must not highlight the route that failed (owner review):
+  // app-sidebar reads this flag with `in-data-[workspace-error]`.
+  useEffect(() => {
+    document.body.dataset.workspaceError = '';
+    return () => {
+      delete document.body.dataset.workspaceError;
+    };
+  }, []);
   return (
     <StatusPage
       role="alert"
