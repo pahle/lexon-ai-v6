@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 14.9</title>
+<title>Lexon v4.1 Prototype, revision 15</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -255,6 +255,7 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .bar .ab{all:unset;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;cursor:pointer;color:var(--mfg);position:relative}
 .bar .ab:hover,.bar .ab.hov{background:var(--accent);color:var(--fg)}.bar .ab.on{color:var(--redtext)}
 .bar .ab .tip{bottom:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.app.mobile .bar>button.ab:first-of-type .tip{left:0;transform:none}
 .sline{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--mfg);line-height:1.6;margin-top:4px}
 .ebox{align-self:stretch;display:flex;flex-direction:column;gap:10px}
 .ebox .box{border:1px solid var(--ring);border-radius:16px;background:var(--bg);padding:14px 16px;box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 18%,transparent)}
@@ -275,6 +276,7 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex:none}
 .inp:disabled{opacity:.6;cursor:not-allowed}
 .falert{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--redtext);background:var(--flag);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5}
+.lnk{all:unset;cursor:pointer;color:var(--fg);font-weight:500;text-decoration:underline;text-underline-offset:2px}
 .falert svg{color:var(--redtext);flex:none;margin-top:2px}
 .chip.on{border-color:var(--fg);background:var(--muted)}
 .ctext{font-size:16px;padding:4px;min-height:56px;line-height:1.5}
@@ -321,6 +323,7 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .dialog{width:calc(100% - 32px)}
 .app.mobile .hist,.app.mobile .ppage{padding:20px 16px}
 .app.mobile .scrolldown{bottom:136px}
+.cw>.scrolldown{bottom:calc(100% + 12px)}.app.mobile .cw>.scrolldown{bottom:calc(100% + 2px)}
 .app.mobile .sb .menu.om{left:8px!important;right:8px!important;top:calc(100% + 4px)!important;min-width:0!important}
 .app.mobile .sb .menu.umn{left:8px!important;right:8px!important;bottom:calc(100% + 4px)!important;min-width:0!important}
 .app.mobile .srow{flex-direction:column;align-items:stretch;gap:10px}
@@ -399,6 +402,7 @@ function sidebar(S,c){
  if(icon) return `<aside class="sb icon" aria-label="Sidebar"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="ini">HN</span></button><div style="height:8px"></div><button class="nb on" style="padding:0;justify-content:center;width:32px" title="Assistant">${sv('chats')}</button><div style="margin-top:auto"><button class="nb big" style="padding:0;justify-content:center;width:32px"><span class="avatar">AW</span></button></div></aside>`;
  let rec='';
  if(c.loading) rec=[70,55,80,62].map(w=>`<div style="height:32px;display:flex;align-items:center;padding:0 8px"><div class="skel" style="width:${w}%"></div></div>`).join('');
+ else if(c.failed) rec='<p role="alert" style="margin:0;padding:4px 8px;font-size:13px;line-height:1.5;color:var(--mfg)">We could not load recent chats. <button class="lnk">Try again</button></p>';
  else if(c.none) rec='<p style="margin:0;padding:4px 8px;font-size:13px;color:var(--mfg)">No chats yet.</p>';
  else { chats.forEach((t,i)=>{const id='abcdef'[i];const on=c.active===id&&!c.page;
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
@@ -519,7 +523,7 @@ const lxl=(k,xl=false)=>`<span class="lx lx-${k}${xl?' xl':''}" aria-hidden="tru
 const LOADER={col:'<span class="ld" aria-hidden="true"><span class="ld-col"><i></i><i></i><i></i></span></span>',arc:'<span class="ld" aria-hidden="true"><svg class="ld-arc" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--redtext)" stroke-width="1.75" stroke-linecap="round"/></svg></span>'};
 const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?lq():`<img src="${MONO}" alt="" style="width:20px;height:20px">`}${label?`<button class="think" aria-expanded="${open===true}">${label}${open===null?'':sv(open?'down2':'right',14)}</button>`:''}</div>`;
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
-const abar=({fb=null,copied=false,branch=false,tip=''}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ab ${copied?'on':''} ${tip==='copy'?'hov':''}" aria-label="${copied?'Copied':'Copy'}">${sv(copied?'check':'copy',16)}${tip==='copy'?'<span class="tip">Copy</span>':''}${copied?'<span class="tip">Copied</span>':''}</button><button class="ab ${fb==='up'?'on':''}" aria-label="Good response">${sv('up',16,fb==='up'?'fill="currentColor"':'')}</button><button class="ab" aria-label="Bad response">${sv('down',16)}</button><button class="ab" aria-label="Regenerate">${sv('regen',16)}</button></div>`;
+const abar=({fb=null,copied=false,branch=false,tip='',failed=false}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}${failed?`<button class="ab hov" aria-label="Could not copy. Try again">${sv('alert',16)}<span class="tip">Could not copy</span></button>`:`<button class="ab ${copied?'on':''} ${tip==='copy'?'hov':''}" aria-label="${copied?'Copied':'Copy'}">${sv(copied?'check':'copy',16)}${tip==='copy'?'<span class="tip">Copy</span>':''}${copied?'<span class="tip">Copied</span>':''}</button>`}<button class="ab ${fb==='up'?'on':''}" aria-label="Good response">${sv('up',16,fb==='up'?'fill="currentColor"':'')}</button><button class="ab" aria-label="Bad response">${sv('down',16)}</button><button class="ab" aria-label="Regenerate">${sv('regen',16)}</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
 const crumbT='Syarat sah perjanjian (Pasal 1320)';
 
@@ -536,7 +540,7 @@ function thread(S){
   case 'stopped': b=um(Q1)+`<div class="am">${who('Thought for 9 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu</li></ol><div class="sline">You stopped this response.</div>${abar()}</div>`; break;
   case 'error': b=um(Q1)+`<div class="am">${who('Thought for 6 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The response could not be completed.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>${abar()}</div>`; break;
   case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="sline" role="status">${sv('wifi',18)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
-  case 'loading': b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; c=composer({off:true}); break;
+  case 'loading': c=composer({off:true}).replace('Lexon can make mistakes. Verify important legal information.','Loading this chat…').replace('aria-label="Send message"','aria-label="Send (unavailable: the chat is loading)"').replace('<div class="disc">','<div class="disc" role="status">'); b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; break;
   case 'actions': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({tip:'copy'})}</div>`; break;
   default: b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar()}</div>`;
  }
@@ -546,7 +550,8 @@ function thread(S){
 function home(S){const deep=S==='deep';const text=deep?'Bandingkan risiko PKWT dan PKWTT untuk karyawan proyek konstruksi 18 bulan, termasuk kompensasi saat kontrak berakhir.':'';
  return `<div class="main home">${topbar('')}<div class="view" style="justify-content:center;gap:22px;padding-bottom:80px"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><h1 style="margin:0;font-family:var(--serif);font-weight:400;font-size:46px;letter-spacing:-.01em">Good morning, Ayu</h1></div>${composer({deep,text})}<div class="chips" style="margin-top:14px"><button class="chip">Explain an article</button><button class="chip">Compare two rules</button><button class="chip">Check a clause</button><button class="chip">Summarize a regulation</button></div></div></div>`;}
 function history(S){const q=S==='search'?'wanprestasi':S==='noresults'?'hak tanggungan':'';let l='';
- if(S==='empty') l=`<div class="empty"><div class="ic">${sv('chats',20)}</div><h2>No chats yet</h2><p style="margin:0">Start a new chat to ask Lexon about a contract, a regulation, or a case.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}New chat</button></div>`;
+ if(S==='failed') l=`<div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">We could not load your chats.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
+ else if(S==='empty') l=`<div class="empty"><div class="ic">${sv('chats',20)}</div><h2>No chats yet</h2><p style="margin:0">Start a new chat to ask Lexon about a contract, a regulation, or a case.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}New chat</button></div>`;
  else if(S==='noresults') l=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No chats match “hak tanggungan”</h2><p style="margin:0">Search looks in chat titles and messages. Try other words.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
  else if(S==='search') l=`<p style="margin:0;font-size:13px;color:var(--mfg)">3 chats</p><div class="hrow hl"><div class="ht"><span><mark>Wanprestasi</mark> remedies and damages</span><span class="hd">Nov 4</span></div><div class="hs">…debitur yang melakukan <mark>wanprestasi</mark> dapat dituntut pemenuhan perikatan, ganti rugi, atau pembatalan perjanjian berdasarkan Pasal 1267…</div></div><div class="hrow"><div class="ht"><span>Force majeure clause, supply agreement</span><span class="hd">Nov 4</span></div><div class="hs">…keadaan memaksa membebaskan debitur dari tanggung jawab atas <mark>wanprestasi</mark> jika peristiwa tidak dapat diduga…</div></div><div class="hrow"><div class="ht"><span>Syarat sah perjanjian (Pasal 1320)</span><span class="hd">Today</span></div><div class="hs">…berbeda dengan <mark>wanprestasi</mark>, cacat pada syarat subjektif membuat perjanjian dapat dibatalkan…</div></div>`;
  else {const g=['Today','Today','Yesterday','Previous 30 days','Previous 30 days','Previous 30 days'];let cur='';chats.forEach((t,i)=>{if(g[i]!==cur){cur=g[i];l+=`<div class="glabel" style="padding:10px 12px 0">${cur}</div>`;}l+=`<div class="hrow"><div class="ht"><span>${t}</span><span class="hd">${i<2?'10:42':i<3?'Yesterday':'Nov 4'}</span></div></div>`;});}
@@ -665,7 +670,7 @@ function signinVariant(kind){
  <button class="btn primary lg full" ${pend?'aria-disabled="true"':''}>${pend?'<span class="spin" aria-hidden="true"></span>Signing in…':'Sign in'}</button><p class="alt">New to Lexon? <a href="#">Create an account</a></p>`);
 }
 /* settings: one dialog, six sections, fixed size; full-screen sheet on mobile */
-function settingsAll(sec,{toast=''}={}){
+function settingsAll(sec,{toast='',failed=false}={}){
  const L={profile:'Profile',appearance:'Appearance',security:'Security',members:'Members',invitations:'Invitations',general:'General'};
  const nb=k=>`<button class="nb ${k===sec?'on':''}">${L[k]}</button>`, gl=t=>`<div class="glabel" style="padding:12px 8px 4px">${t}</div>`;
  const nav=gl('Account')+nb('profile')+nb('appearance')+nb('security')+gl('Hukum Nusantara')+nb('members')+nb('invitations')+nb('general');
@@ -682,6 +687,8 @@ function settingsAll(sec,{toast=''}={}){
  const inv=[['dimas@hukum-nusantara.co.id','Member','Expires 25 Nov 2026',false],['lina@hukum-nusantara.co.id','Admin','Expires 24 Nov 2026',false],['bagus@hukum-nusantara.co.id','Member','Expired 12 Nov 2026',true]];
  B.invitations=`<h3 class="sh">Invitations</h3><p class="sd">Invite people by email. An invitation expires after 7 days.</p><div class="irow"><input class="inp" placeholder="name@firm.co.id" aria-label="Email to invite"><button class="btn outline">Member${sv('down2',14)}</button><button class="btn primary">Send invitation</button></div><div class="ssub">Pending invitations</div>${inv.map(([e,r,x,bad])=>`<div class="mrow"><span class="avatar">${sv('mail',16)}</span><div class="two"><span class="a">${e}</span><span class="b">${r} · <span style="${bad?'color:var(--redtext)':''}">${x}</span></span></div><button class="btn outline sm">Resend</button><button class="btn ghost sm">Cancel</button></div>`).join('')}`;
  B.general=`<h3 class="sh">General</h3><p class="sd">Settings for everyone in Hukum Nusantara.</p><div class="srow"><div><div class="rt">Organization name</div><div class="rd">Shown in the organization switcher.</div></div><input class="inp" style="width:280px" value="Hukum Nusantara" aria-label="Organization name"></div><div class="srow"><div><div class="rt">Slug</div><div class="rd">Used in links. Lowercase letters, numbers, and hyphens.</div></div><input class="inp" style="width:280px" value="hukum-nusantara" aria-label="Slug"></div><div class="srow inl"><div><div class="rt">Require two-step verification</div><div class="rd">Members without it must set it up before they can open this workspace.</div></div><span class="sw" role="switch" aria-checked="false" aria-label="Require two-step verification"></span></div>${save('Save changes')}`;
+ if(failed&&sec==='profile') B.profile=B.profile.replace('<p class="sd">How you appear to people in your organizations.</p>','<p class="sd">How you appear to people in your organizations.</p><div class="falert" role="alert" style="margin-top:12px">'+sv('alert')+'<span>We could not save your profile. Your changes are still here. Try again.</span></div>').replace('value="Senior Associate"','value="Partner"');
+ if(failed&&sec==='members') B.members=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 class="sh" style="margin:0">Members</h3><button class="btn primary">${sv('plus')}Invite people</button></div><p class="sd">People in Hukum Nusantara.</p><div class="erow" role="alert" style="margin-top:12px"><span class="ic">${sv('alert',18)}</span><span class="tx">We could not load members.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
  if(MOB) return `<div class="app mobile"><div class="sdlg m" role="dialog" aria-modal="true" aria-label="Settings"><div class="shd"><button class="ib" aria-label="Back to sections">${sv('left')}</button><h2>${L[sec]}</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div class="sbody">${B[sec]}</div></div>${toast}</div>`;
  return `<div class="app">${sidebar('x',{active:'a'})}${thread('thread')}<div class="overlay"></div><div class="sdlg" role="dialog" aria-modal="true" aria-label="Settings"><div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 24px;border-bottom:1px solid var(--border)"><h2 style="margin:0;font-size:16px;font-weight:600">Settings</h2><button class="ib" aria-label="Close settings">${sv('x')}</button></div><div style="flex:1;display:flex;min-height:0"><nav style="width:240px;flex:none;padding:12px;border-right:1px solid var(--sb-border);background:var(--sidebar);display:flex;flex-direction:column;gap:2px">${nav}</nav><div class="sbody">${B[sec]}</div></div></div>${toast}</div>`;
 }
@@ -712,10 +719,10 @@ function platformAccounts(){
 const GROUPS=[
  ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-declined','accept-invitation-unavailable','admin-setup','admin-setup-activate','admin-setup-unavailable','onboarding','onboarding-invitations','onboarding-team']],
  ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
- ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open']],
- ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
- ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading']],
- ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','toast-success']],
+ ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open','recent-load-failed']],
+ ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
+ ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed']],
+ ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
  ['Platform',['platform-accounts','platform-provisioning-populated','platform-provisioning-empty','platform-provisioning-loading','platform-provisioning-error','platform-provisioning-detail']],
  ['Indicator',['indicator']]
 ];
@@ -728,7 +735,13 @@ function screen(st){
  if(AUTHMAP[st]) return `<div class="app ${MOB?'mobile':''}">${authState(AUTHMAP[st])}</div>`;
  if(st==='sign-in-form-alert'||st==='sign-in-pending') return `<div class="app ${MOB?'mobile':''}">${signinVariant(st==='sign-in-pending'?'pending':'alert')}</div>`;
  if(STATUSMAP[st]) return statusPage(STATUSMAP[st]);
+ if(st==='settings-profile-save-failed') return settingsAll('profile',{failed:true});
+ if(st==='settings-members-load-failed') return settingsAll('members',{failed:true});
  if(st.startsWith('settings-')) return settingsAll(st.slice(9));
+ if(st==='recent-load-failed'){const main=home('newchat');return app(sidebar('x',{home:true,active:null,failed:true}),main,'',true);}
+ if(st==='chats-load-failed') return app(sidebar('x',{page:true,failed:true}),history('failed'));
+ if(st==='chat-copy-failed') return app(sidebar('x',{active:'a'}),chatShell(um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({failed:true})}</div>`).replace(MOB?'justify-content:center;overflow:hidden">':'@@','justify-content:center;align-items:flex-end;overflow:hidden">'));
+ if(st==='chat-composer-running'){let m=thread('streaming');m=m.replace(/(<textarea id="cmp"[^>]*>)(<\/textarea>)/,'$1Bagaimana jika salah satu pihak masih di bawah umur?$2').replace('<div class="disc">Lexon can make mistakes. Verify important legal information.</div>','<div class="disc" role="status" style="color:var(--fg)">Wait for the answer to finish, or stop it.</div>');return app(sidebar('x',{active:'a'}),m);}
  if(st==='toast-success') return settingsAll('profile',{toast:toastEl('Changes saved.')});
  if(st.startsWith('platform-')){const p=st==='platform-accounts'?'acct':'prov';const main=`<div class="main">${topbar('',{nopill:true})}<div class="view">${st==='platform-accounts'?platformAccounts():st==='platform-provisioning-detail'?platformDetail():platformPage(st.replace('platform-provisioning-',''))}</div></div>`;return app(sidebar('personal',{platform:p,none:true}),main);}
  if(st==='indicator') return app(sidebar('x',{active:'a'}),thread('loaders'));
@@ -757,7 +770,8 @@ function render(){
  const inner=screen(st);
  const href=(k,m)=>`?${m?'m=1&':''}${document.documentElement.dataset.theme?'theme='+document.documentElement.dataset.theme+'&':''}#${k}`;
  const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${GROUPS.map(([g,ks])=>`<b style="width:64px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:64px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop 1440×900</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile 390×844</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">State names match the F4.1 capture ids.</span></nav>`;
- document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;fit();
+ document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;
+ document.querySelectorAll('.scrolldown').forEach(b=>{const cw=b.parentElement.querySelector('.cw');if(cw)cw.prepend(b);});fit();
 }
 
 function fit(){const st=document.getElementById('stage');if(!st)return;const app=st.firstElementChild;const W=app.classList.contains('mobile')?390:1440,H=app.classList.contains('mobile')?844:900;if(isShot){st.style.height=H+'px';return;}const z=Math.min(1,st.clientWidth/W);app.style.transform=`scale(${z})`;st.style.height=(H*z)+'px';if(W===390){st.style.width='';}}

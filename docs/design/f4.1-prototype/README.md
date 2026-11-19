@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.9).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -16,8 +16,9 @@ gate is in §5.6.
 - `source/prototype.src.html`: the same markup, CSS, and script as
   `prototype.html` without the embedded fonts and marks (about 110 KB instead of
   380 KB). **Read this file for values**; open `prototype.html` to view states.
-- `screens/r14/<state>-<d|m>[-dark].png`: every state at 1440×900 (`d`) and
-  390×844 (`m`), light and dark (276 files).
+- `screens/r14/<state>-<d|m>[-dark].png`: every state of the current
+  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (300 files).
+  The folder keeps its name; it always holds the current revision.
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
 - The numbered PNGs in `screens/` (`00-personal.png` to `51-mobile-dark.png`)
   are revision 12, kept for history. Revision 14 supersedes them.
@@ -32,10 +33,10 @@ state of the same name.
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Auth      | `sign-in`, `sign-in-field-errors`, `sign-in-form-alert`, `sign-in-pending`, `sign-up`, `forgot-password`, `forgot-password-sent`, `reset-password`, `reset-password-invalid`, `verify-email`, `two-factor`, `accept-invitation`, `accept-invitation-declined`, `accept-invitation-unavailable`, `admin-setup`, `admin-setup-activate`, `admin-setup-unavailable`, `onboarding`, `onboarding-invitations`, `onboarding-team` |
 | Status    | `not-found`, `organizations-not-found`, `workspace-error`, `platform-no-access`                                                                                                                                                                                                                                                                                                                                             |
-| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`                                                                                                                                                                                                                                                                                     |
-| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`                                                         |
-| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`                                                                                                                                                                                                                                                                                                                                         |
-| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `toast-success`                                                                                                                                                                                                                                                                             |
+| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`, `recent-load-failed`                                                                                                                                                                                                                                                                                     |
+| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-copy-failed`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-composer-running`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`                                                         |
+| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`, `chats-load-failed`                                                                                                                                                                                                                                                                                                                                         |
+| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `settings-profile-save-failed`, `settings-members-load-failed`, `toast-success`                                                                                                                                                                                                                                                                             |
 | Platform  | `platform-accounts`, `platform-provisioning-populated`, `platform-provisioning-empty`, `platform-provisioning-loading`, `platform-provisioning-error`, `platform-provisioning-detail`                                                                                                                                                                                                                                       |
 | Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                             |
 
@@ -112,6 +113,20 @@ Drawn from the round-4 code on `f4.1-brand-refresh`, not from memory:
   vertically in the remaining height (owner).
 - User message Copy and Edit are hidden while an answer is thinking, streaming,
   or reconnecting, as the app already does.
+
+## Revision 15 (2026-11-19): F4.2 failure states
+
+The product owner approved these states in the F4.2 spec review. LEX-DS-001 v3.2 records their values.
+
+- `chat-copy-failed`: Copy shows the alert icon and the tooltip "Could not copy". The next click tries again.
+- `chat-composer-running`: the user tried to send while an answer was arriving. The disclaimer line reads "Wait for the answer to finish, or stop it."
+- `chat-thread-loading` (changed): the disclaimer line reads "Loading this chat…".
+- `recent-load-failed`: Recent shows "We could not load recent chats." with a Try again link.
+- `chats-load-failed`: the error row replaces the list.
+- `settings-members-load-failed`: the error row replaces the member rows. Invitations, sessions, and platform lists use the same pattern; platform already has `platform-provisioning-error`.
+- `settings-profile-save-failed`: the form alert sits above the fields. The typed value ("Partner") is kept, and Save stays enabled. Organization General uses the same pattern. Appearance is saved on the device only (`next-themes`), so it cannot fail to save.
+- `chat-streaming-scroll` and `chat-reconnecting` (changed): scroll-to-latest now sits 12px above the composer box. In revision 14 it covered the top of the composer on mobile and touched it on desktop. This fixes a revision 14 defect.
+- On mobile, the tooltip of the first answer action aligns with the button's left edge.
 
 ## Thinking indicator
 
