@@ -23,6 +23,7 @@ import {
   ChatComposerCancel,
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
+import { CopyAction } from '@/components/chat/copy-action';
 import { composerClasses } from '@/components/chat/composer-styles';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   type AssistantState,
+  useAui,
   useAuiState,
 } from '@assistant-ui/react';
 import {
@@ -712,7 +714,7 @@ const AssistantActions: FC<{
   const serverActive = useChatActiveRun();
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
-  const copied = useAuiState((state) => state.message.isCopied);
+  const aui = useAui();
   const branched = useAuiState((state) => state.message.branchCount > 1);
   const submitFeedback = (next: 'good' | 'bad') => {
     void Promise.resolve(onFeedback?.(messageId, next))
@@ -732,19 +734,13 @@ const AssistantActions: FC<{
         hideWhenRunning
         className="flex items-center gap-0.5"
       >
-        <ActionBarPrimitive.Copy
-          render={
-            <TooltipIconButton
-              tooltip={copied ? 'Copied' : 'Copy'}
-              side="top"
-              sideOffset={6}
-              className={cn(ACTION_BUTTON, copied && ACTION_ON)}
-              aria-label={copied ? 'Copied' : 'Copy answer'}
-            />
-          }
-        >
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </ActionBarPrimitive.Copy>
+        <CopyAction
+          first
+          label="answer"
+          getText={() => aui.message.getCopyText()}
+          className={ACTION_BUTTON}
+          copiedClassName={ACTION_ON}
+        />
         <TooltipIconButton
           tooltip="Good response"
           side="top"
@@ -795,25 +791,19 @@ const USER_ACTION =
 // reconnecting (prototype 14.6).
 const UserEditAction: FC = () => {
   const serverActive = useChatActiveRun();
-  const copied = useAuiState((state) => state.message.isCopied);
+  const aui = useAui();
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Copy
-        render={
-          <TooltipIconButton
-            tooltip={copied ? 'Copied' : 'Copy'}
-            side="top"
-            sideOffset={6}
-            className={cn(USER_ACTION, copied && ACTION_ON)}
-            aria-label={copied ? 'Copied' : 'Copy message'}
-          />
-        }
-      >
-        {copied ? <CheckIcon /> : <CopyIcon />}
-      </ActionBarPrimitive.Copy>
+      <CopyAction
+        first
+        label="message"
+        getText={() => aui.message.getCopyText()}
+        className={USER_ACTION}
+        copiedClassName={ACTION_ON}
+      />
       <ActionBarPrimitive.Edit
         className={USER_ACTION}
         aria-label="Edit message"

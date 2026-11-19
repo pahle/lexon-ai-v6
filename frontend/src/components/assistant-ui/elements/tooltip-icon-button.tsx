@@ -15,6 +15,7 @@ export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
   side?: 'top' | 'bottom' | 'left' | 'right';
   sideOffset?: number;
+  align?: 'start' | 'center' | 'end';
 };
 
 export const TooltipIconButton = forwardRef<
@@ -22,7 +23,15 @@ export const TooltipIconButton = forwardRef<
   TooltipIconButtonProps
 >(
   (
-    { children, tooltip, side = 'bottom', sideOffset, className, ...rest },
+    {
+      children,
+      tooltip,
+      side = 'bottom',
+      sideOffset,
+      align,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     return (
@@ -34,6 +43,7 @@ export const TooltipIconButton = forwardRef<
                 variant="ghost"
                 size="icon"
                 {...rest}
+                {...(align ? { 'data-align': align } : {})}
                 className={cn(
                   'aui-button-icon size-6 p-1 active:scale-90',
                   className,
@@ -47,6 +57,7 @@ export const TooltipIconButton = forwardRef<
           </TooltipTrigger>
           <TooltipContent
             side={side}
+            {...(align ? { align } : {})}
             {...(sideOffset === undefined ? {} : { sideOffset })}
           >
             {tooltip}
