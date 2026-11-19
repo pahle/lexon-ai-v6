@@ -815,7 +815,7 @@
     },
     "onboarding-team-desktop-light": {
       "path": "review/onboarding-team-desktop-light.png",
-      "sha256": "7e7e9f583a26bc7092b7b43de227a546557d489186b8b5d6c2d51c6c5129d72f",
+      "sha256": "a219d3e150c3f9dcdd7bce8edceeb027f246cc32586c0f4d9242237d45503af3",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -843,7 +843,7 @@
     },
     "shell-personal-desktop-light": {
       "path": "review/shell-personal-desktop-light.png",
-      "sha256": "62a2796081b76055169dcfcb34d13c59563a657e1bf31b116ba7ddde08a2c1c5",
+      "sha256": "dbba65ddb29b7cac71524c90dc898dd65c866d14145b169e39f5e6537d539254",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -871,7 +871,7 @@
     },
     "shell-team-desktop-light": {
       "path": "review/shell-team-desktop-light.png",
-      "sha256": "7b00e3235a4a1ddccd01dd9e5dab56e09e302a1546e342e6371fa923790959bc",
+      "sha256": "bf355b659eab7965188db3e362f3ff37cc42bc01fa299504c6b48cb40097bca6",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1011,7 +1011,7 @@
     },
     "settings-profile-desktop-light": {
       "path": "review/settings-profile-desktop-light.png",
-      "sha256": "50c0d08c75e4bc7ce788d4ed434f36abfaa4d817e9b839ede619ed9d5b445946",
+      "sha256": "993c1c009b1c941a436759c85e238d6b1f1fbd8daf15114388386254642ca4f7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1046,7 +1046,7 @@
     },
     "settings-appearance-desktop-dark": {
       "path": "review/settings-appearance-desktop-dark.png",
-      "sha256": "9bea09d3d9d9016382e856c1f4e38a9fa9d6b1ad6cce5d755fbdbd4aec26efaa",
+      "sha256": "09495e3432852563359d35b944b7b53db443e93a811467e82806cc3989ba5cb5",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1067,14 +1067,14 @@
     },
     "settings-security-desktop-light": {
       "path": "review/settings-security-desktop-light.png",
-      "sha256": "a628a88c321eabcfd8a08ecbc5717d3bff36e1563b45aaad959490dd0bd0aef2",
+      "sha256": "e4f0d8018d5e82bd9e06830724bde2627ec598cfff65d43889b2050594fd1b20",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-security-desktop-dark": {
       "path": "review/settings-security-desktop-dark.png",
-      "sha256": "21719edb62ca0c52454a63354185909c9c369f920cae6049c9c478cd61a96e2c",
+      "sha256": "3410112c56cf215b314fe0c60f8a851fff7d8ce146051607bd578f145f64c0c4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1095,14 +1095,14 @@
     },
     "settings-members-desktop-light": {
       "path": "review/settings-members-desktop-light.png",
-      "sha256": "f627648a5fd380f95278378c3cad0ef064842becd7ef6981a998ed545a7468d9",
+      "sha256": "629ad70dc752c2f40f3c71d6436a7107e9f8eedee7aa3f51795158ccc7461cf7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-members-desktop-dark": {
       "path": "review/settings-members-desktop-dark.png",
-      "sha256": "67947c7c34cb055e5c647cd24a25598d636c0c17f6086afbb69b52b6118a7fbf",
+      "sha256": "d719207ecb971d292c3c09f149ec92e1c3610c593c6c227bf90c4ffde27dd5ff",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1123,7 +1123,7 @@
     },
     "settings-invitations-desktop-light": {
       "path": "review/settings-invitations-desktop-light.png",
-      "sha256": "add4a3de21c6abe3c844c2879a6b2c56995f89c0cd7217948649e4e093f7bbf9",
+      "sha256": "982b7ac4ff10ccd458573c67f3365bb45ff005669672a144dde64f9166ba3a88",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1158,7 +1158,7 @@
     },
     "settings-general-desktop-dark": {
       "path": "review/settings-general-desktop-dark.png",
-      "sha256": "0281f91ab164c3a3f1264253fdbe7a04654a21bc0dfd425995d13903a7fba751",
+      "sha256": "504a1b05cd7c1bb5dfd2a1fb52f719f72756dbd3851a8629c57c763b25311dea",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1837,7 +1837,7 @@
     },
     "chat-branch-mobile-light": {
       "path": "review/chat-branch-mobile-light.png",
-      "sha256": "12567bc2f72c2e9ab46e9c87f25d1e6df82bcc8702c0b9585a79ae680169da23",
+      "sha256": "5724d5a89fe626a31562efa7b322081e379f3ea19efede416a7837601049a4b1",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1872,7 +1872,7 @@
     },
     "chat-stopped-mobile-dark": {
       "path": "review/chat-stopped-mobile-dark.png",
-      "sha256": "7b2d74998df381dd1762f892bb9fd9e9ed380b5eda647f9c09e49f0b1a88b91b",
+      "sha256": "3924fc7a0057e3be9b5b010e3c694937c0b34de4cf29b088d3e0435989cf0da1",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -1893,7 +1893,7 @@
     },
     "chat-error-mobile-light": {
       "path": "review/chat-error-mobile-light.png",
-      "sha256": "87e69b05080307762f21f99b39533714f8bcb0b0da5e061dd593a2a0eb675d07",
+      "sha256": "e4664c51851b95a7fd5f79c526f9a79cef8bb3c59dc270ef570b5efb1230264e",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2082,7 +2082,7 @@
     },
     "chats-search-desktop-dark": {
       "path": "review/chats-search-desktop-dark.png",
-      "sha256": "0f04830a0b7f24e369d2105e851d5e7f09efa38e884ed3323d2ac7eda9709e35",
+      "sha256": "281e5c9994db0c360eb791240f43354a20dd885158d66411e88999b0627c2afd",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -2185,5 +2185,187 @@
       "height": 844,
       "deviceScaleFactor": 1
     }
-  }
+  },
+  "reapproved": [
+    {
+      "id": "onboarding-team-desktop-light",
+      "sha256": "a219d3e150c3f9dcdd7bce8edceeb027f246cc32586c0f4d9242237d45503af3",
+      "previousSha256": "7e7e9f583a26bc7092b7b43de227a546557d489186b8b5d6c2d51c6c5129d72f",
+      "evidence": {
+        "pixels": 2,
+        "bbox": [119, 255, 120, 348],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "shell-personal-desktop-light",
+      "sha256": "dbba65ddb29b7cac71524c90dc898dd65c866d14145b169e39f5e6537d539254",
+      "previousSha256": "62a2796081b76055169dcfcb34d13c59563a657e1bf31b116ba7ddde08a2c1c5",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [35, 109, 37, 111],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "shell-team-desktop-light",
+      "sha256": "bf355b659eab7965188db3e362f3ff37cc42bc01fa299504c6b48cb40097bca6",
+      "previousSha256": "7b00e3235a4a1ddccd01dd9e5dab56e09e302a1546e342e6371fa923790959bc",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [35, 109, 37, 111],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-profile-desktop-light",
+      "sha256": "993c1c009b1c941a436759c85e238d6b1f1fbd8daf15114388386254642ca4f7",
+      "previousSha256": "50c0d08c75e4bc7ce788d4ed434f36abfaa4d817e9b839ede619ed9d5b445946",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-appearance-desktop-dark",
+      "sha256": "09495e3432852563359d35b944b7b53db443e93a811467e82806cc3989ba5cb5",
+      "previousSha256": "9bea09d3d9d9016382e856c1f4e38a9fa9d6b1ad6cce5d755fbdbd4aec26efaa",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 12, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-security-desktop-light",
+      "sha256": "e4f0d8018d5e82bd9e06830724bde2627ec598cfff65d43889b2050594fd1b20",
+      "previousSha256": "a628a88c321eabcfd8a08ecbc5717d3bff36e1563b45aaad959490dd0bd0aef2",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-security-desktop-dark",
+      "sha256": "3410112c56cf215b314fe0c60f8a851fff7d8ce146051607bd578f145f64c0c4",
+      "previousSha256": "21719edb62ca0c52454a63354185909c9c369f920cae6049c9c478cd61a96e2c",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 12, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-members-desktop-light",
+      "sha256": "629ad70dc752c2f40f3c71d6436a7107e9f8eedee7aa3f51795158ccc7461cf7",
+      "previousSha256": "f627648a5fd380f95278378c3cad0ef064842becd7ef6981a998ed545a7468d9",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-members-desktop-dark",
+      "sha256": "d719207ecb971d292c3c09f149ec92e1c3610c593c6c227bf90c4ffde27dd5ff",
+      "previousSha256": "67947c7c34cb055e5c647cd24a25598d636c0c17f6086afbb69b52b6118a7fbf",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 12, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-invitations-desktop-light",
+      "sha256": "982b7ac4ff10ccd458573c67f3365bb45ff005669672a144dde64f9166ba3a88",
+      "previousSha256": "add4a3de21c6abe3c844c2879a6b2c56995f89c0cd7217948649e4e093f7bbf9",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "settings-general-desktop-dark",
+      "sha256": "504a1b05cd7c1bb5dfd2a1fb52f719f72756dbd3851a8629c57c763b25311dea",
+      "previousSha256": "0281f91ab164c3a3f1264253fdbe7a04654a21bc0dfd425995d13903a7fba751",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [1428, 12, 1430, 15],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chat-branch-mobile-light",
+      "sha256": "5724d5a89fe626a31562efa7b322081e379f3ea19efede416a7837601049a4b1",
+      "previousSha256": "12567bc2f72c2e9ab46e9c87f25d1e6df82bcc8702c0b9585a79ae680169da23",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [317, 19, 380, 22],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chat-stopped-mobile-dark",
+      "sha256": "3924fc7a0057e3be9b5b010e3c694937c0b34de4cf29b088d3e0435989cf0da1",
+      "previousSha256": "7b2d74998df381dd1762f892bb9fd9e9ed380b5eda647f9c09e49f0b1a88b91b",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [317, 19, 380, 22],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chat-error-mobile-light",
+      "sha256": "e4664c51851b95a7fd5f79c526f9a79cef8bb3c59dc270ef570b5efb1230264e",
+      "previousSha256": "87e69b05080307762f21f99b39533714f8bcb0b0da5e061dd593a2a0eb675d07",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [317, 19, 380, 22],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chats-search-desktop-dark",
+      "sha256": "281e5c9994db0c360eb791240f43354a20dd885158d66411e88999b0627c2afd",
+      "previousSha256": "0f04830a0b7f24e369d2105e851d5e7f09efa38e884ed3323d2ac7eda9709e35",
+      "evidence": {
+        "pixels": 0,
+        "bbox": [484, 300, 486, 304],
+        "channelThreshold": 16,
+        "ciRun": "44478835835"
+      },
+      "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    }
+  ]
 }
