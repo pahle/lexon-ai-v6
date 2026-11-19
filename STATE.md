@@ -1,8 +1,10 @@
 # Project state
 
-Last updated: 2026-11-09 by the brief generator (session 1; session 2 handled F3 Task 9 and PR #25).
+Last updated: 2026-11-19 by the brief generator.
 
 ## Next action
+
+**2026-11-19:** **F4.1 merged** (PR #33, 960d6ab) after visual rounds 1-5, prototype revisions 13-14.9 (PRs #36-#44), LEX-DS-001 v3.1 (page patterns, 1:1 fidelity gate). Reviewer whole-branch review of b7faff9: approved (security review line for the session/security contract recorded in F4.1-acceptance.md). Next: write the **F4.2 hardening brief** (task 1 = legacy visual cleanup, then audit A-01..A-05, A-10, A-16, A-17, A-19, A-22, chat client A-07..A-09, gaps G1-G7, flaky tests, S2 re-qualification with distinct sessions, A-04 burst admission on the 5-connection auth pool, CI E2E sharding, F4.1 carry-overs), then the **F4.3 platform admin console brief** (Accounts, Organizations; prototype drawn from API contracts first).
 
 **2026-11-14:** F4 in Task 21 final fix wave (Codex, moving to a fresh thread because of usage limits). PO agreed to trial **Claude Code as F4.1 implementer** (fresh clean session on the PO's Mac with Docker; this contaminated session stays brief generator/reviewer). Prep done: PR #30 (`.claude/skills` symlinks to `.agents/skills`), F4.1 brief draft at `design-drafts/F4.1-brand-refresh.brief-draft.md`. When F4 merges: publish brief + prototype + brand v4.1 extract + LEX-DS-001 v3.0 in one PR.
 
@@ -21,7 +23,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F2 App shell & design system | **Done** — merged to `main` (PR #20); spec clarifications PR #18, #19 | Notes: `notes/F2-app-shell.md` |
 | F2.1 Visual rework | **Done** — merged to `main` (PR #23); prototype, brand v1.1, DS v2.1 via PR #22 | Screenshot gate; PO approves before merge |
 | F3 AI Run Engine | **Done** — merged to `main` (PR #27; fixes PR #25, #26) | Review: `reviews/F3-review.md` |
-| F4 Chat | Brief merged (PR #28); awaiting Codex brainstorming | Prototype `docs/design/f4-prototype/` |
+| F4 Chat | **Done** — merged (PR #29) | Prototype `docs/design/f4-prototype/` |
+| F4.1 Brand refresh | **Done** — merged (PR #33, 960d6ab) | Prototype rev 14.9, DS v3.1, 272 Linux goldens |
+| F4.2 Hardening | Next: brief | Audit 1 findings + G1-G7 + cleanup |
+| F4.3 Platform admin console | Planned | Accounts, Organizations |
 | F5–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -157,3 +162,5 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - Check that rules compose: F1 said "owners are never invited" and "every org has an owner" while admins invite a first owner (fixed with a `provisioning` state, PR #10).
 - Superpowers brainstorming asks one question per message and waits; give
   the product owner a ready-to-paste English answer for Codex.
+
+- F4.1 lessons (2026-11-19): (1) draw prototype states from the code and API contracts, never from memory (14.3 auth flows, 14.4 provisioning fields, 14.5 security rows were all wrong first); (2) a low pixel % is not correctness: review every sheet by eye, tooltips/icons/carets hide under 0.1%; (3) prototype layout bugs propagate 1:1 (sidebar padding): measure grid edges in the browser before publishing; (4) CI gate integrity: a job-level continue-on-error hid a failing load gate for weeks; every gate needs a guard against exit-code swallowing; (5) token budget: max 2-3 workers, low effort, round caps, read prototype.src.html not the 380 KB embedded file, open images only for failing sheets; (6) F4.2 task 1 cleans legacy visual sets (F2.1-visual, F4-visual, f2.1/f4 prototypes, lexon-2026 brand, rev-12 screens, committed compare sheets -> CI artifacts) with a guard test.
