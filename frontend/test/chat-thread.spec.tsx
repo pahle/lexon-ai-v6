@@ -2011,7 +2011,7 @@ it('shows the loading skeleton at the top with a disabled composer beneath it', 
     expect(input?.disabled).toBe(true);
     expect(
       view.container.querySelector<HTMLButtonElement>(
-        '[aria-label="Send message"]',
+        '[aria-label="Send (unavailable: the chat is loading)"]',
       )?.disabled,
     ).toBe(true);
     expect(

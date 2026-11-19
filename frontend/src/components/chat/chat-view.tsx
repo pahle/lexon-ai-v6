@@ -1,6 +1,7 @@
 'use client';
 
 import { Textarea } from '@/components/ui/textarea';
+import { ComposerReason, sendLabel } from '@/components/chat/composer-reason';
 import { ChatSkeleton } from '@/components/chat/chat-skeleton';
 import { PlaceholderHighlightTextarea } from '@/components/chat/placeholder-highlight-textarea';
 import { Button } from '@/components/ui/button';
@@ -270,15 +271,13 @@ function ChatViewSession({
                 disabled
                 size="icon"
                 className={composerClasses.send}
-                aria-label="Send message"
+                aria-label={sendLabel('loading')}
               >
                 <ArrowUpIcon />
               </Button>
             </div>
           </div>
-          <p className={composerClasses.disclaimer}>
-            Lexon can make mistakes. Verify important legal information.
-          </p>
+          <ComposerReason reason="loading" />
         </div>
       </div>
     );

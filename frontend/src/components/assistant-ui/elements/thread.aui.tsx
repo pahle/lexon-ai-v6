@@ -24,6 +24,11 @@ import {
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
 import { CopyAction } from '@/components/chat/copy-action';
+import {
+  ComposerReason,
+  sendLabel,
+  type ComposerReasonKind,
+} from '@/components/chat/composer-reason';
 import { composerClasses } from '@/components/chat/composer-styles';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
@@ -63,6 +68,7 @@ import {
   type DragEvent,
   type FC,
   type FormEvent,
+  type KeyboardEvent,
 } from 'react';
 
 const EditFocusContext = createContext<{
@@ -935,10 +941,35 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   const serverActive = useChatActiveRun();
   const running =
     useAuiState((state) => state.thread.isRunning) || serverActive;
+  const loading = useAuiState((state) => state.thread.isLoading);
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
+  const [attempted, setAttempted] = useState(false);
+  useEffect(() => {
+    if (!running) setAttempted(false);
+  }, [running]);
+  const reason: ComposerReasonKind = loading
+    ? 'loading'
+    : running && attempted
+      ? 'running-blocked'
+      : null;
+  const attemptWhileBusy = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      !composerText.trim()
+    )
+      return;
+    if (running) setAttempted(true);
+    if (running || loading) event.preventDefault();
+  };
+  const ignoreBlankPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = event.clipboardData.getData('text');
+    if (text && !text.trim()) event.preventDefault();
+  };
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    if (serverActive) {
+    if (serverActive || loading) {
       event.preventDefault();
       return;
     }
@@ -972,6 +1003,9 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           submitMode="enter"
           enterKeyHint="send"
           aria-label="Message input"
+          disabled={loading}
+          onKeyDown={attemptWhileBusy}
+          onPaste={ignoreBlankPaste}
         />
         <div
           className={cn(
@@ -1031,14 +1065,14 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
             <ComposerPrimitive.Send
               render={
                 <TooltipIconButton
-                  tooltip="Send message"
+                  tooltip={sendLabel(loading ? 'loading' : null)}
                   side="bottom"
                   type="button"
-                  disabled={tooLong || !composerText.trim()}
+                  disabled={loading || tooLong || !composerText.trim()}
                   variant="default"
                   size="icon"
                   className={cn('aui-composer-send', composerClasses.send)}
-                  aria-label="Send message"
+                  aria-label={sendLabel(loading ? 'loading' : null)}
                 >
                   <ArrowUpIcon className="aui-composer-send-icon" />
                 </TooltipIconButton>
@@ -1052,9 +1086,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           </p>
         ) : null}
       </div>
-      <p className={composerClasses.disclaimer}>
-        Lexon can make mistakes. Verify important legal information.
-      </p>
+      <ComposerReason reason={reason} />
     </ComposerPrimitive.Root>
   );
 };
