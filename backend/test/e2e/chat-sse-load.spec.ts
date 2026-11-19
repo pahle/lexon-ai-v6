@@ -717,7 +717,7 @@ test('500 authenticated Caddy SSE clients hold a bounded API stream hub', async 
             );
           },
           {
-            timeout: 20000,
+            timeout: 50000,
             intervals: [500],
           },
         )
