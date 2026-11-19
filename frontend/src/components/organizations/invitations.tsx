@@ -311,10 +311,10 @@ export function Invitations({
                           <Mail className="size-4" />
                         </span>
                         <span className="flex min-w-0 flex-col leading-tight">
-                          <span className="font-medium max-md:break-all">
+                          <span className="font-medium max-md:wrap-anywhere">
                             {invitation.email}
                           </span>
-                          <span className="text-xs leading-tight text-muted-foreground max-md:break-all">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:wrap-anywhere">
                             {role} ·{' '}
                             <span
                               className={expired ? 'text-lexon-red-text' : ''}

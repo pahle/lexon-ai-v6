@@ -124,7 +124,7 @@ export function VerificationState({
         </form>
       ) : null}
       {state === 'pending' && email ? (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm leading-[1.21] text-muted-foreground">
           Wrong email?{' '}
           <a
             className="text-foreground underline underline-offset-4"

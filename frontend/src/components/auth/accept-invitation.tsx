@@ -125,7 +125,7 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
         >
           Decline invitation
         </PendingButton>
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm leading-[1.21] text-muted-foreground">
           Not the invited account?{' '}
           <a
             className="text-foreground underline underline-offset-4"

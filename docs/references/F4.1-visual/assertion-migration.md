@@ -91,3 +91,5 @@ No assertion changed. CI run 44367399910 timed out at 240s with no call log, and
 | backend/test/e2e/auth-entry.spec.ts:200 | wordmark `width` `'128'` | `'96'` | Auth wordmark is 96px on desktop (prototype 14.7, LEX-DS-001 §4/§5.5) |
 
 | backend/test/e2e/app-shell.spec.ts:378 collapsed switcher menu | focus the collapsed trigger and press Enter right after the tile is 32px | first polls the tile at x 16 and the sidebar container at 64px, then the same focus, Enter, and "Create a team" visible | CI run 44442427009 failed once with the menu not opening (not reproduced in 12 local runs); the wait lets the 200ms collapse transition finish. The keyboard-reachability assertions are unchanged. |
+
+| frontend/test/organization-presentation.spec.tsx lines 148, 188, 190 | email lines carry `max-md:break-all` | carry `max-md:wrap-anywhere` | Prototype wraps emails at the hyphen and dot, not at any character (round 6 sheets). Mobile emails still wrap instead of truncating; the test still checks the wrapping class. |

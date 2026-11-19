@@ -501,7 +501,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
           }
           onFeedback={onFeedback}
         />
-      ) : (
+      ) : answerBusy || reconnecting ? null : (
         <div
           className={cn(
             '-mt-1 flex min-h-7 items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
@@ -509,7 +509,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
           )}
         >
           <BranchPicker />
-          <UserEditAction hidden={answerBusy || reconnecting} />
+          <UserEditAction />
         </div>
       )}
     </MessagePrimitive.Root>
@@ -793,10 +793,9 @@ const USER_ACTION =
 
 // Copy and Edit are hidden while an answer is thinking, streaming, or
 // reconnecting (prototype 14.6).
-const UserEditAction: FC<{ hidden: boolean }> = ({ hidden }) => {
+const UserEditAction: FC = () => {
   const serverActive = useChatActiveRun();
   const copied = useAuiState((state) => state.message.isCopied);
-  if (hidden) return null;
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning

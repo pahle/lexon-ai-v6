@@ -145,7 +145,7 @@ test('members uses the prototype table, role selector, and eligible invite actio
   const emailLine = [...view.container.querySelectorAll('span')].find(
     (el) => el.textContent === 'dewi@example.test',
   );
-  expect(emailLine?.className).toContain('max-md:break-all');
+  expect(emailLine?.className).toContain('max-md:wrap-anywhere');
   expect(emailLine?.className).not.toContain('truncate');
   expect(view.container.textContent).toContain('Invite people');
   expect(view.container.textContent).not.toContain('Make admin');
@@ -185,9 +185,11 @@ test('invitation email lines wrap on mobile instead of truncating', async () => 
   const email = [...view.container.querySelectorAll('span')].find(
     (el) => el.textContent === 'wrap@example.test',
   );
-  expect(email?.className).toContain('max-md:break-all');
+  expect(email?.className).toContain('max-md:wrap-anywhere');
   expect(email?.className).not.toContain('truncate');
-  expect(email?.nextElementSibling?.className).toContain('max-md:break-all');
+  expect(email?.nextElementSibling?.className).toContain(
+    'max-md:wrap-anywhere',
+  );
   expect(email?.nextElementSibling?.className).not.toContain('truncate');
   presentationFixture.invitationItems = null;
   await view.unmount();

@@ -291,7 +291,7 @@ export function Members({
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="text-xs leading-tight text-muted-foreground max-md:break-all">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:wrap-anywhere">
                             {member.email}
                           </span>
                         </span>
@@ -389,7 +389,7 @@ export function Members({
         </div>
       ) : null}
       {pagination}
-      <div className="-mt-3 flex justify-end pt-4">
+      <div className="-mt-3 flex justify-end pt-2">
         <Button
           variant="outline"
           disabled={submission.pending}
