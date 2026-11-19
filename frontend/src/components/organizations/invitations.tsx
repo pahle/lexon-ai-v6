@@ -305,10 +305,10 @@ export function Invitations({
                           <Mail className="size-4" />
                         </span>
                         <span className="flex min-w-0 flex-col leading-tight">
-                          <span className="font-medium max-md:truncate">
+                          <span className="font-medium max-md:break-all">
                             {invitation.email}
                           </span>
-                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px] max-md:truncate">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:break-all">
                             {role} ·{' '}
                             <span
                               className={

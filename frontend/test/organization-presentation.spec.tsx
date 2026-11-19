@@ -142,6 +142,11 @@ test('members uses the prototype table, role selector, and eligible invite actio
   expect(
     view.container.querySelector('table')?.parentElement?.className,
   ).not.toMatch(/rounded-md|border/);
+  const emailLine = [...view.container.querySelectorAll('span')].find(
+    (el) => el.textContent === 'dewi@example.test',
+  );
+  expect(emailLine?.className).toContain('max-md:break-all');
+  expect(emailLine?.className).not.toContain('truncate');
   expect(view.container.textContent).toContain('Invite people');
   expect(view.container.textContent).not.toContain('Make admin');
   window.history.replaceState(null, '', '/workspace?settings=members');
@@ -154,6 +159,37 @@ test('members uses the prototype table, role selector, and eligible invite actio
     'settings=invitations',
   );
 
+  await view.unmount();
+});
+
+test('invitation email lines wrap on mobile instead of truncating', async () => {
+  presentationFixture.invitationItems = [
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000031',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'wrap@example.test',
+      role: 'member',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-01T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const email = [...view.container.querySelectorAll('span')].find(
+    (el) => el.textContent === 'wrap@example.test',
+  );
+  expect(email?.className).toContain('max-md:break-all');
+  expect(email?.className).not.toContain('truncate');
+  expect(email?.nextElementSibling?.className).toContain('max-md:break-all');
+  expect(email?.nextElementSibling?.className).not.toContain('truncate');
+  presentationFixture.invitationItems = null;
   await view.unmount();
 });
 

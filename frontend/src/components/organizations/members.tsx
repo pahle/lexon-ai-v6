@@ -291,7 +291,7 @@ export function Members({
                               ? ' (you)'
                               : ''}
                           </span>
-                          <span className="text-xs leading-tight text-muted-foreground max-md:max-w-[170px] max-md:truncate">
+                          <span className="text-xs leading-tight text-muted-foreground max-md:break-all">
                             {member.email}
                           </span>
                         </span>
