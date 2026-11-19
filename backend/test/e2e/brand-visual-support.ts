@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -281,8 +281,13 @@ export async function captureBrandView(
 
   if (options.axe !== false) await runBrandAxe(page, id);
 
+  // Workers do not see the CLI flag in process.argv; the config does.
   const mode = resolveVisualMode({
     approvalPath: resolve(setDirectory, 'approval.json'),
+    // 'missing' is Playwright's default when the flag is absent.
+    updateSnapshots: ['all', 'changed'].includes(
+      test.info().config.updateSnapshots,
+    ),
   });
   if (mode === 'capture') {
     const output = resolve(captureDirectory, view.path);
