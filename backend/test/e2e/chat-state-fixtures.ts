@@ -113,7 +113,8 @@ export function assistantMessage(
       state === 'no-signal-completion' ||
       state === 'measured-no-summary-completion' ||
       state === 'stopped-before-answer' ||
-      // The prototype's failed answer shows the mark only, no label.
+      // The failed answer keeps the measured 'Thought for N seconds' label
+      // (reasoningDurationMs below); no summary to expand.
       state === 'run-error'
         ? null
         : reasoning,

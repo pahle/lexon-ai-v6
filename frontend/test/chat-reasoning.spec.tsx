@@ -281,7 +281,7 @@ it('row 4: complete without a duration is the mark only, or Reasoning with a sum
   }
 });
 
-it('row 5: failed is the mark only, even when a duration was measured', async () => {
+it('row 5: failed after measured thinking keeps Thought for N seconds next to the mark', async () => {
   const view = await render(
     <PersistedReasoning
       messageId="m1"
@@ -294,7 +294,24 @@ it('row 5: failed is the mark only, even when a duration was measured', async ()
   try {
     expect(marks(view.container)).toHaveLength(1);
     expect(isStaticMark(marks(view.container)[0]!)).toBeTruthy();
-    expect(view.container.textContent).toBe('');
+    expect(view.container.textContent).toContain('Thought for 8 seconds');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('row 5: failed with no answer text after measured thinking still keeps the label', async () => {
+  const view = await render(
+    <PersistedReasoning
+      messageId="m1"
+      status="failed"
+      summary={null}
+      durationMs={8_000}
+      answerHasText={false}
+    />,
+  );
+  try {
+    expect(view.container.textContent).toContain('Thought for 8 seconds');
   } finally {
     await view.unmount();
   }

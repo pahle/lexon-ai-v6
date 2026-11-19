@@ -66,7 +66,7 @@ export function PersistedReasoning({
       </span>
     );
   const measured =
-    durationMs !== null && answerHasText && status !== 'failed'
+    durationMs !== null && (answerHasText || status === 'failed')
       ? durationLabel(durationMs)
       : null;
   if (summary === null)
