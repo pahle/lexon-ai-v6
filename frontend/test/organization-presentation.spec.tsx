@@ -497,6 +497,7 @@ test('invitation rows print the 7-day copy and day-month-year expiry dates', asy
       expiresAt: new Date(2026, 10, 22, 18, 2).toISOString(),
     },
   ];
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 10) });
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <Invitations organization={team} />
@@ -506,6 +507,50 @@ test('invitation rows print the 7-day copy and day-month-year expiry dates', asy
   expect(view.container.textContent).toContain('expires after 7 days');
   expect(view.container.textContent).toContain('Expires 15 Nov 2026');
   expect(view.container.textContent).toContain('Expires 22 Nov 2026');
+  vi.useRealTimers();
+  presentationFixture.invitationItems = null;
+  await view.unmount();
+});
+
+test('a pending invitation past its expiry reads Expired in red text, a future one reads Expires', async () => {
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 20) });
+  const base = {
+    version: 1 as const,
+    organizationId: team.id,
+    organizationName: team.name,
+    role: 'member' as const,
+    purpose: 'team' as const,
+    status: 'pending' as const,
+    createdAt: '2026-11-01T00:00:00.000Z',
+  };
+  presentationFixture.invitationItems = [
+    {
+      ...base,
+      id: '00000000-0000-4000-8000-000000000031',
+      email: 'past@example.test',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
+    },
+    {
+      ...base,
+      id: '00000000-0000-4000-8000-000000000032',
+      email: 'future@example.test',
+      expiresAt: new Date(2026, 10, 25, 18, 2).toISOString(),
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const text = view.container.textContent ?? '';
+  expect(text).toContain('Expired 15 Nov 2026');
+  expect(text).not.toContain('Expires 15 Nov 2026');
+  expect(text).toContain('Expires 25 Nov 2026');
+  const past = [...view.container.querySelectorAll('span')].find(
+    (node) => node.textContent === 'Expired 15 Nov 2026',
+  );
+  expect(past?.className).toContain('text-lexon-red-text');
+  vi.useRealTimers();
   presentationFixture.invitationItems = null;
   await view.unmount();
 });

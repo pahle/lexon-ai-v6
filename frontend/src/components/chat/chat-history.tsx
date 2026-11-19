@@ -318,7 +318,9 @@ function RecentChatRow({
         isActive={current}
         aria-current={current ? 'page' : undefined}
         tooltip={item.title}
-        className="group-has-[[aria-expanded=true]]/menu-item:pr-8"
+        className={
+          current ? 'pr-8' : 'group-has-[[aria-expanded=true]]/menu-item:pr-8'
+        }
         onClick={onCloseMobile}
         render={
           <Link

@@ -42,7 +42,7 @@ test('the auth frame shows the compact wordmark for each theme', () => {
     </AuthFrame>,
   );
   expect(frame).toContain('dark:hidden');
-  expect(frame).toContain('hidden dark:block');
+  expect(frame).toContain('dark:block');
   expect(frame).toContain('/LEXON-wordmark-compact-white.svg');
   expect(frame).toContain('/LEXON-wordmark-compact-ink.svg');
 });

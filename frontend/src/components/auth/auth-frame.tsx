@@ -18,25 +18,25 @@ export function AuthFrame({ children }: { children: ReactNode }): ReactElement {
     >
       <div
         data-slot="auth-form-column"
-        className="flex flex-col items-center gap-10 px-5 py-7 md:items-stretch md:gap-6 md:bg-sidebar md:p-10"
+        className="flex flex-1 flex-col items-center justify-between gap-6 px-5 py-7 md:items-stretch md:justify-start md:bg-sidebar md:p-10"
       >
         <div className="flex justify-center md:justify-start">
           <LexonLogo
             variant="wordmark-compact"
-            width={128}
-            className="dark:hidden"
+            width={96}
+            className="max-md:h-auto max-md:w-[88px] dark:hidden"
           />
           <LexonLogo
             variant="wordmark-compact"
             tone="white"
-            width={128}
-            className="hidden dark:block"
+            width={96}
+            className="hidden max-md:h-auto max-md:w-[88px] dark:block"
           />
         </div>
         <div className="flex w-full justify-center md:flex-1 md:items-center">
           <div className="w-full max-w-[400px]">{children}</div>
         </div>
-        <div aria-hidden="true" className="hidden h-11 md:block" />
+        <div aria-hidden="true" className="h-9 flex-none md:h-11" />
       </div>
       <div
         aria-hidden="true"

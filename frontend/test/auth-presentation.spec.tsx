@@ -20,7 +20,7 @@ test('account layout uses the v3.1 frame: two columns from 768px, one wordmark, 
   expect(formColumn?.className).toContain('md:p-10');
   expect(formColumn?.className).toContain('px-5');
   expect(formColumn?.className).toContain('py-7');
-  expect(formColumn?.className).toContain('gap-10');
+  expect(formColumn?.className).toContain('justify-between');
   expect(main?.className).toContain('bg-background');
   expect(view.container.querySelector('.max-w-\\[400px\\]')).not.toBeNull();
   const cover = view.container.querySelector('[aria-hidden="true"].md\\:flex');
@@ -67,7 +67,7 @@ test('account layout uses the v3.1 frame: two columns from 768px, one wordmark, 
       view.container
         .querySelector(`img[src*="wordmark-compact-${tone}"]`)
         ?.getAttribute('width'),
-    ).toBe('128');
+    ).toBe('96');
   expect(
     cover?.querySelectorAll('a, button, input, select, textarea, [tabindex]'),
   ).toHaveLength(0);

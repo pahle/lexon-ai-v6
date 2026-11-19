@@ -269,18 +269,18 @@ test('accept-invitation-declined', async ({ page }) => {
 async function openOnboarding(page: import('@playwright/test').Page) {
   const stack = descriptor();
   const headers = await authenticateApi(page.request, {
-    name: 'Brand Preview',
+    name: ayu.name,
   });
   const profile = await page.request.patch(
     stack.apiUrl + '/api/identity/profile',
-    { headers, data: { name: 'Brand Preview' } },
+    { headers, data: { name: ayu.name } },
   );
   expect(profile.status()).toBe(200);
   await page.goto(stack.frontendUrl + '/onboarding');
   await expect(
     page.getByRole('heading', { name: 'Welcome to Lexon' }),
   ).toBeVisible();
-  await expect(page.getByLabel('Display name')).toHaveValue('Brand Preview');
+  await expect(page.getByLabel('Display name')).toHaveValue(ayu.name);
 }
 
 test('onboarding for a real API-created identity', async ({ page }) => {

@@ -134,7 +134,7 @@ function NavigationGroup({
     >
       <SidebarMenuButton
         tooltip={title}
-        isActive={title === 'Platform' ? active : false}
+        isActive={false}
         onClick={() => {
           if (isMobile) setOpenMobile(false);
         }}
@@ -172,6 +172,7 @@ function NavigationGroup({
               <SidebarMenuSubItem key={href}>
                 <SidebarMenuSubButton
                   isActive={current}
+                  className="in-data-[workspace-error]:data-active:bg-transparent in-data-[workspace-error]:data-active:font-normal"
                   aria-current={current ? 'page' : undefined}
                   onClick={() => {
                     if (isMobile) setOpenMobile(false);

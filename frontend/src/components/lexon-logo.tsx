@@ -9,7 +9,7 @@ const WORDMARK_RATIO = 472 / 1631;
 type Props = {
   /**
    * "monogram"          the L on its own, always Merah Segel red
-   * "wordmark-compact"  the wordmark for widths under 200 px (auth pages use 128)
+   * "wordmark-compact"  the wordmark for widths under 200 px (auth pages use 96, 88 on mobile)
    * "wordmark"          the full wordmark, ink only, for 200 px and wider
    */
   variant?: 'monogram' | 'wordmark-compact' | 'wordmark';

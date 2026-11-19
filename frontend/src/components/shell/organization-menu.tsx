@@ -171,7 +171,6 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                   <SidebarMenuButton
                     size="lg"
                     tooltip={orgLabel(identity.organization)}
-                    className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
                   />
                 }
               >

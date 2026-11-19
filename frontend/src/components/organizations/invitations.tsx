@@ -291,6 +291,12 @@ export function Invitations({
                       ? 'Owner'
                       : 'Member';
                 const expiry = formatDayMonthYear(invitation.expiresAt);
+                // A pending invitation past its expiry date is expired even
+                // before the server has recorded the status change.
+                const expired =
+                  invitation.status === 'expired' ||
+                  (invitation.status === 'pending' &&
+                    new Date(invitation.expiresAt).getTime() <= Date.now());
                 return (
                   <TableRow
                     key={invitation.id}
@@ -311,16 +317,12 @@ export function Invitations({
                           <span className="text-xs leading-tight text-muted-foreground max-md:break-all">
                             {role} ·{' '}
                             <span
-                              className={
-                                invitation.status === 'expired'
-                                  ? 'text-lexon-red-text'
-                                  : ''
-                              }
+                              className={expired ? 'text-lexon-red-text' : ''}
                             >
-                              {invitation.status === 'pending'
-                                ? `Expires ${expiry}`
-                                : invitation.status === 'expired'
-                                  ? `Expired ${expiry}`
+                              {expired
+                                ? `Expired ${expiry}`
+                                : invitation.status === 'pending'
+                                  ? `Expires ${expiry}`
                                   : invitation.status}
                             </span>
                           </span>

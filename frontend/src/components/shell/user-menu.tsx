@@ -102,7 +102,6 @@ export function UserMenu({
             <SidebarMenuButton
               size="lg"
               title={collapsed ? name : undefined}
-              className="aria-expanded:bg-sidebar-accent"
               disabled={busy}
             />
           ) : (

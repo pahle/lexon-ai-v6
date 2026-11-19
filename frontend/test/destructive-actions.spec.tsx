@@ -20,8 +20,8 @@ test('the destructive button is a solid Merah Segel Deep fill with white text', 
 test('an outline trigger carries no destructive color', async () => {
   const view = await render(<Button variant="outline">Remove</Button>);
   const button = view.container.querySelector('button')!;
-  expect(button.classList.contains('border-border')).toBe(true);
-  expect(button.classList.contains('bg-background')).toBe(true);
+  expect(button.classList.contains('border-input')).toBe(true);
+  expect(button.classList.contains('bg-transparent')).toBe(true);
   expect(button.className).not.toContain('destructive-fill');
   expect(button.className).not.toContain('text-destructive');
   await view.unmount();

@@ -202,8 +202,8 @@ test('session list shows each device as the prototype draws it and signs out onl
   const signOut = view.container.querySelector<HTMLButtonElement>('li button')!;
   expect(signOut.getAttribute('aria-label')).toBe('Sign out Safari on iPhone');
   // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  expect(signOut.classList.contains('border-border')).toBe(true);
-  expect(signOut.classList.contains('bg-background')).toBe(true);
+  expect(signOut.classList.contains('border-input')).toBe(true);
+  expect(signOut.classList.contains('bg-transparent')).toBe(true);
   expect(signOut.className).not.toContain('text-destructive');
   await act(async () => signOut.click());
   expect(revoked).toBe('');

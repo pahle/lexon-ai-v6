@@ -183,7 +183,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.className,
-  ).toContain('data-open:bg-sidebar-accent');
+  ).not.toContain('data-open:bg-sidebar-accent');
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] svg.lucide-chevrons-up-down',

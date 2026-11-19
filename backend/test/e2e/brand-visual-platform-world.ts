@@ -116,6 +116,16 @@ async function enrollAdministrator(page: Page, email: string): Promise<string> {
       )
     ).status(),
   ).toBe(204);
+  // The sidebar subtitle shows the job title; without one it falls back to
+  // the generated address.
+  expect(
+    (
+      await page.request.patch(stack.apiUrl + '/api/identity/profile', {
+        headers: { origin: stack.frontendUrl },
+        data: { name: platformAdmin.name, jobTitle: 'Platform administrator' },
+      })
+    ).status(),
+  ).toBe(200);
   return uri!;
 }
 /**
