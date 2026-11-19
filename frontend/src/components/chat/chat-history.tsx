@@ -318,7 +318,13 @@ function RecentChatRow({
         isActive={current}
         aria-current={current ? 'page' : undefined}
         tooltip={item.title}
-        className="pr-8"
+        // Leave room for the ⋯ only while it shows (open chat, hover, focus,
+        // menu open); other rows print the title to full width (prototype 14.8).
+        className={
+          current
+            ? 'pr-8'
+            : 'md:group-hover/menu-item:pr-8 group-focus-within/menu-item:pr-8 group-has-data-popup-open/menu-item:pr-8'
+        }
         onClick={onCloseMobile}
         render={
           <Link

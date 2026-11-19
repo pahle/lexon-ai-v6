@@ -111,14 +111,14 @@ export function StandaloneStatusPage(props: StatusPageProps) {
         <div className="flex justify-center p-6 md:justify-start md:p-10">
           <LexonLogo
             variant="wordmark-compact"
-            width={128}
-            className="dark:hidden"
+            width={96}
+            className="max-md:h-auto max-md:w-[88px] dark:hidden"
           />
           <LexonLogo
             variant="wordmark-compact"
             tone="white"
-            width={128}
-            className="hidden dark:block"
+            width={96}
+            className="hidden max-md:h-auto max-md:w-[88px] dark:block"
           />
         </div>
         <StatusPage {...props} />
