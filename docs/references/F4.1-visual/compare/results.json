@@ -447,24 +447,6 @@
       "sheet": "toast-success-m.png"
     },
     {
-      "id": "two-factor",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "two-factor",
-      "percent": 1.63,
-      "status": "FAIL",
-      "sheet": "two-factor-m.png"
-    },
-    {
-      "id": "two-factor",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "two-factor",
-      "percent": 1.61,
-      "status": "FAIL",
-      "sheet": "two-factor-m-dark.png"
-    },
-    {
       "id": "sign-in-form-alert",
       "variant": "m",
       "key": "mobile-light",
@@ -501,6 +483,15 @@
       "sheet": "chats-search-m-dark.png"
     },
     {
+      "id": "two-factor",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "two-factor",
+      "percent": 1.54,
+      "status": "FAIL",
+      "sheet": "two-factor-m.png"
+    },
+    {
       "id": "settings-appearance",
       "variant": "m",
       "key": "mobile-light",
@@ -517,6 +508,15 @@
       "percent": 1.53,
       "status": "FAIL",
       "sheet": "chats-search-m.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "two-factor",
+      "percent": 1.52,
+      "status": "FAIL",
+      "sheet": "two-factor-m-dark.png"
     },
     {
       "id": "settings-appearance",
@@ -987,6 +987,24 @@
       "sheet": "chat-copied-m-dark.png"
     },
     {
+      "id": "chat-error",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-error",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "chat-error-m-dark.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-error",
+      "percent": 0.84,
+      "status": "PASS",
+      "sheet": "chat-error-m.png"
+    },
+    {
       "id": "settings-general",
       "variant": "d",
       "key": "desktop-light",
@@ -1239,24 +1257,6 @@
       "sheet": "sign-in-field-errors-m.png"
     },
     {
-      "id": "chat-thread-loading",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-thread-loading",
-      "percent": 0.69,
-      "status": "PASS",
-      "sheet": "chat-thread-loading-m-dark.png"
-    },
-    {
-      "id": "chat-error",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-error",
-      "percent": 0.68,
-      "status": "PASS",
-      "sheet": "chat-error-m-dark.png"
-    },
-    {
       "id": "sign-up",
       "variant": "m",
       "key": "mobile-light",
@@ -1282,24 +1282,6 @@
       "percent": 0.67,
       "status": "PASS",
       "sheet": "chat-deep-thinking-d-dark.png"
-    },
-    {
-      "id": "chat-error",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-error",
-      "percent": 0.67,
-      "status": "PASS",
-      "sheet": "chat-error-m.png"
-    },
-    {
-      "id": "chat-thread-loading",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-thread-loading",
-      "percent": 0.67,
-      "status": "PASS",
-      "sheet": "chat-thread-loading-m.png"
     },
     {
       "id": "chat-rename",
@@ -1336,6 +1318,24 @@
       "percent": 0.64,
       "status": "PASS",
       "sheet": "chats-empty-m-dark.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.63,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-m-dark.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.62,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-m.png"
     },
     {
       "id": "chats-history",
@@ -1599,24 +1599,6 @@
       "sheet": "recent-menu-d-dark.png"
     },
     {
-      "id": "two-factor",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "two-factor",
-      "percent": 0.43,
-      "status": "PASS",
-      "sheet": "two-factor-d.png"
-    },
-    {
-      "id": "two-factor",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "two-factor",
-      "percent": 0.43,
-      "status": "PASS",
-      "sheet": "two-factor-d-dark.png"
-    },
-    {
       "id": "platform-accounts",
       "variant": "d",
       "key": "desktop-light",
@@ -1687,6 +1669,24 @@
       "percent": 0.41,
       "status": "PASS",
       "sheet": "onboarding-team-d-dark.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-error",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "chat-error-d.png"
+    },
+    {
+      "id": "chat-error",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-error",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "chat-error-d-dark.png"
     },
     {
       "id": "sign-in",
@@ -1860,6 +1860,24 @@
       "sheet": "forgot-password-d.png"
     },
     {
+      "id": "two-factor",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "two-factor",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "two-factor-d.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "two-factor",
+      "percent": 0.37,
+      "status": "PASS",
+      "sheet": "two-factor-d-dark.png"
+    },
+    {
       "id": "chat-delete",
       "variant": "d",
       "key": "desktop-light",
@@ -1932,15 +1950,6 @@
       "sheet": "chat-stopped-d-dark.png"
     },
     {
-      "id": "chat-error",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-error",
-      "percent": 0.35,
-      "status": "PASS",
-      "sheet": "chat-error-d-dark.png"
-    },
-    {
       "id": "onboarding-team",
       "variant": "d",
       "key": "desktop-light",
@@ -1975,15 +1984,6 @@
       "percent": 0.34,
       "status": "PASS",
       "sheet": "chat-stopped-d.png"
-    },
-    {
-      "id": "chat-error",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-error",
-      "percent": 0.34,
-      "status": "PASS",
-      "sheet": "chat-error-d.png"
     },
     {
       "id": "chat-thread-loading",
