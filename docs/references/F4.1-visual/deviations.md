@@ -6,52 +6,52 @@ Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture
 
 Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-prototype.mjs --gate` skips the listed rows). Variant: `d` desktop, `m` mobile, `-dark` dark.
 
-| id                              | variant | %    | reason                                                                                                                               |
-| ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| two-factor                      | m       | 1.54 | owner review: focus ring on the first empty slot now matches; residual 1px text offset (crop shown 2026-11-19); Linux CI 44467952162 |
-| two-factor                      | m-dark  | 1.52 | owner review: focus ring on the first empty slot now matches; residual 1px text offset (crop shown 2026-11-19); Linux CI 44467952162 |
-| chat-deep-thinking              | m       | 2.06 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chat-deep-thinking              | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chat-delete                     | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chat-edit                       | d       | 1.84 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| chat-edit                       | d-dark  | 1.82 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| chat-rename                     | m       | 1.95 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chat-rename                     | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chats-no-results                | m       | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chats-no-results                | m-dark  | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chats-search                    | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| chats-search                    | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| mobile-sheet-open               | m       | 2.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| mobile-sheet-open               | m-dark  | 3.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| onboarding-team                 | m-dark  | 1.70 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| organization-switcher-open      | m       | 3.14 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| organization-switcher-open      | m-dark  | 3.28 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-empty     | m-dark  | 3.55 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-error     | m       | 2.98 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-error     | m-dark  | 3.70 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-loading   | m       | 2.30 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-loading   | m-dark  | 2.60 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-populated | m       | 2.66 | replaced in F4.3 (owner)                                                                                                             |
-| platform-provisioning-populated | m-dark  | 3.27 | replaced in F4.3 (owner)                                                                                                             |
-| recent-menu                     | m       | 2.67 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| recent-menu                     | m-dark  | 2.84 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| settings-appearance             | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| settings-general                | m       | 2.02 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| settings-general                | m-dark  | 1.92 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| settings-invitations            | m       | 2.81 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| settings-invitations            | m-dark  | 2.78 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| settings-members                | m       | 2.15 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| settings-members                | m-dark  | 2.11 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)                                            |
-| settings-security               | m       | 3.26 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| settings-security               | m-dark  | 3.01 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| sign-in-form-alert              | m       | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| sign-in-form-alert              | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| toast-success                   | m       | 1.64 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| user-menu-open                  | m       | 3.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
-| user-menu-open                  | m-dark  | 4.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                                      |
+| id                              | variant | %    | reason                                                                                          |
+| ------------------------------- | ------- | ---- | ----------------------------------------------------------------------------------------------- |
+| two-factor                      | m       | 1.54 | owner accepted 2026-11-19 (focus ring matches; residual is the caret and a 1px text offset)     |
+| two-factor                      | m-dark  | 1.52 | owner accepted 2026-11-19 (focus ring matches; residual is the caret and a 1px text offset)     |
+| chat-deep-thinking              | m       | 2.06 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-deep-thinking              | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-delete                     | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-edit                       | d       | 1.84 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| chat-edit                       | d-dark  | 1.82 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| chat-rename                     | m       | 1.95 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-rename                     | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chats-no-results                | m       | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chats-no-results                | m-dark  | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chats-search                    | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chats-search                    | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| mobile-sheet-open               | m       | 2.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| mobile-sheet-open               | m-dark  | 3.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| onboarding-team                 | m-dark  | 1.70 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| organization-switcher-open      | m       | 3.14 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| organization-switcher-open      | m-dark  | 3.28 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-empty     | m-dark  | 3.55 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-error     | m       | 2.98 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-error     | m-dark  | 3.70 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-loading   | m       | 2.30 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-loading   | m-dark  | 2.60 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-populated | m       | 2.66 | replaced in F4.3 (owner)                                                                        |
+| platform-provisioning-populated | m-dark  | 3.27 | replaced in F4.3 (owner)                                                                        |
+| recent-menu                     | m       | 2.67 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| recent-menu                     | m-dark  | 2.84 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| settings-appearance             | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| settings-general                | m       | 2.02 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| settings-general                | m-dark  | 1.92 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| settings-invitations            | m       | 2.81 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-invitations            | m-dark  | 2.78 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-members                | m       | 2.15 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-members                | m-dark  | 2.11 | owner accepted 2026-11-19 (reviewer, round 5: text-rendering residuals, layout identical)       |
+| settings-security               | m       | 3.26 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| settings-security               | m-dark  | 3.01 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| sign-in-form-alert              | m       | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| sign-in-form-alert              | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| toast-success                   | m       | 1.64 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| user-menu-open                  | m       | 3.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| user-menu-open                  | m-dark  | 4.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
