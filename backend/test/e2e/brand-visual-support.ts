@@ -310,7 +310,10 @@ export async function captureBrandView(
   if (!validatedSets.has(validationKey)) {
     assertApprovedVisualSet(index, approval, setDirectory, {
       requireBaselines: mode === 'compare',
-      expectedViewCount: Object.keys(index.views).length,
+      expectedViewCount: Object.values(index.views).filter(
+        (indexed) =>
+          indexed.path?.startsWith('review/') && isPixelLocked(indexed),
+      ).length,
     });
     validatedSets.add(validationKey);
   }
