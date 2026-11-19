@@ -416,7 +416,11 @@ const OWNED_OUTPUTS = [
   'F4-stream-latency.json',
   'diagnostic.json',
   'failure.json',
+  'child-output-tail.log',
 ];
+const OUTPUT_TAIL_LINES = 200;
+const OUTPUT_TAIL_MAX_BYTES = 256 * 1024;
+const SECRET_NAME = /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|URL|DSN)/iu;
 
 async function resetEvidenceDirectory() {
   await mkdir(EVIDENCE_DIRECTORY, { recursive: true, mode: 0o700 });
@@ -441,7 +445,45 @@ async function recordFailure(phase) {
   );
 }
 
+export function redactSecrets(text, env) {
+  let result = text;
+  const values = Object.entries(env)
+    .filter(
+      ([name, value]) =>
+        SECRET_NAME.test(name) &&
+        typeof value === 'string' &&
+        value.length >= 6,
+    )
+    .map(([, value]) => value)
+    .sort((left, right) => right.length - left.length);
+  for (const value of values) result = result.split(value).join('[redacted]');
+  return result;
+}
+
+export function boundedTail(text, lines = OUTPUT_TAIL_LINES) {
+  const tail = text.split(/\r?\n/u).slice(-lines).join('\n');
+  return tail.length > OUTPUT_TAIL_MAX_BYTES
+    ? tail.slice(-OUTPUT_TAIL_MAX_BYTES)
+    : tail;
+}
+
+let lastOutput = '';
+
+async function reportChildOutput(env) {
+  const tail = redactSecrets(boundedTail(lastOutput), env).trim();
+  if (!tail) return;
+  process.stderr.write(
+    `--- last ${OUTPUT_TAIL_LINES} lines of child output ---\n${tail}\n--- end child output ---\n`,
+  );
+  await writeFile(
+    join(EVIDENCE_DIRECTORY, 'child-output-tail.log'),
+    `${tail}\n`,
+    { mode: 0o600 },
+  ).catch(() => undefined);
+}
+
 function runPnpm(args, env) {
+  lastOutput = '';
   return new Promise((resolveResult) => {
     let settled = false;
     const finish = (success) => {
@@ -453,8 +495,15 @@ function runPnpm(args, env) {
       const child = spawn('pnpm', args, {
         env,
         shell: false,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
+      const collect = (chunk) => {
+        lastOutput = (lastOutput + chunk.toString('utf8')).slice(
+          -OUTPUT_TAIL_MAX_BYTES * 4,
+        );
+      };
+      child.stdout.on('data', collect);
+      child.stderr.on('data', collect);
       child.once('error', () => finish(false));
       child.once('exit', (code) => finish(code === 0));
     } catch {
@@ -476,12 +525,14 @@ async function runChatLoadCommand() {
       ))
     ) {
       await recordFailure(phase);
+      await reportChildOutput(qualificationEnvironment);
       process.stderr.write(`${COMMAND_FAILURE}\n`);
       process.exitCode = 1;
       return;
     }
     if (!(await runPnpm(QUALIFICATION_ARGS, qualificationEnvironment))) {
       await recordFailure(phase);
+      await reportChildOutput(qualificationEnvironment);
       process.stderr.write(`${COMMAND_FAILURE}\n`);
       process.exitCode = 1;
       return;
@@ -496,6 +547,7 @@ async function runChatLoadCommand() {
     };
     if (!(await runPnpm(LOAD_E2E_ARGS, e2eEnvironment))) {
       await recordFailure(phase);
+      await reportChildOutput(e2eEnvironment);
       process.stderr.write(`${COMMAND_FAILURE}\n`);
       process.exitCode = 1;
     }

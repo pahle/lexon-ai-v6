@@ -105,5 +105,6 @@ jobs:
             test-results/f4-chat-load/F4-stream-latency.json
             test-results/f4-chat-load/failure.json
             test-results/f4-chat-load/diagnostic.json
+            test-results/f4-chat-load/child-output-tail.log
           retention-days: 14
           if-no-files-found: warn

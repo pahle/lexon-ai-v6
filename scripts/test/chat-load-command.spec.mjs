@@ -33,6 +33,7 @@ async function runWithFakePnpm({
   qualificationExit,
   e2eExit,
   removeEvidenceOnE2EFailure = false,
+  noise = false,
 }) {
   const directory = await mkdtemp(join(tmpdir(), 'chat-load-command-'));
   const binDirectory = join(directory, 'bin');
@@ -72,6 +73,10 @@ const e2e = !qualification && !contractsBuild;
 if (e2e && process.env.CHAT_LOAD_TEST_REMOVE_EVIDENCE_ON_E2E_FAILURE === '1') {
   rmSync(process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR, { recursive: true, force: true });
 }
+if (e2e && process.env.CHAT_LOAD_TEST_E2E_NOISE === '1') {
+  for (let i = 1; i <= 300; i += 1) console.log('e2e line ' + i);
+  console.error('boom with ' + process.env.AUTH_SECRET);
+}
 process.exitCode = Number(
   contractsBuild
     ? process.env.CHAT_LOAD_TEST_CONTRACTS_BUILD_EXIT
@@ -90,6 +95,8 @@ process.exitCode = Number(
       env: {
         PATH: binDirectory,
         CHAT_LOAD_TEST_LOG: logPath,
+        CHAT_LOAD_TEST_E2E_NOISE: noise ? '1' : '0',
+        AUTH_SECRET: 'synthetic-super-secret-value',
         LEXON_CHAT_LOAD_EVIDENCE_DIR: evidenceDirectory,
         CHAT_LOAD_TEST_CONTRACTS_BUILD_EXIT: String(contractsBuildExit),
         CHAT_LOAD_TEST_QUALIFICATION_EXIT: String(qualificationExit),
@@ -329,4 +336,27 @@ process.exitCode = 1;
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('E2E failure prints and records a bounded, redacted tail of child output', async () => {
+  const child = await runWithFakePnpm({
+    qualificationExit: 0,
+    e2eExit: 1,
+    noise: true,
+  });
+
+  assert.notEqual(child.status, 0);
+  assert.deepEqual(child.evidenceFiles.sort(), [
+    'child-output-tail.log',
+    'failure.json',
+  ]);
+  const tail = child.evidence['child-output-tail.log'];
+  assert.match(tail, /e2e line 300/u);
+  assert.doesNotMatch(tail, /e2e line 99\b/u);
+  assert.ok(tail.trim().split('\n').length <= 200);
+  assert.match(tail, /boom with \[redacted\]/u);
+  assert.doesNotMatch(tail, /synthetic-super-secret-value/u);
+  assert.match(child.stderr, /e2e line 300/u);
+  assert.doesNotMatch(child.stderr, /synthetic-super-secret-value/u);
+  assert.match(child.stderr, /Chat SSE load command failed\./u);
 });
