@@ -31,12 +31,23 @@ function chain(error: unknown): object[] {
   }
   return out;
 }
-function hasProperty(error: unknown, key: string, value: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as Record<string, unknown>)[key] === value
-  );
+// R3b names http-errors `entity.parse.failed`; the installed Nest 12.3.2
+// adapter instead turns body-parser's SyntaxError into a BadRequestException
+// that carries the V8 "... JSON ..." message (express-adapter.js mapException).
+// Both count as INVALID_JSON, and nothing else does.
+function invalidJson(error: unknown): boolean {
+  if (chain(error).some((e) => hasType(e, 'entity.parse.failed'))) return true;
+  if (!(error instanceof HttpException) || error.getStatus() !== 400)
+    return false;
+  const body = error.getResponse();
+  const message =
+    typeof body === 'object' && body !== null
+      ? (body as { message?: unknown }).message
+      : body;
+  return typeof message === 'string' && /\bJSON\b/.test(message);
+}
+function hasType(error: object, type: string): boolean {
+  return (error as { type?: unknown }).type === type;
 }
 function databaseCode(error: unknown, codes: string[]): boolean {
   return chain(error).some((e) =>
@@ -92,7 +103,14 @@ export class SafeErrorFilter implements ExceptionFilter {
       };
     } else if (error instanceof z.ZodError) {
       status = 400;
-      detail = { code: 'VALIDATION_ERROR', message: 'Invalid request' };
+      detail = {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid request',
+        issues: error.issues.slice(0, 20).map((issue) => ({
+          path: issue.path.map(String).join('.'),
+          message: 'Invalid value',
+        })),
+      };
     } else if (error instanceof ValidationFailure) {
       status = 400;
       detail = {
@@ -100,7 +118,7 @@ export class SafeErrorFilter implements ExceptionFilter {
         message: 'Validation failed',
         issues: error.issues,
       };
-    } else if (hasProperty(error, 'type', 'entity.parse.failed')) {
+    } else if (invalidJson(error)) {
       status = 400;
       detail = { code: 'INVALID_JSON', message: 'Invalid JSON' };
     } else if (unavailable(error)) {

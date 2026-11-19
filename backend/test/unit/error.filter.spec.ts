@@ -1,4 +1,4 @@
-import { HttpException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { APIError } from 'better-auth/api';
 import { describe, expect, test, vi } from 'vitest';
 import { SafeErrorFilter } from '../../src/modules/platform/error.filter.js';
@@ -48,6 +48,20 @@ const cases: Array<[string, unknown, number, string]> = [
     new APIError('FORBIDDEN', { message: 'constraint stack SELECT' }),
     403,
     'REQUEST_REJECTED',
+  ],
+  [
+    'Nest-wrapped body-parser SyntaxError',
+    new BadRequestException(
+      "Expected property name or '}' in JSON at position 1",
+    ),
+    400,
+    'INVALID_JSON',
+  ],
+  [
+    'other 400 is not INVALID_JSON',
+    new BadRequestException('Invalid stream recovery mode'),
+    400,
+    'VALIDATION_ERROR',
   ],
   ['pg 23505', pg('23505'), 409, 'CONFLICT'],
   ['pg 23P01', pg('23P01'), 409, 'CONFLICT'],
