@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.8, approved 2026-11-19) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.9, approved 2026-11-19) |
 
 ## Rationale
 
@@ -371,7 +371,10 @@ The prototype README and `fm-strip.png` / `finish-strip.png` show it.
   next to "Thought for N seconds" on every completed answer, rendered without
   animation for answers loaded later.
 - **Labels and timing** follow F4: no "Thought for" without a measured
-  duration.
+  duration. A failed or stopped answer whose thinking phase finished (a
+  duration was measured before the failure) still shows "Thought for N
+  seconds" next to the static mark; one with no measured duration shows the
+  mark alone (owner, 2026-11-19).
 - **Reduced motion:** a static mark only.
 - **Accessibility:** the graphic is `aria-hidden`; a polite status text says
   "Thinking" and "Answer complete".

@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.8).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -96,7 +96,11 @@ Drawn from the round-4 code on `f4.1-brand-refresh`, not from memory:
 - Mobile: Copy and Edit under a user message stay visible (no hover on touch).
 - Editing a message keeps the action row under the muted answer.
 
-## Revision 14.6–14.8 (2026-11-19)
+## Revision 14.6–14.9 (2026-11-19)
+
+- chat-error: the answer header keeps "Thought for N seconds" when the
+  thinking duration was measured before the failure (owner); with no measured
+  duration, the mark stays alone.
 
 - Sidebar on one grid (owner): content runs x 16–240; tile, icons, titles and
   avatar share the left edge; chevron glyphs, the shortcut and ⋯ share the

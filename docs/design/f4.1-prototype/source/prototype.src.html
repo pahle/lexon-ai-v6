@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 14.8</title>
+<title>Lexon v4.1 Prototype, revision 14.9</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -534,7 +534,7 @@ function thread(S){
   case 'edit': b=`<div class="ebox"><div class="box"><textarea aria-label="Edit message">Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?</textarea></div><div class="acts"><button class="btn outline">Cancel</button><button class="btn primary">Save</button></div></div><div class="am dim">${who('Thought for 14 seconds',false)}${A1}${abar()}</div>`; break;
   case 'branch': b=um('Apa saja syarat sahnya perjanjian menurut KUHPerdata? Jawab singkat.',{branch:true,show:true})+`<div class="am">${who('Thought for 6 seconds',false)}${A1b}${abar()}</div>`; break;
   case 'stopped': b=um(Q1)+`<div class="am">${who('Thought for 9 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu</li></ol><div class="sline">You stopped this response.</div>${abar()}</div>`; break;
-  case 'error': b=um(Q1)+`<div class="am">${who('',null)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The response could not be completed.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>${abar()}</div>`; break;
+  case 'error': b=um(Q1)+`<div class="am">${who('Thought for 6 seconds',false)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The response could not be completed.</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>${abar()}</div>`; break;
   case 'reconnect': b=um(Q1)+`<div class="am">${who('Thought for 8 seconds',false,true)}<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><div class="sline" role="status">${sv('wifi',18)}Connection lost. Reconnecting…</div></div>`; c=composer({streaming:true}); break;
   case 'loading': b=`<div style="align-self:flex-end;width:55%"><div class="skel" style="height:44px;border-radius:16px"></div></div><div style="display:flex;flex-direction:column;gap:10px"><div class="skel" style="width:30%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:82%"></div></div>`; c=composer({off:true}); break;
   case 'actions': b=um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({tip:'copy'})}</div>`; break;
