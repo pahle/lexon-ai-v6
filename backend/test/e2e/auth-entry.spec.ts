@@ -197,7 +197,7 @@ test('entry pages are accessible and validate without social entry points', asyn
     await expect(page.locator('img[alt="Lexon"]:visible')).toHaveCount(1);
     await expect(page.locator('img[alt="Lexon"]:visible')).toHaveAttribute(
       'width',
-      '128',
+      '96',
     );
     // The cover carries no wordmark (LEX-DS-001 v3.1 section 5.5).
     await expect(page.locator('img:not([alt="Lexon"])')).toHaveCount(0);

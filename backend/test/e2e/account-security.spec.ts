@@ -69,7 +69,7 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
     .getByRole('button', { name: /^Sign out / });
   await expect(revoke).toBeVisible();
   // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
-  await expect(revoke).toHaveClass(/border-border/);
+  await expect(revoke).toHaveClass(/border-input/);
   await expect(revoke).not.toHaveClass(/text-destructive/);
   await revoke.click();
   const confirmation = page.getByRole('alertdialog', {
