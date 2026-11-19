@@ -51,6 +51,32 @@ export interface ChatRuntimeProps {
   readonly onStopReady?: (stop: () => Promise<void>) => void;
 }
 
+export interface LeafStore {
+  getSelectedLeafId(): string | null;
+  setSelectedLeafId(leafId: string | null): void;
+  /** Falls back to the server's viewed leaf when the selection vanished. */
+  syncFromTree(tree: ChatTree): void;
+}
+
+/** The single owner of the selected leaf for one chat runtime. */
+export function createLeafStore(initial: string | null): LeafStore {
+  let selected = initial;
+  return {
+    getSelectedLeafId: () => selected,
+    setSelectedLeafId: (leafId) => {
+      selected = leafId;
+    },
+    syncFromTree: (tree) => {
+      if (
+        selected !== null &&
+        tree.messages.some((message) => message.id === selected)
+      )
+        return;
+      selected = tree.viewedLeafId;
+    },
+  };
+}
+
 export function ChatRuntime(props: ChatRuntimeProps) {
   return (
     <ChatRuntimeSession
@@ -79,7 +105,7 @@ function ChatRuntimeSession({
     string | undefined
   >(() => findActiveRun(tree)?.runId);
   const [selectionSaveFailed, setSelectionSaveFailed] = useState(false);
-  const selectedLeafIdRef = useRef(tree.viewedLeafId);
+  const [leafStore] = useState(() => createLeafStore(tree.viewedLeafId));
   const onRunIdRef = useRef(onRunId);
   const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
@@ -107,7 +133,8 @@ function ChatRuntimeSession({
         baseUrl: '/api',
         chatId,
         actorScope,
-        selectedLeafId: tree.viewedLeafId,
+        getSelectedLeafId: leafStore.getSelectedLeafId,
+        setSelectedLeafId: leafStore.setSelectedLeafId,
         effort,
         onStreamState: (state) => {
           streamReconnectingRef.current = state === 'reconnecting';
@@ -142,7 +169,7 @@ function ChatRuntimeSession({
       readonly headId: string | null;
     }) => {
       if (headId === null) return;
-      selectedLeafIdRef.current = headId;
+      leafStore.setSelectedLeafId(headId);
       setSelectionSaveFailed(false);
       void transport
         .selectLeaf(headId, () =>
@@ -172,10 +199,10 @@ function ChatRuntimeSession({
       try {
         const freshTree = await onTreeRefresh();
         if (signal.aborted) return;
-        const selectedLeafId = selectedLeafIdRef.current;
+        leafStore.syncFromTree(freshTree);
+        const selectedLeafId = leafStore.getSelectedLeafId();
         const refreshedTree =
-          selectedLeafId !== null &&
-          freshTree.messages.some((message) => message.id === selectedLeafId)
+          selectedLeafId !== null && selectedLeafId !== freshTree.viewedLeafId
             ? { ...freshTree, viewedLeafId: selectedLeafId }
             : freshTree;
         onTreeUpdate?.(refreshedTree);
@@ -188,7 +215,7 @@ function ChatRuntimeSession({
           const threadRuntime = threadRuntimeRef.current;
           const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
           const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
-          const selectedLeafBeforeStop = selectedLeafIdRef.current;
+          const selectedLeafBeforeStop = leafStore.getSelectedLeafId();
           const sdkRunIsActive =
             chatStatusRef.current === 'submitted' ||
             chatStatusRef.current === 'streaming';
@@ -199,7 +226,7 @@ function ChatRuntimeSession({
           if (currentThreadRuntime) {
             const currentRepository = currentThreadRuntime.export();
             const branchChangedDuringStop =
-              selectedLeafIdRef.current !== selectedLeafBeforeStop;
+              leafStore.getSelectedLeafId() !== selectedLeafBeforeStop;
             importCanonicalTerminalRepository(
               currentThreadRuntime,
               reconcileCanonicalTerminalMessages(

@@ -1797,7 +1797,7 @@ it('shows the empty placeholder in both public runtime and SDK state before dire
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     initialRunId: runId,
     fetch,
   });
@@ -2037,7 +2037,7 @@ it('continues a nonterminal snapshot text part with later deltas from the same a
     chatId,
     actorScope: 'tenant-1:user-1',
     initialRunId: runId,
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
   let chatMessages: readonly UIMessage[] = [];
@@ -2168,7 +2168,7 @@ it('clears failed attempt text and measured reasoning when a real reset-step sta
     chatId: '11111111-1111-4111-8111-111111111111',
     actorScope: 'tenant-1:user-1',
     initialRunId: runId,
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
   let chatMessages: readonly UIMessage[] = [];
@@ -2343,7 +2343,7 @@ it('replaces an earlier PostgreSQL snapshot when a newer snapshot arrives on the
     chatId: '11111111-1111-4111-8111-111111111111',
     actorScope: 'tenant-1:user-1',
     initialRunId: runId,
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
   let chatMessages: readonly UIMessage[] = [];
