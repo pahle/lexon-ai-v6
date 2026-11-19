@@ -428,7 +428,11 @@ test('copied answer and given feedback hold their timers', async ({
       await load();
       const scroll = threadScroll(page);
       const top = await scroll.save();
-      await page.getByRole('button', { name: 'Copy answer' }).click();
+      // Hover first, so the tooltip opens before the clock is held and then
+      // reads "Copied" after the click.
+      const copyButton = page.getByRole('button', { name: 'Copy answer' });
+      if (viewport === 'desktop') await copyButton.hover();
+      await copyButton.click();
       await scroll.restore(top);
       // The accessible name changes to "Copied" while the confirmation shows.
       const copied = page.getByRole('button', { name: 'Copied' });

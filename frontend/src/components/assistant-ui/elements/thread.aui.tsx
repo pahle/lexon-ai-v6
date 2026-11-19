@@ -700,7 +700,8 @@ const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
 
 const ACTION_BUTTON =
   'size-8 rounded-lg p-0 text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent';
-const ACTION_ON = 'text-(--lexon-red-text)';
+const ACTION_ON =
+  'text-(--lexon-red-text) hover:text-(--lexon-red-text) dark:hover:text-(--lexon-red-text)';
 
 const AssistantActions: FC<{
   messageId: string;
