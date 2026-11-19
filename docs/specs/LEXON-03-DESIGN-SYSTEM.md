@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.5, approved 2026-11-18) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.6, approved 2026-11-19) |
 
 ## Rationale
 
@@ -426,6 +426,9 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   16px semibold with 6px above and 4px below.
 - Answer header: 20px mark, 8px gap, 14px `muted-foreground` label with a
   14px chevron.
+- User message actions (Copy, Edit, Lucide `copy` and `pen` at 14px) sit under
+  the bubble; they are hidden while an answer is running and always visible
+  on touch.
 - Action row: 32×32px icon buttons, radius 8px, 16px icons, 2px apart,
   aligned to the text edge (margin-left −8px); tooltip 12px on `foreground`
   above the button. Pressed or copied: `red-text`.
@@ -465,8 +468,9 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   centered in the remaining height. Right: the Night cover, padding 48px, the
   rule (40×2px) and tagline at the top, the statement (§3, max 520px), the
   domain (13px) at the bottom right. No second wordmark.
-- Mobile: one column on `background`, padding 28px 20px, wordmark centered
-  at the top, 40px gap, form block full width.
+- Mobile: one column on `background`, padding 28px 20px; the wordmark is
+  centered at the top, and the form block (full width) is centered vertically
+  in the remaining height, not placed right under the wordmark.
 - Title block: title (§3) and description (15px / 1.55 `muted-foreground`)
   10px apart. No icon above the title.
 - Inputs 44px high, 15px, radius 8px, padding 0 14px. Primary button 40px,
