@@ -110,6 +110,7 @@ function ChatRuntimeSession({
   const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
   const streamReconnectingRef = useRef(false);
+  const streamFrameSeenRef = useRef(false);
   useEffect(() => {
     onRunIdRef.current = onRunId;
   }, [onRunId]);
@@ -157,6 +158,8 @@ function ChatRuntimeSession({
   });
   const chatStatusRef = useRef(chat.status);
   chatStatusRef.current = chat.status;
+  // Spec item 16: poll at 1 s until the first stream frame of the active run.
+  if (chat.status === 'streaming') streamFrameSeenRef.current = true;
   const threadRuntimeRef = useRef<
     ReturnType<typeof useAISDKRuntime>['thread'] | undefined
   >(undefined);
@@ -187,6 +190,7 @@ function ChatRuntimeSession({
   }, [effort, transport]);
 
   useEffect(() => {
+    streamFrameSeenRef.current = false;
     transport.syncActiveRun(activeRun?.runId);
     if (activeRun) {
       setServerActiveRunId(activeRun.runId);
@@ -197,68 +201,68 @@ function ChatRuntimeSession({
 
   const refreshTree = async (signal: AbortSignal) => {
     if (!onTreeRefresh) return;
-    {
-      try {
-        const freshTree = await onTreeRefresh();
+    try {
+      const freshTree = await onTreeRefresh();
+      if (signal.aborted) return;
+      leafStore.syncFromTree(freshTree);
+      const selectedLeafId = leafStore.getSelectedLeafId();
+      const refreshedTree =
+        selectedLeafId !== null && selectedLeafId !== freshTree.viewedLeafId
+          ? { ...freshTree, viewedLeafId: selectedLeafId }
+          : freshTree;
+      onTreeUpdate?.(refreshedTree);
+      const freshRun = findActiveRun(freshTree);
+      if (freshRun) {
+        setServerActiveRunId(freshRun.runId);
+        setRunId(freshRun.runId);
+        transport.syncActiveRun(freshRun.runId);
+      } else {
+        const threadRuntime = threadRuntimeRef.current;
+        const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
+        const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
+        const selectedLeafBeforeStop = leafStore.getSelectedLeafId();
+        const sdkRunIsActive =
+          chatStatusRef.current === 'submitted' ||
+          chatStatusRef.current === 'streaming';
+        transport.invalidateActiveRunStream();
+        if (sdkRunIsActive) await chat.stop();
         if (signal.aborted) return;
-        leafStore.syncFromTree(freshTree);
-        const selectedLeafId = leafStore.getSelectedLeafId();
-        const refreshedTree =
-          selectedLeafId !== null && selectedLeafId !== freshTree.viewedLeafId
-            ? { ...freshTree, viewedLeafId: selectedLeafId }
-            : freshTree;
-        onTreeUpdate?.(refreshedTree);
-        const freshRun = findActiveRun(freshTree);
-        if (freshRun) {
-          setServerActiveRunId(freshRun.runId);
-          setRunId(freshRun.runId);
-          transport.syncActiveRun(freshRun.runId);
-        } else {
-          const threadRuntime = threadRuntimeRef.current;
-          const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
-          const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
-          const selectedLeafBeforeStop = leafStore.getSelectedLeafId();
-          const sdkRunIsActive =
-            chatStatusRef.current === 'submitted' ||
-            chatStatusRef.current === 'streaming';
-          transport.invalidateActiveRunStream();
-          if (sdkRunIsActive) await chat.stop();
-          if (signal.aborted) return;
-          const currentThreadRuntime = threadRuntimeRef.current;
-          if (currentThreadRuntime) {
-            const currentRepository = currentThreadRuntime.export();
-            const branchChangedDuringStop =
-              leafStore.getSelectedLeafId() !== selectedLeafBeforeStop;
-            importCanonicalTerminalRepository(
-              currentThreadRuntime,
-              reconcileCanonicalTerminalMessages(
-                currentRepository,
-                freshTree,
-                branchChangedDuringStop
-                  ? currentRepository.headId
-                  : visibleLeafBeforeStop,
-                visibleMessagesBeforeStop,
-              ),
-              chat.setMessages,
-            );
-          }
-          setServerActiveRunId(undefined);
-          setRunId(undefined);
-          transport.syncActiveRun(undefined);
+        const currentThreadRuntime = threadRuntimeRef.current;
+        if (currentThreadRuntime) {
+          const currentRepository = currentThreadRuntime.export();
+          const branchChangedDuringStop =
+            leafStore.getSelectedLeafId() !== selectedLeafBeforeStop;
+          importCanonicalTerminalRepository(
+            currentThreadRuntime,
+            reconcileCanonicalTerminalMessages(
+              currentRepository,
+              freshTree,
+              branchChangedDuringStop
+                ? currentRepository.headId
+                : visibleLeafBeforeStop,
+              visibleMessagesBeforeStop,
+            ),
+            chat.setMessages,
+          );
         }
-      } catch (error) {
-        // Keep controls locked until an authoritative refresh succeeds; the
-        // polling hook counts the failure and keeps going.
-        if (signal.aborted) return;
-        throw error;
+        setServerActiveRunId(undefined);
+        setRunId(undefined);
+        transport.syncActiveRun(undefined);
       }
+    } catch (error) {
+      // Keep controls locked until an authoritative refresh succeeds; the
+      // polling hook counts the failure and keeps going.
+      if (signal.aborted) return;
+      throw error;
     }
   };
   useTreePolling({
     enabled: Boolean(serverActiveRunId && onTreeRefresh),
     fetchTree: refreshTree,
     isUrgent: () =>
-      streamReconnectingRef.current || chatStatusRef.current === 'submitted',
+      streamReconnectingRef.current ||
+      chatStatusRef.current === 'submitted' ||
+      !streamFrameSeenRef.current,
     onFailures: () => onStreamStateRef.current?.('reconnecting'),
   });
 

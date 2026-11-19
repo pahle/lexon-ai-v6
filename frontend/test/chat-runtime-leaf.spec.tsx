@@ -43,7 +43,7 @@ function tree(leaves: readonly string[], viewedLeafId: string): ChatTree {
   } as ChatTree;
 }
 
-it('when the viewed leaf is deleted, the selection falls back to the nearest surviving leaf', () => {
+it("when the viewed leaf is deleted, the selection falls back to the tree's viewedLeafId", () => {
   const store = createLeafStore(leafA);
   store.setSelectedLeafId(leafA);
   expect(store.getSelectedLeafId()).toBe(leafA);
@@ -102,4 +102,24 @@ it("the transport reads the store's leaf", async () => {
     .catch(() => undefined);
   expect(bodies[0]?.parentMessageId).toBe(leafB);
   expect(store.getSelectedLeafId()).toBe(leafB);
+});
+
+it('a failed save rolls the selection back, and a later sync does not re-select the unsaved leaf', async () => {
+  const store = createLeafStore(leafA);
+  const transport = new LexonChatTransport({
+    baseUrl: '/api',
+    chatId,
+    actorScope: 'tenant-1:user-1',
+    getSelectedLeafId: store.getSelectedLeafId,
+    setSelectedLeafId: store.setSelectedLeafId,
+    fetch: vi.fn(),
+  });
+  await expect(
+    transport.selectLeaf(leafB, async () => {
+      throw new Error('safe failure');
+    }),
+  ).rejects.toThrow('safe failure');
+  expect(store.getSelectedLeafId()).toBe(leafA);
+  store.syncFromTree(tree([leafA, leafB], leafA));
+  expect(store.getSelectedLeafId()).toBe(leafA);
 });

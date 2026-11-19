@@ -70,7 +70,6 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   private readonly pendingRetryWaits = new Set<AbortController>();
   private selectionPersisted: Promise<void> = Promise.resolve();
   private selectionQueue: Promise<void> = Promise.resolve();
-  private selectionVersion = 0;
   private effort: 'high' | 'max';
 
   constructor(private readonly options: LexonChatTransportOptions) {
@@ -96,7 +95,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     persist: () => Promise<unknown>,
   ): Promise<void> {
     const selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
-    this.selectionVersion += 1;
+    const previousLeafId = this.currentLeafId();
     this.options.setSelectedLeafId?.(selectedLeafId);
     const write = this.selectionQueue
       .catch(() => {})
@@ -107,7 +106,12 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
       () => undefined,
     );
     this.selectionPersisted = write;
-    return write;
+    return write.catch((error: unknown) => {
+      // Roll back through the store, unless a newer selection superseded this one.
+      if (this.currentLeafId() === selectedLeafId)
+        this.options.setSelectedLeafId?.(previousLeafId);
+      throw error;
+    });
   }
 
   setEffort(effort: 'high' | 'max'): void {
