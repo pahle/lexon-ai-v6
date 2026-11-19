@@ -1,0 +1,751 @@
+{
+  "version": 1,
+  "status": "approved",
+  "ownerApproval": {
+    "reference": "Owner decision Q2, 2026-11-15",
+    "date": "2026-11-15"
+  },
+  "note": "The F4.1 set supersedes the F2.1 set (62 active and 20 retired baselines) and the unlocked F4 set. replacedBy names the F4.1 view that covers the same state, chosen by closest state at the same viewport and theme (Task 32B).",
+  "supersedes": [
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-desktop-light",
+      "replacedBy": "sign-in-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-desktop-dark",
+      "replacedBy": "sign-in-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-mobile-light",
+      "replacedBy": "sign-in-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-mobile-dark",
+      "replacedBy": "sign-in-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-up-desktop-light",
+      "replacedBy": "sign-up-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-up-desktop-dark",
+      "replacedBy": "sign-up-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-up-mobile-light",
+      "replacedBy": "sign-up-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-up-mobile-dark",
+      "replacedBy": "sign-up-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "forgot-password-desktop-light",
+      "replacedBy": "forgot-password-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "forgot-password-desktop-dark",
+      "replacedBy": "forgot-password-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "forgot-password-mobile-light",
+      "replacedBy": "forgot-password-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "forgot-password-mobile-dark",
+      "replacedBy": "forgot-password-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "two-factor-desktop-light",
+      "replacedBy": "two-factor-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "two-factor-desktop-dark",
+      "replacedBy": "two-factor-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "two-factor-mobile-light",
+      "replacedBy": "two-factor-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "two-factor-mobile-dark",
+      "replacedBy": "two-factor-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "onboarding-desktop-light",
+      "replacedBy": "onboarding-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "onboarding-desktop-dark",
+      "replacedBy": "onboarding-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "onboarding-mobile-light",
+      "replacedBy": "onboarding-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "onboarding-mobile-dark",
+      "replacedBy": "onboarding-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "home-desktop-light",
+      "replacedBy": "chat-new-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "home-desktop-dark",
+      "replacedBy": "chat-new-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "home-mobile-light",
+      "replacedBy": "chat-new-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "home-mobile-dark",
+      "replacedBy": "chat-new-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "profile-desktop-light",
+      "replacedBy": "settings-profile-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "profile-desktop-dark",
+      "replacedBy": "settings-profile-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "profile-mobile-light",
+      "replacedBy": "settings-profile-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "profile-mobile-dark",
+      "replacedBy": "settings-profile-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "security-desktop-light",
+      "replacedBy": "settings-security-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "security-desktop-dark",
+      "replacedBy": "settings-security-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "security-mobile-light",
+      "replacedBy": "settings-security-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "security-mobile-dark",
+      "replacedBy": "settings-security-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "appearance-desktop-light",
+      "replacedBy": "settings-appearance-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "appearance-desktop-dark",
+      "replacedBy": "settings-appearance-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "appearance-mobile-light",
+      "replacedBy": "settings-appearance-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "appearance-mobile-dark",
+      "replacedBy": "settings-appearance-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "members-desktop-light",
+      "replacedBy": "settings-members-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "members-desktop-dark",
+      "replacedBy": "settings-members-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "members-mobile-light",
+      "replacedBy": "settings-members-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "members-mobile-dark",
+      "replacedBy": "settings-members-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "invitations-desktop-light",
+      "replacedBy": "settings-invitations-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "invitations-desktop-dark",
+      "replacedBy": "settings-invitations-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "invitations-mobile-light",
+      "replacedBy": "settings-invitations-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "invitations-mobile-dark",
+      "replacedBy": "settings-invitations-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "general-desktop-light",
+      "replacedBy": "settings-general-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "general-desktop-dark",
+      "replacedBy": "settings-general-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "general-mobile-light",
+      "replacedBy": "settings-general-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "general-mobile-dark",
+      "replacedBy": "settings-general-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "provisioning-desktop-light",
+      "replacedBy": "platform-provisioning-empty-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "provisioning-desktop-dark",
+      "replacedBy": "platform-provisioning-empty-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "provisioning-mobile-light",
+      "replacedBy": "platform-provisioning-empty-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "provisioning-mobile-dark",
+      "replacedBy": "platform-provisioning-empty-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "organization-switcher-open-desktop-light",
+      "replacedBy": "organization-switcher-open-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "organization-switcher-open-desktop-dark",
+      "replacedBy": "organization-switcher-open-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "organization-switcher-open-mobile-light",
+      "replacedBy": "organization-switcher-open-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "organization-switcher-open-mobile-dark",
+      "replacedBy": "organization-switcher-open-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "user-menu-open-desktop-light",
+      "replacedBy": "user-menu-open-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "user-menu-open-desktop-dark",
+      "replacedBy": "user-menu-open-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "user-menu-open-mobile-light",
+      "replacedBy": "user-menu-open-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "user-menu-open-mobile-dark",
+      "replacedBy": "user-menu-open-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-field-errors-desktop-light",
+      "replacedBy": "sign-in-field-errors-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-field-errors-desktop-dark",
+      "replacedBy": "sign-in-field-errors-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-field-errors-mobile-light",
+      "replacedBy": "sign-in-field-errors-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-field-errors-mobile-dark",
+      "replacedBy": "sign-in-field-errors-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-password-shown-loading-desktop-light",
+      "replacedBy": "sign-in-pending-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-password-shown-loading-desktop-dark",
+      "replacedBy": "sign-in-pending-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-password-shown-loading-mobile-light",
+      "replacedBy": "sign-in-pending-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-password-shown-loading-mobile-dark",
+      "replacedBy": "sign-in-pending-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-form-error-desktop-light",
+      "replacedBy": "sign-in-form-alert-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-form-error-desktop-dark",
+      "replacedBy": "sign-in-form-alert-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-form-error-mobile-light",
+      "replacedBy": "sign-in-form-alert-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sign-in-form-error-mobile-dark",
+      "replacedBy": "sign-in-form-alert-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "settings-saved-toast-desktop-light",
+      "replacedBy": "toast-success-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "settings-saved-toast-desktop-dark",
+      "replacedBy": "toast-success-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "settings-saved-toast-mobile-light",
+      "replacedBy": "toast-success-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "settings-saved-toast-mobile-dark",
+      "replacedBy": "toast-success-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-expanded-desktop-light",
+      "replacedBy": "shell-personal-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-expanded-desktop-dark",
+      "replacedBy": "shell-personal-desktop-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-expanded-mobile-light",
+      "replacedBy": "mobile-sheet-open-mobile-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-expanded-mobile-dark",
+      "replacedBy": "mobile-sheet-open-mobile-dark"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-collapsed-desktop-light",
+      "replacedBy": "sidebar-collapsed-desktop-light"
+    },
+    {
+      "set": "F2.1-visual",
+      "id": "sidebar-header-collapsed-desktop-dark",
+      "replacedBy": "sidebar-collapsed-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-new-chat-desktop-light",
+      "replacedBy": "chat-new-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-new-chat-desktop-dark",
+      "replacedBy": "chat-new-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-deep-thinking-on-desktop-light",
+      "replacedBy": "chat-deep-thinking-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-deep-thinking-on-desktop-dark",
+      "replacedBy": "chat-deep-thinking-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-thinking-desktop-light",
+      "replacedBy": "chat-thinking-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-thinking-desktop-dark",
+      "replacedBy": "chat-thinking-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-streaming-answer-desktop-light",
+      "replacedBy": "chat-streaming-scroll-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-streaming-answer-desktop-dark",
+      "replacedBy": "chat-streaming-scroll-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-reasoning-open-desktop-light",
+      "replacedBy": "chat-reasoning-open-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-reasoning-open-desktop-dark",
+      "replacedBy": "chat-reasoning-open-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-answer-complete-desktop-light",
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-answer-complete-desktop-dark",
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-copied-and-feedback-desktop-light",
+      "replacedBy": "chat-copied-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-copied-and-feedback-desktop-dark",
+      "replacedBy": "chat-copied-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-edit-user-message-desktop-light",
+      "replacedBy": "chat-edit-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-edit-user-message-desktop-dark",
+      "replacedBy": "chat-edit-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-edited-branch-desktop-light",
+      "replacedBy": "chat-branch-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-edited-branch-desktop-dark",
+      "replacedBy": "chat-branch-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-stopped-desktop-light",
+      "replacedBy": "chat-stopped-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-stopped-desktop-dark",
+      "replacedBy": "chat-stopped-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-run-error-desktop-light",
+      "replacedBy": "chat-error-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-run-error-desktop-dark",
+      "replacedBy": "chat-error-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-reconnecting-desktop-light",
+      "replacedBy": "chat-reconnecting-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-reconnecting-desktop-dark",
+      "replacedBy": "chat-reconnecting-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-thread-loading-desktop-light",
+      "replacedBy": "chat-thread-loading-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-thread-loading-desktop-dark",
+      "replacedBy": "chat-thread-loading-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chat-actions-menu-desktop-light",
+      "replacedBy": "chat-floating-menu-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chat-actions-menu-desktop-dark",
+      "replacedBy": "chat-floating-menu-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-rename-inline-desktop-light",
+      "replacedBy": "chat-rename-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-rename-inline-desktop-dark",
+      "replacedBy": "chat-rename-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-delete-confirm-desktop-light",
+      "replacedBy": "chat-delete-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-delete-confirm-desktop-dark",
+      "replacedBy": "chat-delete-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-history-desktop-light",
+      "replacedBy": "chats-history-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-history-desktop-dark",
+      "replacedBy": "chats-history-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-search-desktop-light",
+      "replacedBy": "chats-search-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-search-desktop-dark",
+      "replacedBy": "chats-search-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-no-results-desktop-light",
+      "replacedBy": "chats-no-results-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-no-results-desktop-dark",
+      "replacedBy": "chats-no-results-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-empty-desktop-light",
+      "replacedBy": "chats-empty-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-empty-desktop-dark",
+      "replacedBy": "chats-empty-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-new-chat-mobile-light",
+      "replacedBy": "chat-new-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-new-chat-mobile-dark",
+      "replacedBy": "chat-new-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-answer-complete-mobile-light",
+      "replacedBy": "chat-reasoning-collapsed-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-answer-complete-mobile-dark",
+      "replacedBy": "chat-reasoning-collapsed-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-history-mobile-light",
+      "replacedBy": "chats-history-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "base-chats-history-mobile-dark",
+      "replacedBy": "chats-history-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-no-signal-completion-desktop-light",
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-no-signal-completion-desktop-dark",
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-measured-no-summary-completion-desktop-light",
+      "replacedBy": "chat-reasoning-collapsed-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-measured-no-summary-completion-desktop-dark",
+      "replacedBy": "chat-reasoning-collapsed-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-matching-message-highlight-desktop-light",
+      "replacedBy": "chats-search-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-matching-message-highlight-desktop-dark",
+      "replacedBy": "chats-search-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-stopped-before-answer-desktop-light",
+      "replacedBy": "chat-stopped-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "variant-stopped-before-answer-desktop-dark",
+      "replacedBy": "chat-stopped-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-organization-switcher-open-desktop-light",
+      "replacedBy": "organization-switcher-open-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-organization-switcher-open-desktop-dark",
+      "replacedBy": "organization-switcher-open-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-organization-switcher-open-mobile-light",
+      "replacedBy": "organization-switcher-open-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-organization-switcher-open-mobile-dark",
+      "replacedBy": "organization-switcher-open-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-user-menu-open-desktop-light",
+      "replacedBy": "user-menu-open-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-user-menu-open-desktop-dark",
+      "replacedBy": "user-menu-open-desktop-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-user-menu-open-mobile-light",
+      "replacedBy": "user-menu-open-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-user-menu-open-mobile-dark",
+      "replacedBy": "user-menu-open-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-sidebar-expanded-mobile-light",
+      "replacedBy": "mobile-sheet-open-mobile-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-sidebar-collapsed-desktop-light",
+      "replacedBy": "sidebar-collapsed-desktop-light"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-sidebar-expanded-mobile-dark",
+      "replacedBy": "mobile-sheet-open-mobile-dark"
+    },
+    {
+      "set": "F4-visual",
+      "id": "navigation-sidebar-collapsed-desktop-dark",
+      "replacedBy": "sidebar-collapsed-desktop-dark"
+    }
+  ]
+}

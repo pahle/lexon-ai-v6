@@ -1,0 +1,41 @@
+{
+  "seed": 20261114,
+  "thinkingMs": 2500,
+  "wanderMs": 8000,
+  "markMs": 18147,
+  "finishedOffsetMs": 5000,
+  "steps": [
+    { "kind": "draw", "mark": "lexon", "startMs": 0, "durationMs": 1300 },
+    { "kind": "hold", "mark": "lexon", "startMs": 1300, "durationMs": 1900 },
+    {
+      "kind": "dissolve",
+      "mark": "lexon",
+      "startMs": 3200,
+      "durationMs": 1100
+    },
+    {
+      "kind": "wander",
+      "mark": "lexon",
+      "startMs": 4300,
+      "durationMs": 10847.320139408112
+    },
+    {
+      "kind": "settle",
+      "mark": "column",
+      "startMs": 15147.320139408112,
+      "durationMs": 1600
+    },
+    {
+      "kind": "draw",
+      "mark": "column",
+      "startMs": 16747.32013940811,
+      "durationMs": 1400
+    },
+    {
+      "kind": "hold",
+      "mark": "column",
+      "startMs": 18147.32013940811,
+      "durationMs": 1400
+    }
+  ]
+}

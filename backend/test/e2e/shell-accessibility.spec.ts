@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -144,7 +145,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         } else {
           await expect(
             page.getByRole('heading', {
-              name: 'Verify your sign-in',
+              name: 'Two-step verification',
               exact: true,
             }),
           ).toBeVisible();
@@ -160,6 +161,7 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
       }
     }
     const headers = await authenticateApi(page.request);
+    await freezeMorningClock(page);
     await page.goto(stack.frontendUrl + '/onboarding');
     await expect(
       page.getByRole('heading', { name: 'Welcome to Lexon' }),
@@ -248,13 +250,19 @@ test('F2 required auth, shell, settings, organization, and platform pages pass b
         await expect(page).toHaveURL(stack.frontendUrl + path);
         if (path === '/workspace') {
           await expect(
-            page.getByRole('heading', { name: /^Welcome, / }),
+            page.getByRole('heading', {
+              name: 'Good morning, E2E',
+              exact: true,
+            }),
           ).toBeVisible();
           await expect(
             page.getByRole('button', { name: 'Send message' }),
           ).toBeDisabled();
           await expect(
-            page.getByRole('heading', { name: /^Welcome, / }),
+            page.getByRole('heading', {
+              name: 'Good morning, E2E',
+              exact: true,
+            }),
           ).toBeVisible();
           const messageInput = page.getByRole('textbox', {
             name: 'Message input',

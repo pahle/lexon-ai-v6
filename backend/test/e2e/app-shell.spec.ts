@@ -2,6 +2,7 @@ import { test, expect, type Locator, type Route } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 test('F2 shell keeps New chat framed, collapses across reload, and renders scoped not-found routes', async ({
   page,
@@ -9,7 +10,8 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   const stack = descriptor();
   const assetPaths = [
     '/LEXON-wordmark-compact-ink.svg',
-    '/LEXON-wordmark-compact-cream.svg',
+    '/LEXON-wordmark-compact-white.svg',
+    '/LEXON-monogram-micro-seal.svg',
   ];
   for (const path of assetPaths) {
     const response = await page.request.get(stack.frontendUrl + path);
@@ -53,6 +55,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
       chatRequests.push(`${request.method()} ${url.pathname}${url.search}`);
     }
   });
+  await freezeMorningClock(page);
   await page.goto(stack.frontendUrl + '/workspace');
   const decodedAssetWidths = await page.evaluate(
     async (paths) => {
@@ -77,7 +80,9 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ).toHaveAttribute('aria-current', 'page');
   const message = page.getByRole('textbox', { name: 'Message input' });
   await expect(message).toBeEnabled();
-  await expect(page.getByText('Welcome, ', { exact: false })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Good morning, E2E', exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Send message' }),
   ).toBeDisabled();
@@ -134,10 +139,10 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ]) {
     await page.goto(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', { name: 'Workspace not found' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Return to workspace' }),
+      page.getByRole('link', { name: 'Go to my workspace' }),
     ).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
     await expect(
@@ -155,10 +160,18 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
     await page.goto(stack.frontendUrl + path);
     await expect(page).toHaveURL(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', {
+        name: path.startsWith('/organizations/')
+          ? 'Workspace not found'
+          : 'Page not found',
+      }),
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Return to workspace' }),
+      page.getByRole('link', {
+        name: path.startsWith('/organizations/')
+          ? 'Go to my workspace'
+          : 'Go to Lexon',
+      }),
     ).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
     if (path.startsWith('/organizations/')) {
@@ -173,7 +186,7 @@ test('F2 shell keeps New chat framed, collapses across reload, and renders scope
   ]) {
     await page.goto(stack.frontendUrl + path);
     await expect(
-      page.getByRole('heading', { name: 'Page not found' }),
+      page.getByRole('heading', { name: 'Workspace not found' }),
     ).toBeVisible();
     await expect(
       page.getByRole('complementary', { name: 'Workspace navigation' }),
@@ -202,6 +215,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(stack.frontendUrl + '/workspace');
+  console.log('[shell-375 stage] opened sidebar first time');
   const open = page.getByRole('button', { name: 'Open navigation' });
   await open.click();
   const dialog = page.getByRole('dialog', { name: 'Sidebar' });
@@ -218,9 +232,16 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await first.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
-  await dialog
-    .getByRole('button', { name: 'Close navigation', exact: true })
-    .click();
+  // The close button is screen-reader and keyboard only (it shows on focus), so
+  // a pointer click cannot hit it; activate it from the keyboard.
+  const closeNavigation = dialog.getByRole('button', {
+    name: 'Close navigation',
+    exact: true,
+  });
+  await closeNavigation.focus();
+  await expect(closeNavigation).toBeFocused();
+  await page.keyboard.press('Enter');
+  console.log('[shell-375 stage] closed via button');
   await expect(dialog).toBeHidden();
   await expect(open).toBeFocused();
   await open.click();
@@ -244,6 +265,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       dialog.evaluate((element) => element.contains(document.activeElement)),
     )
     .toBe(true);
+  console.log('[shell-375 stage] reopened, before organization popup');
   const mobileOrganization = dialog.getByRole('button', {
     name: 'Organization: Personal',
   });
@@ -275,6 +297,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       dialog.evaluate((element) => element.contains(document.activeElement)),
     )
     .toBe(true);
+  console.log('[shell-375 stage] after organization Escape, before user menu');
   const mobileUser = dialog.locator(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
   );
@@ -296,6 +319,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
   await expect(
     page.getByRole('navigation', { name: 'Primary navigation' }),
   ).toBeHidden();
+  console.log('[shell-375 stage] settings navigation reached');
   const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(settingsDialog).toBeVisible();
   await expect
@@ -312,6 +336,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
         .map((animation) => animation.finished.catch(() => undefined)),
     );
   });
+  console.log('[shell-375 stage] first settings closed');
   await page.keyboard.press('Escape');
   await expect(settingsDialog).toBeHidden();
   await expect(open).toBeFocused();
@@ -339,6 +364,7 @@ test('F2 sidebar supports mobile Escape and closes after real navigation at 375p
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  console.log('[shell-375 stage] before viewport boundary checks');
   await page.setViewportSize({ width: 767, height: 900 });
   await expect(
     page.getByRole('button', { name: 'Open navigation' }),
@@ -426,10 +452,26 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
     name: 'Organization: Personal',
   });
   const tile = collapsedOrganization.locator('img[alt="Lexon"]');
-  await expect(tile).toHaveAttribute('src', /LEXON-mark-tile-seal-micro\.svg$/);
-  const tileBounds = await tile.boundingBox();
+  await expect(tile).toHaveAttribute('src', /LEXON-monogram-micro-seal\.svg$/);
+  // LEX-DS-001 v3.1: a 20px monogram centered in the 32px switcher tile.
+  const markBounds = await tile.boundingBox();
+  expect(markBounds?.width).toBe(20);
+  expect(markBounds?.height).toBe(20);
+  const tileBounds = await tile.locator('..').boundingBox();
   expect(tileBounds?.width).toBe(32);
   expect(tileBounds?.height).toBe(32);
+  // Let the 200ms width transition finish before the keyboard opens the menu;
+  // a slow runner otherwise re-renders the trigger mid-open.
+  await expect
+    .poll(async () => (await tile.locator('..').boundingBox())?.x)
+    .toBe(16);
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-slot="sidebar-container"]')
+        .evaluate((node) => node.getBoundingClientRect().width),
+    )
+    .toBe(64);
   await collapsedOrganization.focus();
   await page.keyboard.press('Enter');
   await expect(
@@ -461,8 +503,11 @@ test('F2 shell and optional panel compose without overlap at 768px', async ({
     data: { organizationId: id },
   });
   await page.setViewportSize({ width: 768, height: 720 });
+  await freezeMorningClock(page);
   await page.goto(`${stack.frontendUrl}/workspace`);
-  await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Good morning, E2E', exact: true }),
+  ).toBeVisible();
   const composerInput = page.getByRole('textbox', { name: 'Message input' });
   const send = page.getByRole('button', {
     name: 'Send message',

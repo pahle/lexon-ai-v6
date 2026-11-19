@@ -172,6 +172,7 @@ export async function createChatApiHarness(
     const summary = {
       version: 1 as const,
       platformAdmin: false,
+      organizationMemberCount: null,
       user: {
         version: 1 as const,
         id: ctx.userId,
@@ -179,6 +180,7 @@ export async function createChatApiHarness(
         email: `${ctx.userId}@example.test`,
         emailVerified: true,
         twoFactorEnabled: false,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {

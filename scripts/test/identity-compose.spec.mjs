@@ -132,7 +132,7 @@ test('identity Compose secrets are API/operator-only and Mailpit is optional eph
 test('package E2E filters include their identity projects and credential projects never retain browser state', async () => {
   const { E2E_PROJECTS } = await import('../e2e-projects.mjs');
   assert.ok(E2E_PROJECTS.frontend.includes('identity-browser'));
-  assert.ok(E2E_PROJECTS.frontend.includes('visual-review'));
+  assert.ok(E2E_PROJECTS.frontend.includes('brand-visual'));
   assert.ok(E2E_PROJECTS.backend.includes('identity-api'));
   const config = (await import('../../playwright.config.ts')).default;
   for (const name of ['identity-browser', 'identity-api']) {
@@ -142,9 +142,7 @@ test('package E2E filters include their identity projects and credential project
       assert.equal(project.use?.[setting], 'off');
     assert.equal(project.use?.storageState, undefined);
   }
-  assert.ok(
-    config.projects.some((project) => project.name === 'visual-review'),
-  );
+  assert.ok(config.projects.some((project) => project.name === 'brand-visual'));
 });
 test('CI pushes only on main and retains independent layers and the identity mutation gate', async () => {
   const { readFile } = await import('node:fs/promises');

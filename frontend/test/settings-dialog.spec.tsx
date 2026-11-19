@@ -34,6 +34,7 @@ const workspaceState = vi.hoisted(() => ({
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -48,6 +49,7 @@ const workspaceState = vi.hoisted(() => ({
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: null,
   } as unknown,
 }));
 vi.mock('next/navigation', () => ({
@@ -97,6 +99,7 @@ afterEach(() => {
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -111,6 +114,7 @@ afterEach(() => {
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: null,
   };
 });
 
@@ -272,6 +276,7 @@ test.each(['invitations', 'general'] as const)(
         email: 'taylor@example.test',
         emailVerified: true,
         twoFactorEnabled: false,
+        jobTitle: null,
         onboardingCompleted: true,
       },
       organization: {
@@ -286,6 +291,7 @@ test.each(['invitations', 'general'] as const)(
         createdAt: '2026-11-01T00:00:00.000Z',
       },
       platformAdmin: false,
+      organizationMemberCount: 1,
     };
     locationState.search = '?settings=' + section;
     const fetcher = vi.fn(async () =>
@@ -301,7 +307,9 @@ test.each(['invitations', 'general'] as const)(
     expect(document.body.textContent).toContain(
       'You do not have access to this section.',
     );
-    expect(document.body.textContent).not.toContain('Invitation email');
+    expect(
+      document.body.querySelector('[aria-label="Invitation email"]'),
+    ).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
     await view.unmount();
     vi.unstubAllGlobals();
@@ -362,7 +370,9 @@ test('organization navigation updates owner, admin, and member links and content
       <SettingsDialog />
     </QueryClientProvider>,
   );
-  expect(document.body.textContent).toContain('Invitation email');
+  expect(
+    document.body.querySelector('[aria-label="Invitation email"]'),
+  ).not.toBeNull();
   const adminLinks = [
     ...document.body.querySelectorAll('nav[aria-label="Settings sections"] a'),
   ].map((link) => link.textContent);
@@ -526,6 +536,7 @@ function organizationIdentity(
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -540,6 +551,7 @@ function organizationIdentity(
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   } as const;
 }
 
@@ -553,6 +565,7 @@ test('demotion cancels and removes a delayed invitation response while Settings 
       email: 'taylor@example.test',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: true,
     },
     organization: {
@@ -567,6 +580,7 @@ test('demotion cancels and removes a delayed invitation response while Settings 
       createdAt: '2026-11-01T00:00:00.000Z',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   });
   workspaceState.identity = identity('owner');
   locationState.search = '?settings=invitations';
@@ -635,4 +649,93 @@ test('demotion cancels and removes a delayed invitation response while Settings 
   ).toBeUndefined();
   await view.unmount();
   vi.unstubAllGlobals();
+});
+
+test('the no-access state and the navigation use the new title and group styling', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  locationState.search = '?settings=unknown';
+  const view = await renderWithQuery(<SettingsDialog />);
+  const title = [...document.body.querySelectorAll('h2')].find(
+    (heading) => heading.textContent === 'No access',
+  );
+  expect(title?.className).toContain('font-serif');
+  const labels = [
+    ...document.body.querySelectorAll('[data-slot="settings-group-label"]'),
+  ];
+  expect(labels.length).toBeGreaterThan(0);
+  expect(new Set(labels.map((label) => label.textContent))).toEqual(
+    new Set(['Account']),
+  );
+  for (const label of labels) {
+    expect(label.className).toContain('text-muted-foreground');
+    expect(label.className).not.toContain('text-sidebar-foreground');
+  }
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('team navigation groups are Account and the team name', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  workspaceState.identity = {
+    ...(workspaceState.identity as object),
+    organization: {
+      version: 1,
+      id: TEAM_A,
+      kind: 'team',
+      name: 'Hukum Nusantara',
+      slug: 'hukum-nusantara',
+      state: 'active',
+      require2fa: false,
+      role: 'owner',
+      createdAt: '2026-11-01T00:00:00.000Z',
+    },
+  };
+  const view = await render(<SettingsNavigation section="profile" />);
+  expect(
+    [
+      ...view.container.querySelectorAll('[data-slot="settings-group-label"]'),
+    ].map((label) => label.textContent),
+  ).toEqual(['Account', 'Hukum Nusantara']);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('the Settings dialog has the same fixed 1000x680 size for every section', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const classes: string[] = [];
+  for (const section of ['profile', 'appearance', 'unknown']) {
+    locationState.search = '?settings=' + section;
+    const view = await renderWithQuery(<SettingsDialog />);
+    await settle();
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog, section).not.toBeNull();
+    classes.push(dialog!.className);
+    await view.unmount();
+  }
+  expect(new Set(classes).size).toBe(1);
+  for (const token of ['h-[680px]', 'w-[1000px]', 'rounded-[12px]'])
+    expect(classes[0]).toContain(token);
+  expect(classes[0]).not.toContain('min-h');
+  expect(classes[0]).not.toContain('h-[min(');
+  vi.unstubAllGlobals();
+});
+
+test('the Settings dialog is a full-screen sheet with a back button on mobile', async () => {
+  const { settingsDialogClass } =
+    await import('../src/components/settings/settings-dialog');
+  expect(settingsDialogClass).toContain('max-md:h-dvh');
+  expect(settingsDialogClass).toContain('max-md:w-full');
+  expect(settingsDialogClass).toContain('max-md:rounded-none');
 });

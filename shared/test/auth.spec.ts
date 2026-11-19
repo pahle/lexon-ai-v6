@@ -50,6 +50,17 @@ test('forms reject authority injection and invalid display names', () => {
     }).success,
   ).toBe(false);
 });
+test('profile input accepts a name, a job title, or both, and nothing else', () => {
+  for (const ok of [
+    { jobTitle: null },
+    { jobTitle: 'Partner' },
+    { name: 'Ayu' },
+    { name: 'Ayu', jobTitle: 'Partner' },
+  ])
+    expect(ProfileInputSchema.safeParse(ok).success).toBe(true);
+  for (const bad of [{}, { jobTitle: 'x', role: 'admin' }, { jobTitle: '' }])
+    expect(ProfileInputSchema.safeParse(bad).success).toBe(false);
+});
 test('safe own profile is versioned and has no session credentials', () => {
   const profile = {
     version: 1,
@@ -58,9 +69,24 @@ test('safe own profile is versioned and has no session credentials', () => {
     name: 'A Person',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: false,
   };
   expect(SafeProfileSchema.parse(profile)).toEqual(profile);
+  expect(
+    SafeProfileSchema.parse({ ...profile, jobTitle: 'Senior Associate' })
+      .jobTitle,
+  ).toBe('Senior Associate');
+  const withoutTitle: Record<string, unknown> = { ...profile };
+  delete withoutTitle.jobTitle;
+  expect(SafeProfileSchema.safeParse(withoutTitle).success).toBe(false);
+  expect(
+    SafeProfileSchema.safeParse({ ...profile, jobTitle: '' }).success,
+  ).toBe(false);
+  expect(
+    SafeProfileSchema.safeParse({ ...profile, jobTitle: 'a'.repeat(81) })
+      .success,
+  ).toBe(false);
   expect(
     SafeProfileSchema.safeParse({ ...profile, token: 'secret' }).success,
   ).toBe(false);
@@ -86,6 +112,7 @@ test('identity summary requires a boolean platform eligibility flag', () => {
       name: 'A Person',
       emailVerified: true,
       twoFactorEnabled: false,
+      jobTitle: null,
       onboardingCompleted: false,
     },
     organization: {
@@ -99,6 +126,7 @@ test('identity summary requires a boolean platform eligibility flag', () => {
       role: 'owner' as const,
       createdAt: '2026-11-01T00:00:00.000Z',
     },
+    organizationMemberCount: null,
   };
   expect(IdentitySummarySchema.parse(summary).platformAdmin).toBe(false);
   expect(
@@ -112,4 +140,68 @@ test('identity summary requires a boolean platform eligibility flag', () => {
     IdentitySummarySchema.safeParse({ ...summary, platformAdmin: 'true' })
       .success,
   ).toBe(false);
+});
+
+test('the identity summary carries the member count of an active team only', () => {
+  const user = {
+    version: 1 as const,
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    email: 'person@example.test',
+    name: 'A Person',
+    emailVerified: true,
+    twoFactorEnabled: false,
+    jobTitle: null,
+    onboardingCompleted: true,
+  };
+  const organization = {
+    version: 1 as const,
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    name: 'Hukum Nusantara',
+    slug: 'hukum-nusantara',
+    state: 'active' as const,
+    createdAt: '2026-11-01T00:00:00.000Z',
+  };
+  const team = {
+    version: 1 as const,
+    platformAdmin: false,
+    user,
+    organization: {
+      ...organization,
+      kind: 'team' as const,
+      require2fa: false,
+      role: 'member' as const,
+    },
+  };
+  const personal = {
+    version: 1 as const,
+    platformAdmin: false,
+    user,
+    organization: {
+      ...organization,
+      name: 'Personal',
+      kind: 'personal' as const,
+      require2fa: false as const,
+      role: 'owner' as const,
+    },
+  };
+  const parses = (value: unknown) =>
+    IdentitySummarySchema.safeParse(value).success;
+
+  expect(
+    IdentitySummarySchema.parse({ ...team, organizationMemberCount: 3 })
+      .organizationMemberCount,
+  ).toBe(3);
+  expect(parses({ ...team, organizationMemberCount: 1 })).toBe(true);
+  expect(parses({ ...personal, organizationMemberCount: null })).toBe(true);
+
+  // The key is required, and its value must fit the kind of organization.
+  expect(parses(team)).toBe(false);
+  expect(parses(personal)).toBe(false);
+  expect(parses({ ...team, organizationMemberCount: null })).toBe(false);
+  expect(parses({ ...personal, organizationMemberCount: 1 })).toBe(false);
+  for (const count of [0, -1, 1.5, '3', Number.NaN])
+    expect(
+      parses({ ...team, organizationMemberCount: count }),
+      String(count),
+    ).toBe(false);
 });

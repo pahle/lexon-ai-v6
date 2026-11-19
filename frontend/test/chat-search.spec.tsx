@@ -317,8 +317,10 @@ it('styles matched text with theme tokens', async () => {
   await submitSearch(view.container);
   const mark = view.container.querySelector('mark');
   expect(mark?.textContent).toBe('wanprestasi');
-  expect(mark?.className).toContain('bg-primary/20');
-  expect(mark?.className).toContain('text-foreground');
+  expect(mark?.className).toContain('bg-(--lexon-tint)');
+  // The prototype keeps the surrounding text color and has a dark tint.
+  expect(mark?.className).toContain('text-inherit');
+  expect(mark?.className).toContain('dark:bg-[#4A1E23]');
   await view.unmount();
 });
 
@@ -454,9 +456,11 @@ it('keeps submitted search results in sync with sidebar rename, delete rollback,
       .find((menuitem) => menuitem.textContent?.includes('Rename'))
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
   );
-  const renameInput = view.container.querySelector(
-    'input[aria-label="Chat title"]',
+  await settle();
+  const renameInput = document.body.querySelector(
+    '[role="dialog"] input',
   ) as HTMLInputElement;
+  expect(renameInput.labels?.[0]?.textContent).toBe('Chat title');
   const setValue = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value',

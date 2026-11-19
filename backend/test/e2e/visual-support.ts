@@ -111,6 +111,15 @@ const sizes = {
 } as const;
 const validatedApprovedSets = new Set<string>();
 
+// The F2.1 screenshot set is retired (superseded by the F4.1 set, owner
+// decision 2026-11-15). The layout and behavior assertions in these helpers
+// stay; screenshots and golden comparisons are off unless a caller turns them
+// on to inspect the old set by hand.
+let screenshotsEnabled = false;
+export function setVisualScreenshots(enabled: boolean) {
+  screenshotsEnabled = enabled;
+}
+
 function resolveCurrentVisualMode() {
   return resolveVisualMode({
     updateSnapshots: isSnapshotUpdateEnabled(
@@ -201,9 +210,10 @@ export async function captureTask7BViewportReview(
   expect(documentWidth, JSON.stringify(overflowNodes)).toBeLessThanOrEqual(
     width,
   );
+  await page.mouse.move(0, 0);
+  if (!screenshotsEnabled) return;
   const output = resolve('.cache/f21-task7B', `${view}-${width}-${theme}.png`);
   await mkdir(resolve(output, '..'), { recursive: true });
-  await page.mouse.move(0, 0);
   await page.screenshot({
     path: output,
     fullPage: false,
@@ -211,6 +221,34 @@ export async function captureTask7BViewportReview(
     animations: 'disabled',
     scale: 'css',
   });
+}
+
+/**
+ * Switches the theme the way another tab would (localStorage plus a storage
+ * event) and waits for the document to follow. next-themes attaches its
+ * storage listener in an effect after its first client render, so an event
+ * dispatched in that gap right after a navigation is lost and the page keeps
+ * the previous theme. Setting and dispatching again is idempotent, so the
+ * switch is repeated until the document class matches, within the normal
+ * expect timeout.
+ */
+export async function applyTheme(page: Page, theme: VisualTheme) {
+  await expect(async () => {
+    await page.evaluate((value) => {
+      localStorage.setItem('theme', value);
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'theme',
+          newValue: value,
+          storageArea: localStorage,
+        }),
+      );
+    }, theme);
+    await expect(page.locator('html')).toHaveClass(
+      theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+      { timeout: 1000 },
+    );
+  }).toPass({ timeout: 10000 });
 }
 
 export async function captureCheckpointCView(
@@ -221,20 +259,8 @@ export async function captureCheckpointCView(
   if (!(await shouldCaptureCheckpointCView(view))) return;
   await page.setViewportSize(sizes.desktop);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate((value) => {
-    localStorage.setItem('theme', value);
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: 'theme',
-        newValue: value,
-        storageArea: localStorage,
-      }),
-    );
-  }, theme);
   await expect(page.locator('main')).toHaveCount(1);
-  await expect(page.locator('html')).toHaveClass(
-    theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
-  );
+  await applyTheme(page, theme);
   if (view === 'appearance') {
     await expect(
       page.getByRole('radio', {
@@ -274,7 +300,7 @@ export async function captureCheckpointCView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+  if (screenshotsEnabled && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
     const output = resolve(
       'docs/references/F2.1-visual/checkpoints',
       `c-${view}-${theme}.png`,
@@ -328,7 +354,9 @@ export async function captureVisualView(
       .locator('main input')
       .first()
       .evaluate((input) => Math.round(input.getBoundingClientRect().width)),
-  ).toBe(320);
+    // LEX-DS-001 section 5.5: the form block is at most 400px wide inside
+    // the 20px mobile gutters.
+  ).toBe(Math.min(400, sizes[viewport].width - 40));
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('html')).toHaveClass(
     theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/,
@@ -372,7 +400,11 @@ export async function captureVisualView(
   expect(overlayText).not.toMatch(
     /Build Error|Runtime Error|Unhandled Runtime Error/,
   );
-  if (mode === 'capture' && process.env.LEXON_CAPTURE_CHECKPOINTS === '1') {
+  if (
+    screenshotsEnabled &&
+    mode === 'capture' &&
+    process.env.LEXON_CAPTURE_CHECKPOINTS === '1'
+  ) {
     const output = resolve(
       'docs/references/F2.1-visual/checkpoints',
       `a-${view}-${viewport}-${theme}.png`,
@@ -388,13 +420,55 @@ export async function captureVisualView(
   }
 }
 
+/**
+ * Opens a menu whose trigger may be clicked before the page has settled
+ * (theme switch, hydration). Retries the click until aria-expanded is true,
+ * never clicking an already-expanded trigger (that would close it), then
+ * re-asserts after the open that the menu did not close by itself.
+ */
+export async function openMenuReliably(
+  page: Page,
+  trigger: Locator,
+  opened: Locator,
+  label: string,
+) {
+  let attempts = 0;
+  await expect(async () => {
+    attempts += 1;
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+      await trigger.click();
+    }
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true', {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 10000 });
+  await expect(opened).toBeVisible();
+  // Re-assert after the open settles: a menu that opens and then closes by
+  // itself must fail here instead of in a later capture step.
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => done(true))),
+  );
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(opened).toBeVisible();
+  const description = `${label} opened after ${attempts} click attempt(s)`;
+  try {
+    test.info().annotations.push({
+      type: 'menu-open-attempts',
+      description,
+    });
+  } catch {
+    // Not inside a running test.
+  }
+  console.log(`[visual] ${description}`);
+}
+
 export async function captureShellReviewView(
   page: Page,
   view: ShellReviewView,
   theme: VisualTheme,
   viewport: VisualViewport,
   outputDirectory = '.cache/f21-task6A',
-  expectedHeading = 'Welcome, Checkpoint Preview',
+  expectedHeading = 'Good morning, Checkpoint',
   expandPlatform = false,
 ) {
   await page.setViewportSize(sizes[viewport]);
@@ -477,6 +551,7 @@ export async function captureShellReviewView(
     'organization-switcher-open': '13',
     'user-menu-open': '14',
   };
+  if (!screenshotsEnabled) return;
   const output = resolve(
     outputDirectory,
     `${index[view]}-${view}-${viewport}-${theme}.png`,
@@ -550,6 +625,7 @@ export async function installTask9SessionExpiryNormalization(
 export async function installTask9InvitationExpiryNormalization(
   page: Page,
   activeTeamId: string,
+  emails?: readonly string[],
 ) {
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
@@ -559,7 +635,9 @@ export async function installTask9InvitationExpiryNormalization(
     };
   };
   const expiresAt = index.normalizations.invitationExpiresAt.fixedIso;
-  const orderedEmails = index.normalizations.invitationExpiresAt.orderedEmails;
+  const orderedEmails = [
+    ...(emails ?? index.normalizations.invitationExpiresAt.orderedEmails),
+  ];
   const pending = new Set<Promise<void>>();
   const invitationUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/invitations`;
@@ -610,13 +688,16 @@ export async function installTask9InvitationExpiryNormalization(
 export async function installTask9MemberOrderNormalization(
   page: Page,
   activeTeamId: string,
+  emails?: readonly string[],
 ) {
   const index = JSON.parse(
     await readFile(resolve('docs/references/F2.1-visual/index.json'), 'utf8'),
   ) as {
     normalizations: { memberOrder: { orderedEmails: string[] } };
   };
-  const orderedEmails = index.normalizations.memberOrder.orderedEmails;
+  const orderedEmails = [
+    ...(emails ?? index.normalizations.memberOrder.orderedEmails),
+  ];
   const pending = new Set<Promise<void>>();
   const memberUrl = (url: URL) =>
     url.pathname === `/api/organizations/${activeTeamId}/members`;
@@ -714,23 +795,28 @@ export async function captureTask9ReviewView(
         ? 'organization-popup'
         : 'user-menu-popup',
     );
-    if (!(await popup.isVisible().catch(() => false))) {
-      if (view === 'organization-switcher-open') {
-        await page
-          .locator('[data-slot="sidebar-header"] button[aria-haspopup="menu"]')
-          .click();
-      } else {
-        await page
-          .locator('[data-slot="sidebar-footer"] button[aria-haspopup="menu"]')
-          .click();
-      }
+    // Never rely on a menu left open by an earlier call: it can close after
+    // the visibility check (theme switch, re-render). Close it, then reopen.
+    if (await popup.isVisible().catch(() => false)) {
+      await page.keyboard.press('Escape');
+      await expect(popup).toBeHidden();
     }
-    if (view === 'organization-switcher-open')
-      await expect(page.getByTestId('organization-popup')).toBeVisible();
-    else
-      await expect(
-        page.getByRole('menuitem', { name: 'Sign out' }),
-      ).toBeVisible();
+    const trigger =
+      view === 'organization-switcher-open'
+        ? page.locator(
+            '[data-slot="sidebar-header"] button[aria-haspopup="menu"]',
+          )
+        : page.locator(
+            '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
+          );
+    await openMenuReliably(
+      page,
+      trigger,
+      view === 'organization-switcher-open'
+        ? page.getByTestId('organization-popup')
+        : page.getByRole('menuitem', { name: 'Sign out' }),
+      view,
+    );
   }
   await expect(
     page
@@ -787,11 +873,29 @@ export async function captureTask9ReviewView(
     const organizationTrigger = page.locator(
       '[data-slot="sidebar-header"] button[aria-haspopup="menu"]',
     );
+    // The sheet moves initial focus inside on a later animation frame; blur
+    // only after that has happened so it cannot land after the blur.
+    await expect
+      .poll(() =>
+        page
+          .getByRole('dialog', { name: 'Sidebar' })
+          .evaluate((dialog) => dialog.contains(document.activeElement)),
+      )
+      .toBe(true);
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement)
         document.activeElement.blur();
     });
     await expect(organizationTrigger).not.toBeFocused();
+  }
+  if (!screenshotsEnabled) {
+    if (view === 'organization-switcher-open' || view === 'user-menu-open') {
+      await page.keyboard.press('Escape');
+      if (viewport === 'mobile') await page.keyboard.press('Escape');
+    } else if (view === 'sidebar-header-expanded' && viewport === 'mobile') {
+      await page.keyboard.press('Escape');
+    }
+    return null;
   }
   if (mode === 'compare' || mode === 'update') {
     const directory = resolve('docs/references/F2.1-visual');

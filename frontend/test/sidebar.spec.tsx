@@ -22,6 +22,7 @@ const identity: IdentitySummary = {
     emailVerified: true,
     onboardingCompleted: true,
     twoFactorEnabled: true,
+    jobTitle: null,
   },
   organization: {
     version: 1,
@@ -35,6 +36,7 @@ const identity: IdentitySummary = {
     createdAt: '2026-11-01T00:00:00Z',
   },
   platformAdmin: true,
+  organizationMemberCount: null,
 };
 
 const workspace = vi.hoisted(() => ({
@@ -60,6 +62,7 @@ async function sidebarFetch(input: RequestInfo | URL) {
     email: identity.user.email,
     emailVerified: true,
     twoFactorEnabled: true,
+    jobTitle: null,
     onboardingCompleted: true,
   });
 }
@@ -125,20 +128,43 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     links.map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
-    ['New chat', '/workspace'],
+    ['Assistant', '/workspace'],
+    ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
     ['Platform', '/platform/provisioning'],
   ]);
+  // LEX-DS-001 §5.5: the inset shell, no Tools label, and Assistant open by
+  // default with New chat and Chats as its sub-items.
+  expect(
+    view.container.querySelector('[data-slot="sidebar"][data-variant="inset"]'),
+  ).not.toBeNull();
+  const groupLabels = [
+    ...view.container.querySelectorAll('[data-slot="sidebar-group-label"]'),
+  ].map((label) => label.textContent);
+  expect(groupLabels).toEqual(['Recent']);
+  expect(
+    view.container
+      .querySelector('nav button[aria-label="Toggle Assistant navigation"]')
+      ?.getAttribute('aria-expanded'),
+  ).toBe('true');
+  const hint = view.container.querySelector('[data-slot="shortcut-hint"]')!;
+  expect(hint.textContent).toBe('Ctrl Alt N');
+  expect(hint.getAttribute('aria-hidden')).toBe('true');
+  expect(
+    view.container.querySelector(
+      '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
+    ),
+  ).toBeNull();
   expect(
     links
       .filter((link) => link.getAttribute('aria-current') === 'page')
       .map((link) => link.textContent?.trim()),
-  ).toEqual(['New chat']);
+  ).toEqual(['New chatCtrl Alt N']);
   const activeLink = links.find(
     (link) => link.getAttribute('aria-current') === 'page',
   )!;
   expect(activeLink.hasAttribute('data-active')).toBe(true);
-  expect(activeLink.className).toContain('data-active:font-medium');
+  expect(activeLink.className).toContain('data-active:bg-sidebar-accent');
   await openNavigationGroup(view.container, 'Platform');
   expect(
     view.container.querySelector<HTMLButtonElement>(
@@ -148,7 +174,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(view.container.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] img[alt="Lexon"]',
@@ -157,7 +183,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.className,
-  ).toContain('data-open:bg-sidebar-accent');
+  ).not.toContain('data-open:bg-sidebar-accent');
   expect(
     view.container.querySelector(
       'button[aria-label^="Organization: Personal"] svg.lucide-chevrons-up-down',
@@ -168,29 +194,30 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
-  ).toContain('Owner');
+  ).toBe('Personal Your private workspace');
   expect(
     view.container
       .querySelector<HTMLButtonElement>(
         'button[aria-label^="Organization: Personal"]',
       )
       ?.getAttribute('aria-label'),
-  ).toBe('Organization: Personal Owner');
+  ).toBe('Organization: Personal Your private workspace, Owner');
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
-  ).toContain('Personal Owner');
-  expect(view.container.textContent).toContain('No recent chats.');
+  ).not.toContain('Owner');
+  expect(view.container.textContent).toContain('No chats yet.');
   const recentGroup = view.container.querySelector(
     '[role="group"][aria-label="Recent chats"]',
   );
-  expect(recentGroup?.querySelector('p')?.textContent).toBe('No recent chats.');
+  expect(recentGroup?.querySelector('p')?.textContent).toBe('No chats yet.');
   expect(
     [...(recentGroup?.querySelectorAll('a') ?? [])].map((link) => [
       link.textContent?.trim(),
       link.getAttribute('href'),
     ]),
-  ).toEqual([['View all chats', '/chats']]);
+  ).toEqual([]);
+  expect(view.container.textContent).not.toContain('View all chats');
   expect(view.container.textContent).not.toContain('private-personal-slug');
   expect(view.container.textContent).not.toContain('Hidden personal name');
   expect(
@@ -198,6 +225,8 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
       .filter((link) => link.closest('[data-slot="sidebar-menu-sub"]'))
       .map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
+    ['New chatCtrl Alt N', '/workspace'],
+    ['Chats', '/chats'],
     ['Provisioning', '/platform/provisioning'],
     ['Account status', '/platform/accounts'],
   ]);
@@ -228,13 +257,13 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(
     view.container.querySelector('[role="group"][aria-label="Recent chats"]'),
   ).toBeNull();
-  expect(view.container.textContent).not.toContain('No recent chats.');
+  expect(view.container.textContent).not.toContain('No chats yet.');
   expect(
     view.container.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
+  ).toContain('LEXON-monogram-micro-seal.svg');
   expect(
     view.container.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+  ).toBe(20);
   expect(
     view.container.querySelector('button[aria-label^="Organization: Personal"]')
       ?.textContent,
@@ -253,7 +282,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ),
   );
   await settle();
-  expect(view.container.textContent).toContain('No recent chats.');
+  expect(view.container.textContent).toContain('No chats yet.');
   await act(async () =>
     (
       view.container.querySelector(
@@ -268,7 +297,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   expect(settingsItem).toBeDefined();
   expect(settingsItem.getAttribute('href')).toContain('settings=profile');
   expect(settingsItem.querySelector('svg.lucide-settings')).not.toBeNull();
-  expect(settingsItem.textContent).toContain('⌘,');
+  expect(settingsItem.textContent).toMatch(/(⌘|Ctrl) ,/);
   const signOutItem = [
     ...document.body.querySelectorAll('[role="menuitem"]'),
   ].find((item) => item.textContent?.trim() === 'Sign out') as HTMLElement;
@@ -277,6 +306,55 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     document.body.querySelector('[data-slot="dropdown-menu-content"]')
       ?.className,
   ).toContain('shadow-md');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('Recent shows View all chats with its icon when there is at least one chat', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const requestUrl = new URL(
+      input instanceof Request ? input.url : String(input),
+      window.location.origin,
+    );
+    if (requestUrl.pathname === '/api/chats')
+      return Response.json({
+        items: [
+          {
+            id: '00000000-0000-4000-8000-000000000021',
+            title: 'Contract review',
+            updatedAt: '2026-11-13T09:00:00.000Z',
+            lastMessageAt: '2026-11-13T09:00:00.000Z',
+          },
+        ],
+        pageInfo: { nextCursor: null },
+      });
+    return sidebarFetch(input);
+  });
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SidebarProvider>
+        <ChatRuntimeProvider
+          tenantId={`${identity.user.id}:${identity.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.textContent).toContain('Contract review');
+  expect(view.container.textContent).not.toContain('No chats yet.');
+  const viewAll = view.container.querySelector(
+    '[role="group"][aria-label="Recent chats"] a[href="/chats"]',
+  )!;
+  expect(viewAll.textContent?.trim()).toBe('View all chats');
+  expect(viewAll.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -332,7 +410,11 @@ test('every active team role gets organization settings; only platform admins ge
       role: 'admin' as const,
     },
   ] as const) {
-    workspace.identity = { ...identity, organization };
+    workspace.identity = {
+      ...identity,
+      organization,
+      organizationMemberCount: 1,
+    };
     const view = await render(
       <QueryClientProvider client={new QueryClient()}>
         <SidebarProvider>
@@ -348,8 +430,8 @@ test('every active team role gets organization settings; only platform admins ge
     const organizationTrigger = view.container.querySelector(
       'button[aria-label^="Organization: Lexon Team"]',
     )!;
-    expect(organizationTrigger.textContent).toContain(
-      organization.role.charAt(0).toUpperCase() + organization.role.slice(1),
+    expect(organizationTrigger.getAttribute('aria-label')).toBe(
+      `Organization: Lexon Team 1 member, ${organization.role.charAt(0).toUpperCase() + organization.role.slice(1)}`,
     );
     const links = [
       ...view.container.querySelectorAll(
@@ -362,7 +444,8 @@ test('every active team role gets organization settings; only platform admins ge
         link.getAttribute('href'),
       ]),
     ).toEqual([
-      ['New chat', '/workspace'],
+      ['Assistant', '/workspace'],
+      ['New chatCtrl Alt N', '/workspace'],
       ['Chats', '/chats'],
       ['Platform', '/platform/provisioning'],
     ]);
@@ -370,7 +453,7 @@ test('every active team role gets organization settings; only platform admins ge
       links
         .filter((link) => link.getAttribute('aria-current') === 'page')
         .map((link) => link.textContent?.trim()),
-    ).toEqual(['New chat']);
+    ).toEqual(['New chatCtrl Alt N']);
     if (organization.kind === 'team') {
       expect(view.container.querySelector('a[href*="/settings/"]')).toBeNull();
     }
@@ -389,6 +472,7 @@ test('every active team role gets organization settings; only platform admins ge
       role: 'admin',
     },
     platformAdmin: false,
+    organizationMemberCount: 1,
   };
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
@@ -409,7 +493,8 @@ test('every active team role gets organization settings; only platform admins ge
       ),
     ].map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
   ).toEqual([
-    ['New chat', '/workspace'],
+    ['Assistant', '/workspace'],
+    ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
   ]);
   expect(view.container.textContent).not.toContain('Organization settings');
@@ -468,7 +553,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
     '[data-slot="dropdown-menu-content"]',
   );
   expect(organizationPopover?.className).toContain('shadow-md');
-  expect(organizationPopover?.className).toContain('w-fit');
+  expect(organizationPopover?.className).toContain('w-[260px]');
   expect(organizationPopover?.className).toContain('overflow-y-auto');
   expect(organizationPopover?.className).toContain('--available-height');
   expect(document.body.textContent).toContain('Personal');
@@ -497,7 +582,7 @@ test('organization menu paginates and a denied switch preserves Personal', async
   await settle();
   const option = [
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
-  ].find((item) => item.textContent === 'Protected team')!;
+  ].find((item) => item.textContent?.endsWith('Protected team'))!;
   await act(async () => option.click());
   await settle();
   expect(beginExplicitTransition).toHaveBeenCalledTimes(1);
@@ -565,9 +650,10 @@ test('team creation uses a named dialog, refreshes the list, and keeps Personal 
   const dialogOverlay = document.body.querySelector(
     '[data-slot="dialog-overlay"]',
   )!;
-  expect(dialogOverlay.getAttribute('class')).toContain('bg-black/10');
+  expect(dialogOverlay.getAttribute('class')).toContain('bg-black/50');
+  expect(dialogOverlay.getAttribute('class')).not.toContain('backdrop-blur');
   expect(dialogOverlay.getAttribute('class')).toContain('duration-100');
-  expect(dialog.getAttribute('class')).toContain('sm:max-w-sm');
+  expect(dialog.getAttribute('class')).toContain('md:max-w-[440px]');
   expect(dialog.getAttribute('class')).toContain('w-[calc(100%-2rem)]');
   expect(dialog.querySelector('[data-slot="dialog-title"]')).not.toBeNull();
   expect(dialog.getAttribute('aria-labelledby')).not.toBeNull();
@@ -673,12 +759,10 @@ test('Personal organization monogram switches to cream artwork in dark mode', as
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
   ].find((item) => item.textContent?.includes('Personal'))!;
   const logos = [...personal.querySelectorAll<HTMLImageElement>('img')];
+  // The v4.1 monogram is one seal-red mark for both themes.
   expect(logos.map((logo) => logo.getAttribute('src'))).toEqual([
-    '/LEXON-monogram-micro-ink.svg',
-    '/LEXON-monogram-micro-cream.svg',
+    '/LEXON-monogram-micro-seal.svg',
   ]);
-  expect(logos[0]?.className).toContain('dark:hidden');
-  expect(logos[1]?.className).toContain('dark:block');
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -760,7 +844,7 @@ test('successful switch waits for tenant transition before a full workspace relo
   await settle();
   const option = [
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
-  ].find((item) => item.textContent === 'Switch target')!;
+  ].find((item) => item.textContent?.endsWith('Switch target'))!;
   await act(async () => option.click());
   await settle();
   expect(events).toEqual(['transition-start']);
@@ -788,6 +872,7 @@ test('sign-out cancels, clears, calls auth, and shows the F1 failure message', a
       email: identity.user.email,
       emailVerified: true,
       twoFactorEnabled: true,
+      jobTitle: null,
       onboardingCompleted: true,
     }),
   );
@@ -842,6 +927,7 @@ test('successful sign-out navigates only after authentication completes', async 
       email: identity.user.email,
       emailVerified: true,
       twoFactorEnabled: true,
+      jobTitle: null,
       onboardingCompleted: true,
     }),
   );
@@ -879,6 +965,7 @@ test('successful sign-out navigates only after authentication completes', async 
 test('mobile sidebar closes on Escape and returns focus; the 768px boundary removes the sheet', async () => {
   workspace.identity = {
     ...identity,
+    organizationMemberCount: 1,
     organization: {
       ...identity.organization,
       kind: 'team',
@@ -912,11 +999,13 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await act(async () => opener.click());
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-  expect(document.body.textContent).toContain('No recent chats.');
+  expect(document.body.textContent).toContain('No chats yet.');
   const mobileOrganizationTrigger = document.body.querySelector(
     'button[aria-label^="Organization: Mobile team"]',
   );
-  expect(mobileOrganizationTrigger?.textContent).toContain('Admin');
+  expect(mobileOrganizationTrigger?.getAttribute('aria-label')).toContain(
+    'Admin',
+  );
   const closeSidebar = document.body.querySelector(
     'button[aria-label="Close navigation"]',
   ) as HTMLButtonElement | null;
@@ -929,11 +1018,12 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   await settle();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(
-    document.body.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
-  expect(
-    document.body.querySelector<HTMLImageElement>('img[alt="Lexon"]')?.width,
-  ).toBe(32);
+    document.body
+      .querySelector(
+        'button[aria-label^="Organization: Mobile team"] .bg-sidebar-primary',
+      )
+      ?.getAttribute('data-initials'),
+  ).toBe('MT');
   expect(document.body.textContent).toContain('ada@example.test');
   const userSettingsTrigger = document.body.querySelector(
     '[data-slot="sidebar-footer"] button[aria-haspopup="menu"]',
@@ -947,7 +1037,8 @@ test('mobile sidebar closes on Escape and returns focus; the 768px boundary remo
   const sheetContent = document.body.querySelector(
     '[data-slot="sidebar"][data-mobile="true"]',
   )!;
-  expect(sheetOverlay.className).toContain('bg-black/10');
+  expect(sheetOverlay.className).toContain('bg-[rgba(8,6,6,0.45)]');
+  expect(sheetOverlay.className).not.toContain('backdrop-blur');
   expect(sheetOverlay.className).toContain('duration-150');
   expect(sheetContent.className).toContain('bg-sidebar');
   expect(sheetContent.className).toContain('w-(--sidebar-width)');
@@ -992,6 +1083,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   expect(sidebarDefaultOpen('malformed')).toBe(true);
   workspace.identity = {
     ...identity,
+    organizationMemberCount: 1,
     organization: {
       ...identity.organization,
       kind: 'team',
@@ -1043,30 +1135,62 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   const collapsedHeader = sidebar.querySelector(
     '[data-slot="sidebar-header"]',
   )!;
-  expect(collapsedHeader.className).toContain('p-2');
+  expect(collapsedHeader.className).toContain('p-0');
   expect(
-    collapsedHeader.querySelector('img[alt="Lexon"]')?.getAttribute('src'),
-  ).toContain('LEXON-mark-tile-seal-micro.svg');
+    collapsedHeader
+      .querySelector('.bg-sidebar-primary')
+      ?.getAttribute('data-initials'),
+  ).toBe('LT');
   const collapsedMenuButton = sidebar.querySelector(
     '[data-slot="sidebar-menu-button"]',
   )!;
-  expect(collapsedMenuButton.className).toContain('size-8!');
+  expect(collapsedMenuButton.className).toContain('w-8!');
   const organizationTrigger = sidebar.querySelector(
     'button[aria-label^="Organization: Lexon Team"]',
   )!;
+  expect(organizationTrigger.textContent).toBe('');
   expect(
-    organizationTrigger.querySelector<HTMLImageElement>('img[alt="Lexon"]')
-      ?.width,
-  ).toBe(32);
-  expect(organizationTrigger.textContent).not.toContain('L');
+    organizationTrigger
+      .querySelector('.bg-sidebar-primary')
+      ?.getAttribute('data-initials'),
+  ).toBe('LT');
   expect(organizationTrigger.textContent).not.toContain('Admin');
   expect(sidebar.textContent).not.toContain('ada@example.test');
   expect(
     sidebar.querySelector('[data-slot="avatar-initials"]')?.className,
-  ).toContain('rounded-full');
-  for (const button of sidebar.querySelectorAll('button[aria-haspopup]')) {
+  ).toContain('rounded-[8px]');
+  for (const button of sidebar.querySelectorAll(
+    '[data-slot="sidebar-header"] button[aria-haspopup], [data-slot="sidebar-footer"] button[aria-haspopup]',
+  )) {
     expect(button.className).toContain('h-12');
   }
+  // Collapsed (prototype screen 32): one Assistant icon. It opens a menu with
+  // the same destinations, so New chat and Chats stay keyboard reachable.
+  const assistantMenu = sidebar.querySelector<HTMLButtonElement>(
+    'nav button[aria-label="Assistant navigation"]',
+  )!;
+  expect(assistantMenu.getAttribute('aria-haspopup')).toBe('menu');
+  expect(
+    sidebar.querySelector('nav [data-slot="sidebar-menu-sub"]'),
+  ).toBeNull();
+  await act(async () => assistantMenu.click());
+  await settle();
+  expect(
+    [
+      ...document.body.querySelectorAll<HTMLAnchorElement>(
+        '[data-slot="dropdown-menu-content"] a[role="menuitem"]',
+      ),
+    ].map((item) => [item.textContent?.trim(), item.getAttribute('href')]),
+  ).toEqual([
+    ['New chat', '/workspace'],
+    ['Chats', '/chats'],
+  ]);
+  await act(async () =>
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await settle();
   await act(async () =>
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true }),
@@ -1087,4 +1211,244 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   ).toBe('collapsed');
   await collapsed.unmount();
   vi.unstubAllGlobals();
+});
+
+test('the New chat shortcut hint follows the platform', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', sidebarFetch);
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  const platform = vi
+    .spyOn(window.navigator, 'platform', 'get')
+    .mockReturnValue('MacIntel');
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SidebarProvider>
+        <ChatRuntimeProvider
+          tenantId={`${identity.user.id}:${identity.organization.id}`}
+        >
+          <AppSidebar />
+        </ChatRuntimeProvider>
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  try {
+    const hint = view.container.querySelector('[data-slot="shortcut-hint"]')!;
+    expect(hint.textContent).toBe('⌘ ⌥ N');
+    expect(hint.getAttribute('aria-hidden')).toBe('true');
+  } finally {
+    platform.mockRestore();
+    await view.unmount();
+    vi.unstubAllGlobals();
+  }
+});
+
+const teamIdentity = (name: string, count: number | null): IdentitySummary => ({
+  ...identity,
+  organization: {
+    ...identity.organization,
+    id: '00000000-0000-4000-8000-000000000002',
+    name,
+    slug: 'team-slug',
+    kind: 'team',
+    role: 'admin',
+  },
+  organizationMemberCount: count,
+});
+
+async function renderMenu(value: IdentitySummary) {
+  workspace.identity = value;
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      items: [identity.organization, { ...value.organization }],
+      pageInfo: { nextCursor: null },
+    }),
+  );
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <OrganizationMenu identity={value} />
+    </QueryClientProvider>,
+  );
+}
+
+test('team trigger shows initials on the ink tile, the name, and the member count', async () => {
+  const view = await renderMenu(teamIdentity('Hukum Nusantara', 12));
+  await settle();
+  const trigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Hukum Nusantara"]',
+  )!;
+  expect(trigger.getAttribute('aria-label')).toBe(
+    'Organization: Hukum Nusantara 12 members, Admin',
+  );
+  const tile = trigger.querySelector('.bg-sidebar-primary')!;
+  expect(tile.className).toContain('text-sidebar-primary-foreground');
+  expect(tile.getAttribute('data-initials')).toBe('HN');
+  expect(trigger.textContent).toBe('Hukum Nusantara 12 members');
+  expect(trigger.querySelector('img[alt="Lexon"]')).toBeNull();
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('team trigger says "1 member" for a single member', async () => {
+  const view = await renderMenu(teamIdentity('Solo', 1));
+  await settle();
+  const trigger = view.container.querySelector('button')!;
+  expect(trigger.textContent).toBe('Solo 1 member');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('personal trigger shows the monogram tile and the private workspace line', async () => {
+  const view = await renderMenu(identity);
+  await settle();
+  const trigger = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Organization: Personal"]',
+  )!;
+  const logo = trigger.querySelector<HTMLImageElement>(
+    'img[alt="Lexon"][src="/LEXON-monogram-micro-seal.svg"]',
+  )!;
+  expect(logo).not.toBeNull();
+  const tile = logo.parentElement!;
+  expect(tile.className).toContain('bg-background');
+  expect(tile.className).toContain('border');
+  expect(trigger.textContent).toBe('Personal Your private workspace');
+  expect(trigger.getAttribute('aria-label')).toBe(
+    'Organization: Personal Your private workspace, Owner',
+  );
+  expect(trigger.textContent).not.toContain('member');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('a 60-character team name truncates inside the trigger', async () => {
+  const name = 'Nusantara '.repeat(6).trim().slice(0, 60);
+  const view = await renderMenu(teamIdentity(name, 3));
+  await settle();
+  const trigger = view.container.querySelector('button')!;
+  const nameElement = [...trigger.querySelectorAll('span')].find(
+    (el) => el.textContent === name,
+  )!;
+  expect(nameElement.className).toContain('truncate');
+  expect(nameElement.parentElement!.className).toContain('min-w-0');
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('the dropdown list shows a tile and name per organization and no counts', async () => {
+  const view = await renderMenu(teamIdentity('Hukum Nusantara', 12));
+  await settle();
+  await act(async () => view.container.querySelector('button')!.click());
+  await settle();
+  const items = [
+    ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].filter(
+    (item) =>
+      item.hasAttribute('aria-current') ||
+      item.querySelector('span[aria-hidden="true"]'),
+  );
+  const text = items.map((item) => item.textContent);
+  expect(text).toContain('PPersonal'.slice(1));
+  expect(text.some((value) => value?.includes('Hukum Nusantara'))).toBe(true);
+  const popup = document.body.querySelector(
+    '[data-testid="organization-popup"]',
+  )!;
+  expect(popup.textContent).not.toMatch(/\d+ members?/);
+  expect(popup.querySelectorAll('.bg-sidebar-primary')).toHaveLength(1);
+  expect(popup.querySelectorAll('img[alt="Lexon"]')).toHaveLength(1);
+  await view.unmount();
+  vi.unstubAllGlobals();
+});
+
+test('trigger accessible names contain the visible text in order and keep the role', async () => {
+  for (const [value, visible, role] of [
+    [
+      teamIdentity('Hukum Nusantara', 12),
+      'Hukum Nusantara 12 members',
+      'Admin',
+    ],
+    [teamIdentity('Solo', 1), 'Solo 1 member', 'Admin'],
+    [identity, 'Personal Your private workspace', 'Owner'],
+  ] as const) {
+    const view = await renderMenu(value);
+    await settle();
+    const trigger = view.container.querySelector('button')!;
+    const label = trigger.getAttribute('aria-label')!;
+    expect(label.startsWith(`Organization: ${visible}`)).toBe(true);
+    expect(label).toContain(role);
+    const spoken = [...trigger.querySelectorAll('span:not([aria-hidden])')]
+      .filter((el) => el.children.length === 0)
+      .map((el) => el.textContent);
+    expect(label).toContain(spoken.join(' '));
+    await view.unmount();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('the sidebar row shows the job title; the menu header shows the email under the name', async () => {
+  workspace.identity = {
+    ...identity,
+    user: { ...identity.user, jobTitle: 'Senior Associate' },
+  };
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const trigger = view.container.querySelector('button[aria-haspopup="menu"]')!;
+  expect(trigger.textContent).toContain('Senior Associate');
+  expect(trigger.textContent).not.toContain('ada@example.test');
+  await act(async () => (trigger as HTMLButtonElement).click());
+  await settle();
+  const label = document.body.querySelector(
+    '[data-slot="dropdown-menu-label"]',
+  )!;
+  expect(label.textContent).toContain('ada@example.test');
+  expect(label.textContent).not.toContain('Senior Associate');
+  const lines = [...label.querySelectorAll('span.truncate')].map(
+    (el) => el.textContent,
+  );
+  expect(lines).toEqual([identity.user.name, 'ada@example.test']);
+  await view.unmount();
+
+  workspace.identity = identity;
+  const plain = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const plainTrigger = plain.container.querySelector(
+    'button[aria-haspopup="menu"]',
+  )!;
+  expect(plainTrigger.textContent).toContain('ada@example.test');
+  await act(async () => (plainTrigger as HTMLButtonElement).click());
+  await settle();
+  expect(
+    document.body.querySelector('[data-slot="dropdown-menu-label"]')
+      ?.textContent,
+  ).toContain('ada@example.test');
+  await plain.unmount();
+});
+
+test('an 80-character job title truncates inside the trigger', async () => {
+  workspace.identity = {
+    ...identity,
+    user: { ...identity.user, jobTitle: 'J'.repeat(80) },
+  };
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserMenu />
+    </QueryClientProvider>,
+  );
+  const trigger = view.container.querySelector('button[aria-haspopup="menu"]')!;
+  const line = [...trigger.querySelectorAll('span.truncate')].find((el) =>
+    el.textContent?.startsWith('JJJ'),
+  )!;
+  expect(line.className).toContain('truncate');
+  expect(line.parentElement?.className).toContain('min-w-0');
+  expect(trigger.className).not.toContain('overflow-visible');
+  await view.unmount();
 });

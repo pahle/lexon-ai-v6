@@ -61,6 +61,7 @@ test('platform forms remain hidden before server authorization and after denial'
 test('non-platform administrators do not mount provisioning data loaders', async () => {
   workspaceState.identity = {
     platformAdmin: false,
+    organizationMemberCount: null,
     organization: { id: '00000000-0000-4000-8000-000000000001' },
     user: { id: '00000000-0000-4000-8000-000000000002' },
   };
@@ -93,9 +94,11 @@ test('platform provisioning uses a published Card, Empty state, and semantic tab
   await settle();
   expect(view.container.querySelector('[data-slot="card"]')).not.toBeNull();
   expect(view.container.querySelector('[data-slot="empty"]')).not.toBeNull();
-  expect(view.container.textContent).toContain('No provisioning organizations');
   expect(view.container.textContent).toContain(
-    'New teams waiting for an owner will appear here.',
+    'No organizations are waiting for an owner',
+  );
+  expect(view.container.textContent).toContain(
+    'Organizations you provision appear here until their first owner accepts.',
   );
   expect(view.container.textContent).not.toContain(
     'Provision an organization above to begin.',
@@ -316,13 +319,13 @@ test('resending owner invitation labels only Resend pending and resets after fai
   await settle();
   const resend = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
-  ].find((button) => button.textContent?.includes('Resend owner invitation'))!;
+  ].find((button) => button.textContent?.includes('Resend invitation'))!;
   const cancel = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
   ].find((button) => button.textContent?.includes('Cancel provisioning'))!;
   const replace = [
     ...view.container.querySelectorAll<HTMLButtonElement>('button'),
-  ].find((button) => button.textContent?.includes('Replace owner email'))!;
+  ].find((button) => button.textContent?.includes('Replace and send'))!;
   const replacementEmail = view.container.querySelector<HTMLInputElement>(
     'input[name="email"]',
   )!;
@@ -383,6 +386,7 @@ test('completed setup discards its proof without redeeming it again', async () =
     name: 'Operator',
     emailVerified: true,
     twoFactorEnabled: true,
+    jobTitle: null,
     onboardingCompleted: false,
   };
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) =>
@@ -395,6 +399,7 @@ test('completed setup discards its proof without redeeming it again', async () =
             mfaVerified: true,
             reauthenticationExpiresAt: null,
             recoveryCodesRemaining: 10,
+            passwordChangedAt: null,
           })
         : String(input).endsWith('/complete')
           ? new Response(null, { status: 204 })
@@ -413,4 +418,39 @@ test('completed setup discards its proof without redeeming it again', async () =
   );
   await view.unmount();
   vi.unstubAllGlobals();
+});
+
+test('provisioning list shows a skeleton while loading', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => new Promise<Response>(() => {})),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  await view.unmount();
+});
+
+test('provisioning list section heading is a 16px semibold platform heading', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({ items: [], pageInfo: { nextCursor: null } }),
+    ),
+  );
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProvisioningList />
+    </QueryClientProvider>,
+  );
+  await settle();
+  const heading = view.container.querySelector('#provisioning-heading');
+  expect(heading?.textContent).toBe('Awaiting first owner');
+  expect(heading?.className).toContain('text-base');
+  expect(heading?.className).toContain('font-semibold');
+  await view.unmount();
 });

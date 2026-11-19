@@ -1,4 +1,5 @@
 import http from 'k6/http';
+import { sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
 /* global __ENV, __VU, __ITER */
@@ -10,7 +11,7 @@ export const options = {
       executor: 'per-vu-iterations',
       vus: 500,
       iterations: 1,
-      maxDuration: '120s',
+      maxDuration: '150s',
       gracefulStop: '0s',
     },
   },
@@ -64,6 +65,8 @@ function ownerSummary(data, ownerIndex) {
 }
 
 export default function () {
+  // Owner-approved 2026-11-19: ramp the 500 clients over 30 s (see F4.1-acceptance.md, A-04).
+  if (__ITER === 0) sleep(((__VU - 1) / 500) * 30);
   const ownerIndex = (__VU - 1) % owners.length;
   const owner = owners[ownerIndex];
   const ownerMetrics = ownerDiagnostics[ownerIndex];

@@ -6,6 +6,104 @@ export function isSnapshotUpdateEnabled(updateSnapshots) {
   return ['all', 'changed', 'missing'].includes(updateSnapshots);
 }
 
+/**
+ * An index view is a pixel golden unless it carries a `lock`. Its screenshot
+ * is then captured for owner review only, and the regression lock is:
+ * - "svg-snapshot": a committed SVG snapshot (scripts/svg-snapshot.mjs);
+ * - "engine-tests": none at the page level; the frame is covered by the
+ *   engine unit tests and the timeline fixture guard.
+ */
+export function isPixelLocked(view) {
+  if (view.lock === undefined) return true;
+  if (view.lock === 'svg-snapshot' || view.lock === 'engine-tests')
+    return false;
+  throw new Error(`Unknown visual lock "${view.lock}".`);
+}
+
+/**
+ * True when a view's indicator SVG is compared with the committed snapshot:
+ * every view except one locked by the engine tests alone. A pixel-locked view
+ * (indicator-finished) keeps its golden and also has a snapshot.
+ */
+export function hasSvgSnapshot(view) {
+  return view.lock !== 'engine-tests';
+}
+
+/** The index views that are pixel goldens, as an id-to-view object. */
+export function pixelLockedViews(index) {
+  return Object.fromEntries(
+    Object.entries(index.views).filter(([, view]) => isPixelLocked(view)),
+  );
+}
+
+export const DEFAULT_VISUAL_SET = 'F4.1-visual';
+
+/** The directory of a visual set under docs/references (default: F4.1). */
+export function visualSetDirectory(
+  set = process.env.LEXON_VISUAL_SET ?? DEFAULT_VISUAL_SET,
+  root = process.cwd(),
+) {
+  if (!/^F\d+(\.\d+)?-visual$/.test(set))
+    throw new Error(`Unknown visual set: ${set}`);
+  return resolve(root, 'docs/references', set);
+}
+
+/**
+ * Recapturing an image invalidates its recorded approval (F4 follow-up M3).
+ * Returns a new approval record: every approved image whose recaptured hash
+ * differs loses its approved entry, is listed under `invalidated`, and the
+ * set returns to awaiting-owner, which refuses compare and update modes.
+ */
+/**
+ * The hash a review image had when the owner approved it. A re-approved image
+ * keeps its review hash; its golden carries the new hash (`images[id]`).
+ */
+export function approvedReviewSha256(approval, id) {
+  return (
+    approval.reapproved?.find((entry) => entry.id === id)?.previousSha256 ??
+    approval.images?.[id]?.sha256
+  );
+}
+
+export function invalidateRecapturedApproval(approval, capturedImages) {
+  if (approval.status !== 'approved') return { approval, invalidated: [] };
+  const changed = Object.entries(approval.images ?? {}).filter(
+    ([id]) =>
+      capturedImages[id] !== undefined &&
+      capturedImages[id].sha256 !== approvedReviewSha256(approval, id),
+  );
+  if (changed.length === 0) return { approval, invalidated: [] };
+  const invalidated = changed.map(([id]) => id);
+  return {
+    invalidated,
+    approval: {
+      ...approval,
+      status: 'awaiting-owner',
+      images: Object.fromEntries(
+        Object.entries(approval.images).filter(
+          ([id]) => !invalidated.includes(id),
+        ),
+      ),
+      invalidated: [
+        ...(approval.invalidated ?? []),
+        ...changed.map(([id, image]) => ({
+          id,
+          approvedSha256: image.sha256,
+          recapturedSha256: capturedImages[id].sha256,
+        })),
+      ],
+    },
+  };
+}
+
+/** An approval must come from a commit in the current history. */
+export function assertApprovalSourceReachable(approval, isAncestor) {
+  if (!isAncestor(approval.sourceSha))
+    throw new Error(
+      `Approved visual source ${approval.sourceSha} is not an ancestor of the current commit.`,
+    );
+}
+
 export function resolveVisualMode({
   explicitMode = process.env.LEXON_VISUAL_MODE,
   approvalPath = resolve('docs/references/F2.1-visual/approval.json'),
@@ -67,6 +165,7 @@ export function assertIndexedArtifact(
   const view = index.views?.[id];
   if (!view) throw new Error(`Visual index has no entry for view "${id}".`);
   assertReviewPath(id, view.path, directory, 'review');
+  if (mode !== 'capture' && !isPixelLocked(view)) return null;
   const relativePath =
     mode === 'capture'
       ? view.path
@@ -205,9 +304,16 @@ export function assertApprovedVisualSet(
     );
   }
 
-  const indexedViews = Object.entries(index.views).filter(([, view]) =>
-    view.path?.startsWith('review/'),
+  const indexedViews = Object.entries(index.views).filter(
+    ([, view]) => view.path?.startsWith('review/') && isPixelLocked(view),
   );
+  const approvedUnlocked = Object.keys(approval.images ?? {}).find(
+    (id) => index.views[id] && !isPixelLocked(index.views[id]),
+  );
+  if (approvedUnlocked)
+    throw new Error(
+      `Approved visual image "${approvedUnlocked}" is ${index.views[approvedUnlocked].lock} locked and has no pixel golden.`,
+    );
   if (indexedViews.length !== expectedViewCount) {
     throw new Error(
       `Visual index has ${indexedViews.length} review views; expected ${expectedViewCount}.`,
@@ -256,7 +362,12 @@ export function assertApprovedVisualSet(
       'review',
       id,
     );
-    assertPng(reviewPath, expected, id, 'approved review artifact');
+    assertPng(
+      reviewPath,
+      { ...expected, sha256: approvedReviewSha256(approval, id) },
+      id,
+      'approved review artifact',
+    );
     if (requireBaselines) {
       const baselinePath = resolveApprovedPath(
         directory,
@@ -298,6 +409,8 @@ export function buildVisualBaselineManifest(
     indexSha256,
     environment,
     viewCount,
+    ...(approval.reapproved ? { reapproved: approval.reapproved } : {}),
+    ...(approval.deviations ? { deviations: approval.deviations } : {}),
     images: Object.fromEntries(
       Object.entries(approval.images).map(([id, image]) => [
         id,
@@ -347,6 +460,39 @@ function validateApprovedRecord(approval) {
         'Approved visual original approval provenance is invalid.',
       );
     }
+  }
+  if (
+    approval.deviations !== undefined &&
+    (!Array.isArray(approval.deviations) ||
+      approval.deviations.some(
+        (row) =>
+          typeof row.id !== 'string' ||
+          !row.id ||
+          typeof row.variant !== 'string' ||
+          !/^(d|m)(-dark)?$/.test(row.variant) ||
+          typeof row.percent !== 'number' ||
+          typeof row.reason !== 'string' ||
+          !row.reason.trim(),
+      ))
+  ) {
+    throw new Error('Approved visual deviations are invalid.');
+  }
+  if (
+    approval.reapproved !== undefined &&
+    (!Array.isArray(approval.reapproved) ||
+      approval.reapproved.some(
+        (entry) =>
+          typeof entry.id !== 'string' ||
+          !/^[a-f\d]{64}$/.test(entry.sha256 ?? '') ||
+          !/^[a-f\d]{64}$/.test(entry.previousSha256 ?? '') ||
+          entry.sha256 === entry.previousSha256 ||
+          approval.images?.[entry.id]?.sha256 !== entry.sha256 ||
+          !Number.isInteger(entry.evidence?.pixels) ||
+          typeof entry.decision !== 'string' ||
+          !entry.decision.trim(),
+      ))
+  ) {
+    throw new Error('Approved visual re-approvals are invalid.');
   }
   if (
     approval.amendments !== undefined &&

@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { CircleAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SignInInputSchema, type SignInInput } from '@lexon/contracts';
@@ -10,7 +9,7 @@ import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
 import { Field, FieldGroup, FieldDescription } from '../ui/field';
-import { Alert, AlertDescription } from '../ui/alert';
+import { AuthAlert, AuthHeader, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 
@@ -72,7 +71,7 @@ export function LoginForm({
     );
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col"
       noValidate
       method="post"
       onSubmit={form.handleSubmit((input) =>
@@ -101,41 +100,36 @@ export function LoginForm({
       )}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-serif text-2xl font-bold">Sign in to Lexon</h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            Enter your email and password to continue.
-          </p>
-        </div>
-        {failure ? (
-          <Alert role="alert" variant="destructive">
-            <CircleAlert />
-            <AlertDescription>{failure}</AlertDescription>
-          </Alert>
-        ) : null}
+        <AuthHeader
+          title="Sign in to Lexon"
+          description="Enter your work email and password."
+        />
+        {failure ? <AuthAlert>{failure}</AuthAlert> : null}
         <FormInput
           label="Email"
           type="email"
           autoComplete="email"
+          placeholder="you@firm.co.id"
           registration={form.register('email')}
           error={form.formState.errors.email}
-          disabled={!hydrated}
+          disabled={!hydrated || submission.pending}
         />
         <FormInput
           label="Password"
           labelAside={
             <a
               href="/forgot-password"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
+              className="ml-auto text-[13px] leading-[1.2] font-normal text-foreground underline underline-offset-4"
             >
-              Forgot your password?
+              Forgot password?
             </a>
           }
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••"
           registration={form.register('password')}
           error={form.formState.errors.password}
-          disabled={!hydrated}
+          disabled={!hydrated || submission.pending}
         />
         <Field>
           <PendingButton
@@ -143,13 +137,15 @@ export function LoginForm({
             pending={submission.pending}
             pendingLabel="Signing in…"
             disabled={!hydrated}
+            size="lg"
+            className={authButtonClass}
           >
             Sign in
           </PendingButton>
         </Field>
         <Field>
-          <FieldDescription className="text-center">
-            New to Lexon? <a href={signup}>Create account</a>
+          <FieldDescription className="text-center text-sm leading-[1.21] text-muted-foreground [&>a]:text-foreground">
+            New to Lexon? <a href={signup}>Create an account</a>
           </FieldDescription>
         </Field>
       </FieldGroup>

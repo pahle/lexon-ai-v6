@@ -94,6 +94,7 @@ async function asActor<T>(
           email: 'fixture@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {
@@ -108,6 +109,7 @@ async function asActor<T>(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       },
     },
     new Headers(),

@@ -110,6 +110,8 @@ export function groupChatsByDate(
   yesterday.setDate(yesterday.getDate() - 1);
   const weekStart = new Date(today);
   weekStart.setDate(weekStart.getDate() - 7);
+  const monthStart = new Date(today);
+  monthStart.setDate(monthStart.getDate() - 30);
   const groups = new Map<string, ChatListItem[]>();
   for (const item of items) {
     const activity = new Date(item.updatedAt);
@@ -125,10 +127,12 @@ export function groupChatsByDate(
           ? 'Yesterday'
           : day >= weekStart
             ? 'Previous 7 days'
-            : new Intl.DateTimeFormat('en-US', {
-                month: 'long',
-                year: 'numeric',
-              }).format(activity);
+            : day >= monthStart
+              ? 'Previous 30 days'
+              : new Intl.DateTimeFormat('en-US', {
+                  month: 'long',
+                  year: 'numeric',
+                }).format(activity);
     const group = groups.get(label) ?? [];
     group.push(item);
     groups.set(label, group);

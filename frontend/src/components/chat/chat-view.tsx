@@ -1,6 +1,8 @@
 'use client';
 
 import { Textarea } from '@/components/ui/textarea';
+import { ChatSkeleton } from '@/components/chat/chat-skeleton';
+import { PlaceholderHighlightTextarea } from '@/components/chat/placeholder-highlight-textarea';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -28,6 +30,10 @@ import { ChatClientError } from '@/lib/chat-errors';
 import { WorkspaceNotFound } from '@/components/states/workspace-not-found';
 import { useWorkspace } from '@/components/shell/workspace-provider';
 import { chatListQueryKey } from '@/lib/chat-queries';
+import { composerClasses } from '@/components/chat/composer-styles';
+import { cn } from 'cn';
+import { ChatGreeting } from '@/components/chat/chat-greeting';
+import { StarterPills } from '@/components/chat/starter-pills';
 
 export { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 
@@ -81,6 +87,7 @@ function ChatViewSession({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCreateIdentity = useRef<PendingCreateIdentity | null>(null);
   const bytes = promptByteLength(text);
   const refreshActiveTree = useCallback(() => {
@@ -222,14 +229,57 @@ function ChatViewSession({
 
   if (chatId && loading)
     return (
-      <div
-        role="status"
-        className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 p-6"
-      >
-        <span className="sr-only">Loading conversation</span>
-        <div className="bg-muted h-9 w-2/5 animate-pulse rounded-xl motion-reduce:animate-none" />
-        <div className="bg-muted h-4 w-full animate-pulse rounded motion-reduce:animate-none" />
-        <div className="bg-muted h-4 w-4/5 animate-pulse rounded motion-reduce:animate-none" />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mx-auto w-full max-w-[880px] flex-1 px-6 pt-6 max-md:px-4 max-md:pt-4">
+          <ChatSkeleton />
+        </div>
+        <div className={composerClasses.wrapper}>
+          <div
+            data-slot="aui_thread-fade"
+            aria-hidden="true"
+            className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
+          />
+          <div data-slot="aui_composer-shell" className={composerClasses.shell}>
+            <Textarea
+              aria-label="Message input"
+              placeholder="Ask Lexon about a contract, a regulation, or a case..."
+              disabled
+              rows={1}
+              className={cn(
+                composerClasses.input,
+                'cursor-not-allowed border-0 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:disabled:bg-transparent',
+              )}
+            />
+            <div className={cn(composerClasses.toolbar)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled
+                className={cn(
+                  composerClasses.deepThinking,
+                  'disabled:opacity-100',
+                )}
+                aria-label="Deep thinking"
+                aria-pressed={false}
+              >
+                <BrainIcon aria-hidden="true" /> Deep thinking
+              </Button>
+              <Button
+                type="button"
+                disabled
+                size="icon"
+                className={composerClasses.send}
+                aria-label="Send message"
+              >
+                <ArrowUpIcon />
+              </Button>
+            </div>
+          </div>
+          <p className={composerClasses.disclaimer}>
+            Lexon can make mistakes. Verify important legal information.
+          </p>
+        </div>
       </div>
     );
   if (chatId && notFound) return <WorkspaceNotFound />;
@@ -272,18 +322,12 @@ function ChatViewSession({
     );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
-      <div className="mb-6 w-full max-w-3xl">
-        <h2 className="font-serif text-2xl font-medium">
-          Welcome, {displayName}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Your legal workspace, ready when you are.
-        </p>
-      </div>
-      <form onSubmit={submit} className="w-full max-w-3xl">
-        <div className="border-border bg-muted/30 focus-within:border-ring rounded-2xl border p-3">
-          <Textarea
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[22px] pb-20 max-md:pb-[79px]">
+      <ChatGreeting displayName={displayName} />
+      <form onSubmit={submit} className={composerClasses.wrapper}>
+        <div data-slot="aui_composer-shell" className={composerClasses.shell}>
+          <PlaceholderHighlightTextarea
+            ref={textareaRef}
             aria-label="Message input"
             placeholder="Ask Lexon about a contract, a regulation, or a case..."
             value={text}
@@ -299,18 +343,24 @@ function ChatViewSession({
               }
             }}
             rows={1}
-            className="max-h-48 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+            className={cn(
+              composerClasses.input,
+              'border-0 shadow-none focus-visible:ring-0',
+            )}
           />
-          <div className="flex flex-nowrap items-center justify-between gap-3 pt-2">
+          <div className={cn(composerClasses.toolbar)}>
             <div className="flex min-w-0 flex-nowrap items-center gap-3">
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
                       type="button"
-                      variant={effort === 'max' ? 'secondary' : 'outline'}
+                      variant="ghost"
                       size="sm"
-                      className="rounded-full"
+                      className={cn(
+                        composerClasses.deepThinking,
+                        effort === 'max' && composerClasses.deepThinkingPressed,
+                      )}
                       aria-label="Deep thinking"
                       aria-pressed={effort === 'max'}
                       onClick={() =>
@@ -321,8 +371,8 @@ function ChatViewSession({
                 >
                   <BrainIcon aria-hidden="true" /> Deep thinking
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Deep thinking: takes longer and uses more of your budget.
+                <TooltipContent side="bottom" align="start" sideOffset={8}>
+                  Takes longer and uses more of your budget
                 </TooltipContent>
               </Tooltip>
               {bytes >= MAX_PROMPT_BYTES - 512 && bytes <= MAX_PROMPT_BYTES ? (
@@ -337,13 +387,16 @@ function ChatViewSession({
               disabled={!text.trim() || bytes > MAX_PROMPT_BYTES || sending}
               variant="default"
               size="icon"
-              className="size-9 shrink-0 rounded-full"
+              className={composerClasses.send}
               aria-label="Send message"
             >
-              <ArrowUpIcon className="size-4" />
+              <ArrowUpIcon />
             </TooltipIconButton>
           </div>
         </div>
+        <p className={cn(composerClasses.disclaimer, 'leading-4')}>
+          Lexon can make mistakes. Verify important legal information.
+        </p>
         {bytes > MAX_PROMPT_BYTES ? (
           <p role="alert" className="text-destructive mt-2 text-sm">
             Messages can be up to 16,384 bytes.
@@ -354,10 +407,15 @@ function ChatViewSession({
             Your message could not be sent. Please try again.
           </p>
         ) : null}
-        <p className="text-muted-foreground mt-3 text-center text-xs">
-          Lexon can make mistakes. Verify important legal information.
-        </p>
       </form>
+      <div className="mt-3.5 w-full max-w-[880px] max-md:mt-[13px]">
+        <StarterPills
+          textareaRef={textareaRef}
+          value={text}
+          onValueChange={setText}
+          disabled={sending}
+        />
+      </div>
     </div>
   );
 }

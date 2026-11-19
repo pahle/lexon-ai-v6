@@ -4,12 +4,37 @@ import { useEffect, useId, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { SettingsHeading } from './settings-section';
 
 const themes = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'System' },
 ] as const;
+
+function PreviewPane({
+  theme,
+  className,
+  bar = 'bg-[var(--input)]',
+}: {
+  theme: 'light' | 'dark';
+  className: string;
+  bar?: string;
+}): React.ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      data-preview-theme={theme}
+      className={`flex min-w-0 ${className}`}
+    >
+      <span className="flex-1 bg-[var(--sidebar)]" />
+      <span className="flex flex-[2] flex-col gap-1.5 bg-[var(--background)] p-3">
+        <span className={`h-2 w-3/5 rounded-[4px] ${bar}`} />
+        <span className={`h-2 w-4/5 rounded-[4px] ${bar}`} />
+      </span>
+    </span>
+  );
+}
 
 export function AppearanceSettings(): React.ReactElement {
   const [mounted, setMounted] = useState(false);
@@ -21,18 +46,17 @@ export function AppearanceSettings(): React.ReactElement {
   if (!mounted) return <div aria-hidden="true" className="min-h-32" />;
 
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend id={headingId} className="text-lg font-medium">
-        Appearance
-      </legend>
-      <p className="text-sm text-muted-foreground">
-        Choose how Lexon looks on this device.
-      </p>
+    <section aria-labelledby={headingId} className="flex flex-col gap-5">
+      <SettingsHeading
+        id={headingId}
+        title="Appearance"
+        description="Choose how Lexon looks on this device."
+      />
       <RadioGroup
         aria-labelledby={headingId}
         value={theme ?? 'system'}
         onValueChange={(value) => setTheme(String(value))}
-        className="mt-3 w-full max-w-[35.75rem] grid-cols-1 gap-4 min-[768px]:grid-cols-3"
+        className="flex w-full gap-4 max-md:gap-2.5"
       >
         {themes.map(({ value, label }) => {
           const id = `${headingId}-${value}`;
@@ -41,40 +65,43 @@ export function AppearanceSettings(): React.ReactElement {
               key={value}
               htmlFor={id}
               data-slot="appearance-option"
-              className="flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-[var(--radius)] outline-none focus-within:ring-2 focus-within:ring-ring"
+              className="relative flex w-[180px] min-w-0 cursor-pointer flex-col items-start gap-2 rounded-[10px] outline-none max-md:w-auto max-md:flex-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background"
             >
               <div
                 aria-hidden="true"
                 data-slot="appearance-preview"
                 data-theme-preview={value}
                 data-selected={theme === value}
-                className="flex h-24 w-full min-w-0 gap-1 overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1 data-[selected=true]:border-primary"
+                className="relative flex h-[110px] w-full min-w-0 overflow-hidden rounded-[10px] border border-input data-[selected=true]:border-2 data-[selected=true]:border-ring"
               >
-                <span
-                  aria-hidden="true"
-                  data-preview-theme={value === 'system' ? 'light' : value}
-                  className="flex w-1/4 shrink-0 flex-col gap-1 rounded-[var(--radius)] border border-border bg-[var(--surface-raised)] p-1"
-                >
-                  <span className="h-1.5 w-full rounded bg-muted" />
-                  <span className="h-1.5 w-2/3 rounded bg-muted" />
-                </span>
-                <span
-                  data-preview-theme={value === 'system' ? 'dark' : value}
-                  className="flex min-w-0 flex-1 flex-col gap-2 rounded-[var(--radius)] bg-[var(--background)] p-2"
-                >
-                  <span className="h-2 w-1/2 rounded bg-muted" />
-                  <span className="h-1.5 w-full rounded bg-muted/70" />
-                  <span className="h-1.5 w-4/5 rounded bg-muted/70" />
-                </span>
+                {value === 'system' ? (
+                  <>
+                    <PreviewPane
+                      theme="light"
+                      bar="bg-[var(--lexon-deleted)]"
+                      className="absolute inset-0 [clip-path:polygon(0_0,16.667%_0,16.667%_100%,33.333%_100%,33.333%_0,66.667%_0,66.667%_100%,0_100%)]"
+                    />
+                    <PreviewPane
+                      theme="dark"
+                      bar="bg-[var(--lexon-deleted)]"
+                      className="absolute inset-0 [clip-path:polygon(16.667%_0,33.333%_0,33.333%_100%,66.667%_100%,66.667%_0,100%_0,100%_100%,16.667%_100%)]"
+                    />
+                  </>
+                ) : (
+                  <PreviewPane theme={value} className="w-full" />
+                )}
               </div>
-              <div className="flex min-h-8 items-center gap-2">
-                <RadioGroupItem id={id} value={value} aria-label={label} />
-                <span>{label}</span>
-              </div>
+              <RadioGroupItem
+                id={id}
+                value={value}
+                aria-label={label}
+                className="absolute inset-0 size-full opacity-0 after:hidden"
+              />
+              <span className="text-sm font-medium">{label}</span>
             </Label>
           );
         })}
       </RadioGroup>
-    </fieldset>
+    </section>
   );
 }

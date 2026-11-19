@@ -1,3 +1,4 @@
+import { JobTitleSchema } from './job-title.js';
 import { z } from 'zod';
 import {
   UuidSchema,
@@ -43,7 +44,14 @@ export const SignInInputSchema = z.strictObject({
   password: ExistingPasswordSchema,
 });
 export type SignInInput = z.infer<typeof SignInInputSchema>;
-export const ProfileInputSchema = z.strictObject({ name: DisplayNameSchema });
+export const ProfileInputSchema = z
+  .strictObject({
+    name: DisplayNameSchema.optional(),
+    jobTitle: JobTitleSchema.nullable().optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, {
+    message: 'Provide a name or a job title.',
+  });
 export type ProfileInput = z.infer<typeof ProfileInputSchema>;
 export const SafeProfileSchema = z.strictObject({
   version: z.literal(1),
@@ -52,19 +60,35 @@ export const SafeProfileSchema = z.strictObject({
   name: DisplayNameSchema,
   emailVerified: z.boolean(),
   twoFactorEnabled: z.boolean(),
+  jobTitle: JobTitleSchema.nullable(),
   onboardingCompleted: z.boolean(),
 });
 export type SafeProfile = z.infer<typeof SafeProfileSchema>;
-export const IdentitySummarySchema = z.strictObject({
-  version: z.literal(1),
-  platformAdmin: z.boolean(),
-  user: SafeProfileSchema,
-  organization: OrganizationSummarySchema,
-  fallbackReason: z
-    .enum(['membership_removed', 'selection_repaired'])
-    .optional(),
-  previousOrganizationName: DisplayNameSchema.optional(),
-});
+export const IdentitySummarySchema = z
+  .strictObject({
+    version: z.literal(1),
+    platformAdmin: z.boolean(),
+    user: SafeProfileSchema,
+    organization: OrganizationSummarySchema,
+    /**
+     * How many members the active organization has when it is a team, shown
+     * in the organization switcher. Always null for the personal workspace.
+     */
+    organizationMemberCount: z.number().int().min(1).nullable(),
+    fallbackReason: z
+      .enum(['membership_removed', 'selection_repaired'])
+      .optional(),
+    previousOrganizationName: DisplayNameSchema.optional(),
+  })
+  .refine(
+    (summary) =>
+      (summary.organization.kind === 'team') ===
+      (summary.organizationMemberCount !== null),
+    {
+      path: ['organizationMemberCount'],
+      message: 'A member count is given for a team and only for a team.',
+    },
+  );
 export type IdentitySummary = z.infer<typeof IdentitySummarySchema>;
 export const IdentityErrorCodeSchema = z.enum([
   'AUTH_REQUIRED',

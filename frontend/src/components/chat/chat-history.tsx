@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { useRef, useState, type ReactNode, type Ref } from 'react';
 import type { ChatApi } from '@lexon/contracts';
 import {
   useInfiniteQuery,
@@ -9,12 +10,16 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
-  MessageSquareText,
+  MessageCircle,
   MoreHorizontal,
-  Pencil,
-  Trash2,
+  PencilLine,
+  Plus,
+  Trash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
+import { formatActivityDate } from '@/lib/date-time';
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -35,7 +40,7 @@ import {
   type ChatQueryScope,
 } from '@/lib/chat-queries';
 import { ChatDeleteDialog } from './chat-delete-dialog';
-import { ChatRename } from './chat-rename';
+import { ChatRenameDialog } from './chat-rename-dialog';
 import {
   Empty,
   EmptyContent,
@@ -82,7 +87,24 @@ export function ChatHistory({
   if (query.isPending)
     return (
       <div className="contents">
-        <p role="status">Loading chats…</p>
+        <div
+          role="status"
+          aria-label="Loading chats"
+          className="flex flex-col gap-3.5"
+        >
+          <div className="px-3 pt-2.5">
+            <Skeleton className="w-14" />
+          </div>
+          {[62, 48, 70, 55, 40, 66].map((width) => (
+            <div
+              key={width}
+              className="flex items-center justify-between gap-4 rounded-[10px] border border-transparent p-3"
+            >
+              <Skeleton style={{ width: `${width}%` }} />
+              <Skeleton className="w-[52px]" />
+            </div>
+          ))}
+        </div>
         {deleteDialog}
       </div>
     );
@@ -96,19 +118,25 @@ export function ChatHistory({
   if (!items.length)
     return (
       <div className="contents">
-        <Empty className="h-80 flex-none border-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <MessageSquareText aria-hidden="true" />
+        <Empty className="flex-none gap-2 border-0 px-0 py-16 text-wrap text-muted-foreground">
+          <EmptyHeader className="max-w-none gap-2">
+            <EmptyMedia
+              variant="icon"
+              className="mb-0 size-10 rounded-[10px] [&_svg:not([class*='size-'])]:size-5"
+            >
+              <MessageCircle aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>No chats yet</EmptyTitle>
-            <EmptyDescription>
+            <EmptyTitle className="text-base leading-[normal] font-semibold text-foreground">
+              No chats yet
+            </EmptyTitle>
+            <EmptyDescription className="text-sm leading-[normal]">
               Start a new chat to ask Lexon about a contract, a regulation, or a
               case.
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
+          <EmptyContent className="mt-2">
             <Button nativeButton={false} render={<Link href="/workspace" />}>
+              <Plus aria-hidden="true" data-icon="inline-start" />
               New chat
             </Button>
           </EmptyContent>
@@ -119,13 +147,17 @@ export function ChatHistory({
   const groups = groupChatsByDate(items);
   return (
     <div className="contents">
-      <div className="mx-auto flex min-h-0 w-full max-w-[720px] flex-col gap-5">
+      <div className="flex min-h-0 w-full flex-col gap-3.5">
         {groups.map((group) => (
-          <section key={group.label} aria-label={group.label}>
-            <h2 className="text-muted-foreground mb-2 px-3 text-sm font-medium">
+          <section
+            key={group.label}
+            aria-label={group.label}
+            className="flex flex-col gap-3.5"
+          >
+            <h2 className="text-muted-foreground px-3 pt-2.5 text-xs leading-[normal] font-medium">
               {group.label}
             </h2>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-3.5">
               {group.items.map((item) => (
                 <li key={item.id}>
                   <ChatHistoryRow
@@ -147,7 +179,14 @@ export function ChatHistory({
             disabled={query.isFetchingNextPage}
             onClick={() => void query.fetchNextPage()}
           >
-            {query.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
+            {query.isFetchingNextPage ? (
+              <>
+                <Spinner aria-hidden="true" />
+                <span className="sr-only">Loading more</span>
+              </>
+            ) : (
+              'Load more chats'
+            )}
           </Button>
         ) : null}
       </div>
@@ -162,12 +201,14 @@ export function RecentChats({
   currentChatId,
   onNavigate,
   onCloseMobile,
+  viewAll,
 }: {
   client: ChatApi;
   scope: ChatQueryScope;
   currentChatId?: string;
   onNavigate?: () => void;
   onCloseMobile?: () => void;
+  viewAll?: ReactNode;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<ChatListItem | null>(null);
   const query = useQuery({
@@ -190,9 +231,21 @@ export function RecentChats({
   if (query.isPending)
     return (
       <>
-        <p role="status" className="px-2.5 py-2 text-sm text-muted-foreground">
-          Loading recent chats…
-        </p>
+        <div
+          role="status"
+          aria-label="Loading recent chats"
+          className="flex flex-col"
+        >
+          {[70, 55, 80, 62].map((width) => (
+            <div key={width} className="flex h-8 items-center px-2">
+              <Skeleton
+                className="bg-sidebar-accent"
+                style={{ width: `${width}%` }}
+              />
+            </div>
+          ))}
+        </div>
+        {viewAll}
         {deleteDialog}
       </>
     );
@@ -202,15 +255,18 @@ export function RecentChats({
         <p role="alert" className="px-2.5 py-2 text-sm">
           Recent chats could not be loaded.
         </p>
+        {viewAll}
         {deleteDialog}
       </>
     );
   if (!query.data.items.length)
     return (
       <>
-        <p className="px-2.5 py-2 text-sm text-muted-foreground">
-          No recent chats.
+        <p className="px-2 py-1 text-[13px] text-muted-foreground">
+          No chats yet.
         </p>
+        {/* Keep the child slots stable so an open delete dialog survives the list emptying. */}
+        {null}
         {deleteDialog}
       </>
     );
@@ -230,6 +286,7 @@ export function RecentChats({
           />
         ))}
       </SidebarMenu>
+      {viewAll}
       {deleteDialog}
     </>
   );
@@ -253,29 +310,21 @@ function RecentChatRow({
   onDelete: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
-  if (renaming)
-    return (
-      <SidebarMenuItem>
-        <ChatRename
-          chatId={item.id}
-          title={item.title}
-          client={client}
-          scope={scope}
-          onCancel={() => setRenaming(false)}
-          onSaved={(title) => {
-            setRenaming(false);
-            finishChatRename(queryClient, scope, item.id, title);
-          }}
-        />
-      </SidebarMenuItem>
-    );
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={current}
         aria-current={current ? 'page' : undefined}
         tooltip={item.title}
+        // Leave room for the ⋯ only while it shows (open chat, hover, focus,
+        // menu open); other rows print the title to full width (prototype 14.8).
+        className={
+          current
+            ? 'pr-8'
+            : 'md:group-hover/menu-item:pr-8 group-focus-within/menu-item:pr-8 group-has-data-popup-open/menu-item:pr-8'
+        }
         onClick={onCloseMobile}
         render={
           <Link
@@ -291,8 +340,23 @@ function RecentChatRow({
       <ChatHistoryActions
         item={item}
         sidebar
+        // Only the open chat's row shows its menu button; the others reveal
+        // it on hover or focus (the prototype, LEX-DS-001 §5.5 Shell).
+        className={current ? 'md:opacity-100' : 'max-md:opacity-0'}
+        triggerRef={triggerRef}
         onRename={() => setRenaming(true)}
         onDelete={onDelete}
+      />
+      <ChatRenameDialog
+        chat={item}
+        client={client}
+        scope={scope}
+        returnFocusRef={triggerRef}
+        open={renaming}
+        onOpenChange={setRenaming}
+        onSaved={(title) =>
+          finishChatRename(queryClient, scope, item.id, title)
+        }
       />
     </SidebarMenuItem>
   );
@@ -312,43 +376,44 @@ function ChatHistoryRow({
   onDelete: (item: ChatListItem) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
-  if (renaming)
-    return (
-      <ChatRename
-        chatId={item.id}
-        title={item.title}
-        client={client}
-        scope={scope}
-        onCancel={() => setRenaming(false)}
-        onSaved={(title) => {
-          setRenaming(false);
-          finishChatRename(queryClient, scope, item.id, title);
-        }}
-      />
-    );
   return (
-    <div className="flex min-h-12 min-w-0 items-center gap-4 px-3 py-2">
+    <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm leading-[normal] font-medium hover:bg-muted focus-within:bg-muted">
       <Link
-        className="min-w-0 flex-1 truncate font-medium hover:underline"
+        className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
         href={`/chats/${item.id}`}
         aria-current={current ? 'page' : undefined}
       >
         {item.title}
       </Link>
-      <time className="text-muted-foreground shrink-0 text-xs">
-        {formatActivityDate(item.updatedAt)}
+      <time className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap group-hover/row:invisible group-focus-within/row:invisible">
+        {formatActivityDate(item.updatedAt, { yesterday: true })}
       </time>
-      <ChatHistoryActions
-        item={item}
-        onRename={() => setRenaming(true)}
-        onDelete={() => onDelete(item)}
+      <div className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+        <ChatHistoryActions
+          item={item}
+          triggerRef={triggerRef}
+          onRename={() => setRenaming(true)}
+          onDelete={() => onDelete(item)}
+        />
+      </div>
+      <ChatRenameDialog
+        chat={item}
+        client={client}
+        scope={scope}
+        returnFocusRef={triggerRef}
+        open={renaming}
+        onOpenChange={setRenaming}
+        onSaved={(title) =>
+          finishChatRename(queryClient, scope, item.id, title)
+        }
       />
     </div>
   );
 }
 
-function finishChatRename(
+export function finishChatRename(
   queryClient: ReturnType<typeof useQueryClient>,
   scope: ChatQueryScope,
   chatId: string,
@@ -358,35 +423,24 @@ function finishChatRename(
   void queryClient.invalidateQueries({ queryKey: chatListQueryKey(scope) });
 }
 
-function formatActivityDate(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (day.getTime() === today.getTime())
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
-  if (day.getTime() === yesterday.getTime()) return 'Yesterday';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
-
-function ChatHistoryActions({
+export function ChatHistoryActions({
   item,
   onRename,
   onDelete,
   sidebar = false,
+  label = `Chat actions for ${item.title}`,
+  disabled = false,
+  triggerRef,
+  className,
 }: {
-  item: ChatListItem;
+  item: { title: string };
   onRename: () => void;
   onDelete: () => void;
   sidebar?: boolean;
+  label?: string;
+  disabled?: boolean;
+  triggerRef?: Ref<HTMLButtonElement>;
+  className?: string;
 }) {
   return (
     <DropdownMenu>
@@ -396,27 +450,40 @@ function ChatHistoryActions({
             <SidebarMenuAction
               type="button"
               showOnHover
-              aria-label={`Chat actions for ${item.title}`}
+              className={cn(
+                'right-0.5 size-6 text-muted-foreground peer-data-[size=default]/menu-button:top-1',
+                className,
+              )}
+              aria-label={label}
+              disabled={disabled}
+              ref={triggerRef}
             />
           ) : (
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              aria-label={`Chat actions for ${item.title}`}
+              aria-label={label}
+              disabled={disabled}
+              ref={triggerRef}
             />
           )
         }
       >
         <MoreHorizontal aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        alignOffset={sidebar ? -4 : 0}
+        sideOffset={sidebar ? 3 : 4}
+        className={sidebar ? 'min-w-40' : undefined}
+      >
         <DropdownMenuItem onClick={onRename}>
-          <Pencil aria-hidden="true" data-icon="inline-start" />
+          <PencilLine aria-hidden="true" data-icon="inline-start" />
           Rename
         </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
-          <Trash2 aria-hidden="true" data-icon="inline-start" />
+        <DropdownMenuItem onClick={onDelete}>
+          <Trash aria-hidden="true" data-icon="inline-start" />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

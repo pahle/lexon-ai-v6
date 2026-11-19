@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authClient } from '../../lib/auth-client';
 import { fullReload } from '../../lib/full-reload';
@@ -32,6 +32,29 @@ function initials(name: string) {
     .join('');
 }
 
+/** The Settings shortcut hint; the Apple form is chosen after mount. */
+function useSettingsShortcut() {
+  const [apple, setApple] = useState(false);
+  useEffect(() => {
+    setApple(/^(Mac|iPhone|iPad|iPod)/.test(window.navigator.platform));
+  }, []);
+  return apple ? '⌘ ,' : 'Ctrl ,';
+}
+
+function UserAvatar({ name }: { name: string }) {
+  return (
+    <Avatar className="rounded-[8px] after:hidden">
+      <AvatarFallback
+        data-slot="avatar-initials"
+        aria-label={name}
+        className="rounded-[8px] bg-sidebar-accent text-xs font-semibold text-foreground"
+      >
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function UserMenu({
   onMobileNavigate,
 }: {
@@ -51,10 +74,11 @@ export function UserMenu({
     refreshIdentity,
   } = useWorkspace();
   const sidebar = useOptionalSidebar();
+  const settingsShortcut = useSettingsShortcut();
   const pathname = usePathname() ?? '/workspace';
   const collapsed = sidebar?.state === 'collapsed' && !sidebar.isMobile;
   const name = identity?.user.name ?? 'Account';
-  const email = identity?.user.email ?? '';
+  const subtitle = identity?.user.jobTitle ?? identity?.user.email ?? '';
   const requestSettingsNavigation = () => {
     settingsNavigationPending.current = true;
     if (sidebar?.isMobile) {
@@ -77,8 +101,8 @@ export function UserMenu({
           sidebar ? (
             <SidebarMenuButton
               size="lg"
+              className="data-popup-open:bg-transparent!"
               title={collapsed ? name : undefined}
-              className="aria-expanded:bg-muted"
               disabled={busy}
             />
           ) : (
@@ -91,28 +115,28 @@ export function UserMenu({
           )
         }
       >
-        <Avatar>
-          <AvatarFallback data-slot="avatar-initials" aria-label={name}>
-            {initials(name)}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar name={name} />
         {!collapsed ? (
           <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{name}</span>
             <span className="truncate text-xs text-muted-foreground">
-              {email}
+              {subtitle}
             </span>
           </span>
         ) : null}
         {!collapsed ? (
-          <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
+          <ChevronsUpDown
+            aria-hidden="true"
+            className="-mr-1 ml-auto size-4 text-muted-foreground"
+          />
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        align="end"
-        side={sidebar?.isMobile ? 'bottom' : 'right'}
-        sideOffset={4}
-        className="w-fit"
+        align={sidebar?.isMobile ? 'start' : 'end'}
+        alignOffset={sidebar?.isMobile ? 8 : 0}
+        side={sidebar?.isMobile ? 'top' : 'right'}
+        sideOffset={sidebar?.isMobile ? 4 : 8}
+        className="w-[268px] md:w-60"
         finalFocus={() => {
           if (settingsNavigationPending.current) {
             return false;
@@ -122,16 +146,12 @@ export function UserMenu({
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="p-0 font-normal">
-            <div className="flex min-w-0 items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <Avatar>
-                <AvatarFallback data-slot="avatar-initials" aria-label={name}>
-                  {initials(name)}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex min-w-0 items-center gap-2 px-2 py-1.5 text-left text-sm">
+              <UserAvatar name={name} />
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {email}
+                  {identity?.user.email ?? ''}
                 </span>
               </div>
             </div>
@@ -140,6 +160,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem
+            className="h-8 gap-2 px-2 py-0"
             render={
               <Link
                 href={settingsHref(
@@ -164,9 +185,13 @@ export function UserMenu({
           >
             <Settings aria-hidden="true" />
             Settings
-            <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+            <DropdownMenuShortcut className="tracking-[0.04em]">
+              {settingsShortcut}
+            </DropdownMenuShortcut>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
+            className="h-8 gap-2 px-2 py-0"
             disabled={busy}
             onClick={async () => {
               setBusy(true);

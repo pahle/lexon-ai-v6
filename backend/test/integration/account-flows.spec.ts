@@ -626,3 +626,25 @@ test('email-change link commits its ID-only audit without issuing a session when
     await proof.close();
   }
 });
+
+test('the user job title check constraint rejects padded, empty, and over-long values at the database', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const identity = await proof.signIn(input());
+    const write = (value: string | null) =>
+      proof.inspect.setJobTitle(identity.userId, value);
+    for (const value of [' x ', ' x', 'x ', '', 'a'.repeat(81)])
+      await expect(write(value), JSON.stringify(value)).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'user_job_title_check',
+      });
+    await expect(write(null)).resolves.toBeUndefined();
+    await expect(write('a'.repeat(80))).resolves.toBeUndefined();
+    await expect(write('x')).resolves.toBeUndefined();
+    expect(await proof.inspect.jobTitle(identity.userId)).toBe('x');
+  } finally {
+    await proof.close();
+  }
+});

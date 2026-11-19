@@ -1,0 +1,2301 @@
+{
+  "version": 1,
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "deviceScaleFactor": 1,
+  "format": "png",
+  "views": {
+    "sign-in-desktop-light": {
+      "path": "review/sign-in-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, idle",
+      "prototypeReference": "r14/sign-in-d.png",
+      "replaces": []
+    },
+    "sign-in-desktop-dark": {
+      "path": "review/sign-in-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, idle",
+      "prototypeReference": "r14/sign-in-d-dark.png",
+      "replaces": []
+    },
+    "sign-in-mobile-light": {
+      "path": "review/sign-in-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, idle",
+      "prototypeReference": "r14/sign-in-m.png",
+      "replaces": []
+    },
+    "sign-in-mobile-dark": {
+      "path": "review/sign-in-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, idle",
+      "prototypeReference": "r14/sign-in-m-dark.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-desktop-light": {
+      "path": "review/sign-in-field-errors-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, field errors",
+      "prototypeReference": "r14/sign-in-field-errors-d.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-desktop-dark": {
+      "path": "review/sign-in-field-errors-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, field errors",
+      "prototypeReference": "r14/sign-in-field-errors-d-dark.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-mobile-light": {
+      "path": "review/sign-in-field-errors-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, field errors",
+      "prototypeReference": "r14/sign-in-field-errors-m.png",
+      "replaces": []
+    },
+    "sign-in-field-errors-mobile-dark": {
+      "path": "review/sign-in-field-errors-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, field errors",
+      "prototypeReference": "r14/sign-in-field-errors-m-dark.png",
+      "replaces": []
+    },
+    "sign-in-pending-desktop-light": {
+      "path": "review/sign-in-pending-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, pending",
+      "prototypeReference": "r14/sign-in-pending-d.png",
+      "replaces": []
+    },
+    "sign-in-pending-desktop-dark": {
+      "path": "review/sign-in-pending-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, pending",
+      "prototypeReference": "r14/sign-in-pending-d-dark.png",
+      "replaces": []
+    },
+    "sign-in-pending-mobile-light": {
+      "path": "review/sign-in-pending-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, pending",
+      "prototypeReference": "r14/sign-in-pending-m.png",
+      "replaces": []
+    },
+    "sign-in-pending-mobile-dark": {
+      "path": "review/sign-in-pending-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, pending",
+      "prototypeReference": "r14/sign-in-pending-m-dark.png",
+      "replaces": []
+    },
+    "sign-in-form-alert-desktop-light": {
+      "path": "review/sign-in-form-alert-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign in, form alert",
+      "prototypeReference": "r14/sign-in-form-alert-d.png",
+      "replaces": []
+    },
+    "sign-in-form-alert-desktop-dark": {
+      "path": "review/sign-in-form-alert-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign in, form alert",
+      "prototypeReference": "r14/sign-in-form-alert-d-dark.png",
+      "replaces": []
+    },
+    "sign-in-form-alert-mobile-light": {
+      "path": "review/sign-in-form-alert-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign in, form alert",
+      "prototypeReference": "r14/sign-in-form-alert-m.png",
+      "replaces": []
+    },
+    "sign-in-form-alert-mobile-dark": {
+      "path": "review/sign-in-form-alert-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign in, form alert",
+      "prototypeReference": "r14/sign-in-form-alert-m-dark.png",
+      "replaces": []
+    },
+    "sign-up-desktop-light": {
+      "path": "review/sign-up-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sign up",
+      "prototypeReference": "r14/sign-up-d.png",
+      "replaces": []
+    },
+    "sign-up-desktop-dark": {
+      "path": "review/sign-up-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sign up",
+      "prototypeReference": "r14/sign-up-d-dark.png",
+      "replaces": []
+    },
+    "sign-up-mobile-light": {
+      "path": "review/sign-up-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sign up",
+      "prototypeReference": "r14/sign-up-m.png",
+      "replaces": []
+    },
+    "sign-up-mobile-dark": {
+      "path": "review/sign-up-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sign up",
+      "prototypeReference": "r14/sign-up-m-dark.png",
+      "replaces": []
+    },
+    "forgot-password-desktop-light": {
+      "path": "review/forgot-password-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Forgot password",
+      "prototypeReference": "r14/forgot-password-d.png",
+      "replaces": []
+    },
+    "forgot-password-desktop-dark": {
+      "path": "review/forgot-password-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Forgot password",
+      "prototypeReference": "r14/forgot-password-d-dark.png",
+      "replaces": []
+    },
+    "forgot-password-mobile-light": {
+      "path": "review/forgot-password-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Forgot password",
+      "prototypeReference": "r14/forgot-password-m.png",
+      "replaces": []
+    },
+    "forgot-password-mobile-dark": {
+      "path": "review/forgot-password-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Forgot password",
+      "prototypeReference": "r14/forgot-password-m-dark.png",
+      "replaces": []
+    },
+    "forgot-password-sent-desktop-light": {
+      "path": "review/forgot-password-sent-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Forgot password, link sent",
+      "prototypeReference": "r14/forgot-password-sent-d.png",
+      "replaces": []
+    },
+    "forgot-password-sent-desktop-dark": {
+      "path": "review/forgot-password-sent-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Forgot password, link sent",
+      "prototypeReference": "r14/forgot-password-sent-d-dark.png",
+      "replaces": []
+    },
+    "forgot-password-sent-mobile-light": {
+      "path": "review/forgot-password-sent-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Forgot password, link sent",
+      "prototypeReference": "r14/forgot-password-sent-m.png",
+      "replaces": []
+    },
+    "forgot-password-sent-mobile-dark": {
+      "path": "review/forgot-password-sent-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Forgot password, link sent",
+      "prototypeReference": "r14/forgot-password-sent-m-dark.png",
+      "replaces": []
+    },
+    "reset-password-desktop-light": {
+      "path": "review/reset-password-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Reset password",
+      "prototypeReference": "r14/reset-password-d.png",
+      "replaces": []
+    },
+    "reset-password-desktop-dark": {
+      "path": "review/reset-password-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Reset password",
+      "prototypeReference": "r14/reset-password-d-dark.png",
+      "replaces": []
+    },
+    "reset-password-mobile-light": {
+      "path": "review/reset-password-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Reset password",
+      "prototypeReference": "r14/reset-password-m.png",
+      "replaces": []
+    },
+    "reset-password-mobile-dark": {
+      "path": "review/reset-password-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Reset password",
+      "prototypeReference": "r14/reset-password-m-dark.png",
+      "replaces": []
+    },
+    "reset-password-invalid-desktop-light": {
+      "path": "review/reset-password-invalid-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Reset password, invalid or expired link",
+      "prototypeReference": "r14/reset-password-invalid-d.png",
+      "replaces": []
+    },
+    "reset-password-invalid-desktop-dark": {
+      "path": "review/reset-password-invalid-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Reset password, invalid or expired link",
+      "prototypeReference": "r14/reset-password-invalid-d-dark.png",
+      "replaces": []
+    },
+    "reset-password-invalid-mobile-light": {
+      "path": "review/reset-password-invalid-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Reset password, invalid or expired link",
+      "prototypeReference": "r14/reset-password-invalid-m.png",
+      "replaces": []
+    },
+    "reset-password-invalid-mobile-dark": {
+      "path": "review/reset-password-invalid-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Reset password, invalid or expired link",
+      "prototypeReference": "r14/reset-password-invalid-m-dark.png",
+      "replaces": []
+    },
+    "verify-email-desktop-light": {
+      "path": "review/verify-email-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Verify email",
+      "prototypeReference": "r14/verify-email-d.png",
+      "replaces": []
+    },
+    "verify-email-desktop-dark": {
+      "path": "review/verify-email-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Verify email",
+      "prototypeReference": "r14/verify-email-d-dark.png",
+      "replaces": []
+    },
+    "verify-email-mobile-light": {
+      "path": "review/verify-email-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Verify email",
+      "prototypeReference": "r14/verify-email-m.png",
+      "replaces": []
+    },
+    "verify-email-mobile-dark": {
+      "path": "review/verify-email-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Verify email",
+      "prototypeReference": "r14/verify-email-m-dark.png",
+      "replaces": []
+    },
+    "two-factor-desktop-light": {
+      "path": "review/two-factor-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Two-factor",
+      "prototypeReference": "r14/two-factor-d.png",
+      "replaces": []
+    },
+    "two-factor-desktop-dark": {
+      "path": "review/two-factor-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Two-factor",
+      "prototypeReference": "r14/two-factor-d-dark.png",
+      "replaces": []
+    },
+    "two-factor-mobile-light": {
+      "path": "review/two-factor-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Two-factor",
+      "prototypeReference": "r14/two-factor-m.png",
+      "replaces": []
+    },
+    "two-factor-mobile-dark": {
+      "path": "review/two-factor-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Two-factor",
+      "prototypeReference": "r14/two-factor-m-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-desktop-light": {
+      "path": "review/accept-invitation-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Accept invitation",
+      "prototypeReference": "r14/accept-invitation-d.png",
+      "replaces": []
+    },
+    "accept-invitation-desktop-dark": {
+      "path": "review/accept-invitation-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Accept invitation",
+      "prototypeReference": "r14/accept-invitation-d-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-mobile-light": {
+      "path": "review/accept-invitation-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Accept invitation",
+      "prototypeReference": "r14/accept-invitation-m.png",
+      "replaces": []
+    },
+    "accept-invitation-mobile-dark": {
+      "path": "review/accept-invitation-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Accept invitation",
+      "prototypeReference": "r14/accept-invitation-m-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-desktop-light": {
+      "path": "review/accept-invitation-declined-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-d.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-desktop-dark": {
+      "path": "review/accept-invitation-declined-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-d-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-mobile-light": {
+      "path": "review/accept-invitation-declined-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-m.png",
+      "replaces": []
+    },
+    "accept-invitation-declined-mobile-dark": {
+      "path": "review/accept-invitation-declined-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Accept invitation, declined",
+      "prototypeReference": "r14/accept-invitation-declined-m-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-unavailable-desktop-light": {
+      "path": "review/accept-invitation-unavailable-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Accept invitation, unavailable",
+      "prototypeReference": "r14/accept-invitation-unavailable-d.png",
+      "replaces": []
+    },
+    "accept-invitation-unavailable-desktop-dark": {
+      "path": "review/accept-invitation-unavailable-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Accept invitation, unavailable",
+      "prototypeReference": "r14/accept-invitation-unavailable-d-dark.png",
+      "replaces": []
+    },
+    "accept-invitation-unavailable-mobile-light": {
+      "path": "review/accept-invitation-unavailable-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Accept invitation, unavailable",
+      "prototypeReference": "r14/accept-invitation-unavailable-m.png",
+      "replaces": []
+    },
+    "accept-invitation-unavailable-mobile-dark": {
+      "path": "review/accept-invitation-unavailable-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Accept invitation, unavailable",
+      "prototypeReference": "r14/accept-invitation-unavailable-m-dark.png",
+      "replaces": []
+    },
+    "admin-setup-desktop-light": {
+      "path": "review/admin-setup-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Admin setup",
+      "prototypeReference": "r14/admin-setup-d.png",
+      "replaces": []
+    },
+    "admin-setup-desktop-dark": {
+      "path": "review/admin-setup-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Admin setup",
+      "prototypeReference": "r14/admin-setup-d-dark.png",
+      "replaces": []
+    },
+    "admin-setup-mobile-light": {
+      "path": "review/admin-setup-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Admin setup",
+      "prototypeReference": "r14/admin-setup-m.png",
+      "replaces": []
+    },
+    "admin-setup-mobile-dark": {
+      "path": "review/admin-setup-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Admin setup",
+      "prototypeReference": "r14/admin-setup-m-dark.png",
+      "replaces": []
+    },
+    "admin-setup-activate-desktop-light": {
+      "path": "review/admin-setup-activate-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-d.png",
+      "replaces": []
+    },
+    "admin-setup-activate-desktop-dark": {
+      "path": "review/admin-setup-activate-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-d-dark.png",
+      "replaces": []
+    },
+    "admin-setup-activate-mobile-light": {
+      "path": "review/admin-setup-activate-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-m.png",
+      "replaces": []
+    },
+    "admin-setup-activate-mobile-dark": {
+      "path": "review/admin-setup-activate-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Administrator setup, activate",
+      "prototypeReference": "r14/admin-setup-activate-m-dark.png",
+      "replaces": []
+    },
+    "admin-setup-unavailable-desktop-light": {
+      "path": "review/admin-setup-unavailable-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Administrator setup, unavailable",
+      "prototypeReference": "r14/admin-setup-unavailable-d.png",
+      "replaces": []
+    },
+    "admin-setup-unavailable-desktop-dark": {
+      "path": "review/admin-setup-unavailable-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Administrator setup, unavailable",
+      "prototypeReference": "r14/admin-setup-unavailable-d-dark.png",
+      "replaces": []
+    },
+    "admin-setup-unavailable-mobile-light": {
+      "path": "review/admin-setup-unavailable-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Administrator setup, unavailable",
+      "prototypeReference": "r14/admin-setup-unavailable-m.png",
+      "replaces": []
+    },
+    "admin-setup-unavailable-mobile-dark": {
+      "path": "review/admin-setup-unavailable-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Administrator setup, unavailable",
+      "prototypeReference": "r14/admin-setup-unavailable-m-dark.png",
+      "replaces": []
+    },
+    "onboarding-desktop-light": {
+      "path": "review/onboarding-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Onboarding",
+      "prototypeReference": "r14/onboarding-d.png",
+      "replaces": []
+    },
+    "onboarding-desktop-dark": {
+      "path": "review/onboarding-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Onboarding",
+      "prototypeReference": "r14/onboarding-d-dark.png",
+      "replaces": []
+    },
+    "onboarding-mobile-light": {
+      "path": "review/onboarding-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Onboarding",
+      "prototypeReference": "r14/onboarding-m.png",
+      "replaces": []
+    },
+    "onboarding-mobile-dark": {
+      "path": "review/onboarding-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Onboarding",
+      "prototypeReference": "r14/onboarding-m-dark.png",
+      "replaces": []
+    },
+    "onboarding-invitations-desktop-light": {
+      "path": "review/onboarding-invitations-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Onboarding, pending invitations",
+      "prototypeReference": "r14/onboarding-invitations-d.png",
+      "replaces": []
+    },
+    "onboarding-invitations-desktop-dark": {
+      "path": "review/onboarding-invitations-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Onboarding, pending invitations",
+      "prototypeReference": "r14/onboarding-invitations-d-dark.png",
+      "replaces": []
+    },
+    "onboarding-invitations-mobile-light": {
+      "path": "review/onboarding-invitations-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Onboarding, pending invitations",
+      "prototypeReference": "r14/onboarding-invitations-m.png",
+      "replaces": []
+    },
+    "onboarding-invitations-mobile-dark": {
+      "path": "review/onboarding-invitations-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Onboarding, pending invitations",
+      "prototypeReference": "r14/onboarding-invitations-m-dark.png",
+      "replaces": []
+    },
+    "onboarding-team-desktop-light": {
+      "path": "review/onboarding-team-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-d.png",
+      "replaces": []
+    },
+    "onboarding-team-desktop-dark": {
+      "path": "review/onboarding-team-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-d-dark.png",
+      "replaces": []
+    },
+    "onboarding-team-mobile-light": {
+      "path": "review/onboarding-team-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-m.png",
+      "replaces": []
+    },
+    "onboarding-team-mobile-dark": {
+      "path": "review/onboarding-team-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Onboarding, create a team",
+      "prototypeReference": "r14/onboarding-team-m-dark.png",
+      "replaces": []
+    },
+    "shell-personal-desktop-light": {
+      "path": "review/shell-personal-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": "r14/shell-personal-d.png",
+      "replaces": []
+    },
+    "shell-personal-desktop-dark": {
+      "path": "review/shell-personal-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": "r14/shell-personal-d-dark.png",
+      "replaces": []
+    },
+    "shell-personal-mobile-light": {
+      "path": "review/shell-personal-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": "r14/shell-personal-m.png",
+      "replaces": []
+    },
+    "shell-personal-mobile-dark": {
+      "path": "review/shell-personal-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Shell, Personal workspace",
+      "prototypeReference": "r14/shell-personal-m-dark.png",
+      "replaces": []
+    },
+    "shell-team-desktop-light": {
+      "path": "review/shell-team-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Shell, team workspace",
+      "prototypeReference": "r14/shell-team-d.png",
+      "replaces": []
+    },
+    "shell-team-desktop-dark": {
+      "path": "review/shell-team-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Shell, team workspace",
+      "prototypeReference": "r14/shell-team-d-dark.png",
+      "replaces": []
+    },
+    "shell-team-mobile-light": {
+      "path": "review/shell-team-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Shell, team workspace",
+      "prototypeReference": "r14/shell-team-m.png",
+      "replaces": []
+    },
+    "shell-team-mobile-dark": {
+      "path": "review/shell-team-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Shell, team workspace",
+      "prototypeReference": "r14/shell-team-m-dark.png",
+      "replaces": []
+    },
+    "sidebar-collapsed-desktop-light": {
+      "path": "review/sidebar-collapsed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": "r14/sidebar-collapsed-d.png",
+      "replaces": []
+    },
+    "sidebar-collapsed-desktop-dark": {
+      "path": "review/sidebar-collapsed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": "r14/sidebar-collapsed-d-dark.png",
+      "replaces": []
+    },
+    "sidebar-collapsed-mobile-light": {
+      "path": "review/sidebar-collapsed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": "r14/sidebar-collapsed-m.png",
+      "replaces": []
+    },
+    "sidebar-collapsed-mobile-dark": {
+      "path": "review/sidebar-collapsed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Sidebar collapsed (mobile: navigation closed)",
+      "prototypeReference": "r14/sidebar-collapsed-m-dark.png",
+      "replaces": []
+    },
+    "organization-switcher-open-desktop-light": {
+      "path": "review/organization-switcher-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Organization switcher open",
+      "prototypeReference": "r14/organization-switcher-open-d.png",
+      "replaces": []
+    },
+    "organization-switcher-open-desktop-dark": {
+      "path": "review/organization-switcher-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Organization switcher open",
+      "prototypeReference": "r14/organization-switcher-open-d-dark.png",
+      "replaces": []
+    },
+    "organization-switcher-open-mobile-light": {
+      "path": "review/organization-switcher-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Organization switcher open",
+      "prototypeReference": "r14/organization-switcher-open-m.png",
+      "replaces": []
+    },
+    "organization-switcher-open-mobile-dark": {
+      "path": "review/organization-switcher-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Organization switcher open",
+      "prototypeReference": "r14/organization-switcher-open-m-dark.png",
+      "replaces": []
+    },
+    "user-menu-open-desktop-light": {
+      "path": "review/user-menu-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "User menu open",
+      "prototypeReference": "r14/user-menu-open-d.png",
+      "replaces": []
+    },
+    "user-menu-open-desktop-dark": {
+      "path": "review/user-menu-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "User menu open",
+      "prototypeReference": "r14/user-menu-open-d-dark.png",
+      "replaces": []
+    },
+    "user-menu-open-mobile-light": {
+      "path": "review/user-menu-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "User menu open",
+      "prototypeReference": "r14/user-menu-open-m.png",
+      "replaces": []
+    },
+    "user-menu-open-mobile-dark": {
+      "path": "review/user-menu-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "User menu open",
+      "prototypeReference": "r14/user-menu-open-m-dark.png",
+      "replaces": []
+    },
+    "mobile-sheet-open-desktop-light": {
+      "path": "review/mobile-sheet-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": "r14/mobile-sheet-open-d.png",
+      "replaces": []
+    },
+    "mobile-sheet-open-desktop-dark": {
+      "path": "review/mobile-sheet-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": "r14/mobile-sheet-open-d-dark.png",
+      "replaces": []
+    },
+    "mobile-sheet-open-mobile-light": {
+      "path": "review/mobile-sheet-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": "r14/mobile-sheet-open-m.png",
+      "replaces": []
+    },
+    "mobile-sheet-open-mobile-dark": {
+      "path": "review/mobile-sheet-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Mobile navigation sheet open (desktop: sidebar expanded)",
+      "prototypeReference": "r14/mobile-sheet-open-m-dark.png",
+      "replaces": []
+    },
+    "settings-profile-desktop-light": {
+      "path": "review/settings-profile-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "r14/settings-profile-d.png",
+      "replaces": []
+    },
+    "settings-profile-desktop-dark": {
+      "path": "review/settings-profile-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "r14/settings-profile-d-dark.png",
+      "replaces": []
+    },
+    "settings-profile-mobile-light": {
+      "path": "review/settings-profile-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "r14/settings-profile-m.png",
+      "replaces": []
+    },
+    "settings-profile-mobile-dark": {
+      "path": "review/settings-profile-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Profile with a job title",
+      "prototypeReference": "r14/settings-profile-m-dark.png",
+      "replaces": []
+    },
+    "settings-appearance-desktop-light": {
+      "path": "review/settings-appearance-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Appearance",
+      "prototypeReference": "r14/settings-appearance-d.png",
+      "replaces": []
+    },
+    "settings-appearance-desktop-dark": {
+      "path": "review/settings-appearance-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Appearance",
+      "prototypeReference": "r14/settings-appearance-d-dark.png",
+      "replaces": []
+    },
+    "settings-appearance-mobile-light": {
+      "path": "review/settings-appearance-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Appearance",
+      "prototypeReference": "r14/settings-appearance-m.png",
+      "replaces": []
+    },
+    "settings-appearance-mobile-dark": {
+      "path": "review/settings-appearance-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Appearance",
+      "prototypeReference": "r14/settings-appearance-m-dark.png",
+      "replaces": []
+    },
+    "settings-security-desktop-light": {
+      "path": "review/settings-security-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Security",
+      "prototypeReference": "r14/settings-security-d.png",
+      "replaces": []
+    },
+    "settings-security-desktop-dark": {
+      "path": "review/settings-security-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Security",
+      "prototypeReference": "r14/settings-security-d-dark.png",
+      "replaces": []
+    },
+    "settings-security-mobile-light": {
+      "path": "review/settings-security-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Security",
+      "prototypeReference": "r14/settings-security-m.png",
+      "replaces": []
+    },
+    "settings-security-mobile-dark": {
+      "path": "review/settings-security-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Security",
+      "prototypeReference": "r14/settings-security-m-dark.png",
+      "replaces": []
+    },
+    "settings-members-desktop-light": {
+      "path": "review/settings-members-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Members",
+      "prototypeReference": "r14/settings-members-d.png",
+      "replaces": []
+    },
+    "settings-members-desktop-dark": {
+      "path": "review/settings-members-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Members",
+      "prototypeReference": "r14/settings-members-d-dark.png",
+      "replaces": []
+    },
+    "settings-members-mobile-light": {
+      "path": "review/settings-members-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Members",
+      "prototypeReference": "r14/settings-members-m.png",
+      "replaces": []
+    },
+    "settings-members-mobile-dark": {
+      "path": "review/settings-members-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Members",
+      "prototypeReference": "r14/settings-members-m-dark.png",
+      "replaces": []
+    },
+    "settings-invitations-desktop-light": {
+      "path": "review/settings-invitations-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Invitations",
+      "prototypeReference": "r14/settings-invitations-d.png",
+      "replaces": []
+    },
+    "settings-invitations-desktop-dark": {
+      "path": "review/settings-invitations-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Invitations",
+      "prototypeReference": "r14/settings-invitations-d-dark.png",
+      "replaces": []
+    },
+    "settings-invitations-mobile-light": {
+      "path": "review/settings-invitations-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Invitations",
+      "prototypeReference": "r14/settings-invitations-m.png",
+      "replaces": []
+    },
+    "settings-invitations-mobile-dark": {
+      "path": "review/settings-invitations-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Invitations",
+      "prototypeReference": "r14/settings-invitations-m-dark.png",
+      "replaces": []
+    },
+    "settings-general-desktop-light": {
+      "path": "review/settings-general-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, General",
+      "prototypeReference": "r14/settings-general-d.png",
+      "replaces": []
+    },
+    "settings-general-desktop-dark": {
+      "path": "review/settings-general-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, General",
+      "prototypeReference": "r14/settings-general-d-dark.png",
+      "replaces": []
+    },
+    "settings-general-mobile-light": {
+      "path": "review/settings-general-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, General",
+      "prototypeReference": "r14/settings-general-m.png",
+      "replaces": []
+    },
+    "settings-general-mobile-dark": {
+      "path": "review/settings-general-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, General",
+      "prototypeReference": "r14/settings-general-m-dark.png",
+      "replaces": []
+    },
+    "platform-no-access-desktop-light": {
+      "path": "review/platform-no-access-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, access denied for an ordinary user",
+      "prototypeReference": "r14/platform-no-access-d.png",
+      "replaces": []
+    },
+    "platform-no-access-desktop-dark": {
+      "path": "review/platform-no-access-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, access denied for an ordinary user",
+      "prototypeReference": "r14/platform-no-access-d-dark.png",
+      "replaces": []
+    },
+    "platform-no-access-mobile-light": {
+      "path": "review/platform-no-access-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, access denied for an ordinary user",
+      "prototypeReference": "r14/platform-no-access-m.png",
+      "replaces": []
+    },
+    "platform-no-access-mobile-dark": {
+      "path": "review/platform-no-access-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, access denied for an ordinary user",
+      "prototypeReference": "r14/platform-no-access-m-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-loading-desktop-light": {
+      "path": "review/platform-provisioning-loading-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform provisioning, list loading",
+      "prototypeReference": "r14/platform-provisioning-loading-d.png",
+      "replaces": []
+    },
+    "platform-provisioning-loading-desktop-dark": {
+      "path": "review/platform-provisioning-loading-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform provisioning, list loading",
+      "prototypeReference": "r14/platform-provisioning-loading-d-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-loading-mobile-light": {
+      "path": "review/platform-provisioning-loading-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform provisioning, list loading",
+      "prototypeReference": "r14/platform-provisioning-loading-m.png",
+      "replaces": []
+    },
+    "platform-provisioning-loading-mobile-dark": {
+      "path": "review/platform-provisioning-loading-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform provisioning, list loading",
+      "prototypeReference": "r14/platform-provisioning-loading-m-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-empty-desktop-light": {
+      "path": "review/platform-provisioning-empty-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform provisioning, empty list",
+      "prototypeReference": "r14/platform-provisioning-empty-d.png",
+      "replaces": []
+    },
+    "platform-provisioning-empty-desktop-dark": {
+      "path": "review/platform-provisioning-empty-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform provisioning, empty list",
+      "prototypeReference": "r14/platform-provisioning-empty-d-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-empty-mobile-light": {
+      "path": "review/platform-provisioning-empty-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform provisioning, empty list",
+      "prototypeReference": "r14/platform-provisioning-empty-m.png",
+      "replaces": []
+    },
+    "platform-provisioning-empty-mobile-dark": {
+      "path": "review/platform-provisioning-empty-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform provisioning, empty list",
+      "prototypeReference": "r14/platform-provisioning-empty-m-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-populated-desktop-light": {
+      "path": "review/platform-provisioning-populated-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform provisioning, populated list",
+      "prototypeReference": "r14/platform-provisioning-populated-d.png",
+      "replaces": []
+    },
+    "platform-provisioning-populated-desktop-dark": {
+      "path": "review/platform-provisioning-populated-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform provisioning, populated list",
+      "prototypeReference": "r14/platform-provisioning-populated-d-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-populated-mobile-light": {
+      "path": "review/platform-provisioning-populated-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform provisioning, populated list",
+      "prototypeReference": "r14/platform-provisioning-populated-m.png",
+      "replaces": []
+    },
+    "platform-provisioning-populated-mobile-dark": {
+      "path": "review/platform-provisioning-populated-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform provisioning, populated list",
+      "prototypeReference": "r14/platform-provisioning-populated-m-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-detail-desktop-light": {
+      "path": "review/platform-provisioning-detail-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform provisioning, organization details",
+      "prototypeReference": "r14/platform-provisioning-detail-d.png",
+      "replaces": []
+    },
+    "platform-provisioning-detail-desktop-dark": {
+      "path": "review/platform-provisioning-detail-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform provisioning, organization details",
+      "prototypeReference": "r14/platform-provisioning-detail-d-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-detail-mobile-light": {
+      "path": "review/platform-provisioning-detail-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform provisioning, organization details",
+      "prototypeReference": "r14/platform-provisioning-detail-m.png",
+      "replaces": []
+    },
+    "platform-provisioning-detail-mobile-dark": {
+      "path": "review/platform-provisioning-detail-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform provisioning, organization details",
+      "prototypeReference": "r14/platform-provisioning-detail-m-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-error-desktop-light": {
+      "path": "review/platform-provisioning-error-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform provisioning, service unavailable",
+      "prototypeReference": "r14/platform-provisioning-error-d.png",
+      "replaces": []
+    },
+    "platform-provisioning-error-desktop-dark": {
+      "path": "review/platform-provisioning-error-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform provisioning, service unavailable",
+      "prototypeReference": "r14/platform-provisioning-error-d-dark.png",
+      "replaces": []
+    },
+    "platform-provisioning-error-mobile-light": {
+      "path": "review/platform-provisioning-error-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform provisioning, service unavailable",
+      "prototypeReference": "r14/platform-provisioning-error-m.png",
+      "replaces": []
+    },
+    "platform-provisioning-error-mobile-dark": {
+      "path": "review/platform-provisioning-error-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform provisioning, service unavailable",
+      "prototypeReference": "r14/platform-provisioning-error-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-desktop-light": {
+      "path": "review/platform-accounts-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, account status",
+      "prototypeReference": "r14/platform-accounts-d.png",
+      "replaces": []
+    },
+    "platform-accounts-desktop-dark": {
+      "path": "review/platform-accounts-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, account status",
+      "prototypeReference": "r14/platform-accounts-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-mobile-light": {
+      "path": "review/platform-accounts-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, account status",
+      "prototypeReference": "r14/platform-accounts-m.png",
+      "replaces": []
+    },
+    "platform-accounts-mobile-dark": {
+      "path": "review/platform-accounts-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, account status",
+      "prototypeReference": "r14/platform-accounts-m-dark.png",
+      "replaces": []
+    },
+    "organizations-not-found-desktop-light": {
+      "path": "review/organizations-not-found-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Organizations, not found in the workspace",
+      "prototypeReference": "r14/organizations-not-found-d.png",
+      "replaces": []
+    },
+    "organizations-not-found-desktop-dark": {
+      "path": "review/organizations-not-found-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Organizations, not found in the workspace",
+      "prototypeReference": "r14/organizations-not-found-d-dark.png",
+      "replaces": []
+    },
+    "organizations-not-found-mobile-light": {
+      "path": "review/organizations-not-found-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Organizations, not found in the workspace",
+      "prototypeReference": "r14/organizations-not-found-m.png",
+      "replaces": []
+    },
+    "organizations-not-found-mobile-dark": {
+      "path": "review/organizations-not-found-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Organizations, not found in the workspace",
+      "prototypeReference": "r14/organizations-not-found-m-dark.png",
+      "replaces": []
+    },
+    "not-found-desktop-light": {
+      "path": "review/not-found-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Page not found",
+      "prototypeReference": "r14/not-found-d.png",
+      "replaces": []
+    },
+    "not-found-desktop-dark": {
+      "path": "review/not-found-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Page not found",
+      "prototypeReference": "r14/not-found-d-dark.png",
+      "replaces": []
+    },
+    "not-found-mobile-light": {
+      "path": "review/not-found-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Page not found",
+      "prototypeReference": "r14/not-found-m.png",
+      "replaces": []
+    },
+    "not-found-mobile-dark": {
+      "path": "review/not-found-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Page not found",
+      "prototypeReference": "r14/not-found-m-dark.png",
+      "replaces": []
+    },
+    "workspace-error-desktop-light": {
+      "path": "review/workspace-error-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Workspace error page",
+      "prototypeReference": "r14/workspace-error-d.png",
+      "replaces": []
+    },
+    "workspace-error-desktop-dark": {
+      "path": "review/workspace-error-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Workspace error page",
+      "prototypeReference": "r14/workspace-error-d-dark.png",
+      "replaces": []
+    },
+    "workspace-error-mobile-light": {
+      "path": "review/workspace-error-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Workspace error page",
+      "prototypeReference": "r14/workspace-error-m.png",
+      "replaces": []
+    },
+    "workspace-error-mobile-dark": {
+      "path": "review/workspace-error-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Workspace error page",
+      "prototypeReference": "r14/workspace-error-m-dark.png",
+      "replaces": []
+    },
+    "toast-success-desktop-light": {
+      "path": "review/toast-success-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Toast, success",
+      "prototypeReference": "r14/toast-success-d.png",
+      "replaces": []
+    },
+    "toast-success-desktop-dark": {
+      "path": "review/toast-success-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Toast, success",
+      "prototypeReference": "r14/toast-success-d-dark.png",
+      "replaces": []
+    },
+    "toast-success-mobile-light": {
+      "path": "review/toast-success-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Toast, success",
+      "prototypeReference": "r14/toast-success-m.png",
+      "replaces": []
+    },
+    "toast-success-mobile-dark": {
+      "path": "review/toast-success-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Toast, success",
+      "prototypeReference": "r14/toast-success-m-dark.png",
+      "replaces": []
+    },
+    "chats-empty-desktop-light": {
+      "path": "review/chats-empty-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, empty list",
+      "prototypeReference": "r14/chats-empty-d.png",
+      "replaces": []
+    },
+    "chats-empty-desktop-dark": {
+      "path": "review/chats-empty-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, empty list",
+      "prototypeReference": "r14/chats-empty-d-dark.png",
+      "replaces": []
+    },
+    "chats-empty-mobile-light": {
+      "path": "review/chats-empty-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, empty list",
+      "prototypeReference": "r14/chats-empty-m.png",
+      "replaces": []
+    },
+    "chats-empty-mobile-dark": {
+      "path": "review/chats-empty-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, empty list",
+      "prototypeReference": "r14/chats-empty-m-dark.png",
+      "replaces": []
+    },
+    "chats-loading-desktop-light": {
+      "path": "review/chats-loading-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, loading list",
+      "prototypeReference": "r14/chats-loading-d.png",
+      "replaces": []
+    },
+    "chats-loading-desktop-dark": {
+      "path": "review/chats-loading-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, loading list",
+      "prototypeReference": "r14/chats-loading-d-dark.png",
+      "replaces": []
+    },
+    "chats-loading-mobile-light": {
+      "path": "review/chats-loading-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, loading list",
+      "prototypeReference": "r14/chats-loading-m.png",
+      "replaces": []
+    },
+    "chats-loading-mobile-dark": {
+      "path": "review/chats-loading-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, loading list",
+      "prototypeReference": "r14/chats-loading-m-dark.png",
+      "replaces": []
+    },
+    "chat-new-desktop-light": {
+      "path": "review/chat-new-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "New chat, greeting and starter pills",
+      "prototypeReference": "r14/chat-new-d.png",
+      "replaces": []
+    },
+    "chat-new-desktop-dark": {
+      "path": "review/chat-new-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "New chat, greeting and starter pills",
+      "prototypeReference": "r14/chat-new-d-dark.png",
+      "replaces": []
+    },
+    "chat-new-mobile-light": {
+      "path": "review/chat-new-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "New chat, greeting and starter pills",
+      "prototypeReference": "r14/chat-new-m.png",
+      "replaces": []
+    },
+    "chat-new-mobile-dark": {
+      "path": "review/chat-new-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "New chat, greeting and starter pills",
+      "prototypeReference": "r14/chat-new-m-dark.png",
+      "replaces": []
+    },
+    "chat-deep-thinking-desktop-light": {
+      "path": "review/chat-deep-thinking-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "New chat, Deep thinking pressed",
+      "prototypeReference": "r14/chat-deep-thinking-d.png",
+      "replaces": []
+    },
+    "chat-deep-thinking-desktop-dark": {
+      "path": "review/chat-deep-thinking-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "New chat, Deep thinking pressed",
+      "prototypeReference": "r14/chat-deep-thinking-d-dark.png",
+      "replaces": []
+    },
+    "chat-deep-thinking-mobile-light": {
+      "path": "review/chat-deep-thinking-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "New chat, Deep thinking pressed",
+      "prototypeReference": "r14/chat-deep-thinking-m.png",
+      "replaces": []
+    },
+    "chat-deep-thinking-mobile-dark": {
+      "path": "review/chat-deep-thinking-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "New chat, Deep thinking pressed",
+      "prototypeReference": "r14/chat-deep-thinking-m-dark.png",
+      "replaces": []
+    },
+    "chat-starter-pill-desktop-light": {
+      "path": "review/chat-starter-pill-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "New chat, starter prompt inserted",
+      "prototypeReference": "r14/chat-starter-pill-d.png",
+      "replaces": []
+    },
+    "chat-starter-pill-desktop-dark": {
+      "path": "review/chat-starter-pill-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "New chat, starter prompt inserted",
+      "prototypeReference": "r14/chat-starter-pill-d-dark.png",
+      "replaces": []
+    },
+    "chat-starter-pill-mobile-light": {
+      "path": "review/chat-starter-pill-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "New chat, starter prompt inserted",
+      "prototypeReference": "r14/chat-starter-pill-m.png",
+      "replaces": []
+    },
+    "chat-starter-pill-mobile-dark": {
+      "path": "review/chat-starter-pill-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "New chat, starter prompt inserted",
+      "prototypeReference": "r14/chat-starter-pill-m-dark.png",
+      "replaces": []
+    },
+    "chat-streaming-scroll-desktop-light": {
+      "path": "review/chat-streaming-scroll-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Streaming answer, scrolled up with Scroll to bottom",
+      "prototypeReference": "r14/chat-streaming-scroll-d.png",
+      "replaces": []
+    },
+    "chat-streaming-scroll-desktop-dark": {
+      "path": "review/chat-streaming-scroll-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Streaming answer, scrolled up with Scroll to bottom",
+      "prototypeReference": "r14/chat-streaming-scroll-d-dark.png",
+      "replaces": []
+    },
+    "chat-streaming-scroll-mobile-light": {
+      "path": "review/chat-streaming-scroll-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Streaming answer, scrolled up with Scroll to bottom",
+      "prototypeReference": "r14/chat-streaming-scroll-m.png",
+      "replaces": []
+    },
+    "chat-streaming-scroll-mobile-dark": {
+      "path": "review/chat-streaming-scroll-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Streaming answer, scrolled up with Scroll to bottom",
+      "prototypeReference": "r14/chat-streaming-scroll-m-dark.png",
+      "replaces": []
+    },
+    "chat-reasoning-collapsed-desktop-light": {
+      "path": "review/chat-reasoning-collapsed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer, reasoning collapsed",
+      "prototypeReference": "r14/chat-reasoning-collapsed-d.png",
+      "replaces": []
+    },
+    "chat-reasoning-collapsed-desktop-dark": {
+      "path": "review/chat-reasoning-collapsed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer, reasoning collapsed",
+      "prototypeReference": "r14/chat-reasoning-collapsed-d-dark.png",
+      "replaces": []
+    },
+    "chat-reasoning-collapsed-mobile-light": {
+      "path": "review/chat-reasoning-collapsed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer, reasoning collapsed",
+      "prototypeReference": "r14/chat-reasoning-collapsed-m.png",
+      "replaces": []
+    },
+    "chat-reasoning-collapsed-mobile-dark": {
+      "path": "review/chat-reasoning-collapsed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer, reasoning collapsed",
+      "prototypeReference": "r14/chat-reasoning-collapsed-m-dark.png",
+      "replaces": []
+    },
+    "chat-reasoning-open-desktop-light": {
+      "path": "review/chat-reasoning-open-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer, reasoning expanded",
+      "prototypeReference": "r14/chat-reasoning-open-d.png",
+      "replaces": []
+    },
+    "chat-reasoning-open-desktop-dark": {
+      "path": "review/chat-reasoning-open-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer, reasoning expanded",
+      "prototypeReference": "r14/chat-reasoning-open-d-dark.png",
+      "replaces": []
+    },
+    "chat-reasoning-open-mobile-light": {
+      "path": "review/chat-reasoning-open-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer, reasoning expanded",
+      "prototypeReference": "r14/chat-reasoning-open-m.png",
+      "replaces": []
+    },
+    "chat-reasoning-open-mobile-dark": {
+      "path": "review/chat-reasoning-open-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer, reasoning expanded",
+      "prototypeReference": "r14/chat-reasoning-open-m-dark.png",
+      "replaces": []
+    },
+    "chat-answer-actions-desktop-light": {
+      "path": "review/chat-answer-actions-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer with the action bar",
+      "prototypeReference": "r14/chat-answer-actions-d.png",
+      "replaces": []
+    },
+    "chat-answer-actions-desktop-dark": {
+      "path": "review/chat-answer-actions-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer with the action bar",
+      "prototypeReference": "r14/chat-answer-actions-d-dark.png",
+      "replaces": []
+    },
+    "chat-answer-actions-mobile-light": {
+      "path": "review/chat-answer-actions-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer with the action bar",
+      "prototypeReference": "r14/chat-answer-actions-m.png",
+      "replaces": []
+    },
+    "chat-answer-actions-mobile-dark": {
+      "path": "review/chat-answer-actions-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer with the action bar",
+      "prototypeReference": "r14/chat-answer-actions-m-dark.png",
+      "replaces": []
+    },
+    "chat-copied-desktop-light": {
+      "path": "review/chat-copied-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer, answer copied",
+      "prototypeReference": "r14/chat-copied-d.png",
+      "replaces": []
+    },
+    "chat-copied-desktop-dark": {
+      "path": "review/chat-copied-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer, answer copied",
+      "prototypeReference": "r14/chat-copied-d-dark.png",
+      "replaces": []
+    },
+    "chat-copied-mobile-light": {
+      "path": "review/chat-copied-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer, answer copied",
+      "prototypeReference": "r14/chat-copied-m.png",
+      "replaces": []
+    },
+    "chat-copied-mobile-dark": {
+      "path": "review/chat-copied-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer, answer copied",
+      "prototypeReference": "r14/chat-copied-m-dark.png",
+      "replaces": []
+    },
+    "chat-feedback-desktop-light": {
+      "path": "review/chat-feedback-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer, feedback given",
+      "prototypeReference": "r14/chat-feedback-d.png",
+      "replaces": []
+    },
+    "chat-feedback-desktop-dark": {
+      "path": "review/chat-feedback-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer, feedback given",
+      "prototypeReference": "r14/chat-feedback-d-dark.png",
+      "replaces": []
+    },
+    "chat-feedback-mobile-light": {
+      "path": "review/chat-feedback-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer, feedback given",
+      "prototypeReference": "r14/chat-feedback-m.png",
+      "replaces": []
+    },
+    "chat-feedback-mobile-dark": {
+      "path": "review/chat-feedback-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer, feedback given",
+      "prototypeReference": "r14/chat-feedback-m-dark.png",
+      "replaces": []
+    },
+    "chat-edit-desktop-light": {
+      "path": "review/chat-edit-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Editing a user message",
+      "prototypeReference": "r14/chat-edit-d.png",
+      "replaces": []
+    },
+    "chat-edit-desktop-dark": {
+      "path": "review/chat-edit-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Editing a user message",
+      "prototypeReference": "r14/chat-edit-d-dark.png",
+      "replaces": []
+    },
+    "chat-edit-mobile-light": {
+      "path": "review/chat-edit-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Editing a user message",
+      "prototypeReference": "r14/chat-edit-m.png",
+      "replaces": []
+    },
+    "chat-edit-mobile-dark": {
+      "path": "review/chat-edit-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Editing a user message",
+      "prototypeReference": "r14/chat-edit-m-dark.png",
+      "replaces": []
+    },
+    "chat-branch-desktop-light": {
+      "path": "review/chat-branch-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Edited message with the branch picker",
+      "prototypeReference": "r14/chat-branch-d.png",
+      "replaces": []
+    },
+    "chat-branch-desktop-dark": {
+      "path": "review/chat-branch-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Edited message with the branch picker",
+      "prototypeReference": "r14/chat-branch-d-dark.png",
+      "replaces": []
+    },
+    "chat-branch-mobile-light": {
+      "path": "review/chat-branch-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Edited message with the branch picker",
+      "prototypeReference": "r14/chat-branch-m.png",
+      "replaces": []
+    },
+    "chat-branch-mobile-dark": {
+      "path": "review/chat-branch-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Edited message with the branch picker",
+      "prototypeReference": "r14/chat-branch-m-dark.png",
+      "replaces": []
+    },
+    "chat-stopped-desktop-light": {
+      "path": "review/chat-stopped-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Answer stopped by the user",
+      "prototypeReference": "r14/chat-stopped-d.png",
+      "replaces": []
+    },
+    "chat-stopped-desktop-dark": {
+      "path": "review/chat-stopped-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Answer stopped by the user",
+      "prototypeReference": "r14/chat-stopped-d-dark.png",
+      "replaces": []
+    },
+    "chat-stopped-mobile-light": {
+      "path": "review/chat-stopped-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Answer stopped by the user",
+      "prototypeReference": "r14/chat-stopped-m.png",
+      "replaces": []
+    },
+    "chat-stopped-mobile-dark": {
+      "path": "review/chat-stopped-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Answer stopped by the user",
+      "prototypeReference": "r14/chat-stopped-m-dark.png",
+      "replaces": []
+    },
+    "chat-error-desktop-light": {
+      "path": "review/chat-error-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Answer failed",
+      "prototypeReference": "r14/chat-error-d.png",
+      "replaces": []
+    },
+    "chat-error-desktop-dark": {
+      "path": "review/chat-error-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Answer failed",
+      "prototypeReference": "r14/chat-error-d-dark.png",
+      "replaces": []
+    },
+    "chat-error-mobile-light": {
+      "path": "review/chat-error-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Answer failed",
+      "prototypeReference": "r14/chat-error-m.png",
+      "replaces": []
+    },
+    "chat-error-mobile-dark": {
+      "path": "review/chat-error-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Answer failed",
+      "prototypeReference": "r14/chat-error-m-dark.png",
+      "replaces": []
+    },
+    "chat-reconnecting-desktop-light": {
+      "path": "review/chat-reconnecting-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Reconnecting to a running answer",
+      "prototypeReference": "r14/chat-reconnecting-d.png",
+      "replaces": []
+    },
+    "chat-reconnecting-desktop-dark": {
+      "path": "review/chat-reconnecting-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Reconnecting to a running answer",
+      "prototypeReference": "r14/chat-reconnecting-d-dark.png",
+      "replaces": []
+    },
+    "chat-reconnecting-mobile-light": {
+      "path": "review/chat-reconnecting-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Reconnecting to a running answer",
+      "prototypeReference": "r14/chat-reconnecting-m.png",
+      "replaces": []
+    },
+    "chat-reconnecting-mobile-dark": {
+      "path": "review/chat-reconnecting-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Reconnecting to a running answer",
+      "prototypeReference": "r14/chat-reconnecting-m-dark.png",
+      "replaces": []
+    },
+    "chat-thread-loading-desktop-light": {
+      "path": "review/chat-thread-loading-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat thread, loading",
+      "prototypeReference": "r14/chat-thread-loading-d.png",
+      "replaces": []
+    },
+    "chat-thread-loading-desktop-dark": {
+      "path": "review/chat-thread-loading-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat thread, loading",
+      "prototypeReference": "r14/chat-thread-loading-d-dark.png",
+      "replaces": []
+    },
+    "chat-thread-loading-mobile-light": {
+      "path": "review/chat-thread-loading-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat thread, loading",
+      "prototypeReference": "r14/chat-thread-loading-m.png",
+      "replaces": []
+    },
+    "chat-thread-loading-mobile-dark": {
+      "path": "review/chat-thread-loading-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat thread, loading",
+      "prototypeReference": "r14/chat-thread-loading-m-dark.png",
+      "replaces": []
+    },
+    "chat-floating-menu-desktop-light": {
+      "path": "review/chat-floating-menu-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Floating chat actions menu",
+      "prototypeReference": "r14/chat-floating-menu-d.png",
+      "replaces": []
+    },
+    "chat-floating-menu-desktop-dark": {
+      "path": "review/chat-floating-menu-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Floating chat actions menu",
+      "prototypeReference": "r14/chat-floating-menu-d-dark.png",
+      "replaces": []
+    },
+    "chat-floating-menu-mobile-light": {
+      "path": "review/chat-floating-menu-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Floating chat actions menu",
+      "prototypeReference": "r14/chat-floating-menu-m.png",
+      "replaces": []
+    },
+    "chat-floating-menu-mobile-dark": {
+      "path": "review/chat-floating-menu-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Floating chat actions menu",
+      "prototypeReference": "r14/chat-floating-menu-m-dark.png",
+      "replaces": []
+    },
+    "chat-rename-desktop-light": {
+      "path": "review/chat-rename-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Rename chat dialog",
+      "prototypeReference": "r14/chat-rename-d.png",
+      "replaces": []
+    },
+    "chat-rename-desktop-dark": {
+      "path": "review/chat-rename-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Rename chat dialog",
+      "prototypeReference": "r14/chat-rename-d-dark.png",
+      "replaces": []
+    },
+    "chat-rename-mobile-light": {
+      "path": "review/chat-rename-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Rename chat dialog",
+      "prototypeReference": "r14/chat-rename-m.png",
+      "replaces": []
+    },
+    "chat-rename-mobile-dark": {
+      "path": "review/chat-rename-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Rename chat dialog",
+      "prototypeReference": "r14/chat-rename-m-dark.png",
+      "replaces": []
+    },
+    "chat-delete-desktop-light": {
+      "path": "review/chat-delete-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Delete chat confirmation",
+      "prototypeReference": "r14/chat-delete-d.png",
+      "replaces": []
+    },
+    "chat-delete-desktop-dark": {
+      "path": "review/chat-delete-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Delete chat confirmation",
+      "prototypeReference": "r14/chat-delete-d-dark.png",
+      "replaces": []
+    },
+    "chat-delete-mobile-light": {
+      "path": "review/chat-delete-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Delete chat confirmation",
+      "prototypeReference": "r14/chat-delete-m.png",
+      "replaces": []
+    },
+    "chat-delete-mobile-dark": {
+      "path": "review/chat-delete-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Delete chat confirmation",
+      "prototypeReference": "r14/chat-delete-m-dark.png",
+      "replaces": []
+    },
+    "chats-history-desktop-light": {
+      "path": "review/chats-history-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, history list",
+      "prototypeReference": "r14/chats-history-d.png",
+      "replaces": []
+    },
+    "chats-history-desktop-dark": {
+      "path": "review/chats-history-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, history list",
+      "prototypeReference": "r14/chats-history-d-dark.png",
+      "replaces": []
+    },
+    "chats-history-mobile-light": {
+      "path": "review/chats-history-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, history list",
+      "prototypeReference": "r14/chats-history-m.png",
+      "replaces": []
+    },
+    "chats-history-mobile-dark": {
+      "path": "review/chats-history-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, history list",
+      "prototypeReference": "r14/chats-history-m-dark.png",
+      "replaces": []
+    },
+    "chats-search-desktop-light": {
+      "path": "review/chats-search-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, search results with highlights",
+      "prototypeReference": "r14/chats-search-d.png",
+      "replaces": []
+    },
+    "chats-search-desktop-dark": {
+      "path": "review/chats-search-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, search results with highlights",
+      "prototypeReference": "r14/chats-search-d-dark.png",
+      "replaces": []
+    },
+    "chats-search-mobile-light": {
+      "path": "review/chats-search-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, search results with highlights",
+      "prototypeReference": "r14/chats-search-m.png",
+      "replaces": []
+    },
+    "chats-search-mobile-dark": {
+      "path": "review/chats-search-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, search results with highlights",
+      "prototypeReference": "r14/chats-search-m-dark.png",
+      "replaces": []
+    },
+    "chats-no-results-desktop-light": {
+      "path": "review/chats-no-results-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, search with no results",
+      "prototypeReference": "r14/chats-no-results-d.png",
+      "replaces": []
+    },
+    "chats-no-results-desktop-dark": {
+      "path": "review/chats-no-results-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, search with no results",
+      "prototypeReference": "r14/chats-no-results-d-dark.png",
+      "replaces": []
+    },
+    "chats-no-results-mobile-light": {
+      "path": "review/chats-no-results-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, search with no results",
+      "prototypeReference": "r14/chats-no-results-m.png",
+      "replaces": []
+    },
+    "chats-no-results-mobile-dark": {
+      "path": "review/chats-no-results-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, search with no results",
+      "prototypeReference": "r14/chats-no-results-m-dark.png",
+      "replaces": []
+    },
+    "recent-menu-desktop-light": {
+      "path": "review/recent-menu-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Recent chat menu in the sidebar",
+      "prototypeReference": "r14/recent-menu-d.png",
+      "replaces": []
+    },
+    "recent-menu-desktop-dark": {
+      "path": "review/recent-menu-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Recent chat menu in the sidebar",
+      "prototypeReference": "r14/recent-menu-d-dark.png",
+      "replaces": []
+    },
+    "recent-menu-mobile-light": {
+      "path": "review/recent-menu-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Recent chat menu in the sidebar",
+      "prototypeReference": "r14/recent-menu-m.png",
+      "replaces": []
+    },
+    "recent-menu-mobile-dark": {
+      "path": "review/recent-menu-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Recent chat menu in the sidebar",
+      "prototypeReference": "r14/recent-menu-m-dark.png",
+      "replaces": []
+    },
+    "chat-thinking-desktop-light": {
+      "path": "review/chat-thinking-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": "r14/chat-thinking-d.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "chat-thinking-desktop-dark": {
+      "path": "review/chat-thinking-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": "r14/chat-thinking-d-dark.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "chat-thinking-mobile-light": {
+      "path": "review/chat-thinking-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": "r14/chat-thinking-m.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "chat-thinking-mobile-dark": {
+      "path": "review/chat-thinking-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking thread, indicator and Stop generating",
+      "prototypeReference": "r14/chat-thinking-m-dark.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "indicator-wander-desktop-light": {
+      "path": "review/indicator-wander-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": "r14/indicator-d.png",
+      "replaces": [],
+      "lock": "engine-tests"
+    },
+    "indicator-wander-desktop-dark": {
+      "path": "review/indicator-wander-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": "r14/indicator-d-dark.png",
+      "replaces": [],
+      "lock": "engine-tests"
+    },
+    "indicator-wander-mobile-light": {
+      "path": "review/indicator-wander-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": "r14/indicator-m.png",
+      "replaces": [],
+      "lock": "engine-tests"
+    },
+    "indicator-wander-mobile-dark": {
+      "path": "review/indicator-wander-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, dots wandering 8 s into a run",
+      "prototypeReference": "r14/indicator-m-dark.png",
+      "replaces": [],
+      "lock": "engine-tests"
+    },
+    "indicator-mark-desktop-light": {
+      "path": "review/indicator-mark-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": "r14/indicator-d.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "indicator-mark-desktop-dark": {
+      "path": "review/indicator-mark-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": "r14/indicator-d-dark.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "indicator-mark-mobile-light": {
+      "path": "review/indicator-mark-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": "r14/indicator-m.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "indicator-mark-mobile-dark": {
+      "path": "review/indicator-mark-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, drawn mark held (second mark of the round)",
+      "prototypeReference": "r14/indicator-m-dark.png",
+      "replaces": [],
+      "lock": "svg-snapshot"
+    },
+    "indicator-finished-desktop-light": {
+      "path": "review/indicator-finished-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": "r14/indicator-d.png",
+      "replaces": []
+    },
+    "indicator-finished-desktop-dark": {
+      "path": "review/indicator-finished-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": "r14/indicator-d-dark.png",
+      "replaces": []
+    },
+    "indicator-finished-mobile-light": {
+      "path": "review/indicator-finished-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": "r14/indicator-m.png",
+      "replaces": []
+    },
+    "indicator-finished-mobile-dark": {
+      "path": "review/indicator-finished-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Thinking indicator, finished and settled on the Lexon mark",
+      "prototypeReference": "r14/indicator-m-dark.png",
+      "replaces": []
+    }
+  }
+}

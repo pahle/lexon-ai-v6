@@ -117,6 +117,7 @@ describe('RunAuthorizationService.withActor', () => {
             email: 'initiator@example.test',
             emailVerified: true,
             twoFactorEnabled: true,
+            jobTitle: null,
             onboardingCompleted: false,
           },
           organization: {
@@ -131,6 +132,7 @@ describe('RunAuthorizationService.withActor', () => {
             createdAt: '2026-11-05T08:00:00.000Z',
           },
           platformAdmin: false,
+          organizationMemberCount: 1,
         },
       },
       new Headers(),
@@ -197,6 +199,7 @@ describe('RunAuthorizationService.withActor', () => {
             email: 'initiator@example.test',
             emailVerified: true,
             twoFactorEnabled: false,
+            jobTitle: null,
             onboardingCompleted: false,
           },
           organization: {
@@ -211,6 +214,7 @@ describe('RunAuthorizationService.withActor', () => {
             createdAt: '2026-11-05T08:00:00.000Z',
           },
           platformAdmin: false,
+          organizationMemberCount: 1,
         },
       },
       new Headers(),

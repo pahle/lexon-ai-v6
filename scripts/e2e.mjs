@@ -2,14 +2,18 @@ import {
   composeFilesForE2EProjects,
   resolveE2ESelection,
 } from './e2e-projects.mjs';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import { withOwnedStack } from './e2e-lifecycle.mjs';
+import { checkStack } from './e2e-stack-guard.mjs';
+import { buildStackDescriptor } from './e2e-compose-files.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 async function port() {
   const server = createServer();
@@ -22,13 +26,62 @@ async function port() {
   return value;
 }
 const allocatedPorts = new Set();
+// Bounded, redacted service log tails so a failed chat load run is diagnosable
+// from the job log before the stack is torn down.
+async function printServiceLogTails(project, files, env) {
+  const secrets = Object.entries(env)
+    .filter(
+      ([name, value]) =>
+        /(PASSWORD|SECRET|TOKEN|KEY|URL)/iu.test(name) &&
+        typeof value === 'string' &&
+        value.length >= 6,
+    )
+    .map(([, value]) => value);
+  const output = await new Promise((resolveLogs) => {
+    execFile(
+      'docker',
+      composeArgs(
+        project,
+        [
+          'logs',
+          '--no-color',
+          '--tail',
+          '60',
+          'api',
+          'ai-worker',
+          'dispatcher',
+        ],
+        files,
+      ),
+      { env, maxBuffer: 4 * 1024 * 1024, timeout: 30_000 },
+      (_error, stdout, stderr) => resolveLogs(`${stdout}${stderr}`),
+    );
+  });
+  let text = output;
+  for (const value of secrets) text = text.split(value).join('[redacted]');
+  console.error(`--- service log tails ---\n${text}\n--- end service logs ---`);
+}
 const { args, selectedProjects } = resolveE2ESelection(
   process.argv.slice(2),
   undefined,
   { includeLoad: process.env.LEXON_CHAT_LOAD === '1' },
 );
 const captureChatLoad = selectedProjects.includes('chat-sse-load');
-const directory = await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
+// LEXON_E2E_KEEP=1 (the F4.1 capture stack, scripts/visual-capture-stack.mjs)
+// leaves the stack running and keeps its state in .cache/visual-capture-stack.
+const keep = process.env.LEXON_E2E_KEEP === '1';
+const keepDirectory = join(root, '.cache/visual-capture-stack');
+if (keep) {
+  if (existsSync(join(keepDirectory, 'descriptor.json')))
+    throw new Error(
+      'A visual capture stack is already up: run node scripts/visual-capture-stack.mjs down first',
+    );
+  await rm(keepDirectory, { recursive: true, force: true });
+  await mkdir(keepDirectory, { recursive: true, mode: 0o700 });
+}
+const directory = keep
+  ? keepDirectory
+  : await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
 const secret = () => randomBytes(24).toString('hex');
 let env;
@@ -73,6 +126,7 @@ try {
     directory,
   );
   env.AUTH_PUBLIC_ORIGIN = publicUrl;
+  env.LEXON_REPO_ROOT = root;
   env.NETWORK_CONTROL_PATH = root + 'backend/test/e2e/network-control.mjs';
   env.IDENTITY_TEST_ENTRY_PATH = root + 'backend/test/e2e/auth-api-main.mjs';
   env.IDENTITY_MAIL_CONTROL_PATH = root + 'backend/test/e2e/mail-control.mjs';
@@ -83,16 +137,13 @@ try {
   await writeFile(operatorEnvironmentPath, JSON.stringify(env), {
     mode: 0o600,
   });
-  const files = composeFilesForE2EProjects(
-    selectedProjects,
-    root,
-    process.env.LEXON_VISUAL_DEV === '1',
-  );
+  const files = composeFilesForE2EProjects(selectedProjects, root);
   const loadEvidence = await withOwnedStack({
     project,
     directory,
     signal: controller.signal,
     captureChatLoad,
+    keep,
     async start(signal) {
       await run('docker', composeArgs(project, ['config', '--quiet'], files), {
         env,
@@ -114,27 +165,50 @@ try {
       );
     },
     async exercise(signal) {
-      const descriptor = {
+      const descriptor = buildStackDescriptor({
         project,
         operatorEnvironmentPath,
         apiUrl: `http://127.0.0.1:${env.API_HOST_PORT}`,
         publicUrl,
-        frontendUrl: publicUrl,
-      };
-      await run(
-        process.execPath,
-        [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
-        {
-          env: {
-            ...process.env,
-            LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
-            LEXON_CHAT_LOAD: captureChatLoad ? '1' : '0',
-            PLAYWRIGHT_NO_COPY_PROMPT: '1',
-            COMPOSE_PROFILES: '',
+        composeFiles: files,
+      });
+      if (keep)
+        await writeFile(
+          join(directory, 'descriptor.json'),
+          JSON.stringify({
+            ...descriptor,
+            directory,
+          }),
+          { mode: 0o600 },
+        );
+      let testError;
+      try {
+        await run(
+          process.execPath,
+          [root + 'node_modules/@playwright/test/cli.js', 'test', ...args],
+          {
+            env: {
+              ...process.env,
+              LEXON_E2E_DESCRIPTOR: JSON.stringify(descriptor),
+              LEXON_CHAT_LOAD: captureChatLoad ? '1' : '0',
+              PLAYWRIGHT_NO_COPY_PROMPT: '1',
+              COMPOSE_PROFILES: '',
+            },
+            signal,
           },
-          signal,
-        },
-      );
+        );
+      } catch (error) {
+        testError = error;
+        if (captureChatLoad) await printServiceLogTails(project, files, env);
+      }
+      // Guard: a helper that recreates services must leave the api with
+      // sign-up open and every overlay in place, even after a failed run.
+      const problems = await checkStack(project, files);
+      if (problems.length > 0) {
+        console.error(`E2E stack guard failed:\n- ${problems.join('\n- ')}`);
+        testError ??= new Error('E2E stack guard failed');
+      }
+      if (testError) throw testError;
       if (captureChatLoad)
         return JSON.parse(
           await readFile(
@@ -187,5 +261,6 @@ try {
 } finally {
   process.off('SIGINT', stop);
   process.off('SIGTERM', stop);
-  await rm(directory, { recursive: true, force: true });
+  if (!keep || process.exitCode === 1)
+    await rm(directory, { recursive: true, force: true });
 }

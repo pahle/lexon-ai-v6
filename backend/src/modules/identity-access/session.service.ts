@@ -3,6 +3,7 @@ import { appendAuthAudit } from '../audit/index.js';
 import { Injectable } from '@nestjs/common';
 import {
   OwnSessionSummarySchema,
+  describeDevice,
   UuidSchema,
   type OwnSessionSummary,
   type BearerSessionResponse,
@@ -78,7 +79,18 @@ export class SessionService {
             currentSessionId: identity.sessionId,
           },
         })
-      ).map((row) => OwnSessionSummarySchema.parse(row)),
+      ).map(({ userAgent, ...row }) => {
+        // Bearer sessions are issued to the Word add-in and carry no browser.
+        const device =
+          row.channel === 'bearer'
+            ? { name: 'Word add-in', kind: 'desktop' as const }
+            : describeDevice(userAgent);
+        return OwnSessionSummarySchema.parse({
+          ...row,
+          deviceName: device.name,
+          deviceKind: device.kind,
+        });
+      }),
     );
   }
   revoke(identity: VerifiedIdentity, sessionId: string): Promise<void> {

@@ -5,9 +5,18 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
+import {
+  approvedReviewSha256,
+  invalidateRecapturedApproval,
+  pixelLockedViews,
+  visualSetDirectory,
+} from '../visual-mode.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
-const visualRoot = resolve(root, 'docs/references/F2.1-visual');
+const setIndex = process.argv.indexOf('--set');
+const visualSet = setIndex >= 0 ? process.argv[setIndex + 1] : undefined;
+const visualRoot = visualSetDirectory(visualSet, root);
+const isLegacySet = visualRoot.endsWith('F2.1-visual');
 const index = JSON.parse(
   await readFile(resolve(visualRoot, 'index.json'), 'utf8'),
 );
@@ -19,14 +28,18 @@ assert.ok(
   ['awaiting-owner', 'approved'].includes(approval.status),
   'visual approval status is recognized',
 );
-const reviewViews = Object.entries(index.views).filter(([, view]) =>
+// svg-snapshot views are not pixel goldens: no hash, no approval, no byte
+// comparison between captures.
+const reviewViews = Object.entries(pixelLockedViews(index)).filter(([, view]) =>
   view.path.startsWith('review/'),
 );
-assert.equal(
-  reviewViews.length,
-  82,
-  'Task 9 manifest includes exactly 82 indexed review PNGs.',
-);
+if (isLegacySet)
+  assert.equal(
+    reviewViews.length,
+    82,
+    'Task 9 manifest includes exactly 82 indexed review PNGs.',
+  );
+else assert.ok(reviewViews.length > 0, 'the visual index lists review views');
 
 const freshnessIndex = process.argv.indexOf('--not-before');
 let notBefore;
@@ -102,7 +115,8 @@ try {
         ? Object.keys(images).length ===
             Object.keys(approval.images ?? {}).length &&
           Object.entries(images).every(
-            ([id, image]) => approval.images[id]?.sha256 === image.sha256,
+            ([id, image]) =>
+              approvedReviewSha256(approval, id) === image.sha256,
           )
         : null,
     viewCount: reviewViews.length,
@@ -128,7 +142,7 @@ try {
       'all indexed PNG bytes match the previous capture',
     );
     process.stdout.write(
-      `Stable screenshot bytes: ${reviewViews.length}/82 matched ${priorPath}\n`,
+      `Stable screenshot bytes: ${reviewViews.length}/${reviewViews.length} matched ${priorPath}\n`,
     );
   } else {
     const outputIndex = process.argv.indexOf('--output');
@@ -140,6 +154,23 @@ try {
       mkdir(dirname(outputPath), { recursive: true }),
     );
     await writeFile(outputPath, JSON.stringify(current, null, 2) + '\n');
+    // F4 follow-up M3: a recaptured image with different bytes loses its
+    // approval, and the set returns to awaiting-owner.
+    if (outputIndex < 0 && !isLegacySet) {
+      const { approval: next, invalidated } = invalidateRecapturedApproval(
+        approval,
+        images,
+      );
+      if (invalidated.length > 0) {
+        await writeFile(
+          resolve(visualRoot, 'approval.json'),
+          JSON.stringify(next, null, 2) + '\n',
+        );
+        process.stdout.write(
+          `Approval invalidated for ${invalidated.length} recaptured image(s): ${invalidated.join(', ')}\n`,
+        );
+      }
+    }
     process.stdout.write(
       `Recorded ${reviewViews.length} indexed PNG hashes in ${outputPath}\n`,
     );

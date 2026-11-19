@@ -58,7 +58,16 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.goto(`${stack.publicUrl}/chats`);
   await expect(page.getByRole('heading', { name: 'Chats' })).toBeVisible();
   const breadcrumb = page.getByRole('navigation', { name: 'breadcrumb' });
-  await expect(breadcrumb).toHaveText('Chats');
+  await expect(breadcrumb).toHaveCount(0);
+  await expect(
+    page.getByRole('link', { name: 'New chat' }).first(),
+  ).toBeVisible();
+  // The prototype shows the floating pill on the new chat and on a thread
+  // only; the Chats list has none.
+  await expect(
+    page.getByRole('button', { name: 'Chat actions', exact: true }),
+  ).toHaveCount(0);
+  const chatHeading = page.locator('#main h1');
   const pageHeading = page.getByRole('heading', { name: 'Chats' });
   expect(await pageHeading.locator('..').getAttribute('class')).not.toContain(
     'border-b',
@@ -168,8 +177,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     .then(() => true)
     .catch(() => false);
   await page.goto(`${stack.publicUrl}${mobileRecentHref}`);
-  await expect(breadcrumb).toContainText(/Chats.+/);
-  await expect(breadcrumb).not.toContainText('Mobile title event update');
+  await expect(chatHeading).toHaveText(/.+/);
+  await expect(chatHeading).not.toHaveText('Mobile title event update');
   const mobileChatId = new URL(mobileRecentHref!, stack.publicUrl).pathname
     .split('/')
     .at(-1)!;
@@ -181,8 +190,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     },
   );
   expect(eventTitleResponse.status()).toBe(204);
-  const titleUpdatedInMountedThread = await expect(breadcrumb)
-    .toContainText('Mobile title event update')
+  const titleUpdatedInMountedThread = await expect(chatHeading)
+    .toHaveText('Mobile title event update')
     .then(() => true)
     .catch(() => false);
   expect({
@@ -208,7 +217,8 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await expect(renameMenuItem).toBeVisible();
   await expect(deleteMenuItem).toBeVisible();
   await expect(page.getByRole('menu')).toHaveCSS('opacity', '1');
-  await expect(deleteMenuItem).toHaveAttribute('data-variant', 'destructive');
+  // Menu items are plain; red is reserved (LEX-DS-001 §2).
+  await expect(deleteMenuItem).toHaveAttribute('data-variant', 'default');
   await expect(deleteMenuItem.locator('svg')).toBeVisible();
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chat-actions-menu.png',
@@ -217,18 +227,22 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.keyboard.press('Escape');
   await recentAction.click();
   await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await expect(page.getByRole('dialog', { name: 'Rename chat' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Chat title' })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Save', exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Cancel', exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chat-rename-inline.png',
     fullPage: true,
   });
   await page.getByRole('textbox', { name: 'Chat title' }).press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Rename chat' })).toHaveCount(
+    0,
+  );
 
   const search = page.getByRole('textbox', { name: 'Search chats' });
   await search.fill('wanprestasi');
@@ -333,7 +347,10 @@ test('Chats history supports submit search, inline rename, permanent delete and 
   await page.goto(`${stack.publicUrl}/chats`);
 
   await page.goto(`${stack.publicUrl}/chats/${chatId}`);
-  await expect(breadcrumb).toHaveText(/Chats/);
+  await expect(breadcrumb).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Chat actions', exact: true }),
+  ).toBeEnabled();
   await expect(
     page.getByRole('button', { name: 'Stop generating' }),
   ).toHaveCount(0);
@@ -364,10 +381,16 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     page.getByRole('heading', { name: 'Page not found' }),
   ).toBeVisible();
   await page.goto(`${stack.publicUrl}/chats`);
-  await expect(page.getByText('No chats yet')).toBeVisible();
+  await expect(
+    page.locator('[data-slot="empty-title"]', { hasText: 'No chats yet' }),
+  ).toBeVisible();
   await expect(page.locator('[data-slot="empty"]')).toHaveCSS(
-    'height',
-    '320px',
+    'padding-top',
+    '64px',
+  );
+  await expect(page.locator('[data-slot="empty"]')).toHaveCSS(
+    'padding-bottom',
+    '64px',
   );
   await page.screenshot({
     path: 'test-results/f4-chat/task-15-chats-empty.png',
@@ -619,7 +642,8 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
     .evaluateAll((links) =>
       links.map((link) => (link as HTMLAnchorElement).getAttribute('href')),
     );
-  expect(primaryHrefs).toEqual(['/workspace', '/chats']);
+  // Tools → Assistant (links to New chat), then its sub-items New chat and Chats.
+  expect(primaryHrefs).toEqual(['/workspace', '/workspace', '/chats']);
   const recentFollowsPrimary = await primary.evaluate((nav) => {
     const recent = document.querySelector(
       '[role="group"][aria-label="Recent chats"]',
@@ -663,16 +687,32 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
 
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await expect(recentGroup).toHaveCount(0);
-  await expect(newChat).toBeVisible();
-  await expect(chats).toBeVisible();
-  await expect(newChat).toHaveAttribute('href', '/workspace');
-  await expect(chats).toHaveAttribute('href', '/chats');
-  await newChat.focus();
+  // Collapsed (F4.1 prototype screen 32): one Assistant icon. It opens a menu
+  // with the same two destinations, so both stay reachable by keyboard.
+  const assistantMenu = primary.getByRole('button', {
+    name: 'Assistant navigation',
+    exact: true,
+  });
+  const menuNewChat = page.getByRole('menuitem', {
+    name: 'New chat',
+    exact: true,
+  });
+  const menuChats = page.getByRole('menuitem', { name: 'Chats', exact: true });
+  await expect(assistantMenu).toBeVisible();
+  await assistantMenu.focus();
+  await page.keyboard.press('Enter');
+  await expect(menuNewChat).toBeVisible();
+  await expect(menuChats).toBeVisible();
+  await expect(menuNewChat).toHaveAttribute('href', '/workspace');
+  await expect(menuChats).toHaveAttribute('href', '/chats');
+  await menuNewChat.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/workspace`);
-  await newChat.focus();
-  await page.keyboard.press('Tab');
-  await expect(chats).toBeFocused();
+  await assistantMenu.focus();
+  await page.keyboard.press('Enter');
+  await menuNewChat.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(menuChats).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
   await expect(recentGroup).toHaveCount(0);

@@ -274,6 +274,9 @@ export class SecurityService {
         recoveryCodesRemaining = (
           await tx.call('viewBackupCodes', { body: { userId: user.id } })
         ).backupCodes.length;
+      const { passwordChangedAt } = await tx.call('lexonPasswordChangedAt', {
+        body: { userId: user.id },
+      });
       const expires = session.reauthenticatedAt
         ? new Date(
             session.reauthenticatedAt.getTime() +
@@ -287,6 +290,7 @@ export class SecurityService {
         reauthenticationExpiresAt:
           expires && expires > new Date() ? expires.toISOString() : null,
         recoveryCodesRemaining,
+        passwordChangedAt,
       };
     });
   }

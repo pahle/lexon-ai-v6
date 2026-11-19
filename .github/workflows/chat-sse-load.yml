@@ -52,7 +52,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   chat-sse-load:
-    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -106,5 +105,6 @@ jobs:
             test-results/f4-chat-load/F4-stream-latency.json
             test-results/f4-chat-load/failure.json
             test-results/f4-chat-load/diagnostic.json
+            test-results/f4-chat-load/child-output-tail.log
           retention-days: 14
           if-no-files-found: warn

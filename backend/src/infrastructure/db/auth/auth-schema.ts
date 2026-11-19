@@ -30,6 +30,7 @@ export const user = authSchema.table('user', {
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  jobTitle: text('job_title'),
   onboardingComplete: boolean('onboarding_complete').default(false).notNull(),
   pendingAdminActivation: boolean('pending_admin_activation')
     .default(false)

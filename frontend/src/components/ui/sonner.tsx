@@ -3,7 +3,7 @@
 import { useTheme } from 'next-themes';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 import {
-  CircleCheckIcon,
+  CheckIcon,
   InfoIcon,
   TriangleAlertIcon,
   OctagonXIcon,
@@ -19,8 +19,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={activeTheme}
       className="toaster group"
+      position="top-right"
+      offset={{ top: 20, right: 24 }}
+      mobileOffset={12}
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
+        success: <CheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
@@ -31,12 +34,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',
-          '--border-radius': 'var(--radius)',
+          '--width': '320px',
+          '--border-radius': '10px',
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: 'cn-toast',
+          toast: 'cn-toast px-4! py-3! text-sm gap-2!',
         },
       }}
       {...props}

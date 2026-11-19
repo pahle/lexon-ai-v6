@@ -3,7 +3,7 @@ export default defineConfig({
   testDir: '.',
   timeout: 45000,
   expect: { timeout: 10000 },
-  snapshotPathTemplate: '{testDir}/docs/references/F2.1-visual/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
@@ -30,9 +30,11 @@ export default defineConfig({
         'backend/test/e2e/account-security.spec.ts',
         'backend/test/e2e/organizations.spec.ts',
         'backend/test/e2e/platform-identity.spec.ts',
+        'backend/test/e2e/platform-setup-open-signup.spec.ts',
         'backend/test/e2e/app-shell.spec.ts',
         'backend/test/e2e/theme-before-hydration.spec.ts',
         'backend/test/e2e/shell-accessibility.spec.ts',
+        'backend/test/e2e/brand-layout.spec.ts',
       ],
     },
     {
@@ -50,6 +52,7 @@ export default defineConfig({
       testMatch: [
         'backend/test/e2e/chat-runtime-proof.spec.ts',
         'backend/test/e2e/chat-recovery.spec.ts',
+        'backend/test/e2e/indicator-trace.spec.ts',
       ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },
@@ -60,6 +63,7 @@ export default defineConfig({
         'backend/test/e2e/chat-thread.spec.ts',
         'backend/test/e2e/chat-history.spec.ts',
         'backend/test/e2e/chat-accessibility.spec.ts',
+        'backend/test/e2e/chat-states.spec.ts',
       ],
       use: {
         trace: 'off',
@@ -75,22 +79,17 @@ export default defineConfig({
       testMatch: 'frontend/test/e2e/health-page.spec.ts',
     },
     {
-      name: 'visual-review',
+      name: 'brand-visual',
+      timeout: 240000,
       testMatch: [
-        'backend/test/e2e/visual-rework.spec.ts',
+        'backend/test/e2e/brand-visual-auth.spec.ts',
+        'backend/test/e2e/brand-visual-shell.spec.ts',
+        'backend/test/e2e/brand-visual-chat.spec.ts',
+        'backend/test/e2e/brand-visual-chats-settings.spec.ts',
+        'backend/test/e2e/brand-visual-platform.spec.ts',
         'backend/test/e2e/visual-comparison-regression.spec.ts',
       ],
-      use: {
-        deviceScaleFactor: 1,
-        locale: 'en-US',
-        timezoneId: 'Asia/Jakarta',
-        reducedMotion: 'reduce',
-      },
-    },
-    {
-      name: 'chat-visual',
-      testMatch: 'backend/test/e2e/chat-visual.spec.ts',
-      snapshotPathTemplate: '{testDir}/docs/references/F4-visual/{arg}{ext}',
+      snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
       use: {
         deviceScaleFactor: 1,
         locale: 'en-US',

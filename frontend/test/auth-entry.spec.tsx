@@ -106,6 +106,15 @@ test('invalid sign-in is field-linked and corrects live after its first submit',
   expect(
     email.closest('[data-slot="field"]')?.getAttribute('data-invalid'),
   ).toBe('true');
+  // Only the border and the message are red; the label stays ink.
+  const emailField = email.closest('[data-slot="field"]')!;
+  expect(emailField.className).not.toContain(
+    'data-[invalid=true]:text-destructive',
+  );
+  expect(emailField.className).toContain('data-[invalid=true]:text-foreground');
+  expect(
+    emailField.querySelector('[data-slot="field-error"]')?.className.split(' '),
+  ).toContain('text-lexon-red-text');
   expect(email.getAttribute('aria-describedby')).toContain('error');
   expect(
     [...view.container.querySelectorAll('[data-slot="field-error"]')].map(
@@ -257,7 +266,7 @@ test('signin preserves invitation proof when moving to signup', async () => {
     <LoginForm returnTo={'/accept-invitation?invitationId=' + invitationId} />,
   );
   const link = [...view.container.querySelectorAll('a')].find(
-    (a) => a.textContent === 'Create account',
+    (a) => a.textContent === 'Create an account',
   )!;
   expect(new URL(link.href).searchParams.get('invitationId')).toBe(
     invitationId,
@@ -268,7 +277,7 @@ test('verification resend appears only after credential-checked unverified sign-
   const email = 'person@example.test';
   const returnTo = '/workspace?tab=recent';
   const view = await render(<LoginForm returnTo={returnTo} />);
-  expect(view.container.textContent).not.toContain('Resend verification email');
+  expect(view.container.textContent).not.toContain('Resend email');
   const inputs = view.container.querySelectorAll<HTMLInputElement>('input');
   const setInput = async (input: HTMLInputElement, value: string) => {
     await act(async () => {
@@ -297,12 +306,11 @@ test('verification resend appears only after credential-checked unverified sign-
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   });
   await settle();
-  expect(view.container.textContent).toContain('Check your email');
-  expect(view.container.textContent).toContain('Resend verification email');
-  expect(
-    view.container.querySelector<HTMLInputElement>('input[type="email"]')
-      ?.value,
-  ).toBe(email);
+  expect(view.container.textContent).toContain('Verify your email');
+  expect(view.container.textContent).toContain('Resend email');
+  // The address is known, so it is named in the text and not asked again.
+  expect(view.container.querySelector('b')?.textContent).toBe(email);
+  expect(view.container.querySelector('input[type="email"]')).toBeNull();
   expect(
     [...view.container.querySelectorAll<HTMLAnchorElement>('a')].some((a) =>
       a.href.includes(email),
@@ -383,7 +391,7 @@ test('unrelated forbidden sign-in errors stay generic and do not show verificati
         .closest('[data-slot="field"]')!,
     ),
   );
-  expect(view.container.textContent).not.toContain('Resend verification email');
+  expect(view.container.textContent).not.toContain('Resend email');
   await view.unmount();
 });
 import { authFailure } from '../src/components/auth/form-input';
@@ -451,4 +459,19 @@ test('a rejected recipient can change accounts without losing invitation intent'
   ).toBe(true);
   await view.unmount();
   vi.unstubAllGlobals();
+});
+
+test('sign-in uses the prototype copy', async () => {
+  const view = await render(<LoginForm />);
+  const text = view.container.textContent ?? '';
+  expect(text).toContain('Enter your work email and password.');
+  expect(text).not.toContain('Enter your email and password to continue.');
+  const links = [...view.container.querySelectorAll('a')].map(
+    (a) => a.textContent,
+  );
+  expect(links).toContain('Forgot password?');
+  expect(links).toContain('Create an account');
+  expect(links).not.toContain('Forgot your password?');
+  expect(text).toContain('New to Lexon?');
+  await view.unmount();
 });

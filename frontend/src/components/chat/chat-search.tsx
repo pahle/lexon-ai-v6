@@ -4,11 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ChatApi, ChatSearchPage } from '@lexon/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Empty,
   EmptyContent,
@@ -18,6 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Search } from 'lucide-react';
+import { formatActivityDate } from '@/lib/date-time';
 import {
   chatSearchQueriesPrefix,
   chatSearchQueryKey,
@@ -171,23 +169,23 @@ function ChatSearchSession({
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <form onSubmit={submit} role="search">
-        <InputGroup className="h-9">
-          <InputGroupAddon>
-            <Search aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label="Search chats"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Search chats"
-          />
-        </InputGroup>
+    <section className="flex flex-col gap-3.5">
+      <form onSubmit={submit} role="search" className="relative">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground"
+        />
+        <Input
+          aria-label="Search chats"
+          className="pl-9"
+          value={query}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          placeholder="Search chats"
+        />
       </form>
       {submittedQuery ? (
         <div
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-3.5"
           aria-live="polite"
           aria-busy={loading || loadingMore}
         >
@@ -196,23 +194,28 @@ function ChatSearchSession({
             <p role="alert">Search could not be completed. Try again.</p>
           ) : null}
           {!loading && !failed && results?.items.length ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-[13px] leading-[normal]">
               {results.items.length}{' '}
               {results.items.length === 1 ? 'chat' : 'chats'}
             </p>
           ) : null}
           {!loading && !failed && results?.items.length === 0 ? (
-            <Empty className="h-80 flex-none border-0">
-              <EmptyHeader className="max-w-none">
-                <EmptyMedia variant="icon">
+            <Empty className="flex-none gap-2 border-0 px-0 py-16 text-wrap text-muted-foreground">
+              <EmptyHeader className="max-w-none gap-2">
+                <EmptyMedia
+                  variant="icon"
+                  className="mb-0 size-10 rounded-[10px] [&_svg:not([class*='size-'])]:size-5"
+                >
                   <Search aria-hidden="true" />
                 </EmptyMedia>
-                <EmptyTitle>No chats match “{submittedQuery}”</EmptyTitle>
-                <EmptyDescription className="max-w-none sm:whitespace-nowrap">
+                <EmptyTitle className="text-base leading-[normal] font-semibold text-foreground">
+                  No chats match “{submittedQuery}”
+                </EmptyTitle>
+                <EmptyDescription className="max-w-none text-sm leading-[normal]">
                   Search looks in chat titles and messages. Try other words.
                 </EmptyDescription>
               </EmptyHeader>
-              <EmptyContent>
+              <EmptyContent className="mt-2">
                 <Button type="button" variant="outline" onClick={clear}>
                   Clear search
                 </Button>
@@ -220,24 +223,26 @@ function ChatSearchSession({
             </Empty>
           ) : null}
           {!loading && results?.items.length ? (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3.5">
               {results.items.map((item, index) => (
                 <li key={`${item.chatId}:${item.messageId ?? 'title'}`}>
                   <button
                     type="button"
-                    className={`flex w-full flex-col items-start gap-1 rounded-lg p-3 text-left hover:bg-muted ${index === 0 ? 'border border-border bg-muted/50' : ''}`}
+                    className={`flex w-full flex-col items-start gap-1 rounded-[10px] border p-3 text-left leading-[normal] hover:bg-muted ${index === 0 ? 'border-border bg-muted' : 'border-transparent'}`}
                     onClick={() =>
                       void onOpenMatch?.(item.chatId, item.messageId)
                     }
                   >
-                    <span className="flex w-full items-center justify-between gap-3">
-                      <span className="font-medium">{item.title}</span>
-                      <time className="text-muted-foreground shrink-0 text-xs">
-                        {formatActivityDate(item.updatedAt)}
+                    <span className="flex w-full justify-between gap-4 text-sm leading-[normal] font-medium">
+                      <span>{item.title}</span>
+                      <time className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap">
+                        {formatActivityDate(item.updatedAt, {
+                          todayAs: 'label',
+                        })}
                       </time>
                     </span>
                     {item.excerpt ? (
-                      <span className="text-muted-foreground line-clamp-2 text-sm">
+                      <span className="text-muted-foreground text-[13px]/[1.5]">
                         {highlightExcerpt(
                           item.excerpt,
                           item.matchStart,
@@ -257,29 +262,20 @@ function ChatSearchSession({
               disabled={loadingMore}
               onClick={() => void loadMore()}
             >
-              {loadingMore ? 'Loading results…' : 'Load more results'}
+              {loadingMore ? (
+                <>
+                  <Spinner aria-hidden="true" />
+                  <span className="sr-only">Loading more</span>
+                </>
+              ) : (
+                'Load more results'
+              )}
             </Button>
           ) : null}
         </div>
       ) : null}
     </section>
   );
-}
-
-function formatActivityDate(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (day.getTime() === today.getTime())
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
 }
 
 function highlightExcerpt(
@@ -294,7 +290,7 @@ function highlightExcerpt(
   return (
     <>
       {text.slice(0, safeStart)}
-      <mark className="rounded-sm bg-primary/20 text-foreground">
+      <mark className="rounded-[3px] bg-(--lexon-tint) px-0.5 text-inherit dark:bg-[#4A1E23]">
         {text.slice(safeStart, safeEnd)}
       </mark>
       {text.slice(safeEnd)}

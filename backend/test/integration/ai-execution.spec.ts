@@ -136,6 +136,7 @@ function actorScope(
           email: 'fixture@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {
@@ -150,6 +151,7 @@ function actorScope(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: options.platformAdmin ?? false,
+        organizationMemberCount: null,
       },
     },
     new Headers(),

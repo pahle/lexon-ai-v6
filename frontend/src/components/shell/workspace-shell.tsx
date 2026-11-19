@@ -3,8 +3,12 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useWorkspace } from './workspace-provider';
 import { SessionBoundary } from '../auth/session-boundary';
 import { SidebarInset, SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
-import { WorkspaceBreadcrumb } from './workspace-breadcrumb';
+import { Skeleton } from '../ui/skeleton';
+import {
+  ChatFloatingActions,
+  isChatChromePath,
+  useOpenChat,
+} from '../chat/chat-floating-actions';
 import { useOptionalSidebar } from './sidebar-context';
 import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
@@ -40,8 +44,8 @@ export function WorkspaceShell({
   } = useWorkspace();
   const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
-  const isChatSurface =
-    pathname === '/workspace' || /^\/chats\/[0-9a-f-]{36}$/i.test(pathname);
+  const hasChatChrome = isChatChromePath(pathname);
+  const openChat = useOpenChat();
   const sidebarState = useOptionalSidebar();
   const isMobile = sidebarState?.isMobile ?? false;
   const sidebarCollapsed = sidebarState?.state === 'collapsed';
@@ -97,33 +101,51 @@ export function WorkspaceShell({
         <SidebarInset
           id="main"
           tabIndex={-1}
-          className={
-            isChatSurface ? 'h-dvh max-h-dvh min-h-0 min-w-0' : 'min-w-0'
-          }
+          className="relative h-dvh max-h-dvh min-h-0 min-w-0 overflow-hidden md:h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-1rem)]"
         >
           {sidebar && sidebarState ? (
-            <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-              <div className="flex items-center gap-2 px-4">
-                <SidebarTrigger
-                  className="-ml-1"
-                  aria-label={
-                    isMobile
-                      ? 'Open navigation'
-                      : sidebarCollapsed
-                        ? 'Expand sidebar'
-                        : 'Collapse sidebar'
-                  }
-                />
-                <Separator
-                  orientation="vertical"
-                  className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-                />
-                <WorkspaceBreadcrumb />
-              </div>
+            <header
+              data-slot="shell-header"
+              className="flex h-14 shrink-0 items-center gap-2 px-2.5 md:h-[52px] md:px-3.5"
+            >
+              <SidebarTrigger
+                className="text-muted-foreground"
+                aria-label={
+                  isMobile
+                    ? 'Open navigation'
+                    : sidebarCollapsed
+                      ? 'Expand sidebar'
+                      : 'Collapse sidebar'
+                }
+              />
+              {openChat ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    data-slot="chat-header-divider"
+                    className="h-4 w-px shrink-0 bg-border"
+                  />
+                  <p
+                    data-slot="chat-header-title"
+                    aria-hidden="true"
+                    className="min-w-0 flex-1 truncate pr-24 text-sm text-foreground"
+                  >
+                    {openChat.title ?? (
+                      <Skeleton
+                        data-slot="chat-header-title-skeleton"
+                        className="mt-1 h-3 w-40"
+                      />
+                    )}
+                  </p>
+                </>
+              ) : null}
             </header>
           ) : null}
+          {sidebar && sidebarState && hasChatChrome ? (
+            <ChatFloatingActions chat={openChat} />
+          ) : null}
           <div className="flex min-h-0 flex-1">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
               {sidebar && !sidebarState ? (
                 <aside aria-label="Workspace navigation" className="shrink-0">
                   {sidebar}

@@ -9,7 +9,10 @@ import {
 import { transitionTenant } from '../../lib/tenant-queries';
 import { authClient } from '../../lib/auth-client';
 import { AuthCard } from './auth-card';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { ArrowLeft } from 'lucide-react';
+import { cn } from 'cn';
+import { buttonVariants } from '../ui/button';
+import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 export function AcceptInvitation({ invitationId }: { invitationId: string }) {
   const [declined, setDeclined] = useState(false);
@@ -24,76 +27,115 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
     '/accept-invitation?invitationId=' + encodeURIComponent(invitationId);
   if (declined)
     return (
-      <AuthCard presentation="page" title="Invitation declined">
-        <a href="/workspace">Return to workspace</a>
+      <AuthCard
+        presentation="page"
+        title="Invitation declined"
+        description="You will not join this organization. Ask the person who invited you if you change your mind."
+      >
+        <a
+          href="/workspace"
+          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+        >
+          Go to my workspace
+        </a>
+      </AuthCard>
+    );
+  if (!valid)
+    return (
+      <AuthCard
+        presentation="page"
+        title="Invitation unavailable"
+        description="This invitation was cancelled, has expired, or has already been used. Ask the person who invited you to send a new one."
+      >
+        <a
+          href="/workspace"
+          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
+        >
+          Go to Lexon
+        </a>
+        <AuthLink href="/sign-in" icon={<ArrowLeft aria-hidden="true" />}>
+          Back to sign in
+        </AuthLink>
       </AuthCard>
     );
   return (
     <AuthCard
       presentation="page"
       title="Accept invitation"
-      description="Sign in with the invited account to accept this invitation."
+      description="Join the organization that invited you. Use the account the invitation was sent to."
     >
-      {valid ? (
-        <>
-          <PendingButton
-            pending={busy && operation === 'accept'}
-            disabled={busy && operation !== 'accept'}
-            pendingLabel="Accepting invitation…"
-            onClick={async () => {
-              setBusy(true);
-              setOperation('accept');
-              setFailure('');
-              try {
-                const result = await createIdentityClient({
-                  baseUrl: '/api',
-                }).acceptInvitation(invitationId);
-                if (result.selection.status === 'switched') {
-                  await transitionTenant(query, result.selection.organization);
-                  window.history.replaceState(null, '', '/accept-invitation');
-                  window.location.assign('/workspace');
-                } else window.location.assign('/workspace?settings=security');
-              } catch (error) {
-                setFailure(
-                  error instanceof IdentityClientError && error.status === 503
-                    ? 'Service temporarily unavailable. Please try again.'
-                    : 'This invitation is unavailable for this account. Sign in with the invited account or request a new invitation.',
-                );
-              } finally {
-                setBusy(false);
-                setOperation(null);
-              }
-            }}
-          >
-            Accept invitation
-          </PendingButton>
-          <PendingButton
-            variant="outline"
-            pending={busy && operation === 'decline'}
-            disabled={busy && operation !== 'decline'}
-            pendingLabel="Declining invitation…"
-            onClick={async () => {
-              setBusy(true);
-              setOperation('decline');
-              setFailure('');
-              try {
-                await createIdentityClient({
-                  baseUrl: '/api',
-                }).declineInvitation(invitationId);
+      <>
+        <PendingButton
+          pending={busy && operation === 'accept'}
+          disabled={busy && operation !== 'accept'}
+          pendingLabel="Accepting invitation…"
+          size="lg"
+          className={authButtonClass}
+          onClick={async () => {
+            setBusy(true);
+            setOperation('accept');
+            setFailure('');
+            try {
+              const result = await createIdentityClient({
+                baseUrl: '/api',
+              }).acceptInvitation(invitationId);
+              if (result.selection.status === 'switched') {
+                await transitionTenant(query, result.selection.organization);
                 window.history.replaceState(null, '', '/accept-invitation');
-                setDeclined(true);
-              } catch {
-                setFailure('This invitation is unavailable for this account.');
-              } finally {
-                setBusy(false);
-                setOperation(null);
-              }
-            }}
-          >
-            Decline invitation
-          </PendingButton>
-          <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>Sign in</a>
+                window.location.assign('/workspace');
+              } else window.location.assign('/workspace?settings=security');
+            } catch (error) {
+              setFailure(
+                error instanceof IdentityClientError && error.status === 503
+                  ? 'Service temporarily unavailable. Please try again.'
+                  : 'This invitation is unavailable for this account. Sign in with the invited account or request a new invitation.',
+              );
+            } finally {
+              setBusy(false);
+              setOperation(null);
+            }
+          }}
+        >
+          Accept invitation
+        </PendingButton>
+        <PendingButton
+          variant="outline"
+          size="lg"
+          className={authButtonClass}
+          pending={busy && operation === 'decline'}
+          disabled={busy && operation !== 'decline'}
+          pendingLabel="Declining invitation…"
+          onClick={async () => {
+            setBusy(true);
+            setOperation('decline');
+            setFailure('');
+            try {
+              await createIdentityClient({
+                baseUrl: '/api',
+              }).declineInvitation(invitationId);
+              window.history.replaceState(null, '', '/accept-invitation');
+              setDeclined(true);
+            } catch {
+              setFailure('This invitation is unavailable for this account.');
+            } finally {
+              setBusy(false);
+              setOperation(null);
+            }
+          }}
+        >
+          Decline invitation
+        </PendingButton>
+        <p className="text-center text-sm leading-[1.21] text-muted-foreground">
+          Not the invited account?{' '}
           <a
+            className="text-foreground underline underline-offset-4"
+            href={'/sign-in?returnTo=' + encodeURIComponent(next)}
+          >
+            Sign in
+          </a>{' '}
+          or{' '}
+          <a
+            className="text-foreground underline underline-offset-4"
             href={
               '/sign-up?invitationId=' +
               encodeURIComponent(invitationId) +
@@ -101,20 +143,20 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
               encodeURIComponent(next)
             }
           >
-            Create account
+            create an account
           </a>
-        </>
-      ) : (
-        <p>This invitation is unavailable. Request a new invitation.</p>
-      )}
+          .
+        </p>
+      </>
       {failure ? (
         <>
-          <Alert role="alert" variant="destructive">
-            <AlertTitle>Unable to update this invitation</AlertTitle>
-            <AlertDescription>{failure}</AlertDescription>
-          </Alert>
+          <AuthAlert title="Unable to update this invitation">
+            {failure}
+          </AuthAlert>
           <PendingButton
             variant="outline"
+            size="lg"
+            className={authButtonClass}
             pending={busy && operation === 'signout'}
             disabled={busy && operation !== 'signout'}
             pendingLabel="Switching accounts…"

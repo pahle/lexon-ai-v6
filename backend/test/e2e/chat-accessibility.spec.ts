@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { authenticateApi } from './identity-support.js';
 import { descriptor } from './runtime-support.js';
+import { freezeMorningClock } from './greeting-clock.js';
 
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -72,7 +73,10 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
       path: '/workspace',
       ready: async () => {
         await expect(
-          page.getByRole('heading', { name: /^Welcome, / }),
+          page.getByRole('heading', {
+            name: 'Good morning, Ayu',
+            exact: true,
+          }),
         ).toBeVisible();
         await expect(
           page.getByRole('textbox', { name: 'Message input' }),
@@ -112,6 +116,7 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
     { name: 'mobile', width: 390, height: 844 },
   ];
 
+  await freezeMorningClock(page);
   await page.goto(`${stack.publicUrl}/workspace`);
   for (const viewport of viewports) {
     await page.setViewportSize({
@@ -148,11 +153,29 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
       }
     }
   }
+});
+
+// Runs on the real clock: a fixed browser clock delays the sheet's initial
+// focus, which made the Tab check below flaky.
+test('mobile navigation sheet keeps keyboard focus inside and restores it on close', async ({
+  page,
+}) => {
+  const stack = descriptor();
+  const headers = await authenticateApi(page.request, {
+    name: 'Ayu Wardani',
+    email: `chat-accessibility-sheet-${randomUUID()}@example.test`,
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-  await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.goto(`${stack.publicUrl}/workspace`);
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
   const skipLink = page.getByRole('link', { name: 'Skip to content' });
   await skipLink.focus();
   await page.keyboard.press('Enter');
@@ -163,6 +186,13 @@ test('chat workspace, history, and thread pass full-page accessibility in every 
   await page.keyboard.press('Enter');
   const sidebar = page.getByRole('dialog', { name: 'Sidebar' });
   await expect(sidebar).toBeVisible();
+  // Initial focus moves into the sheet on a later animation frame; Tab only
+  // once that has happened.
+  await expect
+    .poll(() =>
+      sidebar.evaluate((dialog) => dialog.contains(document.activeElement)),
+    )
+    .toBe(true);
   await page.keyboard.press('Tab');
   expect(
     await sidebar.evaluate((dialog) => dialog.contains(document.activeElement)),

@@ -1097,6 +1097,7 @@ async function withActorScope<T>(
           email: `${actor.userId}@example.test`,
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {
@@ -1111,6 +1112,7 @@ async function withActorScope<T>(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       },
     },
     new Headers(),

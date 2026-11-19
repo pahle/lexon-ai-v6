@@ -55,6 +55,7 @@ function actorScope<T>(
           email: 'fixture@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {
@@ -69,6 +70,7 @@ function actorScope<T>(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       }),
     },
     new Headers(),

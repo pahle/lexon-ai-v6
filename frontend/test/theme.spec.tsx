@@ -71,9 +71,9 @@ test('appearance selection stores and applies light and dark themes locally', as
       ?.getAttribute('aria-label'),
   ).toBe('System');
   const group = view.container.querySelector('[data-slot="radio-group"]');
-  expect(group?.className).toContain('max-w-[35.75rem]');
-  expect(group?.className).toContain('grid-cols-1');
-  expect(group?.className).toContain('min-[768px]:grid-cols-3');
+  // Prototype: three 180px cards in a row.
+  expect(group?.className).toContain('flex');
+  expect(group?.className).toContain('gap-4');
   const previews = [
     ...view.container.querySelectorAll('[data-slot="appearance-preview"]'),
   ];
@@ -93,14 +93,12 @@ test('appearance selection stores and applies light and dark themes locally', as
     ).size,
   ).toBe(3);
   for (const preview of previews) {
-    expect(preview.className).toContain('h-24');
+    expect(preview.className).toContain('h-[110px]');
     expect(preview.className).toContain('border');
     expect(preview.parentElement?.className).not.toContain(
       'rounded-[var(--radius)] border',
     );
-    expect(preview.parentElement?.className).not.toContain(
-      'bg-[var(--surface-raised)]',
-    );
+    expect(preview.parentElement?.className).not.toContain('bg-card');
     const radio = preview.parentElement?.querySelector('[role="radio"]');
     expect(radio).not.toBeNull();
     expect(
@@ -169,7 +167,7 @@ test('system selection follows operating system changes and uses rectangular pre
   );
   expect(indicator?.className).toContain('rounded-full');
   expect(preview?.className).not.toContain('rounded-full');
-  expect(preview?.className).toContain('h-24');
+  expect(preview?.className).toContain('h-[110px]');
 });
 
 test('does not render a theme selection before the client mount', () => {
@@ -181,4 +179,73 @@ test('does not render a theme selection before the client mount', () => {
   );
 
   expect(markup).not.toContain('role="radio"');
+});
+
+test('Appearance titles itself with a serif h2, a description, and three large cards under it', async () => {
+  installMatchMedia();
+  const view = await render(
+    <ThemeProvider>
+      <AppearanceSettings />
+    </ThemeProvider>,
+  );
+  mountedViews.push(view);
+  await settle();
+
+  const heading = view.container.querySelector('h2');
+  expect(heading?.textContent).toBe('Appearance');
+  expect(heading?.className).toContain('font-serif');
+  const description = view.container.querySelector('p');
+  expect(description?.textContent).toBe(
+    'Choose how Lexon looks on this device.',
+  );
+  const group = view.container.querySelector('[role="radiogroup"]');
+  expect(group?.getAttribute('aria-labelledby')).toBe(heading?.id);
+  expect(view.container.querySelector('[data-slot="field"]')).toBeNull();
+  expect(
+    description!.compareDocumentPosition(group!) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test('each card shows its label, selects by card, and the System card splits light and dark', async () => {
+  installMatchMedia();
+  const view = await render(
+    <ThemeProvider>
+      <AppearanceSettings />
+    </ThemeProvider>,
+  );
+  mountedViews.push(view);
+  await settle();
+
+  const options = [
+    ...view.container.querySelectorAll<HTMLElement>(
+      '[data-slot="appearance-option"]',
+    ),
+  ];
+  expect(options.map((option) => option.textContent?.trim())).toEqual([
+    'Light',
+    'Dark',
+    'System',
+  ]);
+  const panes = options.map((option) =>
+    [...option.querySelectorAll('[data-preview-theme]')].map((pane) =>
+      pane.getAttribute('data-preview-theme'),
+    ),
+  );
+  expect(panes).toEqual([['light'], ['dark'], ['light', 'dark']]);
+  for (const option of options) {
+    const radio = option.querySelector<HTMLElement>('[role="radio"]')!;
+    expect(radio.className).toContain('absolute');
+    expect(radio.className).toContain('inset-0');
+    expect(radio.className).toContain('opacity-0');
+  }
+
+  await act(async () => options[1]!.click());
+  await settle();
+  expect(localStorage.getItem('theme')).toBe('dark');
+  expect(
+    view.container
+      .querySelector('[role="radio"][aria-checked="true"]')
+      ?.getAttribute('aria-label'),
+  ).toBe('Dark');
 });

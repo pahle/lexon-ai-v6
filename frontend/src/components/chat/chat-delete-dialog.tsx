@@ -125,11 +125,13 @@ export function ChatDeleteDialog({
         }}
       >
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-            <AlertDialogDescription>
-              “{title}” will be permanently deleted. This action cannot be
-              undone.
+          <AlertDialogHeader className="gap-2 place-items-start text-left">
+            <AlertDialogTitle className="leading-[normal]">
+              Delete this chat?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-wrap md:text-wrap">
+              “{title}” and all its messages will be permanently deleted. This
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {failed ? (
@@ -137,11 +139,10 @@ export function ChatDeleteDialog({
               The chat could not be deleted. You can try again.
             </p>
           ) : null}
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-2 flex-row justify-end">
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              className="bg-destructive text-destructive-foreground hover:bg-destructive dark:bg-destructive dark:hover:bg-destructive"
               disabled={busy}
               onClick={(event) => {
                 event.preventDefault();

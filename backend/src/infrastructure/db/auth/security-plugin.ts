@@ -132,6 +132,31 @@ export function securityPlugin(primitives: SecurityPrimitives) {
           };
         },
       ),
+      lexonPasswordChangedAt: createAuthEndpoint(
+        '/lexon/security/password-changed',
+        {
+          method: 'POST',
+          metadata: { scope: 'server' },
+          body: z.strictObject({ userId: z.uuid() }),
+        },
+        async (ctx) => {
+          // Better Auth stamps account.updatedAt when it hashes a new password;
+          // the credential row is created with the password, so updatedAt is
+          // "set or last changed". Only the timestamp leaves this endpoint.
+          const account = await ctx.context.adapter.findOne<{
+            updatedAt: Date;
+          }>({
+            model: 'account',
+            where: [
+              { field: 'userId', value: ctx.body.userId },
+              { field: 'providerId', value: 'credential' },
+            ],
+          });
+          return {
+            passwordChangedAt: account?.updatedAt.toISOString() ?? null,
+          };
+        },
+      ),
       lexonSetSessionSecurity: createAuthEndpoint(
         '/lexon/security/session-evidence',
         { method: 'POST', metadata: { scope: 'server' }, body: evidenceUpdate },

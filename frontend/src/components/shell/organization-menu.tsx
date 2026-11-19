@@ -6,6 +6,7 @@ import type { IdentitySummary, OrganizationSummary } from '@lexon/contracts';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { transitionTenant } from '../../lib/tenant-queries';
 import { fullReload } from '../../lib/full-reload';
+import { initials } from '../../lib/initials';
 import { LexonLogo } from '../lexon-logo';
 import {
   DropdownMenu,
@@ -43,6 +44,78 @@ function organizationRole(org: OrganizationSummary) {
   return org.role.charAt(0).toUpperCase() + org.role.slice(1);
 }
 
+function memberCountLabel(count: number) {
+  return count === 1 ? '1 member' : `${count} members`;
+}
+
+function OrganizationTile({
+  organization,
+  size,
+}: {
+  organization: OrganizationSummary;
+  size: 'trigger' | 'item';
+}) {
+  const box =
+    size === 'trigger' ? 'size-8 rounded-[8px]' : 'size-6 rounded-[6px]';
+  if (organization.kind === 'personal') {
+    return (
+      <span
+        aria-hidden="true"
+        className={`flex ${box} shrink-0 items-center justify-center bg-background shadow-[0_0_0_1px_var(--border)]`}
+      >
+        <LexonLogo variant="monogram" width={size === 'trigger' ? 20 : 15} />
+      </span>
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      // Initials are generated content so they stay out of the visible-text
+      // check of WCAG 2.5.3; the tile is decorative.
+      data-initials={initials(organization.name)}
+      className={`flex ${box} shrink-0 items-center justify-center before:content-[attr(data-initials)] bg-sidebar-primary text-sidebar-primary-foreground ${size === 'trigger' ? 'text-xs' : 'text-[10px]'} font-semibold`}
+    />
+  );
+}
+
+function triggerDetail({
+  organization,
+  organizationMemberCount,
+}: IdentitySummary) {
+  if (organization.kind === 'personal') return 'Your private workspace';
+  return organizationMemberCount === null
+    ? null
+    : memberCountLabel(organizationMemberCount);
+}
+
+// WCAG 2.5.3: the accessible name contains the visible name and detail text in
+// the order shown; the role follows because it is not visible.
+function triggerLabel(identity: IdentitySummary) {
+  const detail = triggerDetail(identity);
+  const visible = [orgLabel(identity.organization), detail]
+    .filter(Boolean)
+    .join(' ');
+  return `Organization: ${visible}, ${organizationRole(identity.organization)}`;
+}
+
+function TriggerText({ identity }: { identity: IdentitySummary }) {
+  const { organization } = identity;
+  const detail = triggerDetail(identity);
+  return (
+    <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+      <span className="truncate font-medium">{orgLabel(organization)}</span>
+      {detail ? (
+        <>
+          {' '}
+          <span className="truncate text-xs text-muted-foreground">
+            {detail}
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
   const query = useQueryClient();
   const { beginExplicitTransition, finishExplicitTransition, refreshIdentity } =
@@ -64,7 +137,14 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
       }),
     true,
   );
-  const organizations = pages.query.data?.items ?? [identity.organization];
+  // The API orders by membership id; the menu lists Personal first, then teams by name.
+  const organizations = [
+    ...(pages.query.data?.items ?? [identity.organization]),
+  ].sort(
+    (a, b) =>
+      Number(b.kind === 'personal') - Number(a.kind === 'personal') ||
+      a.name.localeCompare(b.name),
+  );
   const restoreFocus = () => {
     window.setTimeout(() => organizationTrigger.current?.focus(), 0);
   };
@@ -85,33 +165,25 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             <SidebarMenuItem>
               <DropdownMenuTrigger
                 ref={organizationTrigger}
-                aria-label={`Organization: ${orgLabel(identity.organization)} ${organizationRole(identity.organization)}`}
+                aria-label={triggerLabel(identity)}
                 title={collapsed ? orgLabel(identity.organization) : undefined}
                 render={
                   <SidebarMenuButton
                     size="lg"
+                    className="data-popup-open:bg-transparent!"
                     tooltip={orgLabel(identity.organization)}
-                    className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
                   />
                 }
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <LexonLogo variant="mark-tile" width={32} />
-                </div>
-                {!collapsed ? (
-                  <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {orgLabel(identity.organization)}
-                    </span>{' '}
-                    <span className="truncate text-xs text-muted-foreground">
-                      {organizationRole(identity.organization)}
-                    </span>
-                  </span>
-                ) : null}
+                <OrganizationTile
+                  organization={identity.organization}
+                  size="trigger"
+                />
+                {!collapsed ? <TriggerText identity={identity} /> : null}
                 {!collapsed ? (
                   <ChevronsUpDown
                     aria-hidden="true"
-                    className="ml-auto size-4"
+                    className="-mr-1 ml-auto size-4 text-muted-foreground"
                   />
                 ) : null}
               </DropdownMenuTrigger>
@@ -120,33 +192,31 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
         ) : (
           <DropdownMenuTrigger
             ref={organizationTrigger}
-            aria-label={`Organization: ${orgLabel(identity.organization)} ${organizationRole(identity.organization)}`}
+            aria-label={triggerLabel(identity)}
             className="flex w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <LexonLogo variant="mark-tile" width={32} />
-            </span>
-            <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">
-                {orgLabel(identity.organization)}
-              </span>{' '}
-              <span className="truncate text-xs text-muted-foreground">
-                {organizationRole(identity.organization)}
-              </span>
-            </span>
-            <ChevronsUpDown aria-hidden="true" className="ml-auto size-4" />
+            <OrganizationTile
+              organization={identity.organization}
+              size="trigger"
+            />
+            <TriggerText identity={identity} />
+            <ChevronsUpDown
+              aria-hidden="true"
+              className="-mr-1 ml-auto size-4 text-muted-foreground"
+            />
           </DropdownMenuTrigger>
         )}
         <DropdownMenuContent
           side={sidebar?.isMobile ? 'bottom' : 'right'}
           align="start"
-          sideOffset={4}
+          sideOffset={sidebar?.isMobile ? 4 : 8}
+          alignOffset={sidebar?.isMobile ? 8 : 0}
           aria-label="Organizations"
           data-testid="organization-popup"
-          className="w-fit min-w-60 max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
+          className="w-[268px] md:w-[260px] max-w-[calc(100vw-1rem)] max-h-[var(--available-height)] overflow-y-auto p-1"
         >
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="px-2 py-1">
+            <DropdownMenuLabel className="px-2 py-1.5">
               Organizations
             </DropdownMenuLabel>
             {pages.query.isError ? (
@@ -177,7 +247,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                       ? 'true'
                       : undefined
                   }
-                  className="gap-2 p-2"
+                  className="h-8 gap-2 px-2 py-0"
                   onClick={async () => {
                     if (organization.id === identity.organization.id) return;
                     setBusy(true);
@@ -215,27 +285,8 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                     }
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md"
-                  >
-                    {organization.kind === 'personal' ? (
-                      <>
-                        <LexonLogo
-                          variant="monogram"
-                          width={24}
-                          className="dark:hidden"
-                        />
-                        <LexonLogo
-                          variant="monogram"
-                          inverse
-                          width={24}
-                          className="hidden dark:block"
-                        />
-                      </>
-                    ) : (
-                      <LexonLogo variant="mark-tile" width={24} />
-                    )}
+                  <span aria-hidden="true" className="contents">
+                    <OrganizationTile organization={organization} size="item" />
                   </span>
                   {orgLabel(organization)}
                   {organization.id === identity.organization.id ? (
@@ -274,15 +325,13 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             </p>
           ) : null}
           <DropdownMenuItem
-            className="gap-2 p-2"
+            className="h-8 gap-2 px-2 py-0 text-muted-foreground"
             onClick={() => {
               setCreateOpen(true);
               setOpen(false);
             }}
           >
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-dashed bg-transparent">
-              <Plus aria-hidden="true" className="size-4" />
-            </span>
+            <Plus aria-hidden="true" className="size-4" />
             Create a team
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -296,10 +345,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
           </p>
         ) : null}
       </DropdownMenu>
-      <DialogContent
-        aria-describedby="create-team-description"
-        className="rounded-md"
-      >
+      <DialogContent aria-describedby="create-team-description">
         <DialogHeader>
           <DialogTitle>Create a team</DialogTitle>
           <DialogDescription id="create-team-description">

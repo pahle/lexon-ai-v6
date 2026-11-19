@@ -61,6 +61,7 @@ afterEach(() => {
 const identity: IdentitySummary = {
   version: 1,
   platformAdmin: false,
+  organizationMemberCount: 1,
   user: {
     version: 1,
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -68,6 +69,7 @@ const identity: IdentitySummary = {
     name: 'Member',
     emailVerified: true,
     twoFactorEnabled: false,
+    jobTitle: null,
     onboardingCompleted: true,
   },
   organization: {
@@ -117,7 +119,7 @@ function FallbackNoticeProbe() {
   );
 }
 
-test('workspace shell composes one sidebar inset, one main, and a route breadcrumb', async () => {
+test('workspace shell composes one sidebar inset, one main, and the chat pill without a breadcrumb', async () => {
   window.innerWidth = 1280;
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -147,9 +149,10 @@ test('workspace shell composes one sidebar inset, one main, and a route breadcru
   expect(
     view.container.querySelector('[data-slot="sidebar-inset"]'),
   ).not.toBeNull();
+  expect(view.container.querySelector('[aria-label="breadcrumb"]')).toBeNull();
   expect(
-    view.container.querySelector('[aria-label="breadcrumb"]')?.textContent,
-  ).toContain('New chat');
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).not.toBeNull();
   expect(view.container.textContent).toContain('Workspace content');
   await view.unmount();
 });
@@ -196,7 +199,7 @@ test('incomplete onboarding keeps Account Security available without team settin
   vi.unstubAllGlobals();
 });
 
-test('workspace breadcrumb follows team routes with valid list semantics and safe labels', async () => {
+test('workspace chat chrome has no breadcrumb and never reveals the team name', async () => {
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
@@ -225,16 +228,14 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const breadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
-  const items = [...breadcrumb.querySelectorAll('ol > li')];
-  expect(items).toHaveLength(1);
-  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'New chat',
-  );
-  expect(breadcrumb.textContent).not.toContain('Private team name');
-  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
+  const header = view.container.querySelector('#main > header')!;
+  expect(header.textContent).not.toContain('Private team name');
+  expect(
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).not.toBeNull();
   expect(
     view.container.querySelector(
       `nav[aria-label="Primary navigation"] a[href*="settings=general"]`,
@@ -243,7 +244,7 @@ test('workspace breadcrumb follows team routes with valid list semantics and saf
   await view.unmount();
 });
 
-test('workspace breadcrumb labels provisioning details and invalid organization routes safely', async () => {
+test('provisioning details and invalid organization routes have no breadcrumb and no pill', async () => {
   navigation.path = '/platform/provisioning/org-private-id';
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
@@ -260,14 +261,15 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const breadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
-  expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
-    'Provisioning details',
-  );
-  expect(breadcrumb.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
-  expect(breadcrumb.textContent).not.toContain('org-private-id');
+  expect(
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
+  expect(
+    view.container.querySelector('#main > header')?.textContent,
+  ).not.toContain('org-private-id');
+  expect(
+    view.container.querySelector('#main a[aria-label="New chat"]'),
+  ).toBeNull();
 
   navigation.path = `/organizations/${identity.organization.id}/members`;
   await view.rerender(
@@ -281,15 +283,12 @@ test('workspace breadcrumb labels provisioning details and invalid organization 
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const invalidBreadcrumb = view.container.querySelector(
-    'nav[aria-label="breadcrumb"]',
-  )!;
   expect(
-    invalidBreadcrumb.querySelector('[aria-current="page"]')?.textContent,
-  ).toBe('Page not found');
+    view.container.querySelector('nav[aria-label="breadcrumb"]'),
+  ).toBeNull();
   expect(
-    invalidBreadcrumb.querySelectorAll('[aria-current="page"]'),
-  ).toHaveLength(1);
+    view.container.querySelector('#main button[aria-label="Chat actions"]'),
+  ).toBeNull();
   await view.unmount();
   vi.unstubAllGlobals();
 });
@@ -471,7 +470,7 @@ test('organization switch hides old protected content and enrollment denial rest
   await settle();
   await act(async () =>
     [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === 'Next team')
+      .find((item) => item.textContent?.endsWith('Next team'))
       ?.click(),
   );
   expect(switchCall).toHaveBeenCalledWith(target.id);
@@ -513,7 +512,7 @@ test('organization switch hides old protected content and enrollment denial rest
   await settle();
   await act(async () =>
     [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === 'Next team')
+      .find((item) => item.textContent?.endsWith('Next team'))
       ?.click(),
   );
   await settle();
@@ -1284,6 +1283,7 @@ test('the same fallback event stays dismissed while a fallback from another sour
   const fallbackA: IdentitySummary = {
     ...identity,
     organization: personal,
+    organizationMemberCount: null,
     fallbackReason: 'membership_removed',
     previousOrganizationName: 'Shared Team',
   };
@@ -1329,6 +1329,7 @@ test('a known fallback header refreshes identity and announces only a verified s
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1392,6 +1393,7 @@ test('a known fallback header refreshes identity and announces only a verified s
 test('stale fallback hints do not announce same-organization, other-team, or other-account identity', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1453,6 +1455,7 @@ test('stale fallback hints do not announce same-organization, other-team, or oth
 test('header fallback notice is cleared when an explicit tenant transition starts', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1500,6 +1503,7 @@ test('header fallback notice is cleared when an explicit tenant transition start
 test('header fallback notice does not survive a verified bootstrap account change', async () => {
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1558,6 +1562,7 @@ test('unmount discards a pending header-triggered identity verification', async 
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1604,6 +1609,7 @@ test('a bootstrap account change invalidates a pending header verification', asy
   });
   const personal: IdentitySummary = {
     ...identity,
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -1913,6 +1919,7 @@ test('clearing the query cache never restores the initial bootstrap identity or 
   const personal: IdentitySummary = {
     ...identity,
     user: { ...identity.user, name: 'Verified latest user' },
+    organizationMemberCount: null,
     organization: {
       ...identity.organization,
       id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',

@@ -64,15 +64,16 @@ test('settings deep links, shortcut, draft reset, and nested destructive focus s
   await expect(page).toHaveURL(
     /\/workspace\?filter=recent&settings=security#cases$/,
   );
-  const revoke = page.getByRole('button', {
-    name: 'Revoke browser session',
-    exact: true,
-  });
+  const revoke = page
+    .getByRole('list', { name: 'Signed-in sessions' })
+    .getByRole('button', { name: /^Sign out / });
   await expect(revoke).toBeVisible();
-  await expect(revoke).toHaveClass(/text-destructive/);
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  await expect(revoke).toHaveClass(/border-input/);
+  await expect(revoke).not.toHaveClass(/text-destructive/);
   await revoke.click();
   const confirmation = page.getByRole('alertdialog', {
-    name: 'Revoke this session?',
+    name: 'Sign out this session?',
   });
   await expect(confirmation).toBeVisible();
   await page.keyboard.press('Escape');
@@ -97,7 +98,7 @@ test('F2 appearance preference persists in this browser without changing securit
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
   await expect(page.locator('body')).toHaveCSS(
     'background-color',
-    'rgb(42, 21, 25)',
+    'rgb(18, 16, 17)',
   );
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
@@ -205,7 +206,13 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   await page
     .getByRole('button', { name: 'Back to security', exact: true })
     .click();
-  await expect(page.getByText('Browser', { exact: true })).toBeVisible();
+  // The device name comes from the user agent, so the row is found by its
+  // current-session badge rather than by a browser name.
+  await expect(
+    page
+      .getByRole('list', { name: 'Signed-in sessions' })
+      .getByText('This device', { exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () =>

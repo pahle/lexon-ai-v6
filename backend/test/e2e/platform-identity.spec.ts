@@ -43,7 +43,7 @@ test('F2 platform navigation remains hidden and direct routes are denied for ord
   });
   await page.goto(stack.frontendUrl + '/platform/provisioning');
   await expect(page.locator('section[role="alert"]')).toContainText(
-    'You do not have access to this page.',
+    'You do not have access',
   );
   await expect(
     primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
@@ -83,14 +83,16 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
-    await page.getByLabel('Name', { exact: true }).fill('Platform operator');
-    await page.getByLabel('Email', { exact: true }).fill(email);
+    await page
+      .getByLabel('Full name', { exact: true })
+      .fill('Platform operator');
+    await page.getByLabel('Work email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page
       .getByRole('button', { name: 'Create account', exact: true })
       .click();
     await expect(
-      page.getByRole('heading', { name: 'Check your email' }),
+      page.getByRole('heading', { name: 'Verify your email' }),
     ).toBeVisible();
     await page.goto(
       (await readCapturedMail(stack.project, email, 'verification')).actionUrl,
@@ -212,7 +214,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       page.getByRole('heading', { name: 'Provisioning' }),
     ).toBeVisible();
     const emptyProvisioningList = page.getByText(
-      'No provisioning organizations',
+      'No organizations are waiting for an owner',
       { exact: true },
     );
     await expect(emptyProvisioningList).toBeVisible();
@@ -223,7 +225,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           'provisioning',
           theme,
           viewport,
-          'Provisioning',
+          'Organization provisioning',
           { loadedContent: emptyProvisioningList },
         );
       }
@@ -268,7 +270,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       ).toBeVisible();
       await expect(
         page.getByRole('menuitem', { name: /Settings/ }),
-      ).toContainText('⌘,');
+      ).toContainText(/(⌘|Ctrl) ,/);
       await expect(
         primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
       ).toBeVisible();
@@ -350,7 +352,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     expect(await duplicateProvisioningRequest).toBe(200);
     await expect(
-      page.getByText('No provisioning organizations', { exact: true }),
+      page.getByText('No organizations are waiting for an owner', {
+        exact: true,
+      }),
     ).toBeVisible();
 
     await page.route(platformListUrl, (route) =>
@@ -363,7 +367,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     try {
       await page.reload();
       await expect(
-        page.getByText('Service temporarily unavailable. Please try again.', {
+        page.getByText('We could not load organizations.', {
           exact: true,
         }),
       ).toBeVisible();
@@ -376,7 +380,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     await page.reload();
     await expect(
-      page.getByText('No provisioning organizations', { exact: true }),
+      page.getByText('No organizations are waiting for an owner', {
+        exact: true,
+      }),
     ).toBeVisible();
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
@@ -438,7 +444,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('link', { name: 'Provisioned team', exact: true })
       .click();
-    await expect(page.getByText('provisioning', { exact: true })).toBeVisible();
+    await expect(
+      page.locator('[data-slot="badge"]', { hasText: 'Provisioning' }),
+    ).toBeVisible();
     markOperatorStage('provisioned detail opened');
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
@@ -459,7 +467,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     const originalId = new URL(originalMail.actionUrl).searchParams.get('id')!;
     const replacementEmail = randomUUID() + '@example.test';
     await page
-      .getByLabel('Replacement owner email', { exact: true })
+      .getByLabel('New owner email', { exact: true })
       .fill(replacementEmail);
     const replaced = page.waitForResponse(
       (response) =>
@@ -467,7 +475,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         response.url().endsWith('/owner-email'),
     );
     await page
-      .getByRole('button', { name: 'Replace owner email', exact: true })
+      .getByRole('button', { name: 'Replace and send', exact: true })
       .click();
     expect((await replaced).status()).toBe(200);
     expect(
@@ -484,7 +492,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         response.url().endsWith('/resend'),
     );
     await page
-      .getByRole('button', { name: 'Resend owner invitation', exact: true })
+      .getByRole('button', { name: 'Resend invitation', exact: true })
       .click();
     expect((await resent).status()).toBe(200);
     markOperatorStage('replacement owner invite resent');
@@ -496,11 +504,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           .actionUrl,
       );
       await recipient
-        .getByRole('link', { name: 'Create account', exact: true })
+        .getByRole('link', { name: 'create an account', exact: true })
         .click();
-      await recipient.getByLabel('Name', { exact: true }).fill('First owner');
       await recipient
-        .getByLabel('Email', { exact: true })
+        .getByLabel('Full name', { exact: true })
+        .fill('First owner');
+      await recipient
+        .getByLabel('Work email', { exact: true })
         .fill(replacementEmail);
       await recipient
         .getByLabel('Password', { exact: true })
@@ -509,7 +519,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
         .getByRole('button', { name: 'Create account', exact: true })
         .click();
       await expect(
-        recipient.getByRole('heading', { name: 'Check your email' }),
+        recipient.getByRole('heading', { name: 'Verify your email' }),
       ).toBeVisible();
       await recipient.goto(
         (

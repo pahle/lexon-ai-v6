@@ -1,19 +1,29 @@
 'use client';
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ChatSkeleton } from '@/components/chat/chat-skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { MarkdownText } from '@/components/chat/markdown-text';
-import { PersistedReasoning } from '@/components/chat/chat-reasoning';
+import {
+  AnswerDimmedContext,
+  HideAnswerPulseContext,
+  MarkdownText,
+} from '@/components/chat/markdown-text';
+import {
+  PersistedReasoning,
+  showsThinkingLabel,
+  type AnswerStatus,
+} from '@/components/chat/chat-reasoning';
+import { ChatGreeting } from '@/components/chat/chat-greeting';
 import {
   ChatComposerCancel,
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
+import { composerClasses } from '@/components/chat/composer-styles';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
 import {
@@ -27,24 +37,25 @@ import {
   useAuiState,
 } from '@assistant-ui/react';
 import {
-  ArrowDownIcon,
   ArrowUpIcon,
   Brain as BrainIcon,
   CheckIcon,
+  CircleAlertIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  PencilIcon,
+  PenIcon,
   RefreshCwIcon,
-  SquareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-  XIcon,
+  WifiIcon,
 } from 'lucide-react';
 import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -67,7 +78,14 @@ const EditFocusContext = createContext<{
       waitForReplacement: boolean;
     } | null,
   ) => void;
-}>({ target: null, setTarget: () => {} });
+  readonly editingId: string | null;
+  readonly setEditingId: (id: string | null) => void;
+}>({
+  target: null,
+  setTarget: () => {},
+  editingId: null,
+  setEditingId: () => {},
+});
 
 export type ThreadProps = {
   displayName: string;
@@ -117,9 +135,15 @@ export const Thread: FC<ThreadProps> = ({
     parentId: string | null;
     waitForReplacement: boolean;
   } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const editFocus = useMemo(
-    () => ({ target: editFocusTarget, setTarget: setEditFocusTarget }),
-    [editFocusTarget],
+    () => ({
+      target: editFocusTarget,
+      setTarget: setEditFocusTarget,
+      editingId,
+      setEditingId,
+    }),
+    [editFocusTarget, editingId],
   );
 
   return (
@@ -127,21 +151,20 @@ export const Thread: FC<ThreadProps> = ({
       <ThreadPrimitive.Root
         className="aui-root aui-thread-root bg-background @container flex min-h-0 min-w-0 flex-1 flex-col"
         style={{
-          ['--thread-max-width' as string]: '44rem',
-          ['--composer-bg' as string]:
-            'color-mix(in oklab, var(--color-muted) 30%, transparent)',
-          ['--composer-radius' as string]: '1rem',
-          ['--composer-padding' as string]: '8px',
+          ['--thread-max-width' as string]: '880px',
+          ['--composer-radius' as string]: '20px',
         }}
       >
         <ThreadPrimitive.Viewport
           turnAnchor="top"
+          scrollToBottomOnInitialize={false}
+          scrollToBottomOnThreadSwitch={false}
           data-slot="aui_thread-viewport"
           className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
           <div
             className={cn(
-              'mx-auto flex min-h-0 w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4',
+              'mx-auto flex min-h-0 w-full max-w-(--thread-max-width) flex-1 flex-col px-6 pt-6 max-md:px-4 max-md:pt-4',
               isEmpty && 'justify-center',
             )}
           >
@@ -151,32 +174,47 @@ export const Thread: FC<ThreadProps> = ({
             <AuiIf condition={isHistoryLoadingView}>
               <ThreadHistorySkeleton />
             </AuiIf>
+            <div
+              data-slot="aui_message-group"
+              className="flex flex-col gap-8 empty:hidden max-md:gap-[22px]"
+            >
+              <ThreadPrimitive.Messages>
+                {() => (
+                  <ThreadMessage
+                    onFeedback={onFeedback}
+                    reconnecting={reconnecting}
+                  />
+                )}
+              </ThreadPrimitive.Messages>
+            </div>
             {reconnecting ? (
               <p
                 role="status"
                 aria-live="polite"
-                className="text-muted-foreground mb-3 text-sm"
+                className="text-muted-foreground mt-4 flex items-center gap-2 text-base leading-[1.6] max-md:text-[15px]"
               >
-                Reconnecting…
+                <WifiIcon className="size-[18px]" aria-hidden="true" />
+                Connection lost. Reconnecting…
               </p>
             ) : null}
-
-            <div
-              data-slot="aui_message-group"
-              className="mb-14 flex flex-col gap-y-6 empty:hidden"
-            >
-              <ThreadPrimitive.Messages>
-                {() => <ThreadMessage onFeedback={onFeedback} />}
-              </ThreadPrimitive.Messages>
-            </div>
+            <RunAnnouncer />
+            <OpenAtLastUserMessage />
+            {isEmpty ? null : (
+              <div aria-hidden="true" className="h-10 shrink-0 max-md:h-0" />
+            )}
 
             <ThreadPrimitive.ViewportFooter
               className={cn(
-                'aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
+                'aui-thread-viewport-footer bg-background relative flex flex-col overflow-visible pb-3.5 max-md:-mx-0.5 max-md:pt-2.5 max-md:pb-3',
                 !isEmpty &&
                   'sticky bottom-0 mt-auto rounded-t-(--composer-radius)',
               )}
             >
+              <div
+                data-slot="aui_thread-fade"
+                aria-hidden="true"
+                className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
+              />
               <ThreadScrollToBottom />
               <Composer effort={effort} onEffortChange={onEffortChange} />
             </ThreadPrimitive.ViewportFooter>
@@ -187,26 +225,90 @@ export const Thread: FC<ThreadProps> = ({
   );
 };
 
+/**
+ * Opening a thread places its last user message at the top of the viewport:
+ * not the top of the thread and not the end of the answer (it keeps the
+ * thread's top padding above it). It runs once per
+ * mounted thread, when its history first has messages, and never again, so
+ * live streaming and the scroll-to-bottom button keep their own behavior. A
+ * short tail cannot scroll that far; the viewport then rests at its end.
+ */
+const OpenAtLastUserMessage: FC = () => {
+  const hasMessages = useAuiState((state) => state.thread.messages.length > 0);
+  const placed = useRef(false);
+  const marker = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!hasMessages || placed.current) return;
+    const viewport = marker.current?.closest<HTMLElement>(
+      '[data-slot="aui_thread-viewport"]',
+    );
+    if (!viewport) return;
+    const users = viewport.querySelectorAll<HTMLElement>('[data-role="user"]');
+    const target = users[users.length - 1];
+    if (!target) return;
+    placed.current = true;
+    // The message rests under the thread's top padding, as it does when the
+    // whole thread fits (LEX-DS-001 v3.1 §5.5), not flush with the viewport.
+    const padding =
+      Number.parseFloat(
+        getComputedStyle(marker.current?.parentElement ?? viewport).paddingTop,
+      ) || 0;
+    const delta =
+      target.getBoundingClientRect().top -
+      viewport.getBoundingClientRect().top -
+      padding;
+    const previous = viewport.style.scrollBehavior;
+    viewport.style.scrollBehavior = 'auto';
+    viewport.scrollTop += delta;
+    viewport.style.scrollBehavior = previous;
+  }, [hasMessages]);
+  return <span ref={marker} hidden />;
+};
+
+/**
+ * The thread's single run announcer, mounted for the thread's lifetime. It
+ * reads "Thinking" while a run is active and "Answer complete" once it ends,
+ * and stays empty for a thread that only ever held completed answers.
+ */
+const RunAnnouncer: FC = () => {
+  const active = useAuiState(
+    (state) =>
+      state.thread.isRunning ||
+      state.thread.messages.some(
+        (message) => message.status?.type === 'running',
+      ),
+  );
+  const [text, setText] = useState('');
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (active) setText('Thinking');
+    else if (wasActive.current) setText('Answer complete');
+    wasActive.current = active;
+  }, [active]);
+  return (
+    <p
+      data-slot="run-announcer"
+      role="status"
+      aria-live="polite"
+      className="sr-only"
+    >
+      {text}
+    </p>
+  );
+};
+
 const ThreadHistorySkeleton: FC = () => (
-  <div
-    data-slot="aui_thread-history-skeleton"
-    role="status"
-    className="animate-in fade-in fill-mode-both flex flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
-  >
-    <span className="sr-only">Loading conversation</span>
-    <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
-    <div className="flex flex-col gap-y-2">
-      <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
-      <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
-      <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
-    </div>
-  </div>
+  <ChatSkeleton className="animate-in fade-in fill-mode-both [animation-delay:150ms] [animation-duration:200ms]" />
 );
 
-const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
+const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
+  onFeedback,
+  reconnecting = false,
+}) => {
   const serverActive = useChatActiveRun();
   const role = useAuiState((state) => state.message.role);
   const messageId = useAuiState((state) => state.message.id);
+  const branched = useAuiState((state) => state.message.branchCount > 1);
   const summary = useAuiState(
     (state) =>
       state.message.parts.find((part) => part.type === 'reasoning')?.text ??
@@ -226,6 +328,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
   );
   const assistantStatus = useAuiState((state) => state.message.status);
   const editing = useAuiState((state) => state.message.composer.isEditing);
+  const isLast = useAuiState((state) => state.message.isLast);
   const messagePosition = useAuiState((state) =>
     state.thread.messages.findIndex((message) => message.id === messageId),
   );
@@ -277,81 +380,109 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       .map((part) => part.text)
       .join(''),
   );
+  const answerStatus: AnswerStatus = running
+    ? 'running'
+    : metadata?.status === 'failed' ||
+        (assistantStatus?.type === 'incomplete' &&
+          assistantStatus.reason === 'error')
+      ? 'failed'
+      : metadata?.status === 'cancelled' ||
+          (assistantStatus?.type === 'incomplete' &&
+            assistantStatus.reason === 'cancelled')
+        ? 'stopped'
+        : 'complete';
   const announcement = useIncrementalAnnouncement(
     messageId,
     answerText,
     running,
     running && !loadedFromServer,
   );
+  // Every answer after the message being edited is muted until saved.
+  const editingPosition = useAuiState((state) =>
+    editFocus.editingId === null
+      ? -1
+      : state.thread.messages.findIndex(
+          (message) => message.id === editFocus.editingId,
+        ),
+  );
+  const answerBusy = useAuiState(
+    (state) =>
+      state.thread.isRunning ||
+      state.thread.messages.some(
+        (message) => message.status?.type === 'running',
+      ),
+  );
   if (editing)
     return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
+  // The answer under an open edit reads as dimmed through the muted text
+  // color (it meets WCAG contrast), not opacity or inert: the answer stays
+  // readable and operable for every user while the edit is open.
+  const dimmed =
+    role === 'assistant' &&
+    editingPosition >= 0 &&
+    messagePosition > editingPosition;
   return (
     <MessagePrimitive.Root
       data-slot={`aui_${role}-message-root`}
       data-role={role}
       data-message-id={messageId}
       className={cn(
-        'group/turn text-foreground px-2 leading-relaxed wrap-break-word',
-        role === 'user' && 'ms-auto max-w-[80%] px-0',
+        'group/turn wrap-break-word',
+        role === 'user'
+          ? 'ms-auto flex max-w-[80%] flex-col items-end gap-1 max-md:max-w-[88%]'
+          : 'flex flex-col gap-3',
+        dimmed ? 'text-muted-foreground' : 'text-foreground',
       )}
     >
       {role === 'assistant' ? (
         <PersistedReasoning
+          messageId={messageId}
+          status={answerStatus}
           summary={summary}
           durationMs={durationMs}
           answerHasText={answerText.length > 0}
-          running={running}
         />
-      ) : null}
-      {role === 'assistant' && running ? (
-        <span role="status" aria-live="polite" className="sr-only">
-          Lexon is responding.
-        </span>
       ) : null}
       <div
-        className={cn(role === 'user' && 'rounded-2xl bg-muted px-4 py-2.5')}
+        className={cn(
+          role === 'user'
+            ? 'rounded-[20px] bg-(--lexon-user-bubble) px-[18px] py-3 text-base leading-[1.6] max-md:text-[15px] [&_p]:mb-0'
+            : 'flex flex-col gap-3 text-base leading-[1.75] max-md:text-[15px]',
+        )}
         aria-live="off"
       >
-        <MessagePrimitive.Parts
-          components={{ Text: MarkdownText, Reasoning: () => null }}
-        />
+        <AnswerDimmedContext.Provider value={dimmed}>
+          <HideAnswerPulseContext.Provider
+            value={
+              reconnecting ||
+              showsThinkingLabel(
+                answerStatus,
+                summary,
+                durationMs,
+                answerText.length > 0,
+              )
+            }
+          >
+            <MessagePrimitive.Parts
+              components={{ Text: MarkdownText, Reasoning: () => null }}
+            />
+          </HideAnswerPulseContext.Provider>
+        </AnswerDimmedContext.Provider>
       </div>
       {role === 'assistant' &&
       (metadata?.status === 'cancelled' ||
         (assistantStatus?.type === 'incomplete' &&
           assistantStatus.reason === 'cancelled')) ? (
-        <span className="text-muted-foreground text-xs">Stopped</span>
+        <p className="text-muted-foreground mt-1 text-base leading-[1.6] max-md:text-[15px]">
+          You stopped this response.
+        </p>
       ) : null}
       {role === 'assistant' && metadata?.status === 'failed' ? (
-        <div
-          role="alert"
-          className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
-        >
-          The response could not be completed.{' '}
-          <ActionBarPrimitive.Reload
-            aria-label="Try again"
-            disabled={serverActive}
-            className="underline"
-          >
-            Try again
-          </ActionBarPrimitive.Reload>
-        </div>
+        <ResponseFailed disabled={serverActive} />
       ) : null}
       <MessagePrimitive.Error>
         {metadata?.status === 'failed' ? null : (
-          <div
-            role="alert"
-            className="text-destructive mt-3 rounded-lg border border-destructive/40 p-3 text-sm"
-          >
-            The response could not be completed.{' '}
-            <ActionBarPrimitive.Reload
-              aria-label="Try again"
-              disabled={serverActive}
-              className="underline"
-            >
-              Try again
-            </ActionBarPrimitive.Reload>
-          </div>
+          <ResponseFailed disabled={serverActive} />
         )}
       </MessagePrimitive.Error>
       {role === 'assistant' && announcement.active ? (
@@ -362,6 +493,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
       {role === 'assistant' ? (
         <AssistantActions
           messageId={messageId}
+          alwaysVisible={isLast || answerStatus === 'stopped'}
           feedback={
             metadata?.feedback === 'good' || metadata?.feedback === 'bad'
               ? metadata.feedback
@@ -369,20 +501,41 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback'>> = ({ onFeedback }) => {
           }
           onFeedback={onFeedback}
         />
-      ) : (
-        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
-          <UserEditAction />
+      ) : answerBusy || reconnecting ? null : (
+        <div
+          className={cn(
+            '-mt-1 flex min-h-7 items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+            !branched && 'md:opacity-0',
+          )}
+        >
           <BranchPicker />
+          <UserEditAction />
         </div>
       )}
-      {role === 'assistant' ? (
-        <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100">
-          <BranchPicker />
-        </div>
-      ) : null}
     </MessagePrimitive.Root>
   );
 };
+
+const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
+  <div
+    role="alert"
+    className="bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px] leading-[1.75]"
+  >
+    <CircleAlertIcon
+      className="text-muted-foreground size-[18px] shrink-0"
+      aria-hidden="true"
+    />
+    <span className="flex-1">The response could not be completed.</span>
+    <ActionBarPrimitive.Reload
+      aria-label="Try again"
+      disabled={disabled}
+      render={<Button variant="outline" className="shrink-0" />}
+    >
+      <RefreshCwIcon className="size-3.5" aria-hidden="true" />
+      Try again
+    </ActionBarPrimitive.Reload>
+  </div>
+);
 
 const announcementSegmentLength = 160;
 const announcementSegmentIntervalMs = 500;
@@ -527,94 +680,146 @@ const ThreadScrollToBottom: FC = () => (
     render={
       <TooltipIconButton
         tooltip="Scroll to bottom"
-        variant="outline"
-        className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        variant="ghost"
+        className="aui-thread-scroll-to-bottom bg-background text-muted-foreground hover:bg-background absolute top-0 left-1/2 z-10 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-0 p-0 shadow-[0_0_0_1px_var(--border),0_6px_16px_-6px_rgba(8,6,6,.25)] max-md:top-[22px] disabled:invisible dark:hover:bg-background [&_svg]:size-[18px]"
       />
     }
   >
-    <ArrowDownIcon />
+    <ChevronDownIcon />
   </ThreadPrimitive.ScrollToBottom>
 );
 
 const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
-  <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
-    <h2 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-serif text-2xl font-medium tracking-tight duration-200">
-      Welcome, {displayName}
-    </h2>
-    <p className="text-muted-foreground mt-2 text-sm">
-      Your legal workspace, ready when you are.
-    </p>
+  <div className="aui-thread-welcome-root mb-6 flex flex-col">
+    <ChatGreeting
+      displayName={displayName}
+      className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both duration-200"
+    />
   </div>
 );
 
+const ACTION_BUTTON =
+  'size-8 rounded-lg p-0 text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent';
+const ACTION_ON =
+  'text-(--lexon-red-text) hover:text-(--lexon-red-text) dark:hover:text-(--lexon-red-text)';
+
 const AssistantActions: FC<{
   messageId: string;
+  alwaysVisible: boolean;
   feedback: 'good' | 'bad' | null;
   onFeedback?: ThreadProps['onFeedback'];
-}> = ({ messageId, feedback, onFeedback }) => {
+}> = ({ messageId, alwaysVisible, feedback, onFeedback }) => {
   const serverActive = useChatActiveRun();
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
   const copied = useAuiState((state) => state.message.isCopied);
+  const branched = useAuiState((state) => state.message.branchCount > 1);
   const submitFeedback = (next: 'good' | 'bad') => {
     void Promise.resolve(onFeedback?.(messageId, next))
       .then(() => setRating(next))
       .catch(() => {});
   };
   return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      className="text-muted-foreground mt-2 flex items-center gap-1 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 md:opacity-0 [@media(hover:none)]:opacity-100"
+    <div
+      data-slot="aui_message-actions"
+      className={cn(
+        'text-muted-foreground -mt-1 -ml-2 flex items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 empty:hidden [@media(hover:none)]:opacity-100',
+        !alwaysVisible && !branched && 'md:opacity-0',
+      )}
     >
-      <ActionBarPrimitive.Copy
-        className="size-9 rounded-md p-2 hover:bg-muted"
-        aria-label="Copy answer"
+      <BranchPicker />
+      <ActionBarPrimitive.Root
+        hideWhenRunning
+        className="flex items-center gap-0.5"
       >
-        {copied ? (
-          <CheckIcon className="size-4" />
-        ) : (
-          <CopyIcon className="size-4" />
-        )}
-      </ActionBarPrimitive.Copy>
-      <button
-        type="button"
-        aria-label="Good answer"
-        aria-pressed={rating === 'good'}
-        onClick={() => submitFeedback('good')}
-        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
-      >
-        <ThumbsUpIcon className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Bad answer"
-        aria-pressed={rating === 'bad'}
-        onClick={() => submitFeedback('bad')}
-        className="size-9 rounded-md p-2 hover:bg-muted aria-pressed:bg-accent"
-      >
-        <ThumbsDownIcon className="size-4" />
-      </button>
-      <ActionBarPrimitive.Reload
-        className="size-9 rounded-md p-2 hover:bg-muted"
-        aria-label="Regenerate answer"
-        disabled={serverActive}
-      >
-        <RefreshCwIcon className="size-4" />
-      </ActionBarPrimitive.Reload>
-    </ActionBarPrimitive.Root>
+        <ActionBarPrimitive.Copy
+          render={
+            <TooltipIconButton
+              tooltip={copied ? 'Copied' : 'Copy'}
+              side="top"
+              sideOffset={6}
+              className={cn(ACTION_BUTTON, copied && ACTION_ON)}
+              aria-label={copied ? 'Copied' : 'Copy answer'}
+            />
+          }
+        >
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </ActionBarPrimitive.Copy>
+        <TooltipIconButton
+          tooltip="Good response"
+          side="top"
+          sideOffset={6}
+          type="button"
+          aria-label="Good answer"
+          aria-pressed={rating === 'good'}
+          onClick={() => submitFeedback('good')}
+          className={cn(ACTION_BUTTON, rating === 'good' && ACTION_ON)}
+        >
+          <ThumbsUpIcon className={cn(rating === 'good' && 'fill-current')} />
+        </TooltipIconButton>
+        <TooltipIconButton
+          tooltip="Bad response"
+          side="top"
+          sideOffset={6}
+          type="button"
+          aria-label="Bad answer"
+          aria-pressed={rating === 'bad'}
+          onClick={() => submitFeedback('bad')}
+          className={cn(ACTION_BUTTON, rating === 'bad' && ACTION_ON)}
+        >
+          <ThumbsDownIcon className={cn(rating === 'bad' && 'fill-current')} />
+        </TooltipIconButton>
+        <ActionBarPrimitive.Reload
+          disabled={serverActive}
+          render={
+            <TooltipIconButton
+              tooltip="Regenerate"
+              side="top"
+              sideOffset={6}
+              className={ACTION_BUTTON}
+              aria-label="Regenerate answer"
+            />
+          }
+        >
+          <RefreshCwIcon />
+        </ActionBarPrimitive.Reload>
+      </ActionBarPrimitive.Root>
+    </div>
   );
 };
 
-const UserEditAction = () => {
+const USER_ACTION =
+  'text-muted-foreground hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md [&_svg]:size-3.5';
+
+// Copy and Edit are hidden while an answer is thinking, streaming, or
+// reconnecting (prototype 14.6).
+const UserEditAction: FC = () => {
   const serverActive = useChatActiveRun();
+  const copied = useAuiState((state) => state.message.isCopied);
   return (
-    <ActionBarPrimitive.Root hideWhenRunning className="mt-1">
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      className="flex items-center gap-0.5"
+    >
+      <ActionBarPrimitive.Copy
+        render={
+          <TooltipIconButton
+            tooltip={copied ? 'Copied' : 'Copy'}
+            side="top"
+            sideOffset={6}
+            className={cn(USER_ACTION, copied && ACTION_ON)}
+            aria-label={copied ? 'Copied' : 'Copy message'}
+          />
+        }
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Edit
-        className="size-9 rounded-md p-2 text-muted-foreground hover:bg-muted"
+        className={USER_ACTION}
         aria-label="Edit message"
         disabled={serverActive}
       >
-        <PencilIcon className="size-4" />
+        <PenIcon />
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );
@@ -624,13 +829,13 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => (
   <BranchPickerPrimitive.Root
     hideWhenSingleBranch
     className={cn(
-      'text-muted-foreground inline-flex items-center gap-1 text-sm',
+      'text-muted-foreground inline-flex items-center gap-0.5 text-xs',
       className,
     )}
   >
     <BranchPickerPrimitive.Previous
       aria-label="Previous branch"
-      className="size-9 rounded-md p-2 hover:bg-muted"
+      className="hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md disabled:opacity-40"
     >
       <ChevronLeftIcon className="size-3.5" />
     </BranchPickerPrimitive.Previous>
@@ -639,7 +844,7 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => (
     </span>
     <BranchPickerPrimitive.Next
       aria-label="Next branch"
-      className="size-9 rounded-md p-2 hover:bg-muted"
+      className="hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md disabled:opacity-40"
     >
       <ChevronRightIcon className="size-3.5" />
     </BranchPickerPrimitive.Next>
@@ -653,6 +858,11 @@ const ThreadEditComposer: FC<{
   const serverActive = useChatActiveRun();
   const [tooLong, setTooLong] = useState(false);
   const editFocus = useContext(EditFocusContext);
+  const { setEditingId } = editFocus;
+  useEffect(() => {
+    setEditingId(messageId);
+    return () => setEditingId(null);
+  }, [messageId, setEditingId]);
   const validateAndArmEdit = (event: { preventDefault: () => void }) => {
     if (serverActive) {
       event.preventDefault();
@@ -673,17 +883,23 @@ const ThreadEditComposer: FC<{
   };
   return (
     <ComposerPrimitive.Root
-      className="my-2 flex flex-col gap-2"
+      data-slot="aui_user-edit-bubble"
+      className="flex flex-col gap-2.5 self-stretch"
       onSubmit={validateAndArmEdit}
     >
-      <ComposerPrimitive.Input
-        aria-label="Edit message input"
-        autoFocus
-        rows={3}
-        addAttachmentOnPaste={false}
-        submitMode="none"
-        className="border-input bg-background focus-visible:ring-ring min-h-20 w-full resize-y rounded-lg border px-3 py-2 outline-none focus-visible:ring-2"
-      />
+      <div
+        data-slot="aui_user-edit-box"
+        className="border-ring bg-background ring-ring/18 rounded-2xl border px-4 py-3.5 ring-3"
+      >
+        <ComposerPrimitive.Input
+          aria-label="Edit message input"
+          autoFocus
+          rows={2}
+          addAttachmentOnPaste={false}
+          submitMode="none"
+          className="box-border block min-h-[52px] w-full resize-none bg-transparent p-0.5 text-base leading-[1.55] outline-none max-md:box-border max-md:min-h-[100px] max-md:text-[15px]"
+        />
+      </div>
       {tooLong ? (
         <p role="alert" className="text-destructive text-sm">
           Messages can be up to 16,384 bytes.
@@ -696,7 +912,6 @@ const ThreadEditComposer: FC<{
               type="button"
               aria-label="Cancel edit"
               variant="outline"
-              size="sm"
               onClick={() =>
                 editFocus.setTarget({
                   sourceId: messageId,
@@ -705,7 +920,6 @@ const ThreadEditComposer: FC<{
                 })
               }
             >
-              <XIcon aria-hidden="true" />
               Cancel
             </Button>
           }
@@ -713,12 +927,11 @@ const ThreadEditComposer: FC<{
         <ComposerPrimitive.Send
           render={
             <Button
-              aria-label="Send edit"
-              size="sm"
+              aria-label="Save"
               disabled={serverActive}
               onClick={validateAndArmEdit}
             >
-              Send
+              Save
             </Button>
           }
         />
@@ -755,32 +968,40 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onPaste={preventFilePaste}
       onSubmit={validatePrompt}
     >
-      <div
-        data-slot="aui_composer-shell"
-        className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]"
-      >
+      <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
             running
               ? 'Lexon is answering…'
               : 'Ask Lexon about a contract, a regulation, or a case...'
           }
-          className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
+          className={cn(
+            'aui-composer-input caret-primary',
+            composerClasses.input,
+          )}
           rows={1}
           addAttachmentOnPaste={false}
           submitMode="enter"
           enterKeyHint="send"
           aria-label="Message input"
         />
-        <div className="aui-composer-action-wrapper relative flex flex-nowrap items-center justify-between gap-3">
+        <div
+          className={cn(
+            'aui-composer-action-wrapper relative',
+            composerClasses.toolbar,
+          )}
+        >
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   type="button"
-                  variant={effort === 'max' ? 'secondary' : 'outline'}
+                  variant="ghost"
                   size="sm"
-                  className="shrink-0 whitespace-nowrap"
+                  className={cn(
+                    composerClasses.deepThinking,
+                    effort === 'max' && composerClasses.deepThinkingPressed,
+                  )}
                   aria-label="Deep thinking"
                   aria-pressed={effort === 'max'}
                   onClick={() =>
@@ -791,8 +1012,8 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
             >
               <BrainIcon aria-hidden="true" /> Deep thinking
             </TooltipTrigger>
-            <TooltipContent side="bottom">
-              Deep thinking: takes longer and uses more of your budget.
+            <TooltipContent side="bottom" align="start" sideOffset={8}>
+              Takes longer and uses more of your budget
             </TooltipContent>
           </Tooltip>
           {running ? (
@@ -802,10 +1023,19 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   type="button"
                   variant="default"
                   size="icon"
-                  className="aui-composer-send size-7 rounded-full"
+                  className={cn(
+                    'aui-composer-send [&_svg]:size-4',
+                    composerClasses.stop,
+                  )}
                   aria-label="Stop generating"
                 >
-                  <SquareIcon className="size-4" aria-hidden="true" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="currentColor"
+                  >
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" />
+                  </svg>
                 </Button>
               }
             />
@@ -819,10 +1049,10 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                   disabled={tooLong || !composerText.trim()}
                   variant="default"
                   size="icon"
-                  className="aui-composer-send size-7 rounded-full"
+                  className={cn('aui-composer-send', composerClasses.send)}
                   aria-label="Send message"
                 >
-                  <ArrowUpIcon className="aui-composer-send-icon size-4" />
+                  <ArrowUpIcon className="aui-composer-send-icon" />
                 </TooltipIconButton>
               }
             />
@@ -834,7 +1064,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           </p>
         ) : null}
       </div>
-      <p className="text-muted-foreground mt-3 text-center text-xs">
+      <p className={composerClasses.disclaimer}>
         Lexon can make mistakes. Verify important legal information.
       </p>
     </ComposerPrimitive.Root>

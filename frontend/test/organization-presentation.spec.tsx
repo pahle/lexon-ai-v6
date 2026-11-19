@@ -1,7 +1,25 @@
 import { test, expect, vi } from 'vitest';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from './render';
+import { render, settle } from './render';
+
+// The row menu ("More actions for <name>") holds Remove.
+async function chooseRemove(container: HTMLElement) {
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label^="More actions for"]',
+      )
+      ?.click(),
+  );
+  await settle();
+  await act(async () =>
+    [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((item) => item.textContent?.trim() === 'Remove')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+  );
+  await settle();
+}
 import type { OrganizationSummary } from '@lexon/contracts';
 
 const api = vi.hoisted(() => ({
@@ -28,6 +46,7 @@ const presentationFixture = vi.hoisted(() => ({
   memberItems: null as unknown[] | null,
   currentUserId: '00000000-0000-4000-8000-000000000099',
 }));
+const refreshIdentity = vi.hoisted(() => vi.fn(async () => undefined));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -35,6 +54,7 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('../src/components/shell/workspace-provider', () => ({
   useWorkspace: () => ({
     identity: { user: { id: presentationFixture.currentUserId } },
+    refreshIdentity,
   }),
 }));
 vi.mock('../src/components/organizations/page-state', () => ({
@@ -122,6 +142,11 @@ test('members uses the prototype table, role selector, and eligible invite actio
   expect(
     view.container.querySelector('table')?.parentElement?.className,
   ).not.toMatch(/rounded-md|border/);
+  const emailLine = [...view.container.querySelectorAll('span')].find(
+    (el) => el.textContent === 'dewi@example.test',
+  );
+  expect(emailLine?.className).toContain('max-md:wrap-anywhere');
+  expect(emailLine?.className).not.toContain('truncate');
   expect(view.container.textContent).toContain('Invite people');
   expect(view.container.textContent).not.toContain('Make admin');
   window.history.replaceState(null, '', '/workspace?settings=members');
@@ -134,6 +159,39 @@ test('members uses the prototype table, role selector, and eligible invite actio
     'settings=invitations',
   );
 
+  await view.unmount();
+});
+
+test('invitation email lines wrap on mobile instead of truncating', async () => {
+  presentationFixture.invitationItems = [
+    {
+      version: 1,
+      id: '00000000-0000-4000-8000-000000000031',
+      organizationId: team.id,
+      organizationName: team.name,
+      email: 'wrap@example.test',
+      role: 'member',
+      purpose: 'team',
+      status: 'pending',
+      createdAt: '2026-11-01T00:00:00.000Z',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const email = [...view.container.querySelectorAll('span')].find(
+    (el) => el.textContent === 'wrap@example.test',
+  );
+  expect(email?.className).toContain('max-md:wrap-anywhere');
+  expect(email?.className).not.toContain('truncate');
+  expect(email?.nextElementSibling?.className).toContain(
+    'max-md:wrap-anywhere',
+  );
+  expect(email?.nextElementSibling?.className).not.toContain('truncate');
+  presentationFixture.invitationItems = null;
   await view.unmount();
 });
 
@@ -202,11 +260,12 @@ test('member removal and invitation cancellation are named confirmations', async
   expect(
     view.container.querySelector('[aria-label="Invitation role"]')?.textContent,
   ).not.toBe('member');
-  const remove = [...view.container.querySelectorAll('button')].find(
-    (button) => button.textContent?.trim() === 'Remove',
+  // The prototype's row menu: an icon button whose menu holds Remove.
+  const more = view.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="More actions for Dewi Lestari"]',
   )!;
-  expect(remove.className).toContain('text-destructive');
-  await act(async () => remove.click());
+  expect(more.className).not.toContain('text-destructive');
+  await chooseRemove(view.container);
   expect(document.body.textContent).toContain(
     'Remove Dewi Lestari from Hukum Nusantara?',
   );
@@ -221,7 +280,9 @@ test('member removal and invitation cancellation are named confirmations', async
   const cancelInvitation = [...view.container.querySelectorAll('button')].find(
     (button) => button.textContent?.trim() === 'Cancel',
   )!;
-  expect(cancelInvitation.className).toContain('text-destructive');
+  // An outline trigger with explicit text (LEX-DS-001 §2), not a red one.
+  expect(cancelInvitation.className).toContain('text-muted-foreground');
+  expect(cancelInvitation.className).not.toContain('text-destructive');
   await act(async () => cancelInvitation.click());
   expect(document.body.textContent).toContain(
     'Cancel the invitation to dewi@example.test?',
@@ -265,11 +326,7 @@ test('failed member and invitation actions expose safe errors in their open conf
     expect(view.container.querySelector('[role="alert"]')).toBeNull();
   };
 
-  await act(async () =>
-    [...view.container.querySelectorAll('button')]
-      .find((button) => button.textContent?.trim() === 'Remove')!
-      .click(),
-  );
+  await chooseRemove(view.container);
   let dialog = document.body.querySelector('[role="alertdialog"]')!;
   await act(async () =>
     dialog
@@ -415,7 +472,7 @@ test('resending one invitation labels only that row pending and resets after fai
   await view.unmount();
 });
 
-test('invitation expiry copy points to each returned Expires date without a fixed duration', async () => {
+test('invitation rows print the 7-day copy and day-month-year expiry dates', async () => {
   presentationFixture.invitationItems = [
     {
       version: 1,
@@ -442,15 +499,60 @@ test('invitation expiry copy points to each returned Expires date without a fixe
       expiresAt: new Date(2026, 10, 22, 18, 2).toISOString(),
     },
   ];
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 10) });
   const view = await render(
     <QueryClientProvider client={new QueryClient()}>
       <Invitations organization={team} />
     </QueryClientProvider>,
   );
-  expect(view.container.textContent).not.toContain('7 days');
-  expect(view.container.textContent).toContain('Nov 15, 2026');
-  expect(view.container.textContent).toContain('Nov 22, 2026');
-  expect(view.container.textContent).toContain('Nov 15, 2026, 18:02');
+  // Prototype copy and format: "expires after 7 days", "Expires 15 Nov 2026".
+  expect(view.container.textContent).toContain('expires after 7 days');
+  expect(view.container.textContent).toContain('Expires 15 Nov 2026');
+  expect(view.container.textContent).toContain('Expires 22 Nov 2026');
+  vi.useRealTimers();
+  presentationFixture.invitationItems = null;
+  await view.unmount();
+});
+
+test('a pending invitation past its expiry reads Expired in red text, a future one reads Expires', async () => {
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 20) });
+  const base = {
+    version: 1 as const,
+    organizationId: team.id,
+    organizationName: team.name,
+    role: 'member' as const,
+    purpose: 'team' as const,
+    status: 'pending' as const,
+    createdAt: '2026-11-01T00:00:00.000Z',
+  };
+  presentationFixture.invitationItems = [
+    {
+      ...base,
+      id: '00000000-0000-4000-8000-000000000031',
+      email: 'past@example.test',
+      expiresAt: new Date(2026, 10, 15, 18, 2).toISOString(),
+    },
+    {
+      ...base,
+      id: '00000000-0000-4000-8000-000000000032',
+      email: 'future@example.test',
+      expiresAt: new Date(2026, 10, 25, 18, 2).toISOString(),
+    },
+  ];
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Invitations organization={team} />
+    </QueryClientProvider>,
+  );
+  const text = view.container.textContent ?? '';
+  expect(text).toContain('Expired 15 Nov 2026');
+  expect(text).not.toContain('Expires 15 Nov 2026');
+  expect(text).toContain('Expires 25 Nov 2026');
+  const past = [...view.container.querySelectorAll('span')].find(
+    (node) => node.textContent === 'Expired 15 Nov 2026',
+  );
+  expect(past?.className).toContain('text-lexon-red-text');
+  vi.useRealTimers();
   presentationFixture.invitationItems = null;
   await view.unmount();
 });
@@ -494,11 +596,72 @@ test('current member is first, has plain role text, and cannot be removed', asyn
     rows[1]?.querySelector('[aria-label="Role for Avery Other"]'),
   ).not.toBeNull();
   expect(
-    [...(rows[1]?.querySelectorAll('button') ?? [])].some(
-      (button) => button.textContent?.trim() === 'Remove',
-    ),
-  ).toBe(true);
+    rows[1]?.querySelector('[aria-label="More actions for Avery Other"]'),
+  ).not.toBeNull();
+  expect(rows[0]?.querySelector('[aria-label^="More actions for"]')).toBeNull();
   presentationFixture.memberItems = null;
   presentationFixture.currentUserId = '00000000-0000-4000-8000-000000000099';
+  await view.unmount();
+});
+
+test('removing a member refreshes the identity once after the mutation succeeds', async () => {
+  refreshIdentity.mockClear();
+  api.removeMember.mockClear();
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+    </QueryClientProvider>,
+  );
+  await chooseRemove(view.container);
+  const dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(api.removeMember).toHaveBeenCalledTimes(1);
+  expect(refreshIdentity).toHaveBeenCalledTimes(1);
+  await view.unmount();
+});
+
+test('a failed member removal does not refresh the identity', async () => {
+  refreshIdentity.mockClear();
+  api.removeMember.mockRejectedValueOnce(new Error('nope'));
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+    </QueryClientProvider>,
+  );
+  await chooseRemove(view.container);
+  const dialog = document.body.querySelector('[role="alertdialog"]')!;
+  await act(async () =>
+    dialog
+      .querySelector<HTMLButtonElement>('[data-slot="alert-dialog-action"]')!
+      .click(),
+  );
+  expect(refreshIdentity).not.toHaveBeenCalled();
+  await view.unmount();
+});
+
+test('organization section titles are serif h2 elements', async () => {
+  const view = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Members organization={team} />
+      <Invitations organization={team} />
+      <OrganizationSettings organization={team} />
+    </QueryClientProvider>,
+  );
+  const titles = [
+    ...view.container.querySelectorAll('section > h2, section > header > h2'),
+  ];
+  expect(titles.map((title) => title.textContent)).toEqual([
+    'Members',
+    'Invitations',
+    'General',
+  ]);
+  for (const title of titles) {
+    expect(title.className).toContain('font-serif');
+    expect(title.className).not.toContain('text-lg');
+  }
   await view.unmount();
 });

@@ -1644,6 +1644,12 @@ test('stops an active answer, rejects a concurrent turn, and retries a safe prov
     })
     .toBe('completed');
 
+  const seedTree = (await (
+    await page.request.get(`${stack.apiUrl}/api/chats/${chatId}`)
+  ).json()) as { messages: Array<{ role: string; runId?: string }> };
+  const seedRunId = seedTree.messages
+    .filter((message) => message.role === 'assistant')
+    .at(-1)?.runId;
   await page.goto(`${stack.publicUrl}/e2e/chat-runtime?chatId=${chatId}`);
   await expect(
     page.getByRole('heading', { name: 'Runtime proof' }),
@@ -1665,7 +1671,8 @@ test('stops an active answer, rejects a concurrent turn, and retries a safe prov
         .filter((message) => message.role === 'assistant')
         .at(-1)?.runId;
     })
-    .toBeTruthy();
+    // The completed seed answer already has a run ID; wait for the new one.
+    .not.toBe(seedRunId);
   const beforePrefixResponse = await page.request.get(
     `${stack.apiUrl}/api/chats/${chatId}`,
   );

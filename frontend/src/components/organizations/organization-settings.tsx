@@ -10,7 +10,6 @@ import {
   type OrganizationSummary,
 } from '@lexon/contracts';
 import {
-  Field,
   FieldContent,
   FieldDescription,
   FieldError,
@@ -24,6 +23,12 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import { identityApi, identityMessage } from './page-state';
+import {
+  SettingsField,
+  SettingsHeading,
+  settingsDescriptionClass,
+  settingsLabelClass,
+} from '../settings/settings-section';
 
 export function OrganizationSettings({
   organization,
@@ -88,11 +93,13 @@ export function OrganizationSettings({
   return (
     <section
       aria-labelledby="organization-general-heading"
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-3"
     >
-      <h2 id="organization-general-heading" className="text-lg font-medium">
-        General
-      </h2>
+      <SettingsHeading
+        id="organization-general-heading"
+        title="General"
+        description={`Settings for everyone in ${current.name}.`}
+      />
       {failure ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
@@ -100,17 +107,19 @@ export function OrganizationSettings({
       ) : null}
       <form noValidate onSubmit={form.handleSubmit(saveDetails)}>
         <FieldGroup className="gap-0">
-          <Field
-            data-invalid={!!form.formState.errors.name}
-            orientation="responsive"
-            className="border-b py-4"
-          >
-            <FieldContent>
-              <FieldLabel htmlFor="organization-name">
+          <SettingsField data-invalid={!!form.formState.errors.name}>
+            <FieldContent className="gap-0">
+              <FieldLabel
+                htmlFor="organization-name"
+                className={settingsLabelClass}
+              >
                 Organization name
               </FieldLabel>
+              <FieldDescription className={settingsDescriptionClass}>
+                Shown in the organization switcher.
+              </FieldDescription>
             </FieldContent>
-            <FieldContent className="md:items-end">
+            <FieldContent className="flex-none gap-1 md:items-end">
               <Input
                 id="organization-name"
                 aria-invalid={!!form.formState.errors.name}
@@ -120,7 +129,7 @@ export function OrganizationSettings({
                     : undefined
                 }
                 {...form.register('name')}
-                className="w-full md:max-w-[17.5rem]"
+                className="w-full md:w-[280px] md:max-w-[280px]"
               />
               {form.formState.errors.name ? (
                 <FieldError id="organization-name-error">
@@ -128,19 +137,20 @@ export function OrganizationSettings({
                 </FieldError>
               ) : null}
             </FieldContent>
-          </Field>
-          <Field
-            data-invalid={!!form.formState.errors.slug}
-            orientation="responsive"
-            className="border-b py-4"
-          >
-            <FieldContent>
-              <FieldLabel htmlFor="organization-slug">Slug</FieldLabel>
-              <FieldDescription>
-                Lowercase letters, numbers and hyphens.
+          </SettingsField>
+          <SettingsField data-invalid={!!form.formState.errors.slug}>
+            <FieldContent className="gap-0">
+              <FieldLabel
+                htmlFor="organization-slug"
+                className={settingsLabelClass}
+              >
+                Slug
+              </FieldLabel>
+              <FieldDescription className={settingsDescriptionClass}>
+                Used in links. Lowercase letters, numbers, and hyphens.
               </FieldDescription>
             </FieldContent>
-            <FieldContent className="md:items-end md:text-right">
+            <FieldContent className="flex-none gap-1 md:items-end md:text-right">
               <Input
                 id="organization-slug"
                 aria-invalid={!!form.formState.errors.slug}
@@ -150,7 +160,7 @@ export function OrganizationSettings({
                     : undefined
                 }
                 {...form.register('slug')}
-                className="w-full md:max-w-[17.5rem]"
+                className="w-full md:w-[280px] md:max-w-[280px]"
               />
               {form.formState.errors.slug ? (
                 <FieldError id="organization-slug-error">
@@ -158,15 +168,18 @@ export function OrganizationSettings({
                 </FieldError>
               ) : null}
             </FieldContent>
-          </Field>
-          <Field orientation="responsive" className="py-4">
-            <FieldContent>
-              <FieldTitle>Require two-factor authentication</FieldTitle>
-              <FieldDescription>
-                Members without 2FA must set it up before entering.
+          </SettingsField>
+          <SettingsField inline>
+            <FieldContent className="gap-0">
+              <FieldTitle className={settingsLabelClass}>
+                Require two-step verification
+              </FieldTitle>
+              <FieldDescription className={settingsDescriptionClass}>
+                Members without it must set it up before they can open this
+                workspace.
               </FieldDescription>
             </FieldContent>
-            <FieldContent className="md:items-end">
+            <FieldContent className="flex-none">
               <Switch
                 aria-label="Require two-factor authentication"
                 checked={current.require2fa}
@@ -174,9 +187,10 @@ export function OrganizationSettings({
                 onCheckedChange={(checked) => void updateTwoFactor(checked)}
               />
             </FieldContent>
-          </Field>
+          </SettingsField>
           <div className="flex justify-end pt-4">
             <PendingButton
+              className="bg-clip-border [&_.invisible]:hidden"
               type="submit"
               pending={submission.pending}
               pendingLabel="Saving…"

@@ -36,6 +36,8 @@ test('session listing omits credentials and expired entries; foreign IDs cannot 
         'channel',
         'createdAt',
         'current',
+        'deviceKind',
+        'deviceName',
         'expiresAt',
         'id',
         'version',
@@ -184,6 +186,264 @@ test('all live sessions remain discoverable and revocable beyond the adapter def
       expect(remaining).toHaveLength(102);
       expect(remaining.some((row) => row.id === issuedIds[0])).toBe(false);
     });
+  } finally {
+    await proof.close();
+  }
+});
+
+const chromeMac =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+const safariIphone =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
+test('sessions name the device from the stored user agent; another user (and organization) never appears, and no raw user agent or address is served', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const mine = `${randomUUID()}@example.test`;
+    const theirs = `${randomUUID()}@example.test`;
+    for (const [name, email] of [
+      ['Mine', mine],
+      ['Theirs', theirs],
+    ] as const)
+      await proof.signIn({ body: { name, email, password } });
+    const harness = securityHarness(proof);
+    const service = new SessionService(
+      new OrganizationAuthPort(proof.integration),
+      { bearerSeconds: 900 },
+    );
+    const signIn = (email: string, userAgent: string) =>
+      harness.run(
+        '/sign-in/email',
+        { email, password },
+        new Headers({
+          'user-agent': userAgent,
+          'x-lexon-client-address': '203.0.113.9',
+        }),
+      );
+    const desktop = responseCookies(await signIn(mine, chromeMac));
+    await signIn(mine, safariIphone);
+    const foreign = responseCookies(await signIn(theirs, safariIphone));
+    await harness.identity(desktop, async (identity) => {
+      const list = await service.list(identity);
+      expect(
+        list.map(({ deviceName, deviceKind, current }) => ({
+          deviceName,
+          deviceKind,
+          current,
+        })),
+      ).toEqual(
+        expect.arrayContaining([
+          {
+            deviceName: 'Chrome on macOS',
+            deviceKind: 'desktop',
+            current: true,
+          },
+          {
+            deviceName: 'Safari on iPhone',
+            deviceKind: 'mobile',
+            current: false,
+          },
+        ]),
+      );
+      const serialised = JSON.stringify(list);
+      expect(serialised).not.toContain('203.0.113.9');
+      expect(serialised).not.toContain('Mozilla');
+      expect(serialised).not.toContain('userAgent');
+    });
+    await harness.identity(desktop, async (identity) => {
+      const bearer = await service.issueBearer(identity);
+      expect(
+        (await service.list(identity)).find(
+          (row) => row.id === bearer.sessionId,
+        ),
+      ).toMatchObject({
+        channel: 'bearer',
+        deviceName: 'Word add-in',
+        deviceKind: 'desktop',
+      });
+    });
+    await harness.identity(foreign, async (identity) => {
+      const list = await service.list(identity);
+      expect(list).toHaveLength(2);
+      expect(list.filter((row) => row.current)).toHaveLength(1);
+    });
+    await harness.identity(desktop, async (identity) => {
+      const foreignSession = await proof.integration.transaction((tx) =>
+        tx.call('getSession', { headers: foreign }),
+      );
+      expect(
+        (await service.list(identity)).some(
+          (row) => row.id === foreignSession!.session.id,
+        ),
+      ).toBe(false);
+    });
+  } finally {
+    await proof.close();
+  }
+});
+test('a session without a stored user agent is an unknown device', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const user = await proof.signIn({
+      body: {
+        name: 'Quiet',
+        email: `${randomUUID()}@example.test`,
+        password,
+      },
+    });
+    const harness = securityHarness(proof);
+    const service = new SessionService(
+      new OrganizationAuthPort(proof.integration),
+      { bearerSeconds: 900 },
+    );
+    await harness.identity(user.cookieHeaders, async (identity) => {
+      expect((await service.list(identity))[0]).toMatchObject({
+        deviceName: 'Unknown device',
+        deviceKind: 'unknown',
+      });
+    });
+  } finally {
+    await proof.close();
+  }
+});
+test('the security state reports when the password was last changed, per user', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const [first, second] = await Promise.all(
+      ['First', 'Second'].map((name) =>
+        proof.signIn({
+          body: { name, email: `${randomUUID()}@example.test`, password },
+        }),
+      ),
+    );
+    const harness = securityHarness(proof);
+    const state = (headers: Headers) =>
+      harness.identity(headers, (identity) => harness.service.state(identity));
+    const initial = await state(first!.cookieHeaders);
+    const secondInitial = await state(second!.cookieHeaders);
+    expect(initial.passwordChangedAt).toEqual(expect.any(String));
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await proof.integration.transaction((tx) =>
+      tx.call('changePassword', {
+        headers: first!.cookieHeaders,
+        body: {
+          currentPassword: password,
+          newPassword: 'Changed-password-42!',
+          revokeOtherSessions: false,
+        },
+      }),
+    );
+    const changed = await state(first!.cookieHeaders);
+    expect(Date.parse(changed.passwordChangedAt!)).toBeGreaterThan(
+      Date.parse(initial.passwordChangedAt!),
+    );
+    expect((await state(second!.cookieHeaders)).passwordChangedAt).toBe(
+      secondInitial.passwordChangedAt,
+    );
+  } finally {
+    await proof.close();
+  }
+});
+
+test('passwordChangedAt moves on password change and reset only, not on sign-in, 2FA, recovery codes, or email change', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  try {
+    const email = `${randomUUID()}@example.test`;
+    const user = await proof.signIn({
+      body: { name: 'Stamp', email, password },
+    });
+    const harness = securityHarness(proof);
+    const stamp = (headers: Headers) =>
+      harness.identity(
+        headers,
+        async (identity) =>
+          (await harness.service.state(identity)).passwordChangedAt,
+      );
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 50));
+    const initial = await stamp(user.cookieHeaders);
+    expect(initial).toEqual(expect.any(String));
+    await wait();
+    const unchanged = async (headers: Headers) => {
+      expect(await stamp(headers)).toBe(initial);
+    };
+    // Sign-in.
+    const second = responseCookies(
+      await harness.run('/sign-in/email', { email, password }, new Headers()),
+    );
+    await unchanged(second);
+    // 2FA enable.
+    const enrolled = await harness.enroll(email, password);
+    await unchanged(enrolled.headers);
+    // Recovery-code regeneration.
+    await harness.run(
+      '/two-factor/generate-backup-codes',
+      { password },
+      enrolled.headers,
+    );
+    await unchanged(enrolled.headers);
+    // 2FA disable.
+    const disabled = responseCookies(
+      await harness.run('/two-factor/disable', { password }, enrolled.headers),
+    );
+    await unchanged(disabled);
+    // Email change, confirmed through the emailed link.
+    const newEmail = `${randomUUID()}@example.test`;
+    await proof.integration.transaction((tx) =>
+      tx.call('changeEmail', {
+        headers: disabled,
+        body: { newEmail },
+      }),
+    );
+    const url = new URL(proof.dispatchedLink(newEmail)!);
+    url.searchParams.delete('callbackURL');
+    expect((await proof.integration.handle(new Request(url))).status).toBe(200);
+    await unchanged(disabled);
+    // Password change.
+    await proof.integration.transaction((tx) =>
+      tx.call('changePassword', {
+        headers: disabled,
+        body: {
+          currentPassword: password,
+          newPassword: 'Changed-password-42!',
+          revokeOtherSessions: false,
+        },
+      }),
+    );
+    const afterChange = (await stamp(disabled))!;
+    expect(Date.parse(afterChange)).toBeGreaterThan(Date.parse(initial!));
+    await wait();
+    // Password reset.
+    await proof.integration.transaction((tx) =>
+      tx.call('requestPasswordReset', {
+        body: { email: newEmail, redirectTo: proof.origin },
+      }),
+    );
+    const token = new URL(proof.dispatchedLink(newEmail, 'reset')!).pathname
+      .split('/')
+      .at(-1)!;
+    await proof.integration.transaction((tx) =>
+      tx.call('resetPassword', {
+        body: { token, newPassword: 'Reset-password-42!' },
+      }),
+    );
+    // A reset revokes sessions, so read the value through a fresh sign-in.
+    const afterReset = responseCookies(
+      await harness.run(
+        '/sign-in/email',
+        { email: newEmail, password: 'Reset-password-42!' },
+        new Headers(),
+      ),
+    );
+    expect(Date.parse((await stamp(afterReset))!)).toBeGreaterThan(
+      Date.parse(afterChange),
+    );
   } finally {
     await proof.close();
   }

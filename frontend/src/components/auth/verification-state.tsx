@@ -11,7 +11,8 @@ import { safeReturnPath } from '../../lib/return-path';
 import { AuthCard } from './auth-card';
 import { FormInput, authFailure } from './form-input';
 import { FieldGroup } from '../ui/field';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { ArrowLeft } from 'lucide-react';
+import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
@@ -42,12 +43,19 @@ export function VerificationState({
           ? 'Email verified'
           : state === 'expired'
             ? 'Unable to verify email'
-            : 'Check your email'
+            : 'Verify your email'
       }
       description={
-        state === 'confirmed'
-          ? 'Sign in to continue.'
-          : 'If eligible, you will receive a verification link. Check your inbox.'
+        state === 'confirmed' ? (
+          'Sign in to continue.'
+        ) : email ? (
+          <>
+            We sent a verification link to <b>{email}</b>. Open it to activate
+            your account.
+          </>
+        ) : (
+          'If eligible, you will receive a verification link. Check your inbox.'
+        )
       }
     >
       {state !== 'confirmed' ? (
@@ -87,30 +95,51 @@ export function VerificationState({
         >
           <FieldGroup>
             {failure ? (
-              <Alert role="alert" variant="destructive">
-                <AlertTitle>Unable to resend the verification email</AlertTitle>
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
+              <AuthAlert title="Unable to resend the verification email">
+                {failure}
+              </AuthAlert>
             ) : null}
-            <FormInput
-              label="Email"
-              type="email"
-              autoComplete="email"
-              registration={form.register('email')}
-              error={form.formState.errors.email}
-            />
+            {email ? null : (
+              <FormInput
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@firm.co.id"
+                registration={form.register('email')}
+                error={form.formState.errors.email}
+              />
+            )}
             {message ? <p role="status">{message}</p> : null}
             <PendingButton
               type="submit"
               pending={submission.pending}
               pendingLabel="Sending verification email…"
+              size="lg"
+              variant="outline"
+              className={authButtonClass}
             >
-              Resend verification email
+              Resend email
             </PendingButton>
           </FieldGroup>
         </form>
       ) : null}
-      <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>Sign in</a>
+      {state === 'pending' && email ? (
+        <p className="text-center text-sm leading-[1.21] text-muted-foreground">
+          Wrong email?{' '}
+          <a
+            className="text-foreground underline underline-offset-4"
+            href={'/sign-up?returnTo=' + encodeURIComponent(next)}
+          >
+            Create the account again
+          </a>
+        </p>
+      ) : null}
+      <AuthLink
+        href={'/sign-in?returnTo=' + encodeURIComponent(next)}
+        icon={<ArrowLeft aria-hidden="true" />}
+      >
+        {state === 'confirmed' ? 'Sign in' : 'Back to sign in'}
+      </AuthLink>
     </AuthCard>
   );
 }

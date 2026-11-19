@@ -26,9 +26,11 @@ test('invitation new recipient signs up verifies and accepts without exposing an
     (await readCapturedMail(stack.project, email, 'invitation')).actionUrl,
   );
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.getByRole('link', { name: 'Create account', exact: true }).click();
-  await page.getByLabel('Name', { exact: true }).fill('Invited identity');
-  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page
+    .getByRole('link', { name: 'create an account', exact: true })
+    .click();
+  await page.getByLabel('Full name', { exact: true }).fill('Invited identity');
+  await page.getByLabel('Work email', { exact: true }).fill(email);
   await page
     .getByLabel('Password', { exact: true })
     .fill('Browser-password-42!');
@@ -36,7 +38,7 @@ test('invitation new recipient signs up verifies and accepts without exposing an
     .getByRole('button', { name: 'Create account', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Check your email' }),
+    page.getByRole('heading', { name: 'Verify your email' }),
   ).toBeVisible();
   await page.goto(
     (await readCapturedMail(stack.project, email, 'verification')).actionUrl,

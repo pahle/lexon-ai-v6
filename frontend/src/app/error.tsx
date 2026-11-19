@@ -1,7 +1,7 @@
 'use client';
 
-import { ErrorState } from '../components/states/page-states';
-import Link from 'next/link';
+import { AlertCircleIcon } from 'lucide-react';
+import { StandaloneStatusPage } from '../components/states/status-page';
 
 export default function RootError({
   retry,
@@ -10,25 +10,13 @@ export default function RootError({
   retry: () => void;
 }) {
   return (
-    <>
-      <a
-        className="sr-only inline-flex min-h-11 items-center focus:not-sr-only"
-        href="#main"
-      >
-        Skip to content
-      </a>
-      <main id="main" tabIndex={-1} className="mx-auto max-w-2xl p-6">
-        <h1 className="mb-4 text-[length:var(--font-size-heading)] font-semibold">
-          Something went wrong
-        </h1>
-        <ErrorState onRetry={retry} />
-        <Link
-          className="inline-flex min-h-11 items-center underline"
-          href="/workspace"
-        >
-          Return to workspace
-        </Link>
-      </main>
-    </>
+    <StandaloneStatusPage
+      role="alert"
+      icon={<AlertCircleIcon />}
+      title="Something went wrong"
+      text="We could not load this page. Your work is saved."
+      action={{ label: 'Try again', onClick: retry }}
+      secondaryLink={{ label: 'Go to my workspace', href: '/workspace' }}
+    />
   );
 }

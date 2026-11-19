@@ -9,7 +9,7 @@ import { useVisualAuthFormReady } from './visual-readiness';
 import { VerificationState } from './verification-state';
 import { FormInput, authFailure } from './form-input';
 import { Field, FieldGroup, FieldDescription } from '../ui/field';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AuthAlert, AuthHeader, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 export function SignupForm({
@@ -55,7 +55,7 @@ export function SignupForm({
     );
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col"
       noValidate
       method="post"
       onSubmit={form.handleSubmit((input) =>
@@ -84,28 +84,25 @@ export function SignupForm({
       )}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-serif text-2xl font-bold">Create your account</h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            Your legal workspace starts here.
-          </p>
-        </div>
+        <AuthHeader
+          title="Create your account"
+          description="Your legal workspace starts here."
+        />
         {failure ? (
-          <Alert role="alert" variant="destructive">
-            <AlertTitle>Unable to create your account</AlertTitle>
-            <AlertDescription>{failure}</AlertDescription>
-          </Alert>
+          <AuthAlert title="Unable to create your account">{failure}</AuthAlert>
         ) : null}
         <FormInput
-          label="Name"
+          label="Full name"
           autoComplete="name"
+          placeholder="Ayu Wardani"
           registration={form.register('name')}
           error={form.formState.errors.name}
         />
         <FormInput
-          label="Email"
+          label="Work email"
           type="email"
           autoComplete="email"
+          placeholder="you@firm.co.id"
           registration={form.register('email')}
           error={form.formState.errors.email}
         />
@@ -113,23 +110,24 @@ export function SignupForm({
           label="Password"
           type="password"
           autoComplete="new-password"
+          placeholder="••••••••"
+          hint="Use at least 12 characters."
           registration={form.register('password')}
           error={form.formState.errors.password}
         />
-        <p className="text-sm text-muted-foreground">
-          Use at least 12 characters.
-        </p>
         <Field>
           <PendingButton
             type="submit"
             pending={submission.pending}
             pendingLabel="Creating account…"
+            size="lg"
+            className={authButtonClass}
           >
             Create account
           </PendingButton>
         </Field>
         <Field>
-          <FieldDescription className="text-center">
+          <FieldDescription className="text-center text-sm leading-[1.21] text-muted-foreground [&>a]:text-foreground">
             Already have an account?{' '}
             <a href={'/sign-in?returnTo=' + encodeURIComponent(next)}>
               Sign in

@@ -15,7 +15,17 @@ import {
   QueryFailure,
   useCursorPage,
 } from './page-state';
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { initials } from '../../lib/initials';
+import { SettingsHeading } from '../settings/settings-section';
 import {
   Table,
   TableBody,
@@ -64,7 +74,7 @@ export function Members({
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { identity } = useWorkspace();
+  const { identity, refreshIdentity } = useWorkspace();
   const submission = useSubmissionLock();
   const [failure, setFailure] = useState('');
   const [removing, setRemoving] = useState<MemberSummary | null>(null);
@@ -128,8 +138,15 @@ export function Members({
           () => identityApi.removeMember(organization.id, removing.id),
           'Member removed.',
         )
-      )
+      ) {
         setRemoving(null);
+        // The sidebar's member count comes from the identity summary.
+        try {
+          await refreshIdentity();
+        } catch {
+          // The next verified refresh will update the count.
+        }
+      }
     });
   }
 
@@ -164,15 +181,25 @@ export function Members({
   };
 
   return (
-    <section aria-labelledby="members-heading" className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="members-heading" className="text-lg font-medium">
-          Members
-        </h2>
-        {canInvite ? (
-          <Button onClick={goToInvitations}>Invite people</Button>
-        ) : null}
-      </header>
+    <section aria-labelledby="members-heading" className="flex flex-col gap-3">
+      <SettingsHeading
+        id="members-heading"
+        className="gap-y-0"
+        title="Members"
+        description={
+          members.data
+            ? `${rows.length} ${rows.length === 1 ? 'member' : 'members'} in ${organization.name}.`
+            : undefined
+        }
+        action={
+          canInvite ? (
+            <Button className="bg-clip-border" onClick={goToInvitations}>
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              Invite people
+            </Button>
+          ) : undefined
+        }
+      />
       {failure && !removing && !confirmLeave ? (
         <Alert variant="destructive">
           <AlertDescription>{failure}</AlertDescription>
@@ -211,9 +238,9 @@ export function Members({
         </Empty>
       ) : null}
       {rows.length > 0 ? (
-        <div className="min-w-0 overflow-x-auto">
-          <Table className="min-w-[620px]">
-            <TableHeader>
+        <div className="min-w-0">
+          <Table className="w-full">
+            <TableHeader className="sr-only">
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
@@ -225,7 +252,7 @@ export function Members({
                 ) : null}
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="[&_tr:last-child]:border-b">
               {rows.map((member) => {
                 const currentUser = member.userId === currentUserId;
                 const manageable =
@@ -237,17 +264,45 @@ export function Members({
                   (organization.role === 'owner' ||
                     (organization.role === 'admin' &&
                       member.role === 'member'));
+                const roleLabel =
+                  member.role === 'owner'
+                    ? 'Owner'
+                    : member.role === 'admin'
+                      ? 'Admin'
+                      : 'Member';
                 return (
                   <TableRow
                     key={member.id}
                     data-testid={'member-' + member.userId}
+                    className="hover:bg-transparent"
                   >
-                    <TableCell className="font-medium">
-                      {member.name}
-                      {member.userId === identity?.user.id ? ' (you)' : ''}
+                    <TableCell className="w-full px-0 py-3 whitespace-normal max-md:max-w-0">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-8 flex-none items-center justify-center rounded-lg bg-sidebar-accent text-xs font-semibold"
+                        >
+                          {initials(member.name)}
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate font-medium">
+                            {member.name}
+                            {member.userId === identity?.user.id
+                              ? ' (you)'
+                              : ''}
+                          </span>
+                          <span className="text-xs leading-tight text-muted-foreground max-md:wrap-anywhere">
+                            {member.email}
+                          </span>
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>
+                    <TableCell
+                      className="w-px px-0 py-3 pl-3 text-right"
+                      colSpan={
+                        canManageRoles && !manageable && !removable ? 2 : 1
+                      }
+                    >
                       {manageable ? (
                         <Select
                           value={member.role}
@@ -258,14 +313,9 @@ export function Members({
                           <SelectTrigger
                             aria-label={'Role for ' + member.name}
                             disabled={submission.pending}
+                            className="data-[size=default]:h-[30px] gap-1 rounded-lg px-2.5 text-[13px] font-medium [&>svg]:size-3.5!"
                           >
-                            <SelectValue>
-                              {member.role === 'owner'
-                                ? 'Owner'
-                                : member.role === 'admin'
-                                  ? 'Admin'
-                                  : 'Member'}
-                            </SelectValue>
+                            <SelectValue>{roleLabel}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
@@ -290,24 +340,44 @@ export function Members({
                           </SelectContent>
                         </Select>
                       ) : (
-                        member.role.charAt(0).toUpperCase() +
-                        member.role.slice(1)
+                        <Badge variant="outline" className="border-input">
+                          {roleLabel}
+                        </Badge>
                       )}
                     </TableCell>
-                    {canManageRoles ? (
-                      <TableCell className="text-right">
+                    {canManageRoles && (manageable || removable) ? (
+                      <TableCell className="w-px px-0 py-3 pl-3 text-right">
                         {removable ? (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={submission.pending}
-                            onClick={() => {
-                              setFailure('');
-                              setRemoving(member);
-                            }}
-                          >
-                            Remove
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="size-7 rounded-md text-muted-foreground"
+                                  aria-label={'More actions for ' + member.name}
+                                  disabled={submission.pending}
+                                />
+                              }
+                            >
+                              <MoreHorizontal aria-hidden="true" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setFailure('');
+                                  setRemoving(member);
+                                }}
+                              >
+                                <Trash2
+                                  aria-hidden="true"
+                                  data-icon="inline-start"
+                                />
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         ) : null}
                       </TableCell>
                     ) : null}
@@ -319,7 +389,7 @@ export function Members({
         </div>
       ) : null}
       {pagination}
-      <div className="flex justify-end border-t pt-4">
+      <div className="-mt-3 flex justify-end pt-2">
         <Button
           variant="outline"
           disabled={submission.pending}

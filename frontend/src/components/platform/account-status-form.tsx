@@ -12,16 +12,9 @@ import {
   identityMessage,
   QueryFailure,
 } from '../organizations/page-state';
-import { FormInput } from '../auth/form-input';
-import { FieldGroup } from '../ui/field';
+import { PlatformActions, PlatformCard } from './platform-card';
+import { PlatformField } from './platform-field';
 import { Alert, AlertDescription } from '../ui/alert';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
@@ -68,69 +61,61 @@ export function AccountStatusForm() {
   if (access.error) return <QueryFailure error={access.error} />;
   if (!access.data) {
     return (
-      <section
+      <div
         role="status"
         aria-label="Checking platform access"
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-6"
       >
-        <p className="text-sm text-muted-foreground">
-          Checking platform access…
-        </p>
-        <Skeleton className="h-24 w-full" />
-      </section>
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
     );
   }
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Account status</CardTitle>
-          <CardDescription>
-            Disable or enable an account by its user ID. This grants no access
-            to its organizations or content.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            noValidate
-            onSubmit={form.handleSubmit(() => setConfirmDisable(true))}
-          >
-            <FieldGroup>
-              <FormInput
-                label="User ID"
-                autoComplete="off"
-                registration={form.register('userId')}
-                error={form.formState.errors.userId}
-              />
-              {failure ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{failure}</AlertDescription>
-                </Alert>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <PendingButton
-                  type="submit"
-                  pending={submission.pending}
-                  pendingLabel="Disabling…"
-                >
-                  Disable account
-                </PendingButton>
-                <PendingButton
-                  type="button"
-                  variant="outline"
-                  pending={submission.pending}
-                  pendingLabel="Enabling…"
-                  onClick={form.handleSubmit((input) =>
-                    update(input.userId, false),
-                  )}
-                >
-                  Enable account
-                </PendingButton>
-              </div>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+    <>
+      <PlatformCard
+        title="Find an account"
+        description="Enter the user ID from the audit log or a support request."
+      >
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={form.handleSubmit(() => setConfirmDisable(true))}
+        >
+          <PlatformField
+            label="User ID"
+            autoComplete="off"
+            placeholder="usr_01J…"
+            registration={form.register('userId')}
+            error={form.formState.errors.userId}
+          />
+          {failure ? (
+            <Alert variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          ) : null}
+          <PlatformActions>
+            <PendingButton
+              type="button"
+              variant="outline"
+              pending={submission.pending}
+              pendingLabel="Enabling…"
+              onClick={form.handleSubmit((input) =>
+                update(input.userId, false),
+              )}
+            >
+              Enable account
+            </PendingButton>
+            <PendingButton
+              type="submit"
+              variant="destructive"
+              pending={submission.pending}
+              pendingLabel="Disabling…"
+            >
+              Disable account
+            </PendingButton>
+          </PlatformActions>
+        </form>
+      </PlatformCard>
       <AlertDialog
         open={confirmDisable}
         onOpenChange={(open) => {
@@ -177,12 +162,6 @@ export function AccountStatusForm() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <a
-        className="text-sm underline underline-offset-4"
-        href="/workspace?settings=security"
-      >
-        Account security
-      </a>
-    </div>
+    </>
   );
 }

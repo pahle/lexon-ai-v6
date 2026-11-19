@@ -93,3 +93,52 @@ test('auth layout includes a visible-on-focus skip link to its focusable main', 
   expect(main?.getAttribute('tabindex')).toBe('-1');
   await view.unmount();
 });
+
+test('every status route renders the shared StatusPage', async () => {
+  const retry = vi.fn();
+  for (const element of [
+    <WorkspaceNotFound key="workspace-not-found" />,
+    <RootNotFound key="root-not-found" />,
+    <WorkspaceError
+      key="workspace-error"
+      error={new Error('x')}
+      retry={retry}
+    />,
+    <RootError key="root-error" error={new Error('x')} retry={retry} />,
+  ]) {
+    const view = await render(element);
+    expect(
+      view.container.querySelector('[data-slot="status-page"]'),
+    ).not.toBeNull();
+    expect(view.container.querySelectorAll('h1')).toHaveLength(1);
+    await view.unmount();
+  }
+});
+
+test('page and error titles use the serif heading treatment without the retired size variable', async () => {
+  const retry = vi.fn();
+  for (const element of [
+    <WorkspaceNotFound key="workspace-not-found" />,
+    <RootNotFound key="root-not-found" />,
+    <RootError key="root-error" error={new Error('x')} retry={retry} />,
+  ]) {
+    const view = await render(element);
+    const heading = view.container.querySelector('h1');
+    expect(heading?.className).toContain('font-serif');
+    expect(heading?.className).toContain('text-[32px]');
+    expect(heading?.className).toContain('font-normal');
+    expect(heading?.className).not.toContain('--font-size-heading');
+    await view.unmount();
+  }
+});
+
+test('the workspace error page flags the body so the sidebar drops its active highlight', async () => {
+  const { default: WorkspaceError } =
+    await import('../src/app/(workspace)/error');
+  const view = await render(
+    <WorkspaceError error={new Error('x')} retry={() => {}} />,
+  );
+  expect(document.body.hasAttribute('data-workspace-error')).toBe(true);
+  await view.unmount();
+  expect(document.body.hasAttribute('data-workspace-error')).toBe(false);
+});

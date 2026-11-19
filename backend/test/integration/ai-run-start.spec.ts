@@ -73,6 +73,7 @@ function identityScope(
           email: 'fixture@example.test',
           emailVerified: true,
           twoFactorEnabled: false,
+          jobTitle: null,
           onboardingCompleted: true,
         },
         organization: {
@@ -87,6 +88,7 @@ function identityScope(
           createdAt: new Date().toISOString(),
         },
         platformAdmin: false,
+        organizationMemberCount: null,
       },
     },
     new Headers(),

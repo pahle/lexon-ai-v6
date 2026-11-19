@@ -19,3 +19,6 @@ test-results/
 
 **/reports/mutation-identity/
 **/reports/mutation-chat/
+
+# Vitest JSON output written by test:unit
+.vitest/

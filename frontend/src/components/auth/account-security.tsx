@@ -20,6 +20,7 @@ import { AuthCard } from './auth-card';
 import { SessionBoundary } from './session-boundary';
 import { TwoFactorEnrollment } from './two-factor-enrollment';
 import { SessionList } from './session-list';
+import { SettingsHeading } from '../settings/settings-section';
 import { RecoveryCodes } from './recovery-codes';
 import { FormInput } from './form-input';
 import { FieldGroup } from '../ui/field';
@@ -29,6 +30,7 @@ import { toast } from 'sonner';
 import { useSubmissionLock } from '../forms/use-submission-lock';
 import { LoadingState } from '../states/page-states';
 import { Button } from '../ui/button';
+import { formatRelativeTime } from '../../lib/relative-time';
 import { Badge } from '../ui/badge';
 import {
   AlertDialog,
@@ -88,7 +90,7 @@ export function AccountSecurity() {
     await query.invalidateQueries({ queryKey: ['account'] });
   };
   if (!security.data)
-    return <LoadingState message="Loading account security…" />;
+    return <LoadingState message="Loading account security" />;
   if (activeAction) {
     return (
       <div className="flex flex-col gap-4">
@@ -129,22 +131,21 @@ export function AccountSecurity() {
     );
   }
   return (
-    <div className="flex flex-col gap-6">
-      <section
-        aria-labelledby="security-heading"
-        className="flex flex-col gap-4"
-      >
-        <div>
-          <h2 id="security-heading" className="text-lg font-medium">
-            Security
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Manage sign-in methods and active sessions.
-          </p>
-        </div>
+    <div className="flex flex-col">
+      <section aria-labelledby="security-heading" className="flex flex-col">
+        <SettingsHeading
+          id="security-heading"
+          title="Security"
+          description="Manage how you sign in and where you are signed in."
+          className="mb-3"
+        />
         <SecurityRow
           title="Password"
-          description="Change the password you use to sign in."
+          description={
+            security.data.passwordChangedAt
+              ? `Last changed ${formatRelativeTime(security.data.passwordChangedAt)}.`
+              : 'Change the password you use to sign in.'
+          }
           action="Change password"
           onAction={() => setActiveAction('password')}
         />
@@ -154,25 +155,24 @@ export function AccountSecurity() {
           action="Change email"
           onAction={() => setActiveAction('email')}
         />
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium">Two-factor authentication</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge
-                variant={
-                  security.data.twoFactorEnabled ? 'secondary' : 'outline'
-                }
-              >
+        <div
+          data-slot="security-row"
+          className="flex items-center justify-between gap-6 border-b border-border py-4"
+        >
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm leading-[normal] font-medium">
+              Two-step verification
+              <Badge variant="outline" className="ml-1 border-input">
                 {security.data.twoFactorEnabled ? 'On' : 'Off'}
               </Badge>
-              {security.data.twoFactorEnabled ? (
-                <span>
-                  {security.data.recoveryCodesRemaining} recovery codes left
-                </span>
-              ) : null}
-            </div>
+            </h3>
+            <p className="mt-0.5 text-[13px] leading-[normal] text-muted-foreground">
+              {security.data.twoFactorEnabled
+                ? `Authenticator app. ${security.data.recoveryCodesRemaining} recovery codes left.`
+                : 'Add an authenticator app for a second step at sign-in.'}
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2 max-md:w-[134px] max-md:shrink-0">
             {security.data.twoFactorEnabled ? (
               <>
                 <Button
@@ -207,7 +207,7 @@ export function AccountSecurity() {
           onRevoke={async (id) => {
             await api.revokeSession(id);
             await refresh();
-            toast.success('Session revoked.');
+            toast.success('Session signed out.');
           }}
         />
       ) : null}
@@ -289,10 +289,15 @@ function SecurityRow({
   onAction: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+    <div
+      data-slot="security-row"
+      className="flex items-center justify-between gap-6 border-b border-border py-4"
+    >
       <div className="min-w-0">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <h3 className="text-sm leading-[normal] font-medium">{title}</h3>
+        <p className="mt-0.5 text-[13px] leading-[normal] text-muted-foreground">
+          {description}
+        </p>
       </div>
       <Button variant="outline" onClick={onAction}>
         {action}

@@ -119,6 +119,33 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
       composer.evaluate((element) => element.getBoundingClientRect().height),
     )
     .toBeGreaterThan(initialHeight);
+  await composer.fill('');
+  const chatPosts: string[] = [];
+  page.on('request', (request) => {
+    if (
+      request.method() === 'POST' &&
+      /\/api\/chats(\/|$|\?)/.test(request.url())
+    )
+      chatPosts.push(request.url());
+  });
+  const clauseTemplate =
+    'Check this clause for risks and missing terms: [paste clause]';
+  await page
+    .getByRole('group', { name: 'Starter prompts' })
+    .getByRole('button', { name: 'Check a clause' })
+    .click();
+  await expect(composer).toHaveValue(clauseTemplate);
+  await expect(composer).toBeFocused();
+  const clauseStart = clauseTemplate.indexOf('[paste clause]');
+  await expect
+    .poll(() =>
+      composer.evaluate((element) => {
+        const area = element as HTMLTextAreaElement;
+        return [area.selectionStart, area.selectionEnd];
+      }),
+    )
+    .toEqual([clauseStart, clauseStart + '[paste clause]'.length]);
+  expect(chatPosts).toEqual([]);
   await composer.fill('   ');
   await expect(sendButton).toBeDisabled();
   await composer.press('Enter');
@@ -181,11 +208,17 @@ test('new chat accepts a prompt, navigates to a stable thread, and renders the s
   await expect(composer).toHaveAttribute('placeholder', 'Lexon is answering…');
   await expect(page.getByText('Thinking…')).toBeVisible();
   await expect(page.getByText('Thought for 2 seconds')).toHaveCount(0);
-  const spinner = page.locator('.lucide-loader-circle').first();
-  await expect(spinner).toBeVisible();
+  // Reduced motion: the indicator is the static Lexon mark, with no loop and
+  // no CSS animation, and no leftover spinner icon.
+  const indicator = page
+    .locator('[data-role="assistant"] [data-slot="reasoning-mark"] svg')
+    .first();
+  await expect(indicator).toBeVisible();
+  await expect(indicator).toHaveAttribute('fill', 'currentColor');
+  await expect(page.locator('.lucide-loader-circle')).toHaveCount(0);
   await expect
     .poll(() =>
-      spinner.evaluate((element) => getComputedStyle(element).animationName),
+      indicator.evaluate((element) => getComputedStyle(element).animationName),
     )
     .toBe('none');
   await page.screenshot({
@@ -362,14 +395,14 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await editButton.click();
   await expect(edit).toBeFocused();
   await edit.fill('🧾'.repeat(4_097));
-  await page.getByRole('button', { name: 'Send edit' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
   await expect(edit).toBeVisible();
   await expect(
     page.locator('form').filter({ has: edit }).getByRole('alert'),
   ).toContainText('16,384 bytes');
   await expect(edit).toHaveValue('🧾'.repeat(4_097));
   await edit.fill('[runtime-proof:edit] revise this clause');
-  await page.getByRole('button', { name: 'Send edit' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
   await expect(
     page
       .locator('[data-role="user"]')
@@ -719,9 +752,9 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
     .toBe('cancelled');
   expect(cancelResponse.ok()).toBe(true);
   await workerControl('release', runId);
-  await expect(stoppedMessage).toContainText('Stopped');
+  await expect(stoppedMessage).toContainText('You stopped this response.');
   await page.reload();
-  await expect(stoppedMessage).toContainText('Stopped');
+  await expect(stoppedMessage).toContainText('You stopped this response.');
   await expect(
     page.getByRole('textbox', { name: 'Message input' }),
   ).toHaveAttribute(
