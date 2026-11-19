@@ -6,52 +6,52 @@ Status: awaiting the owner's visual review (round 2, Task 35R8). The per-capture
 
 Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-prototype.mjs --gate` skips the listed rows). Variant: `d` desktop, `m` mobile, `-dark` dark.
 
-| id                              | variant | %    | reason                                                                |
-| ------------------------------- | ------- | ---- | --------------------------------------------------------------------- |
-| chat-deep-thinking              | m       | 2.06 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-deep-thinking              | m-dark  | 2.08 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-delete                     | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-edit                       | d       | 1.84 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-edit                       | d-dark  | 1.82 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-rename                     | m       | 1.90 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chat-rename                     | m-dark  | 2.09 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chats-no-results                | m       | 1.66 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chats-no-results                | m-dark  | 1.67 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chats-search                    | m       | 1.53 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| chats-search                    | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| mobile-sheet-open               | m       | 2.74 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| mobile-sheet-open               | m-dark  | 2.98 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| onboarding-team                 | m       | 2.11 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| onboarding-team                 | m-dark  | 2.60 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| organization-switcher-open      | m       | 3.11 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| organization-switcher-open      | m-dark  | 3.27 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-empty     | m-dark  | 3.55 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-error     | m       | 2.98 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-error     | m-dark  | 4.28 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-loading   | m       | 2.30 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-loading   | m-dark  | 2.60 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-populated | m       | 2.66 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| platform-provisioning-populated | m-dark  | 3.27 | replaced in F4.3 (owner); Linux CI 44379158533                        |
-| recent-menu                     | m       | 2.77 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| recent-menu                     | m-dark  | 2.97 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-appearance             | m       | 1.53 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-general                | m       | 2.02 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-general                | m-dark  | 1.92 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-invitations            | m       | 4.96 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-invitations            | m-dark  | 5.19 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-members                | m       | 3.03 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-members                | m-dark  | 3.16 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-security               | m       | 3.26 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| settings-security               | m-dark  | 3.02 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| sign-in-form-alert              | m       | 1.55 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| sign-in-form-alert              | m-dark  | 1.55 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| toast-success                   | m       | 1.64 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| two-factor                      | m-dark  | 1.54 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| user-menu-open                  | m       | 3.67 | owner review: over the gate after the round cap; Linux CI 44379158533 |
-| user-menu-open                  | m-dark  | 4.09 | owner review: over the gate after the round cap; Linux CI 44379158533 |
+| id                              | variant | %    | reason                                                                                                                    |
+| ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------- |
+| chat-deep-thinking              | m       | 2.06 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chat-deep-thinking              | m-dark  | 2.08 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chat-delete                     | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chat-edit                       | d       | 1.84 | owner review: answers after the edited message are muted (#6b6567 measured in the CI capture); residual is text rendering |
+| chat-edit                       | d-dark  | 1.82 | owner review: answers after the edited message are muted (#6b6567 measured in the CI capture); residual is text rendering |
+| chat-rename                     | m       | 1.90 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chat-rename                     | m-dark  | 2.09 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chats-no-results                | m       | 1.66 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chats-no-results                | m-dark  | 1.67 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chats-search                    | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| chats-search                    | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| mobile-sheet-open               | m       | 2.74 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| mobile-sheet-open               | m-dark  | 2.98 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| onboarding-team                 | m       | 2.11 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| onboarding-team                 | m-dark  | 2.60 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| organization-switcher-open      | m       | 3.11 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| organization-switcher-open      | m-dark  | 3.27 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-empty     | m-dark  | 3.55 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-error     | m       | 2.98 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-error     | m-dark  | 4.28 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-loading   | m       | 2.30 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-loading   | m-dark  | 2.60 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-populated | m       | 2.66 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| platform-provisioning-populated | m-dark  | 3.27 | replaced in F4.3 (owner); Linux CI 44379158533                                                                            |
+| recent-menu                     | m       | 2.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| recent-menu                     | m-dark  | 2.97 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| settings-appearance             | m       | 1.53 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| settings-general                | m       | 2.02 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| settings-general                | m-dark  | 1.92 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| settings-invitations            | m       | 3.44 | owner review: emails wrap (34af4d7), still over the gate; local Linux capture                                             |
+| settings-invitations            | m-dark  | 3.49 | owner review: emails wrap (34af4d7), still over the gate; local Linux capture                                             |
+| settings-members                | m       | 2.28 | owner review: emails wrap (34af4d7), still over the gate; local Linux capture                                             |
+| settings-members                | m-dark  | 2.35 | owner review: emails wrap (34af4d7), still over the gate; local Linux capture                                             |
+| settings-security               | m       | 3.26 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| settings-security               | m-dark  | 3.02 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| sign-in-form-alert              | m       | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| sign-in-form-alert              | m-dark  | 1.55 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| toast-success                   | m       | 1.64 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| two-factor                      | m-dark  | 1.54 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| user-menu-open                  | m       | 3.67 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
+| user-menu-open                  | m-dark  | 4.09 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)                           |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
