@@ -1,7 +1,17 @@
 import type { BetterAuthPlugin } from 'better-auth';
 import { createAuthEndpoint, APIError } from 'better-auth/api';
 import { z } from 'zod';
+import { JobTitleSchema } from '@lexon/contracts';
 import { verifyJWT } from 'better-auth/crypto';
+
+export const accountProfileBodySchema = z
+  .object({
+    userId: z.uuid(),
+    name: z.string().trim().min(1).max(100).optional(),
+    jobTitle: JobTitleSchema.nullable().optional(),
+    completeOnboarding: z.literal(true).optional(),
+  })
+  .strict();
 
 export interface AccountLocks {
   grants(
@@ -158,14 +168,7 @@ export function accountPlugin(locks: AccountLocks) {
         {
           method: 'POST',
           metadata: { scope: 'server' },
-          body: z
-            .object({
-              userId: z.uuid(),
-              name: z.string().trim().min(1).max(100).optional(),
-              jobTitle: z.string().trim().min(1).max(80).nullable().optional(),
-              completeOnboarding: z.literal(true).optional(),
-            })
-            .strict(),
+          body: accountProfileBodySchema,
         },
         async (ctx) => {
           await locks.user(ctx.body.userId);
