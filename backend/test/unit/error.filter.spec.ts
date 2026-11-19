@@ -1,11 +1,10 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
-import { APIError } from 'better-auth/api';
 import { describe, expect, test, vi } from 'vitest';
 import { SafeErrorFilter } from '../../src/modules/platform/error.filter.js';
 
 function run(error: unknown) {
   const json = vi.fn();
-  const status = vi.fn((_code: number) => ({ json }));
+  const status = vi.fn((code: number) => ({ json, code }));
   const host = {
     switchToHttp: () => ({
       getRequest: () => ({ id: 'req-1' }),
@@ -45,7 +44,12 @@ const cases: Array<[string, unknown, number, string]> = [
   ],
   [
     'Better Auth APIError',
-    new APIError('FORBIDDEN', { message: 'constraint stack SELECT' }),
+    Object.assign(new Error('constraint stack SELECT'), {
+      name: 'APIError',
+      status: 'FORBIDDEN',
+      statusCode: 403,
+      body: { code: 'FORBIDDEN', message: 'constraint stack SELECT' },
+    }),
     403,
     'REQUEST_REJECTED',
   ],
