@@ -68,6 +68,12 @@ const cases: Array<[string, unknown, number, string]> = [
     'VALIDATION_ERROR',
   ],
   ['pg 23505', pg('23505'), 409, 'CONFLICT'],
+  [
+    'pg 23505 on an unlisted constraint stays a server error',
+    pg('23505', { constraint: 'task9_unexpected_outbox_unique' }),
+    500,
+    'INTERNAL_ERROR',
+  ],
   ['pg 23P01', pg('23P01'), 409, 'CONFLICT'],
   [
     'pool timeout',

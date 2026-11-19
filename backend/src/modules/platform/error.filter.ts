@@ -11,7 +11,11 @@ import type { Request, Response } from 'express';
 import type { ErrorResponse } from '@lexon/contracts';
 import { ChatApiError, SafeErrorMessages } from '@lexon/contracts';
 
-const CONFLICT_SQLSTATES = ['23505', '23P01'];
+// A 23505 is a client conflict only for constraints we expect callers to hit.
+// Any other unique violation stays a 500: chat-branches.spec.ts pins that an
+// unexpected outbox uniqueness failure is a server error.
+const CONFLICT_CONSTRAINTS = ['organization_slug_unique'];
+const CONFLICT_SQLSTATES = ['23P01'];
 const UNAVAILABLE_SQLSTATES = ['57P01', '57P03'];
 const UNAVAILABLE_MESSAGES = [
   'timeout exceeded when trying to connect',
@@ -48,6 +52,16 @@ function invalidJson(error: unknown): boolean {
 }
 function hasType(error: object, type: string): boolean {
   return (error as { type?: unknown }).type === type;
+}
+function uniqueConflict(error: unknown): boolean {
+  return chain(error).some((e) => {
+    const { code, constraint } = e as { code?: unknown; constraint?: unknown };
+    return (
+      code === '23505' &&
+      typeof constraint === 'string' &&
+      CONFLICT_CONSTRAINTS.includes(constraint)
+    );
+  });
 }
 function databaseCode(error: unknown, codes: string[]): boolean {
   return chain(error).some((e) =>
@@ -127,7 +141,10 @@ export class SafeErrorFilter implements ExceptionFilter {
         code: 'AUTH_UNAVAILABLE',
         message: 'Authentication is temporarily unavailable.',
       };
-    } else if (databaseCode(error, CONFLICT_SQLSTATES)) {
+    } else if (
+      uniqueConflict(error) ||
+      databaseCode(error, CONFLICT_SQLSTATES)
+    ) {
       status = 409;
       detail = { code: 'CONFLICT', message: 'Conflict' };
     } else {
