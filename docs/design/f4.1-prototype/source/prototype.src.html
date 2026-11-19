@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 14.6</title>
+<title>Lexon v4.1 Prototype, revision 14.7</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -352,6 +352,8 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .authm{justify-content:space-between;gap:24px}
 .authm .aspacer{height:36px;flex:none}
 .um .bar[data-running]{display:none!important}
+/* r14.7: auth wordmark 96px desktop, 88px mobile (owner) */
+.wm{width:96px}.authm .wm{width:88px}
 </style>
 <div id="root"></div>
 <script>
@@ -566,7 +568,7 @@ Object.assign(I,{
 });
 const MOB=qs.get('m')==='1';
 const isDark=()=>document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
-const wm=()=>`<img src="${isDark()?WM_WHITE:WM_INK}" alt="Lexon" style="width:128px">`;
+const wm=()=>`<img src="${isDark()?WM_WHITE:WM_INK}" alt="Lexon" class="wm">`;
 const backLink=(t='Back to sign in')=>`<a class="slink" href="#">${sv('back',16)}${t}</a>`;
 const head=(title,text)=>`<div class="ahead"><h1>${title}</h1>${text?`<p>${text}</p>`:''}</div>`;
 const fld=(id,label,{value='',ph='',type='text',hint='',aside='',eye=false,ro=false}={})=>`<div class="field"><label for="${id}">${label}${aside}</label><div style="position:relative"><input id="${id}" class="inp lg" type="${type}" value="${value}" placeholder="${ph}" ${ro?'readonly':''}>${eye?`<button class="ib" style="position:absolute;right:6px;top:6px" aria-label="Show password">${sv('eye')}</button>`:''}</div>${hint?`<span class="fhint">${hint}</span>`:''}</div>`;

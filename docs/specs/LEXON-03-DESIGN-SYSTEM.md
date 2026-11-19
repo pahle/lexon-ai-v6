@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.6, approved 2026-11-19) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.7, approved 2026-11-19) |
 
 ## Rationale
 
@@ -223,7 +223,8 @@ Rules:
     (`sidebar-primary`) with name and member count. The **Personal workspace
     shows the Lexon monogram** in the tile. No wordmark in the sidebar; the
     collapsed (icon) sidebar shows only the tile.
-  - **Sign-in and account pages:** the compact wordmark at 128px (ink on
+  - **Sign-in and account pages:** the compact wordmark at 96px (88px on
+    mobile) (ink on
     light, white on dark).
   - **Answers:** the thinking indicator while an answer runs and the static
     monogram next to "Thought for N seconds" when it completes (§5.4). No
@@ -464,7 +465,7 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 **Auth pages**
 
 - Two equal columns. Left: `sidebar` background, padding 40px, the compact
-  wordmark (128px) top left; the form block (max 400px wide, 20px gaps) is
+  wordmark (96px) top left; the form block (max 400px wide, 20px gaps) is
   centered in the remaining height. Right: the Night cover, padding 48px, the
   rule (40×2px) and tagline at the top, the statement (§3, max 520px), the
   domain (13px) at the bottom right. No second wordmark.
