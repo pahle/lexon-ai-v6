@@ -8,8 +8,9 @@ node_modules/
 **/.next/
 **/.test-build/
 **/*.tsbuildinfo
-.env
-.env.local
+**/.env
+**/.env.*
+!**/.env.example
 coverage/
 playwright-report/
 test-results/
