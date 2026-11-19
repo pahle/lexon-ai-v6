@@ -15,6 +15,7 @@ export default defineConfig({
       testMatch: [
         'backend/test/e2e/identity-api.spec.ts',
         'backend/test/e2e/rate-limit-proxy.spec.ts',
+        'backend/test/e2e/foreign-org-bearer.spec.ts',
       ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },

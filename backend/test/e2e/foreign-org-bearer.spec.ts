@@ -3,9 +3,8 @@ import { expect, test } from '@playwright/test';
 import { authenticateApi } from './identity-support.js';
 import { descriptor } from './runtime-support.js';
 
-// A-17: a real bearer token of user A against organization B's resources is
-// indistinguishable from a missing resource (404), never 403.
-test("user A's bearer token gets 404 on organization B's members, chats and settings", async ({
+// A-17: a real bearer token of user A against organization B's resources.
+test("user A's bearer token is refused on organization B's members, chats and settings", async ({
   playwright,
 }) => {
   test.setTimeout(90_000);
@@ -71,9 +70,16 @@ test("user A's bearer token gets 404 on organization B's members, chats and sett
       `${stack.apiUrl}/api/organizations/${orgB}/settings`,
       { data: { name: 'Taken over' } },
     );
-    expect([members.status(), chats.status(), settings.status()]).toEqual([
-      404, 404, 404,
-    ]);
+    // A chat of another organization is indistinguishable from a missing one.
+    expect(chats.status()).toBe(404);
+    // Organization-scoped identity endpoints keep their ORG_FORBIDDEN 403
+    // contract (LEX-ARC-001 identity errors); neither leaks any data.
+    for (const response of [members, settings]) {
+      expect(response.status()).toBe(403);
+      expect(await response.json()).toMatchObject({
+        error: { code: 'ORG_FORBIDDEN' },
+      });
+    }
   } finally {
     await Promise.all([bearer?.dispose(), userA.dispose(), userB.dispose()]);
   }

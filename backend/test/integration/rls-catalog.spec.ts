@@ -1,40 +1,18 @@
 import { expect } from 'vitest';
-import { Pool } from 'pg';
 import { test } from '../setup/file-services.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
+import { createRlsInspector } from '../../src/infrastructure/db/testing/rls-fixture.js';
 
 // A-17: every table in the `app` schema is tenant-fenced.
-async function appTables(migrator: Pool): Promise<string[]> {
-  return (
-    await migrator.query<{ relname: string }>(
-      `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-       WHERE n.nspname='app' AND c.relkind='r' ORDER BY c.relname`,
-    )
-  ).rows.map((row) => row.relname);
-}
-
 test('every app table has row-level security enabled and forced', async ({
   services,
 }) => {
-  const migrator = new Pool({ connectionString: services.migratorUrl });
+  const inspect = createRlsInspector(services);
   try {
-    const rows = (
-      await migrator.query<{
-        relname: string;
-        relrowsecurity: boolean;
-        relforcerowsecurity: boolean;
-      }>(
-        `SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity
-         FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-         WHERE n.nspname='app' AND c.relkind='r'`,
-      )
-    ).rows;
-    expect(rows.length).toBeGreaterThan(0);
-    expect(
-      rows.filter((row) => !row.relrowsecurity || !row.relforcerowsecurity),
-    ).toEqual([]);
+    expect(await inspect.tableCount()).toBeGreaterThan(0);
+    expect(await inspect.unfencedTables()).toEqual([]);
   } finally {
-    await migrator.end();
+    await inspect.close();
   }
 });
 
@@ -42,29 +20,16 @@ test('an app connection without the tenant GUC sees no rows in any app table', a
   services,
 }) => {
   const ai = await createAiFixture(services);
-  const migrator = new Pool({ connectionString: services.migratorUrl });
-  const app = new Pool({ connectionString: services.appUrl });
+  const inspect = createRlsInspector(services);
   try {
     // Seed through the fixture (owner-side setup) so the zero counts are not vacuous.
     for (let org = 0; org < 2; org++) await ai.start(org);
-    const tables = await appTables(migrator);
-    const owned: Record<string, number> = {};
-    const visible: Record<string, number> = {};
-    for (const table of tables) {
-      const count = async (pool: Pool) =>
-        Number(
-          (
-            await pool.query<{ count: string }>(
-              `SELECT count(*) FROM app."${table}"`,
-            )
-          ).rows[0]!.count,
-        );
-      owned[table] = await count(migrator);
-      visible[table] = await count(app);
-    }
-    expect(owned['ai_runs']).toBeGreaterThan(0);
-    expect(Object.values(visible).filter((n) => n > 0)).toEqual([]);
+    const visibility = await inspect.visibility();
+    expect(visibility['ai_runs']!.owner).toBeGreaterThan(0);
+    expect(
+      Object.entries(visibility).filter(([, rows]) => rows.noContext > 0),
+    ).toEqual([]);
   } finally {
-    await Promise.all([ai.close(), migrator.end(), app.end()]);
+    await Promise.all([ai.close(), inspect.close()]);
   }
 });

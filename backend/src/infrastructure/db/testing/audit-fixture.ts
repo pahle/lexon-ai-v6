@@ -104,3 +104,43 @@ export function createAuditInspector(options: {
     },
   };
 }
+
+/** A-22 catalog and caller checks for auth.lexon_append_audit. */
+export function createAppendGrantInspector(options: {
+  appUrl: string;
+  authUrl: string;
+  migratorUrl: string;
+}) {
+  const app = new Pool({ connectionString: options.appUrl });
+  const auth = new Pool({ connectionString: options.authUrl });
+  const migrator = new Pool({ connectionString: options.migratorUrl });
+  const append = (pool: Pool, event: unknown) =>
+    pool.query('SELECT auth.lexon_append_audit($1::jsonb)', [
+      JSON.stringify(event),
+    ]);
+  return {
+    appAppend: (event: unknown) => append(app, event),
+    authAppend: (event: unknown) => append(auth, event),
+    async storedEventIds(eventId: string) {
+      return (
+        await migrator.query<{ event_id: string }>(
+          'SELECT event_id FROM ops.audit_events WHERE event_id=$1',
+          [eventId],
+        )
+      ).rows.map((row) => row.event_id);
+    },
+    async executeGrantees() {
+      return (
+        await migrator.query<{ grantee: string }>(
+          `SELECT DISTINCT grantee FROM information_schema.routine_privileges
+           WHERE routine_schema='auth' AND routine_name='lexon_append_audit'
+             AND privilege_type='EXECUTE' AND grantee <> 'lexon_migrator'
+           ORDER BY grantee`,
+        )
+      ).rows.map((row) => row.grantee);
+    },
+    async close() {
+      await Promise.all([app.end(), auth.end(), migrator.end()]);
+    },
+  };
+}

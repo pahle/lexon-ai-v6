@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JobTitleSchema } from '@lexon/contracts';
-import { accountProfileBodySchema } from '../../src/infrastructure/db/auth/account-plugin.js';
+import { accountProfileBodySchema } from '../../src/infrastructure/db/index.js';
 
 const userId = '3f1c7c0e-6a53-4b8c-9d54-0e2f6f1a7b11';
 const inputs: [string, unknown][] = [

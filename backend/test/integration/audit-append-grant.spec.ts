@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import { Pool } from 'pg';
 import { test } from '../setup/file-services.js';
+import { createAppendGrantInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 
 // A-22: only lexon_auth may execute auth.lexon_append_audit.
 function event() {
@@ -22,49 +22,36 @@ function event() {
 test('lexon_app cannot execute auth.lexon_append_audit', async ({
   services,
 }) => {
-  const app = new Pool({ connectionString: services.appUrl });
+  const inspect = createAppendGrantInspector(services);
   try {
-    await expect(
-      app.query('SELECT auth.lexon_append_audit($1::jsonb)', [
-        JSON.stringify(event()),
-      ]),
-    ).rejects.toMatchObject({ code: '42501' });
+    await expect(inspect.appAppend(event())).rejects.toMatchObject({
+      code: '42501',
+    });
   } finally {
-    await app.end();
+    await inspect.close();
   }
 });
 
 test('lexon_auth append writes one row', async ({ services }) => {
-  const auth = new Pool({ connectionString: services.authUrl });
-  const migrator = new Pool({ connectionString: services.migratorUrl });
+  const inspect = createAppendGrantInspector(services);
   try {
     const value = event();
-    await auth.query('SELECT auth.lexon_append_audit($1::jsonb)', [
-      JSON.stringify(value),
+    await inspect.authAppend(value);
+    expect(await inspect.storedEventIds(value.eventId)).toEqual([
+      value.eventId,
     ]);
-    const rows = await migrator.query(
-      'SELECT event_id FROM ops.audit_events WHERE event_id=$1',
-      [value.eventId],
-    );
-    expect(rows.rows).toEqual([{ event_id: value.eventId }]);
   } finally {
-    await Promise.all([auth.end(), migrator.end()]);
+    await inspect.close();
   }
 });
 
 test('routine_privileges for lexon_append_audit lists only lexon_auth', async ({
   services,
 }) => {
-  const migrator = new Pool({ connectionString: services.migratorUrl });
+  const inspect = createAppendGrantInspector(services);
   try {
-    const rows = await migrator.query<{ grantee: string }>(
-      `SELECT DISTINCT grantee FROM information_schema.routine_privileges
-       WHERE routine_schema='auth' AND routine_name='lexon_append_audit'
-         AND privilege_type='EXECUTE' AND grantee <> 'lexon_migrator'
-       ORDER BY grantee`,
-    );
-    expect(rows.rows.map((row) => row.grantee)).toEqual(['lexon_auth']);
+    expect(await inspect.executeGrantees()).toEqual(['lexon_auth']);
   } finally {
-    await migrator.end();
+    await inspect.close();
   }
 });
