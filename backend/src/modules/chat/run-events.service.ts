@@ -99,6 +99,16 @@ async function sharedSnapshotRead(
   return pending;
 }
 
+// Only a revoked session (401/403) or a lost ownership check closes a stream;
+// an outage (AUTH_UNAVAILABLE, pool timeout) keeps it open for the next check.
+function closesStream(error: unknown): boolean {
+  return (
+    error instanceof NotFoundException ||
+    (error instanceof IdentityError &&
+      (error.status === 401 || error.status === 403))
+  );
+}
+
 interface RunSseRevalidation {
   assert(identity: VerifiedIdentity, orgId: string): Promise<void>;
 }
@@ -224,9 +234,11 @@ export class RunEventsService {
           }
           try {
             await this.#revalidate(identity, orgId);
-          } catch {
-            await close('revoked');
-            return;
+          } catch (error) {
+            if (closesStream(error)) {
+              await close('revoked');
+              return;
+            }
           }
           if (closed) return;
           const event = ChatInvalidationEventSchema.parse({
@@ -320,11 +332,7 @@ export class RunEventsService {
           try {
             await this.#revalidate(identity, orgId);
           } catch (error) {
-            if (
-              error instanceof IdentityError &&
-              (error.status === 401 || error.status === 403)
-            )
-              return close('revoked');
+            if (closesStream(error)) return close('revoked');
           }
         })()
           .catch(() => close('revoked'))
@@ -439,7 +447,9 @@ export class RunEventsService {
         }
         await check.pending;
       })()
-        .catch(() => close('revoked'))
+        .catch((error: unknown) => {
+          if (closesStream(error)) return close('revoked');
+        })
         .finally(() => {
           checkingAuthorization = false;
         });
