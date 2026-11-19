@@ -5,6 +5,7 @@ import type { OwnSessionSummary, Uuid } from '@lexon/contracts';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
+import { ListFailure } from '../states/list-failure';
 import { EmptyState } from '../states/page-states';
 import { PendingButton } from '../forms/pending-button';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -36,11 +37,15 @@ const deviceIcons = {
 export function SessionList({
   sessions,
   loading = false,
+  failed = false,
+  onRetry,
   onRevoke,
   onSignOutOthers,
 }: {
   sessions: readonly OwnSessionSummary[];
   loading?: boolean;
+  failed?: boolean;
+  onRetry?: () => void;
   onRevoke: (id: Uuid) => Promise<void>;
   onSignOutOthers?: () => void;
 }) {
@@ -71,7 +76,9 @@ export function SessionList({
           </Button>
         ) : null}
       </div>
-      {loading ? (
+      {failed && onRetry ? (
+        <ListFailure thing="sessions" onRetry={onRetry} />
+      ) : loading ? (
         <div
           role="status"
           aria-label="Loading sessions"

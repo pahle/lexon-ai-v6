@@ -72,7 +72,13 @@ export function AccountSecurity() {
     retry: false,
     enabled: sessionsEnabled,
   });
-  const error = security.error ?? sessions.error;
+  const sessionsExpired =
+    sessions.error instanceof IdentityClientError &&
+    sessions.error.status === 401;
+  // A sessions failure other than an expired sign-in is shown in the sessions
+  // list itself (with Try again); only security or an expired sign-in takes
+  // over the page.
+  const error = security.error ?? (sessionsExpired ? sessions.error : null);
   if (error)
     return (
       <SessionBoundary
@@ -203,6 +209,8 @@ export function AccountSecurity() {
         <SessionList
           sessions={sessions.data ?? []}
           loading={sessions.isLoading}
+          failed={Boolean(sessions.error)}
+          onRetry={() => void sessions.refetch()}
           onSignOutOthers={() => setConfirmSignOutOthers(true)}
           onRevoke={async (id) => {
             await api.revokeSession(id);

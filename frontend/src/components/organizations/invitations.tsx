@@ -229,7 +229,15 @@ export function Invitations({
           Pending invitations
         </h3>
       ) : null}
-      {invitations.error ? <QueryFailure error={invitations.error} /> : null}
+      {invitations.error ? (
+        <QueryFailure
+          error={invitations.error}
+          list={{
+            thing: 'invitations',
+            onRetry: () => void invitations.refetch(),
+          }}
+        />
+      ) : null}
       {!invitations.error && !invitations.data ? (
         <div
           role="status"

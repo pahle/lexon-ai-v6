@@ -205,7 +205,12 @@ export function Members({
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       ) : null}
-      {members.error ? <QueryFailure error={members.error} /> : null}
+      {members.error ? (
+        <QueryFailure
+          error={members.error}
+          list={{ thing: 'members', onRetry: () => void members.refetch() }}
+        />
+      ) : null}
       {!members.error && !members.data ? (
         <div
           role="status"

@@ -10,6 +10,7 @@ import {
 import { SessionBoundary } from '../auth/session-boundary';
 import { Button } from '../ui/button';
 import { ErrorState } from '../states/page-states';
+import { ListFailure } from '../states/list-failure';
 export const identityApi = createIdentityClient({ baseUrl: '/api' });
 export function identityMessage(error: unknown): string {
   return error instanceof IdentityClientError && error.code === 'ORG_SLUG_TAKEN'
@@ -23,7 +24,14 @@ export function identityMessage(error: unknown): string {
           ? 'Service temporarily unavailable. Please try again.'
           : 'Unable to complete this action. Refresh and check your access.';
 }
-export function QueryFailure({ error }: { error: unknown }) {
+export function QueryFailure({
+  error,
+  list,
+}: {
+  error: unknown;
+  /** A list that failed to load: show the error row with Try again. */
+  list?: { thing: string; onRetry: () => void };
+}) {
   if (error instanceof IdentityClientError && error.status === 403)
     return (
       <>
@@ -40,6 +48,8 @@ export function QueryFailure({ error }: { error: unknown }) {
         </nav>
       </>
     );
+  if (list && !(error instanceof IdentityClientError && error.status === 401))
+    return <ListFailure thing={list.thing} onRetry={list.onRetry} />;
   return (
     <SessionBoundary
       embedded
