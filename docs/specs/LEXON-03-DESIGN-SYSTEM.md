@@ -90,7 +90,7 @@ breakpoints: [768px]
 | **Date** | 18 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
-| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.7, approved 2026-11-19) |
+| **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.8, approved 2026-11-19) |
 
 ## Rationale
 
@@ -387,15 +387,24 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 **Shell**
 
 - Canvas `sidebar`. Sidebar 256px wide, padding 8px, item gap 4px; collapsed
-  (icon) 49px. Mobile: hidden; a `Sheet` 300px wide opens from the left over
+  (icon) 64px with padding 8px 16px. Mobile: hidden; a `Sheet` 300px wide opens from the left over
   an `overlay`.
 - Switcher and user rows 48px high. Tile and avatar 32px, radius 8px, 12px
   semibold initials; the avatar sits on `sidebar-accent`.
-- **Nothing moves when the sidebar collapses.** The tile and the avatar sit at
-  the row's left edge (x 8px, no left padding), on the same 32px column as the
-  nav icons (16px icons at x 16px). Expanded and collapsed, the tile is at
-  y 16px, the Assistant icon at y 80px (an 8px spacer replaces the group
-  label), and the avatar at the same distance from the bottom.
+- **One grid, straight edges.** Every row spans x 8–248 with padding 0 8px,
+  so content runs from x 16 to x 240 (mobile sheet: 16 to 284).
+  - Left edge x 16: the team tile, nav icons, the "Recent" label, Recent
+    titles, the View all dots, and the avatar. Sub-items are indented (text at
+    x 42).
+  - Right edge x 240: the visible glyph of every chevron (team switcher,
+    Assistant, user row), the shortcut text ("Ctrl Alt N"), and the row ⋯.
+    Icons whose glyph is inset in its 16px box are offset so the glyph, not
+    the box, meets the edge.
+  - Recent titles truncate with an ellipsis before the ⋯ slot.
+- **Collapse.** The tile and the avatar keep their position (x 16, same y).
+  The Assistant icon sits centered in its 32px button under the tile (glyph
+  x 24–40), so it shifts 8px right when collapsing; the tile, avatar, and
+  every y position stay put.
 - Nav item 32px high, radius 6px, padding 0 8px, 14px; active and hover
   `sidebar-accent`, active weight 500. Sub-items 28px, indented by a 1px
   `sidebar-border` line (margin-left 15px, padding-left 10px).

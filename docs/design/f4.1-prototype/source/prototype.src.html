@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 14.7</title>
+<title>Lexon v4.1 Prototype, revision 14.8</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -343,7 +343,6 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .thread>div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important}
 .app.mobile.plain>div:first-child{text-align:center}
 /* r14.2: switcher tile and user avatar sit on the 32px icon column (x 8px) so nothing moves when the sidebar collapses */
-.sb .nb.big{padding-left:0}
 /* r14.5: composer grows with its text up to a cap, then scrolls; touch shows message actions */
 .comp textarea{field-sizing:content;max-height:200px;overflow-y:auto}
 .app.mobile .comp textarea{max-height:144px}
@@ -354,6 +353,17 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .um .bar[data-running]{display:none!important}
 /* r14.7: auth wordmark 96px desktop, 88px mobile (owner) */
 .wm{width:96px}.authm .wm{width:88px}
+/* r14.8: sidebar grid (owner). Every row: x 8–248, padding 0 8px, so content runs x 16–240.
+   Left edge x 16: team tile, nav icons, Recent titles, View all dots, avatar.
+   Right edge x 240: the visible glyph of every chevron, the shortcut text, and the row ⋯. */
+.sb .nb{padding:0 8px}
+.sb .nb>svg:last-child,.sb .nb>span:last-child>svg{margin-right:-4px}
+.sb .nb .kbd{margin-right:0}
+.sb .nb .more{width:16px;margin-right:-1px}
+.sb .nb>svg:first-child:not(:last-child){margin-left:-1px}
+.sb .nb.va>svg:first-child{margin-left:-3px}
+.sb.icon{width:64px;padding:8px 16px;align-items:flex-start}
+.sb.icon .nb{width:32px!important;padding:0!important;justify-content:center}
 </style>
 <div id="root"></div>
 <script>
@@ -393,7 +403,7 @@ function sidebar(S,c){
  else { chats.forEach((t,i)=>{const id='abcdef'[i];const on=c.active===id&&!c.page;
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
    rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span><span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
-   rec+=`<button class="nb" style="color:var(--mfg)">${sv('dots')}<span class="t">View all chats</span></button>`;}
+   rec+=`<button class="nb va" style="color:var(--mfg)">${sv('dots')}<span class="t">View all chats</span></button>`;}
  const orgMenu=S==='org'?`<div class="menu om" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;border-radius:6px;background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:15px;height:15px"></span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
  const userMenu=S==='user'?`<div class="menu umn" role="menu" style="bottom:0;left:calc(100% + 8px);min-width:240px"><div style="display:flex;gap:8px;align-items:center;padding:6px 8px"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">ayu@hukum-nusantara.co.id</span></span></div><div class="msep"></div><button class="mi">${sv('gear')}Settings<span class="kbd">Ctrl ,</span></button><div class="msep"></div><button class="mi">${sv('out')}Sign out</button></div>`:'';
  return `<aside class="sb" aria-label="Sidebar">
