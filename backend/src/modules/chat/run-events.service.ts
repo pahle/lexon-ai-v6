@@ -172,7 +172,8 @@ export class RunEventsService {
       if (admitted.evicted?.processId === PROCESS_ID)
         await this.#local.get(admitted.evicted.connectionId)?.close();
     } catch {
-      throw new NotFoundException();
+      // The chat is known to be the caller's; a failed admission is an outage.
+      throw new IdentityError('STREAM_UNAVAILABLE', 503);
     }
 
     let closed = false;
@@ -369,7 +370,8 @@ export class RunEventsService {
       if (admitted.evicted?.processId === PROCESS_ID)
         await this.#local.get(admitted.evicted.connectionId)?.close();
     } catch {
-      throw new NotFoundException();
+      // The chat is known to be the caller's; a failed admission is an outage.
+      throw new IdentityError('STREAM_UNAVAILABLE', 503);
     }
     const streamKey = `${this.queuePrefix}:{run-streams}:${runId}:events`;
     const snapshotKey = `${orgId}|${userId}|${runId}|${identity.channel}|${identity.sessionId}`;

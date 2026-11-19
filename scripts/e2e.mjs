@@ -120,7 +120,7 @@ try {
       S3_BUCKET: 'lexon-e2e',
       // A /24 per stack from 10.200-10.249, away from Docker's 172.x pools.
       EDGE_SUBNET: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.0/24`,
-      CADDY_EDGE_IP: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.2`,
+      CADDY_EDGE_IP: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.250`,
       PUBLIC_HOST_PORT: publicHostPort,
       PUBLIC_URL: publicUrl,
       API_HOST_PORT: await port(),

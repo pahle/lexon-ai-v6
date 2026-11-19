@@ -194,7 +194,7 @@ services:
       AUTH_AUDIT_HMAC_SECRET: ${AUTH_AUDIT_HMAC_SECRET:?}
       AUTH_AUDIT_HMAC_KEY_ID: ${AUTH_AUDIT_HMAC_KEY_ID:-v1}
       AUTH_OPEN_SIGNUP: ${AUTH_OPEN_SIGNUP:-true}
-      AUTH_TRUSTED_PROXIES: ${CADDY_EDGE_IP:-172.30.240.2}
+      AUTH_TRUSTED_PROXIES: ${CADDY_EDGE_IP:-172.30.240.250}
       SMTP_URL: ${SMTP_URL:?}
       SMTP_FROM: ${SMTP_FROM:?}
       PORT: 3001
@@ -301,7 +301,7 @@ services:
       - /config:rw,nosuid,nodev,noexec,size=16m,uid=1000,gid=1000,mode=0700
     networks:
       edge:
-        ipv4_address: ${CADDY_EDGE_IP:-172.30.240.2}
+        ipv4_address: ${CADDY_EDGE_IP:-172.30.240.250}
     mem_limit: 64m
     cpus: 0.25
     depends_on:
