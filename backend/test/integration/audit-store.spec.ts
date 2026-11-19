@@ -55,12 +55,16 @@ test('app tenant writer requires matching org; auth writer accepts events withou
       db.withTenant({ orgId }, (tx) =>
         audit.append(tx, orgEvent(randomUUID())),
       ),
-    ).rejects.toMatchObject({ message: 'Audit organization differs from tenant session' });
+    ).rejects.toMatchObject({
+      message: 'Audit organization differs from tenant session',
+    });
     await expect(
       db.withTenant({ orgId }, (tx) =>
         audit.append(tx, failed() as unknown as OrgAuditEvent),
       ),
-    ).rejects.toMatchObject({ message: 'Organization required for tenant audit' });
+    ).rejects.toMatchObject({
+      message: 'Organization required for tenant audit',
+    });
     expect(await inspect.count('organization.created.v1')).toBe(before + 1);
     const attempts = await inspect.count('identity.sign_in_failed.v1');
     await proof.integration.transaction((tx) => appendAuthAudit(tx, failed()));
@@ -96,8 +100,7 @@ test('audit table and function preserve narrow append-only runtime grants', asyn
 }) => {
   const inspect = createAuditInspector(services);
   try {
-    await inspect.appendRaw('app', failed());
-    await inspect.appendRaw('auth', failed());
+    await inspect.appendRaw(failed());
     await inspect.appendDirect(failed());
     await expect(
       inspect.appendDirect({
@@ -123,7 +126,7 @@ test('audit table and function preserve narrow append-only runtime grants', asyn
       owner: 'lexon_migrator',
       path: 'search_path=pg_catalog, auth, pg_temp',
       publicExecute: false,
-      appExecute: true,
+      appExecute: false,
       authExecute: true,
     });
     for (const invalid of [
@@ -136,7 +139,7 @@ test('audit table and function preserve narrow append-only runtime grants', asyn
       { ...failed(), metadata: { ip: '127.0.0.1' } },
       { ...failed(), subjectUserId: randomUUID() },
     ])
-      await expect(inspect.appendRaw('auth', invalid)).rejects.toMatchObject({
+      await expect(inspect.appendRaw(invalid)).rejects.toMatchObject({
         code: '23514',
       });
   } finally {

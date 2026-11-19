@@ -29,11 +29,10 @@ export function createAuditInspector(options: {
         ).rows[0]!.count,
       );
     },
-    async appendRaw(role: 'app' | 'auth', event: unknown) {
-      await (role === 'app' ? app : auth).query(
-        'SELECT auth.lexon_append_audit($1::jsonb)',
-        [JSON.stringify(event)],
-      );
+    async appendRaw(event: unknown) {
+      await auth.query('SELECT auth.lexon_append_audit($1::jsonb)', [
+        JSON.stringify(event),
+      ]);
     },
     async appendDirect(event: {
       eventId: string;
