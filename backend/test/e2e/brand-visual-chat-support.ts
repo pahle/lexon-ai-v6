@@ -74,15 +74,23 @@ export function hoverWhenParked(page: Page, target: () => Locator) {
   // before the screenshot.
   const holder = page as unknown as {
     screenshot: (options?: object) => Promise<Buffer>;
+    ensureTooltip?: () => Promise<void>;
   };
   const screenshot = holder.screenshot.bind(page);
-  holder.screenshot = async (options) => {
+  const ensureTooltip = async () => {
     if (!(await open.count())) await showTooltip(1_500).catch(() => undefined);
+  };
+  holder.screenshot = async (options) => {
+    await ensureTooltip();
     return screenshot(options);
   };
+  // toHaveScreenshot (the golden pass) does not call page.screenshot, so the
+  // capture helper calls this before it.
+  holder.ensureTooltip = ensureTooltip;
   return () => {
     delete (mouse as { move?: unknown }).move;
     delete (holder as { screenshot?: unknown }).screenshot;
+    delete holder.ensureTooltip;
   };
 }
 

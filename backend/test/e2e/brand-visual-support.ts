@@ -321,6 +321,9 @@ export async function captureBrandView(
   if (!isPixelLocked(view)) return resolve(captureDirectory, view.path);
   if (mode === 'compare')
     assertIndexedArtifact(index, id, setDirectory, { mode });
+  await (
+    page as unknown as { ensureTooltip?: () => Promise<void> }
+  ).ensureTooltip?.();
   await expect(page).toHaveScreenshot(['baseline', `${id}.png`], {
     animations: 'disabled',
     caret: 'hide',
