@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "sourceSha": "ecd0c9626e430883b0808f123bd9672c2c348289",
-  "capturedAt": "2026-11-17T16:09:02.722Z",
+  "sourceSha": "050fa0a00ac233d132e055872ffeb0c98b60511b",
+  "capturedAt": "2026-11-19T06:09:17.973Z",
   "environment": {
     "os": "Linux 7.0.0-1017-azure (linux/x64)",
     "browser": "Chromium 156.0.8078.4",
@@ -12,1684 +12,1908 @@
   },
   "approvalStatus": "awaiting-owner",
   "approvedImageHashesMatch": null,
-  "viewCount": 240,
+  "viewCount": 272,
   "images": {
     "sign-in-desktop-light": {
       "path": "review/sign-in-desktop-light.png",
-      "sha256": "95a2dbdf151ac35c8a391e34f7d4a3ef19d05ab36e2f192e788cca87a3b1eaca",
+      "sha256": "3b689ddc5f54269440e7b8e767aa35ae7914c053c102a21cd8ad589216994a29",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-desktop-dark": {
       "path": "review/sign-in-desktop-dark.png",
-      "sha256": "b783d87182b15b8abac4e13283fc686857cdf3c29f1a5dcad3e0592d10727c44",
+      "sha256": "01e5ca7e94b244aad70a8f13f63e44ac838a1ef5e2f2d4c023ff1c8bf67de7be",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-mobile-light": {
       "path": "review/sign-in-mobile-light.png",
-      "sha256": "77d6d54004737c4cb9910cb0f3eeb8952217f1c2e728e437e5035c832f21bb30",
+      "sha256": "053baeee5deb5c660b22fee0abe4f653bec196c6a2efa088156a98779053316c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-mobile-dark": {
       "path": "review/sign-in-mobile-dark.png",
-      "sha256": "c1ca7922249c84eadf4e812b43e20837f0570d2e8488469926a466a058060528",
+      "sha256": "5a7d7e413ee5fab7cd279ef0e7eb0de6a8a026d63390bc150c5ca8705b157a44",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-field-errors-desktop-light": {
       "path": "review/sign-in-field-errors-desktop-light.png",
-      "sha256": "76c44ad4a0e8f90a76a16f81593ee95321039a62028e21813ba891c8446af5ff",
+      "sha256": "324f5e0125f1ae7d799fe289f627b626605b514522eeb6da3ffd6f11c00988d3",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-field-errors-desktop-dark": {
       "path": "review/sign-in-field-errors-desktop-dark.png",
-      "sha256": "03f0babe3415c279dc6305bd4a17c32b0705247b0e44307fadae6fe4b9c279e3",
+      "sha256": "2c0b80c8af4fa07ab8f394b7d238ffaf404023daf99825b7eee211bd4a2145fc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-field-errors-mobile-light": {
       "path": "review/sign-in-field-errors-mobile-light.png",
-      "sha256": "c43e069ac351be22df0c73a21c318f5310e945cceb01c47dadbd995d2801109a",
+      "sha256": "5e851af1fa33154d1391f878f148f8259df7d089df3870ad7c538a8d927904b0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-field-errors-mobile-dark": {
       "path": "review/sign-in-field-errors-mobile-dark.png",
-      "sha256": "a9d776ded6317baeebb0becba29399a8983acfefab424c32d1e4a3023226ff9d",
+      "sha256": "e3f6c520306c070ea87a022b399d97d03ec622858e789f032c1afc1cc7ef9bce",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-pending-desktop-light": {
       "path": "review/sign-in-pending-desktop-light.png",
-      "sha256": "5be7ff7ef881e9414c2024ea2184787a58ef51b35d2f6c5833361080ffb5536f",
+      "sha256": "730579e5bc4a41d41140082f0ffc1d162040ebb5865aedec8d472135bb5f47cc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-pending-desktop-dark": {
       "path": "review/sign-in-pending-desktop-dark.png",
-      "sha256": "ad14c2cad874a5bb30504a4749806004f7a915a705b49436da4a07aa32d03bcb",
+      "sha256": "ad184a788e17b710781b3469be7cafe8bb6e5af4ebd654befe9f484aeb00634b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-pending-mobile-light": {
       "path": "review/sign-in-pending-mobile-light.png",
-      "sha256": "6d81f26950efb483cee707afd18b7543b527f6491f2de57e6da959ca94e1b7f8",
+      "sha256": "ce03658ddbff586e88ff325378cefd644aec8c1b018e174f929acd09a18b2ef2",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-pending-mobile-dark": {
       "path": "review/sign-in-pending-mobile-dark.png",
-      "sha256": "404f996419ac86eb6a6e6314ffe587ec9e913f24019b6ea1aeeac3fb7836d5c8",
+      "sha256": "c465ff68b1c7ee37dd13f56a6af527a41c47569a772b825f5b1f4e4ef32bd6f3",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-form-alert-desktop-light": {
       "path": "review/sign-in-form-alert-desktop-light.png",
-      "sha256": "4f7892b335a83b33a6f49af55e4672c9096b3a6e45407a5e58bc91ecaf27a75d",
+      "sha256": "ab5f2bd7d7862e4fe8b15c70dcb11ff77155968630e297aa873f89ee6ba53e53",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-form-alert-desktop-dark": {
       "path": "review/sign-in-form-alert-desktop-dark.png",
-      "sha256": "d1c7a9b7cada284a28512ea844b09565ccb04ffc8b30e82f1d863d969cc06d90",
+      "sha256": "9d3a8c8e726b60d178f263bee267aa35f9fbc57fb35c24c43ea8d6f9cdb8b5a2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-in-form-alert-mobile-light": {
       "path": "review/sign-in-form-alert-mobile-light.png",
-      "sha256": "3eeb55fccb257226fc29d5077c67d679ed5ad192d73dc2678fbc6f6ef748fb0a",
+      "sha256": "6ae47f6acebff81425bf74089cbb6d1d594bb72a0f94b8f60379ade7d51e7d8c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-in-form-alert-mobile-dark": {
       "path": "review/sign-in-form-alert-mobile-dark.png",
-      "sha256": "9a33b229ec35a5802495af297aa1ad81d10d939b29a503265735a21194923e2d",
+      "sha256": "54dea3739ce159001aa853a420c9ae6f54e3b927e0e8217e6712006f2b175857",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-up-desktop-light": {
       "path": "review/sign-up-desktop-light.png",
-      "sha256": "3e5b904a7913aea41b250fdfbfecc7ee42f7ae9f80756610ee31295a7ca3b22c",
+      "sha256": "3344629cb9fa236e7988a529fa32b1f37bde1f9e1e09df7b7b5f57ced09ab30f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-up-desktop-dark": {
       "path": "review/sign-up-desktop-dark.png",
-      "sha256": "11007182478c4204bd0c593c3f352e96cd80bbb7d6af04587018a78280a8f1e4",
+      "sha256": "c30beb853ef5c935630ba073ed22b654ffc6d7b20926c70285c6c26d47f7b427",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sign-up-mobile-light": {
       "path": "review/sign-up-mobile-light.png",
-      "sha256": "17ce90d06488de46d6e9158af50168df8758aec63446b6d3c50195afc86d5b02",
+      "sha256": "a5377d8c432d0f1866f398087de4f6a68d3e6ea51c60d13dbc3b21458b2ce810",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sign-up-mobile-dark": {
       "path": "review/sign-up-mobile-dark.png",
-      "sha256": "1287542e2fc49fa2816edb5dd563db87a9a1112dbd4f54be2537b7c8ef16cf17",
+      "sha256": "97ca47d548ddc5f0d74d3669ea6ee4038fe88ca2988735b7ff00d715e5b8ba7b",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "forgot-password-desktop-light": {
       "path": "review/forgot-password-desktop-light.png",
-      "sha256": "b3f9c4e5f61e0ecfc4680f30db364e125f42e9d32d853c6e2f61a0cceb05e05f",
+      "sha256": "73da8275e7eead8ef69a4996c54b96a4d3a9775e43641b04e08d991939267b56",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "forgot-password-desktop-dark": {
       "path": "review/forgot-password-desktop-dark.png",
-      "sha256": "6b63867c55596931e6f1e3c8583586ab5e1de88444029846336a785f8ec79b77",
+      "sha256": "5ab262cd1c4d1fff3c796f5e8a5ef3bbda1e9b455a34b69396a45c0e33616eaf",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "forgot-password-mobile-light": {
       "path": "review/forgot-password-mobile-light.png",
-      "sha256": "ac07610622bf2d798e4766bd919bde73a50f9c492a0f5b796a8abf315cb71e96",
+      "sha256": "0795db2a5f444c40da0c69eb855de3caacea44223ee33382198e39c29b6b550c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "forgot-password-mobile-dark": {
       "path": "review/forgot-password-mobile-dark.png",
-      "sha256": "1ed6c9c631dfcf2d916b22e04f1a009e6cf052d92e78d13e44875d59526d8cd2",
+      "sha256": "38f8efc0540e5afe8521a804c478decfe6a2a7cc1a9bfd1b55ead77851dabd9a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-sent-desktop-light": {
+      "path": "review/forgot-password-sent-desktop-light.png",
+      "sha256": "89d4be9028e08fac07f0126e87effb2045078b32b2da354c57aeb5cfe8b2ac2e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-sent-desktop-dark": {
+      "path": "review/forgot-password-sent-desktop-dark.png",
+      "sha256": "ee6066c1575c37fd5af84e4e263d4801fd9a2f5459954b0df22052a6cca03c91",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-sent-mobile-light": {
+      "path": "review/forgot-password-sent-mobile-light.png",
+      "sha256": "9a235d80dc7a42b8331205db9f1b3a73b49d6a23f5266784dd5e262e7f62649a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "forgot-password-sent-mobile-dark": {
+      "path": "review/forgot-password-sent-mobile-dark.png",
+      "sha256": "a83dea2d132319567cae70c2e3c6b430d7dc2638490be26b0e1e43dfc541d7fd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "reset-password-desktop-light": {
       "path": "review/reset-password-desktop-light.png",
-      "sha256": "0b2e7a153b7be1ce99570adaea84724c14a8a2b79d1e292a8646bc79bb0b0aca",
+      "sha256": "09d87d3104bb4a58972f2bf9f71c81b116eb9231b38e135d29847196d3842f5b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "reset-password-desktop-dark": {
       "path": "review/reset-password-desktop-dark.png",
-      "sha256": "0221c5623edeaa54062240c5c909ff62a9a638f320d719a506874c65fbde3dd2",
+      "sha256": "4d8bf59934d298f286e97e21d59b3294a17e3e83a645c53f6a65d237ec8881f1",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "reset-password-mobile-light": {
       "path": "review/reset-password-mobile-light.png",
-      "sha256": "dd135cc21bcfe39b0fe5ae2531adfb270638aaec391a897561cba15deb01700e",
+      "sha256": "11e50198d6c584508eb7e47053a10ba8d213b6fe88c7bfe92cfbd5187a66c6af",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "reset-password-mobile-dark": {
       "path": "review/reset-password-mobile-dark.png",
-      "sha256": "061ad15384e172840e46f07b5b213a416555673c2c47282f51152fd364cee731",
+      "sha256": "faa08113f3252a79ff7a7eff749c5dd8c6e02c5022ec0168e556a2c338b56adc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-invalid-desktop-light": {
+      "path": "review/reset-password-invalid-desktop-light.png",
+      "sha256": "ecd6834e15dae54a332451aa235621e64b30116d9121bfe4374b54a858ffcc3f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-invalid-desktop-dark": {
+      "path": "review/reset-password-invalid-desktop-dark.png",
+      "sha256": "2e70cb1010d250a617b27ea56ce186f9b6e67da03a2b3ffef21b3193f11f26a3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-invalid-mobile-light": {
+      "path": "review/reset-password-invalid-mobile-light.png",
+      "sha256": "7786da25e7efeb750b7371d03dfcc6b8611cf1eb6d39ec69375113c2e72d81e7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "reset-password-invalid-mobile-dark": {
+      "path": "review/reset-password-invalid-mobile-dark.png",
+      "sha256": "6f66a0255b1f45da01f1891234b47c2ca6581727b55a23f5a16be98e492777cd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "verify-email-desktop-light": {
       "path": "review/verify-email-desktop-light.png",
-      "sha256": "3acfe1c30c4194694208fc2f161b1589a3b4276faae36b1003a2de332d556bc5",
+      "sha256": "de8c47d3d3a585bc0195d7561b98ba9afc55de0f293fde84430878bd75a0418b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "verify-email-desktop-dark": {
       "path": "review/verify-email-desktop-dark.png",
-      "sha256": "69f7032f290153e80d812a5629bb0f98377ba58d39c636055c20e9dd0b44ff81",
+      "sha256": "80231622856a6c23b5cfc1aa33ad0065181df070f7662657dbb0c71405a572e0",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "verify-email-mobile-light": {
       "path": "review/verify-email-mobile-light.png",
-      "sha256": "1fa946cc039a72f8f7d02a7904b0f2a044b5a221919d9a44b40c37e1a8082019",
+      "sha256": "3c80cff5e35003ba61b5210a925cc0c2a9929365f410c5ce5f03909be799e342",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "verify-email-mobile-dark": {
       "path": "review/verify-email-mobile-dark.png",
-      "sha256": "7c55542b521047fd7d348ddd7e435f0958c26672be91b3d4b5b80b1af14fc940",
+      "sha256": "b880ef376c6b911cf621d7f28735e70c064fc43f802ca92c3ddc4f6e64c736eb",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "two-factor-desktop-light": {
       "path": "review/two-factor-desktop-light.png",
-      "sha256": "daa865b83cae66780af64dc316ff06a6046aa41946e3b31bb20d6622813016eb",
+      "sha256": "38e17f811f13a57d7a2a4e638416a91cdafa9a629e0c8986e8837c2f40b18aa4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "two-factor-desktop-dark": {
       "path": "review/two-factor-desktop-dark.png",
-      "sha256": "c0ba921d0c8841f3ed438296775f0d5a3b927580dfb426f1117095178b5024d8",
+      "sha256": "562d28039a1233544963bdf6f4a551523a82e9f389a782a9d77a4d2e45d251d7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "two-factor-mobile-light": {
       "path": "review/two-factor-mobile-light.png",
-      "sha256": "f1d26866569cffb2fc2296707bea6a8fb42ba47fdf040ff401011a07d005e4fa",
+      "sha256": "12e35e0f709d67a394f455256216a8989a3408ed776a1c5b7f4bef1379f5f645",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "two-factor-mobile-dark": {
       "path": "review/two-factor-mobile-dark.png",
-      "sha256": "de7b364223f1b23bef34c636e335b1dded0b95a211ef168152f69efd53d73082",
+      "sha256": "da709bdaf96e2abff801c2f0a76a441740fd2bbb063f72ab161b313f66ca7958",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "accept-invitation-desktop-light": {
       "path": "review/accept-invitation-desktop-light.png",
-      "sha256": "712f49afd3c414877d72a9ebb7c2a31e3a348b23038a7b55773719a96a0802d3",
+      "sha256": "c4c0d7be592f6423eb5cdf2f37b22a0cdd982803a60c677981dd6308e21081c2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "accept-invitation-desktop-dark": {
       "path": "review/accept-invitation-desktop-dark.png",
-      "sha256": "c8d4611959897f3c4225f0640ee6cd5ecd8e9b1f77b487763c331cb268711d5e",
+      "sha256": "4d16d907ce371be98c6d7e2ef88370a2782c73861631006df19ab41e955132a9",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "accept-invitation-mobile-light": {
       "path": "review/accept-invitation-mobile-light.png",
-      "sha256": "f1a3fa7bedfcb6d39f7650aac0e3659ee4eb94ce3d2c1a64756b27359372774d",
+      "sha256": "8138945d29694cd055d9ef8d83d4fe143c9a3abd22100b718b54780f889f3207",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "accept-invitation-mobile-dark": {
       "path": "review/accept-invitation-mobile-dark.png",
-      "sha256": "cb090e3e5548f2bd3b599fcd9eacf0ed616689b0fdf62aefb92c9b3deac2a147",
+      "sha256": "bc3e5367f356f5f52feb35ffb32b2376c2a33796e34334f82a52ab5968c7b2fe",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-declined-desktop-light": {
+      "path": "review/accept-invitation-declined-desktop-light.png",
+      "sha256": "9b553a6fe80e858bb5e1bfe4002d13585c042cbd1dd2f72af63d9053749002da",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-declined-desktop-dark": {
+      "path": "review/accept-invitation-declined-desktop-dark.png",
+      "sha256": "888148696b34e5f5e02aa76e66f30a83706c7336628ac6a7127404ef9f3639de",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-declined-mobile-light": {
+      "path": "review/accept-invitation-declined-mobile-light.png",
+      "sha256": "8e9f9a07aeac4adf0e8861c0748514d271df07654d3a8a5a9d41a9c5344849dc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-declined-mobile-dark": {
+      "path": "review/accept-invitation-declined-mobile-dark.png",
+      "sha256": "70432f46bf6a0d65c1ea1a4efd29e2c234e5e06de8c7a2aaa50aefccd96bcfd0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-unavailable-desktop-light": {
+      "path": "review/accept-invitation-unavailable-desktop-light.png",
+      "sha256": "e587edd31ea86c83571ff2678297bb6ec670f38ab076bc82526e34cde76356e2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-unavailable-desktop-dark": {
+      "path": "review/accept-invitation-unavailable-desktop-dark.png",
+      "sha256": "cccfcc959e07d2ff0f11fcafaee47ba6fa5bc522f73cd5d0037e470e3683aa1b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-unavailable-mobile-light": {
+      "path": "review/accept-invitation-unavailable-mobile-light.png",
+      "sha256": "c68454393688d82007bc5ac1cc128785ab011501d5941f1f78708233e4eae7bb",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "accept-invitation-unavailable-mobile-dark": {
+      "path": "review/accept-invitation-unavailable-mobile-dark.png",
+      "sha256": "efd58d0046504a7408a51500b32aba65ff902117d7074ecd0210828be70181ef",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "admin-setup-desktop-light": {
       "path": "review/admin-setup-desktop-light.png",
-      "sha256": "1fc3ef36242220b126548afeaa8af9d37224d56d134057d7c8bd433350bfb53c",
+      "sha256": "0dd2db32df999b9dd7ae0523bbabc3f5ad136c1c455b2a83a0cc69503a0c3a02",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "admin-setup-desktop-dark": {
       "path": "review/admin-setup-desktop-dark.png",
-      "sha256": "12fcf7ec2a79e58d4639bb3e9cbbd63f1fa20b800512f792c1d677fa07cee16c",
+      "sha256": "90f4dfa99cf4452cc126760ed0e1b99c9edc1fa41369b685c114b99f4318b686",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "admin-setup-mobile-light": {
       "path": "review/admin-setup-mobile-light.png",
-      "sha256": "3e6b705e6b73070e81ca6d0ea6afd4b94bfd71cc246c483be85b5dedd60b4e38",
+      "sha256": "d307ec0e5b4de4a404a86286b17b11ac18b93cc6f0c760c0774daaabee7ca786",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "admin-setup-mobile-dark": {
       "path": "review/admin-setup-mobile-dark.png",
-      "sha256": "6a38378428c687966ca0f1cc56cc1ee6037de0368fb13166524cdb4a7cd4fa14",
+      "sha256": "5dbf9a2d9b3ee37ee99cef6b9eb2ca49828749f24502f50d90c1516a0d9dc8e4",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-activate-desktop-light": {
+      "path": "review/admin-setup-activate-desktop-light.png",
+      "sha256": "41e2c5da73f27a2d7ecfcba6dac3032b2f58368c18202b4983e36744f45e541d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-activate-desktop-dark": {
+      "path": "review/admin-setup-activate-desktop-dark.png",
+      "sha256": "164e435e6ef5c440d0ad4bc5f5f491f01eb3bf756763cce104a09ce454432cb2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-activate-mobile-light": {
+      "path": "review/admin-setup-activate-mobile-light.png",
+      "sha256": "f7449f0fd178858151de1180de7c03e4e4f968faad519cf8d49ceb1809aadddc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-activate-mobile-dark": {
+      "path": "review/admin-setup-activate-mobile-dark.png",
+      "sha256": "afe31452e1402098b99de909efea76c9633ce1ce45159c3a557c97f7d4914222",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-unavailable-desktop-light": {
+      "path": "review/admin-setup-unavailable-desktop-light.png",
+      "sha256": "47a7445d7e9c73036e69a4e5d01c4b2edfa367231a9013fb139771a2185d7183",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-unavailable-desktop-dark": {
+      "path": "review/admin-setup-unavailable-desktop-dark.png",
+      "sha256": "94ce5563907efc26439d6f38d1ff9340365fe5adb794f274a2943e2f2a628aa1",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-unavailable-mobile-light": {
+      "path": "review/admin-setup-unavailable-mobile-light.png",
+      "sha256": "76c40a2236a9b64b851f6217a17c19e307a479f0b0142fbaafa8c5b0a79c3992",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "admin-setup-unavailable-mobile-dark": {
+      "path": "review/admin-setup-unavailable-mobile-dark.png",
+      "sha256": "52dedb05329a7c2ccc78869f96c48386f7f96bf608bec0cb67a68675e547b45c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "onboarding-desktop-light": {
       "path": "review/onboarding-desktop-light.png",
-      "sha256": "f4deae56a539b08909c3ec87dd4c5230333010f29af2b6f39734271189b2a74b",
+      "sha256": "15de2f1ae2895acb0a646b060290ad2b00ab2aa764d90f858d4ee70cf3a7f870",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "onboarding-desktop-dark": {
       "path": "review/onboarding-desktop-dark.png",
-      "sha256": "c3fef1f6aea5ec20c6b8916dda9e97d42e2a66ca39978b9337331af4d34b969f",
+      "sha256": "fecb7041bac7417b4b9ace7dd162d48c884daebfd46c055ac5c90916669793c6",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "onboarding-mobile-light": {
       "path": "review/onboarding-mobile-light.png",
-      "sha256": "0ea09a158101e9c92d554f29582be543ab1f38622df4644d9d9a1467258d98d8",
+      "sha256": "bce6090c1c7a35f2e59cc7b273677ad0ddda224aefc4fff4aca89145d6223c06",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "onboarding-mobile-dark": {
       "path": "review/onboarding-mobile-dark.png",
-      "sha256": "9dafbf0edd8232c5ada9ab795ad39f5edfd57df4adbf996d133489752d6807c2",
+      "sha256": "8b3305116a7ce1e048dba1c9cd7ed1d6dd353031d8286920c0477da8a1c93f12",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-invitations-desktop-light": {
+      "path": "review/onboarding-invitations-desktop-light.png",
+      "sha256": "69e56ad047f4b06d0bb807fdcf576587b150c1443bc987a2ac3e1ac5ba52f540",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-invitations-desktop-dark": {
+      "path": "review/onboarding-invitations-desktop-dark.png",
+      "sha256": "4c90bc7e754512bd0c235d49c220368c97e7d013f103fc8e07c10d022cf5bca5",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-invitations-mobile-light": {
+      "path": "review/onboarding-invitations-mobile-light.png",
+      "sha256": "f264c7b29665d5f5bcdb7df92caf1825dbdd516dd7283ded761712944ebbf046",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-invitations-mobile-dark": {
+      "path": "review/onboarding-invitations-mobile-dark.png",
+      "sha256": "8e08c2a31e2fa1c85d7575ea31badcbe486fd7be323cff0a0d850057e0fecea2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-team-desktop-light": {
+      "path": "review/onboarding-team-desktop-light.png",
+      "sha256": "7e7e9f583a26bc7092b7b43de227a546557d489186b8b5d6c2d51c6c5129d72f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-team-desktop-dark": {
+      "path": "review/onboarding-team-desktop-dark.png",
+      "sha256": "a2be21fc7825b76ea1cb2f3e076dff470c91a58edaf9bd71d473cba53224ffe7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-team-mobile-light": {
+      "path": "review/onboarding-team-mobile-light.png",
+      "sha256": "cbd4bcd3734ad3080dd3e0eed1c953cd0b5db17ebd0e1e90c6d511013f07004a",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "onboarding-team-mobile-dark": {
+      "path": "review/onboarding-team-mobile-dark.png",
+      "sha256": "3c18e61b9c6a73ba9e532c736c22420742bfdd07ceea44c5409f2240fb38c02c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "shell-personal-desktop-light": {
       "path": "review/shell-personal-desktop-light.png",
-      "sha256": "43aa28929945dc80677a0a55d164f8638704bce6b5badb796536d4623342c094",
+      "sha256": "62a2796081b76055169dcfcb34d13c59563a657e1bf31b116ba7ddde08a2c1c5",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "shell-personal-desktop-dark": {
       "path": "review/shell-personal-desktop-dark.png",
-      "sha256": "50601607ee42c01b07447a03972a0055ae278b3044b46140ecbe500ddef270a1",
+      "sha256": "6cf53905968194be06b7e5d35446e3a08f62a71a8f3ac1dc638fe43d5fb34a09",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "shell-personal-mobile-light": {
       "path": "review/shell-personal-mobile-light.png",
-      "sha256": "aa05fe7df1f9636798a9feea664a5623e1b43c5b4f8662bd252411859e490161",
+      "sha256": "4bbf532d65806cdc7716ed8ee89d6707d212e447096e7b014f753483cbb68e05",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "shell-personal-mobile-dark": {
       "path": "review/shell-personal-mobile-dark.png",
-      "sha256": "aad611dc573bbc321ffcf81a72d41235e5b1b3d78541381936e677e7b9644e29",
+      "sha256": "8089fd8620e509df66d00705c29a393e05467dcd0a6891f7ae43dc2adb992156",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "shell-team-desktop-light": {
       "path": "review/shell-team-desktop-light.png",
-      "sha256": "a8f33d5a3035f4a41498b26ec9a30490a143aa2a16d7875c54cfc09b1aa8fd0c",
+      "sha256": "7b00e3235a4a1ddccd01dd9e5dab56e09e302a1546e342e6371fa923790959bc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "shell-team-desktop-dark": {
       "path": "review/shell-team-desktop-dark.png",
-      "sha256": "5fe9c1fb8d1548ebf06539c53bc0dd9dd0eb2a1d16011c919d1bc0244410fabd",
+      "sha256": "7d462c23f163ba283ce1c3d1e1e6b850fed77a9d47e19845e7089e0c9b7f7cf7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "shell-team-mobile-light": {
       "path": "review/shell-team-mobile-light.png",
-      "sha256": "b21920d90d6a957a38a896fbe25434541309fd035446b84b5878fe48826af3f5",
+      "sha256": "4bbf532d65806cdc7716ed8ee89d6707d212e447096e7b014f753483cbb68e05",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "shell-team-mobile-dark": {
       "path": "review/shell-team-mobile-dark.png",
-      "sha256": "3889b00583e328248a48f52e1327a55b9e417c2902eb074e01d38bb18413e6b1",
+      "sha256": "8089fd8620e509df66d00705c29a393e05467dcd0a6891f7ae43dc2adb992156",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sidebar-collapsed-desktop-light": {
       "path": "review/sidebar-collapsed-desktop-light.png",
-      "sha256": "6d0db535d823d64bb110fe626b89efc7f8d9f555a1bf7f546953945c6d5d80ea",
+      "sha256": "1e36133b7b92903e919831ba4c00159ab89448626e6496c7876709288f703007",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sidebar-collapsed-desktop-dark": {
       "path": "review/sidebar-collapsed-desktop-dark.png",
-      "sha256": "6f92311fef0a8b7c557333c7e4c37820be949b83ba30eeca4d7debb13a2858d6",
+      "sha256": "d12267b00cb5f1f421effa329b8ee6bbd94739a1e0407d0cebe9a4bd8a7bc6c7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "sidebar-collapsed-mobile-light": {
       "path": "review/sidebar-collapsed-mobile-light.png",
-      "sha256": "aa05fe7df1f9636798a9feea664a5623e1b43c5b4f8662bd252411859e490161",
+      "sha256": "e1b40f6a638ff097ae538f42a8c5f28b66f2473badc63dd30e6812dca5435d04",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "sidebar-collapsed-mobile-dark": {
       "path": "review/sidebar-collapsed-mobile-dark.png",
-      "sha256": "aad611dc573bbc321ffcf81a72d41235e5b1b3d78541381936e677e7b9644e29",
+      "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "organization-switcher-open-desktop-light": {
       "path": "review/organization-switcher-open-desktop-light.png",
-      "sha256": "daffee1191155df9c501c7d985cef932a4e5fbaf761bd42b17600865c4400e9a",
+      "sha256": "8cb4e0a5b1ce1d7faba88e7be9ff9d80eef6cd09144296d407a144180c9c100d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "organization-switcher-open-desktop-dark": {
       "path": "review/organization-switcher-open-desktop-dark.png",
-      "sha256": "3b2f0053598a82ecc99768ca0b6bdb310bac3b2d9e964d3b6d60ab11a811b0d5",
+      "sha256": "d4bd431bd6ba0894d744f7e10104968e99462c14c9ec082580ac64907e279bdb",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "organization-switcher-open-mobile-light": {
       "path": "review/organization-switcher-open-mobile-light.png",
-      "sha256": "6fab780b20024a8576a614500a5f4c901fee0227e05ef680e537dc58859a4c4a",
+      "sha256": "acac2a49f675ec6be6ff816b55f9e8e5a99c67438741a6f9f99e12a98d72afb7",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "organization-switcher-open-mobile-dark": {
       "path": "review/organization-switcher-open-mobile-dark.png",
-      "sha256": "5f4fbe403060381418cd836e69a1fc7a0a499bb0388faf7a652a19fc7749c006",
+      "sha256": "279613b79985c31a2eb6c6b4bb5bcccf3e5c54101a1b27a718de2ae04f628609",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "user-menu-open-desktop-light": {
       "path": "review/user-menu-open-desktop-light.png",
-      "sha256": "6fc05e9dffd082a265630b68ee0a1015ba453010c700b8d4f95f6347fb354d60",
+      "sha256": "b2efd28edb5238b1f6ad7979232391007fb5835edd239b859366c50451dc0860",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "user-menu-open-desktop-dark": {
       "path": "review/user-menu-open-desktop-dark.png",
-      "sha256": "942d61da8654258511f567bc55e00e9aa227941e3b6e440d05fac6bea48fc26f",
+      "sha256": "44556bfa5b567e9dc6ce936fe1dcff63826406b11605bd352b1e7bb2719fb10d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "user-menu-open-mobile-light": {
       "path": "review/user-menu-open-mobile-light.png",
-      "sha256": "7298802cb94391b18eabaa2b2a5fc2471bf9e41fcf29f97f78245e51b28f42f8",
+      "sha256": "d4643bad70a770a103dd58520893ba8fab4494393d08f2ae68f5bef92a8ab23c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "user-menu-open-mobile-dark": {
       "path": "review/user-menu-open-mobile-dark.png",
-      "sha256": "da60ec973fad6577984c7d00d359b607fd6a9a1117e33ea581e11847df4b2a41",
+      "sha256": "6b571cf012a8608a8800d360b445bc596fa0c990895204517f02175f636610c4",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "mobile-sheet-open-desktop-light": {
       "path": "review/mobile-sheet-open-desktop-light.png",
-      "sha256": "574b1a4e5bc4a86c47b1fd47187c1b9958facbfc847b57509e866c3bdfb2af02",
+      "sha256": "d13f55dfd60a874146a0eb5cbd840a2b77515ba1e08c83a2023e1a26d98a8c99",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "mobile-sheet-open-desktop-dark": {
       "path": "review/mobile-sheet-open-desktop-dark.png",
-      "sha256": "3ee70ab1f0a9191a9927e58efe1b2bb04b88c40644fb9b3efddf55542cd2606c",
+      "sha256": "48bf62ea5e9205f7912acf197d81b62fc3d980d05ff624321c041474ea40119f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "mobile-sheet-open-mobile-light": {
       "path": "review/mobile-sheet-open-mobile-light.png",
-      "sha256": "2f4fd7a549624af667a051d22a388f230f935cc9a59e9dc70967516d4f476e13",
+      "sha256": "31913bfd9a4a946b6b470824e56d269fa30dd213fa7ab886731be260b9e6d464",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "mobile-sheet-open-mobile-dark": {
       "path": "review/mobile-sheet-open-mobile-dark.png",
-      "sha256": "7f31f84fef0881c338ff6e37392bf59f9724e450c731b2c7993debbbe2119e5d",
+      "sha256": "f58e83e4d7ed92da44559ca301f5e3063dc7c911cfe86c017ad4e0e8f7303d3d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-profile-desktop-light": {
       "path": "review/settings-profile-desktop-light.png",
-      "sha256": "9794b59ec2a7cdeae049dba6b80cc488b1d276609a3a77cac52a662eaaca3a25",
+      "sha256": "50c0d08c75e4bc7ce788d4ed434f36abfaa4d817e9b839ede619ed9d5b445946",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-profile-desktop-dark": {
       "path": "review/settings-profile-desktop-dark.png",
-      "sha256": "df8ee6923efc3b4867c1f436927dc59d5a7cdec93a20a87d1c97e218e1d9577b",
+      "sha256": "b6c809e0f5c41725823eedba87c276baf407b46be2e5e660d2b64b9ba763b6f3",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-profile-mobile-light": {
       "path": "review/settings-profile-mobile-light.png",
-      "sha256": "430705d1176cd58af627b44b9876b8eb807013f210ca56873149cb0ac4a43979",
+      "sha256": "92be8046b52d2a4ac4d74d5939abe6581fa9baec39064af065640ee0d4e51701",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-profile-mobile-dark": {
       "path": "review/settings-profile-mobile-dark.png",
-      "sha256": "5ca50df80edc3841cd5ac399bc26f5f26e3aeeea26d3dfd37eeeacc558ddc7e6",
+      "sha256": "01580fbbc479f20c4a394edf140b84d8bdffa38762006b40d48ca7028273b7d3",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-appearance-desktop-light": {
       "path": "review/settings-appearance-desktop-light.png",
-      "sha256": "2186c797b6d5d0ddb2d2776facf02d8ad4ebb6befa1275fd6696349a1d6e3a0a",
+      "sha256": "92d64acf93e04c4c84ada7d88b8a6de6d1e7fbe93eaa29b85232e8f86ec2ae65",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-appearance-desktop-dark": {
       "path": "review/settings-appearance-desktop-dark.png",
-      "sha256": "0bdd3c22bf3b76e69683c6e72c76e7abf02fe851e0a9353a9bb92e6df7190143",
+      "sha256": "9bea09d3d9d9016382e856c1f4e38a9fa9d6b1ad6cce5d755fbdbd4aec26efaa",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-appearance-mobile-light": {
       "path": "review/settings-appearance-mobile-light.png",
-      "sha256": "8af6fabead459d094344f1592f5994b5a79441c8ee168ce8fbeadb2db161b28a",
+      "sha256": "8ecfd6d5360871fa9133b411de398e2f311da22bfbbb6f2ace77ecf6a988e009",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-appearance-mobile-dark": {
       "path": "review/settings-appearance-mobile-dark.png",
-      "sha256": "7397428e56ec580eda31a52df7be803da327c813081241d7dca3b178a7b9608b",
+      "sha256": "aa6eaf56ae9d0eb497672f3bf5e4b6d32458f4c56f02c83cfb18cc2f77fa1ce3",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-security-desktop-light": {
       "path": "review/settings-security-desktop-light.png",
-      "sha256": "5d85a8498ac231b479c6773ec6d2d9a663015b85793e51c66c0d01f8b4f2a7f3",
+      "sha256": "a628a88c321eabcfd8a08ecbc5717d3bff36e1563b45aaad959490dd0bd0aef2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-security-desktop-dark": {
       "path": "review/settings-security-desktop-dark.png",
-      "sha256": "006ed44b1e3ab99fd128f2e8dd62041c338b2b8c21b31f1dd92d34ebaa438e65",
+      "sha256": "21719edb62ca0c52454a63354185909c9c369f920cae6049c9c478cd61a96e2c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-security-mobile-light": {
       "path": "review/settings-security-mobile-light.png",
-      "sha256": "60e72ed12bf88026ce6bac15fc46b3d8a72e8481b51949308957693928151dd3",
+      "sha256": "336712bee8968bcd0d5d7272e69c57c367b9af8c4fc655d3401b143927717c03",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-security-mobile-dark": {
       "path": "review/settings-security-mobile-dark.png",
-      "sha256": "895b09ddd7a1d577d91cb762151fb0ee6238d6b8efc18f77d0f751f6e5962104",
+      "sha256": "16b45adfcaed4de219311ddf0c1dc2d910cf39dbb514d20fc0a179838a95c318",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-members-desktop-light": {
       "path": "review/settings-members-desktop-light.png",
-      "sha256": "1dba8d1edf5cba59d2960e3327e280b7eb5ea7fa336a2fcec9785b1da6cffbc5",
+      "sha256": "f627648a5fd380f95278378c3cad0ef064842becd7ef6981a998ed545a7468d9",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-members-desktop-dark": {
       "path": "review/settings-members-desktop-dark.png",
-      "sha256": "d9416846e5db169ad2b21e28777bf939408230ed4169302f279f8009707a1bc4",
+      "sha256": "67947c7c34cb055e5c647cd24a25598d636c0c17f6086afbb69b52b6118a7fbf",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-members-mobile-light": {
       "path": "review/settings-members-mobile-light.png",
-      "sha256": "55e2b341f2f73bb3fb52b2b5fb5d1347d4e8b986f2c5b47b1ef0ab7edd26f2b2",
+      "sha256": "8c29a8a4d3417fd9ddc0aad2a0e25a8ca3b7909fc4cdd48ff82de83e9e7acef8",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-members-mobile-dark": {
       "path": "review/settings-members-mobile-dark.png",
-      "sha256": "721a74d1ccc101e5dccaea96eee9569f8cd09d37a7db1a87609568cf527b3ba9",
+      "sha256": "91b9e96153000ea277a24cc156eef02b791e4ea0bd24458c5d780c6c2d26bee0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-invitations-desktop-light": {
       "path": "review/settings-invitations-desktop-light.png",
-      "sha256": "e57bbcf36b67c422b68909462e03ba4c81ae81e2b6018fa5d1145078ef7ddc72",
+      "sha256": "add4a3de21c6abe3c844c2879a6b2c56995f89c0cd7217948649e4e093f7bbf9",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-invitations-desktop-dark": {
       "path": "review/settings-invitations-desktop-dark.png",
-      "sha256": "56757c86191eb6c390f98b50f24d05c18e9289443d866063b1d8a879f0b6e3a5",
+      "sha256": "686da6d57322eb5ab975ffe26ca6a4b77f556e3897943f3fe945d806aa24b154",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-invitations-mobile-light": {
       "path": "review/settings-invitations-mobile-light.png",
-      "sha256": "229a70bfa4f7f97ada1dda10490e2c02296ff829107a16069462549d6290728f",
+      "sha256": "eefad5e253128165bafdf09ad4defac155383c876027b3950ddf990db36dc4c4",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-invitations-mobile-dark": {
       "path": "review/settings-invitations-mobile-dark.png",
-      "sha256": "e546399d9fc5466ecbe5602ba483d62c8b1afaaa8ccc661f1aa3bf6e384dedcd",
+      "sha256": "4ddddd8c6b28690bdd9ae6927e448e06003b669f5e905100e314f2e11810b212",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-general-desktop-light": {
       "path": "review/settings-general-desktop-light.png",
-      "sha256": "c45f26d0c32ebae69e95ecf690154cfe3e60c36a1b767914fd0f112091e18299",
+      "sha256": "cf41323e73b84e1e54b1fa05a23b2a0c0dc084738db31c413ba596500f2dbfbc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-general-desktop-dark": {
       "path": "review/settings-general-desktop-dark.png",
-      "sha256": "ca9964b4f7ffd42a1201c91101f44bf10841e11fbc1eba918dc45804964bb223",
+      "sha256": "0281f91ab164c3a3f1264253fdbe7a04654a21bc0dfd425995d13903a7fba751",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-general-mobile-light": {
       "path": "review/settings-general-mobile-light.png",
-      "sha256": "a71a846866934f0ba371ae054f6216f45789dc0f5bc25bd49a821a4486aa5ec9",
+      "sha256": "66703bc7f83de70aa3e72db711cbf53f9a47fafe432d5ed9242623121e8a8c8f",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-general-mobile-dark": {
       "path": "review/settings-general-mobile-dark.png",
-      "sha256": "158671d559431532cad4c03840122f31a43d1c710ac68c8daf2cc85e46941c8a",
+      "sha256": "c0d0efd559635a551e54fd8e74dfc8c47e99b3f0413475427b5d107de0c3b750",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-no-access-desktop-light": {
       "path": "review/platform-no-access-desktop-light.png",
-      "sha256": "140902961832b51be800d51e0a3a7043c04e14f47229398c1a808bcacfa55030",
+      "sha256": "abb3baf51d80b18c9dc430166ee45b8943999e737498780c3a4333cb1ce5cc6d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-no-access-desktop-dark": {
       "path": "review/platform-no-access-desktop-dark.png",
-      "sha256": "9d23208f6e929d3e164a8b3b208cbeda64348ab7502cc48809123746924b4144",
+      "sha256": "790b89d72d5d391f05117459a2f39d726446aa76607761a945244c16d663c441",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-no-access-mobile-light": {
       "path": "review/platform-no-access-mobile-light.png",
-      "sha256": "ed80a1ccbb6ea23044d259639cedb2b489e7467466d695107db8ef72403047e7",
+      "sha256": "958d68190aafbc8c8b92a191013f9bf01814f46793aea1b0832ca474c6d16558",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-no-access-mobile-dark": {
       "path": "review/platform-no-access-mobile-dark.png",
-      "sha256": "71d2d07b2b7b75a898a28bd78da8e41f0ba61d94d51c009156bf0591af792772",
+      "sha256": "63809431f0092b168b59af2bed3ba6bc04a6909eb79e9dd41f2c473fc1230dfb",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-loading-desktop-light": {
       "path": "review/platform-provisioning-loading-desktop-light.png",
-      "sha256": "9cf948166b42e0e9cce1231bd7d68702cdbd782eb8f8e8a93a799db68cae0dd2",
+      "sha256": "599c0d25c5d31a7afc906b4360e988d64b606bf755b03b02bc8db22d69d2c27c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-loading-desktop-dark": {
       "path": "review/platform-provisioning-loading-desktop-dark.png",
-      "sha256": "9a3726b4eeb900dc617c0c5243d0e698ef85d9d2317e378721d657030da23ff0",
+      "sha256": "acf13922e9e2a208783dbcc7bad1902973e589f689b27b10073a567b2db4e13a",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-loading-mobile-light": {
       "path": "review/platform-provisioning-loading-mobile-light.png",
-      "sha256": "f07959a2aaab7a862d6a057a9687639faf22564f70000caaa96dbb52ff6ad8b2",
+      "sha256": "534bfe33d8cd7870330edb7b95a20c084829f64f9aba5267b6b2280f79a865b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-loading-mobile-dark": {
       "path": "review/platform-provisioning-loading-mobile-dark.png",
-      "sha256": "2de9527eb722c90f996a581bc2c4c0de6ffe93d1b872208a6557a2d29a57878b",
+      "sha256": "69436e135c3836214c932f5a21f2f3b6bf2e90f0febc6c193801f87f363d7dc8",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-empty-desktop-light": {
       "path": "review/platform-provisioning-empty-desktop-light.png",
-      "sha256": "e28528dc1500481158d4b13baa6c90d97e40bffd603e087e3383f06c0764eaa3",
+      "sha256": "74e426668d86c0ccc80ee239d1232eea0819222f361b8d58b2ab3b5533c73b94",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-empty-desktop-dark": {
       "path": "review/platform-provisioning-empty-desktop-dark.png",
-      "sha256": "5cdfc94871ba9f13a5a39d8001286c17760866060fd9ec26aaa43b4ad167055e",
+      "sha256": "f69aa8a229235273558987ebabb2e6e1d276ef04fb95e8c9bde49b72caa5fbe5",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-empty-mobile-light": {
       "path": "review/platform-provisioning-empty-mobile-light.png",
-      "sha256": "128b076e46bba4e2b4db30f07a0089b6b608932301bd5f51973bd51157ae16d5",
+      "sha256": "69ceb1a2e991bf9af932d34cd84f94081143dee2822b148aa1a5cf57040a0b10",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-empty-mobile-dark": {
       "path": "review/platform-provisioning-empty-mobile-dark.png",
-      "sha256": "c3e2a33c87bae476ed7c9cc77ce4f8ea7fdef457390d6b6612fd5ea7e017a0b2",
+      "sha256": "2cabc35808ed0194efb241670343423339dddbd8826af54b08778f3529ad961a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-populated-desktop-light": {
       "path": "review/platform-provisioning-populated-desktop-light.png",
-      "sha256": "bf7e49471e5d7e8f47d98f8f6f7eba8fab6b275cfe92f0f094f794b9a54b2683",
+      "sha256": "0c62f8522c700643208a3f968f57a1aa59fcfdf65838c22a92b2b28ed2c00a2b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-populated-desktop-dark": {
       "path": "review/platform-provisioning-populated-desktop-dark.png",
-      "sha256": "cf32e38b17fa338496f5c3ec5db689a45dd5c5ad3f7f4a437442cb9bc2188e8d",
+      "sha256": "69098b6fcb8ccbbc1680c9454ae617d1b3f7eaaf8517071185e63a022731b78e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-populated-mobile-light": {
       "path": "review/platform-provisioning-populated-mobile-light.png",
-      "sha256": "1ea1d4200dacc5f1f3ba1651ae4f684a486be4071fbccee2dbb6608db2d4ec34",
+      "sha256": "dce67b433258a55aec3ff9f1b7da2cf0ac533043e3910d8eb9fa653046c015e0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-populated-mobile-dark": {
       "path": "review/platform-provisioning-populated-mobile-dark.png",
-      "sha256": "64296eb124db40485b4f967ae00a63e4235482d547c4faa6be50c8ce412d8c9e",
+      "sha256": "b9b166ba4fdcf9732ef4b0fba246b0ef47061434386c9cae5bcc196439c9f150",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-detail-desktop-light": {
       "path": "review/platform-provisioning-detail-desktop-light.png",
-      "sha256": "ddb6735d7310d849e317ac401dbbd46ba257e8f152f270b1660e036d97cd5ebe",
+      "sha256": "59db6fe59b40e81b8e16b3737eb753f8ca8f24bd9e4f7c8529b96d47376b72fc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-detail-desktop-dark": {
       "path": "review/platform-provisioning-detail-desktop-dark.png",
-      "sha256": "bf063ee29ee264ba3054cc9b1ae11c278faa6bfabe2791b9bc99e3d2e12799f7",
+      "sha256": "9ef5df815676d4b5f4ba8cba46b2d5214cb64ae55571dbec93e71b378a5856c8",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-detail-mobile-light": {
       "path": "review/platform-provisioning-detail-mobile-light.png",
-      "sha256": "94e1d9f6a6bcaf86ac067a99a7e0d8d88bdd050be2e7911c556a4e5ba8f51d80",
+      "sha256": "60156925fc33a2a714ad9e2f9c9fa77bbc3c623a9101f292fbc4731d0d70a5bc",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-detail-mobile-dark": {
       "path": "review/platform-provisioning-detail-mobile-dark.png",
-      "sha256": "a41b8008a69f591f5875b83681470aa4ed9756bb71a3eba17c7fb9d5e23ee9eb",
+      "sha256": "94c2c6b122a2f3ae443c52774ace3fa1d15cbe18728a5b18bedd5ad1bb34f01c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-error-desktop-light": {
       "path": "review/platform-provisioning-error-desktop-light.png",
-      "sha256": "1956d745673d51860563e50072037e4aaf1ecef52f1869f07dbe9743b4f96d76",
+      "sha256": "7bf10f032140374d2f769297628574056187038f3d895166a4a23024064643b5",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-error-desktop-dark": {
       "path": "review/platform-provisioning-error-desktop-dark.png",
-      "sha256": "959d67c3b9cc56df4cd261915b8e314bde500c6596cd27c64f69f6b02df0dd06",
+      "sha256": "03a2e5eb8fbd3fb9b95bcc7510198d469a3696d75a8217b2411764f333888edd",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-error-mobile-light": {
       "path": "review/platform-provisioning-error-mobile-light.png",
-      "sha256": "f383ccea906ef312776f9314bbcb5e37480f96aa2e14e2bd1b2e295c3848ba2d",
+      "sha256": "6becfbc0b4d940fd1d12f300fd10518ef4239ff1046522793a259c1ea0f5f085",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-provisioning-error-mobile-dark": {
       "path": "review/platform-provisioning-error-mobile-dark.png",
-      "sha256": "9491ea8b9e7db09b70f09aa3608f07119d4d47c4faa2b9a6abc23365d81d42c4",
+      "sha256": "256911174f81d4e215fa19979f6cdfb0787f758012d201d16194ce84ff6d6373",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-accounts-desktop-light": {
       "path": "review/platform-accounts-desktop-light.png",
-      "sha256": "31b633adf98256009b763daaf2ad7c0638005f3ae59b89ba9569bcbeb7b268ee",
+      "sha256": "e9effc9d565cfffbe481eba6c28124e7d0b7706b97180e7d1693a57730afda0d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-accounts-desktop-dark": {
       "path": "review/platform-accounts-desktop-dark.png",
-      "sha256": "cf5035e9e92b0c4baac046eb90179d461fcba71c9ad5ef55e1677f9b0d38feb1",
+      "sha256": "c90fd66a8beaa52f9435a50b64ce20452646b2579a45f74d76f76ccac66c08ec",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "platform-accounts-mobile-light": {
       "path": "review/platform-accounts-mobile-light.png",
-      "sha256": "ee526a3577a262df0fdba8ed897aa7a85c0dfe4df633f67a8200767ed95abcf8",
+      "sha256": "1fcecb3aab593012845256307f1a0208f095a40008a059427d059d70ceaef312",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "platform-accounts-mobile-dark": {
       "path": "review/platform-accounts-mobile-dark.png",
-      "sha256": "aeceedaa755110d1d8b4bd70882428b2d3363a07ab52b93edd9f5aa32e4f54ae",
+      "sha256": "278eef8956898cbfee6960bef691642cbedb6ada2896868bf1a4ff5fade075c0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "organizations-not-found-desktop-light": {
       "path": "review/organizations-not-found-desktop-light.png",
-      "sha256": "6c2a304ef3bf5f4dde64a256f5238f22d6ff9b544f292edb8fae352119aaab51",
+      "sha256": "75ee2b15932992eec6a01e62c6345a025eaac077e2edd3ee0cb7cd8573aca8d7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "organizations-not-found-desktop-dark": {
       "path": "review/organizations-not-found-desktop-dark.png",
-      "sha256": "b66cb527b4740bdab99b8ac4c158d1a5621fc41d1d8ed2aeb1518e7704bdc907",
+      "sha256": "8c6d1fcea0c59fe025b3f0e3074025b72efbe60a2978e33574f90607b48b3cbc",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "organizations-not-found-mobile-light": {
       "path": "review/organizations-not-found-mobile-light.png",
-      "sha256": "cf189167b2c77e95091f00bbe69b5d9d7c191dd850d3357e06a4e49d0649b6bb",
+      "sha256": "186ac2d50d6b4fa57fd5c64fb38bfb4d9636ce55b994b37160cc2628b9ee21bf",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "organizations-not-found-mobile-dark": {
       "path": "review/organizations-not-found-mobile-dark.png",
-      "sha256": "51916ef57664641a00a7c25307e000b01b7c70fef4ab0119e1e8b75b8e41a1a8",
+      "sha256": "82daf27ef800b6f7a3422db28362b3ac63372f9b30dec556e06170173f1a6cb0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "not-found-desktop-light": {
       "path": "review/not-found-desktop-light.png",
-      "sha256": "91bc5e146117f36bdd3692da0d1a0aaa87ec32e19ee6ea61cdaddbcb5c4d031b",
+      "sha256": "28c72173b70ca8474952f0c7c245ba9e920d664cd7b2c1dab6ac1bbcff19292f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "not-found-desktop-dark": {
       "path": "review/not-found-desktop-dark.png",
-      "sha256": "9cfb60c090aa2b6766aa1bb9e4ca318604692349b6e26589f435d5db7d741a38",
+      "sha256": "7acbb88ea222f81be93c10ff566e5f13236840bdcb1e267ffb03230175a9b79f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "not-found-mobile-light": {
       "path": "review/not-found-mobile-light.png",
-      "sha256": "2ed55653668f4ffa6c4159e5abc1e7b092f97e7499a93858b15f730620ab15ca",
+      "sha256": "3894d1938c769cb548fafbea90ef41b2b375289a96fd041713f469826d67d05c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "not-found-mobile-dark": {
       "path": "review/not-found-mobile-dark.png",
-      "sha256": "819e223d1a6e643288a5fdb532fac87a5c2053f214bf4c6de1dd49551d2ec6fc",
+      "sha256": "173ddfe903f36b7d4ed8c30eb1093b6675a468cfaebf04d3043cfb6eb633b3ac",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "workspace-error-desktop-light": {
       "path": "review/workspace-error-desktop-light.png",
-      "sha256": "8484a2bd42a77e5fa9860bdb25b8ec7a98fb21da94cead38f3e317dbe4b35c87",
+      "sha256": "3dbd81ce4d4c392ecff24cd3dc3e6f43e7e1d37c01d69e0fad97fcba40c2c220",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "workspace-error-desktop-dark": {
       "path": "review/workspace-error-desktop-dark.png",
-      "sha256": "121c453eed1990e26de0514996468972b422406113945e61ea7ec44aa4d810b5",
+      "sha256": "b6cb07eda48bc848c038f314f6a5465f62fadc461159c1234f0bb63efaeb99d7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "workspace-error-mobile-light": {
       "path": "review/workspace-error-mobile-light.png",
-      "sha256": "951e3ef314bb24a97c94e3fed7d033e2d189a580927afd654ea8ac7ba2d966a3",
+      "sha256": "ce126a6af56c4108fd9dbae78cc8ac09c66fe5036008283175e0447502bfef92",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "workspace-error-mobile-dark": {
       "path": "review/workspace-error-mobile-dark.png",
-      "sha256": "378e6cbe2036e3040410b9efb2f310ff3edbfac3fd8ba9fa6b4cf9ae41a414da",
+      "sha256": "d0e9606bd8a17be5fbe17ee8c4b7982ea328aa45c5a4afc62efc905dea520283",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "toast-success-desktop-light": {
       "path": "review/toast-success-desktop-light.png",
-      "sha256": "7a0a41e3a6539aa019c6dc6b1b7f4c0f01580f632a20156a928974e14632dfd8",
+      "sha256": "d12fab8e67909ee820d9cad54316d7a06cf714c31503b2d3943404182d48359c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "toast-success-desktop-dark": {
       "path": "review/toast-success-desktop-dark.png",
-      "sha256": "4d8ebff20131874aff59e77d1f9bb39d9bd1c8869c5292cf341786f16927480b",
+      "sha256": "8edeb259f468ad180d3bcffc5b7c92462fd9b5af5aabd7a23c7578d6ca8c42fd",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "toast-success-mobile-light": {
       "path": "review/toast-success-mobile-light.png",
-      "sha256": "e45f73917c9932ae6d4fb1cfac273a9423e1eb51a5e55778c4c3150db759c123",
+      "sha256": "d48c63697bdb0a409204804446709752b9adf76acbd794b2c5a40ec0d89c86af",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "toast-success-mobile-dark": {
       "path": "review/toast-success-mobile-dark.png",
-      "sha256": "e1299a78a52c27c30c1a33a42bc63e3be9f4c7df1eca81b6736f497a7868dfb8",
+      "sha256": "a3f5633837517e0bfa91f29cb8f1e8c279194b853f5ada27e4def22b61df51fa",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-empty-desktop-light": {
       "path": "review/chats-empty-desktop-light.png",
-      "sha256": "9970fb7736fd2042263eeb1e806e00e11732fc27292616960eafb966c74d8b94",
+      "sha256": "9857e0467c21eb6feef1734010a650027b93329a0ac62ac230fe2fba7eee9ac7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-empty-desktop-dark": {
       "path": "review/chats-empty-desktop-dark.png",
-      "sha256": "b2643ea266c62cd760047bfc094b9717d3bb17e6b0388467ad6fcbc19ae0c47b",
+      "sha256": "78c8ec85725f8fdacc4d0a7c968d20320a4cbedce94e70e8ad7fd6b57e17aed0",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-empty-mobile-light": {
       "path": "review/chats-empty-mobile-light.png",
-      "sha256": "a917fa3274e2632d6206342d0685922339714cb69eb7234e3074b488325d310f",
+      "sha256": "4168289ffbdb766b82cd04f82c02c386c5405936de4da02d8804e0b21d5247c1",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-empty-mobile-dark": {
       "path": "review/chats-empty-mobile-dark.png",
-      "sha256": "2b9305a9bf0d6d79e4df54ec0d103f17fcea6d3d95d4fc1fcfa18757932b9121",
+      "sha256": "e8fbc1d72017e175998cffc7e34dc387d7aae6c5086b4857f134404bc4c3e2f8",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-loading-desktop-light": {
       "path": "review/chats-loading-desktop-light.png",
-      "sha256": "03bcd153dc341263721146ca80f21a41508b0f5391b46e373d43fd557268e81d",
+      "sha256": "b7e6792ba2d92e960a4b95c6570776906b8888247a7552cc2cf38033df544872",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-loading-desktop-dark": {
       "path": "review/chats-loading-desktop-dark.png",
-      "sha256": "d08e69535955761968afa2d2186be5d2ad8eef309f25fffffc6ad9d6a53f3d5b",
+      "sha256": "6796db56865feaba473dc1c2f61e54f08d364612a8f9fa12bb3cb76576b05a9d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-loading-mobile-light": {
       "path": "review/chats-loading-mobile-light.png",
-      "sha256": "3e10521ee37ed0cc56bf627ef99493cd282e0892027439186042ee9409ca7b36",
+      "sha256": "4c6af41e1d0512cdcd84639fb7b3520846d545f0c7352070be32a2b1f36ff161",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-loading-mobile-dark": {
       "path": "review/chats-loading-mobile-dark.png",
-      "sha256": "bad1587cdc6480e607e7a11cf674aa1d78d2bac33be261c2cc7fd9a6bef6d618",
+      "sha256": "606f2aea03dc33098ea0f95327592c080fbc5a97bfdcdbb0576f9dea51989f97",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-new-desktop-light": {
       "path": "review/chat-new-desktop-light.png",
-      "sha256": "275acaae65330c068b4233301094e508032f7b0af495ddeb9faaed67de62708f",
+      "sha256": "a037d72beda56087834349e3e836f5242e7d13961a22d455f15de3a94ea77299",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-new-desktop-dark": {
       "path": "review/chat-new-desktop-dark.png",
-      "sha256": "82ce0b5a53ac8873fbeed4f17cc2036e1573463a29126975178666c2ec5a0309",
+      "sha256": "146390d21eeb2d14d96b83a1e94263011149e11673d45ab89003ed051f922632",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-new-mobile-light": {
       "path": "review/chat-new-mobile-light.png",
-      "sha256": "aa05fe7df1f9636798a9feea664a5623e1b43c5b4f8662bd252411859e490161",
+      "sha256": "4bbf532d65806cdc7716ed8ee89d6707d212e447096e7b014f753483cbb68e05",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-new-mobile-dark": {
       "path": "review/chat-new-mobile-dark.png",
-      "sha256": "aad611dc573bbc321ffcf81a72d41235e5b1b3d78541381936e677e7b9644e29",
+      "sha256": "8089fd8620e509df66d00705c29a393e05467dcd0a6891f7ae43dc2adb992156",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-deep-thinking-desktop-light": {
       "path": "review/chat-deep-thinking-desktop-light.png",
-      "sha256": "dbf7824697986e03f5d8a2b6ba3c6493a45a5afb64da1c2cfad6e1528ce7646e",
+      "sha256": "ddede12c054d753f1740584e3504bcd5f7723c68c1502a06337b9854c6476bd0",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-deep-thinking-desktop-dark": {
       "path": "review/chat-deep-thinking-desktop-dark.png",
-      "sha256": "ff47ae4c7c3d94cc0151d7f254a19b6cdf240db813d53b5a5b766c138d146407",
+      "sha256": "eb8cdf556df2e7dee9f5f8754ced41c1b14224970f94b7b448d185a34d49fbc6",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-deep-thinking-mobile-light": {
       "path": "review/chat-deep-thinking-mobile-light.png",
-      "sha256": "75127b857632386b588bf11d45e7086fbb7df16fffebd23c500bdb96e3f787b4",
+      "sha256": "9466aa284589094c2cc961f02fad54b8fb16f756cdebd5dd6ad0ec1f91c7c354",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-deep-thinking-mobile-dark": {
       "path": "review/chat-deep-thinking-mobile-dark.png",
-      "sha256": "4642304292363a23544ad64e3248910a242055dcf96bc183b9529e5dd754cce7",
+      "sha256": "9a3633b952f9b6bf5aa9623accc7ad9a6c6a2373fc8b6b6c52126af596dae4fe",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-starter-pill-desktop-light": {
       "path": "review/chat-starter-pill-desktop-light.png",
-      "sha256": "b892c3195952ee0e54d80fd5e4282d3a7a4b9a3b1e80ce4c0c92d20c19ffb3ff",
+      "sha256": "5b1759c96d53b51ddd69d45d0b96136629aee20d22ce871fb640f0bc96dfe85d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-starter-pill-desktop-dark": {
       "path": "review/chat-starter-pill-desktop-dark.png",
-      "sha256": "97e0f07d68dbb690bfaa7f09c367028691637410479badd5cd90ed1ce31be168",
+      "sha256": "0db4df6862e714e35fb8e8dbc00a8077bca433d3012dbfd9316429231c3cc97b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-starter-pill-mobile-light": {
       "path": "review/chat-starter-pill-mobile-light.png",
-      "sha256": "a84a5d7a90a196b0cd98c62b4730b64168ce4b331713294e270e3b254aa45ddd",
+      "sha256": "ff854ba72e0e9f2427546563600e8b0aa71169ff3aa9a210c9e4abb3cfe3f419",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-starter-pill-mobile-dark": {
       "path": "review/chat-starter-pill-mobile-dark.png",
-      "sha256": "59e93677aa1a613ae894ae6483266000ea57c6ed9b6a0c3ef3082bd5990ba60a",
+      "sha256": "cedb85ac2aa5e31f82bffc605f5ecd7bb21e839aa23cd6659aeaeed57f45b1b7",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-desktop-light": {
       "path": "review/chat-streaming-scroll-desktop-light.png",
-      "sha256": "954505d7db8f3187ae32ebaec75dc365a6f1bf4eeb471c17c64de57fd0814826",
+      "sha256": "394284d9af809a9c43e907efaaa19789be47f6bed1e091e0746bd4d07b7a84d7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-desktop-dark": {
       "path": "review/chat-streaming-scroll-desktop-dark.png",
-      "sha256": "00cdc2489928bcaace70ca6b16f5e62cbdeaaedeb114d4b7ca9c667c4690ba85",
+      "sha256": "a3b8e1b5d3cea70d58e76fc2a0df94a77ad069ce28c4b9e53110ff3105f7dd2d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-mobile-light": {
       "path": "review/chat-streaming-scroll-mobile-light.png",
-      "sha256": "8f90a5852b40469860d4054db16bab04c007a65daf59ed62a7b3b2e294bcf6fd",
+      "sha256": "4f47d7e4891b03c66647fa4f4f99bd8ebb08c8fd0bbebc5f06ddb0b31499ed3d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-mobile-dark": {
       "path": "review/chat-streaming-scroll-mobile-dark.png",
-      "sha256": "ae1b4069a9618caecc2fa2bf2ecc38e4bb9e8acdad92bedfdfe72b2d83e46348",
+      "sha256": "22e5586489a1c8a9d540e867e06c1e3ff376eb38d39c2bac34239097ba050e7a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-desktop-light": {
       "path": "review/chat-reasoning-collapsed-desktop-light.png",
-      "sha256": "a788682a7dd3015f19ceec35d275e6ffc00a9f7b78c374e1fa89032a70f2c775",
+      "sha256": "d13f55dfd60a874146a0eb5cbd840a2b77515ba1e08c83a2023e1a26d98a8c99",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-desktop-dark": {
       "path": "review/chat-reasoning-collapsed-desktop-dark.png",
-      "sha256": "3f406454129d631a2d51446469691e38e9e9a7cfddcc9005844dafd31d9d5e26",
+      "sha256": "48bf62ea5e9205f7912acf197d81b62fc3d980d05ff624321c041474ea40119f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-mobile-light": {
       "path": "review/chat-reasoning-collapsed-mobile-light.png",
-      "sha256": "bb87ff056c01f9fd293ccaa03c495d3e20798aa71edb7e520fddc62cb970755f",
+      "sha256": "e1b40f6a638ff097ae538f42a8c5f28b66f2473badc63dd30e6812dca5435d04",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-collapsed-mobile-dark": {
       "path": "review/chat-reasoning-collapsed-mobile-dark.png",
-      "sha256": "1b17bc10d297613e3f12b433a15a4713cb29b6bddafdde7c843edbab6b51fcfb",
+      "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-open-desktop-light": {
       "path": "review/chat-reasoning-open-desktop-light.png",
-      "sha256": "109290d44749c8fe4ce2ee288a14087dfecbd96ef58dc33bd4b17c93e63fbc5b",
+      "sha256": "a6c23dccda298bfcc62429b519e081607efac9c628aa7b83239b0380c109a6ea",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-open-desktop-dark": {
       "path": "review/chat-reasoning-open-desktop-dark.png",
-      "sha256": "3348fb473c6c548d87adcd856d0132cacb7a166d9a86e06405cf83e04d0a25f6",
+      "sha256": "9627b87d66d9c30612b39a073c5b0a8553d3896888858c9138289aa37dd98565",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-open-mobile-light": {
       "path": "review/chat-reasoning-open-mobile-light.png",
-      "sha256": "3ce09022b2ff36503fff92eb786026e0407c0552c69895abde3b977c778a77c1",
+      "sha256": "ceac7a140560e3129c7fd5cf5954552a8d771910860b9ce1c7221c0942265251",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reasoning-open-mobile-dark": {
       "path": "review/chat-reasoning-open-mobile-dark.png",
-      "sha256": "7d1776808ade0de7bcb683ea3264b8147351aa209af428e1c618ecf6450ba9e1",
+      "sha256": "aa913cf119af529db9cee3cc3f5338b934d1579a75408038d481470ce6a47fd5",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-answer-actions-desktop-light": {
       "path": "review/chat-answer-actions-desktop-light.png",
-      "sha256": "a788682a7dd3015f19ceec35d275e6ffc00a9f7b78c374e1fa89032a70f2c775",
+      "sha256": "b71bc09d32c2427dd4d188724fa2ca66f81dba813b89105f4d6ec39d10a76871",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-answer-actions-desktop-dark": {
       "path": "review/chat-answer-actions-desktop-dark.png",
-      "sha256": "3f406454129d631a2d51446469691e38e9e9a7cfddcc9005844dafd31d9d5e26",
+      "sha256": "7c4c503568b99ea7ca035a52c258bef77b1e5961e2f88362f6df4f7969b371e2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-answer-actions-mobile-light": {
       "path": "review/chat-answer-actions-mobile-light.png",
-      "sha256": "bb87ff056c01f9fd293ccaa03c495d3e20798aa71edb7e520fddc62cb970755f",
+      "sha256": "e1b40f6a638ff097ae538f42a8c5f28b66f2473badc63dd30e6812dca5435d04",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-answer-actions-mobile-dark": {
       "path": "review/chat-answer-actions-mobile-dark.png",
-      "sha256": "356c56b8db8c5a867aa520475a8c3ff2fe67beb091776a9add75eff904aef5b4",
+      "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-copied-desktop-light": {
       "path": "review/chat-copied-desktop-light.png",
-      "sha256": "208ed1f2038e24f5249fc9540cfcd456a1a3dd536be427b52fc13408437f1cc9",
+      "sha256": "9f287076749639d8331ae8237f71b58f79c0a94114d65c2e05216af5696fd0a4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-copied-desktop-dark": {
       "path": "review/chat-copied-desktop-dark.png",
-      "sha256": "7d364ed071de8123e68085569b7940684aa53faf274bfceab4e7fed354fabe37",
+      "sha256": "813a79b75dbb46833ae9af02fd6edf40402a68dc296c8b7e0b14c64e3f0d6418",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-copied-mobile-light": {
       "path": "review/chat-copied-mobile-light.png",
-      "sha256": "ab3317563876d1ac46af44b3d099f970e84055f0d308da1aef35f8a2619470f0",
+      "sha256": "e1b40f6a638ff097ae538f42a8c5f28b66f2473badc63dd30e6812dca5435d04",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-copied-mobile-dark": {
       "path": "review/chat-copied-mobile-dark.png",
-      "sha256": "ddbc356d0c81cddb5ddf914536091590b0e394be5bc6802755687404bb693b15",
+      "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-feedback-desktop-light": {
       "path": "review/chat-feedback-desktop-light.png",
-      "sha256": "ce5eb4c2074223ebf787c285420a20e27b407b7cb76b32e57969e009a2d09167",
+      "sha256": "606d56b29851f6c3bd417c48914d56f2cfca804355133f7926dbf9be9addda15",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-feedback-desktop-dark": {
       "path": "review/chat-feedback-desktop-dark.png",
-      "sha256": "b05e87b32719e11c5faa2d6b85aa144d5819327f693b2c00bb6f1dac7256ffd0",
+      "sha256": "02188a81968aa162e972706605a8fc9dcbcb13e390a6cea194d387e7e00de2cd",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-feedback-mobile-light": {
       "path": "review/chat-feedback-mobile-light.png",
-      "sha256": "bb97f03cbef9fcd23e31e378c765b4253e52c9cbc8dadec7feda9d62e9d5079d",
+      "sha256": "44ee23b2fc91992fb823e91373e10b427b9aa7163e02facb874bab17280d8dcd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-feedback-mobile-dark": {
       "path": "review/chat-feedback-mobile-dark.png",
-      "sha256": "71e7d5949908e7fd21e8c0dbf5c350f864415cff8dcc3cab7eca6c9d1a97312d",
+      "sha256": "8e4b022299f6e65e99fc4c6e235312d11bf83528308973f7fa72ac3e0489393a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-edit-desktop-light": {
       "path": "review/chat-edit-desktop-light.png",
-      "sha256": "0c612ec11f9a54879a88086434132ae7331426a331c4d075937a29042b5c667f",
+      "sha256": "225fdc05ea95a6bd42c488192a3f446e48e5c66c5a85b417e839ac6da08f04d8",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-edit-desktop-dark": {
       "path": "review/chat-edit-desktop-dark.png",
-      "sha256": "98191be88ec196c95fb17ea9eb5318db4d68de7f05a3e1197edd9070feba7083",
+      "sha256": "25a3f6c37410356d0d404f650c7077eea9e9bb37cbcb9191fa9df9581082c478",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-edit-mobile-light": {
       "path": "review/chat-edit-mobile-light.png",
-      "sha256": "01a37cd71523c21bce720998dd546ee972d8cef0351c14c11f88c4f26fbbf55f",
+      "sha256": "816a17e6135b932f9412176389645abfc80747b24f30584ce39d0b3d059087fe",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-edit-mobile-dark": {
       "path": "review/chat-edit-mobile-dark.png",
-      "sha256": "8ab6d776ec7ba011a3f46e6ed02fd4cdfd8b4e016192de5e6c4e6b16f3f3cd0a",
+      "sha256": "0fca7897d20d1339e4c9659cb642603223f99cc3e542c68561ac4e9b7af9f6f8",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-branch-desktop-light": {
       "path": "review/chat-branch-desktop-light.png",
-      "sha256": "0582321d9f5c5228e9a8c832b7f1d34a58b20e1364496fa90ebec12b2e356336",
+      "sha256": "e1e7ad321a4e2ac5e12b65f20ee65c3833fa127fd3374b1f8b6bc871a05d0265",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-branch-desktop-dark": {
       "path": "review/chat-branch-desktop-dark.png",
-      "sha256": "c9c17b61a940d5c595cbff9161365c96c7ccf03a7fb0b8d228abcce6a2d57100",
+      "sha256": "867f19675fa893277a09663a367b328b0f9a0e13690f3a08363f857e58410b41",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-branch-mobile-light": {
       "path": "review/chat-branch-mobile-light.png",
-      "sha256": "83bd084b9d2821fb95e28a7eb79ef4a8646b5031c1abf44378803695808a63cd",
+      "sha256": "12567bc2f72c2e9ab46e9c87f25d1e6df82bcc8702c0b9585a79ae680169da23",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-branch-mobile-dark": {
       "path": "review/chat-branch-mobile-dark.png",
-      "sha256": "d0464bd6791a1afad37288f7421cac34d692305203f6c7840a8b872fad931720",
+      "sha256": "95326a105483423e2239569e21e9212b52e4c2d3747f13929008417c15df0c8d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-stopped-desktop-light": {
       "path": "review/chat-stopped-desktop-light.png",
-      "sha256": "459bfa569851c41a366adb7827f5502fdb75f884d8d262137777b50df93bf861",
+      "sha256": "cdc5cf311890523d91ce49df6539bb3f759156471790eed07f4d04d5c0c5dcb2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-stopped-desktop-dark": {
       "path": "review/chat-stopped-desktop-dark.png",
-      "sha256": "d7e156670a7029e651530e36f2b3ea6f428f4af64bf740a066efbf47bf38159e",
+      "sha256": "3213253c9e18a8782f51695f21dc5c614d0b8cc24ab71ab9ece532b597ac4d39",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-stopped-mobile-light": {
       "path": "review/chat-stopped-mobile-light.png",
-      "sha256": "a00c0318fac37b920c05de7a6c795bb26cbb0ec51443fec8a38c8c60935e752a",
+      "sha256": "863423412716b5bbc2adab6be860f2ef0f081e708bfa9d9a2b7b018c71869b67",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-stopped-mobile-dark": {
       "path": "review/chat-stopped-mobile-dark.png",
-      "sha256": "ab2ad3a1ee2306b9f995135de310f8c85503ed0263e3636cbcbc948caee60b5a",
+      "sha256": "7b2d74998df381dd1762f892bb9fd9e9ed380b5eda647f9c09e49f0b1a88b91b",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-error-desktop-light": {
       "path": "review/chat-error-desktop-light.png",
-      "sha256": "b36b27a6257b1d2b501715375910658449f0bd7c5a22f28d1f03cdeaece412bb",
+      "sha256": "88c77575edc3b62d58ffe7e25b8777ce5782a8fa8d428c91b1f6da58a8c7c14b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-error-desktop-dark": {
       "path": "review/chat-error-desktop-dark.png",
-      "sha256": "f70164927156f14af6167e9c40cc29c516da9c9bb7dbf2df0fd66e0ebc22467e",
+      "sha256": "25631e1b6692f3e631bac8fa982de436d9d118611d2f93a018ad1396d2fefe38",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-error-mobile-light": {
       "path": "review/chat-error-mobile-light.png",
-      "sha256": "182c63cfebf97b235599db11fedc360adee21d0386aacd28164a47df98b7eaa0",
+      "sha256": "87e69b05080307762f21f99b39533714f8bcb0b0da5e061dd593a2a0eb675d07",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-error-mobile-dark": {
       "path": "review/chat-error-mobile-dark.png",
-      "sha256": "21f9c55a1ef1de44445b1413b86584dc3b841c7eca7ed6e77de6204adce371d5",
+      "sha256": "b836d42f3fe91bf78ccc2249cacf1845cc7d076d53d75431b449e9ad299ad831",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-desktop-light": {
       "path": "review/chat-reconnecting-desktop-light.png",
-      "sha256": "25875b557a213314ff812e8c6573ce81f4f76a911174828939118a3efcc79924",
+      "sha256": "5269c83078bfadf3e5dcf8fcada883f0f709e02312a04e1d9f40e70b7567a060",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-desktop-dark": {
       "path": "review/chat-reconnecting-desktop-dark.png",
-      "sha256": "9cd058a454c6094b4471899f86c9c07fca995c52da5a8d7d7e518b997f9258cd",
+      "sha256": "fc61354263c7e7bcb4df39f86c86444b4beea4dad303a3652cb7fafd530fb3f0",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-light": {
       "path": "review/chat-reconnecting-mobile-light.png",
-      "sha256": "d2d11ec00e54083815982d2aaa3546484770e8b277d39e125936326fc9b5ccfd",
+      "sha256": "d25fed9beaf3580e67a341c0cca5c02639edd22b8517a5c68c428d1b5f8dbd48",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-dark": {
       "path": "review/chat-reconnecting-mobile-dark.png",
-      "sha256": "c65ff2a4258554898de3c60b2b77d63790831058eaa3b55815c1182451b450f4",
+      "sha256": "33f844c0b7918bca6e0212841ee67ad44031a8adce90fa9d652c7384ff11d798",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-desktop-light": {
       "path": "review/chat-thread-loading-desktop-light.png",
-      "sha256": "3ddae3efb78a5d1dd5875d9bfab1d262a7b0818787838d085336bb2f10712c45",
+      "sha256": "7271d313bd42b5bd9d42d4222ff7574bafc0af575a5e75a72af7d075837dd632",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-desktop-dark": {
       "path": "review/chat-thread-loading-desktop-dark.png",
-      "sha256": "13d4a7c0f193b81296a1b6e385e7d9e57922d0868c2c60bd7acd5ec8186ad4d6",
+      "sha256": "7a2ad966fabdcc1adf17d0f05ff9a01a43ef276080a86617c7eaec24ede9cd9e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-mobile-light": {
       "path": "review/chat-thread-loading-mobile-light.png",
-      "sha256": "f3f7fa923493052a42bb72ecd0ca590180bb731c7cabb7da2db6037feeab3b6b",
+      "sha256": "591ee452a2ae2a8fe5854c974cd768274cbeeff673620743d946245feb659c76",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-mobile-dark": {
       "path": "review/chat-thread-loading-mobile-dark.png",
-      "sha256": "54984b45a1572e1cac01f04bea5159ed13a78901685d39694faac1bdc229838e",
+      "sha256": "2ccf7297b241afd9875a51b0cd667750c952b7ec006e3bc2d9c0f1073491e82a",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-desktop-light": {
       "path": "review/chat-floating-menu-desktop-light.png",
-      "sha256": "333299c379f840eca4fcf9fe03804b631e39e1764554e4d0a3361f8036909fb3",
+      "sha256": "49c8902b1b48438d260a81b383b8ecb8f95a49fe6205e6097cabb6847c6f3f29",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-desktop-dark": {
       "path": "review/chat-floating-menu-desktop-dark.png",
-      "sha256": "82ee4b1d031d4652710944d921b1bad889ed3d139285f03cfefaa99dd918dd06",
+      "sha256": "b9ffbb80bd5a41ac843b90e9efb6ced20d6d9051bacf340a49312740948444ad",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-mobile-light": {
       "path": "review/chat-floating-menu-mobile-light.png",
-      "sha256": "177bdec691ad00327f03ce15026f4c4da7ae64d3083b111eccdad0b5e3e6f345",
+      "sha256": "de72805e63fae8fb931ea976abe79f076ef99d47f53fff4e69d297892f0566c5",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-mobile-dark": {
       "path": "review/chat-floating-menu-mobile-dark.png",
-      "sha256": "af63d29b84098eaefd2b7c6f23f001536b1cebe4e9cc037f012ae3e802dd0030",
+      "sha256": "7d2492e0672ce73176aef5c958be5567575627372f6a6ba6018ecc978a63be54",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-rename-desktop-light": {
       "path": "review/chat-rename-desktop-light.png",
-      "sha256": "4819596eadeb8fda8f2b7df1458d979f535f8d2367a8080003e96efe363f0f9e",
+      "sha256": "32c4fd5fbfc12425199e8c1a32781de7491dd8c0f3adef45e41a5fa7d7e1f80f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-rename-desktop-dark": {
       "path": "review/chat-rename-desktop-dark.png",
-      "sha256": "a52833e0229c3bbd0c2f42a7519b40bea4adc019d070c0162ce48261d6c598cf",
+      "sha256": "7c62611135e6c99461a23c550d8ac31c996b41cf9381634971cb1a60603fd6bb",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-rename-mobile-light": {
       "path": "review/chat-rename-mobile-light.png",
-      "sha256": "e6f89de5f2b7baf6f8976d2b5544fe976ee4009d5e96012b950f7ee1bc303ef0",
+      "sha256": "46e2ae704c5999e6abba01ab52221fdefadc96726bdacc21deb0523a9a569677",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-rename-mobile-dark": {
       "path": "review/chat-rename-mobile-dark.png",
-      "sha256": "59e038ce571f7cdb6a473ea9d3d6dc36adf49630c574dae9bd0ca9ea3f13a63e",
+      "sha256": "62c36f7808f04ad44afe3c443e54d4246f9a854996b0c0fc2c827a575d507491",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-delete-desktop-light": {
       "path": "review/chat-delete-desktop-light.png",
-      "sha256": "0a9be769dcaa48d08cb9d9f64985610f2c6d522e09cca429757fefaa5441821a",
+      "sha256": "48bece3fc757d9e38331f7f1885af74e2bb48c2709a2a4359e07e6fb61953c0b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-delete-desktop-dark": {
       "path": "review/chat-delete-desktop-dark.png",
-      "sha256": "f3931d5e520519a26d621b0b707481a185e39dbaa1001e9efeeb974e88c609c7",
+      "sha256": "5e631345b86fd1e5e4e6c8215e8aa32b92b117f876fbfa85132d0c9be37186d4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-delete-mobile-light": {
       "path": "review/chat-delete-mobile-light.png",
-      "sha256": "a2e7ac3e771bc5a6f86a1d91a2904759b271271492ee7de5d00068feff9dc225",
+      "sha256": "1191d06d93f202da099bbd0ec5ba9e7970bef7307dd70462e05d1bbf691e73fa",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-delete-mobile-dark": {
       "path": "review/chat-delete-mobile-dark.png",
-      "sha256": "bdbc621b982ba719c34c5a22f8018c4e5903ea64a0b2352286bf95baa209a6d7",
+      "sha256": "3c729be0deb311fa353934bb0e479dab672edb3df5035c5c21c7aca9cd49c5dd",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-history-desktop-light": {
       "path": "review/chats-history-desktop-light.png",
-      "sha256": "4225093ee92d25716a9039395705db94b04d9524a936ca1cde7fdd5ed0cd0abe",
+      "sha256": "650ff308e8b351812ec40b5d76f54be7633c5703ea98b44d7bbd2b1cd76a6ce7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-history-desktop-dark": {
       "path": "review/chats-history-desktop-dark.png",
-      "sha256": "f090abc900b60c84049ec98b912817f25be20f7aaf83d04f1d13e8adf9f277ef",
+      "sha256": "f25d8e6080516ebddc60beb5ecfe4bcebdffb47441205e8a0dd5b200927a8a72",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-history-mobile-light": {
       "path": "review/chats-history-mobile-light.png",
-      "sha256": "13d0b81b5175ba96719de3b98ecb283421da7244a103070e051e6d59e29778f7",
+      "sha256": "e9e07e9605dae541ca90a6d920d6f6198b4efc9e0f276fbf686de58335ce14e1",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-history-mobile-dark": {
       "path": "review/chats-history-mobile-dark.png",
-      "sha256": "d64d74af3fac9bce617ee499656fb9ed394617fb00d8ba45f66ccbd934edcd75",
+      "sha256": "7b6966d081965f49c57bea5c30053a7d6f95f75a93f46a8f94b6d4e3deadba19",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-search-desktop-light": {
       "path": "review/chats-search-desktop-light.png",
-      "sha256": "b5565a324c9425afbacd8737b6d9e487427ad7896d30800f6f754eb28455573a",
+      "sha256": "f471429ee0ad667fb4945956883a839b192ad6850de83815d1bad44e5f98e60b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-search-desktop-dark": {
       "path": "review/chats-search-desktop-dark.png",
-      "sha256": "997cd5c02298753096185bdbae876c3e271d7359dafb07caacc299366183c4f4",
+      "sha256": "0f04830a0b7f24e369d2105e851d5e7f09efa38e884ed3323d2ac7eda9709e35",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-search-mobile-light": {
       "path": "review/chats-search-mobile-light.png",
-      "sha256": "868fabdf648c7d59ff4b33f8a5b1439dc85679eb67a7ff80008545d2856ad4db",
+      "sha256": "e62ade941f2dcaf6ad799334ea9095b78723c00f942dbc3f42fc862fa6389314",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-search-mobile-dark": {
       "path": "review/chats-search-mobile-dark.png",
-      "sha256": "298a317121926601865d13c93e00aff133ddeea5b139d36852250efa96633dd9",
+      "sha256": "5b099891fe3044e3ec66929b62ad653686af276d7b738ff583043eeb0b61eea5",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-no-results-desktop-light": {
       "path": "review/chats-no-results-desktop-light.png",
-      "sha256": "91aaca317ba182b9852a63ec955d6e0b9cac63a3a3fb525b0e6116cff3c29e8e",
+      "sha256": "386d68a33e0eb8af20cd92715ff6e6afd2731c296a795f343f673fe9bda31c05",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-no-results-desktop-dark": {
       "path": "review/chats-no-results-desktop-dark.png",
-      "sha256": "6db5b49fe00a337d963b82856b85130d7978bbfc7ab977cb319a76b91c94cfaa",
+      "sha256": "b6c1d423b94ba8718cd37fc8c39650fdc133e4839ef5fa65aba482fbd8d860f6",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-no-results-mobile-light": {
       "path": "review/chats-no-results-mobile-light.png",
-      "sha256": "81107ff99aadfe92a3b96a9af22a39fed43f8c459ff31e4e892b5d5d890f4d58",
+      "sha256": "1e6ac3d2907c6dcb45a5254b13dbcbb7a2a183774f2595db668d34434ef8a3cc",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-no-results-mobile-dark": {
       "path": "review/chats-no-results-mobile-dark.png",
-      "sha256": "da511644481dc94e3bb1f3515563b24415c40e9e3713e3ac19b4d0111dda367a",
+      "sha256": "f6d4a8a2f18d4f3c814ea9440a8c28b8a05e66059752b904abe3603954eb128d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "recent-menu-desktop-light": {
       "path": "review/recent-menu-desktop-light.png",
-      "sha256": "9784a8d194c22787aea08996f67b69eec3a67233bc42dda71ab42f8d8e74baca",
+      "sha256": "2475c648e184e6477daab537b03ed1a297f45bb328433b7dc72d4356935c4c88",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "recent-menu-desktop-dark": {
       "path": "review/recent-menu-desktop-dark.png",
-      "sha256": "4bdd3610dcc51621b09fa3e315ba84f1ecea047a06c2a1f616d31cacd765fbf4",
+      "sha256": "22891d0624c6f2a566d6d8549ce900775b931c5c077fa67ba6c0b2a1803bcdda",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "recent-menu-mobile-light": {
       "path": "review/recent-menu-mobile-light.png",
-      "sha256": "69980865303d3a353e1852f6e103657a963fefc66fa15c3698286777c5b5e58b",
+      "sha256": "c5f500eabed016c1f7f85f1756847eb8be0215afbaf648289f90c2f9e710ef11",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "recent-menu-mobile-dark": {
       "path": "review/recent-menu-mobile-dark.png",
-      "sha256": "af188764308fa9726d1bc3be2e44106bdabf962eb7d7aee3cfcb90d3298a6d6a",
+      "sha256": "241d119c336bfb41427b28a6b58e113fd897ef5e3c585e2c48540644551a36ee",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "indicator-finished-desktop-light": {
       "path": "review/indicator-finished-desktop-light.png",
-      "sha256": "6b9c18c659e826c4104c5c45d9311318694f5b162191e19335c0fc0792801642",
+      "sha256": "af144f3b5e6d8bfe3afebf9585673c7621e01028631823f599d200882c43e8ed",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "indicator-finished-desktop-dark": {
       "path": "review/indicator-finished-desktop-dark.png",
-      "sha256": "7566619a3cb2db8b2f16351c61aab13bc5df5fcd183009127e5f88b11f30a10e",
+      "sha256": "6cd2421982b75fb343ecc60aaa1acfac9649bf507145c52809ed2a9a9acad120",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "indicator-finished-mobile-light": {
       "path": "review/indicator-finished-mobile-light.png",
-      "sha256": "35a3bcc36b999d94be634ae7aaa62c8746f51e66bbdbc106e9e53e6f8bbb3aec",
+      "sha256": "e1b40f6a638ff097ae538f42a8c5f28b66f2473badc63dd30e6812dca5435d04",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "indicator-finished-mobile-dark": {
       "path": "review/indicator-finished-mobile-dark.png",
-      "sha256": "f24a15ed830e2eeff2b79cf131abb6b2c6ed6bbb6a22ca5b018ce6c574299e84",
+      "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1

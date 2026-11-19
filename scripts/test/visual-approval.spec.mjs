@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import {
   assertApprovalSourceReachable,
   assertApprovedVisualSet,
+  buildVisualBaselineManifest,
   invalidateRecapturedApproval,
   resolveVisualMode,
   visualSetDirectory,
@@ -216,4 +217,32 @@ test('an unapproved set has nothing to invalidate', () => {
   const result = invalidateRecapturedApproval(approval, images);
   assert.deepEqual(result.invalidated, []);
   assert.deepEqual(result.approval, approval);
+});
+
+test('approved deviations are validated and carried into the baseline manifest', () => {
+  const { directory, index, approval } = visualSet();
+  const deviations = [
+    { id: 'a', variant: 'm-dark', percent: 1.52, reason: 'owner accepted' },
+  ];
+  const manifest = buildVisualBaselineManifest(
+    index,
+    { ...approval, deviations },
+    directory,
+    {
+      sourceSha,
+      environment: approval.environment,
+      expectedViewCount: 2,
+    },
+  );
+  assert.deepEqual(manifest.deviations, deviations);
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(
+        index,
+        { ...approval, deviations: [{ id: 'a', variant: 'x' }] },
+        directory,
+        { expectedViewCount: 2 },
+      ),
+    /deviations are invalid/,
+  );
 });

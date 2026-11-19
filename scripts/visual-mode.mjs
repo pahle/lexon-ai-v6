@@ -393,6 +393,7 @@ export function buildVisualBaselineManifest(
     indexSha256,
     environment,
     viewCount,
+    ...(approval.deviations ? { deviations: approval.deviations } : {}),
     images: Object.fromEntries(
       Object.entries(approval.images).map(([id, image]) => [
         id,
@@ -442,6 +443,22 @@ function validateApprovedRecord(approval) {
         'Approved visual original approval provenance is invalid.',
       );
     }
+  }
+  if (
+    approval.deviations !== undefined &&
+    (!Array.isArray(approval.deviations) ||
+      approval.deviations.some(
+        (row) =>
+          typeof row.id !== 'string' ||
+          !row.id ||
+          typeof row.variant !== 'string' ||
+          !/^(d|m)(-dark)?$/.test(row.variant) ||
+          typeof row.percent !== 'number' ||
+          typeof row.reason !== 'string' ||
+          !row.reason.trim(),
+      ))
+  ) {
+    throw new Error('Approved visual deviations are invalid.');
   }
   if (
     approval.amendments !== undefined &&
