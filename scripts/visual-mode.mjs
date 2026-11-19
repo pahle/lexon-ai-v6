@@ -54,12 +54,23 @@ export function visualSetDirectory(
  * differs loses its approved entry, is listed under `invalidated`, and the
  * set returns to awaiting-owner, which refuses compare and update modes.
  */
+/**
+ * The hash a review image had when the owner approved it. A re-approved image
+ * keeps its review hash; its golden carries the new hash (`images[id]`).
+ */
+export function approvedReviewSha256(approval, id) {
+  return (
+    approval.reapproved?.find((entry) => entry.id === id)?.previousSha256 ??
+    approval.images?.[id]?.sha256
+  );
+}
+
 export function invalidateRecapturedApproval(approval, capturedImages) {
   if (approval.status !== 'approved') return { approval, invalidated: [] };
   const changed = Object.entries(approval.images ?? {}).filter(
     ([id, image]) =>
       capturedImages[id] !== undefined &&
-      capturedImages[id].sha256 !== image.sha256,
+      capturedImages[id].sha256 !== approvedReviewSha256(approval, id),
   );
   if (changed.length === 0) return { approval, invalidated: [] };
   const invalidated = changed.map(([id]) => id);
@@ -351,7 +362,12 @@ export function assertApprovedVisualSet(
       'review',
       id,
     );
-    assertPng(reviewPath, expected, id, 'approved review artifact');
+    assertPng(
+      reviewPath,
+      { ...expected, sha256: approvedReviewSha256(approval, id) },
+      id,
+      'approved review artifact',
+    );
     if (requireBaselines) {
       const baselinePath = resolveApprovedPath(
         directory,
@@ -393,6 +409,7 @@ export function buildVisualBaselineManifest(
     indexSha256,
     environment,
     viewCount,
+    ...(approval.reapproved ? { reapproved: approval.reapproved } : {}),
     ...(approval.deviations ? { deviations: approval.deviations } : {}),
     images: Object.fromEntries(
       Object.entries(approval.images).map(([id, image]) => [
@@ -459,6 +476,23 @@ function validateApprovedRecord(approval) {
       ))
   ) {
     throw new Error('Approved visual deviations are invalid.');
+  }
+  if (
+    approval.reapproved !== undefined &&
+    (!Array.isArray(approval.reapproved) ||
+      approval.reapproved.some(
+        (entry) =>
+          typeof entry.id !== 'string' ||
+          !/^[a-f\d]{64}$/.test(entry.sha256 ?? '') ||
+          !/^[a-f\d]{64}$/.test(entry.previousSha256 ?? '') ||
+          entry.sha256 === entry.previousSha256 ||
+          approval.images?.[entry.id]?.sha256 !== entry.sha256 ||
+          !Number.isInteger(entry.evidence?.pixels) ||
+          typeof entry.decision !== 'string' ||
+          !entry.decision.trim(),
+      ))
+  ) {
+    throw new Error('Approved visual re-approvals are invalid.');
   }
   if (
     approval.amendments !== undefined &&

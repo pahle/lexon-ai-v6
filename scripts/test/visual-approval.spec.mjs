@@ -246,3 +246,58 @@ test('approved deviations are validated and carried into the baseline manifest',
     /deviations are invalid/,
   );
 });
+
+test('a re-approved golden may differ from its approved review image', () => {
+  const { directory, index, approval } = visualSet();
+  const id = 'sign-in-desktop-light';
+  const previousSha256 = approval.images[id].sha256;
+  const bytes = png(1440, 900, 9);
+  writeFileSync(join(directory, 'baseline', `${id}.png`), bytes);
+  const reapproved = {
+    id,
+    sha256: sha256(bytes),
+    previousSha256,
+    evidence: { pixels: 1, bbox: [1, 1, 1, 1] },
+    decision: '2026-11-19, noise-only re-approval',
+  };
+  const changed = {
+    ...approval,
+    images: {
+      ...approval.images,
+      [id]: { ...approval.images[id], sha256: reapproved.sha256 },
+    },
+  };
+  // Without the entry the golden hash no longer matches the review image.
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(index, changed, directory, {
+        expectedViewCount: 2,
+      }),
+    /sha256 does not match/,
+  );
+  const withEntry = { ...changed, reapproved: [reapproved] };
+  assert.equal(
+    assertApprovedVisualSet(index, withEntry, directory, {
+      expectedViewCount: 2,
+    }),
+    2,
+  );
+  assert.equal(
+    buildVisualBaselineManifest(index, withEntry, directory, {
+      sourceSha,
+      environment: approval.environment,
+      expectedViewCount: 2,
+    }).images[id].sha256,
+    reapproved.sha256,
+  );
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(
+        index,
+        { ...changed, reapproved: [{ ...reapproved, evidence: {} }] },
+        directory,
+        { expectedViewCount: 2 },
+      ),
+    /re-approvals are invalid/,
+  );
+});

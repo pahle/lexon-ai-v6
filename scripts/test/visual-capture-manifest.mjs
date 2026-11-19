@@ -6,6 +6,7 @@ import os from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import {
+  approvedReviewSha256,
   invalidateRecapturedApproval,
   pixelLockedViews,
   visualSetDirectory,
@@ -114,7 +115,8 @@ try {
         ? Object.keys(images).length ===
             Object.keys(approval.images ?? {}).length &&
           Object.entries(images).every(
-            ([id, image]) => approval.images[id]?.sha256 === image.sha256,
+            ([id, image]) =>
+              approvedReviewSha256(approval, id) === image.sha256,
           )
         : null,
     viewCount: reviewViews.length,
