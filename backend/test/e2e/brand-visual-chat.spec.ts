@@ -588,10 +588,15 @@ test('streaming, reconnecting, and loading chat threads', async ({
       );
       expect(disconnected).toBe(true);
       await expect(page.getByText('Reconnecting…')).toBeVisible();
-      // The prototype shows the scroll-to-latest button here too.
+      // The prototype shows the scroll-to-latest button here too. The filler
+      // goes below the status line, so the line stays in view at the top.
       await page.addStyleTag({
-        content: '[data-slot="aui_message-group"] { padding-bottom: 1400px; }',
+        content:
+          '[data-slot="aui_message-group"] + [role="status"] { padding-bottom: 1400px; }',
       });
+      await expect(
+        page.getByText('Connection lost. Reconnecting…'),
+      ).toBeInViewport();
       const thread = page.locator('[data-slot="aui_thread-viewport"]');
       await thread.evaluate((element) => {
         element.style.scrollBehavior = 'auto';

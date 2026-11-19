@@ -45,7 +45,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  PencilIcon,
+  PenIcon,
   RefreshCwIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
@@ -397,6 +397,21 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
     running,
     running && !loadedFromServer,
   );
+  // Every answer after the message being edited is muted until saved.
+  const editingPosition = useAuiState((state) =>
+    editFocus.editingId === null
+      ? -1
+      : state.thread.messages.findIndex(
+          (message) => message.id === editFocus.editingId,
+        ),
+  );
+  const answerBusy = useAuiState(
+    (state) =>
+      state.thread.isRunning ||
+      state.thread.messages.some(
+        (message) => message.status?.type === 'running',
+      ),
+  );
   if (editing)
     return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
   // The answer under an open edit reads as dimmed through the muted text
@@ -404,8 +419,8 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
   // readable and operable for every user while the edit is open.
   const dimmed =
     role === 'assistant' &&
-    parentId !== null &&
-    editFocus.editingId === parentId;
+    editingPosition >= 0 &&
+    messagePosition > editingPosition;
   return (
     <MessagePrimitive.Root
       data-slot={`aui_${role}-message-root`}
@@ -494,7 +509,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
           )}
         >
           <BranchPicker />
-          <UserEditAction />
+          <UserEditAction hidden={answerBusy || reconnecting} />
         </div>
       )}
     </MessagePrimitive.Root>
@@ -775,9 +790,12 @@ const AssistantActions: FC<{
 const USER_ACTION =
   'text-muted-foreground hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md [&_svg]:size-3.5';
 
-const UserEditAction = () => {
+// Copy and Edit are hidden while an answer is thinking, streaming, or
+// reconnecting (prototype 14.6).
+const UserEditAction: FC<{ hidden: boolean }> = ({ hidden }) => {
   const serverActive = useChatActiveRun();
   const copied = useAuiState((state) => state.message.isCopied);
+  if (hidden) return null;
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -801,7 +819,7 @@ const UserEditAction = () => {
         aria-label="Edit message"
         disabled={serverActive}
       >
-        <PencilIcon />
+        <PenIcon />
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );

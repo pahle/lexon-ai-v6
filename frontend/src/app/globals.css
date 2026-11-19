@@ -273,3 +273,35 @@
 @custom-variant data-open (&:where([data-state='open'], [data-open]:not([data-open='false'])));
 
 @custom-variant data-closed (&:where([data-state='closed'], [data-closed]:not([data-closed='false'])));
+
+/* Streaming caret (LEX-DS-001 v3.1 §5.5): the prototype's block caret, 8x17px
+   in foreground with a 2px radius, replaces assistant-ui's dot. The selectors
+   mirror dot.css with a higher specificity so this wins without !important. */
+.aui-md[data-status='running']:empty::after,
+.aui-md[data-status='running'] > :not(ol):not(ul):not(pre):last-child::after,
+.aui-md[data-status='running'] > pre:last-child code::after,
+.aui-md[data-status='running']
+  > :is(ol, ul):last-child
+  > li:last-child:not(:has(* > li))::after,
+.aui-md[data-status='running']
+  > :is(ol, ul):last-child
+  > li:last-child
+  > :is(ol, ul):last-child
+  > li:last-child:not(:has(* > li))::after,
+.aui-md[data-status='running']
+  > :is(ol, ul):last-child
+  > li:last-child
+  > :is(ol, ul):last-child
+  > li:last-child
+  > :is(ol, ul):last-child
+  > li:last-child::after {
+  --aui-content: '';
+  display: inline-block;
+  width: 8px;
+  height: 17px;
+  margin-right: 0;
+  margin-left: 2px;
+  border-radius: 2px;
+  background: var(--foreground);
+  vertical-align: -3px;
+}

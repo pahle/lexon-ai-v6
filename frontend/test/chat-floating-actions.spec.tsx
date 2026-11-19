@@ -309,6 +309,43 @@ test('the chat page h1 falls back to Chat until the title is known', async () =>
   await view.unmount();
 });
 
+test('the header keeps the title known from the chat list while the thread loads, never the generic Chat', async () => {
+  navigation.path = `/chats/${CHAT_ID}`;
+  fixture.title = null;
+  const client = new QueryClient();
+  client.setQueryData(
+    ['tenant', identity.organization.id, 'chat', identity.user.id, 'list', 20],
+    {
+      pageParams: [undefined],
+      pages: [
+        {
+          items: [{ id: CHAT_ID, title: 'Listed chat title' }],
+          pageInfo: { nextCursor: null },
+        },
+      ],
+    },
+  );
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider bootstrap={{ status: 'ready', identity }}>
+        <CompositeSidebarProvider defaultOpen>
+          <WorkspaceShell sidebar={<AppSidebar />}>
+            <ChatPage />
+          </WorkspaceShell>
+        </CompositeSidebarProvider>
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.querySelector('#main h1')?.textContent).toBe(
+    'Listed chat title',
+  );
+  expect(view.container.querySelector('#main')?.textContent).not.toMatch(
+    /(^|[^a-z])Chat(?![a-z ])/,
+  );
+  await view.unmount();
+});
+
 test('the Chats page keeps only its own Chats heading', async () => {
   navigation.path = '/chats';
   const view = await render(tree(<PageHeader title="Chats" />));

@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { createChatClient } from '@/lib/chat-client';
+import { chatListQueryKey } from '@/lib/chat-queries';
 import { requestRouteHeadingFocus } from '../shell/navigation-focus';
 import { useWorkspace } from '../shell/workspace-provider';
 import { ChatDeleteDialog } from './chat-delete-dialog';
@@ -20,6 +28,11 @@ import { finishChatRename } from './chat-history';
 import { ChatRenameDialog } from './chat-rename-dialog';
 
 export type OpenChat = { id: string; title: string };
+
+type ListCacheData =
+  | { items?: { id: string; title: string }[] }
+  | { pages: { items?: { id: string; title: string }[] }[] }
+  | undefined;
 
 const CHAT_THREAD_PATH = /^\/chats\/([0-9a-f-]{36})$/i;
 
@@ -39,7 +52,33 @@ export function isChatChromePath(pathname: string) {
 export function useOpenChat(): OpenChat | null {
   const pathname = usePathname() ?? '';
   const { identity, chatTitle } = useWorkspace();
+  const queryClient = useQueryClient();
   const id = CHAT_THREAD_PATH.exec(pathname)?.[1];
+  const orgId = identity?.organization.id;
+  const userId = identity?.user.id;
+  // While the thread loads, its title is already known from the chat lists
+  // (Recent, All chats) in the query cache, so the header never shows the
+  // generic "Chat" for a chat that has a title.
+  const listedTitle = useSyncExternalStore(
+    useCallback(
+      (notify) => queryClient.getQueryCache().subscribe(notify),
+      [queryClient],
+    ),
+    () => {
+      if (!id || !orgId || !userId) return null;
+      for (const [, data] of queryClient.getQueriesData<ListCacheData>({
+        queryKey: chatListQueryKey({ orgId, userId }),
+      })) {
+        const pages = data && 'pages' in data ? data.pages : [data];
+        for (const page of pages) {
+          const found = page?.items?.find((item) => item.id === id);
+          if (found) return found.title;
+        }
+      }
+      return null;
+    },
+    () => null,
+  );
   if (!id) return null;
   const actorScope = identity
     ? `${identity.organization.id}:${identity.user.id}`
@@ -47,7 +86,7 @@ export function useOpenChat(): OpenChat | null {
   const title =
     chatTitle && chatTitle.chatId === id && chatTitle.actorScope === actorScope
       ? chatTitle.title
-      : 'Chat';
+      : (listedTitle ?? 'Chat');
   return { id, title };
 }
 

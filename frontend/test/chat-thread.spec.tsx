@@ -2678,3 +2678,168 @@ it('opens a thread with the last user message at the top of the viewport', async
     delete (HTMLElement.prototype as { scrollTop?: number }).scrollTop;
   }
 });
+
+function makeTwoTurnTree(): ChatTree {
+  const ids = {
+    chat: '11111111-1111-4111-8111-111111111111',
+    q1: '22222222-2222-4222-8222-222222222221',
+    a1: '33333333-3333-4333-8333-333333333331',
+    q2: '22222222-2222-4222-8222-222222222222',
+    a2: '33333333-3333-4333-8333-333333333332',
+  };
+  const answer = (id: string, parentId: string, text: string, n: number) => ({
+    id,
+    role: 'assistant' as const,
+    parentId,
+    runId: `44444444-4444-4444-8444-44444444444${n}`,
+    text,
+    status: 'completed' as const,
+    reasoningSummary: 'Checked **Article 1320** first.',
+    reasoningDurationMs: 8_000,
+    feedback: null,
+    createdAt: '2026-11-12T00:00:01.000Z',
+  });
+  const question = (id: string, parentId: string | null, text: string) => ({
+    id,
+    role: 'user' as const,
+    parentId,
+    text,
+    effort: 'high' as const,
+    createdAt: '2026-11-12T00:00:00.000Z',
+  });
+  return {
+    id: ids.chat,
+    title: 'Two turns',
+    messages: [
+      question(ids.q1, null, 'First question'),
+      answer(
+        ids.a1,
+        ids.q1,
+        '# Heading text\n\nPlain **strong text** and `inline code` with a [link text](https://example.test).\n\n- first item with **bold item**\n- second item\n\n1. numbered one',
+        1,
+      ),
+      question(ids.q2, ids.a1, 'Second question'),
+      answer(ids.a2, ids.q2, 'Second answer with **bold**.', 2),
+    ],
+    viewedLeafId: ids.a2,
+    createdAt: '2026-11-12T00:00:00.000Z',
+    updatedAt: '2026-11-12T00:00:01.000Z',
+  } as ChatTree;
+}
+
+const COLOR_CLASS =
+  /(^|\s)text-(foreground|muted-foreground|\(--lexon-[a-z-]+\))(\s|$)/;
+
+// The color a text node renders in: the nearest ancestor that sets a text
+// color token (everything below inherits it).
+function renderedColorToken(node: Node, root: HTMLElement) {
+  for (
+    let element = node.parentElement;
+    element;
+    element = element.parentElement
+  ) {
+    const match = COLOR_CLASS.exec(element.getAttribute('class') ?? '');
+    if (match) return match[2];
+    if (element === root) break;
+  }
+  return null;
+}
+
+function visibleTextNodes(root: HTMLElement) {
+  const nodes: Text[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node as Text;
+    if (!text.data.trim()) continue;
+    if (text.parentElement?.closest('.sr-only')) continue;
+    nodes.push(text);
+  }
+  return nodes;
+}
+
+it('mutes every text node of every answer after the message being edited', async () => {
+  const tree = makeTwoTurnTree();
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settle();
+    const answers = () =>
+      Array.from(
+        view.container.querySelectorAll<HTMLElement>('[data-role="assistant"]'),
+      );
+    expect(answers()).toHaveLength(2);
+    // Reasoning header open, so its summary is rendered too.
+    for (const answer of answers())
+      await act(async () =>
+        answer
+          .querySelector<HTMLButtonElement>('button[aria-expanded]')
+          ?.click(),
+      );
+    await settle();
+    const firstUser = view.container.querySelector<HTMLElement>(
+      '[data-role="user"] [aria-label="Edit message"]',
+    )!;
+    await act(async () => firstUser.click());
+    await settle();
+    expect(answers()).toHaveLength(2);
+    const first = answers()[0]!;
+    expect(first.textContent).toContain('strong text');
+    expect(first.querySelector('strong')).not.toBeNull();
+    expect(first.querySelector('code')).not.toBeNull();
+    expect(first.querySelector('a')).not.toBeNull();
+    expect(first.querySelector('li')).not.toBeNull();
+    expect(first.querySelector('h1')).not.toBeNull();
+    for (const answer of answers()) {
+      const nodes = visibleTextNodes(answer);
+      expect(nodes.length).toBeGreaterThan(0);
+      for (const node of nodes)
+        expect(renderedColorToken(node, answer), `dimmed: ${node.data}`).toBe(
+          'muted-foreground',
+        );
+    }
+    await act(async () =>
+      view.container
+        .querySelector<HTMLButtonElement>('[aria-label="Cancel edit"]')
+        ?.click(),
+    );
+    await settle();
+    for (const answer of answers())
+      expect(answer.className).not.toContain('text-muted-foreground');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('shows Copy and Edit on a user message as 14px Lucide copy and pen icons, and hides them while an answer reconnects', async () => {
+  const tree = cancelledTree();
+  const render1 = (reconnecting: boolean) =>
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" reconnecting={reconnecting} />
+      </ChatRuntime>,
+    );
+  const view = await render(render1(false));
+  try {
+    await settle();
+    const user = () =>
+      view.container.querySelector<HTMLElement>('[data-role="user"]')!;
+    const copy = user().querySelector('[aria-label="Copy message"]')!;
+    const edit = user().querySelector('[aria-label="Edit message"]')!;
+    expect(copy.querySelector('svg.lucide-copy')).not.toBeNull();
+    expect(edit.querySelector('svg.lucide-pen')).not.toBeNull();
+    expect(edit.querySelector('svg.lucide-pencil')).toBeNull();
+    expect(copy.className).toContain('[&_svg]:size-3.5');
+    expect(edit.className).toContain('[&_svg]:size-3.5');
+    await view.rerender(render1(true));
+    await settle();
+    expect(user().querySelector('[aria-label="Copy message"]')).toBeNull();
+    expect(user().querySelector('[aria-label="Edit message"]')).toBeNull();
+  } finally {
+    await view.unmount();
+  }
+});
