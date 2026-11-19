@@ -41,12 +41,10 @@ import {
 import {
   ArrowUpIcon,
   Brain as BrainIcon,
-  CheckIcon,
   CircleAlertIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  CopyIcon,
   PenIcon,
   RefreshCwIcon,
   ThumbsDownIcon,
