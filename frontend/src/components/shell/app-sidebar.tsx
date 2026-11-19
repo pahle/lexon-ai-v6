@@ -161,7 +161,7 @@ function NavigationGroup({
       >
         <ChevronRight
           aria-hidden="true"
-          className="translate-x-1 transition-transform duration-200 group-data-open/collapsible:rotate-90"
+          className="text-muted-foreground transition-transform duration-200 group-data-open/collapsible:rotate-90"
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -258,6 +258,7 @@ export function AppSidebar() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
+          className="text-muted-foreground"
           onClick={() => {
             if (isMobile) setOpenMobile(false);
           }}
@@ -270,7 +271,7 @@ export function AppSidebar() {
             />
           }
         >
-          <Ellipsis aria-hidden="true" />
+          <Ellipsis aria-hidden="true" className="-ml-0.5" />
           <span>View all chats</span>
         </SidebarMenuButton>
       </SidebarMenuItem>

@@ -25,11 +25,14 @@ test('the shell spec measures tile, Assistant icon and avatar expanded and colla
   assert.match(block, /avatar: \[/);
   const collapse = block.indexOf("name: 'Collapse sidebar' }).click()");
   assert.ok(collapse > 0, 'the test collapses the sidebar');
+  const after = block.slice(collapse);
+  assert.match(after, /expect\(collapsed\.tile\)\.toEqual\(expanded\.tile\)/);
   assert.match(
-    block.slice(collapse),
-    /JSON\.stringify\(await spots\(\), null, 1\)\)\.toBe\(\s*JSON\.stringify\(expanded, null, 1\)/,
-    'the collapsed positions equal the expanded ones',
+    after,
+    /expect\(collapsed\.avatar\)\.toEqual\(expanded\.avatar\)/,
   );
+  assert.match(after, /collapsed\.icon\[0\]! \+ collapsed\.icon\[2\]! \/ 2/);
+  assert.match(spec, /expectSidebarGrid\(page\)/);
   assert.doesNotMatch(spec, /test\.(skip|fixme)\(/);
 });
 

@@ -155,9 +155,9 @@ test('team shell, menus, and the mobile sheet', async ({
     },
   });
 
-  // Nothing moves when the sidebar collapses (LEX-DS-001 §5.5): the tile, the
-  // Assistant icon and the avatar keep their positions, measured from the
-  // left and, for the avatar, from the bottom.
+  // One grid (LEX-DS-001 §5.5 Shell): the tile and the avatar keep their
+  // position when the sidebar collapses; the Assistant icon is centered in its
+  // 32px button under the tile (x 24, 8px right of expanded) at the same y.
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoWorkspace(page, ayu.firstName);
   const spots = async () => {
@@ -184,17 +184,23 @@ test('team shell, menus, and the mobile sheet', async ({
     };
   };
   const expanded = await spots();
-  expect(expanded.tile).toEqual([8, 16, 32, 32]);
+  expect(expanded.tile).toEqual([16, 16, 32, 32]);
   expect(expanded.icon.slice(0, 2)).toEqual([16, 80]);
-  expect(expanded.avatar[0]).toBe(8);
+  expect(expanded.avatar[0]).toBe(16);
+  await expectSidebarGrid(page);
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await expect(
     page.getByRole('button', { name: 'Expand sidebar' }),
   ).toBeVisible();
   await page.waitForTimeout(600);
-  expect(JSON.stringify(await spots(), null, 1)).toBe(
-    JSON.stringify(expanded, null, 1),
+  const collapsed = await spots();
+  expect(collapsed.tile).toEqual(expanded.tile);
+  expect(collapsed.avatar).toEqual(expanded.avatar);
+  // Centered under the tile: the icon's center is the tile's center.
+  expect(collapsed.icon[0]! + collapsed.icon[2]! / 2).toBe(
+    collapsed.tile[0]! + collapsed.tile[2]! / 2,
   );
+  expect(collapsed.icon[1]).toBe(expanded.icon[1]);
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
 });
 
@@ -296,3 +302,100 @@ test('workspace error page after a render failure', async ({
   );
   await captureBrandViews(page, 'workspace-error');
 });
+
+/**
+ * Measures the visible glyphs of the expanded sidebar (not the 16px icon
+ * boxes): SVG shapes through getBBox plus half the stroke, text through Range
+ * rects. Right edges sit at x 240, left edges at x 16, within 1px.
+ */
+async function expectSidebarGrid(page: Page) {
+  const edges = await page.evaluate(() => {
+    const glyph = (svg: Element | null) => {
+      if (!svg) throw new Error('glyph is not rendered');
+      let left = Infinity;
+      let right = -Infinity;
+      for (const shape of svg.querySelectorAll<SVGGraphicsElement>(
+        'path, circle, rect, line, polyline',
+      )) {
+        const ctm = shape.getScreenCTM();
+        if (!ctm) continue;
+        const bbox = shape.getBBox();
+        const stroke = Number.parseFloat(
+          getComputedStyle(shape).strokeWidth || '0',
+        );
+        const half = (stroke * Math.hypot(ctm.a, ctm.b)) / 2;
+        // All four corners: the chevron is rotated when its group is open.
+        for (const [x, y] of [
+          [bbox.x, bbox.y],
+          [bbox.x + bbox.width, bbox.y],
+          [bbox.x, bbox.y + bbox.height],
+          [bbox.x + bbox.width, bbox.y + bbox.height],
+        ] as const) {
+          const px = ctm.a * x + ctm.c * y + ctm.e;
+          left = Math.min(left, px - half);
+          right = Math.max(right, px + half);
+        }
+      }
+      return { left, right };
+    };
+    const text = (node: Element | null) => {
+      if (!node) throw new Error('text is not rendered');
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    };
+    const q = (selector: string) => document.querySelector(selector);
+    const org = q('button[aria-label^="Organization:"]');
+    const user = q('[data-slot="sidebar-footer"] button');
+    const assistantToggle = q(
+      'button[aria-label="Toggle Assistant navigation"]',
+    );
+    const recentTitle = q('[data-slot="sidebar-menu-button"] > span.truncate');
+    const label = [
+      ...document.querySelectorAll('[data-slot="sidebar-group-label"]'),
+    ].find((node) => node.textContent === 'Recent');
+    const assistantLink = q(
+      'nav[aria-label="Primary navigation"] a[data-slot="sidebar-menu-button"]',
+    );
+    return {
+      tile: org?.querySelector('span')?.getBoundingClientRect().left ?? NaN,
+      navIcon: glyph(assistantLink?.querySelector('svg') ?? null).left,
+      recentLabel: text(label ?? null).left,
+      recentTitle: text(recentTitle).left,
+      avatar:
+        user?.querySelector('[data-slot="avatar"]')?.getBoundingClientRect()
+          .left ?? NaN,
+      orgChevron: glyph(org?.querySelector(':scope > svg:last-child') ?? null)
+        .right,
+      userChevron: glyph(user?.querySelector(':scope > svg:last-child') ?? null)
+        .right,
+      assistantChevron: glyph(assistantToggle?.querySelector('svg') ?? null)
+        .right,
+      kbd: text(q('[data-slot="shortcut-hint"]')).right,
+      rowMore: glyph(q('button[aria-label^="Chat actions for"] svg')).right,
+    };
+  });
+  const leftEdges = [
+    'tile',
+    'navIcon',
+    'recentLabel',
+    'recentTitle',
+    'avatar',
+  ] as const;
+  const rightEdges = [
+    'orgChevron',
+    'userChevron',
+    'assistantChevron',
+    'kbd',
+    'rowMore',
+  ] as const;
+  for (const key of leftEdges)
+    expect(Math.abs(edges[key] - 16), `left edge ${key}`).toBeLessThanOrEqual(
+      1,
+    );
+  for (const key of rightEdges)
+    expect(Math.abs(edges[key] - 240), `right edge ${key}`).toBeLessThanOrEqual(
+      1,
+    );
+}

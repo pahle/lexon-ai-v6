@@ -170,6 +170,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                 render={
                   <SidebarMenuButton
                     size="lg"
+                    className="data-popup-open:bg-transparent!"
                     tooltip={orgLabel(identity.organization)}
                   />
                 }
@@ -182,7 +183,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
                 {!collapsed ? (
                   <ChevronsUpDown
                     aria-hidden="true"
-                    className="ml-auto size-4 text-muted-foreground"
+                    className="-mr-1 ml-auto size-4 text-muted-foreground"
                   />
                 ) : null}
               </DropdownMenuTrigger>
@@ -201,7 +202,7 @@ export function OrganizationMenu({ identity }: { identity: IdentitySummary }) {
             <TriggerText identity={identity} />
             <ChevronsUpDown
               aria-hidden="true"
-              className="ml-auto size-4 text-muted-foreground"
+              className="-mr-1 ml-auto size-4 text-muted-foreground"
             />
           </DropdownMenuTrigger>
         )}

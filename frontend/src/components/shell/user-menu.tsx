@@ -101,6 +101,7 @@ export function UserMenu({
           sidebar ? (
             <SidebarMenuButton
               size="lg"
+              className="data-popup-open:bg-transparent!"
               title={collapsed ? name : undefined}
               disabled={busy}
             />
@@ -126,7 +127,7 @@ export function UserMenu({
         {!collapsed ? (
           <ChevronsUpDown
             aria-hidden="true"
-            className="ml-auto size-4 text-muted-foreground"
+            className="-mr-1 ml-auto size-4 text-muted-foreground"
           />
         ) : null}
       </DropdownMenuTrigger>

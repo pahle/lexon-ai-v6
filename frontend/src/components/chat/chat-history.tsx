@@ -318,9 +318,7 @@ function RecentChatRow({
         isActive={current}
         aria-current={current ? 'page' : undefined}
         tooltip={item.title}
-        className={
-          current ? 'pr-8' : 'group-has-[[aria-expanded=true]]/menu-item:pr-8'
-        }
+        className="pr-8"
         onClick={onCloseMobile}
         render={
           <Link
@@ -447,7 +445,7 @@ export function ChatHistoryActions({
               type="button"
               showOnHover
               className={cn(
-                'size-6 peer-data-[size=default]/menu-button:top-1',
+                'right-0.5 size-6 text-muted-foreground peer-data-[size=default]/menu-button:top-1',
                 className,
               )}
               aria-label={label}

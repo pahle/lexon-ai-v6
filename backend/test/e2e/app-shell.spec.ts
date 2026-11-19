@@ -460,6 +460,18 @@ test('Task 6A Home shell keeps switcher and user menu complete and keyboard reac
   const tileBounds = await tile.locator('..').boundingBox();
   expect(tileBounds?.width).toBe(32);
   expect(tileBounds?.height).toBe(32);
+  // Let the 200ms width transition finish before the keyboard opens the menu;
+  // a slow runner otherwise re-renders the trigger mid-open.
+  await expect
+    .poll(async () => (await tile.locator('..').boundingBox())?.x)
+    .toBe(16);
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-slot="sidebar-container"]')
+        .evaluate((node) => node.getBoundingClientRect().width),
+    )
+    .toBe(64);
   await collapsedOrganization.focus();
   await page.keyboard.press('Enter');
   await expect(
