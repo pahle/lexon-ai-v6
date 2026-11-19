@@ -1,9 +1,9 @@
 {
-  "commit": "11f71f7",
-  "durationMs": 20001,
-  "frames": 1010,
+  "commit": "d2ff5a6",
+  "durationMs": 20000,
+  "frames": 1036,
   "longTasksOver50ms": 1,
-  "longestTaskMs": 78.254,
+  "longestTaskMs": 81.914,
   "streamedChars": 4000,
   "longTasksAttributedToIndicator": 0,
   "attribution": "RunTask over 50 ms on the renderer main thread, matched to the indicator by sampled V8 call frames and event URLs (indicator, thinking-indicator, lexon-mark); a production build can minify names, so a zero is a lower bound"

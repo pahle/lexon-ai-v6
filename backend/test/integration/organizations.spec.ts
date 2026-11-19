@@ -90,7 +90,7 @@ test('team create/settings/list are actor-bound, audited, paginated and preserve
         organizations.settings(identity, team.id, {
           state: 'provisioning',
         } as never),
-      ).rejects.toBeDefined();
+      ).rejects.toMatchObject({ name: 'ZodError' });
     });
     await security.identity(outsider.cookieHeaders, async (identity) => {
       expect(
@@ -366,7 +366,10 @@ for (const failures of [2, 3])
           kind: 'team',
           role: 'owner',
         });
-      else await expect(create).rejects.toBeDefined();
+      else
+        await expect(create).rejects.toMatchObject({
+          cause: { code: '40001' },
+        });
       expect(await inspect.attempts()).toBe(3);
       expect(await inspect.teamCount(user.userId)).toBe(failures === 2 ? 1 : 0);
       expect(await audit.count('organization.created.v1')).toBe(

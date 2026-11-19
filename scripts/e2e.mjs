@@ -109,6 +109,12 @@ try {
       E2E_AUTH_RATE_RULES_JSON: JSON.stringify({
         signup: { account: 3, ip: 100, windowSeconds: 600 },
         'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+        // Since AUTH_TRUSTED_PROXIES the host's direct API calls and its
+        // Caddy-routed browser traffic resolve to ONE client address (before,
+        // they were two buckets: the gateway and Caddy). The suite signs in far
+        // more than 30 times a minute from that one host, so give it headroom.
+        // Production keeps the default; the proxy spec reads this value.
+        signin: { account: 5, ip: 100, windowSeconds: 60 },
       }),
       COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',

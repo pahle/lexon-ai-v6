@@ -76,19 +76,34 @@ async function client(
   }
 }
 
+// The stack's per-IP sign-in limit, read from the running API so the proof
+// follows scripts/e2e.mjs instead of a copied number.
+async function signinLimit(): Promise<number> {
+  const rules = JSON.parse(
+    await docker([
+      'exec',
+      await containerId('api'),
+      'printenv',
+      'AUTH_RATE_RULES_JSON',
+    ]),
+  ) as { signin?: { ip: number } };
+  return rules.signin?.ip ?? 30;
+}
+
 test('one client exhausting its sign-in bucket leaves another client container open', async () => {
-  // Default signin rule: 30 per IP per 60 s.
-  const a = await client('a', 101, 32);
-  expect(a.slice(0, 30)).not.toContain(429);
-  expect(a.slice(0, 30)).not.toContain(403);
-  expect(a.slice(30)).toEqual([429, 429]);
+  const limit = await signinLimit();
+  const a = await client('a', 101, limit + 2);
+  expect(a.slice(0, limit)).not.toContain(429);
+  expect(a.slice(0, limit)).not.toContain(403);
+  expect(a.slice(limit)).toEqual([429, 429]);
   const b = await client('b', 102, 3);
   expect(b).not.toContain(429);
 });
 
 test('a client-controlled X-Forwarded-For does not move a client to a new bucket', async () => {
-  const spoofed = await client('c', 103, 32, '1.1.1.1,2.2.2.2');
-  expect(spoofed.slice(0, 30)).not.toContain(429);
-  expect(spoofed.slice(0, 30)).not.toContain(403);
-  expect(spoofed.slice(30)).toEqual([429, 429]);
+  const limit = await signinLimit();
+  const spoofed = await client('c', 103, limit + 2, '1.1.1.1,2.2.2.2');
+  expect(spoofed.slice(0, limit)).not.toContain(429);
+  expect(spoofed.slice(0, limit)).not.toContain(403);
+  expect(spoofed.slice(limit)).toEqual([429, 429]);
 });

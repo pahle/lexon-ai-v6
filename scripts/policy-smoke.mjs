@@ -31,6 +31,10 @@ const env = await composeEnvironment(
     S3_BUCKET: 'lexon-policy',
     API_HOST_PORT: '0',
     FRONTEND_HOST_PORT: '0',
+    // The edge network has a fixed subnet (A-03); a /24 per stack keeps this
+    // throwaway stack from overlapping the E2E stack that is running it.
+    EDGE_SUBNET: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.0/24`,
+    CADDY_EDGE_IP: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.250`,
   },
   directory,
 );
