@@ -28,7 +28,7 @@
       "key": "mobile-dark",
       "prototypeState": "indicator",
       "note": "layout only (state: indicator)",
-      "percent": 7.11,
+      "percent": 7.04,
       "status": "FAIL",
       "sheet": "indicator-wander-m-dark.png"
     },
@@ -38,7 +38,7 @@
       "key": "mobile-dark",
       "prototypeState": "indicator",
       "note": "layout only (state: indicator)",
-      "percent": 7.11,
+      "percent": 7.04,
       "status": "FAIL",
       "sheet": "indicator-mark-m-dark.png"
     },
@@ -48,7 +48,7 @@
       "key": "mobile-light",
       "prototypeState": "indicator",
       "note": "layout only (state: indicator)",
-      "percent": 7.08,
+      "percent": 7,
       "status": "FAIL",
       "sheet": "indicator-wander-m.png"
     },
@@ -58,45 +58,27 @@
       "key": "mobile-light",
       "prototypeState": "indicator",
       "note": "layout only (state: indicator)",
-      "percent": 7.08,
+      "percent": 7,
       "status": "FAIL",
       "sheet": "indicator-mark-m.png"
-    },
-    {
-      "id": "settings-invitations",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "settings-invitations",
-      "percent": 5.19,
-      "status": "FAIL",
-      "sheet": "settings-invitations-m-dark.png"
-    },
-    {
-      "id": "settings-invitations",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "settings-invitations",
-      "percent": 4.96,
-      "status": "FAIL",
-      "sheet": "settings-invitations-m.png"
-    },
-    {
-      "id": "platform-provisioning-error",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "platform-provisioning-error",
-      "percent": 4.28,
-      "status": "FAIL",
-      "sheet": "platform-provisioning-error-m-dark.png"
     },
     {
       "id": "user-menu-open",
       "variant": "m-dark",
       "key": "mobile-dark",
       "prototypeState": "user-menu-open",
-      "percent": 4.09,
+      "percent": 4,
       "status": "FAIL",
       "sheet": "user-menu-open-m-dark.png"
+    },
+    {
+      "id": "user-menu-open",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "user-menu-open",
+      "percent": 3.77,
+      "status": "FAIL",
+      "sheet": "user-menu-open-m.png"
     },
     {
       "id": "indicator-finished",
@@ -104,18 +86,18 @@
       "key": "desktop-dark",
       "prototypeState": "indicator",
       "note": "layout only (state: indicator)",
-      "percent": 3.78,
+      "percent": 3.77,
       "status": "FAIL",
       "sheet": "indicator-finished-d-dark.png"
     },
     {
-      "id": "user-menu-open",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "user-menu-open",
-      "percent": 3.67,
+      "id": "platform-provisioning-error",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 3.7,
       "status": "FAIL",
-      "sheet": "user-menu-open-m.png"
+      "sheet": "platform-provisioning-error-m-dark.png"
     },
     {
       "id": "indicator-finished",
@@ -141,7 +123,7 @@
       "variant": "m-dark",
       "key": "mobile-dark",
       "prototypeState": "organization-switcher-open",
-      "percent": 3.27,
+      "percent": 3.28,
       "status": "FAIL",
       "sheet": "organization-switcher-open-m-dark.png"
     },
@@ -164,38 +146,20 @@
       "sheet": "settings-security-m.png"
     },
     {
-      "id": "settings-members",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "settings-members",
-      "percent": 3.16,
-      "status": "FAIL",
-      "sheet": "settings-members-m-dark.png"
-    },
-    {
       "id": "organization-switcher-open",
       "variant": "m",
       "key": "mobile-light",
       "prototypeState": "organization-switcher-open",
-      "percent": 3.11,
+      "percent": 3.14,
       "status": "FAIL",
       "sheet": "organization-switcher-open-m.png"
-    },
-    {
-      "id": "settings-members",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "settings-members",
-      "percent": 3.03,
-      "status": "FAIL",
-      "sheet": "settings-members-m.png"
     },
     {
       "id": "settings-security",
       "variant": "m-dark",
       "key": "mobile-dark",
       "prototypeState": "settings-security",
-      "percent": 3.02,
+      "percent": 3.01,
       "status": "FAIL",
       "sheet": "settings-security-m-dark.png"
     },
@@ -204,7 +168,7 @@
       "variant": "m-dark",
       "key": "mobile-dark",
       "prototypeState": "mobile-sheet-open",
-      "percent": 2.98,
+      "percent": 3,
       "status": "FAIL",
       "sheet": "mobile-sheet-open-m-dark.png"
     },
@@ -231,27 +195,45 @@
       "variant": "m-dark",
       "key": "mobile-dark",
       "prototypeState": "recent-menu",
-      "percent": 2.97,
+      "percent": 2.84,
       "status": "FAIL",
       "sheet": "recent-menu-m-dark.png"
     },
     {
-      "id": "recent-menu",
+      "id": "settings-invitations",
       "variant": "m",
       "key": "mobile-light",
-      "prototypeState": "recent-menu",
-      "percent": 2.77,
+      "prototypeState": "settings-invitations",
+      "percent": 2.81,
       "status": "FAIL",
-      "sheet": "recent-menu-m.png"
+      "sheet": "settings-invitations-m.png"
+    },
+    {
+      "id": "settings-invitations",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "settings-invitations",
+      "percent": 2.78,
+      "status": "FAIL",
+      "sheet": "settings-invitations-m-dark.png"
     },
     {
       "id": "mobile-sheet-open",
       "variant": "m",
       "key": "mobile-light",
       "prototypeState": "mobile-sheet-open",
-      "percent": 2.74,
+      "percent": 2.77,
       "status": "FAIL",
       "sheet": "mobile-sheet-open-m.png"
+    },
+    {
+      "id": "recent-menu",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "recent-menu",
+      "percent": 2.67,
+      "status": "FAIL",
+      "sheet": "recent-menu-m.png"
     },
     {
       "id": "platform-provisioning-populated",
@@ -261,15 +243,6 @@
       "percent": 2.66,
       "status": "FAIL",
       "sheet": "platform-provisioning-populated-m.png"
-    },
-    {
-      "id": "onboarding-team",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "onboarding-team",
-      "percent": 2.6,
-      "status": "FAIL",
-      "sheet": "onboarding-team-m-dark.png"
     },
     {
       "id": "platform-provisioning-loading",
@@ -348,22 +321,22 @@
       "sheet": "indicator-mark-d.png"
     },
     {
-      "id": "onboarding-team",
+      "id": "settings-members",
       "variant": "m",
       "key": "mobile-light",
-      "prototypeState": "onboarding-team",
-      "percent": 2.11,
+      "prototypeState": "settings-members",
+      "percent": 2.15,
       "status": "FAIL",
-      "sheet": "onboarding-team-m.png"
+      "sheet": "settings-members-m.png"
     },
     {
-      "id": "chat-rename",
+      "id": "settings-members",
       "variant": "m-dark",
       "key": "mobile-dark",
-      "prototypeState": "chat-rename",
-      "percent": 2.09,
+      "prototypeState": "settings-members",
+      "percent": 2.11,
       "status": "FAIL",
-      "sheet": "chat-rename-m-dark.png"
+      "sheet": "settings-members-m-dark.png"
     },
     {
       "id": "chat-deep-thinking",
@@ -373,6 +346,15 @@
       "percent": 2.08,
       "status": "FAIL",
       "sheet": "chat-deep-thinking-m-dark.png"
+    },
+    {
+      "id": "chat-rename",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-rename",
+      "percent": 2.08,
+      "status": "FAIL",
+      "sheet": "chat-rename-m-dark.png"
     },
     {
       "id": "chat-deep-thinking",
@@ -393,6 +375,15 @@
       "sheet": "settings-general-m.png"
     },
     {
+      "id": "chat-rename",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-rename",
+      "percent": 1.95,
+      "status": "FAIL",
+      "sheet": "chat-rename-m.png"
+    },
+    {
       "id": "settings-general",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -400,15 +391,6 @@
       "percent": 1.92,
       "status": "FAIL",
       "sheet": "settings-general-m-dark.png"
-    },
-    {
-      "id": "chat-rename",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-rename",
-      "percent": 1.9,
-      "status": "FAIL",
-      "sheet": "chat-rename-m.png"
     },
     {
       "id": "chat-edit",
@@ -429,13 +411,13 @@
       "sheet": "chat-edit-d-dark.png"
     },
     {
-      "id": "chats-no-results",
+      "id": "onboarding-team",
       "variant": "m-dark",
       "key": "mobile-dark",
-      "prototypeState": "chats-no-results",
-      "percent": 1.67,
+      "prototypeState": "onboarding-team",
+      "percent": 1.7,
       "status": "FAIL",
-      "sheet": "chats-no-results-m-dark.png"
+      "sheet": "onboarding-team-m-dark.png"
     },
     {
       "id": "chats-no-results",
@@ -447,6 +429,15 @@
       "sheet": "chats-no-results-m.png"
     },
     {
+      "id": "chats-no-results",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chats-no-results",
+      "percent": 1.66,
+      "status": "FAIL",
+      "sheet": "chats-no-results-m-dark.png"
+    },
+    {
       "id": "toast-success",
       "variant": "m",
       "key": "mobile-light",
@@ -454,6 +445,24 @@
       "percent": 1.64,
       "status": "FAIL",
       "sheet": "toast-success-m.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "two-factor",
+      "percent": 1.63,
+      "status": "FAIL",
+      "sheet": "two-factor-m.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "two-factor",
+      "percent": 1.61,
+      "status": "FAIL",
+      "sheet": "two-factor-m-dark.png"
     },
     {
       "id": "sign-in-form-alert",
@@ -492,15 +501,6 @@
       "sheet": "chats-search-m-dark.png"
     },
     {
-      "id": "two-factor",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "two-factor",
-      "percent": 1.54,
-      "status": "FAIL",
-      "sheet": "two-factor-m-dark.png"
-    },
-    {
       "id": "settings-appearance",
       "variant": "m",
       "key": "mobile-light",
@@ -528,15 +528,6 @@
       "sheet": "settings-appearance-m-dark.png"
     },
     {
-      "id": "two-factor",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "two-factor",
-      "percent": 1.49,
-      "status": "PASS",
-      "sheet": "two-factor-m.png"
-    },
-    {
       "id": "toast-success",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -544,15 +535,6 @@
       "percent": 1.49,
       "status": "PASS",
       "sheet": "toast-success-m-dark.png"
-    },
-    {
-      "id": "chat-error",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-error",
-      "percent": 1.49,
-      "status": "PASS",
-      "sheet": "chat-error-m-dark.png"
     },
     {
       "id": "chat-starter-pill",
@@ -573,6 +555,15 @@
       "sheet": "chat-starter-pill-m.png"
     },
     {
+      "id": "onboarding-team",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding-team",
+      "percent": 1.44,
+      "status": "PASS",
+      "sheet": "onboarding-team-m.png"
+    },
+    {
       "id": "settings-profile",
       "variant": "m",
       "key": "mobile-light",
@@ -582,6 +573,24 @@
       "sheet": "settings-profile-m.png"
     },
     {
+      "id": "chat-reconnecting",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-reconnecting",
+      "percent": 1.34,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-m.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-reconnecting",
+      "percent": 1.34,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-m-dark.png"
+    },
+    {
       "id": "chat-floating-menu",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -589,15 +598,6 @@
       "percent": 1.32,
       "status": "PASS",
       "sheet": "chat-floating-menu-m-dark.png"
-    },
-    {
-      "id": "reset-password",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "reset-password",
-      "percent": 1.25,
-      "status": "PASS",
-      "sheet": "reset-password-m-dark.png"
     },
     {
       "id": "settings-profile",
@@ -618,31 +618,13 @@
       "sheet": "chat-floating-menu-m.png"
     },
     {
-      "id": "chat-reconnecting",
+      "id": "chat-edit",
       "variant": "m",
       "key": "mobile-light",
-      "prototypeState": "chat-reconnecting",
-      "percent": 1.23,
+      "prototypeState": "chat-edit",
+      "percent": 1.21,
       "status": "PASS",
-      "sheet": "chat-reconnecting-m.png"
-    },
-    {
-      "id": "chat-reconnecting",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-reconnecting",
-      "percent": 1.23,
-      "status": "PASS",
-      "sheet": "chat-reconnecting-m-dark.png"
-    },
-    {
-      "id": "platform-provisioning-empty",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "platform-provisioning-empty",
-      "percent": 1.22,
-      "status": "PASS",
-      "sheet": "platform-provisioning-empty-d-dark.png"
+      "sheet": "chat-edit-m.png"
     },
     {
       "id": "chat-edit",
@@ -663,15 +645,6 @@
       "sheet": "chat-stopped-m.png"
     },
     {
-      "id": "reset-password",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "reset-password",
-      "percent": 1.2,
-      "status": "PASS",
-      "sheet": "reset-password-m.png"
-    },
-    {
       "id": "chat-stopped",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -690,15 +663,6 @@
       "sheet": "settings-security-d.png"
     },
     {
-      "id": "chat-edit",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-edit",
-      "percent": 1.19,
-      "status": "PASS",
-      "sheet": "chat-edit-m.png"
-    },
-    {
       "id": "platform-accounts",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -708,49 +672,13 @@
       "sheet": "platform-accounts-m-dark.png"
     },
     {
-      "id": "platform-provisioning-error",
+      "id": "platform-provisioning-empty",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "platform-provisioning-error",
-      "percent": 1.15,
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 1.17,
       "status": "PASS",
-      "sheet": "platform-provisioning-error-d-dark.png"
-    },
-    {
-      "id": "forgot-password",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "forgot-password",
-      "percent": 1.12,
-      "status": "PASS",
-      "sheet": "forgot-password-m-dark.png"
-    },
-    {
-      "id": "onboarding",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "onboarding",
-      "percent": 1.12,
-      "status": "PASS",
-      "sheet": "onboarding-m-dark.png"
-    },
-    {
-      "id": "platform-provisioning-detail",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "platform-provisioning-detail",
-      "percent": 1.12,
-      "status": "PASS",
-      "sheet": "platform-provisioning-detail-d-dark.png"
-    },
-    {
-      "id": "onboarding",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "onboarding",
-      "percent": 1.11,
-      "status": "PASS",
-      "sheet": "onboarding-m.png"
+      "sheet": "platform-provisioning-empty-d-dark.png"
     },
     {
       "id": "settings-security",
@@ -762,76 +690,85 @@
       "sheet": "settings-security-d-dark.png"
     },
     {
-      "id": "sign-up",
+      "id": "platform-accounts",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "platform-accounts",
+      "percent": 1.09,
+      "status": "PASS",
+      "sheet": "platform-accounts-m.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding",
+      "percent": 1.07,
+      "status": "PASS",
+      "sheet": "onboarding-m.png"
+    },
+    {
+      "id": "onboarding",
       "variant": "m-dark",
       "key": "mobile-dark",
-      "prototypeState": "sign-up",
-      "percent": 1.08,
+      "prototypeState": "onboarding",
+      "percent": 1.07,
       "status": "PASS",
-      "sheet": "sign-up-m-dark.png"
+      "sheet": "onboarding-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-detail",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-detail",
+      "percent": 1.07,
+      "status": "PASS",
+      "sheet": "platform-provisioning-detail-d-dark.png"
     },
     {
       "id": "settings-invitations",
       "variant": "d",
       "key": "desktop-light",
       "prototypeState": "settings-invitations",
-      "percent": 1.08,
+      "percent": 1.06,
       "status": "PASS",
       "sheet": "settings-invitations-d.png"
     },
     {
-      "id": "platform-accounts",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "platform-accounts",
-      "percent": 1.08,
+      "id": "settings-invitations",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-invitations",
+      "percent": 1.03,
       "status": "PASS",
-      "sheet": "platform-accounts-m.png"
-    },
-    {
-      "id": "platform-provisioning-empty",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-provisioning-empty",
-      "percent": 1.07,
-      "status": "PASS",
-      "sheet": "platform-provisioning-empty-d.png"
+      "sheet": "settings-invitations-d-dark.png"
     },
     {
       "id": "platform-provisioning-populated",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "platform-provisioning-populated",
-      "percent": 1.07,
+      "percent": 1.03,
       "status": "PASS",
       "sheet": "platform-provisioning-populated-d-dark.png"
     },
     {
-      "id": "settings-invitations",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "settings-invitations",
-      "percent": 1.06,
+      "id": "platform-provisioning-empty",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-empty",
+      "percent": 1.02,
       "status": "PASS",
-      "sheet": "settings-invitations-d-dark.png"
+      "sheet": "platform-provisioning-empty-d.png"
     },
     {
       "id": "platform-provisioning-detail",
       "variant": "d",
       "key": "desktop-light",
       "prototypeState": "platform-provisioning-detail",
-      "percent": 1.06,
-      "status": "PASS",
-      "sheet": "platform-provisioning-detail-d.png"
-    },
-    {
-      "id": "forgot-password",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "forgot-password",
       "percent": 1.01,
       "status": "PASS",
-      "sheet": "forgot-password-m.png"
+      "sheet": "platform-provisioning-detail-d.png"
     },
     {
       "id": "chat-feedback",
@@ -852,85 +789,94 @@
       "sheet": "chat-feedback-m.png"
     },
     {
-      "id": "platform-provisioning-populated",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-provisioning-populated",
+      "id": "sign-up",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "sign-up",
       "percent": 0.92,
       "status": "PASS",
-      "sheet": "platform-provisioning-populated-d.png"
+      "sheet": "sign-up-m-dark.png"
     },
     {
-      "id": "platform-provisioning-loading",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "platform-provisioning-loading",
+      "id": "reset-password-invalid",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "reset-password-invalid",
+      "percent": 0.91,
+      "status": "PASS",
+      "sheet": "reset-password-invalid-m.png"
+    },
+    {
+      "id": "reset-password-invalid",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "reset-password-invalid",
       "percent": 0.9,
       "status": "PASS",
-      "sheet": "platform-provisioning-loading-d-dark.png"
-    },
-    {
-      "id": "chat-deep-thinking",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-deep-thinking",
-      "percent": 0.9,
-      "status": "PASS",
-      "sheet": "chat-deep-thinking-d-dark.png"
-    },
-    {
-      "id": "accept-invitation",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "accept-invitation",
-      "percent": 0.89,
-      "status": "PASS",
-      "sheet": "accept-invitation-d-dark.png"
+      "sheet": "reset-password-invalid-m-dark.png"
     },
     {
       "id": "settings-members",
       "variant": "d",
       "key": "desktop-light",
       "prototypeState": "settings-members",
-      "percent": 0.89,
+      "percent": 0.9,
       "status": "PASS",
       "sheet": "settings-members-d.png"
     },
     {
-      "id": "settings-members",
+      "id": "platform-provisioning-error",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "settings-members",
-      "percent": 0.89,
+      "prototypeState": "platform-provisioning-error",
+      "percent": 0.9,
       "status": "PASS",
-      "sheet": "settings-members-d-dark.png"
-    },
-    {
-      "id": "chat-deep-thinking",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-deep-thinking",
-      "percent": 0.88,
-      "status": "PASS",
-      "sheet": "chat-deep-thinking-d.png"
+      "sheet": "platform-provisioning-error-d-dark.png"
     },
     {
       "id": "chat-delete",
       "variant": "m",
       "key": "mobile-light",
       "prototypeState": "chat-delete",
-      "percent": 0.88,
+      "percent": 0.9,
       "status": "PASS",
       "sheet": "chat-delete-m.png"
     },
     {
-      "id": "platform-provisioning-loading",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-provisioning-loading",
+      "id": "admin-setup",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "admin-setup",
+      "percent": 0.89,
+      "status": "PASS",
+      "sheet": "admin-setup-m.png"
+    },
+    {
+      "id": "admin-setup",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "admin-setup",
+      "percent": 0.89,
+      "status": "PASS",
+      "sheet": "admin-setup-m-dark.png"
+    },
+    {
+      "id": "settings-members",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-members",
       "percent": 0.87,
       "status": "PASS",
-      "sheet": "platform-provisioning-loading-d.png"
+      "sheet": "settings-members-d-dark.png"
+    },
+    {
+      "id": "platform-provisioning-populated",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-populated",
+      "percent": 0.87,
+      "status": "PASS",
+      "sheet": "platform-provisioning-populated-d.png"
     },
     {
       "id": "chat-reasoning-open",
@@ -969,6 +915,15 @@
       "sheet": "sidebar-collapsed-m-dark.png"
     },
     {
+      "id": "platform-provisioning-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 0.85,
+      "status": "PASS",
+      "sheet": "platform-provisioning-loading-d-dark.png"
+    },
+    {
       "id": "toast-success",
       "variant": "d",
       "key": "desktop-light",
@@ -976,15 +931,6 @@
       "percent": 0.85,
       "status": "PASS",
       "sheet": "toast-success-d.png"
-    },
-    {
-      "id": "chat-streaming-scroll",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-streaming-scroll",
-      "percent": 0.85,
-      "status": "PASS",
-      "sheet": "chat-streaming-scroll-m-dark.png"
     },
     {
       "id": "chat-reasoning-collapsed",
@@ -1041,33 +987,6 @@
       "sheet": "chat-copied-m-dark.png"
     },
     {
-      "id": "chat-streaming-scroll",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-streaming-scroll",
-      "percent": 0.84,
-      "status": "PASS",
-      "sheet": "chat-streaming-scroll-m.png"
-    },
-    {
-      "id": "sign-up",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "sign-up",
-      "percent": 0.83,
-      "status": "PASS",
-      "sheet": "sign-up-m.png"
-    },
-    {
-      "id": "verify-email",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "verify-email",
-      "percent": 0.83,
-      "status": "PASS",
-      "sheet": "verify-email-d-dark.png"
-    },
-    {
       "id": "settings-general",
       "variant": "d",
       "key": "desktop-light",
@@ -1086,6 +1005,15 @@
       "sheet": "sign-in-m-dark.png"
     },
     {
+      "id": "platform-provisioning-loading",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-loading",
+      "percent": 0.82,
+      "status": "PASS",
+      "sheet": "platform-provisioning-loading-d.png"
+    },
+    {
       "id": "settings-appearance",
       "variant": "d",
       "key": "desktop-light",
@@ -1095,31 +1023,31 @@
       "sheet": "settings-appearance-d.png"
     },
     {
-      "id": "accept-invitation",
+      "id": "chat-starter-pill",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "accept-invitation",
-      "percent": 0.79,
+      "prototypeState": "chat-starter-pill",
+      "percent": 0.8,
       "status": "PASS",
-      "sheet": "accept-invitation-d.png"
-    },
-    {
-      "id": "platform-provisioning-error",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-provisioning-error",
-      "percent": 0.79,
-      "status": "PASS",
-      "sheet": "platform-provisioning-error-d.png"
+      "sheet": "chat-starter-pill-d.png"
     },
     {
       "id": "chat-starter-pill",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "chat-starter-pill",
-      "percent": 0.79,
+      "percent": 0.8,
       "status": "PASS",
       "sheet": "chat-starter-pill-d-dark.png"
+    },
+    {
+      "id": "chat-streaming-scroll",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.79,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-m-dark.png"
     },
     {
       "id": "sign-in-pending",
@@ -1140,31 +1068,22 @@
       "sheet": "settings-general-d-dark.png"
     },
     {
-      "id": "chat-starter-pill",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-starter-pill",
+      "id": "chat-streaming-scroll",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-streaming-scroll",
       "percent": 0.78,
       "status": "PASS",
-      "sheet": "chat-starter-pill-d.png"
+      "sheet": "chat-streaming-scroll-m.png"
     },
     {
-      "id": "settings-appearance",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "settings-appearance",
+      "id": "chats-no-results",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-no-results",
       "percent": 0.77,
       "status": "PASS",
-      "sheet": "settings-appearance-d-dark.png"
-    },
-    {
-      "id": "toast-success",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "toast-success",
-      "percent": 0.77,
-      "status": "PASS",
-      "sheet": "toast-success-d-dark.png"
+      "sheet": "chats-no-results-d.png"
     },
     {
       "id": "chats-no-results",
@@ -1185,13 +1104,76 @@
       "sheet": "sign-in-pending-m.png"
     },
     {
-      "id": "chats-no-results",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chats-no-results",
+      "id": "accept-invitation",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "accept-invitation",
       "percent": 0.76,
       "status": "PASS",
-      "sheet": "chats-no-results-d.png"
+      "sheet": "accept-invitation-m.png"
+    },
+    {
+      "id": "accept-invitation",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "accept-invitation",
+      "percent": 0.76,
+      "status": "PASS",
+      "sheet": "accept-invitation-m-dark.png"
+    },
+    {
+      "id": "settings-appearance",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "settings-appearance",
+      "percent": 0.76,
+      "status": "PASS",
+      "sheet": "settings-appearance-d-dark.png"
+    },
+    {
+      "id": "toast-success",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "toast-success",
+      "percent": 0.76,
+      "status": "PASS",
+      "sheet": "toast-success-d-dark.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "verify-email",
+      "percent": 0.75,
+      "status": "PASS",
+      "sheet": "verify-email-m.png"
+    },
+    {
+      "id": "verify-email",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "verify-email",
+      "percent": 0.75,
+      "status": "PASS",
+      "sheet": "verify-email-m-dark.png"
+    },
+    {
+      "id": "platform-provisioning-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-provisioning-error",
+      "percent": 0.75,
+      "status": "PASS",
+      "sheet": "platform-provisioning-error-d.png"
+    },
+    {
+      "id": "chats-search",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-search",
+      "percent": 0.75,
+      "status": "PASS",
+      "sheet": "chats-search-d-dark.png"
     },
     {
       "id": "sign-in-field-errors",
@@ -1203,31 +1185,13 @@
       "sheet": "sign-in-field-errors-m-dark.png"
     },
     {
-      "id": "chat-rename",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-rename",
-      "percent": 0.74,
-      "status": "PASS",
-      "sheet": "chat-rename-d-dark.png"
-    },
-    {
       "id": "chats-search",
-      "variant": "d-dark",
-      "key": "desktop-dark",
+      "variant": "d",
+      "key": "desktop-light",
       "prototypeState": "chats-search",
       "percent": 0.74,
       "status": "PASS",
-      "sheet": "chats-search-d-dark.png"
-    },
-    {
-      "id": "verify-email",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "verify-email",
-      "percent": 0.73,
-      "status": "PASS",
-      "sheet": "verify-email-d.png"
+      "sheet": "chats-search-d.png"
     },
     {
       "id": "settings-profile",
@@ -1239,31 +1203,13 @@
       "sheet": "settings-profile-d.png"
     },
     {
-      "id": "sign-in-form-alert",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "sign-in-form-alert",
-      "percent": 0.72,
-      "status": "PASS",
-      "sheet": "sign-in-form-alert-d.png"
-    },
-    {
-      "id": "sign-in-form-alert",
+      "id": "chat-rename",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "sign-in-form-alert",
-      "percent": 0.72,
+      "prototypeState": "chat-rename",
+      "percent": 0.73,
       "status": "PASS",
-      "sheet": "sign-in-form-alert-d-dark.png"
-    },
-    {
-      "id": "chats-search",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chats-search",
-      "percent": 0.72,
-      "status": "PASS",
-      "sheet": "chats-search-d.png"
+      "sheet": "chat-rename-d-dark.png"
     },
     {
       "id": "chat-branch",
@@ -1302,22 +1248,40 @@
       "sheet": "chat-thread-loading-m-dark.png"
     },
     {
-      "id": "verify-email",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "verify-email",
-      "percent": 0.67,
-      "status": "PASS",
-      "sheet": "verify-email-m.png"
-    },
-    {
-      "id": "verify-email",
+      "id": "chat-error",
       "variant": "m-dark",
       "key": "mobile-dark",
-      "prototypeState": "verify-email",
+      "prototypeState": "chat-error",
+      "percent": 0.68,
+      "status": "PASS",
+      "sheet": "chat-error-m-dark.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "sign-up",
       "percent": 0.67,
       "status": "PASS",
-      "sheet": "verify-email-m-dark.png"
+      "sheet": "sign-up-m.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "chat-deep-thinking-d.png"
+    },
+    {
+      "id": "chat-deep-thinking",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-deep-thinking",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "chat-deep-thinking-d-dark.png"
     },
     {
       "id": "chat-error",
@@ -1338,6 +1302,15 @@
       "sheet": "chat-thread-loading-m.png"
     },
     {
+      "id": "chat-rename",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-rename",
+      "percent": 0.67,
+      "status": "PASS",
+      "sheet": "chat-rename-d.png"
+    },
+    {
       "id": "sign-in",
       "variant": "m",
       "key": "mobile-light",
@@ -1356,33 +1329,6 @@
       "sheet": "settings-profile-d-dark.png"
     },
     {
-      "id": "chat-rename",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-rename",
-      "percent": 0.66,
-      "status": "PASS",
-      "sheet": "chat-rename-d.png"
-    },
-    {
-      "id": "chat-thinking",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "chat-thinking",
-      "percent": 0.65,
-      "status": "PASS",
-      "sheet": "chat-thinking-m.png"
-    },
-    {
-      "id": "chat-thinking",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "chat-thinking",
-      "percent": 0.65,
-      "status": "PASS",
-      "sheet": "chat-thinking-m-dark.png"
-    },
-    {
       "id": "chats-empty",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -1390,15 +1336,6 @@
       "percent": 0.64,
       "status": "PASS",
       "sheet": "chats-empty-m-dark.png"
-    },
-    {
-      "id": "accept-invitation",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "accept-invitation",
-      "percent": 0.62,
-      "status": "PASS",
-      "sheet": "accept-invitation-m-dark.png"
     },
     {
       "id": "chats-history",
@@ -1410,13 +1347,31 @@
       "sheet": "chats-history-m-dark.png"
     },
     {
-      "id": "accept-invitation",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "accept-invitation",
+      "id": "sign-up",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-up",
       "percent": 0.61,
       "status": "PASS",
-      "sheet": "accept-invitation-m.png"
+      "sheet": "sign-up-d-dark.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "chat-thinking",
+      "percent": 0.61,
+      "status": "PASS",
+      "sheet": "chat-thinking-m-dark.png"
+    },
+    {
+      "id": "chat-thinking",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "chat-thinking",
+      "percent": 0.6,
+      "status": "PASS",
+      "sheet": "chat-thinking-m.png"
     },
     {
       "id": "user-menu-open",
@@ -1437,13 +1392,31 @@
       "sheet": "user-menu-open-d-dark.png"
     },
     {
-      "id": "chat-error",
+      "id": "sign-in-form-alert",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in-form-alert",
+      "percent": 0.57,
+      "status": "PASS",
+      "sheet": "sign-in-form-alert-d.png"
+    },
+    {
+      "id": "sign-in-form-alert",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "chat-error",
-      "percent": 0.56,
+      "prototypeState": "sign-in-form-alert",
+      "percent": 0.57,
       "status": "PASS",
-      "sheet": "chat-error-d-dark.png"
+      "sheet": "sign-in-form-alert-d-dark.png"
+    },
+    {
+      "id": "sign-up",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-up",
+      "percent": 0.54,
+      "status": "PASS",
+      "sheet": "sign-up-d.png"
     },
     {
       "id": "organization-switcher-open",
@@ -1473,15 +1446,6 @@
       "sheet": "organization-switcher-open-d.png"
     },
     {
-      "id": "platform-accounts",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "platform-accounts",
-      "percent": 0.51,
-      "status": "PASS",
-      "sheet": "platform-accounts-d-dark.png"
-    },
-    {
       "id": "chats-history",
       "variant": "m",
       "key": "mobile-light",
@@ -1491,85 +1455,13 @@
       "sheet": "chats-history-m.png"
     },
     {
-      "id": "admin-setup",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "admin-setup",
-      "percent": 0.5,
-      "status": "PASS",
-      "sheet": "admin-setup-m-dark.png"
-    },
-    {
-      "id": "chat-reconnecting",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-reconnecting",
-      "percent": 0.5,
-      "status": "PASS",
-      "sheet": "chat-reconnecting-d-dark.png"
-    },
-    {
       "id": "chat-delete",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "chat-delete",
-      "percent": 0.5,
+      "percent": 0.49,
       "status": "PASS",
       "sheet": "chat-delete-d-dark.png"
-    },
-    {
-      "id": "admin-setup",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "admin-setup",
-      "percent": 0.49,
-      "status": "PASS",
-      "sheet": "admin-setup-m.png"
-    },
-    {
-      "id": "chat-feedback",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-feedback",
-      "percent": 0.49,
-      "status": "PASS",
-      "sheet": "chat-feedback-d-dark.png"
-    },
-    {
-      "id": "chat-reconnecting",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-reconnecting",
-      "percent": 0.49,
-      "status": "PASS",
-      "sheet": "chat-reconnecting-d.png"
-    },
-    {
-      "id": "onboarding-invitations",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "onboarding-invitations",
-      "percent": 0.48,
-      "status": "PASS",
-      "sheet": "onboarding-invitations-m.png"
-    },
-    {
-      "id": "onboarding-invitations",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "onboarding-invitations",
-      "percent": 0.48,
-      "status": "PASS",
-      "sheet": "onboarding-invitations-m-dark.png"
-    },
-    {
-      "id": "platform-accounts",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-accounts",
-      "percent": 0.48,
-      "status": "PASS",
-      "sheet": "platform-accounts-d.png"
     },
     {
       "id": "chat-feedback",
@@ -1581,67 +1473,112 @@
       "sheet": "chat-feedback-d.png"
     },
     {
-      "id": "chat-copied",
+      "id": "chat-feedback",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "chat-copied",
-      "percent": 0.47,
+      "prototypeState": "chat-feedback",
+      "percent": 0.48,
       "status": "PASS",
-      "sheet": "chat-copied-d-dark.png"
+      "sheet": "chat-feedback-d-dark.png"
     },
     {
-      "id": "reset-password",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "reset-password",
-      "percent": 0.46,
-      "status": "PASS",
-      "sheet": "reset-password-d-dark.png"
-    },
-    {
-      "id": "chat-copied",
+      "id": "verify-email",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "chat-copied",
+      "prototypeState": "verify-email",
       "percent": 0.46,
       "status": "PASS",
-      "sheet": "chat-copied-d.png"
+      "sheet": "verify-email-d.png"
     },
     {
-      "id": "sign-up",
+      "id": "verify-email",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "sign-up",
-      "percent": 0.45,
+      "prototypeState": "verify-email",
+      "percent": 0.46,
       "status": "PASS",
-      "sheet": "sign-up-d-dark.png"
+      "sheet": "verify-email-d-dark.png"
     },
     {
-      "id": "reset-password",
+      "id": "platform-accounts",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "platform-accounts",
+      "percent": 0.46,
+      "status": "PASS",
+      "sheet": "platform-accounts-d-dark.png"
+    },
+    {
+      "id": "onboarding-invitations",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.45,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-m-dark.png"
+    },
+    {
+      "id": "accept-invitation",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "reset-password",
-      "percent": 0.45,
+      "prototypeState": "accept-invitation",
+      "percent": 0.44,
       "status": "PASS",
-      "sheet": "reset-password-d.png"
+      "sheet": "accept-invitation-d.png"
     },
     {
-      "id": "onboarding-team",
+      "id": "accept-invitation",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "onboarding-team",
-      "percent": 0.45,
+      "prototypeState": "accept-invitation",
+      "percent": 0.44,
       "status": "PASS",
-      "sheet": "onboarding-team-d-dark.png"
+      "sheet": "accept-invitation-d-dark.png"
     },
     {
-      "id": "recent-menu",
+      "id": "onboarding-invitations",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "onboarding-invitations",
+      "percent": 0.44,
+      "status": "PASS",
+      "sheet": "onboarding-invitations-m.png"
+    },
+    {
+      "id": "shell-team",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "shell-team",
+      "percent": 0.44,
+      "status": "PASS",
+      "sheet": "shell-team-d.png"
+    },
+    {
+      "id": "shell-team",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "recent-menu",
-      "percent": 0.45,
+      "prototypeState": "shell-team",
+      "percent": 0.44,
       "status": "PASS",
-      "sheet": "recent-menu-d-dark.png"
+      "sheet": "shell-team-d-dark.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-new",
+      "percent": 0.44,
+      "status": "PASS",
+      "sheet": "chat-new-d.png"
+    },
+    {
+      "id": "chat-new",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-new",
+      "percent": 0.44,
+      "status": "PASS",
+      "sheet": "chat-new-d-dark.png"
     },
     {
       "id": "chat-floating-menu",
@@ -1653,22 +1590,40 @@
       "sheet": "chat-floating-menu-d.png"
     },
     {
-      "id": "shell-team",
+      "id": "recent-menu",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "shell-team",
-      "percent": 0.43,
+      "prototypeState": "recent-menu",
+      "percent": 0.44,
       "status": "PASS",
-      "sheet": "shell-team-d-dark.png"
+      "sheet": "recent-menu-d-dark.png"
     },
     {
-      "id": "chat-new",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-new",
+      "id": "two-factor",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "two-factor",
       "percent": 0.43,
       "status": "PASS",
-      "sheet": "chat-new-d-dark.png"
+      "sheet": "two-factor-d.png"
+    },
+    {
+      "id": "two-factor",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "two-factor",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "two-factor-d-dark.png"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-accounts",
+      "percent": 0.43,
+      "status": "PASS",
+      "sheet": "platform-accounts-d.png"
     },
     {
       "id": "chat-floating-menu",
@@ -1689,58 +1644,67 @@
       "sheet": "recent-menu-d.png"
     },
     {
-      "id": "forgot-password",
+      "id": "reset-password",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "forgot-password",
+      "prototypeState": "reset-password",
       "percent": 0.42,
       "status": "PASS",
-      "sheet": "forgot-password-d-dark.png"
+      "sheet": "reset-password-d-dark.png"
     },
     {
-      "id": "shell-team",
+      "id": "shell-personal",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "shell-team",
+      "prototypeState": "shell-personal",
       "percent": 0.42,
       "status": "PASS",
-      "sheet": "shell-team-d.png"
-    },
-    {
-      "id": "chat-new",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-new",
-      "percent": 0.42,
-      "status": "PASS",
-      "sheet": "chat-new-d.png"
-    },
-    {
-      "id": "sign-in",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "sign-in",
-      "percent": 0.41,
-      "status": "PASS",
-      "sheet": "sign-in-d-dark.png"
-    },
-    {
-      "id": "sign-up",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "sign-up",
-      "percent": 0.41,
-      "status": "PASS",
-      "sheet": "sign-up-d.png"
+      "sheet": "shell-personal-d.png"
     },
     {
       "id": "shell-personal",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "shell-personal",
-      "percent": 0.41,
+      "percent": 0.42,
       "status": "PASS",
       "sheet": "shell-personal-d-dark.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "reset-password",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "reset-password-d.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "onboarding-team",
+      "percent": 0.41,
+      "status": "PASS",
+      "sheet": "onboarding-team-d-dark.png"
+    },
+    {
+      "id": "sign-in",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "sign-in-d-dark.png"
+    },
+    {
+      "id": "sign-in-pending",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "sign-in-pending",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "sign-in-pending-d.png"
     },
     {
       "id": "sign-in-pending",
@@ -1752,67 +1716,22 @@
       "sheet": "sign-in-pending-d-dark.png"
     },
     {
-      "id": "admin-setup",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "admin-setup",
-      "percent": 0.4,
-      "status": "PASS",
-      "sheet": "admin-setup-d-dark.png"
-    },
-    {
-      "id": "shell-personal",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "shell-personal",
-      "percent": 0.4,
-      "status": "PASS",
-      "sheet": "shell-personal-d.png"
-    },
-    {
-      "id": "chat-streaming-scroll",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-streaming-scroll",
-      "percent": 0.4,
-      "status": "PASS",
-      "sheet": "chat-streaming-scroll-d-dark.png"
-    },
-    {
-      "id": "chat-reasoning-open",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-reasoning-open",
-      "percent": 0.4,
-      "status": "PASS",
-      "sheet": "chat-reasoning-open-d-dark.png"
-    },
-    {
-      "id": "sign-in-field-errors",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "sign-in-field-errors",
-      "percent": 0.39,
-      "status": "PASS",
-      "sheet": "sign-in-field-errors-d-dark.png"
-    },
-    {
-      "id": "sign-in-pending",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "sign-in-pending",
-      "percent": 0.39,
-      "status": "PASS",
-      "sheet": "sign-in-pending-d.png"
-    },
-    {
       "id": "forgot-password",
-      "variant": "d",
-      "key": "desktop-light",
+      "variant": "d-dark",
+      "key": "desktop-dark",
       "prototypeState": "forgot-password",
-      "percent": 0.39,
+      "percent": 0.4,
       "status": "PASS",
-      "sheet": "forgot-password-d.png"
+      "sheet": "forgot-password-d-dark.png"
+    },
+    {
+      "id": "reset-password",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "reset-password",
+      "percent": 0.4,
+      "status": "PASS",
+      "sheet": "reset-password-m-dark.png"
     },
     {
       "id": "chat-streaming-scroll",
@@ -1824,6 +1743,15 @@
       "sheet": "chat-streaming-scroll-d.png"
     },
     {
+      "id": "chat-streaming-scroll",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-streaming-scroll",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-streaming-scroll-d-dark.png"
+    },
+    {
       "id": "chat-reasoning-open",
       "variant": "d",
       "key": "desktop-light",
@@ -1833,31 +1761,67 @@
       "sheet": "chat-reasoning-open-d.png"
     },
     {
-      "id": "chat-answer-actions",
+      "id": "chat-reasoning-open",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "chat-answer-actions",
+      "prototypeState": "chat-reasoning-open",
       "percent": 0.39,
       "status": "PASS",
-      "sheet": "chat-answer-actions-d-dark.png"
+      "sheet": "chat-reasoning-open-d-dark.png"
     },
     {
-      "id": "two-factor",
+      "id": "chat-copied",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "two-factor",
-      "percent": 0.38,
+      "prototypeState": "chat-copied",
+      "percent": 0.39,
       "status": "PASS",
-      "sheet": "two-factor-d.png"
+      "sheet": "chat-copied-d.png"
     },
     {
-      "id": "onboarding-team",
+      "id": "chat-copied",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-copied",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-copied-d-dark.png"
+    },
+    {
+      "id": "chat-reconnecting",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "onboarding-team",
+      "prototypeState": "chat-reconnecting",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-d.png"
+    },
+    {
+      "id": "chat-reconnecting",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-reconnecting",
+      "percent": 0.39,
+      "status": "PASS",
+      "sheet": "chat-reconnecting-d-dark.png"
+    },
+    {
+      "id": "sign-in-field-errors",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "sign-in-field-errors",
       "percent": 0.38,
       "status": "PASS",
-      "sheet": "onboarding-team-d.png"
+      "sheet": "sign-in-field-errors-d-dark.png"
+    },
+    {
+      "id": "forgot-password",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "forgot-password",
+      "percent": 0.38,
+      "status": "PASS",
+      "sheet": "forgot-password-m-dark.png"
     },
     {
       "id": "chat-answer-actions",
@@ -1869,6 +1833,15 @@
       "sheet": "chat-answer-actions-d.png"
     },
     {
+      "id": "chat-answer-actions",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-answer-actions",
+      "percent": 0.38,
+      "status": "PASS",
+      "sheet": "chat-answer-actions-d-dark.png"
+    },
+    {
       "id": "sign-in-field-errors",
       "variant": "d",
       "key": "desktop-light",
@@ -1878,31 +1851,13 @@
       "sheet": "sign-in-field-errors-d.png"
     },
     {
-      "id": "two-factor",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "two-factor",
+      "id": "forgot-password",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "forgot-password",
       "percent": 0.37,
       "status": "PASS",
-      "sheet": "two-factor-d-dark.png"
-    },
-    {
-      "id": "chat-branch",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-branch",
-      "percent": 0.37,
-      "status": "PASS",
-      "sheet": "chat-branch-d-dark.png"
-    },
-    {
-      "id": "chat-thread-loading",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chat-thread-loading",
-      "percent": 0.37,
-      "status": "PASS",
-      "sheet": "chat-thread-loading-d-dark.png"
+      "sheet": "forgot-password-d.png"
     },
     {
       "id": "chat-delete",
@@ -1923,6 +1878,15 @@
       "sheet": "sign-in-d.png"
     },
     {
+      "id": "reset-password",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "reset-password",
+      "percent": 0.36,
+      "status": "PASS",
+      "sheet": "reset-password-m.png"
+    },
+    {
       "id": "chat-branch",
       "variant": "d",
       "key": "desktop-light",
@@ -1932,13 +1896,13 @@
       "sheet": "chat-branch-d.png"
     },
     {
-      "id": "chat-thread-loading",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chat-thread-loading",
+      "id": "chat-branch",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-branch",
       "percent": 0.36,
       "status": "PASS",
-      "sheet": "chat-thread-loading-d.png"
+      "sheet": "chat-branch-d-dark.png"
     },
     {
       "id": "mobile-sheet-open",
@@ -1968,13 +1932,22 @@
       "sheet": "chat-stopped-d-dark.png"
     },
     {
-      "id": "chat-thinking",
+      "id": "chat-error",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "chat-thinking",
+      "prototypeState": "chat-error",
       "percent": 0.35,
       "status": "PASS",
-      "sheet": "chat-thinking-d-dark.png"
+      "sheet": "chat-error-d-dark.png"
+    },
+    {
+      "id": "onboarding-team",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "onboarding-team",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "onboarding-team-d.png"
     },
     {
       "id": "mobile-sheet-open",
@@ -2013,6 +1986,24 @@
       "sheet": "chat-error-d.png"
     },
     {
+      "id": "chat-thread-loading",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-d.png"
+    },
+    {
+      "id": "chat-thread-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chat-thread-loading",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-thread-loading-d-dark.png"
+    },
+    {
       "id": "chat-thinking",
       "variant": "d",
       "key": "desktop-light",
@@ -2022,22 +2013,31 @@
       "sheet": "chat-thinking-d.png"
     },
     {
-      "id": "onboarding",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "onboarding",
-      "percent": 0.33,
-      "status": "PASS",
-      "sheet": "onboarding-d.png"
-    },
-    {
-      "id": "onboarding",
+      "id": "chat-thinking",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "onboarding",
+      "prototypeState": "chat-thinking",
+      "percent": 0.34,
+      "status": "PASS",
+      "sheet": "chat-thinking-d-dark.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "admin-setup-activate",
       "percent": 0.33,
       "status": "PASS",
-      "sheet": "onboarding-d-dark.png"
+      "sheet": "admin-setup-activate-d.png"
+    },
+    {
+      "id": "admin-setup-activate",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "admin-setup-activate",
+      "percent": 0.33,
+      "status": "PASS",
+      "sheet": "admin-setup-activate-d-dark.png"
     },
     {
       "id": "onboarding-invitations",
@@ -2067,20 +2067,11 @@
       "sheet": "chats-empty-d-dark.png"
     },
     {
-      "id": "admin-setup",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "admin-setup",
-      "percent": 0.31,
-      "status": "PASS",
-      "sheet": "admin-setup-d.png"
-    },
-    {
       "id": "chats-history",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "chats-history",
-      "percent": 0.31,
+      "percent": 0.32,
       "status": "PASS",
       "sheet": "chats-history-d-dark.png"
     },
@@ -2092,6 +2083,15 @@
       "percent": 0.3,
       "status": "PASS",
       "sheet": "chats-empty-d.png"
+    },
+    {
+      "id": "chats-history",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "chats-history",
+      "percent": 0.3,
+      "status": "PASS",
+      "sheet": "chats-history-d.png"
     },
     {
       "id": "reset-password-invalid",
@@ -2112,13 +2112,67 @@
       "sheet": "reset-password-invalid-d-dark.png"
     },
     {
-      "id": "chats-history",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "chats-history",
+      "id": "forgot-password",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "forgot-password",
       "percent": 0.28,
       "status": "PASS",
-      "sheet": "chats-history-d.png"
+      "sheet": "forgot-password-m.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-d.png"
+    },
+    {
+      "id": "forgot-password-sent",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "forgot-password-sent",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "forgot-password-sent-d-dark.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-d.png"
+    },
+    {
+      "id": "accept-invitation-unavailable",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "accept-invitation-unavailable",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "accept-invitation-unavailable-d-dark.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "onboarding",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "onboarding-d.png"
+    },
+    {
+      "id": "onboarding",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "onboarding",
+      "percent": 0.27,
+      "status": "PASS",
+      "sheet": "onboarding-d-dark.png"
     },
     {
       "id": "shell-personal",
@@ -2148,22 +2202,22 @@
       "sheet": "chat-new-m.png"
     },
     {
-      "id": "admin-setup-activate",
+      "id": "admin-setup",
       "variant": "d",
       "key": "desktop-light",
-      "prototypeState": "admin-setup-activate",
+      "prototypeState": "admin-setup",
       "percent": 0.26,
       "status": "PASS",
-      "sheet": "admin-setup-activate-d.png"
+      "sheet": "admin-setup-d.png"
     },
     {
-      "id": "admin-setup-activate",
+      "id": "admin-setup",
       "variant": "d-dark",
       "key": "desktop-dark",
-      "prototypeState": "admin-setup-activate",
+      "prototypeState": "admin-setup",
       "percent": 0.26,
       "status": "PASS",
-      "sheet": "admin-setup-activate-d-dark.png"
+      "sheet": "admin-setup-d-dark.png"
     },
     {
       "id": "shell-personal",
@@ -2202,67 +2256,31 @@
       "sheet": "chat-new-m-dark.png"
     },
     {
-      "id": "chats-loading",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "chats-loading",
+      "id": "platform-no-access",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "platform-no-access",
       "percent": 0.25,
       "status": "PASS",
-      "sheet": "chats-loading-d-dark.png"
-    },
-    {
-      "id": "forgot-password-sent",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "forgot-password-sent",
-      "percent": 0.24,
-      "status": "PASS",
-      "sheet": "forgot-password-sent-d.png"
-    },
-    {
-      "id": "forgot-password-sent",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "forgot-password-sent",
-      "percent": 0.24,
-      "status": "PASS",
-      "sheet": "forgot-password-sent-d-dark.png"
-    },
-    {
-      "id": "accept-invitation-unavailable",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "accept-invitation-unavailable",
-      "percent": 0.24,
-      "status": "PASS",
-      "sheet": "accept-invitation-unavailable-d.png"
-    },
-    {
-      "id": "accept-invitation-unavailable",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "accept-invitation-unavailable",
-      "percent": 0.24,
-      "status": "PASS",
-      "sheet": "accept-invitation-unavailable-d-dark.png"
+      "sheet": "platform-no-access-d.png"
     },
     {
       "id": "platform-no-access",
       "variant": "d-dark",
       "key": "desktop-dark",
       "prototypeState": "platform-no-access",
-      "percent": 0.24,
+      "percent": 0.25,
       "status": "PASS",
       "sheet": "platform-no-access-d-dark.png"
     },
     {
-      "id": "platform-no-access",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "platform-no-access",
-      "percent": 0.23,
+      "id": "chats-loading",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "chats-loading",
+      "percent": 0.24,
       "status": "PASS",
-      "sheet": "platform-no-access-d.png"
+      "sheet": "chats-loading-d-dark.png"
     },
     {
       "id": "chats-loading",
@@ -2290,6 +2308,24 @@
       "percent": 0.21,
       "status": "PASS",
       "sheet": "accept-invitation-declined-d-dark.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-m.png"
+    },
+    {
+      "id": "accept-invitation-declined",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "accept-invitation-declined",
+      "percent": 0.21,
+      "status": "PASS",
+      "sheet": "accept-invitation-declined-m-dark.png"
     },
     {
       "id": "admin-setup-unavailable",
@@ -2328,6 +2364,33 @@
       "sheet": "admin-setup-activate-m-dark.png"
     },
     {
+      "id": "organizations-not-found",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "organizations-not-found-d.png"
+    },
+    {
+      "id": "organizations-not-found",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "organizations-not-found",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "organizations-not-found-d-dark.png"
+    },
+    {
+      "id": "workspace-error",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "workspace-error",
+      "percent": 0.19,
+      "status": "PASS",
+      "sheet": "workspace-error-d.png"
+    },
+    {
       "id": "workspace-error",
       "variant": "d-dark",
       "key": "desktop-dark",
@@ -2355,51 +2418,6 @@
       "sheet": "sidebar-collapsed-d-dark.png"
     },
     {
-      "id": "organizations-not-found",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "organizations-not-found",
-      "percent": 0.18,
-      "status": "PASS",
-      "sheet": "organizations-not-found-d.png"
-    },
-    {
-      "id": "organizations-not-found",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "organizations-not-found",
-      "percent": 0.18,
-      "status": "PASS",
-      "sheet": "organizations-not-found-d-dark.png"
-    },
-    {
-      "id": "workspace-error",
-      "variant": "d",
-      "key": "desktop-light",
-      "prototypeState": "workspace-error",
-      "percent": 0.18,
-      "status": "PASS",
-      "sheet": "workspace-error-d.png"
-    },
-    {
-      "id": "not-found",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "not-found",
-      "percent": 0.16,
-      "status": "PASS",
-      "sheet": "not-found-m.png"
-    },
-    {
-      "id": "not-found",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "not-found",
-      "percent": 0.15,
-      "status": "PASS",
-      "sheet": "not-found-m-dark.png"
-    },
-    {
       "id": "chats-loading",
       "variant": "m",
       "key": "mobile-light",
@@ -2416,15 +2434,6 @@
       "percent": 0.13,
       "status": "PASS",
       "sheet": "forgot-password-sent-m.png"
-    },
-    {
-      "id": "reset-password-invalid",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "reset-password-invalid",
-      "percent": 0.13,
-      "status": "PASS",
-      "sheet": "reset-password-invalid-m.png"
     },
     {
       "id": "accept-invitation-unavailable",
@@ -2454,15 +2463,6 @@
       "sheet": "forgot-password-sent-m-dark.png"
     },
     {
-      "id": "reset-password-invalid",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "reset-password-invalid",
-      "percent": 0.12,
-      "status": "PASS",
-      "sheet": "reset-password-invalid-m-dark.png"
-    },
-    {
       "id": "accept-invitation-unavailable",
       "variant": "m-dark",
       "key": "mobile-dark",
@@ -2470,6 +2470,24 @@
       "percent": 0.12,
       "status": "PASS",
       "sheet": "accept-invitation-unavailable-m-dark.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "m",
+      "key": "mobile-light",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-m.png"
+    },
+    {
+      "id": "admin-setup-unavailable",
+      "variant": "m-dark",
+      "key": "mobile-dark",
+      "prototypeState": "admin-setup-unavailable",
+      "percent": 0.12,
+      "status": "PASS",
+      "sheet": "admin-setup-unavailable-m-dark.png"
     },
     {
       "id": "workspace-error",
@@ -2500,21 +2518,12 @@
     },
     {
       "id": "not-found",
-      "variant": "d",
-      "key": "desktop-light",
+      "variant": "m",
+      "key": "mobile-light",
       "prototypeState": "not-found",
       "percent": 0.04,
       "status": "PASS",
-      "sheet": "not-found-d.png"
-    },
-    {
-      "id": "not-found",
-      "variant": "d-dark",
-      "key": "desktop-dark",
-      "prototypeState": "not-found",
-      "percent": 0.04,
-      "status": "PASS",
-      "sheet": "not-found-d-dark.png"
+      "sheet": "not-found-m.png"
     },
     {
       "id": "platform-no-access",
@@ -2535,40 +2544,31 @@
       "sheet": "organizations-not-found-m-dark.png"
     },
     {
-      "id": "accept-invitation-declined",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "accept-invitation-declined",
-      "percent": 0,
-      "status": "PASS",
-      "sheet": "accept-invitation-declined-m.png"
-    },
-    {
-      "id": "accept-invitation-declined",
+      "id": "not-found",
       "variant": "m-dark",
       "key": "mobile-dark",
-      "prototypeState": "accept-invitation-declined",
-      "percent": 0,
+      "prototypeState": "not-found",
+      "percent": 0.03,
       "status": "PASS",
-      "sheet": "accept-invitation-declined-m-dark.png"
+      "sheet": "not-found-m-dark.png"
     },
     {
-      "id": "admin-setup-unavailable",
-      "variant": "m",
-      "key": "mobile-light",
-      "prototypeState": "admin-setup-unavailable",
-      "percent": 0,
+      "id": "not-found",
+      "variant": "d",
+      "key": "desktop-light",
+      "prototypeState": "not-found",
+      "percent": 0.01,
       "status": "PASS",
-      "sheet": "admin-setup-unavailable-m.png"
+      "sheet": "not-found-d.png"
     },
     {
-      "id": "admin-setup-unavailable",
-      "variant": "m-dark",
-      "key": "mobile-dark",
-      "prototypeState": "admin-setup-unavailable",
-      "percent": 0,
+      "id": "not-found",
+      "variant": "d-dark",
+      "key": "desktop-dark",
+      "prototypeState": "not-found",
+      "percent": 0.01,
       "status": "PASS",
-      "sheet": "admin-setup-unavailable-m-dark.png"
+      "sheet": "not-found-d-dark.png"
     }
   ]
 }
