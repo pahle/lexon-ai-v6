@@ -76,6 +76,26 @@ const cases: Array<[string, unknown, number, string]> = [
   ],
   ['pg 23P01', pg('23P01'), 409, 'CONFLICT'],
   [
+    'AI global capacity trigger is 503 AI_CAPACITY_EXCEEDED, not 500',
+    pg('23514', { constraint: 'ai_global_capacity' }),
+    503,
+    'AI_CAPACITY_EXCEEDED',
+  ],
+  [
+    'AI organization capacity trigger through a wrapped cause',
+    Object.assign(new Error('Failed query'), {
+      cause: pg('23514', { constraint: 'ai_org_capacity' }),
+    }),
+    503,
+    'AI_CAPACITY_EXCEEDED',
+  ],
+  [
+    'other check violations stay a server error',
+    pg('23514', { constraint: 'some_other_check' }),
+    500,
+    'INTERNAL_ERROR',
+  ],
+  [
     'pool timeout',
     new Error('timeout exceeded when trying to connect'),
     503,

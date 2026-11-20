@@ -116,11 +116,26 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
     });
     expect(response.status).toBe(201);
     client.runId = ((await response.json()) as { runId: string }).runId;
-  });
-  for (const client of clients.slice(0, options.runStreams))
+    // Finish each run before this slot starts another (at most 6 in flight,
+    // under the global active-run cap of 24): the run stream ends at the
+    // terminal frame, and the worker has no job for the run afterwards.
+    const drained = await fetch(
+      `${stack.publicUrl}/api/runs/${client.runId}/events`,
+      {
+        headers: {
+          accept: 'text/event-stream',
+          cookie: client.cookie,
+          origin: stack.publicUrl,
+        },
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    expect(drained.status).toBe(200);
+    await drained.text();
     await expect
       .poll(() => workerStatus(worker, client.runId!), { timeout: 60000 })
       .toBeNull();
+  });
 
   const previous = (
     await docker([

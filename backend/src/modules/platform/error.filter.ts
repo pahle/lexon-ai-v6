@@ -16,6 +16,9 @@ import { ChatApiError, SafeErrorMessages } from '@lexon/contracts';
 // unexpected outbox uniqueness failure is a server error.
 const CONFLICT_CONSTRAINTS = ['organization_slug_unique'];
 const CONFLICT_SQLSTATES = ['23P01'];
+// The run-capacity triggers (ops.ai_check_run_capacity) raise a 23514 when the
+// global or per-organization active-run cap is full: a busy service, not a bug.
+const CAPACITY_CONSTRAINTS = ['ai_global_capacity', 'ai_org_capacity'];
 const UNAVAILABLE_SQLSTATES = ['57P01', '57P03'];
 const UNAVAILABLE_MESSAGES = [
   'timeout exceeded when trying to connect',
@@ -60,6 +63,16 @@ function uniqueConflict(error: unknown): boolean {
       code === '23505' &&
       typeof constraint === 'string' &&
       CONFLICT_CONSTRAINTS.includes(constraint)
+    );
+  });
+}
+function capacityExceeded(error: unknown): boolean {
+  return chain(error).some((e) => {
+    const { code, constraint } = e as { code?: unknown; constraint?: unknown };
+    return (
+      code === '23514' &&
+      typeof constraint === 'string' &&
+      CAPACITY_CONSTRAINTS.includes(constraint)
     );
   });
 }
@@ -135,6 +148,12 @@ export class SafeErrorFilter implements ExceptionFilter {
     } else if (invalidJson(error)) {
       status = 400;
       detail = { code: 'INVALID_JSON', message: 'Invalid JSON' };
+    } else if (capacityExceeded(error)) {
+      status = 503;
+      detail = {
+        code: 'AI_CAPACITY_EXCEEDED',
+        message: SafeErrorMessages.AI_CAPACITY_EXCEEDED,
+      };
     } else if (unavailable(error)) {
       status = 503;
       detail = {
