@@ -1,18 +1,18 @@
 {
   "version": 1,
-  "sourceSha": "817a8f8b95a10330bb90d2f7ac75016dfa212bfd",
-  "generatedAt": "2026-11-19T08:20:25.579Z",
-  "approvalSha256": "8728dc9ad353ae115759615e82c64c170509b3bcabe16b9f929ea9dd1b423bea",
-  "indexSha256": "1e1b640ea788e57e13fb02b7f715338b4795ffc3f170d1eb9bddb947bd1eec6c",
+  "sourceSha": "364b3e8406df05793341533e60aa00e36078f87d",
+  "generatedAt": "2026-11-20T12:13:34.506Z",
+  "approvalSha256": "908d05462eecaf405c7d3aaeeb6e12dd6529fba409472e10fdc803a3ddb110cd",
+  "indexSha256": "6312cafa0c0204e411d504eaf4e09f360f29367b4e4fe5650c75e261df8c7ccd",
   "environment": {
-    "os": "Linux 7.0.0-1014-aws (linux/x64)",
+    "os": "Linux 7.0.0-1017-azure (linux/x64)",
     "browser": "Chromium 156.0.8078.4",
     "playwright": "1.64.1",
     "node": "v24.22.1",
     "locale": "en-US",
     "timezone": "Asia/Jakarta"
   },
-  "viewCount": 272,
+  "viewCount": 296,
   "reapproved": [
     {
       "id": "onboarding-team-desktop-light",
@@ -193,6 +193,71 @@
         "ciRun": "44478835835"
       },
       "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chat-reconnecting-mobile-light",
+      "sha256": "61d3697d8af499f61bc64acdae9f219f23d261dcbd1eef10decd103d7f3e41c6",
+      "previousSha256": "89c0ce2ee169d6c542ac995f8d4669592fe715165a2721770767d58320c172db",
+      "evidence": {
+        "pixels": 4,
+        "bbox": [368, 261, 369, 297],
+        "channelThreshold": 16,
+        "maxChannelDelta": 15,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 4 pixels differently, all within a channel delta of 15)"
+    },
+    {
+      "id": "recent-load-failed-desktop-light",
+      "sha256": "91245ef7879580b98a3d6e5a8d86d2b91e0a0adc48f3e1b3b31d0bfface0b8a0",
+      "previousSha256": "90cd4f64f92d66fedab6125b565e6feffbd67b8772307359bac529f60831934a",
+      "evidence": {
+        "pixels": 3,
+        "bbox": [35, 109, 37, 111],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 3 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "chats-load-failed-mobile-dark",
+      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
+      "previousSha256": "6443ccfe6033113d4ce48e7366c8aa2e42b61091d56ade6c7782b0cf7b171671",
+      "evidence": {
+        "pixels": 35,
+        "bbox": [360, 182, 374, 249],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 35 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "settings-members-load-failed-mobile-light",
+      "sha256": "74bd2a21bb707de626af4496db597f34d712dd5045a93f89e54ab57c377353cf",
+      "previousSha256": "cd76f4d95197b68280bdbe10e4f8b77a70e815a38943397a6b9efdb3b032f233",
+      "evidence": {
+        "pixels": 38,
+        "bbox": [16, 146, 374, 195],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 38 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "settings-profile-save-failed-desktop-light",
+      "sha256": "75ddcf55c31136059fcfcdca42c70d49b42ebc0ee0b3c63d142276636ab3896d",
+      "previousSha256": "cd0d8628c60fe2c58d96d1486edcac4abe095e7664003c1a05b37a960916d13e",
+      "evidence": {
+        "pixels": 3,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "maxChannelDelta": 2,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 3 pixels differently, all within a channel delta of 2)"
     }
   ],
   "deviations": [
@@ -459,6 +524,30 @@
       "variant": "m-dark",
       "percent": 4,
       "reason": "owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical)"
+    },
+    {
+      "id": "chat-copy-failed",
+      "variant": "m",
+      "percent": 2.58,
+      "reason": "owner accepted 2026-11-20 (the thread rests about 1px off; layout identical)"
+    },
+    {
+      "id": "chat-copy-failed",
+      "variant": "m-dark",
+      "percent": 2.59,
+      "reason": "owner accepted 2026-11-20 (the thread rests about 1px off; layout identical)"
+    },
+    {
+      "id": "settings-profile-save-failed",
+      "variant": "m",
+      "percent": 1.85,
+      "reason": "owner accepted 2026-11-20 (sub-pixel text offset only)"
+    },
+    {
+      "id": "settings-profile-save-failed",
+      "variant": "m-dark",
+      "percent": 1.66,
+      "reason": "owner accepted 2026-11-20 (sub-pixel text offset only)"
     }
   ],
   "images": {
@@ -1808,28 +1897,28 @@
     },
     "chat-streaming-scroll-desktop-light": {
       "path": "baseline/chat-streaming-scroll-desktop-light.png",
-      "sha256": "394284d9af809a9c43e907efaaa19789be47f6bed1e091e0746bd4d07b7a84d7",
+      "sha256": "7ad29f2a046da8439a2ee9bfc9c8f675a32bd8aeb21e10306ec03c906746a5c5",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-desktop-dark": {
       "path": "baseline/chat-streaming-scroll-desktop-dark.png",
-      "sha256": "a3b8e1b5d3cea70d58e76fc2a0df94a77ad069ce28c4b9e53110ff3105f7dd2d",
+      "sha256": "8f998eaf146cd8f443bc813459a70967c7be86560bfa3e40bf20672e73c7f0c1",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-mobile-light": {
       "path": "baseline/chat-streaming-scroll-mobile-light.png",
-      "sha256": "4f47d7e4891b03c66647fa4f4f99bd8ebb08c8fd0bbebc5f06ddb0b31499ed3d",
+      "sha256": "ae7f00a518f6f2f97b1d1e821562c266476657de9963eb20d8941529659b48c3",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-streaming-scroll-mobile-dark": {
       "path": "baseline/chat-streaming-scroll-mobile-dark.png",
-      "sha256": "22e5586489a1c8a9d540e867e06c1e3ff376eb38d39c2bac34239097ba050e7a",
+      "sha256": "b3fbfd2aa867f82389bac8d573d1187a5857dea3b444b001b742836f14953223",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2088,56 +2177,56 @@
     },
     "chat-reconnecting-desktop-light": {
       "path": "baseline/chat-reconnecting-desktop-light.png",
-      "sha256": "5269c83078bfadf3e5dcf8fcada883f0f709e02312a04e1d9f40e70b7567a060",
+      "sha256": "28f780d3c769675a846c2f47bb6816eb34cb774c22dd1d74fd5bc3c33bce779b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-desktop-dark": {
       "path": "baseline/chat-reconnecting-desktop-dark.png",
-      "sha256": "fc61354263c7e7bcb4df39f86c86444b4beea4dad303a3652cb7fafd530fb3f0",
+      "sha256": "547f6c6eba0860e8be87fccdf5525f9e75be5658fc9bd42cceaf4b0b051921a2",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-light": {
       "path": "baseline/chat-reconnecting-mobile-light.png",
-      "sha256": "d25fed9beaf3580e67a341c0cca5c02639edd22b8517a5c68c428d1b5f8dbd48",
+      "sha256": "61d3697d8af499f61bc64acdae9f219f23d261dcbd1eef10decd103d7f3e41c6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-reconnecting-mobile-dark": {
       "path": "baseline/chat-reconnecting-mobile-dark.png",
-      "sha256": "33f844c0b7918bca6e0212841ee67ad44031a8adce90fa9d652c7384ff11d798",
+      "sha256": "4989cf86d3b0132fd2b1645275438823e3a701377df44b483eb3389905afa6b6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-desktop-light": {
       "path": "baseline/chat-thread-loading-desktop-light.png",
-      "sha256": "7271d313bd42b5bd9d42d4222ff7574bafc0af575a5e75a72af7d075837dd632",
+      "sha256": "15fa4dba6f6c68ee76e349dbbfa108ebf2f0c0527d1d9d9ec2a45e5c78b748b7",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-desktop-dark": {
       "path": "baseline/chat-thread-loading-desktop-dark.png",
-      "sha256": "7a2ad966fabdcc1adf17d0f05ff9a01a43ef276080a86617c7eaec24ede9cd9e",
+      "sha256": "496363af03f0ec53c74713e08e7bcbe1293ff692be20bb569e48b17f80e09e3d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-mobile-light": {
       "path": "baseline/chat-thread-loading-mobile-light.png",
-      "sha256": "591ee452a2ae2a8fe5854c974cd768274cbeeff673620743d946245feb659c76",
+      "sha256": "63cee11dc3688db4eb40a8edea60c69ec0bb819f800b9792bb2a82330d279e44",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-thread-loading-mobile-dark": {
       "path": "baseline/chat-thread-loading-mobile-dark.png",
-      "sha256": "2ccf7297b241afd9875a51b0cd667750c952b7ec006e3bc2d9c0f1073491e82a",
+      "sha256": "38d0efb66b2f180c55981dc505cbc95416ac0ec36705ab0a187dc76538d0d74d",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2362,6 +2451,174 @@
     "indicator-finished-mobile-dark": {
       "path": "baseline/indicator-finished-mobile-dark.png",
       "sha256": "ec2719cd3431bf2475a9baf999558926bfa42ece0e009349d6361808c9b811b6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-copy-failed-desktop-light": {
+      "path": "baseline/chat-copy-failed-desktop-light.png",
+      "sha256": "360537a5fff412c74024982f0a2680b4a079f0c9fbc03d3f824c230a83cb677d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-copy-failed-desktop-dark": {
+      "path": "baseline/chat-copy-failed-desktop-dark.png",
+      "sha256": "93dd1eef7c8e8911bb90671e0f7719da92f620240ad359f11532e88d1b3a6537",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-copy-failed-mobile-light": {
+      "path": "baseline/chat-copy-failed-mobile-light.png",
+      "sha256": "d9ddc638754a7bfb81179429e11c75d99ffb93f9d5566c060b0cf730c2e644fe",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-copy-failed-mobile-dark": {
+      "path": "baseline/chat-copy-failed-mobile-dark.png",
+      "sha256": "57455be0a9061360943dfeea4139b8032b5289c866505860ddd60bcd560f6686",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-composer-running-desktop-light": {
+      "path": "baseline/chat-composer-running-desktop-light.png",
+      "sha256": "844dc30c14a3dcd44dbd9134f8c0c39e1cacfbd085e94d7e6ad057b631abb37d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-composer-running-desktop-dark": {
+      "path": "baseline/chat-composer-running-desktop-dark.png",
+      "sha256": "5da25bb4a4bb58e11a8a2104c752eb75f2f9641642731526148eb006f395c4ae",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-composer-running-mobile-light": {
+      "path": "baseline/chat-composer-running-mobile-light.png",
+      "sha256": "ff84127431e442d599eadeca17ec200c1e95fc55c7cbec7faddd9bee0b33c897",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-composer-running-mobile-dark": {
+      "path": "baseline/chat-composer-running-mobile-dark.png",
+      "sha256": "d1f89dc27afddce346b1169b62ed73dd32b7399b524506c40b68f6a289fc1127",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "recent-load-failed-desktop-light": {
+      "path": "baseline/recent-load-failed-desktop-light.png",
+      "sha256": "91245ef7879580b98a3d6e5a8d86d2b91e0a0adc48f3e1b3b31d0bfface0b8a0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "recent-load-failed-desktop-dark": {
+      "path": "baseline/recent-load-failed-desktop-dark.png",
+      "sha256": "e3d6fa28bca354a625127a9e942a816a274066e30ca9fb2b07515a3bced3fa97",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "recent-load-failed-mobile-light": {
+      "path": "baseline/recent-load-failed-mobile-light.png",
+      "sha256": "2abc9a93abf3f793994df03afd05023ee5e72e34f0d2ee32d4bd6d3764d457a2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "recent-load-failed-mobile-dark": {
+      "path": "baseline/recent-load-failed-mobile-dark.png",
+      "sha256": "d977d1de32f249c63ce8fad9157e36628dbcc6c57cf4bee98e7f9fb72aa1a846",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-load-failed-desktop-light": {
+      "path": "baseline/chats-load-failed-desktop-light.png",
+      "sha256": "f27bd8468f9ab98b61aa1f97791e2fcb116ec2554e12dcf3a96c32a1fec22443",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-load-failed-desktop-dark": {
+      "path": "baseline/chats-load-failed-desktop-dark.png",
+      "sha256": "a45bf266f376302ef739e837125281c2913f1fe0c675345e435d4c09838327eb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-load-failed-mobile-light": {
+      "path": "baseline/chats-load-failed-mobile-light.png",
+      "sha256": "3d7c1877cc4bd32c7ea251f25093f3ad90a4a1589ab8f9d91a4109a4c15f93f0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-load-failed-mobile-dark": {
+      "path": "baseline/chats-load-failed-mobile-dark.png",
+      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-load-failed-desktop-light": {
+      "path": "baseline/settings-members-load-failed-desktop-light.png",
+      "sha256": "e63aa4b847b1996b8cc98baed84134e6fbd6b647b0935b9edc73fcff4cfb1715",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-load-failed-desktop-dark": {
+      "path": "baseline/settings-members-load-failed-desktop-dark.png",
+      "sha256": "b9ad38030d9069c9a7c8a846f2cc41725e5e286a853009778a766fd4afc12750",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-load-failed-mobile-light": {
+      "path": "baseline/settings-members-load-failed-mobile-light.png",
+      "sha256": "74bd2a21bb707de626af4496db597f34d712dd5045a93f89e54ab57c377353cf",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-members-load-failed-mobile-dark": {
+      "path": "baseline/settings-members-load-failed-mobile-dark.png",
+      "sha256": "6d0beb01e0f1972bfa9926c401937c8e1f11c2f8632fc08d0afd0b12d1ac49a1",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-save-failed-desktop-light": {
+      "path": "baseline/settings-profile-save-failed-desktop-light.png",
+      "sha256": "75ddcf55c31136059fcfcdca42c70d49b42ebc0ee0b3c63d142276636ab3896d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-save-failed-desktop-dark": {
+      "path": "baseline/settings-profile-save-failed-desktop-dark.png",
+      "sha256": "0a055e877a08b330428e6d42c506b0c511e53de1a52f0cacf0cd54106e980b31",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-save-failed-mobile-light": {
+      "path": "baseline/settings-profile-save-failed-mobile-light.png",
+      "sha256": "87a6b1a7d880676d1d65d3fa8b6b8c3f69df015408419b74085ad5eed50c1ae3",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "settings-profile-save-failed-mobile-dark": {
+      "path": "baseline/settings-profile-save-failed-mobile-dark.png",
+      "sha256": "e3df94f72b968e7574d4e34ba2dad488ea490bd7ba9afacbcd3bc3fc3ab6b16b",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
