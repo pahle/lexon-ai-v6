@@ -5,6 +5,8 @@ import {
   buildBurstResult,
   createPoolMetrics,
   createSseCounter,
+  drainBoundMs,
+  isCapacityRefusal,
   loadMetricsEnabled,
   parseBurstOptions,
   percentile,
@@ -143,4 +145,37 @@ test('burst options split 24 held runs from the invalidation streams', () => {
   const small = parseBurstOptions({ LEXON_BURST_CLIENTS: '40' });
   assert.equal(small.heldRuns, 8);
   assert.equal(small.invalidationStreams, 32);
+});
+
+test('capacity refusal is read from the API error envelope, not a top-level code', () => {
+  const envelope = {
+    error: { code: 'AI_CAPACITY_EXCEEDED', message: 'The AI service is busy.' },
+    requestId: 'r1',
+  };
+  assert.equal(isCapacityRefusal(503, envelope), true);
+  assert.equal(isCapacityRefusal(503, { code: 'AI_CAPACITY_EXCEEDED' }), false);
+});
+
+test('only a 503 AI_CAPACITY_EXCEEDED is a capacity refusal', () => {
+  const capacity = { error: { code: 'AI_CAPACITY_EXCEEDED' } };
+  assert.equal(isCapacityRefusal(500, capacity), false);
+  assert.equal(isCapacityRefusal(409, capacity), false);
+  assert.equal(
+    isCapacityRefusal(503, { error: { code: 'AUTH_UNAVAILABLE' } }),
+    false,
+  );
+  assert.equal(isCapacityRefusal(503, null), false);
+  assert.equal(isCapacityRefusal(503, 'AI_CAPACITY_EXCEEDED'), false);
+  assert.equal(isCapacityRefusal(503, {}), false);
+});
+
+test('drain bound is waves of worker concurrency times the wave budget plus slack', () => {
+  // 24 held runs at worker concurrency 4 are 6 waves.
+  assert.equal(
+    drainBoundMs(24, 4, { waveMs: 10_000, slackMs: 30_000 }),
+    90_000,
+  );
+  assert.equal(drainBoundMs(8, 4, { waveMs: 10_000, slackMs: 30_000 }), 50_000);
+  assert.equal(drainBoundMs(5, 4, { waveMs: 10_000, slackMs: 0 }), 20_000);
+  assert.throws(() => drainBoundMs(24, 0));
 });

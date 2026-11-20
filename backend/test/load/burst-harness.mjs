@@ -47,6 +47,32 @@ export function parseBurstOptions(env) {
   };
 }
 
+// The API wraps every error as { error: { code, message }, requestId }. Only a
+// 503 carrying AI_CAPACITY_EXCEEDED means "the active-run cap is full, try
+// again"; every other status or code is a real failure.
+export function isCapacityRefusal(status, body) {
+  if (status !== 503 || typeof body !== 'object' || body === null) return false;
+  const error = body.error;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    error.code === 'AI_CAPACITY_EXCEEDED'
+  );
+}
+
+// Upper bound for held runs to reach a terminal status after release: the
+// worker runs `concurrency` runs at a time, so the runs drain in
+// ceil(held / concurrency) waves of `waveMs` each, plus fixed slack.
+export function drainBoundMs(
+  heldRuns,
+  concurrency,
+  { waveMs = 10_000, slackMs = 30_000 } = {},
+) {
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1)
+    throw new Error('worker concurrency must be a positive integer');
+  return Math.ceil(heldRuns / concurrency) * waveMs + slackMs;
+}
+
 const MIB = 1024 * 1024;
 
 export function buildBurstResult({

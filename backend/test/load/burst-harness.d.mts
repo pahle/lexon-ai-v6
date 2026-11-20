@@ -45,3 +45,9 @@ export function createSseCounter(env: Record<string, string | undefined>): {
   reset(): void;
   snapshot(): { open: number | null; peak: number | null };
 };
+export function isCapacityRefusal(status: number, body: unknown): boolean;
+export function drainBoundMs(
+  heldRuns: number,
+  concurrency: number,
+  options?: { waveMs?: number; slackMs?: number },
+): number;

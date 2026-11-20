@@ -15,12 +15,17 @@ import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
 import {
   buildBurstResult,
+  drainBoundMs,
+  isCapacityRefusal,
   parseBurstOptions,
   percentile,
 } from '../load/burst-harness.mjs';
 
 const controlPath = 'backend/test/e2e/chat-load-control.mjs';
 const workerControlPath = 'backend/test/e2e/chat-worker-control.mjs';
+// Worker concurrency of ai-interactive (the held runs drain in waves of it).
+const WORKER_CONCURRENCY = 4;
+const RUN_ADMISSION_MS = 60_000;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 type Client = { cookie: string; runId?: string };
@@ -175,9 +180,13 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
     clients.slice(0, options.heldRuns),
     4,
     async (client, i) => {
+      const runDeadline = Date.now() + RUN_ADMISSION_MS;
+      let backoffMs = 250;
       for (;;) {
-        if (Date.now() > setupDeadline)
-          throw new Error(`Held run ${i} was not admitted before the deadline`);
+        if (Date.now() > setupDeadline || Date.now() > runDeadline)
+          throw new Error(
+            `Held run ${i} was not admitted within ${RUN_ADMISSION_MS} ms (${capacityRetries} capacity retries)`,
+          );
         if ((await activeRuns(postgres)) >= capacity) {
           await delay(500);
           continue;
@@ -201,18 +210,25 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
           client.runId = ((await response.json()) as { runId: string }).runId;
           return;
         }
-        const code = (
-          (await response.json().catch(() => ({}))) as {
-            code?: string;
-          }
-        ).code;
-        if (response.status === 503 && code === 'AI_CAPACITY_EXCEEDED') {
+        const text = await response.text().catch(() => '');
+        let body: unknown = null;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          // Not JSON: logged below and failed as a non-capacity refusal.
+        }
+        console.log(
+          `Held run ${i} creation returned ${response.status}: ${text.slice(0, 500)}`,
+        );
+        // Only a capacity refusal is retried; any other status fails.
+        if (isCapacityRefusal(response.status, body)) {
           capacityRetries += 1;
-          await delay(500);
+          await delay(backoffMs);
+          backoffMs = Math.min(backoffMs * 2, 2000);
           continue;
         }
         throw new Error(
-          `Held run ${i} creation failed with ${response.status}`,
+          `Held run ${i} creation failed with ${response.status}: ${text.slice(0, 500)}`,
         );
       }
     },
@@ -359,33 +375,42 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
       );
     }
 
-    // Completed-run attach: release the held runs and, for the runs that reach
-    // a terminal status, measure replay latency only. These connections close
-    // after the replay and are never counted as concurrent connections. This
-    // is best effort and cannot change the measured numbers above.
-    try {
-      const releaseStartedAt = Date.now();
-      const quoted = heldRunIds.map((id) => `'${id}'`).join(',');
-      const terminal = async () =>
-        (
-          await psql(
-            postgres,
-            `SELECT id FROM app.ai_runs WHERE id IN (${quoted}) AND status IN ('completed','failed','cancelled')`,
-          )
+    // Release the held runs. Every one must reach a terminal status within
+    // the bound computed from the worker concurrency; a run that does not is a
+    // capacity leak (a product bug), so this fails instead of continuing.
+    const releaseStartedAt = Date.now();
+    const quoted = heldRunIds.map((id) => `'${id}'`).join(',');
+    const terminal = async () =>
+      (
+        await psql(
+          postgres,
+          `SELECT id FROM app.ai_runs WHERE id IN (${quoted}) AND status IN ('completed','failed','cancelled')`,
         )
-          .split('\n')
-          .filter(Boolean);
-      while (
-        Date.now() - releaseStartedAt < 90_000 &&
-        (await terminal()).length < heldRunIds.length
-      ) {
-        await eachLimited(heldRunIds, 8, (runId) =>
-          workerRelease(worker, runId),
-        );
-        await delay(500);
-      }
-      evidence.replay.drainSeconds =
-        Math.round((Date.now() - releaseStartedAt) / 100) / 10;
+      )
+        .split('\n')
+        .filter(Boolean);
+    const boundMs = drainBoundMs(heldRunIds.length, WORKER_CONCURRENCY);
+    let finished = (await terminal()).length;
+    while (
+      Date.now() - releaseStartedAt < boundMs &&
+      finished < heldRunIds.length
+    ) {
+      await eachLimited(heldRunIds, 8, (runId) => workerRelease(worker, runId));
+      await delay(500);
+      finished = (await terminal()).length;
+    }
+    evidence.replay.drainSeconds =
+      Math.round((Date.now() - releaseStartedAt) / 100) / 10;
+    (evidence.replay as Record<string, unknown>).drainBoundSeconds =
+      boundMs / 1000;
+    if (finished < heldRunIds.length) {
+      evidence.replay.note = `CAPACITY LEAK: ${finished}/${heldRunIds.length} held runs terminal after ${boundMs} ms`;
+      await writeEvidence();
+      throw new Error(
+        `${evidence.replay.note}; active now: ${await activeRunStatuses(postgres)}`,
+      );
+    }
+    try {
       const done = new Set(await terminal());
       const replayFirstFrameMs: number[] = [];
       await eachLimited(
