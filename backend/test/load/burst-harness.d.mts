@@ -3,6 +3,7 @@ export function percentile(values: number[], quantile: number): number | null;
 export function parseBurstOptions(env: Record<string, string | undefined>): {
   clients: number;
   runStreams: number;
+  heldRuns: number;
   invalidationStreams: number;
   modes: Array<'ramp' | 'burst'>;
   rampSeconds: number;
@@ -14,6 +15,8 @@ export function buildBurstResult(input: {
   rssBytes: number[];
   authPoolWaitMs: number[];
   poolWaitingMax: number | null;
+  serverPeakOpenSse?: number | null;
+  replayFirstFrameMs?: number[];
 }): {
   mode: string;
   clients: number;
@@ -22,6 +25,8 @@ export function buildBurstResult(input: {
   peakBackendRssMiB: number;
   authPoolWaitP95Ms: number | null;
   poolWaitingMax: number | null;
+  serverPeakOpenSse: number | null;
+  replayP95FirstFrameMs: number | null;
 };
 export function loadMetricsEnabled(
   env: Record<string, string | undefined>,
@@ -32,4 +37,11 @@ export function createPoolMetrics(env: Record<string, string | undefined>): {
   sample(): void;
   reset(): void;
   snapshot(): { waitingMax: number | null; waitMs: number[] };
+};
+export function createSseCounter(env: Record<string, string | undefined>): {
+  enabled: boolean;
+  opened(id: string): void;
+  closed(id: string): void;
+  reset(): void;
+  snapshot(): { open: number | null; peak: number | null };
 };

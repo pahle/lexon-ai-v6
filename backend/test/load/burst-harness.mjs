@@ -10,9 +10,12 @@ export const BURST_RESULT_KEYS = [
   'peakBackendRssMiB',
   'authPoolWaitP95Ms',
   'poolWaitingMax',
+  'serverPeakOpenSse',
+  'replayP95FirstFrameMs',
 ];
 
 const MODES = ['ramp', 'burst'];
+const MAX_ACTIVE_RUNS = 24;
 
 export function percentile(values, quantile) {
   if (values.length === 0) return null;
@@ -31,11 +34,14 @@ export function parseBurstOptions(env) {
     : [...MODES];
   if (modes.length === 0 || modes.some((mode) => !MODES.includes(mode)))
     throw new Error('LEXON_BURST_MODES must list ramp and/or burst');
-  const runStreams = Math.ceil(clients / 2);
+  // Live run streams are bounded by the global active-run cap (24); the rest
+  // are chat invalidation streams from distinct users.
+  const heldRuns = Math.min(MAX_ACTIVE_RUNS, Math.floor(clients / 5));
   return {
     clients,
-    runStreams,
-    invalidationStreams: clients - runStreams,
+    runStreams: heldRuns,
+    heldRuns,
+    invalidationStreams: clients - heldRuns,
     modes,
     rampSeconds: 30,
   };
@@ -50,6 +56,8 @@ export function buildBurstResult({
   rssBytes,
   authPoolWaitMs,
   poolWaitingMax,
+  serverPeakOpenSse = null,
+  replayFirstFrameMs = [],
 }) {
   const peak = rssBytes.length === 0 ? 0 : Math.max(...rssBytes);
   return {
@@ -60,6 +68,8 @@ export function buildBurstResult({
     peakBackendRssMiB: Math.round((peak / MIB) * 10) / 10,
     authPoolWaitP95Ms: percentile(authPoolWaitMs, 0.95),
     poolWaitingMax,
+    serverPeakOpenSse,
+    replayP95FirstFrameMs: percentile(replayFirstFrameMs, 0.95),
   };
 }
 
@@ -104,6 +114,33 @@ export function createPoolMetrics(env) {
       return enabled
         ? { waitingMax, waitMs: [...waitMs] }
         : { waitingMax: null, waitMs: [] };
+    },
+  };
+}
+
+// Test-only server-side count of open SSE connections (run streams and chat
+// invalidation streams both pass through the connection registry). Disabled
+// unless LEXON_LOAD_METRICS=1. Keyed by connection id, so repeats are no-ops.
+export function createSseCounter(env) {
+  const enabled = loadMetricsEnabled(env);
+  const open = new Set();
+  let peak = 0;
+  return {
+    enabled,
+    opened(id) {
+      if (!enabled) return;
+      open.add(id);
+      peak = Math.max(peak, open.size);
+    },
+    closed(id) {
+      if (!enabled) return;
+      open.delete(id);
+    },
+    reset() {
+      peak = open.size;
+    },
+    snapshot() {
+      return enabled ? { open: open.size, peak } : { open: null, peak: null };
     },
   };
 }

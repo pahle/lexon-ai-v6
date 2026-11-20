@@ -4,7 +4,11 @@ import { chmod, rm } from 'node:fs/promises';
 import { HttpException } from '@nestjs/common';
 import Redis from 'ioredis';
 import pg from 'pg';
-import { createPoolMetrics } from '../load/burst-harness.mjs';
+import {
+  createPoolMetrics,
+  createSseCounter,
+  percentile,
+} from '../load/burst-harness.mjs';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
 import { SafeErrorFilter } from '../../dist/modules/platform/error.filter.js';
 import { RunEventsService } from '../../dist/modules/chat/run-events.service.js';
@@ -57,6 +61,7 @@ Redis.prototype.connect = function (...args) {
 
 // Test-only pg-pool metric (F4.2 item 27): active only with LEXON_LOAD_METRICS=1.
 const poolMetrics = createPoolMetrics(process.env);
+const sseCounter = createSseCounter(process.env);
 let peakRssBytes = 0;
 if (poolMetrics.enabled) {
   const originalPoolConnect = pg.Pool.prototype.connect;
@@ -372,6 +377,25 @@ events.database.withTenant = function (...args) {
     (error, index) => countTenantTransactionError(error, index),
   );
 };
+
+// Test-only (LEXON_LOAD_METRICS=1): count open SSE connections server-side.
+// Run streams and chat invalidation streams are both admitted through the
+// registry and released when the stream closes.
+if (sseCounter.enabled) {
+  const originalAdmit = registry.admit;
+  registry.admit = async function (...args) {
+    const admitted = await Reflect.apply(originalAdmit, this, args);
+    sseCounter.opened(admitted.lease.connectionId);
+    if (admitted.evicted?.connectionId)
+      sseCounter.closed(admitted.evicted.connectionId);
+    return admitted;
+  };
+  const originalRelease = registry.release;
+  registry.release = async function (...args) {
+    sseCounter.closed(args[0]?.connectionId);
+    return Reflect.apply(originalRelease, this, args);
+  };
+}
 
 const originalRenew = registry.renew;
 registry.renew = function (...args) {
@@ -728,9 +752,19 @@ const control = createServer((socket) => {
         return;
       }
       if (request.op === 'burst-metrics') {
-        const value = { ...poolMetrics.snapshot(), peakRssBytes };
+        // The control reply is capped at 16 KiB, so send the p95, not every
+        // sample.
+        const { waitingMax, waitMs } = poolMetrics.snapshot();
+        const value = {
+          waitingMax,
+          waitP95Ms: percentile(waitMs, 0.95),
+          waitCount: waitMs.length,
+          peakRssBytes,
+          sse: sseCounter.snapshot(),
+        };
         if (request.reset === true) {
           poolMetrics.reset();
+          sseCounter.reset();
           peakRssBytes = 0;
         }
         socket.end(JSON.stringify(value) + '\n');

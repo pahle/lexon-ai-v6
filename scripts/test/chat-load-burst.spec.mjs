@@ -4,6 +4,7 @@ import {
   BURST_RESULT_KEYS,
   buildBurstResult,
   createPoolMetrics,
+  createSseCounter,
   loadMetricsEnabled,
   parseBurstOptions,
   percentile,
@@ -12,8 +13,9 @@ import {
 test('burst options default to 500 clients, both modes, 30 s ramp', () => {
   assert.deepEqual(parseBurstOptions({}), {
     clients: 500,
-    runStreams: 250,
-    invalidationStreams: 250,
+    runStreams: 24,
+    heldRuns: 24,
+    invalidationStreams: 476,
     modes: ['ramp', 'burst'],
     rampSeconds: 30,
   });
@@ -28,7 +30,7 @@ test('burst options accept a single mode and reject invalid input', () => {
   assert.throws(() => parseBurstOptions({ LEXON_BURST_CLIENTS: '-4' }));
   assert.equal(
     parseBurstOptions({ LEXON_BURST_CLIENTS: '40' }).invalidationStreams,
-    20,
+    32,
   );
 });
 
@@ -89,4 +91,56 @@ test('an enabled metric records connect wait time', async () => {
   const { waitMs } = metrics.snapshot();
   assert.equal(waitMs.length, 1);
   assert.ok(waitMs[0] >= 10);
+});
+
+test('open-SSE counter is off unless LEXON_LOAD_METRICS=1', () => {
+  const off = createSseCounter({});
+  assert.equal(off.enabled, false);
+  off.opened('a');
+  assert.deepEqual(off.snapshot(), { open: null, peak: null });
+});
+
+test('open-SSE counter tracks the server-side peak per window', () => {
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  counter.opened('a');
+  counter.opened('b');
+  counter.opened('c');
+  counter.closed('b');
+  assert.deepEqual(counter.snapshot(), { open: 2, peak: 3 });
+  counter.opened('a');
+  assert.equal(counter.snapshot().open, 2, 'a repeated id is not recounted');
+  counter.closed('unknown');
+  counter.closed('b');
+  assert.equal(counter.snapshot().open, 2, 'a repeated close is a no-op');
+  counter.reset();
+  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+  counter.closed('a');
+  counter.opened('d');
+  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+});
+
+test('the result records the server-side peak and the replay latency', () => {
+  const result = buildBurstResult({
+    mode: 'ramp',
+    clients: 500,
+    firstFrameMs: [1],
+    rssBytes: [],
+    authPoolWaitMs: [],
+    poolWaitingMax: null,
+    serverPeakOpenSse: 502,
+    replayFirstFrameMs: [10, 20],
+  });
+  assert.equal(result.serverPeakOpenSse, 502);
+  assert.equal(result.replayP95FirstFrameMs, 20);
+  assert.ok(BURST_RESULT_KEYS.includes('serverPeakOpenSse'));
+});
+
+test('burst options split 24 held runs from the invalidation streams', () => {
+  const options = parseBurstOptions({});
+  assert.equal(options.heldRuns, 24);
+  assert.equal(options.invalidationStreams, 476);
+  assert.equal(options.runStreams, 24);
+  const small = parseBurstOptions({ LEXON_BURST_CLIENTS: '40' });
+  assert.equal(small.heldRuns, 8);
+  assert.equal(small.invalidationStreams, 32);
 });
