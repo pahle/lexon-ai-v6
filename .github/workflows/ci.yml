@@ -108,6 +108,28 @@ jobs:
             test-results/f4-chat/*.json
           retention-days: 14
           if-no-files-found: ignore
+      - name: Read pending visual list
+        id: visual-pending
+        if: always()
+        run: |
+          pending_count="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(String((JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending ?? []).length))')"
+          printf 'count=%s\n' "$pending_count" >> "$GITHUB_OUTPUT"
+      - name: Compare pending captures with the prototype
+        if: always() && steps.visual-pending.outputs.count != '0'
+        run: node scripts/visual-compare-prototype.mjs --pending --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/pending-compare
+      - name: Upload pending visual captures
+        if: always() && steps.visual-pending.outputs.count != '0'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-pending-${{ github.run_id }}
+          path: |
+            docs/references/F4.1-visual/review/*.png
+            docs/references/F4.1-visual/review/*.masks.json
+            docs/references/F4.1-visual/pending.txt
+            docs/references/F4.1-visual/pending-compare/*
+            docs/references/F4.1-visual/pending-compare/results.json
+          retention-days: 30
+          if-no-files-found: ignore
       - name: Write F4.1 visual capture manifest
         if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
         run: |

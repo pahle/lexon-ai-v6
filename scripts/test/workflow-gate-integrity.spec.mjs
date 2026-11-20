@@ -34,3 +34,24 @@ for (const file of files) {
     assert.deepEqual(hits, []);
   });
 }
+
+test('ci.yml uploads pending visual captures as one per-run artifact', () => {
+  const text = readFileSync(new URL('ci.yml', dir), 'utf8');
+  const steps = text.split(/\r?\n(?=\s{6}- name: )/u);
+  const compare = steps.find((s) => /--pending\b/u.test(s));
+  assert.ok(compare, 'a step runs visual-compare-prototype.mjs --pending');
+  assert.match(compare, /visual-compare-prototype\.mjs/u);
+  assert.match(compare, /if: always\(\) && .*pending/u);
+  const upload = steps.find((s) => /name: visual-pending-/u.test(s));
+  assert.ok(upload, 'an upload step names the artifact visual-pending-*');
+  assert.match(upload, /name: visual-pending-\$\{\{ github\.run_id \}\}/u);
+  assert.match(upload, /retention-days: 30/u);
+  assert.match(upload, /if: always\(\) && .*pending/u);
+  assert.match(
+    upload,
+    /upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/u,
+  );
+  assert.match(upload, /results\.json/u);
+  assert.match(upload, /pending\.txt/u);
+  assert.doesNotMatch(upload + compare, /continue-on-error/u);
+});
