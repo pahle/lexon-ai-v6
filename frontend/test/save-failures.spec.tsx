@@ -118,6 +118,18 @@ it('profile: retry saves', async () => {
   await view.unmount();
 });
 
+it('profile: with the form alert shown, the first row sits 16px under it (prototype .falert then .srow), so the group pulls up the 12px gap', async () => {
+  responses = [down];
+  const view = await render(<ProfileSettings />);
+  const group = () =>
+    view.container.querySelector('[role="alert"]')?.nextElementSibling;
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  await act(async () => save(view.container).click());
+  await settle();
+  expect(group()?.className).toContain('-mt-3');
+  await view.unmount();
+});
+
 it('organization General: a failed save shows the form alert above the fields, keeps the typed value, and leaves Save enabled', async () => {
   responses = [down];
   const view = await render(<OrganizationSettings organization={org} />);

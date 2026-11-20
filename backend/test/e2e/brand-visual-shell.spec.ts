@@ -69,8 +69,11 @@ test('shell in the Personal workspace', async ({ page }) => {
   });
 });
 
-test('Recent failing to load in the Personal workspace', async ({ page }) => {
-  await prepareIdentity(page, { name: ayu.name }, ayu.jobTitle);
+test('Recent failing to load in the team workspace', async ({
+  page,
+  playwright,
+}) => {
+  await teamWorld(page, playwright);
   await recentChats(page);
   // The chat list request fails; the later route wins over the fixture.
   await page.route(
@@ -84,7 +87,7 @@ test('Recent failing to load in the Personal workspace', async ({ page }) => {
           })
         : route.fallback(),
   );
-  await gotoWorkspace(page, 'Ayu');
+  await gotoWorkspace(page, ayu.firstName);
   await captureBrandViews(page, 'recent-load-failed', {
     keepFocus: true,
     open: async (viewport) => {

@@ -161,3 +161,29 @@ it('Chats fails while Recent succeeds → only Chats shows the failure', async (
   ).toBeNull();
   await view.unmount();
 });
+
+it('Recent: the failure line replaces the whole list, including View all chats', async () => {
+  const api = {
+    list: vi.fn().mockRejectedValue(new Error('x')),
+  } as unknown as ChatApi;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  const view = await render(
+    <QueryClientProvider client={client}>
+      <SidebarProvider>
+        <RecentChats
+          client={api}
+          scope={scope}
+          viewAll={<a href="/chats">View all chats</a>}
+        />
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+  await settle();
+  expect(view.container.textContent).toContain(
+    'We could not load recent chats.',
+  );
+  expect(view.container.textContent).not.toContain('View all chats');
+  await view.unmount();
+});

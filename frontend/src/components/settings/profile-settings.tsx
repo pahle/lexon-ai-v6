@@ -82,7 +82,8 @@ export function ProfileSettings(): React.ReactElement {
       >
         <div className="flex flex-col gap-3">
           {failure ? <FormAlert>{failure}</FormAlert> : null}
-          <FieldGroup className="gap-0">
+          {/* Prototype: the first row sits 16px under the alert, not 28px. */}
+          <FieldGroup className={failure ? '-mt-3 gap-0' : 'gap-0'}>
             <SettingsField data-invalid={Boolean(form.formState.errors.name)}>
               <FieldContent className="gap-0">
                 <FieldLabel

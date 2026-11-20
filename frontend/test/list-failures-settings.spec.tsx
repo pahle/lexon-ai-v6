@@ -119,6 +119,26 @@ it('members: a failed fetch shows "We could not load members." with Try again, n
   await view.unmount();
 });
 
+it('members: when the list fails the subtitle names the organization without a count', async () => {
+  stubFetch({ failFirst: '/members', ok: () => page([member]) });
+  const view = await render(wrap(<Members organization={team} />));
+  await settle();
+  expect(view.container.textContent).toContain('People in Hukum Nusantara.');
+  expect(view.container.textContent).not.toMatch(/\d+ members? in/);
+  await view.unmount();
+});
+
+it('members: when the list fails Leave organization is hidden (last-owner eligibility needs the list)', async () => {
+  stubFetch({ failFirst: '/members', ok: () => page([member]) });
+  const view = await render(wrap(<Members organization={team} />));
+  await settle();
+  const buttons = [...view.container.querySelectorAll('button')].map(
+    (b) => b.textContent,
+  );
+  expect(buttons).not.toContain('Leave organization');
+  await view.unmount();
+});
+
 it('members: Try again refetches and the list renders', async () => {
   stubFetch({ failFirst: '/members', ok: () => page([member]) });
   const view = await render(wrap(<Members organization={team} />));

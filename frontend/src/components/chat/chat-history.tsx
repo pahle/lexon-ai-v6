@@ -260,7 +260,6 @@ export function RecentChats({
           thing="recent chats"
           onRetry={() => void query.refetch()}
         />
-        {viewAll}
         {deleteDialog}
       </>
     );

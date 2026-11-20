@@ -14,6 +14,25 @@ const sources = import.meta.glob<string>('../src/**/*.{ts,tsx}', {
 
 const loadingCopy = /Loading\b[^'"`<>{}\n]{0,40}(…|\.\.\.)|['"`>]Loading['"`<]/;
 
+// The one visible loading line (LEX-DS-001 v3.2 §5.5, revision 15): the exact
+// composer reason "Loading this chat…" in composer-reason.tsx, nothing wider.
+export const isComposerReasonLine = (path: string, line: string) =>
+  path.endsWith('components/chat/composer-reason.tsx') &&
+  /^\??\s*'Loading this chat…'\s*$/.test(line.trim());
+
+test('the composer reason exception matches only that exact line', () => {
+  const file = '../src/components/chat/composer-reason.tsx';
+  expect(isComposerReasonLine(file, "? 'Loading this chat…'")).toBe(true);
+  expect(isComposerReasonLine(file, "? 'Loading the thread…'")).toBe(false);
+  expect(isComposerReasonLine(file, "'Loading this chat…' + more")).toBe(false);
+  expect(
+    isComposerReasonLine(
+      '../src/components/chat/other.tsx',
+      "'Loading this chat…'",
+    ),
+  ).toBe(false);
+});
+
 test('no source renders visible loading copy', () => {
   const offenders: string[] = [];
   for (const [path, text] of Object.entries(sources))
@@ -21,9 +40,7 @@ test('no source renders visible loading copy', () => {
       if (!loadingCopy.test(line)) return;
       // Assistive-only labels are allowed.
       if (/aria-label=|aria-description|sr-only/.test(line)) return;
-      // The composer line (LEX-DS-001 v3.2 §5.5, revision 15) is the one
-      // visible loading line: a muted status under the skeleton rows.
-      if (path.endsWith('components/chat/composer-reason.tsx')) return;
+      if (isComposerReasonLine(path, line)) return;
       offenders.push(
         `${path.replace('../src/', '')}:${index + 1}: ${line.trim()}`,
       );
