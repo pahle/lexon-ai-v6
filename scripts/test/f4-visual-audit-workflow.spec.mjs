@@ -94,6 +94,7 @@ test('manual capture and update artifacts always upload for fourteen days', () =
     /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode != 'compare'/,
   );
   assert.match(shardUpload, /-shard-\$\{\{ matrix\.shard \}\}/);
+  assert.match(shardUpload, /path: \.cache\/shard-visual\n/);
   assert.match(upload, /if: always\(\)/);
   assert.match(upload, /uses: actions\/upload-artifact@[0-9a-f]{40}/);
   assert.match(
