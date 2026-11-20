@@ -46,6 +46,7 @@ test('ci.yml uploads pending visual captures as one per-run artifact', () => {
   assert.ok(upload, 'an upload step names the artifact visual-pending-*');
   assert.match(upload, /name: visual-pending-\$\{\{ github\.run_id \}\}/u);
   assert.match(upload, /retention-days: 30/u);
+  assert.match(upload, /if-no-files-found: error/u);
   assert.match(upload, /if: always\(\) && .*pending/u);
   assert.match(
     upload,

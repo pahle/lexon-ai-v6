@@ -129,7 +129,7 @@ jobs:
             docs/references/F4.1-visual/pending-compare/*
             docs/references/F4.1-visual/pending-compare/results.json
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
       - name: Write F4.1 visual capture manifest
         if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
         run: |
