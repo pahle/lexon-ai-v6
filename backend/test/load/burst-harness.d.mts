@@ -51,3 +51,11 @@ export function drainBoundMs(
   concurrency: number,
   options?: { waveMs?: number; slackMs?: number },
 ): number;
+export function observeSseResponses(
+  counter: {
+    enabled: boolean;
+    opened(id: string): void;
+    closed(id: string): void;
+  },
+  prototype: { writeHead: (...args: never[]) => unknown },
+): void;

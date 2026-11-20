@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { test } from 'node:test';
 import {
   BURST_RESULT_KEYS,
@@ -8,6 +9,7 @@ import {
   drainBoundMs,
   isCapacityRefusal,
   loadMetricsEnabled,
+  observeSseResponses,
   parseBurstOptions,
   percentile,
 } from '../../backend/test/load/burst-harness.mjs';
@@ -178,4 +180,51 @@ test('drain bound is waves of worker concurrency times the wave budget plus slac
   assert.equal(drainBoundMs(8, 4, { waveMs: 10_000, slackMs: 30_000 }), 50_000);
   assert.equal(drainBoundMs(5, 4, { waveMs: 10_000, slackMs: 0 }), 20_000);
   assert.throws(() => drainBoundMs(24, 0));
+});
+
+// A minimal stand-in for http.ServerResponse: headers set before writeHead.
+function fakeResponse(contentType) {
+  const response = new EventEmitter();
+  response.getHeader = (name) =>
+    name === 'content-type' ? contentType : undefined;
+  response.writeHead = function () {
+    return this;
+  };
+  return response;
+}
+
+test('open-SSE counts response streams on open and decrements on close', () => {
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  const proto = { writeHead() {} };
+  observeSseResponses(counter, proto);
+  const a = Object.assign(fakeResponse('text/event-stream; charset=utf-8'), {
+    writeHead: proto.writeHead,
+  });
+  const b = Object.assign(fakeResponse('text/event-stream'), {
+    writeHead: proto.writeHead,
+  });
+  a.writeHead(200);
+  b.writeHead(200);
+  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+  // A second writeHead on the same response is not a second stream.
+  a.writeHead(200);
+  assert.equal(counter.snapshot().open, 2);
+  a.emit('close');
+  assert.deepEqual(counter.snapshot(), { open: 1, peak: 2 });
+  b.emit('close');
+  assert.equal(counter.snapshot().open, 0);
+});
+
+test('open-SSE ignores non-SSE responses and a lease without a response', () => {
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  const proto = { writeHead() {} };
+  observeSseResponses(counter, proto);
+  const json = Object.assign(fakeResponse('application/json'), {
+    writeHead: proto.writeHead,
+  });
+  json.writeHead(200);
+  assert.equal(counter.snapshot().open, 0);
+  // Registry leases (admit without release) no longer move the counter.
+  counter.reset();
+  assert.deepEqual(counter.snapshot(), { open: 0, peak: 0 });
 });

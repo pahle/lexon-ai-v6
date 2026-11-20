@@ -1,3 +1,4 @@
+import { ServerResponse } from 'node:http';
 import { createServer } from 'node:net';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { chmod, rm } from 'node:fs/promises';
@@ -7,6 +8,7 @@ import pg from 'pg';
 import {
   createPoolMetrics,
   createSseCounter,
+  observeSseResponses,
   percentile,
 } from '../load/burst-harness.mjs';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
@@ -378,24 +380,9 @@ events.database.withTenant = function (...args) {
   );
 };
 
-// Test-only (LEXON_LOAD_METRICS=1): count open SSE connections server-side.
-// Run streams and chat invalidation streams are both admitted through the
-// registry and released when the stream closes.
-if (sseCounter.enabled) {
-  const originalAdmit = registry.admit;
-  registry.admit = async function (...args) {
-    const admitted = await Reflect.apply(originalAdmit, this, args);
-    sseCounter.opened(admitted.lease.connectionId);
-    if (admitted.evicted?.connectionId)
-      sseCounter.closed(admitted.evicted.connectionId);
-    return admitted;
-  };
-  const originalRelease = registry.release;
-  registry.release = async function (...args) {
-    sseCounter.closed(args[0]?.connectionId);
-    return Reflect.apply(originalRelease, this, args);
-  };
-}
+// Test-only (LEXON_LOAD_METRICS=1): count open SSE response streams (run
+// streams and chat invalidation streams), not registry leases.
+observeSseResponses(sseCounter, ServerResponse.prototype);
 
 const originalRenew = registry.renew;
 registry.renew = function (...args) {

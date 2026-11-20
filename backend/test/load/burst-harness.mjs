@@ -170,3 +170,30 @@ export function createSseCounter(env) {
     },
   };
 }
+
+// Counts actual open SSE response streams: wraps `prototype.writeHead` (the
+// http.ServerResponse prototype in the API) so a response whose content type
+// is text/event-stream is opened once, and closed on its own 'close' event.
+// Registry leases are deliberately not used: an unreleased lease is not an
+// open socket.
+export function observeSseResponses(counter, prototype) {
+  if (!counter.enabled) return;
+  const original = prototype.writeHead;
+  const seen = new WeakSet();
+  let next = 0;
+  prototype.writeHead = function (...args) {
+    const result = Reflect.apply(original, this, args);
+    const type = this.getHeader?.('content-type');
+    if (
+      !seen.has(this) &&
+      typeof type === 'string' &&
+      type.includes('text/event-stream')
+    ) {
+      seen.add(this);
+      const id = `response-${++next}`;
+      counter.opened(id);
+      this.once('close', () => counter.closed(id));
+    }
+    return result;
+  };
+}

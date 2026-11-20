@@ -410,13 +410,17 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
         `${evidence.replay.note}; active now: ${await activeRunStatuses(postgres)}`,
       );
     }
-    try {
-      const done = new Set(await terminal());
-      const replayFirstFrameMs: number[] = [];
-      await eachLimited(
-        clients.filter((client) => client.runId && done.has(client.runId)),
-        6,
-        async (client) => {
+    // Replay of every completed held run must attach and deliver a first
+    // frame; any failure fails the spec (latency only, never a concurrency
+    // figure).
+    const done = new Set(await terminal());
+    const replayFirstFrameMs: number[] = [];
+    const replayFailures: string[] = [];
+    await eachLimited(
+      clients.filter((client) => client.runId && done.has(client.runId)),
+      6,
+      async (client) => {
+        try {
           const begin = performance.now();
           const response = await fetch(
             `${stack.publicUrl}/api/runs/${client.runId}/events`,
@@ -429,23 +433,37 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
               signal: AbortSignal.timeout(60_000),
             },
           );
-          if (response.status !== 200 || !response.body) return;
+          if (response.status !== 200 || !response.body) {
+            replayFailures.push(`${client.runId}: status ${response.status}`);
+            return;
+          }
           const reader = response.body.getReader();
           const first = await reader.read();
-          if (!first.done) replayFirstFrameMs.push(performance.now() - begin);
+          if (first.done) {
+            replayFailures.push(`${client.runId}: no frame`);
+            return;
+          }
+          replayFirstFrameMs.push(performance.now() - begin);
           while (!(await reader.read()).done) {
             // The replay of a completed run ends with the terminal frame.
           }
-        },
-      );
-      evidence.replay.attaches = replayFirstFrameMs.length;
-      evidence.replay.note = `${done.size}/${heldRunIds.length} held runs reached a terminal status`;
-      for (const result of results)
-        result.replayP95FirstFrameMs = percentile(replayFirstFrameMs, 0.95);
-    } catch (error) {
-      evidence.replay.note = `replay skipped: ${error instanceof Error ? error.message : 'error'}`;
-    }
+        } catch (error) {
+          replayFailures.push(
+            `${client.runId}: ${error instanceof Error ? error.message : 'error'}`,
+          );
+        }
+      },
+    );
+    evidence.replay.attaches = replayFirstFrameMs.length;
+    evidence.replay.note = `${done.size}/${heldRunIds.length} held runs reached a terminal status; ${replayFirstFrameMs.length} replay attaches, ${replayFailures.length} failures`;
+    for (const result of results)
+      result.replayP95FirstFrameMs = percentile(replayFirstFrameMs, 0.95);
     await writeEvidence();
+    expect(replayFailures, 'replay attach failures').toEqual([]);
+    expect(replayFirstFrameMs, 'replay attaches').toHaveLength(
+      options.heldRuns,
+    );
+    expect(done.size, 'terminal held runs').toBe(options.heldRuns);
   } finally {
     // Never leave held runs behind, and restore the limits read before
     // lowering them (0 means unlimited).
