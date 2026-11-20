@@ -633,7 +633,7 @@ test('CI comparison is the normal approved path and updates require explicit dis
   );
   assert.match(
     workflow,
-    /LEXON_VISUAL_MODE=update pnpm test:e2e --update-snapshots/,
+    /LEXON_VISUAL_MODE=update pnpm test:e2e [^\n]*--update-snapshots/,
   );
   assert.match(workflow, /LEXON_VISUAL_MODE=compare pnpm test:e2e/);
   // The approval record of the active (F4.1) set decides the mode; the F2.1

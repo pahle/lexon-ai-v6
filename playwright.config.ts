@@ -5,6 +5,7 @@ export default defineConfig({
   expect: { timeout: 10000 },
   snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
   workers: 1,
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: 'list',

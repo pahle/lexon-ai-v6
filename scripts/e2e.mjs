@@ -84,7 +84,12 @@ if (keep) {
 const directory = keep
   ? keepDirectory
   : await mkdtemp(join(tmpdir(), 'lexon-e2e-'));
-const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
+// CI names the project per run and shard (lexon-e2e-<run id>-<shard>).
+const project =
+  process.env.LEXON_E2E_PROJECT ??
+  'lexon-e2e-' + randomBytes(8).toString('hex');
+if (!/^lexon-e2e-[a-z0-9-]+$/u.test(project))
+  throw new Error('LEXON_E2E_PROJECT must match lexon-e2e-[a-z0-9-]+');
 const secret = () => randomBytes(24).toString('hex');
 let env;
 const controller = new AbortController();
