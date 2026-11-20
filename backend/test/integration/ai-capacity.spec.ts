@@ -85,7 +85,9 @@ test('rollback releases admission and approval pause retains its active slot', a
 }) => {
   const ai = await createAiFixture(services);
   try {
-    await expect(ai.startThenRollback(0)).rejects.toMatchObject({ message: 'fixture rollback' });
+    await expect(ai.startThenRollback(0)).rejects.toMatchObject({
+      message: 'fixture rollback',
+    });
     expect(await ai.losingStartCounts(0)).toEqual({
       runs: 0,
       outbox: 0,
@@ -110,7 +112,9 @@ test('capacity configuration refuses inconsistent process limits', async ({
 }) => {
   const ai = await createAiFixture(services);
   try {
-    await expect(ai.configureMismatchedCapacity()).rejects.toMatchObject({ message: 'AI capacity configuration mismatch' });
+    await expect(ai.configureMismatchedCapacity()).rejects.toMatchObject({
+      message: 'AI capacity configuration mismatch',
+    });
   } finally {
     await ai.close();
   }

@@ -181,3 +181,17 @@ it('organization General: a slug the server rejected reverts with its own field 
   expect(save(view.container).disabled).toBe(false);
   await view.unmount();
 });
+
+it('organization General: the form alert sits above the first field', async () => {
+  responses = [down];
+  const view = await render(<OrganizationSettings organization={org} />);
+  await act(async () => save(view.container).click());
+  await settle();
+  const alert = view.container.querySelector('[role="alert"]')!;
+  const firstField = view.container.querySelector('#organization-name')!;
+  expect(
+    alert.compareDocumentPosition(firstField) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await view.unmount();
+});

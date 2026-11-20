@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   assertApprovedVisualSet,
   assertIndexedArtifact,
+  isPendingView,
   isPixelLocked,
   hasSvgSnapshot,
   resolveVisualMode,
@@ -289,7 +290,15 @@ export async function captureBrandView(
       test.info().config.updateSnapshots,
     ),
   });
-  if (mode === 'capture') {
+  // A pending view (index.json `pending`) awaits owner approval: it is
+  // captured for review and listed, never compared with a golden.
+  const pending = isPendingView(index, id);
+  if (mode === 'capture' || pending) {
+    if (pending && mode !== 'capture') {
+      console.log(`visual pending owner approval: ${id}`);
+      await mkdir(captureDirectory, { recursive: true });
+      await appendFile(resolve(captureDirectory, 'pending.txt'), `${id}\n`);
+    }
     const output = resolve(captureDirectory, view.path);
     await mkdir(resolve(output, '..'), { recursive: true });
     await page.screenshot({
@@ -310,9 +319,11 @@ export async function captureBrandView(
   if (!validatedSets.has(validationKey)) {
     assertApprovedVisualSet(index, approval, setDirectory, {
       requireBaselines: mode === 'compare',
-      expectedViewCount: Object.values(index.views).filter(
-        (indexed) =>
-          indexed.path?.startsWith('review/') && isPixelLocked(indexed),
+      expectedViewCount: Object.entries(index.views).filter(
+        ([indexedId, indexed]) =>
+          indexed.path?.startsWith('review/') &&
+          isPixelLocked(indexed) &&
+          !isPendingView(index, indexedId),
       ).length,
     });
     validatedSets.add(validationKey);

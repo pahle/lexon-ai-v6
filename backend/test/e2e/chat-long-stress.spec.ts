@@ -35,13 +35,14 @@ function exchanges() {
   const messages = [];
   let parentId: string | null = null;
   for (let index = 0; index < 8; index += 1) {
+    const userId: string = idFor(1, index);
     const user = {
-      ...userMessage(idFor(1, index)),
+      ...userMessage(userId),
       parentId,
       text: `Pertanyaan ${index + 1}: jelaskan secara rinci ketentuan perjanjian dan akibat hukumnya.`,
     };
     const assistant = {
-      ...assistantMessage('answer-complete', idFor(2, index), user.id),
+      ...assistantMessage('answer-complete', idFor(2, index), userId),
       runId: idFor(3, index),
       text: Array.from({ length: 6 }, (_, p) => paragraph(index * 10 + p)).join(
         '\n\n',
@@ -50,7 +51,7 @@ function exchanges() {
       reasoningDurationMs: null,
     };
     messages.push(user, assistant);
-    parentId = assistant.id;
+    parentId = idFor(2, index);
   }
   return { messages, last: parentId as string };
 }

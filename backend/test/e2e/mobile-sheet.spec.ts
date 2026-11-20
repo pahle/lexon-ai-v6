@@ -24,7 +24,7 @@ test('mobile sheet: a click outside the sheet closes it (390x844)', async ({
   const sheet = page.getByRole('dialog', { name: 'Sidebar' });
   await expect(sheet).toBeVisible();
   const box = await sheet.boundingBox();
-  expect(box!.width).toBeLessThanOrEqual(300);
+  expect(Math.round(box!.width)).toBe(300);
   await page.mouse.click(350, 400);
   await expect(sheet).toBeHidden();
 });
