@@ -113,3 +113,9 @@ test('a CI project named per run and shard is an owned stack', async () => {
     /Invalid E2E project/,
   );
 });
+
+test('Compose arguments accept the per-run shard project and reject others', async () => {
+  const { composeArgs } = await import('../compose-runner.mjs');
+  assert.ok(composeArgs('lexon-e2e-44722087204-3', ['ps'], []).length > 0);
+  assert.throws(() => composeArgs('lexon-e2e-44722087204-x', ['ps'], []));
+});
