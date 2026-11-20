@@ -122,97 +122,122 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
       .poll(() => workerStatus(worker, client.runId!), { timeout: 60000 })
       .toBeNull();
 
-  // The Compose limits of docker-compose.yml: 384 MiB, 0.5 CPU.
-  await docker([
-    'update',
-    '--memory',
-    '384m',
-    '--memory-swap',
-    '384m',
-    '--cpus',
-    '0.5',
-    api,
-  ]);
-  const limits = (
+  const previous = (
     await docker([
       'inspect',
       '--format',
-      '{{.HostConfig.Memory}}|{{.HostConfig.NanoCpus}}',
+      '{{.HostConfig.Memory}}|{{.HostConfig.MemorySwap}}|{{.HostConfig.NanoCpus}}',
       api,
     ])
   ).split('|');
-  expect(limits).toEqual([String(384 * 1024 * 1024), '500000000']);
+  try {
+    // The Compose limits of docker-compose.yml: 384 MiB, 0.5 CPU.
+    await docker([
+      'update',
+      '--memory',
+      '384m',
+      '--memory-swap',
+      '384m',
+      '--cpus',
+      '0.5',
+      api,
+    ]);
+    const limits = (
+      await docker([
+        'inspect',
+        '--format',
+        '{{.HostConfig.Memory}}|{{.HostConfig.NanoCpus}}',
+        api,
+      ])
+    ).split('|');
+    expect(limits).toEqual([String(384 * 1024 * 1024), '500000000']);
 
-  const results = [];
-  for (const mode of options.modes) {
-    await control(api, { op: 'burst-metrics', reset: true });
-    const firstFrameMs: number[] = [];
-    const controller = new AbortController();
-    const settled: Promise<void>[] = [];
-    clients.forEach((client, index) => {
-      const url = client.runId
-        ? `${stack.publicUrl}/api/runs/${client.runId}/events`
-        : `${stack.publicUrl}/api/chats/events`;
-      settled.push(
-        (async () => {
-          if (mode === 'ramp')
-            await delay((index / options.clients) * options.rampSeconds * 1000);
-          const begin = performance.now();
-          try {
-            const response = await fetch(url, {
-              headers: {
-                accept: 'text/event-stream',
-                cookie: client.cookie,
-                origin: stack.publicUrl,
-              },
-              signal: controller.signal,
-            });
-            if (response.status !== 200 || !response.body) return;
-            const reader = response.body.getReader();
-            const first = await reader.read();
-            if (!first.done) firstFrameMs.push(performance.now() - begin);
-            while (!(await reader.read()).done) {
-              // Hold the stream until the run ends or the window aborts it.
+    const results = [];
+    for (const mode of options.modes) {
+      await control(api, { op: 'burst-metrics', reset: true });
+      const firstFrameMs: number[] = [];
+      const controller = new AbortController();
+      const settled: Promise<void>[] = [];
+      clients.forEach((client, index) => {
+        const url = client.runId
+          ? `${stack.publicUrl}/api/runs/${client.runId}/events`
+          : `${stack.publicUrl}/api/chats/events`;
+        settled.push(
+          (async () => {
+            if (mode === 'ramp')
+              await delay(
+                (index / options.clients) * options.rampSeconds * 1000,
+              );
+            const begin = performance.now();
+            try {
+              const response = await fetch(url, {
+                headers: {
+                  accept: 'text/event-stream',
+                  cookie: client.cookie,
+                  origin: stack.publicUrl,
+                },
+                signal: controller.signal,
+              });
+              if (response.status !== 200 || !response.body) return;
+              const reader = response.body.getReader();
+              const first = await reader.read();
+              if (!first.done) firstFrameMs.push(performance.now() - begin);
+              while (!(await reader.read()).done) {
+                // Hold the stream until the run ends or the window aborts it.
+              }
+            } catch {
+              // Aborted at the end of the window, or not admitted.
             }
-          } catch {
-            // Aborted at the end of the window, or not admitted.
-          }
-        })(),
+          })(),
+        );
+      });
+      // Hold window: admission plus at least one 5 s revalidation tick.
+      const windowMs =
+        (mode === 'ramp' ? options.rampSeconds * 1000 : 0) + 25_000;
+      await delay(windowMs);
+      controller.abort();
+      await Promise.all(settled);
+      const metrics = await control<{
+        waitingMax: number | null;
+        waitMs: number[];
+        peakRssBytes: number;
+      }>(api, { op: 'burst-metrics', reset: true });
+      results.push(
+        buildBurstResult({
+          mode,
+          clients: options.clients,
+          firstFrameMs,
+          rssBytes: [metrics.peakRssBytes],
+          authPoolWaitMs: metrics.waitMs,
+          poolWaitingMax: metrics.waitingMax,
+        }),
       );
-    });
-    // Hold window: admission plus at least one 5 s revalidation tick.
-    const windowMs =
-      (mode === 'ramp' ? options.rampSeconds * 1000 : 0) + 25_000;
-    await delay(windowMs);
-    controller.abort();
-    await Promise.all(settled);
-    const metrics = await control<{
-      waitingMax: number | null;
-      waitMs: number[];
-      peakRssBytes: number;
-    }>(api, { op: 'burst-metrics', reset: true });
-    results.push(
-      buildBurstResult({
-        mode,
-        clients: options.clients,
-        firstFrameMs,
-        rssBytes: [metrics.peakRssBytes],
-        authPoolWaitMs: metrics.waitMs,
-        poolWaitingMax: metrics.waitingMax,
-      }),
-    );
-    await delay(3000);
-  }
+      await delay(3000);
+    }
 
-  const directory = resolve(
-    process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR || 'test-results/f4-chat-load',
-  );
-  await mkdir(directory, { recursive: true, mode: 0o700 });
-  await writeFile(
-    `${directory}/F4.2-burst.json`,
-    `${JSON.stringify({ apiLimits: { memoryMiB: 384, cpus: 0.5 }, results }, null, 2)}\n`,
-    { mode: 0o600 },
-  );
-  for (const result of results)
-    expect(result.admitted, `${result.mode} admitted`).toBe(options.clients);
+    const directory = resolve(
+      process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR || 'test-results/f4-chat-load',
+    );
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await writeFile(
+      `${directory}/F4.2-burst.json`,
+      `${JSON.stringify({ apiLimits: { memoryMiB: 384, cpus: 0.5 }, results }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    for (const result of results)
+      expect(result.admitted, `${result.mode} admitted`).toBe(options.clients);
+  } finally {
+    // Restore the limits read before lowering them (0 means unlimited).
+    const [memory, swap, nanoCpus] = previous;
+    await docker([
+      'update',
+      '--memory',
+      memory!,
+      '--memory-swap',
+      swap!,
+      '--cpus',
+      String(Number(nanoCpus) / 1e9),
+      api,
+    ]).catch(() => undefined);
+  }
 });
