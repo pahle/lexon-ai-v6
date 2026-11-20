@@ -42,6 +42,12 @@ test('ci.yml uploads pending visual captures as one per-run, per-shard artifact'
   assert.ok(compare, 'a step runs visual-compare-prototype.mjs --pending');
   assert.match(compare, /visual-compare-prototype\.mjs/u);
   assert.match(compare, /if: always\(\) && .*pending/u);
+  // Per shard: compare and upload only when this shard captured pending views.
+  assert.match(compare, /steps\.visual-pending\.outputs\.ids != ''/u);
+  assert.match(
+    compare,
+    /--ids "\$\{\{ steps\.visual-pending\.outputs\.ids \}\}"/u,
+  );
   const upload = steps.find((s) => /name: visual-pending-/u.test(s));
   assert.ok(upload, 'an upload step names the artifact visual-pending-*');
   assert.match(
@@ -51,6 +57,15 @@ test('ci.yml uploads pending visual captures as one per-run, per-shard artifact'
   assert.match(upload, /retention-days: 30/u);
   assert.match(upload, /if-no-files-found: error/u);
   assert.match(upload, /if: always\(\) && .*pending/u);
+  assert.match(upload, /steps\.visual-pending\.outputs\.ids != ''/u);
+  // Overall, merge-e2e fails when pending views exist and no shard captured them.
+  const merge = text.slice(text.indexOf('\n  merge-e2e:'));
+  assert.match(
+    merge,
+    /pattern: visual-pending-\$\{\{ github\.run_id \}\}-shard-\*/u,
+  );
+  assert.match(merge, /Every pending view was captured by some shard/u);
+  assert.match(merge, /process\.exit\(1\)/u);
   assert.match(
     upload,
     /upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/u,

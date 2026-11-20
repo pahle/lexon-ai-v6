@@ -70,6 +70,20 @@ test('manual capture records a post-checkout freshness marker and always validat
   // The marker precedes the shard downloads, so downloaded images are newer.
   assert.ok(assembleJob.indexOf(marker) < download);
   assert.ok(download < assembleJob.indexOf(manifest));
+  // Freshness does not rest on extracted artifact mtimes: the shard output is
+  // staged, then copied (new mtime) into the set before the manifest check.
+  const merge = stepBlock(
+    assembleJob,
+    'Merge the shard output into the visual set',
+  );
+  assert.match(assembleJob.slice(download), /path: \.cache\/shard-in/);
+  assert.match(
+    merge,
+    /cp -R \.cache\/shard-in\/\. docs\/references\/F4\.1-visual\//,
+  );
+  assert.doesNotMatch(merge, /cp [^\n]*-[a-zA-Z]*p|--preserve|touch -r/);
+  assert.ok(download < assembleJob.indexOf(merge));
+  assert.ok(assembleJob.indexOf(merge) < assembleJob.indexOf(manifest));
   assert.ok(captureBranch, 'Compose step has an explicit capture branch');
   assert.match(captureBranch, /LEXON_VISUAL_MODE=capture pnpm test:e2e/);
   assert.doesNotMatch(captureBranch, /--update-snapshots/);

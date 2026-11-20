@@ -128,11 +128,14 @@ jobs:
         run: |
           pending_count="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(String((JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending ?? []).length))')"
           printf 'count=%s\n' "$pending_count" >> "$GITHUB_OUTPUT"
+          # Only the pending views this shard captured (pending.txt is written by its capture helper).
+          pending_ids="$(node -e 'const { existsSync, readFileSync } = require("node:fs"); const dir = "docs/references/F4.1-visual/"; const pending = new Set(JSON.parse(readFileSync(dir + "index.json", "utf8")).pending ?? []); const lines = existsSync(dir + "pending.txt") ? readFileSync(dir + "pending.txt", "utf8").split("\n").map((l) => l.trim()) : []; process.stdout.write([...new Set(lines.filter((l) => pending.has(l)).map((l) => l.replace(/-(desktop|mobile)-(light|dark)$/, "")))].join(","))')"
+          printf 'ids=%s\n' "$pending_ids" >> "$GITHUB_OUTPUT"
       - name: Compare pending captures with the prototype
-        if: always() && steps.visual-pending.outputs.count != '0'
-        run: node scripts/visual-compare-prototype.mjs --pending --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/pending-compare
+        if: always() && steps.visual-pending.outputs.ids != ''
+        run: node scripts/visual-compare-prototype.mjs --pending --ids "${{ steps.visual-pending.outputs.ids }}" --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/pending-compare
       - name: Upload pending visual captures
-        if: always() && steps.visual-pending.outputs.count != '0'
+        if: always() && steps.visual-pending.outputs.ids != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: visual-pending-${{ github.run_id }}-shard-${{ matrix.shard }}
@@ -201,6 +204,20 @@ jobs:
           merge-multiple: true
       - name: Merge the shard reports
         run: npx playwright merge-reports --reporter html ./blob
+      - name: Read pending visual list
+        id: pending
+        run: |
+          pending_count="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(String((JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending ?? []).length))')"
+          printf 'count=%s\n' "$pending_count" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: steps.pending.outputs.count != '0'
+        with:
+          pattern: visual-pending-${{ github.run_id }}-shard-*
+          path: pending-shards
+      - name: Every pending view was captured by some shard
+        if: steps.pending.outputs.count != '0'
+        run: |
+          node -e 'const { existsSync, readFileSync, readdirSync } = require("node:fs"); const pending = JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending; const got = new Set(); if (existsSync("pending-shards")) for (const dir of readdirSync("pending-shards")) { const file = "pending-shards/" + dir + "/pending.txt"; if (existsSync(file)) for (const l of readFileSync(file, "utf8").split("\n")) got.add(l.trim()); } const missing = pending.filter((id) => !got.has(id)); if (missing.length > 0) { console.error("No shard captured pending views: " + missing.join(", ")); process.exit(1); }'
       - name: Upload merged Playwright report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -235,8 +252,16 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: f4.1-visual-${{ inputs.visual_mode }}-${{ github.sha }}-shard-*
-          path: docs/references/F4.1-visual
+          path: .cache/shard-in
           merge-multiple: true
+      - name: Merge the shard output into the visual set
+        # Each shard uploaded only files newer than its own start marker, so a
+        # copy (new mtime, no -p) marks exactly the views the shards captured.
+        # A view no shard captured keeps its checkout time and fails the
+        # freshness check; the check does not rely on artifact mtimes.
+        run: |
+          mkdir -p .cache/shard-in
+          cp -R .cache/shard-in/. docs/references/F4.1-visual/
       - name: Write F4.1 visual capture manifest
         if: inputs.visual_mode == 'capture'
         run: |
