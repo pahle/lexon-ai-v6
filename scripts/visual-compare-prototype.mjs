@@ -320,7 +320,7 @@ export async function runCompare({
   );
   writeFileSync(
     resolve(outDir, 'README.md'),
-    `# Prototype comparison\n\nCaptures compared with prototype revision 14 (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
+    `# Prototype comparison\n\nCaptures compared with prototype revision 15 (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
   );
   return results;
 }
