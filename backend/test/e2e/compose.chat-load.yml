@@ -3,6 +3,7 @@ services:
     command: [node, backend/test/e2e/chat-load-api-main.mjs]
     environment:
       CHAT_SSE_CONNECTIONS_PER_USER: '256'
+      LEXON_LOAD_METRICS: '1'
     mem_limit: 1536m
     cpus: 1
     deploy:
@@ -13,6 +14,7 @@ services:
     volumes:
       - ./backend/test/e2e/chat-load-api-main.mjs:/app/backend/test/e2e/chat-load-api-main.mjs:ro
       - ./backend/test/e2e/chat-load-control.mjs:/app/backend/test/e2e/chat-load-control.mjs:ro
+      - ./backend/test/load/burst-harness.mjs:/app/backend/test/load/burst-harness.mjs:ro
   load-tool:
     image: ${K6_IMAGE:?Use the manifest loader}
     profiles: [chat-load]

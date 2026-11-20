@@ -16,6 +16,7 @@ on:
       - 'backend/test/load/**'
       - 'backend/test/e2e/*load*'
       - 'backend/test/e2e/chat-sse-load.spec.ts'
+      - 'backend/test/e2e/chat-sse-load.z-burst.spec.ts'
       - 'backend/test/e2e/compose.chat-load.yml'
       - 'backend/test/e2e/compose.chat-runtime-proof.yml'
       - 'backend/test/e2e/chat-worker-main.mjs'
@@ -103,6 +104,7 @@ jobs:
           path: |
             test-results/f4-chat-load/F4-sse-load.json
             test-results/f4-chat-load/F4-stream-latency.json
+            test-results/f4-chat-load/F4.2-burst.json
             test-results/f4-chat-load/failure.json
             test-results/f4-chat-load/diagnostic.json
             test-results/f4-chat-load/child-output-tail.log

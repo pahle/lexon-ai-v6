@@ -121,7 +121,10 @@ export default defineConfig({
           {
             name: 'chat-sse-load',
             timeout: 180_000,
-            testMatch: 'backend/test/e2e/chat-sse-load.spec.ts',
+            testMatch: [
+              'backend/test/e2e/chat-sse-load.spec.ts',
+              'backend/test/e2e/chat-sse-load.z-burst.spec.ts',
+            ],
             use: {
               trace: 'off' as const,
               video: 'off' as const,

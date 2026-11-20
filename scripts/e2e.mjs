@@ -69,6 +69,8 @@ const { args, selectedProjects } = resolveE2ESelection(
 const captureChatLoad = selectedProjects.includes('chat-sse-load');
 // LEXON_E2E_KEEP=1 (the F4.1 capture stack, scripts/visual-capture-stack.mjs)
 // leaves the stack running and keeps its state in .cache/visual-capture-stack.
+// The S2 burst provisions 500 users from one address (F4.2 item 27).
+const loadIp = captureChatLoad ? 2000 : 100;
 const keep = process.env.LEXON_E2E_KEEP === '1';
 const keepDirectory = join(root, '.cache/visual-capture-stack');
 if (keep) {
@@ -107,14 +109,14 @@ try {
       AUTH_AUDIT_HMAC_KEY_ID: 'e2e-v1',
       AUTH_OPEN_SIGNUP: 'true',
       E2E_AUTH_RATE_RULES_JSON: JSON.stringify({
-        signup: { account: 3, ip: 100, windowSeconds: 600 },
-        'verification-resend': { account: 3, ip: 100, windowSeconds: 600 },
+        signup: { account: 3, ip: loadIp, windowSeconds: 600 },
+        'verification-resend': { account: 3, ip: loadIp, windowSeconds: 600 },
         // Since AUTH_TRUSTED_PROXIES the host's direct API calls and its
         // Caddy-routed browser traffic resolve to ONE client address (before,
         // they were two buckets: the gateway and Caddy). The suite signs in far
         // more than 30 times a minute from that one host, so give it headroom.
         // Production keeps the default; the proxy spec reads this value.
-        signin: { account: 5, ip: 100, windowSeconds: 60 },
+        signin: { account: 5, ip: loadIp, windowSeconds: 60 },
       }),
       COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',

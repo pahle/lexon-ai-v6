@@ -414,6 +414,7 @@ const EVIDENCE_DIRECTORY = resolve(
 const OWNED_OUTPUTS = [
   'F4-sse-load.json',
   'F4-stream-latency.json',
+  'F4.2-burst.json',
   'diagnostic.json',
   'failure.json',
   'child-output-tail.log',

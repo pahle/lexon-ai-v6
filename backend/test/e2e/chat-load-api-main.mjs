@@ -3,6 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { chmod, rm } from 'node:fs/promises';
 import { HttpException } from '@nestjs/common';
 import Redis from 'ioredis';
+import pg from 'pg';
+import { createPoolMetrics } from '../load/burst-harness.mjs';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
 import { SafeErrorFilter } from '../../dist/modules/platform/error.filter.js';
 import { RunEventsService } from '../../dist/modules/chat/run-events.service.js';
@@ -52,6 +54,26 @@ Redis.prototype.connect = function (...args) {
   }
   return originalConnect.apply(this, args);
 };
+
+// Test-only pg-pool metric (F4.2 item 27): active only with LEXON_LOAD_METRICS=1.
+const poolMetrics = createPoolMetrics(process.env);
+let peakRssBytes = 0;
+if (poolMetrics.enabled) {
+  const originalPoolConnect = pg.Pool.prototype.connect;
+  pg.Pool.prototype.connect = function (...args) {
+    // The auth pool is the only pool with this exact shape.
+    if (
+      this.options.max === 10 &&
+      this.options.connectionTimeoutMillis === 10000
+    )
+      poolMetrics.observe(this);
+    return originalPoolConnect.apply(this, args);
+  };
+  setInterval(() => {
+    poolMetrics.sample();
+    peakRssBytes = Math.max(peakRssBytes, process.memoryUsage.rss());
+  }, 20).unref();
+}
 
 const safeAuthErrorCodes = new Set([
   'AUTH_REQUIRED',
@@ -703,6 +725,15 @@ const control = createServer((socket) => {
           closeReasons[reason] = 0;
         });
         socket.end('{"ok":true}\n');
+        return;
+      }
+      if (request.op === 'burst-metrics') {
+        const value = { ...poolMetrics.snapshot(), peakRssBytes };
+        if (request.reset === true) {
+          poolMetrics.reset();
+          peakRssBytes = 0;
+        }
+        socket.end(JSON.stringify(value) + '\n');
         return;
       }
       if (request.op === 'snapshot') {

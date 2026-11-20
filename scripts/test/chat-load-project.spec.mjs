@@ -55,10 +55,10 @@ test('chat SSE load project is registered only with the opt-in flag', () => {
 
   assert.equal(loadProjects.length, 1);
   assert.equal(loadProjects[0].timeout, 180_000);
-  assert.equal(
-    loadProjects[0].testMatch,
+  assert.deepEqual(loadProjects[0].testMatch, [
     'backend/test/e2e/chat-sse-load.spec.ts',
-  );
+    'backend/test/e2e/chat-sse-load.z-burst.spec.ts',
+  ]);
   assert.deepEqual(loadProjects[0].use, {
     trace: 'off',
     video: 'off',
