@@ -1945,7 +1945,7 @@
     },
     "chat-reconnecting-mobile-light": {
       "path": "review/chat-reconnecting-mobile-light.png",
-      "sha256": "89c0ce2ee169d6c542ac995f8d4669592fe715165a2721770767d58320c172db",
+      "sha256": "61d3697d8af499f61bc64acdae9f219f23d261dcbd1eef10decd103d7f3e41c6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2267,7 +2267,7 @@
     },
     "recent-load-failed-desktop-light": {
       "path": "review/recent-load-failed-desktop-light.png",
-      "sha256": "90cd4f64f92d66fedab6125b565e6feffbd67b8772307359bac529f60831934a",
+      "sha256": "91245ef7879580b98a3d6e5a8d86d2b91e0a0adc48f3e1b3b31d0bfface0b8a0",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -2316,7 +2316,7 @@
     },
     "chats-load-failed-mobile-dark": {
       "path": "review/chats-load-failed-mobile-dark.png",
-      "sha256": "6443ccfe6033113d4ce48e7366c8aa2e42b61091d56ade6c7782b0cf7b171671",
+      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2337,7 +2337,7 @@
     },
     "settings-members-load-failed-mobile-light": {
       "path": "review/settings-members-load-failed-mobile-light.png",
-      "sha256": "cd76f4d95197b68280bdbe10e4f8b77a70e815a38943397a6b9efdb3b032f233",
+      "sha256": "74bd2a21bb707de626af4496db597f34d712dd5045a93f89e54ab57c377353cf",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2351,7 +2351,7 @@
     },
     "settings-profile-save-failed-desktop-light": {
       "path": "review/settings-profile-save-failed-desktop-light.png",
-      "sha256": "cd0d8628c60fe2c58d96d1486edcac4abe095e7664003c1a05b37a960916d13e",
+      "sha256": "75ddcf55c31136059fcfcdca42c70d49b42ebc0ee0b3c63d142276636ab3896d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -2558,6 +2558,71 @@
         "ciRun": "44478835835"
       },
       "decision": "2026-11-19, noise-only re-approval (owner, direct)"
+    },
+    {
+      "id": "chat-reconnecting-mobile-light",
+      "sha256": "61d3697d8af499f61bc64acdae9f219f23d261dcbd1eef10decd103d7f3e41c6",
+      "previousSha256": "89c0ce2ee169d6c542ac995f8d4669592fe715165a2721770767d58320c172db",
+      "evidence": {
+        "pixels": 4,
+        "bbox": [368, 261, 369, 297],
+        "channelThreshold": 16,
+        "maxChannelDelta": 15,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 4 pixels differently, all within a channel delta of 15)"
+    },
+    {
+      "id": "recent-load-failed-desktop-light",
+      "sha256": "91245ef7879580b98a3d6e5a8d86d2b91e0a0adc48f3e1b3b31d0bfface0b8a0",
+      "previousSha256": "90cd4f64f92d66fedab6125b565e6feffbd67b8772307359bac529f60831934a",
+      "evidence": {
+        "pixels": 3,
+        "bbox": [35, 109, 37, 111],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 3 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "chats-load-failed-mobile-dark",
+      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
+      "previousSha256": "6443ccfe6033113d4ce48e7366c8aa2e42b61091d56ade6c7782b0cf7b171671",
+      "evidence": {
+        "pixels": 35,
+        "bbox": [360, 182, 374, 249],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 35 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "settings-members-load-failed-mobile-light",
+      "sha256": "74bd2a21bb707de626af4496db597f34d712dd5045a93f89e54ab57c377353cf",
+      "previousSha256": "cd76f4d95197b68280bdbe10e4f8b77a70e815a38943397a6b9efdb3b032f233",
+      "evidence": {
+        "pixels": 38,
+        "bbox": [16, 146, 374, 195],
+        "channelThreshold": 16,
+        "maxChannelDelta": 1,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 38 pixels differently, all within a channel delta of 1)"
+    },
+    {
+      "id": "settings-profile-save-failed-desktop-light",
+      "sha256": "75ddcf55c31136059fcfcdca42c70d49b42ebc0ee0b3c63d142276636ab3896d",
+      "previousSha256": "cd0d8628c60fe2c58d96d1486edcac4abe095e7664003c1a05b37a960916d13e",
+      "evidence": {
+        "pixels": 3,
+        "bbox": [1428, 11, 1430, 15],
+        "channelThreshold": 16,
+        "maxChannelDelta": 2,
+        "ciRun": "44726618821"
+      },
+      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 3 pixels differently, all within a channel delta of 2)"
     }
   ],
   "amendments": [
