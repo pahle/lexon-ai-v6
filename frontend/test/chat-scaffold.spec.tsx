@@ -811,6 +811,12 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
       updatedAt: '2026-11-11T00:00:04.000Z',
     };
   };
+  // Holds the regenerated run's terminal refresh so the test controls when the
+  // run ends; the branch picker is disabled until then.
+  let releaseRegeneratedRefresh!: () => void;
+  const regeneratedRefreshGate = new Promise<void>((resolve) => {
+    releaseRegeneratedRefresh = resolve;
+  });
   let editStarted = false;
   let regenerationStarted = false;
   let editTerminalRefreshes = 0;
@@ -823,6 +829,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
         return makeTree('edited');
       }
       regeneratedTerminalRefreshes += 1;
+      await regeneratedRefreshGate;
       return makeTree('regenerated');
     }),
   };
@@ -967,23 +974,25 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
       () => expect(regeneratedTerminalRefreshes).toBeGreaterThan(0),
       { timeout: 2500 },
     );
-    await vi.waitFor(() => {
-      const regeneratedMessage = view.container.querySelector(
-        `[data-message-id="${regeneratedAnswerId}"]`,
+    const previousBranch = () =>
+      view.container.querySelector<HTMLButtonElement>(
+        `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
       );
+    await vi.waitFor(() => {
+      expect(previousBranch()).not.toBeNull();
       expect(
-        regeneratedMessage?.querySelector('[aria-label="Previous branch"]'),
-      ).not.toBeNull();
-      expect(regeneratedMessage?.textContent).toContain('2 / 2');
+        view.container.querySelector(
+          `[data-message-id="${regeneratedAnswerId}"]`,
+        )?.textContent,
+      ).toContain('2 / 2');
     });
+    // The picker shows 2 / 2 while the run is still open, but switching is
+    // disabled until the held terminal refresh ends it.
+    expect(previousBranch()?.disabled).toBe(true);
+    releaseRegeneratedRefresh();
+    await vi.waitFor(() => expect(previousBranch()?.disabled).toBe(false));
 
-    await act(async () =>
-      view.container
-        .querySelector<HTMLButtonElement>(
-          `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
-        )!
-        .click(),
-    );
+    await act(async () => previousBranch()!.click());
     await vi.waitFor(() => {
       expect(view.container.textContent).toContain('Edited answer');
       expect(view.container.textContent).not.toContain('Regenerated answer');
