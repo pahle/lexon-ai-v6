@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 const source = process.argv[2];
-if (!/^lexon-e2e-[a-f0-9]+$/.test(source))
+if (!/^lexon-e2e-[a-f0-9]+(?:-[0-9]+)?$/.test(source))
   throw new Error('Invalid source E2E project');
 const directory = await mkdtemp(join(tmpdir(), 'lexon-policy-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');

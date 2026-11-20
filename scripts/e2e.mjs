@@ -88,8 +88,8 @@ const directory = keep
 const project =
   process.env.LEXON_E2E_PROJECT ??
   'lexon-e2e-' + randomBytes(8).toString('hex');
-if (!/^lexon-e2e-[a-z0-9-]+$/u.test(project))
-  throw new Error('LEXON_E2E_PROJECT must match lexon-e2e-[a-z0-9-]+');
+if (!/^lexon-e2e-[a-f0-9]+(?:-[0-9]+)?$/u.test(project))
+  throw new Error('LEXON_E2E_PROJECT must match lexon-e2e-<hex>[-<shard>]');
 const secret = () => randomBytes(24).toString('hex');
 let env;
 const controller = new AbortController();
