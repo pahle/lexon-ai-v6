@@ -6,7 +6,7 @@ import { Members } from '../src/components/organizations/members';
 import { Invitations } from '../src/components/organizations/invitations';
 import { AccountSecurity } from '../src/components/auth/account-security';
 import { ProvisioningList } from '../src/components/platform/provisioning';
-import { render, settle } from './render';
+import { render, settle, settleUntil } from './render';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -182,7 +182,8 @@ const securityOk: Route = (path) =>
 it('sessions: a failed fetch shows "We could not load sessions." under its own heading, never Empty, and the rest of security stays', async () => {
   stubFetch({ failFirst: '/sessions', ok: securityOk });
   const view = await render(wrap(<AccountSecurity />));
-  await settle();
+  // security resolves first, then sessions is requested: wait for the outcome.
+  await settleUntil(() => alerts(view.container).length > 0);
   expect(alerts(view.container).join()).toContain(
     'We could not load sessions.',
   );
@@ -195,9 +196,11 @@ it('sessions: a failed fetch shows "We could not load sessions." under its own h
 it('sessions: Try again refetches and the list renders', async () => {
   stubFetch({ failFirst: '/sessions', ok: securityOk });
   const view = await render(wrap(<AccountSecurity />));
-  await settle();
+  await settleUntil(() => retry(view.container) !== undefined);
   await act(async () => retry(view.container)!.click());
-  await settle();
+  await settleUntil(
+    () => !!view.container.textContent?.includes('Chrome on macOS'),
+  );
   expect(view.container.textContent).toContain('Chrome on macOS');
   await view.unmount();
 });

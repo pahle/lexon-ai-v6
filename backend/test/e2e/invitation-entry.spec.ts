@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { descriptor } from './runtime-support.js';
-import { authenticateApi, readCapturedMail } from './identity-support.js';
+import {
+  authenticateApi,
+  readCapturedMail,
+  waitForHydration,
+} from './identity-support.js';
 test('invitation new recipient signs up verifies and accepts without exposing another account', async ({
   page,
   playwright,
@@ -29,6 +33,9 @@ test('invitation new recipient signs up verifies and accepts without exposing an
   await page
     .getByRole('link', { name: 'create an account', exact: true })
     .click();
+  await waitForHydration(
+    page.getByRole('button', { name: 'Create account', exact: true }),
+  );
   await page.getByLabel('Full name', { exact: true }).fill('Invited identity');
   await page.getByLabel('Work email', { exact: true }).fill(email);
   await page
