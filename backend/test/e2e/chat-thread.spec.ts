@@ -376,11 +376,13 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${stack.publicUrl}/workspace`);
   const composer = page.getByRole('textbox', { name: 'Message input' });
-  await composer.fill('[runtime-proof:edit] review this clause');
+  await composer.fill('[runtime-proof:edit-unique] review this clause');
   await composer.press('Enter');
   await expect(page).toHaveURL(/\/chats\/[0-9a-f-]{36}$/i);
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   const originalUserId = await page
     .locator('[data-role="user"]')
@@ -390,7 +392,9 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await editButton.press('Enter');
   const edit = page.getByRole('textbox', { name: 'Edit message input' });
   await expect(edit).toBeFocused();
-  await expect(edit).toHaveValue('[runtime-proof:edit] review this clause');
+  await expect(edit).toHaveValue(
+    '[runtime-proof:edit-unique] review this clause',
+  );
   await page.getByRole('button', { name: 'Cancel edit' }).click();
   await expect(editButton).toBeFocused();
   await editButton.click();
@@ -402,7 +406,7 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
     page.locator('form').filter({ has: edit }).getByRole('alert'),
   ).toContainText('16,384 bytes');
   await expect(edit).toHaveValue('🧾'.repeat(4_097));
-  await edit.fill('[runtime-proof:edit] revise this clause');
+  await edit.fill('[runtime-proof:edit-unique] revise this clause');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(
     page
@@ -418,7 +422,9 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
     )
     .not.toBe(originalUserId);
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.aui-composer-root')).toContainText(
     'Lexon can make mistakes. Verify important legal information.',
@@ -435,12 +441,28 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   ).toHaveCount(0);
   const originalAssistantId =
     await assistantMessage.getAttribute('data-message-id');
+  const originalAnswerText = await assistantMessage
+    .locator('.aui-md')
+    .innerText();
+  // The previous run must be terminal before regenerating: no Stop control,
+  // and the Send button is back to its idle name.
+  await expect(
+    page.getByRole('button', { name: 'Stop generating' }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Regenerate answer' }).click();
   await expect
     .poll(() => assistantMessage.getAttribute('data-message-id'))
     .not.toBe(originalAssistantId);
+  await expect(assistantMessage.locator('.aui-md')).not.toHaveText(
+    originalAnswerText,
+  );
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   await expect(
     assistantMessage.getByRole('button', { name: 'Previous branch' }),
@@ -460,7 +482,7 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   ).toBeVisible();
   await page.reload();
   await expect(page).toHaveURL(threadUrl);
-  await expect(page.getByText('Edited answer.')).toBeVisible({
+  await expect(page.getByText(/^Edited answer-[0-9a-f-]+\.$/)).toBeVisible({
     timeout: 20_000,
   });
   await expect(

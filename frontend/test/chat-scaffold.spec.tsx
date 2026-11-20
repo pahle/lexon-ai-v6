@@ -726,6 +726,9 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
   const editedRunId = '99999999-9999-4999-8999-999999999999';
   const regeneratedRunId = '77777777-7777-4777-8777-777777777777';
   let editedUserId: string | undefined;
+  // The server stores the viewed leaf the browser PUTs; the canonical tree
+  // that later polls return must carry it, or a poll undoes the selection.
+  let viewedLeafOverride: string | undefined;
   const assistant = (
     id: string,
     parentId: string,
@@ -806,7 +809,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
           ? originalAnswerId
           : state === 'edited'
             ? editedAnswerId
-            : regeneratedAnswerId,
+            : (viewedLeafOverride ?? regeneratedAnswerId),
       createdAt: '2026-11-11T00:00:00.000Z',
       updatedAt: '2026-11-11T00:00:04.000Z',
     };
@@ -899,8 +902,12 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
         openStream(regeneratedRunId, regeneratedAnswerId, 'Regenerated answer'),
         { headers },
       );
-    if (url.endsWith('/viewed-leaf') && init?.method === 'PUT')
+    if (url.endsWith('/viewed-leaf') && init?.method === 'PUT') {
+      viewedLeafOverride = (
+        JSON.parse(String(init.body)) as { readonly leafId: string }
+      ).leafId;
       return new Response(null, { status: 204 });
+    }
     throw new Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);

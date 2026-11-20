@@ -2564,6 +2564,7 @@ test('a stale claim fence cannot publish after a newer claim', async ({
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    publicationDeadlineMs: 2000,
     authority: claimAuthority(ai.database as TenantDatabase, steps),
   });
   const redis = new Redis(services.valkey.streamsUrl);
