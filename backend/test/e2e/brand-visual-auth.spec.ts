@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { authenticateApi } from './identity-support.js';
+import { authenticateApi, waitForHydration } from './identity-support.js';
 import { captureBrandViews } from './brand-visual-support.js';
 import { ayu, team, invitationToTeam } from './prototype-fixtures.js';
 import { hideDevOverlayOnLoad } from './brand-visual-support.js';
@@ -110,6 +110,9 @@ test('sign-up and secondary account flows', async ({ page }) => {
 test('verify-email after sign-up', async ({ page }) => {
   const base = descriptor().frontendUrl;
   await page.goto(base + '/sign-up');
+  await waitForHydration(
+    page.getByRole('button', { name: 'Create account', exact: true }),
+  );
   await page.getByLabel('Full name', { exact: true }).fill(ayu.name);
   await page.getByLabel('Work email', { exact: true }).fill(ayu.email);
   await page.getByLabel('Password', { exact: true }).fill('password12345');

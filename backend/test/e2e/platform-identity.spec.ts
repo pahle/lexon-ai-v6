@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail, authenticateApi } from './identity-support.js';
+import {
+  readCapturedMail,
+  authenticateApi,
+  waitForHydration,
+} from './identity-support.js';
 import { operatorSetup, signupMode } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
 import {
@@ -83,6 +87,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
+    await waitForHydration(
+      page.getByRole('button', { name: 'Create account', exact: true }),
+    );
     await page
       .getByLabel('Full name', { exact: true })
       .fill('Platform operator');
@@ -504,6 +511,9 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await recipient
         .getByRole('link', { name: 'create an account', exact: true })
         .click();
+      await waitForHydration(
+        recipient.getByRole('button', { name: 'Create account', exact: true }),
+      );
       await recipient
         .getByLabel('Full name', { exact: true })
         .fill('First owner');

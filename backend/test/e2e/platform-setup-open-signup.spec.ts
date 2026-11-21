@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
+import { readCapturedMail, waitForHydration } from './identity-support.js';
 import {
   currentSignupMode,
   operatorSetup,
@@ -51,6 +51,9 @@ test('open sign-up: the setup link creates a platform administrator exactly once
   await page
     .getByRole('button', { name: 'Create setup account', exact: true })
     .click();
+  await waitForHydration(
+    page.getByRole('button', { name: 'Create account', exact: true }),
+  );
   await page.getByLabel('Full name', { exact: true }).fill('Open operator');
   await page.getByLabel('Work email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
