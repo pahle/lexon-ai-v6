@@ -17,6 +17,13 @@ export function createAuthInspector(options: {
     return Number(result.rows[0]!.count);
   }
   return {
+    /** Raw SQL as the migrator role, for test setup and inspection. */
+    async migratorQuery(text: string, params: unknown[] = []) {
+      return (await migrator.query(text, params)).rows as Record<
+        string,
+        unknown
+      >[];
+    },
     async jobTitle(userId: string) {
       const result = await migrator.query<{ jobTitle: string | null }>(
         'SELECT job_title AS "jobTitle" FROM auth."user" WHERE id = $1',
@@ -30,6 +37,19 @@ export function createAuthInspector(options: {
         'UPDATE auth."user" SET job_title = $2 WHERE id = $1',
         [userId, value],
       );
+    },
+    async auditCount(type: string) {
+      return count(
+        'SELECT count(*) FROM ops.audit_events WHERE type = $1',
+        type,
+      );
+    },
+    async enabledAdminCount(userIds: string[]) {
+      const result = await migrator.query<{ count: string }>(
+        `SELECT count(*) FROM auth."user" WHERE role = 'admin' AND NOT coalesce(banned, false) AND id = ANY($1::uuid[])`,
+        [userIds],
+      );
+      return Number(result.rows[0]!.count);
     },
     async makeAdmin(userId: string) {
       await migrator.query('UPDATE auth."user" SET role = $2 WHERE id=$1', [

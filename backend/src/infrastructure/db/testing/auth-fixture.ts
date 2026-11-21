@@ -82,6 +82,14 @@ export async function createAuthFixture(
         });
         mail.set(`invitation:${email}`, url);
       },
+      sendAccountInvitation: async ({ email, url }) => {
+        await mailer.send({
+          kind: 'account-invitation',
+          to: email,
+          actionUrl: url,
+        });
+        mail.set(`account-invitation:${email}`, url);
+      },
       sendVerification: async ({ email, url }) => {
         await mailer.send({ kind: 'verification', to: email, actionUrl: url });
         mail.set(email, url);
@@ -109,7 +117,11 @@ export async function createAuthFixture(
     mailWasDispatched: (email: string) => mail.has(email),
     dispatchedLink: (
       email: string,
-      kind: 'verification' | 'reset' | 'invitation' = 'verification',
+      kind:
+        | 'verification'
+        | 'reset'
+        | 'invitation'
+        | 'account-invitation' = 'verification',
     ) => mail.get(kind === 'verification' ? email : `${kind}:${email}`),
     mailDeliveryState: () => mailer.deliveryState(),
     drainMail: () => mailer.drain(1000),

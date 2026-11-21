@@ -19,6 +19,7 @@ import {
 import { IdentitySessionService } from '../../src/modules/identity-access/identity-session.service.js';
 import { OrganizationsModule } from '../../src/modules/organizations/index.js';
 import { securityHarness } from '../setup/security-harness.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 test('every platform route denies ordinary and incomplete-MFA identities and permits full platform provisioning', async ({
   services,
 }) => {
@@ -32,6 +33,8 @@ test('every platform route denies ordinary and incomplete-MFA identities and per
   @Module({
     imports: [
       IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: Framework },
       }),

@@ -38,10 +38,25 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
                   ),
               }
             : {}),
-          sendVerification: (message) =>
-            transactions.afterCommit(() =>
+          ...(options.mail.sendAccountInvitation
+            ? {
+                sendAccountInvitation: (
+                  message: Parameters<
+                    NonNullable<typeof options.mail.sendAccountInvitation>
+                  >[0],
+                ) =>
+                  transactions.afterCommit(() =>
+                    options.mail.sendAccountInvitation!(message),
+                  ),
+              }
+            : {}),
+          sendVerification: async (message) => {
+            // An account invitation proved the address: nothing to verify.
+            if (transactions.accountInvitationFlag()) return;
+            await transactions.afterCommit(() =>
               options.mail.sendVerification(message),
-            ),
+            );
+          },
           sendPasswordReset: (message) =>
             transactions.afterCommit(() =>
               options.mail.sendPasswordReset(message),
@@ -55,6 +70,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
       transactions.selectionPrimitives,
       transactions.provisioningPrimitives,
       transactions.adminSetupPrimitives,
+      transactions.platformReadPrimitives,
     );
     await auth.$context;
     const transaction: AuthIntegration['transaction'] = (work) =>

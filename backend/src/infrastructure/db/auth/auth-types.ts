@@ -24,6 +24,10 @@ export interface AuthEngineOptions {
       url: string;
       organizationName: string;
     }) => Promise<void>;
+    sendAccountInvitation?: (message: {
+      email: string;
+      url: string;
+    }) => Promise<void>;
     sendVerification: (message: {
       email: string;
       url: string;

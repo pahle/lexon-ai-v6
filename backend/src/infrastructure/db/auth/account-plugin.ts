@@ -10,6 +10,12 @@ export interface AccountLocks {
     setupDigest: string | undefined,
   ): Promise<void>;
   user(userId: string): Promise<void>;
+  accountInvitation(
+    digest: string,
+  ): Promise<{ id: string; email: string; usable: boolean } | null>;
+  /** Marks this request: the invitation proves the address, no verification mail. */
+  markAccountInvitation(): void;
+  acceptAccountInvitation(digest: string, userId: string): Promise<boolean>;
 }
 interface InvitationRow {
   organizationId: string;
@@ -109,6 +115,10 @@ export function accountPlugin(locks: AccountLocks) {
                 .string()
                 .regex(/^[a-f0-9]{64}$/)
                 .optional(),
+              accountInvitationDigest: z
+                .string()
+                .regex(/^[a-f0-9]{64}$/)
+                .optional(),
             })
             .strict(),
         },
@@ -137,7 +147,17 @@ export function accountPlugin(locks: AccountLocks) {
                 ],
               })
             : null;
+          const accountInvitation = ctx.body.accountInvitationDigest
+            ? await locks.accountInvitation(ctx.body.accountInvitationDigest)
+            : null;
+          if (accountInvitation?.usable) locks.markAccountInvitation();
           return {
+            accountInvitation: accountInvitation
+              ? {
+                  email: accountInvitation.email,
+                  usable: accountInvitation.usable,
+                }
+              : null,
             invitation:
               invitation && organization
                 ? {
@@ -152,6 +172,29 @@ export function accountPlugin(locks: AccountLocks) {
               ? { value: setup.value, expiresAt: setup.expiresAt.toISOString() }
               : null,
           };
+        },
+      ),
+      lexonAcceptAccountInvitation: createAuthEndpoint(
+        '/lexon/account/accept-account-invitation',
+        {
+          method: 'POST',
+          metadata: { scope: 'server' },
+          body: z
+            .object({
+              digest: z.string().regex(/^[a-f0-9]{64}$/),
+              userId: z.uuid(),
+            })
+            .strict(),
+        },
+        async (ctx) => {
+          const facts = await locks.accountInvitation(ctx.body.digest);
+          const accepted =
+            !!facts &&
+            (await locks.acceptAccountInvitation(
+              ctx.body.digest,
+              ctx.body.userId,
+            ));
+          return { invitationId: accepted ? facts.id : null };
         },
       ),
       lexonAccountProfile: createAuthEndpoint(

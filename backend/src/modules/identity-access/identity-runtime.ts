@@ -54,6 +54,13 @@ export async function createIdentityRuntime(
         sendPasswordReset: async ({ email, url }) => {
           await mail.send({ kind: 'reset', to: email, actionUrl: url });
         },
+        sendAccountInvitation: async ({ email, url }) => {
+          await mail.send({
+            kind: 'account-invitation',
+            to: email,
+            actionUrl: url,
+          });
+        },
         sendInvitation: async ({ email, url, organizationName }) => {
           await mail.send({
             kind: 'invitation',
@@ -114,6 +121,9 @@ export async function createIdentityRuntime(
             password: body.password,
             ...(body.invitationId ? { invitationId: body.invitationId } : {}),
             ...(body.setupToken ? { setupToken: body.setupToken } : {}),
+            ...(body.accountInvitationToken
+              ? { accountInvitationToken: body.accountInvitationToken }
+              : {}),
           });
         const accountDone = await accounts.prepareOperation(
           tx,
@@ -148,6 +158,8 @@ export async function createIdentityRuntime(
       frameworkModule: runtime.mount(handler, context.middleware),
       bearerSeconds: settings.bearerSeconds,
       reauthSeconds: settings.reauthSeconds,
+      limiter,
+      correlationSecret: settings.auditHmacSecret,
       requestPolicy: async (request, headers, userId) => {
         // Express has already matched a controller route. Use its canonical
         // template so accepted case/trailing-slash aliases share one policy.
@@ -224,6 +236,7 @@ export async function createIdentityRuntime(
     return {
       module,
       port,
+      limiter,
       selection,
       accounts,
       security,

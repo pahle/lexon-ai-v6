@@ -122,6 +122,10 @@ try {
         // more than 30 times a minute from that one host, so give it headroom.
         // Production keeps the default; the proxy spec reads this value.
         signin: { account: 5, ip: loadIp, windowSeconds: 60 },
+        // Every enrolled administrator redeems its setup link about three
+        // times, and shard 3 enrolls more than six within ten minutes from
+        // that one address, past the default 20 per IP.
+        'setup-redemption': { account: 5, ip: loadIp, windowSeconds: 600 },
       }),
       COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',

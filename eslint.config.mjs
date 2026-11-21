@@ -53,6 +53,38 @@ export default ts.config(
     },
   },
   {
+    // Console pages compose the data views kit; they never draw their own table.
+    files: ['frontend/src/app/(workspace)/platform/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'radix-ui',
+              message: 'Lexon UI uses Base UI; do not import Radix directly.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['radix-ui/*', '@radix-ui/*'],
+              message: 'Lexon UI uses Base UI; do not import Radix directly.',
+            },
+            {
+              group: [
+                '@/components/ui/table',
+                '**/components/ui/table',
+                '**/ui/table',
+              ],
+              message:
+                'Platform console pages use the data views kit (@/components/data-views), not the table primitive.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['frontend/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
