@@ -37,6 +37,7 @@ export const SignUpInputSchema = z.strictObject({
   password: NewPasswordSchema,
   invitationId: UuidSchema.optional(),
   setupToken: FlowTokenSchema.optional(),
+  accountInvitationToken: FlowTokenSchema.optional(),
 });
 export type SignUpInput = z.infer<typeof SignUpInputSchema>;
 export const SignInInputSchema = z.strictObject({
@@ -101,6 +102,11 @@ export const IdentityErrorCodeSchema = z.enum([
   'ORG_MEMBERSHIP_REQUIRED',
   'ORG_LAST_OWNER',
   'ORG_FORBIDDEN',
+  'NOT_FOUND',
+  'PLATFORM_SELF_ACTION',
+  'PLATFORM_LAST_ADMINISTRATOR',
+  'PLATFORM_ALREADY_VERIFIED',
+  'PLATFORM_INVITATION_CONFLICT',
   'ORG_SLUG_TAKEN',
   'STREAM_UNAVAILABLE',
   'INVITATION_UNAVAILABLE',
