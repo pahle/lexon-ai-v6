@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { Writable } from 'node:stream';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -178,6 +179,7 @@ it('a search term never appears in captured logs or spans', async () => {
     'url.query': `query=${term}`,
     'url.full': `http://x/api/platform/accounts?query=${term}`,
     query: term,
+    status: 'succeeded',
   });
   span.end();
   await provider.forceFlush();
@@ -187,4 +189,41 @@ it('a search term never appears in captured logs or spans', async () => {
     JSON.stringify(exported.map((s) => [s.name, s.attributes])),
   ).not.toContain(term);
   await provider.shutdown();
+});
+
+it('redacts query-bearing fields through the real logging options', () => {
+  const { lines, sink } = capture();
+  const options = createLoggingOptions('api').pinoHttp;
+  if (!options || Array.isArray(options)) throw new Error('expected options');
+  // Output is allowlisted, so assert redaction on the redact config itself
+  // with a plain pino instance that keeps the same redact paths.
+  const logger = pino(
+    { ...(options.redact ? { redact: options.redact } : {}) },
+    sink,
+  );
+  logger.info({ req: { url: '/x?query=term' }, url: { query: 'term' } });
+  const output = lines.join('');
+  expect(output).toContain('[REDACTED]');
+  expect(output).not.toContain('term');
+  const real = pino(options, sink);
+  real.info({ req: { url: '/x?query=term' }, url: { query: 'term' } });
+  expect(lines.join('')).not.toContain('term');
+});
+
+it('every OTel trace exporter in the backend is wrapped by the span sanitizer', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { globSync } = await import('node:fs');
+  const files = globSync('src/**/*.ts', {
+    cwd: fileURLToPath(new URL('../..', import.meta.url)),
+  }).map((file) => fileURLToPath(new URL(`../../${file}`, import.meta.url)));
+  const users: string[] = [];
+  for (const file of files)
+    if (/new (NodeSDK|OTLPTraceExporter)\(/.test(await readFile(file, 'utf8')))
+      users.push(file);
+  expect(users.map((f) => f.split('backend/')[1])).toEqual([
+    'src/infrastructure/telemetry/ai-telemetry.ts',
+  ]);
+  const source = await readFile(users[0]!, 'utf8');
+  expect(source).toContain('new SafeSpanExporter(');
+  expect(source).toContain('traceExporter: exporter');
 });

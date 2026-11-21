@@ -4,6 +4,7 @@ import { test } from '../setup/file-services.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
 import { OrganizationAuthPort } from '../../src/modules/identity-access/index.js';
 import { AccountsService } from '../../src/modules/platform-console/accounts.service.js';
+import { ProvisioningService } from '../../src/modules/organizations/provisioning.service.js';
 import { PlatformOrganizationsService } from '../../src/modules/platform-console/organizations.service.js';
 import { PlatformConsoleRepository } from '../../src/modules/platform-console/platform-console.repository.js';
 import { securityHarness } from '../setup/security-harness.js';
@@ -155,6 +156,40 @@ test('each members page request writes platform.organization_members_viewed.v1 w
     expect(written.map((r) => r.metadata)).toEqual([{ page: 1 }, { page: 2 }]);
     // Only the acting administrator is referenced, never a listed member.
     expect(new Set(written.map((r) => r.actor_user_id)).size).toBe(1);
+  } finally {
+    await proof.close();
+  }
+});
+
+test('a provisioning organization members request is audited with { page: 1 }', async ({
+  services,
+}) => {
+  const { proof, harness, port, adminEmail } = await world(services);
+  try {
+    const full = await harness.enroll(adminEmail, password);
+    const organizations = new PlatformOrganizationsService(
+      port,
+      new PlatformConsoleRepository(),
+    );
+    const provisioning = new ProvisioningService(port, {
+      invitationSeconds: 3600,
+      reauthSeconds: 300,
+      pagination: { defaultLimit: 20, maxLimit: 100 },
+    });
+    await harness.identity(full.headers, async (identity) => {
+      const created = await provisioning.create(identity, {
+        name: 'Provisioned audit',
+        slug: `prov-${randomUUID().slice(0, 8)}`,
+        ownerEmail: `${randomUUID()}@example.test`,
+      });
+      const page = await organizations.members(identity, created.id, {});
+      expect(page.total).toBe(0);
+      const rows = await proof.inspect.migratorQuery(
+        `SELECT metadata FROM ops.audit_events WHERE type='platform.organization_members_viewed.v1' AND org_id=$1`,
+        [created.id],
+      );
+      expect(rows.map((r) => r.metadata)).toEqual([{ page: 1 }]);
+    });
   } finally {
     await proof.close();
   }

@@ -50,17 +50,8 @@ export class PlatformOrganizationsService {
     return this.port.platformRead(identity, async (tx) => {
       const organization = await this.repository.organization(tx, id);
       if (!organization) throw new IdentityError('NOT_FOUND', 404);
-      // Provisioning organizations have no members yet.
-      if (organization.state !== 'active')
-        return {
-          items: [],
-          page: page.page,
-          pageSize: page.pageSize,
-          total: 0,
-        };
-      const result = await this.repository.members(tx, id, page);
-      // Same transaction as the read: no members page is shown unaudited.
-      // Provisioning organizations expose nothing, so they write nothing.
+      // Same transaction as the read: every members request for a found
+      // organization (provisioning included) is audited as a view.
       await appendAuthAudit(tx, {
         version: 1,
         eventId: randomUUID(),
@@ -72,7 +63,15 @@ export class PlatformOrganizationsService {
         orgId: id,
         metadata: { page: page.page },
       });
-      return result;
+      // Provisioning organizations have no members yet.
+      if (organization.state !== 'active')
+        return {
+          items: [],
+          page: page.page,
+          pageSize: page.pageSize,
+          total: 0,
+        };
+      return this.repository.members(tx, id, page);
     });
   }
 }
