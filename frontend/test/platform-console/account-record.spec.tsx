@@ -318,6 +318,14 @@ test('no account actions while identity has not loaded', async () => {
   expect(text(v)).toContain('Ayu Wardani');
   expect(button('Disable account')).toBeUndefined();
   expect(button('Sign out everywhere')).toBeUndefined();
-  expect(button('Resend verification email')).toBeUndefined();
   await v.unmount();
+
+  routes({
+    [GET]: () => json(detail({ status: 'unverified', emailVerified: false })),
+  });
+  const u = await mount();
+  expect(text(u)).toContain('Unverified');
+  expect(button('Resend verification email')).toBeUndefined();
+  expect(button('Disable account')).toBeUndefined();
+  await u.unmount();
 });
