@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 16</title>
+<title>Lexon v4.1 Prototype, revision 16b</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -331,23 +331,64 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .srow .inp{width:100%!important}
 .app.mobile .irow{flex-wrap:wrap}.app.mobile .irow .inp{flex-basis:100%}
 .app.mobile .pgrid{grid-template-columns:1fr}
-.tr.acc{grid-template-columns:minmax(0,2fr) 104px 84px 56px 112px 24px}
-.tr.org{grid-template-columns:minmax(0,1.6fr) 104px 72px minmax(0,1.5fr) 104px 24px}
-.tr.mem{grid-template-columns:minmax(0,2fr) 100px 120px 24px}
-.tr.team{grid-template-columns:minmax(0,2fr) 100px 24px}
-.tr .c1 b,.tr .c1 small,.tr .el{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tr .c1 b{font-weight:500}
-.tr .muted{color:var(--mfg)}.tr .mo{display:none}
-.badge.off{background:var(--muted);color:var(--mfg);border-color:transparent}
-.ptool{display:flex;gap:12px;align-items:center}
-.seg{display:inline-flex;gap:2px;padding:3px;border-radius:8px;background:var(--muted);flex:none}
-.seg button{all:unset;height:28px;padding:0 10px;border-radius:6px;font-size:13px;font-weight:500;color:var(--mfg);cursor:pointer;display:inline-flex;align-items:center}
-.seg button.on{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px rgba(8,6,6,.08),0 0 0 1px var(--border)}
-.arows{display:flex;flex-direction:column}.arow{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-top:1px solid var(--border)}.arow:first-child{border-top:0;padding-top:0}.arow:last-child{padding-bottom:0}
-.arow .rt{font-size:14px;font-weight:500}.arow .rd{font-size:13px;color:var(--mfg);margin-top:2px;line-height:1.5}.arow .btn{flex:none}
-.app.mobile .tr .dk{display:none}.app.mobile .tr .mo{display:block;grid-column:1;color:var(--mfg);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.app.mobile .tr.acc .go,.app.mobile .tr.org .go,.app.mobile .tr.mem .go{grid-row:1/4}
-.app.mobile .ptool{flex-direction:column;align-items:stretch}.app.mobile .seg{align-self:flex-start}
-.app.mobile .arow{flex-direction:column;align-items:flex-start;gap:10px}
+/* ===== Data views kit (revision 16b): one table and one detail page pattern for every list and record ===== */
+.dv-page{width:100%;max-width:1120px;padding:28px 24px 40px;display:flex;flex-direction:column;gap:20px;overflow:auto}.dv-page>*{flex:none}
+.dv-ph{display:flex;align-items:flex-end;gap:16px}.dv-ph>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.dv-ph p{margin:0;color:var(--mfg);font-size:14px;line-height:1.55}
+.dv-card{border:1px solid var(--border);border-radius:12px;background:var(--bg);overflow:hidden}
+.dv-chead{display:flex;align-items:flex-start;gap:12px;padding:16px 20px 0}.dv-chead>div{flex:1;min-width:0}.dv-chead h2{margin:0;font-size:16px;font-weight:600}.dv-chead p{margin:4px 0 0;font-size:13px;color:var(--mfg);line-height:1.5}
+.dv-chead+.dv-body{padding-top:12px}
+.dv-tool{display:flex;align-items:center;gap:8px;padding:14px 20px}.dv-tool .sp{flex:1}
+.dv-search{position:relative;width:280px;flex:none}.dv-search svg{position:absolute;left:10px;top:10px;color:var(--mfg)}.dv-search .inp{height:36px;padding-left:34px}
+.dv-facet{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px dashed var(--input);border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.dv-facet .sep{width:1px;height:16px;background:var(--border);margin:0 2px}
+.dv-chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;background:var(--muted);font-size:12px;font-weight:500}
+.dv-reset{all:unset;display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--mfg);cursor:pointer}
+.dv-pop{position:absolute;top:calc(100% + 6px);left:0;width:220px;z-index:20}.dv-pop .mi{font-size:14px}.dv-pop .clr{justify-content:center;color:var(--mfg)}
+.dv-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
+.dv-table th{height:40px;padding:0 12px;text-align:left;font-size:13px;font-weight:500;color:var(--mfg);background:var(--muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);white-space:nowrap}
+.dv-table td{height:48px;padding:6px 12px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-table tr:last-child td{border-bottom:0}
+.dv-table th:first-child,.dv-table td:first-child{padding-left:20px}.dv-table th:last-child,.dv-table td:last-child{padding-right:16px}
+.dv-table .num{text-align:right;font-variant-numeric:tabular-nums}.dv-table .mut{color:var(--mfg)}.dv-table .w-cb{width:52px;padding-right:0;overflow:visible;text-overflow:clip}.dv-table .w-menu{width:56px;text-align:right;overflow:visible;text-overflow:clip}
+.dv-table tr.sel td{background:color-mix(in srgb,var(--muted) 70%,transparent)}.dv-table tr.hov td{background:color-mix(in srgb,var(--muted) 45%,transparent)}
+.dv-id{display:flex;align-items:center;gap:10px;min-width:0}.dv-id .t{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.dv-id b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-id small{font-size:12px;color:var(--mfg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-av{width:28px;height:28px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--muted);color:var(--mfg);font-size:11px;font-weight:600}
+.dv-av.sq{border-radius:7px;background:var(--sb-primary);color:var(--sb-pfg)}
+.dv-cb{box-sizing:border-box;width:16px;height:16px;border:1px solid var(--input);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;background:var(--bg)}
+.dv-cb.on{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.dv-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;background:var(--muted);font-size:12px;font-weight:500;color:var(--fg)}
+.dv-link{color:var(--fg);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--input)}
+.dv-bulk{display:flex;align-items:center;gap:8px;padding:8px 20px;border-top:1px solid var(--border);background:var(--muted);font-size:13px}.dv-bulk b{font-weight:500;margin-right:auto}
+.dv-foot{display:flex;align-items:center;gap:16px;padding:10px 16px 10px 20px;border-top:1px solid var(--border);font-size:13px;color:var(--mfg)}.dv-foot .sp{flex:1}
+.dv-sel{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 8px 0 10px;border:1px solid var(--input);border-radius:8px;color:var(--fg);font-size:13px}
+.dv-pg{display:inline-flex;gap:4px}.dv-pg .ib{width:30px;height:30px;border:1px solid var(--input);border-radius:8px}.dv-pg .ib.off{opacity:.45}
+.dv-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:48px 20px;text-align:center;color:var(--mfg);font-size:13px;border-top:1px solid var(--border)}
+.dv-empty .ic{width:40px;height:40px;border-radius:10px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:4px}.dv-empty h3{margin:0;font-size:15px;font-weight:600;color:var(--fg)}.dv-empty p{margin:0}.dv-empty .btn{margin-top:8px}
+.dv-err{padding:16px 20px;border-top:1px solid var(--border)}
+.dv-stats{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:12px}
+.dv-stat{border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;background:var(--bg);min-width:0}
+.dv-stat span{font-size:12px;color:var(--mfg)}.dv-stat b{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-stat small{font-size:12px;color:var(--mfg)}
+.dv-dh{display:flex;align-items:center;gap:16px}.dv-dh .av{width:48px;height:48px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--muted);color:var(--mfg);font-size:16px;font-weight:600}.dv-dh .av.sq{border-radius:12px;background:var(--sb-primary);color:var(--sb-pfg)}
+.dv-dh .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.dv-dh .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.dv-dh .meta{font-size:14px;color:var(--mfg);display:flex;gap:8px;flex-wrap:wrap}.dv-dh .meta i{font-style:normal;color:var(--input)}
+.dv-dh .acts{display:flex;gap:8px;align-items:center;flex:none;position:relative}
+.dv-dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 24px;padding:16px 20px 20px;margin:0}
+.dv-dl dt{font-size:12px;color:var(--mfg);font-weight:500}.dv-dl dd{margin:4px 0 0;font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;min-width:0}
+.dv-dl dd code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-dl dd .ib{width:24px;height:24px;color:var(--mfg)}
+.dv-mlist{display:none}
+.app.mobile .dv-page{padding:20px 16px;gap:16px}
+.app.mobile .dv-ph{flex-direction:column;align-items:stretch}.app.mobile .dv-ph .btn{align-self:flex-start}
+.app.mobile .dv-tool{flex-wrap:wrap;padding:12px 16px}.app.mobile .dv-search{width:100%}.app.mobile .dv-tool .sp{display:none}
+.app.mobile .dv-chead{padding:14px 16px 0}
+.app.mobile .dv-table{display:none}.app.mobile .dv-mlist{display:block;border-top:1px solid var(--border)}
+.dv-mrow{display:flex;align-items:flex-start;gap:10px;padding:12px 8px 12px 16px;border-bottom:1px solid var(--border)}.dv-mrow:last-child{border-bottom:0}
+.dv-mrow .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;line-height:1.3}.dv-mrow b{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-mrow small{font-size:12px;color:var(--mfg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-mrow .s{font-size:13px;color:var(--mfg);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.app.mobile .dv-foot{padding:10px 12px 10px 16px}.app.mobile .dv-foot .dv-per{display:none}
+.app.mobile .dv-bulk{padding:8px 16px}
+.app.mobile .dv-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.app.mobile .dv-dh{flex-wrap:wrap}.app.mobile .dv-dh .acts{width:100%}
+.app.mobile .dv-dl{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px 16px 16px}
 .app.mobile .tr{grid-template-columns:1fr auto;gap:4px 12px;padding:12px 16px}
 .app.mobile .tr.th{display:none}
 .app.mobile .tr .c3{grid-column:1;color:var(--mfg);font-size:13px}
@@ -399,7 +440,7 @@ const I={
  check:'<path d="M20 6 9 17l-5-5"/>', up:'<path d="M7 10v12"/><path d="M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 8A2 2 0 0 1 17.4 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2a3.1 3.1 0 0 1 3 3.9Z"/>',
  down:'<path d="M17 14V2"/><path d="M9 18.1 10 14H4.2a2 2 0 0 1-1.9-2.6l2.3-8A2 2 0 0 1 6.6 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.8a2 2 0 0 0-1.8 1.1L12 22a3.1 3.1 0 0 1-3-3.9Z"/>',
  regen:'<path d="M3 12a9 9 0 0 1 9-9 9.8 9.8 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/>',
- left:'<path d="m15 18-6-6 6-6"/>', right:'<path d="m9 18 6-6-6-6"/>', down2:'<path d="m6 9 6 6 6-6"/>', arrowup:'<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+ left:'<path d="m15 18-6-6 6-6"/>', left2:'<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>', right2:'<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>', right:'<path d="m9 18 6-6-6-6"/>', down2:'<path d="m6 9 6 6 6-6"/>', arrowup:'<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
  stop:'<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none"/>', brain:'<path d="M12 18V5"/><path d="M15 13a4.2 4.2 0 0 1-3-4 4.2 4.2 0 0 1-3 4"/><path d="M17.6 6.5A3 3 0 0 0 18 5a3 3 0 1 0-6 0 3 3 0 1 0-6 0 3 3 0 0 0 .4 1.5"/><path d="M18 5.1A4 4 0 0 1 20.5 11"/><path d="M18 18a4 4 0 0 0 2-7.5"/><path d="M19.97 17.5A4 4 0 1 1 12 18a4 4 0 1 1-7.97-.5"/><path d="M6 18a4 4 0 0 1-2-7.5"/><path d="M6 5.1A4 4 0 0 0 3.5 11"/>',
  alert:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
  square:'<rect x="4" y="4" width="16" height="16" rx="2"/>', wifi:'<path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/>',
@@ -733,73 +774,126 @@ function platformAccounts(){
  return `<div class="ppage"><div class="phead"><h1 class="ptitle">Account status</h1><p>Disable an account to sign it out everywhere and block sign-in. Its organizations and content stay unchanged.</p></div>
  ${pcard('Find an account','Enter the user ID from the audit log or a support request.',`${fs('uid','User ID',{ph:'usr_01J…'})}<div class="pacts"><button class="btn outline">Enable account</button><button class="btn danger">Disable account</button></div>`)}</div>`;
 }
-/* ===== Revision 16: platform console (F4.3), drawn from the brief's API contracts ===== */
+/* ===== Data views kit (revision 16b). Every list is dvCard(toolbar, table, footer); every record is dvHeader + dvStats + dvList + related dvCard ===== */
+const dvCb=on=>`<span class="dv-cb ${on?'on':''}" role="checkbox" aria-checked="${on}">${on?sv('check',12):''}</span>`;
+const dvSearch=(ph,q='')=>`<div class="dv-search">${sv('search')}<input class="inp ${q?'focus':''}" aria-label="${ph}" placeholder="${ph}" value="${q}"></div>`;
+const dvFacet=(label,sel=[],pop='')=>`<span style="position:relative;display:inline-flex"><button class="dv-facet" aria-haspopup="listbox">${sv('plus',14)}${label}${sel.length?`<span class="sep"></span>${sel.map(s=>`<span class="dv-chip">${s}</span>`).join('')}`:''}</button>${pop}</span>`;
+const dvFacetPop=(opts,sel)=>`<div class="menu dv-pop" role="listbox">${opts.map(o=>`<button class="mi" role="option" aria-selected="${sel.includes(o)}">${dvCb(sel.includes(o))}${o}</button>`).join('')}<div class="msep"></div><button class="mi clr">Clear filter</button></div>`;
+const dvTool=({search,q='',facets=[],reset=false,action=''})=>`<div class="dv-tool">${dvSearch(search,q)}${facets.join('')}${reset?`<button class="dv-reset">Reset${sv('x',14)}</button>`:''}<span class="sp"></span>${action}</div>`;
+// cell renderers
+const C={
+ id:(n,sub,{av,sq,badge=''}={})=>`<div class="dv-id"><span class="dv-av ${sq?'sq':''}">${av}</span><span class="t"><b>${n}${badge}</b><small>${sub}</small></span></div>`,
+ two:(n,sub)=>`<div class="dv-id"><span class="t"><b>${n}</b><small>${sub}</small></span></div>`,
+ badge:(t,k='')=>`<span class="badge ${k}">${t}</span>`,
+ tag:t=>`<span class="dv-tag">${t}</span>`,
+ menu:(open='')=>`<span style="position:relative;display:inline-flex"><button class="ib" aria-label="Row actions">${sv('dots')}</button>${open}</span>`
+};
+function dvTable({cols,rows,select=false,selected=[],hover=-1}){
+ const head=`<thead><tr>${select?`<th class="w-cb">${dvCb(selected.length&&selected.length===rows.length)}</th>`:''}${cols.map(c=>`<th class="${c.num?'num':''} ${c.cls||''}" style="${c.w?`width:${c.w}`:''}">${c.label}</th>`).join('')}</tr></thead>`;
+ const body=rows.map((r,i)=>`<tr class="${selected.includes(i)?'sel':''} ${hover===i?'hov':''}">${select?`<td class="w-cb">${dvCb(selected.includes(i))}</td>`:''}${r.cells.map((v,j)=>`<td class="${cols[j].num?'num':''} ${cols[j].mut?'mut':''} ${cols[j].cls||''}">${v}</td>`).join('')}</tr>`).join('');
+ const mob=`<div class="dv-mlist">${rows.map(r=>`<div class="dv-mrow">${r.m.lead||''}<span class="t"><b>${r.m.title}</b>${r.m.sub?`<small>${r.m.sub}</small>`:''}${r.m.badge?`<span class="s">${r.m.badge}</span>`:''}<span class="s">${r.m.meta}</span></span>${r.m.menu===false?'':`<button class="ib" aria-label="Row actions">${sv('dots')}</button>`}</div>`).join('')}</div>`;
+ return `<table class="dv-table">${head}<tbody>${body}</tbody></table>${mob}`;
+}
+const dvFoot=({count,page=1,pages=1,per=10})=>`<div class="dv-foot"><span>${count}</span><span class="sp"></span><span class="dv-per">Rows per page <span class="dv-sel">${per}${sv('chev',14)}</span></span><span>Page ${page} of ${pages}</span><span class="dv-pg"><button class="ib ${page===1?'off':''}" aria-label="First page">${sv('left2',16)}</button><button class="ib ${page===1?'off':''}" aria-label="Previous page">${sv('left',16)}</button><button class="ib ${page===pages?'off':''}" aria-label="Next page">${sv('right',16)}</button><button class="ib ${page===pages?'off':''}" aria-label="Last page">${sv('right2',16)}</button></span></div>`;
+const dvBulk=(n,acts)=>`<div class="dv-bulk"><b>${n} selected</b>${acts}</div>`;
+const dvEmpty=(icon,title,text,btn='')=>`<div class="dv-empty"><span class="ic">${sv(icon,20)}</span><h3>${title}</h3><p>${text}</p>${btn}</div>`;
+const dvError=t=>`<div class="dv-err">${perr(t)}</div>`;
+const dvSkel=(cols,n,widths)=>({cols,rows:Array.from({length:n},(_,i)=>({cells:cols.map((c,j)=>c.cls==='w-menu'?'':`<div class="skel" style="width:${widths[(i+j)%widths.length]}%;${c.num?'margin-left:auto':''}"></div>`),m:{title:`<div class="skel" style="width:${widths[i%widths.length]}%;height:14px"></div>`,meta:`<div class="skel" style="width:40%"></div>`,menu:false}}))});
+const dvCard=({head='',tool='',table='',bulk='',foot='',body=''})=>`<section class="dv-card">${head}${tool}${table}${body}${bulk}${foot}</section>`;
+const dvCHead=(t,d='',right='')=>`<div class="dv-chead"><div><h2>${t}</h2>${d?`<p>${d}</p>`:''}</div>${right}</div>`;
+const dvPage=(title,desc,action,parts)=>`<div class="dv-page"><div class="dv-ph"><div><h1 class="ptitle">${title}</h1>${desc?`<p>${desc}</p>`:''}</div>${action}</div>${parts}</div>`;
+const dvHeader=({back,av,sq,title,badges='',meta=[],acts=''})=>`${back?`<a class="slink" href="#" style="align-self:flex-start;margin:0 0 -8px -10px">${sv('back',16)}${back}</a>`:''}<div class="dv-dh"><span class="av ${sq?'sq':''}">${av}</span><div class="mid"><div class="row"><h1 class="ptitle">${title}</h1>${badges}</div><div class="meta">${meta.join('<i>·</i>')}</div></div><div class="acts">${acts}</div></div>`;
+const dvStats=items=>`<div class="dv-stats" style="--n:${items.length}">${items.map(([l,v,s])=>`<div class="dv-stat"><span>${l}</span><b>${v}</b>${s?`<small>${s}</small>`:''}</div>`).join('')}</div>`;
+const dvList=(items)=>`<dl class="dv-dl">${items.map(([k,v,copy])=>`<div><dt>${k}</dt><dd>${copy?`<code>${v}</code><button class="ib" aria-label="Copy ${k}">${sv('copy',14)}</button>`:v}</dd></div>`).join('')}</dl>`;
+
+/* ===== Platform console (F4.3) built from the kit ===== */
 const PA=[
- {id:'dp',n:'Dimas Prasetyo',e:'dimas@lexon.id',st:'active',tf:true,t:0,la:'Active now',admin:true,self:true},
- {id:'aw',n:'Ayu Wardani',e:'ayu@hukum-nusantara.co.id',st:'active',tf:true,t:2,la:'Today'},
- {id:'pa',n:'Putri Anggraini',e:'putri@probono.or.id',st:'active',tf:true,t:1,la:'Today'},
- {id:'rp',n:'Rizky Pratama',e:'rizky@hukum-nusantara.co.id',st:'active',tf:true,t:1,la:'Yesterday'},
- {id:'sw',n:'Sari Wibowo',e:'sari@hukum-nusantara.co.id',st:'active',tf:false,t:1,la:'3 days ago'},
- {id:'as',n:'Andi Saputra',e:'andi.saputra@gmail.com',st:'active',tf:false,t:0,la:'5 days ago'},
- {id:'bs',n:'Bagus Santoso',e:'bagus@sinarhukum.co.id',st:'unverified',tf:false,t:0,la:'Never'},
- {id:'lh',n:'Lina Hartono',e:'lina@hukum-nusantara.co.id',st:'disabled',tf:false,t:1,la:'2 weeks ago'}
+ {n:'Dimas Prasetyo',e:'dimas@lexon.id',st:'active',tf:true,t:0,la:'Active now',j:'1 Sep 2026',admin:true},
+ {n:'Ayu Wardani',e:'ayu@hukum-nusantara.co.id',st:'active',tf:true,t:2,la:'Today',j:'2 Sep 2026'},
+ {n:'Putri Anggraini',e:'putri@probono.or.id',st:'active',tf:true,t:1,la:'Today',j:'18 Sep 2026'},
+ {n:'Rizky Pratama',e:'rizky@hukum-nusantara.co.id',st:'active',tf:true,t:1,la:'Yesterday',j:'3 Sep 2026'},
+ {n:'Hendra Gunawan',e:'hendra@gunawanlaw.co.id',st:'active',tf:true,t:1,la:'2 days ago',j:'21 Sep 2026'},
+ {n:'Sari Wibowo',e:'sari@hukum-nusantara.co.id',st:'active',tf:false,t:1,la:'3 days ago',j:'10 Sep 2026'},
+ {n:'Maya Lestari',e:'maya.lestari@probono.or.id',st:'active',tf:false,t:1,la:'4 days ago',j:'25 Sep 2026'},
+ {n:'Andi Saputra',e:'andi.saputra@gmail.com',st:'active',tf:false,t:0,la:'5 days ago',j:'2 Oct 2026'},
+ {n:'Bagus Santoso',e:'bagus@sinarhukum.co.id',st:'unverified',tf:false,t:0,la:'Never',j:'12 Nov 2026'},
+ {n:'Lina Hartono',e:'lina@hukum-nusantara.co.id',st:'disabled',tf:false,t:1,la:'2 weeks ago',j:'5 Sep 2026'}
 ];
 const PSTAT={active:['Active',''],unverified:['Unverified','warn'],disabled:['Disabled','off']};
-const pbadge=s=>`<span class="badge ${PSTAT[s][1]}">${PSTAT[s][0]}</span>`;
-const pmain=(body,extra='')=>`<div class="main">${topbar('',{nopill:true})}<div class="view">${body}</div>${extra}</div>`;
-const psearch=(ph,q='')=>`<div style="position:relative;flex:1;min-width:0"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp ${q?'focus':''}" style="padding-left:36px" aria-label="${ph}" placeholder="${ph}" value="${q}"></div>`;
-const pback=t=>`<a class="slink" href="#" style="align-self:flex-start;margin:0 0 -12px -10px">${sv('back',16)}${t}</a>`;
-const perr=t=>`<div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">${t}</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
-function accRow(a){return `<div class="tr acc"><span class="c1"><b>${a.n}${a.admin?' <span class="badge" style="margin-left:6px">Platform administrator</span>':''}</b><small>${a.e}</small></span><span class="c2">${pbadge(a.st)}</span><span class="dk">${a.tf?'On':'Off'}</span><span class="dk">${a.t}</span><span class="dk muted">${a.la}</span><span class="mo">Two-step ${a.tf?'on':'off'} · ${a.t} ${a.t===1?'team':'teams'} · ${a.la}</span><span class="go">${sv('right')}</span></div>`;}
-const accHead=`<div class="tr acc th"><span>Account</span><span>Status</span><span>Two-step</span><span>Teams</span><span>Last active</span><span></span></div>`;
+const ini=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('');
+const adminBadge=' <span class="badge" style="margin-left:6px">Platform administrator</span>';
+const accCols=[{label:'Account'},{label:'Status',w:'124px'},{label:'Two-step',w:'96px'},{label:'Teams',w:'80px',num:true},{label:'Last active',w:'128px',mut:true},{label:'',w:'52px',cls:'w-menu'}];
+const accRow=(a,menu='')=>({cells:[C.id(a.n,a.e,{av:ini(a.n),badge:a.admin?adminBadge:''}),C.badge(...PSTAT[a.st]),a.tf?'On':'Off',a.t,a.la,C.menu(menu)],m:{lead:`<span class="dv-av">${ini(a.n)}</span>`,title:a.n,sub:a.e,badge:C.badge(...PSTAT[a.st]),meta:`Two-step ${a.tf?'on':'off'} · ${a.t} ${a.t===1?'team':'teams'} · ${a.la}`}});
+const accRowMenu=`<div class="menu" role="menu" style="top:calc(100% + 4px);right:0;min-width:200px"><button class="mi">${sv('right')}View account</button><div class="msep"></div><button class="mi">${sv('out')}Sign out everywhere</button><button class="mi dz">${sv('x')}Disable account</button></div>`;
 function platformAccountsList(kind){
  const q=kind==='search'?'hukum-nusantara':kind==='noresults'?'notaris':'';
- let body;
- if(kind==='loading') body=`<div class="tbl">${accHead}${[58,44,64,50,40].map(w=>`<div class="tr acc"><span class="c1"><div class="skel" style="width:${w}%"></div></span><span class="c2"><div class="skel" style="width:56px"></div></span><span class="dk"><div class="skel" style="width:28px"></div></span><span class="dk"><div class="skel" style="width:16px"></div></span><span class="dk"><div class="skel" style="width:72px"></div></span><span></span></div>`).join('')}</div>`;
- else if(kind==='error') body=perr('We could not load accounts.');
- else if(kind==='noresults') body=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No accounts match “notaris”</h2><p style="margin:0">Search looks in names and email addresses.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
- else {const rows=kind==='search'?PA.filter(a=>a.e.includes('hukum-nusantara')):PA;
-  body=`${kind==='search'?`<p style="margin:0;font-size:13px;color:var(--mfg)">${rows.length} accounts</p>`:''}<div class="tbl">${accHead}${rows.map(accRow).join('')}</div>${kind==='search'?'':'<div style="display:flex;justify-content:center"><button class="btn outline">Load more</button></div>'}`;}
- return `<div class="ppage"><div class="phead"><h1 class="ptitle">Accounts</h1><p>Find an account by name or email to check its status or act on it.</p></div><div class="psec">${psearch('Search by name or email',q)}${body}</div></div>`;
+ const fsel=kind==='filtered'?['Unverified','Disabled']:[];
+ const facets=[dvFacet('Status',fsel,kind==='filtered'?dvFacetPop(['Active','Unverified','Disabled'],fsel):''),dvFacet('Two-step')];
+ const tool=dvTool({search:'Search by name or email',q,facets,reset:kind==='filtered'||kind==='search'||kind==='noresults'});
+ let table='',body='',foot='';
+ if(kind==='loading'){table=dvTable(dvSkel(accCols,8,[58,44,64,50,40]));}
+ else if(kind==='error'){table=dvTable({cols:accCols,rows:[]});body=dvError('We could not load accounts.');}
+ else if(kind==='noresults'){table=dvTable({cols:accCols,rows:[]});body=dvEmpty('search','No accounts match “notaris”','Search looks in names and email addresses.','<button class="btn outline">Reset filters</button>');}
+ else {
+  const rows=kind==='search'?PA.filter(a=>a.e.includes('hukum-nusantara')):kind==='filtered'?PA.filter(a=>a.st!=='active'):PA;
+  table=dvTable({cols:accCols,rows:rows.map((a,i)=>accRow(a,kind==='menu'&&i===1?accRowMenu:'')),hover:kind==='menu'?1:-1});
+  const total=kind==='list'||kind==='menu'?248:rows.length;
+  foot=dvFoot({count:`${total} accounts`,pages:Math.ceil(total/10)});
+ }
+ return dvPage('Accounts','Everyone with a Lexon account. Find an account by name or email to check its status or act on it.','',dvCard({tool,table,body,foot}));
 }
 function platformAccountDetail(kind){
- const a=kind==='unverified'?PA[6]:kind==='disabled'?PA[7]:PA[1];
- const facts={active:[['Signed up','2 Sep 2026'],['Email verified','Yes'],['Two-step verification','On'],['Last active','Today, 10:42'],['Active sessions','3']],unverified:[['Signed up','12 Nov 2026'],['Email verified','No'],['Two-step verification','Off'],['Last active','Never'],['Active sessions','0']],disabled:[['Signed up','5 Sep 2026'],['Email verified','Yes'],['Two-step verification','Off'],['Last active','31 Oct 2026'],['Active sessions','0']]}[kind];
- const teams={active:[['Hukum Nusantara','hukum-nusantara','Owner'],['Pro Bono Clinic','pro-bono-clinic','Member']],unverified:[],disabled:[['Hukum Nusantara','hukum-nusantara','Member']]}[kind];
- const tbl=teams.length?`<div class="tbl"><div class="tr team th"><span>Organization</span><span>Role</span><span></span></div>${teams.map(([n,s,r])=>`<div class="tr team"><span class="c1"><b>${n}</b><small>${s}</small></span><span class="c2">${r}</span><span class="go">${sv('right')}</span></div>`).join('')}</div>`:`<p class="pd" style="margin:0">Not a member of any team.</p>`;
- const act=(t,d,b)=>`<div class="arow"><div><div class="rt">${t}</div><div class="rd">${d}</div></div>${b}</div>`;
- let acts='';
- if(kind==='unverified') acts+=act('Verification email','The email address is not verified yet. Send the verification email again.','<button class="btn outline">Resend verification email</button>');
- if(kind==='active') acts+=act('Sign out everywhere','Ends all 3 sessions on every device, including apps signed in with a token.','<button class="btn outline">Sign out everywhere</button>');
- acts+=kind==='disabled'?act('Enable account','Allows sign-in again. Teams and content were never changed.','<button class="btn outline">Enable account</button>'):act('Disable account','Signs the account out everywhere and blocks sign-in. Teams and content stay unchanged.','<button class="btn outline dtext">Disable account</button>');
- return `<div class="ppage">${pback('Accounts')}<div class="phead"><div class="row"><h1 class="ptitle">${a.n}</h1>${pbadge(a.st)}</div><p>${a.e}</p></div>
- ${pcard('Account','',`<div class="idl wide">${facts.map(([k,v])=>`<span>${k}</span><b>${v}</b>`).join('')}</div>`)}
- ${pcard('Teams','',tbl)}
- ${pcard('Actions','',`<div class="arows">${acts}</div>`)}</div>`;
+ const a=kind==='unverified'?PA[8]:kind==='disabled'?PA[9]:PA[1];
+ const acts={active:`<button class="btn outline">${sv('out',16)}Sign out everywhere</button><button class="ib" aria-label="More actions" style="border:1px solid var(--input);width:32px;height:32px">${sv('dots')}</button>`,
+  unverified:`<button class="btn outline">${sv('mail',16)}Resend verification email</button><button class="ib" aria-label="More actions" style="border:1px solid var(--input);width:32px;height:32px">${sv('dots')}</button>`,
+  disabled:`<button class="btn outline">Enable account</button>`}[kind];
+ const stats={active:[['Teams','2'],['Active sessions','3'],['Last active','Today','10:42'],['Two-step verification','On']],
+  unverified:[['Teams','0'],['Active sessions','0'],['Last active','Never'],['Two-step verification','Off']],
+  disabled:[['Teams','1'],['Active sessions','0','Signed out when disabled'],['Last active','31 Oct 2026'],['Two-step verification','Off']]}[kind];
+ const facts=[['Email',a.e],['Email verified',kind==='unverified'?'No':'Yes'],['Signed up',a.j],['Account ID',kind==='unverified'?'0b9e41c2-7d3a-4f19-8e55-2c61a0f4d7b8':kind==='disabled'?'5a2c7e90-1b4d-4c8e-9f36-7d0e8a1b2c43':'7f3d2a1e-9c4b-4e8a-b6d2-1a0c5e9f3b77',true]];
+ const teams={active:[['Hukum Nusantara','hukum-nusantara','HN','Owner','2 Sep 2026'],['Pro Bono Clinic','pro-bono-clinic','PB','Member','20 Sep 2026']],unverified:[],disabled:[['Hukum Nusantara','hukum-nusantara','HN','Member','5 Sep 2026']]}[kind];
+ const tcols=[{label:'Organization'},{label:'Role',w:'120px'},{label:'Joined',w:'140px',mut:true},{label:'',w:'52px',cls:'w-menu'}];
+ const teamsCard=dvCard({head:dvCHead('Teams','Team organizations this account belongs to.'),
+  table:teams.length?`<div class="dv-body">${dvTable({cols:tcols,rows:teams.map(([n,s,i,r,j])=>({cells:[C.id(n,s,{av:i,sq:true}),C.tag(r),j,`<button class="ib" aria-label="Open ${n}">${sv('right')}</button>`],m:{lead:`<span class="dv-av sq">${i}</span>`,title:n,sub:s,badge:C.tag(r),meta:`Joined ${j}`,menu:false}}))})}</div>`:'',
+  body:teams.length?'':`<div class="dv-body">${dvEmpty('users','No teams','This account is not a member of any team.')}</div>`});
+ return `<div class="dv-page">${dvHeader({back:'Accounts',av:ini(a.n),title:a.n,badges:C.badge(...PSTAT[a.st]),meta:[a.e,`Joined ${a.j}`],acts})}${dvStats(stats)}${dvCard({head:dvCHead('Details'),body:dvList(facts)})}${teamsCard}</div>`;
 }
-const PO=[['Hukum Nusantara','hukum-nusantara','active','3','ayu@hukum-nusantara.co.id','2 Sep 2026'],['Pro Bono Clinic','pro-bono-clinic','active','5','putri@probono.or.id','18 Sep 2026'],['Harbor Legal Partners','harbor-legal-partners','provisioning','—','owner@harborlegal.co.id','14 Nov 2026'],['Kantor Hukum Wibowo','kantor-hukum-wibowo','provisioning','—','andi@khwibowo.co.id','13 Nov 2026'],['Sinar Hukum','sinar-hukum','provisioning','—','bagus@sinarhukum.co.id','5 Nov 2026']];
-const orgHead=`<div class="tr org th"><span>Organization</span><span>State</span><span>Members</span><span>Owner</span><span>Created</span><span></span></div>`;
+const PO=[['Hukum Nusantara','hukum-nusantara','HN','active',3,'ayu@hukum-nusantara.co.id','2 Sep 2026'],['Pro Bono Clinic','pro-bono-clinic','PB','active',5,'putri@probono.or.id','18 Sep 2026'],['Harbor Legal Partners','harbor-legal-partners','HL','provisioning',0,'owner@harborlegal.co.id','14 Nov 2026'],['Kantor Hukum Wibowo','kantor-hukum-wibowo','KW','provisioning',0,'andi@khwibowo.co.id','13 Nov 2026'],['Sinar Hukum','sinar-hukum','SH','provisioning',0,'bagus@sinarhukum.co.id','5 Nov 2026']];
+const orgCols=[{label:'Organization'},{label:'State',w:'128px'},{label:'Members',w:'96px',num:true},{label:'Owner',mut:true},{label:'Created',w:'128px',mut:true},{label:'',w:'52px',cls:'w-menu'}];
 function platformOrgsList(kind){
- let body;
- if(kind==='loading') body=`<div class="tbl">${orgHead}${[52,60,44,56].map(w=>`<div class="tr org"><span class="c1"><div class="skel" style="width:${w}%"></div></span><span class="c2"><div class="skel" style="width:64px"></div></span><span class="dk"><div class="skel" style="width:16px"></div></span><span class="dk"><div class="skel" style="width:80%"></div></span><span class="dk"><div class="skel" style="width:76px"></div></span><span></span></div>`).join('')}</div>`;
- else if(kind==='error') body=perr('We could not load organizations.');
- else if(kind==='empty') body=`<div class="empty" style="padding:40px 0;border:1px dashed var(--border);border-radius:12px"><div class="ic">${sv('users',20)}</div><h2>No team organizations yet</h2><p style="margin:0">Organizations you provision appear here.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}Provision organization</button></div>`;
- else body=`<div class="tbl">${orgHead}${PO.map(([n,s,st,m,o,c])=>`<div class="tr org"><span class="c1"><b>${n}</b><small>${s}</small></span><span class="c2"><span class="badge">${st==='active'?'Active':'Provisioning'}</span></span><span class="dk">${m}</span><span class="dk muted el">${o}</span><span class="dk muted">${c}</span><span class="mo">${st==='active'?m+' members':'Owner invited'} · ${o}</span><span class="go">${sv('right')}</span></div>`).join('')}</div>`;
- const seg=`<div class="seg" role="tablist" aria-label="State"><button class="on" role="tab" aria-selected="true">All</button><button role="tab" aria-selected="false">Active</button><button role="tab" aria-selected="false">Provisioning</button></div>`;
- return `<div class="ppage"><div class="phead"><div class="row" style="justify-content:space-between"><h1 class="ptitle">Organizations</h1>${kind==='empty'?'':`<button class="btn primary">${sv('plus')}Provision organization</button>`}</div><p>Every team organization on Lexon. Personal workspaces are not listed.</p></div><div class="psec"><div class="ptool">${psearch('Search by name or slug')}${seg}</div>${body}</div></div>`;
+ const tool=dvTool({search:'Search by name or slug',facets:[dvFacet('State')]});
+ const action=`<button class="btn primary">${sv('plus')}Provision organization</button>`;
+ let table='',body='',foot='';
+ if(kind==='loading') table=dvTable(dvSkel(orgCols,5,[52,60,44,56]));
+ else if(kind==='error'){table=dvTable({cols:orgCols,rows:[]});body=dvError('We could not load organizations.');}
+ else if(kind==='empty'){table=dvTable({cols:orgCols,rows:[]});body=dvEmpty('users','No team organizations yet','Organizations you provision appear here.',`<button class="btn primary">${sv('plus')}Provision organization</button>`);}
+ else {table=dvTable({cols:orgCols,rows:PO.map(([n,s,i,st,m,o,c])=>({cells:[C.id(n,s,{av:i,sq:true}),C.badge(st==='active'?'Active':'Provisioning'),st==='active'?m:'—',o,c,C.menu()],m:{lead:`<span class="dv-av sq">${i}</span>`,title:n,sub:s,badge:C.badge(st==='active'?'Active':'Provisioning'),meta:`${st==='active'?m+' members':'Owner invited'} · ${o}`}}))});foot=dvFoot({count:'5 organizations'});}
+ return dvPage('Organizations','Every team organization on Lexon. Personal workspaces are not listed.',kind==='empty'?'':action,dvCard({tool,table,body,foot}));
 }
 function platformOrgActive(){
  const mem=[['Ayu Wardani','ayu@hukum-nusantara.co.id','Owner','2 Sep 2026'],['Rizky Pratama','rizky@hukum-nusantara.co.id','Admin','3 Sep 2026'],['Sari Wibowo','sari@hukum-nusantara.co.id','Member','10 Sep 2026']];
- return `<div class="ppage">${pback('Organizations')}<div class="phead"><div class="row"><h1 class="ptitle">Hukum Nusantara</h1><span class="badge">Active</span></div><p>hukum-nusantara · Created 2 Sep 2026</p></div>
- ${pcard('Organization','',`<div class="idl wide"><span>Members</span><b>3</b><span>Two-step verification</span><b>Not required</b><span>Created</span><b>2 Sep 2026</b></div>`)}
- <div class="psec"><div><h2>Members</h2><p class="pd">Opening this list is recorded in the audit log.</p></div><div class="tbl"><div class="tr mem th"><span>Member</span><span>Role</span><span>Joined</span><span></span></div>${mem.map(([n,e,r,j])=>`<div class="tr mem"><span class="c1"><b>${n}</b><small>${e}</small></span><span class="c2">${r}</span><span class="dk muted">${j}</span><span class="mo">Joined ${j}</span><span class="go">${sv('right')}</span></div>`).join('')}</div></div></div>`;
+ const mcols=[{label:'Member'},{label:'Role',w:'120px'},{label:'Joined',w:'140px',mut:true},{label:'',w:'52px',cls:'w-menu'}];
+ return `<div class="dv-page">${dvHeader({back:'Organizations',av:'HN',sq:true,title:'Hukum Nusantara',badges:C.badge('Active'),meta:['hukum-nusantara','Created 2 Sep 2026']})}
+ ${dvStats([['Members','3'],['Two-step verification','Not required'],['Created','2 Sep 2026']])}
+ ${dvCard({head:dvCHead('Details'),body:dvList([['Name','Hukum Nusantara'],['Slug','hukum-nusantara'],['Owner email','ayu@hukum-nusantara.co.id'],['Organization ID','3c8e1f6a-2b7d-4a90-8c15-e4d9b0a72f31',true]])})}
+ ${dvCard({head:dvCHead('Members','Opening this list is recorded in the audit log.'),table:`<div class="dv-body">${dvTable({cols:mcols,rows:mem.map(([n,e,r,j])=>({cells:[C.id(n,e,{av:ini(n)}),C.tag(r),j,`<button class="ib" aria-label="Open ${n}">${sv('right')}</button>`],m:{lead:`<span class="dv-av">${ini(n)}</span>`,title:n,sub:e,badge:C.tag(r),meta:`Joined ${j}`,menu:false}}))})}</div>`,foot:dvFoot({count:'3 members',per:50})})}</div>`;
+}
+function platformOrgProvisioning(){
+ const pmenu=`<button class="ib" aria-label="More actions" style="border:1px solid var(--input);width:32px;height:32px">${sv('dots')}</button>`;
+ return `<div class="dv-page">${dvHeader({back:'Organizations',av:'HL',sq:true,title:'Harbor Legal Partners',badges:C.badge('Provisioning'),meta:['harbor-legal-partners','Provisioned 14 Nov 2026'],acts:`<button class="btn outline">${sv('mail',16)}Resend invitation</button>${pmenu}`})}
+ ${dvStats([['Owner invitation','Pending'],['Expires','21 Nov 2026','11:00'],['Members','0','Until the owner accepts']])}
+ ${dvCard({head:dvCHead('Details'),body:dvList([['Name','Harbor Legal Partners'],['Slug','harbor-legal-partners'],['Owner email','owner@harborlegal.co.id'],['Provisioned','14 Nov 2026'],['Organization ID','9d41b7e2-5c08-4f3a-a6e1-0b72c9d85e14',true]])})}
+ ${dvCard({head:dvCHead('Replace owner email','Sends a new invitation to a different person. The current invitation stops working.'),body:`<div class="dv-body" style="padding:12px 20px 20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap"><div style="flex:1;min-width:220px">${fs('re','New owner email',{ph:'owner@firm.co.id'})}</div><button class="btn primary">Replace and send</button></div>`})}</div>`;
 }
 const provDialog=()=>`<div class="overlay"></div><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pvt"><h2 id="pvt">Provision a team organization</h2><p>The organization has no members or content until its first owner accepts the invitation.</p>${fs('on','Organization name',{value:'Harbor Legal Partners'})}${fs('os','Organization slug',{value:'harbor-legal-partners',hint:'Lowercase letters, numbers, and hyphens.'})}${fs('oe','First owner email',{value:'owner@harborlegal.co.id'})}<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn primary">Provision organization</button></div></div>`;
 const confirmDialog=(t,p,b,cls)=>`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="cdt"><h2 id="cdt">${t}</h2><p>${p}</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn ${cls}">${b}</button></div></div>`;
+const pmain=(body)=>`<div class="main">${topbar('',{nopill:true})}<div class="view">${body}</div></div>`;
 function platformScreen(st){
  const P={
   'platform-accounts':['acct',()=>platformAccountsList('list')],
   'platform-accounts-search':['acct',()=>platformAccountsList('search')],
+  'platform-accounts-filtered':['acct',()=>platformAccountsList('filtered')],
+  'platform-accounts-row-menu':['acct',()=>platformAccountsList('menu')],
   'platform-accounts-no-results':['acct',()=>platformAccountsList('noresults')],
   'platform-accounts-loading':['acct',()=>platformAccountsList('loading')],
   'platform-accounts-error':['acct',()=>platformAccountsList('error')],
@@ -813,10 +907,25 @@ function platformScreen(st){
   'platform-organizations-loading':['org',()=>platformOrgsList('loading')],
   'platform-organizations-error':['org',()=>platformOrgsList('error')],
   'platform-organization-provision':['org',()=>platformOrgsList('list'),provDialog],
-  'platform-organization-provisioning':['org',()=>platformDetail().replace('Provisioning</a>','Organizations</a>')],
+  'platform-organization-provisioning':['org',()=>platformOrgProvisioning()],
   'platform-organization-active':['org',()=>platformOrgActive()]
  }[st];
  return `<div class="app ${MOB?'mobile':''}">${sidebar('personal',{platform:P[0],none:true})}${pmain(P[1]())}${P[2]?P[2]():''}</div>`;
+}
+
+const perr=t=>`<div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">${t}</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
+
+/* Kit reference page (not a capture state): every data-view part on one page */
+function kitPage(){
+ const cols=[{label:'Record'},{label:'Status',w:'120px'},{label:'Tag',w:'100px'},{label:'Count',w:'80px',num:true},{label:'Amount',w:'136px',num:true},{label:'Date',w:'120px',mut:true},{label:'Link',w:'90px'},{label:'',w:'56px',cls:'w-menu'}];
+ const rows=[['Ayu Wardani','ayu@hukum-nusantara.co.id','AW','Active','','Owner','12','Rp 1.250.000','2 Sep 2026'],['Bagus Santoso','bagus@sinarhukum.co.id','BS','Unverified','warn','Member','0','Rp 0','12 Nov 2026'],['Lina Hartono','lina@hukum-nusantara.co.id','LH','Disabled','off','Member','3','Rp 48.000','5 Sep 2026']].map(([n,e,i,b,k,t,c,a,d])=>({cells:[C.id(n,e,{av:i}),C.badge(b,k),C.tag(t),c,a,d,'<a class="dv-link" href="#">Open</a>',C.menu()],m:{lead:`<span class="dv-av">${i}</span>`,title:n,sub:e,badge:C.badge(b,k),meta:`${t} · ${c} · ${a} · ${d}`}}));
+ const table=dvCard({head:dvCHead('Data table','Card, optional title, toolbar (search, facets, reset, action), table, bulk bar when rows are selected, footer.'),tool:dvTool({search:'Search',q:'',facets:[dvFacet('Status',['Active']),dvFacet('Tag')],reset:true,action:`<button class="btn primary">${sv('plus')}Primary action</button>`}),table:dvTable({cols,rows,select:true,selected:[0,2]}),bulk:dvBulk(2,'<button class="btn outline sm">Export</button><button class="btn outline sm dtext">Remove</button>'),foot:dvFoot({count:'2 of 3 selected',page:1,pages:1})});
+ const states=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${dvCard({head:dvCHead('Empty'),body:dvEmpty('users','Nothing here yet','One sentence that says what appears here.',`<button class="btn primary">${sv('plus')}Primary action</button>`)})}${dvCard({head:dvCHead('Failure'),body:dvError('We could not load records.')})}</div>`;
+ return `<div class="dv-page"><div class="dv-ph"><div><h1 class="ptitle">Data views kit</h1><p>Reference for LEX-DS-001 §5.7. Every list and every record page in Lexon is built from these parts. Not a capture state.</p></div></div>
+ ${dvHeader({back:'Back to list',av:'AW',title:'Record title',badges:C.badge('Active')+' '+C.badge('Unverified','warn'),meta:['secondary line','Created 2 Sep 2026'],acts:`<button class="btn outline">Secondary</button><button class="btn primary">Primary</button><button class="ib" aria-label="More actions" style="border:1px solid var(--input);width:32px;height:32px">${sv('dots')}</button>`})}
+ ${dvStats([['Stat label','128','Supporting line'],['Money','Rp 1.250.000'],['Date','2 Sep 2026','10:42'],['State','On']])}
+ ${dvCard({head:dvCHead('Description list','Label over value, three columns (two on mobile); ids in mono with a copy button.'),body:dvList([['Text','Hukum Nusantara'],['Email','ayu@hukum-nusantara.co.id'],['Date','2 Sep 2026'],['ID','3c8e1f6a-2b7d-4a90-8c15-e4d9b0a72f31',true],['Yes / no','Yes'],['Badge',C.badge('Active')]])})}
+ ${table}${states}</div>`;
 }
 
 const GROUPS=[
@@ -826,7 +935,7 @@ const GROUPS=[
  ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
  ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed']],
  ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
- ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],
+ ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-filtered','platform-accounts-row-menu','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],
  ['Indicator',['indicator']]
 ];
 const AUTHMAP={'sign-in':'signin','sign-in-field-errors':'signin-errors','sign-up':'signup','forgot-password':'forgot','forgot-password-sent':'forgot-sent','reset-password':'reset','reset-password-invalid':'reset-invalid','verify-email':'verify','two-factor':'twofactor','accept-invitation':'invite','accept-invitation-unavailable':'invite-invalid','admin-setup':'setup','admin-setup-unavailable':'setup-invalid','onboarding':'onboard-1','onboarding-invitations':'onboard-2','onboarding-team':'onboard-3','accept-invitation-declined':'invite-declined','admin-setup-activate':'setup-activate'};
@@ -835,6 +944,7 @@ const THREADMAP={'chat-thinking':'thinking','chat-streaming-scroll':'streaming',
 function screen(st){
  UI={fmenu:st==='chat-floating-menu'};
  const app=(sb,main,extra='',sheet=false)=>`<div class="app ${MOB?'mobile':''} ${MOB&&sheet?'sheet':''}">${MOB&&sheet?'<div class="overlay"></div>':''}${sb}${main}${extra}</div>`;
+ if(st==='kit') return `<div class="app ${MOB?'mobile':''}">${sidebar('personal',{platform:'acct',none:true})}${pmain(kitPage())}</div>`;
  if(AUTHMAP[st]) return `<div class="app ${MOB?'mobile':''}">${authState(AUTHMAP[st])}</div>`;
  if(st==='sign-in-form-alert'||st==='sign-in-pending') return `<div class="app ${MOB?'mobile':''}">${signinVariant(st==='sign-in-pending'?'pending':'alert')}</div>`;
  if(STATUSMAP[st]) return statusPage(STATUSMAP[st]);
@@ -869,10 +979,10 @@ function screen(st){
 }
 const ALLIDS=GROUPS.flatMap(g=>g[1]);
 function render(){
- const S=(qs.get('s')||location.hash.slice(1)||'chat-new'); const st=ALLIDS.includes(S)?S:'chat-new';
+ const S=(qs.get('s')||location.hash.slice(1)||'chat-new'); const st=ALLIDS.includes(S)||S==='kit'?S:'chat-new';
  const inner=screen(st);
  const href=(k,m)=>`?${m?'m=1&':''}${document.documentElement.dataset.theme?'theme='+document.documentElement.dataset.theme+'&':''}#${k}`;
- const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${GROUPS.map(([g,ks])=>`<b style="width:64px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:64px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop 1440×900</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile 390×844</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">State names match the F4.1 capture ids.</span></nav>`;
+ const picker=isShot?'':`<nav class="picker" aria-label="Prototype states">${GROUPS.map(([g,ks])=>`<b style="width:64px">${g}</b>${ks.map(k=>`<a class="${k===st?'cur':''}" href="${href(k,MOB)}">${k}</a>`).join('')}<span style="flex-basis:100%;height:0"></span>`).join('')}<b style="width:64px">Kit</b><a class="${st==='kit'?'cur':''}" href="${href('kit',MOB)}">kit (data views reference)</a><span style="flex-basis:100%;height:0"></span><b style="width:64px">View</b><a class="${MOB?'':'cur'}" href="${href(st,false)}">Desktop 1440×900</a><a class="${MOB?'cur':''}" href="${href(st,true)}">Mobile 390×844</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='light';render()">Light</a><a href="javascript:void 0" onclick="document.documentElement.dataset.theme='dark';render()">Dark</a><span style="color:var(--chrome-fg);font-size:12px;margin-left:8px">State names match the F4.1 capture ids.</span></nav>`;
  document.getElementById('root').innerHTML=picker+`<div class="stage" id="stage">${inner}</div>`;
  document.querySelectorAll('.scrolldown').forEach(b=>{const cw=b.parentElement.querySelector('.cw');if(cw)cw.prepend(b);});fit();
 }

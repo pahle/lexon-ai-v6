@@ -589,29 +589,8 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   500; rows 56px; status as badges (warning badges in `red-text`); a chevron
   opens the detail. Mobile: each row stacks its cells. Loading, empty, and
   error use the skeleton, `Empty`, and error-row patterns.
-- List toolbar: a 36px search input that fills the row, then an optional
-  segmented filter (`muted` track, padding 3px, radius 8px; 28px segments,
-  13px weight 500; the selected segment on `background` with a 1px `border`
-  ring). Mobile: the filter wraps under the search. The primary action
-  ("Provision organization") sits on the title row, right-aligned.
-- Status badges: neutral for normal states (Active, Provisioning), `red-text`
-  warning for states that need attention (Unverified), and a filled `muted`
-  badge with `muted-foreground` text for inactive states (Disabled). A role
-  badge ("Platform administrator") follows the name.
-- Table cells: name 14px weight 500 over a 12px `muted-foreground` second
-  line (email or slug), both single-line with an ellipsis; secondary columns
-  in `muted-foreground`. Mobile: name, second line, status badge, then one
-  13px `muted-foreground` summary line ("Two-step on · 2 teams · Today"); the
-  chevron spans the row.
-- Detail pages: a back link to the list, the title with its status badge,
-  and a 14px subtitle (email or slug and created date). Cards hold a facts
-  list (labels `muted-foreground`, values weight 500, two columns on desktop
-  and mobile), related records as a table, and an **Actions** card. Each
-  action is a row: a 14px weight 500 label with a 13px description on the
-  left and an outline button on the right (destructive actions use
-  `red-text`); rows are separated by a 1px `border`, and stack on mobile.
-  Confirmations use the dialog pattern; the confirm button is `primary`, or
-  `destructive-fill` when access is removed (Disable account).
+- Lists and record pages in platform administration use the data views kit
+  (§5.7).
 
 **Controls**
 
@@ -638,6 +617,86 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   owner before the goldens are locked. Review happens on the sheets, not on
   captures alone.
 
+### 5.7 Data views kit (required for every list and record page)
+
+Every list of records and every page about one record is built from these
+parts, implemented once as shared components in `frontend/` and reused. A
+slice that needs a list or a record page composes them; it does not draw a
+new table or detail layout. A need these parts cannot meet (a board, a
+timeline, a document viewer) is a new pattern, added here first. The
+`kit` page of the prototype shows every part; the platform console
+(revision 16) is the first user. Values are measured at 1440×900 and 390×844.
+
+**List page**
+
+- Page header: title (§3) and a 14px `muted-foreground` description; the
+  page's primary action on the right, bottom-aligned. Column max 1120px,
+  padding 28px 24px 40px (mobile 20px 16px), 20px gaps.
+- Data table card: 1px `border`, radius 12px, `background`, clipping its
+  content. An optional card title (16px semibold) and 13px description sit
+  at the top, padding 16px 20px 0.
+- Toolbar (padding 14px 20px, 8px gaps): search input 280px × 36px with a
+  16px icon; then one **facet button** per filter (36px, dashed 1px
+  `input` border, radius 8px, 13px weight 500, a plus icon and the label;
+  selected values follow a 1px divider as 20px `muted` chips); a **Reset**
+  text button when any filter or search is active; the card's primary
+  action at the right when the page header has none. A facet opens a
+  listbox menu (220px) of checkbox options and Clear filter. Mobile: the
+  search takes the full width and the facets wrap under it.
+- Table: a semantic `table`; header row 40px on `muted`, 13px weight 500
+  `muted-foreground`; body rows 48px, 14px, 1px `border` between rows;
+  outer cell padding 20px, inner 12px.
+  - Cell types: **identity** (28px round initials avatar, or a square
+    initials tile for organizations, then a weight 500 name over a 12px
+    `muted-foreground` second line, both one line with an ellipsis; a role
+    badge may follow the name); **text**; **muted text** (dates, emails);
+    **number and money** (right-aligned, tabular figures; money as
+    `Rp 1.250.000`); **status badge** (§5.5 Platform pages: neutral,
+    `red-text` warning, filled `muted` inactive); **tag** (20px `muted`
+    chip for roles and types); **link**; **row menu** (a 28px ⋯ icon
+    button, menu right-aligned 4px below, destructive items in
+    `red-text`).
+  - Optional selection column (48px checkbox): selected rows on `muted`
+    at 70%, and a **bulk bar** (`muted`, 13px, "N selected" then outline
+    small buttons) above the footer. Use it only when the list has bulk
+    actions.
+  - The whole row opens the record; the row menu holds the record's
+    actions.
+- Footer (padding 10px 16px 10px 20px, 13px `muted-foreground`, 1px
+  `border` above): the count ("248 accounts", or "2 of 3 selected"); on the
+  right Rows per page (10, 20, 50), "Page N of M", and first, previous,
+  next, last buttons (30px, outline; disabled at 45%). Mobile: count, page,
+  and the four buttons.
+- States inside the card: loading (skeleton cells, one row per page row);
+  empty and no results (40px icon tile, 15px semibold title, one 13px
+  sentence, one button; no results offers Reset filters); failure (the
+  error row, §5.5, with Try again). A failure is never shown as empty
+  (§5.1).
+- Mobile: the table becomes a list of rows: avatar or tile, name, second
+  line, the status badge or tag on its own line, then one 13px summary
+  line; the row menu stays at the right.
+
+**Record page**
+
+- Back link to the list (§5.5 auth secondary link style).
+- Record header: 48px round avatar or square tile, the title (§3) with
+  status badges, and a 14px `muted-foreground` meta line separated by
+  `·`; actions on the right: outline secondary actions, one primary at
+  most, and a ⋯ menu (32px outline) for the rest, destructive items last
+  in `red-text`. Mobile: actions wrap under the title.
+- Stat tiles: one row of 2–4 tiles (1px `border`, radius 12px, padding
+  14px 16px): 12px label, 22px semibold value, optional 12px supporting
+  line. Mobile: two per row.
+- Details card: a description list, label (12px weight 500
+  `muted-foreground`) over value (14px weight 500), three columns (two on
+  mobile), 18px × 24px gaps; ids in a 13px mono face with a copy button.
+- Related records: a data table card with a title and description, using
+  the same table, states, and footer.
+- Forms that act on the record (for example Replace owner email) sit in
+  their own card with the card title, description, field, and action.
+- Confirmations use the dialog pattern (§5.5): the confirm button is
+  `primary`, or `destructive-fill` when it removes access or data.
+
 ## 6. Accessibility (required, not advisory)
 
 - WCAG 2.2 AA is the bar: text contrast ≥ 4.5:1, non-text UI ≥ 3:1.
@@ -651,7 +710,7 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 
 | Version | Change |
 |---|---|
-| 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** platform console patterns (§5.5 Platform pages): list toolbar with segmented filter, status badge variants, table cell and mobile summary line, detail pages with facts list and Actions card. **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 |
+| 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** the data views kit (§5.7): one list page (data table card with toolbar, facet filters, typed cells, row menu, optional selection and bulk bar, paged footer, states, mobile rows) and one record page (header with actions, stat tiles, description list, related tables) for every list and record in Lexon, built once as shared components. Status badge variants (§5.5). **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 and its `kit` page |
 | 3.2 | **Added (product owner, F4.2 spec review, 2026-11-19):** load failures are never empty states, and save failures keep the draft (§5.1); Recent load failure, copy failure, and the composer reason line (§5.5), from prototype revision 15. **Changed:** scroll-to-latest sits 12px above the composer box instead of a fixed offset, so it never covers the composer; sessions show no location (as built in F4.1); the §5.1 pattern examples point to the F4.1 prototype. **Removed:** references to the retired F2.1 prototype and the v1.0 brand package |
 | 3.1 | **Changed (product owner, F4.1 visual review round 4, 2026-11-18):** the approved prototype now owns sizes, spacing, and type scale, and screens are built 1:1 with it; shadcn/ui and assistant-ui keep structure, behavior, and accessibility (rationale, §3, §5). This reverses the sizing rule of 1.3. **Added:** type scale (§3); page patterns with measured values (§5.5); prototype fidelity gate with comparison sheets (§5.6); chat title in the header, icon-only answer actions, status lines, error row, edit box (§5.3); Platform group in the sidebar. **Removed:** the "Tools" group label. Visual target: `docs/design/f4.1-prototype/` revision 14 |
 | 3.0.2 | **Changed (product owner, F4.1 visual review, 2026-11-17):** invalid field labels stay ink; only the border and the error text are red (§5.1), as in the approved F4.1 prototype, for every form |
