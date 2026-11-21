@@ -4,6 +4,7 @@ export type VisualIndex = {
   format: string;
   deviceScaleFactor: number;
   pending?: string[];
+  planned?: string[];
   viewports: Record<string, { width: number; height: number }>;
   views: Record<
     string,
@@ -80,6 +81,16 @@ export type VisualBaselineManifest = {
 export function hasSvgSnapshot(view: { lock?: string }): boolean;
 export function isPixelLocked(view: { lock?: string }): boolean;
 export function pendingViewIds(index: { pending?: string[] }): string[];
+export function plannedViewIds(index: { planned?: string[] }): string[];
+export function isPlannedView(
+  index: { planned?: string[] },
+  id: string,
+): boolean;
+export function assertVisualIndexLists(index: {
+  views?: Record<string, unknown>;
+  pending?: string[];
+  planned?: string[];
+}): void;
 export function isPendingView(
   index: { pending?: string[] },
   id: string,

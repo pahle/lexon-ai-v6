@@ -49,6 +49,37 @@ export function isPendingView(index, id) {
   return pendingViewIds(index).includes(id);
 }
 
+/**
+ * Index views drawn in the prototype but not built yet (an explicit `planned`
+ * list in the visual index). A planned view is never captured, never
+ * compared, and has no approval entry. The slice that builds it moves each id
+ * from `planned` to `pending` when it captures it.
+ */
+export function plannedViewIds(index) {
+  return index.planned ?? [];
+}
+
+export function isPlannedView(index, id) {
+  return plannedViewIds(index).includes(id);
+}
+
+/** `pending` and `planned` name indexed views, once each, never both. */
+export function assertVisualIndexLists(index) {
+  const pending = new Set(pendingViewIds(index));
+  const seen = new Set();
+  for (const id of plannedViewIds(index)) {
+    if (!index.views?.[id])
+      throw new Error(
+        `Planned visual view "${id}" is not present in the visual index.`,
+      );
+    if (seen.has(id))
+      throw new Error(`Planned visual view "${id}" is listed twice.`);
+    if (pending.has(id))
+      throw new Error(`Visual view "${id}" is both planned and pending.`);
+    seen.add(id);
+  }
+}
+
 export const DEFAULT_VISUAL_SET = 'F4.1-visual';
 
 /** The directory of a visual set under docs/references (default: F4.1). */
@@ -177,6 +208,10 @@ export function assertIndexedArtifact(
 ) {
   const view = index.views?.[id];
   if (!view) throw new Error(`Visual index has no entry for view "${id}".`);
+  if (isPlannedView(index, id))
+    throw new Error(
+      `Visual view "${id}" is planned: it is not built yet. Capture it only after you move it from planned to pending.`,
+    );
   assertReviewPath(id, view.path, directory, 'review');
   if (mode !== 'capture' && !isPixelLocked(view)) return null;
   const relativePath =
@@ -317,6 +352,14 @@ export function assertApprovedVisualSet(
     );
   }
 
+  assertVisualIndexLists(index);
+  const plannedWithApproval = plannedViewIds(index).find(
+    (id) => approval.images?.[id],
+  );
+  if (plannedWithApproval)
+    throw new Error(
+      `Planned visual view "${plannedWithApproval}" has an approval entry.`,
+    );
   const pending = pendingViewIds(index);
   const unknownPending = pending.find((id) => !index.views[id]);
   if (unknownPending)
@@ -327,7 +370,8 @@ export function assertApprovedVisualSet(
     ([id, view]) =>
       view.path?.startsWith('review/') &&
       isPixelLocked(view) &&
-      !pending.includes(id),
+      !pending.includes(id) &&
+      !isPlannedView(index, id),
   );
   const approvedUnlocked = Object.keys(approval.images ?? {}).find(
     (id) => index.views[id] && !isPixelLocked(index.views[id]),
