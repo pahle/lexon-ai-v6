@@ -118,3 +118,9 @@ export async function createAuthRuntime(
   return (await import('./auth/auth-runtime.js')).createAuthRuntime(options);
 }
 export { accountProfileBodySchema } from './auth/account-profile-schema.js';
+export {
+  isPgStatementTimeout,
+  isPgUniqueViolation,
+  pgFailure,
+  type PgFailure,
+} from './pg-failure.js';

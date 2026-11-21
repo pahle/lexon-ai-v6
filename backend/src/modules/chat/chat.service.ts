@@ -17,6 +17,7 @@ import {
   ChatRepository,
   ChatDeletionRepository,
   ChatSearchRepository,
+  isPgUniqueViolation,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -155,7 +156,7 @@ export class ChatService {
           };
         } catch (error) {
           if (
-            isExpectedUniqueViolation(error, [
+            isPgUniqueViolation(error, [
               'chats_pkey',
               'chat_messages_pkey',
               'chat_create_requests_pkey',
@@ -246,7 +247,7 @@ export class ChatService {
           };
         } catch (error) {
           if (
-            isExpectedUniqueViolation(error, [
+            isPgUniqueViolation(error, [
               'chat_messages_pkey',
               'chat_one_active_answer',
             ])
@@ -406,19 +407,4 @@ export class ChatService {
     );
     if (!renamed) throw new ChatApiError('CHAT_NOT_FOUND');
   }
-}
-
-function isExpectedUniqueViolation(
-  error: unknown,
-  constraints: readonly string[],
-): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === '23505' &&
-    'constraint' in error &&
-    typeof error.constraint === 'string' &&
-    constraints.includes(error.constraint)
-  );
 }
