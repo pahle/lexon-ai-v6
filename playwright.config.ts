@@ -18,6 +18,7 @@ export default defineConfig({
         'backend/test/e2e/rate-limit-proxy.spec.ts',
         'backend/test/e2e/foreign-org-bearer.spec.ts',
         'backend/test/e2e/platform-console-api.spec.ts',
+        'backend/test/e2e/account-invitations.spec.ts',
       ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },

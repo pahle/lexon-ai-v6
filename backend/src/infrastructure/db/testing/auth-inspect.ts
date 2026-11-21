@@ -17,6 +17,13 @@ export function createAuthInspector(options: {
     return Number(result.rows[0]!.count);
   }
   return {
+    /** Raw SQL as the migrator role, for test setup and inspection. */
+    async migratorQuery(text: string, params: unknown[] = []) {
+      return (await migrator.query(text, params)).rows as Record<
+        string,
+        unknown
+      >[];
+    },
     async jobTitle(userId: string) {
       const result = await migrator.query<{ jobTitle: string | null }>(
         'SELECT job_title AS "jobTitle" FROM auth."user" WHERE id = $1',

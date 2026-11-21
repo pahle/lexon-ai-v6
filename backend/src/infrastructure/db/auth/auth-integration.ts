@@ -38,6 +38,18 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
                   ),
               }
             : {}),
+          ...(options.mail.sendAccountInvitation
+            ? {
+                sendAccountInvitation: (
+                  message: Parameters<
+                    NonNullable<typeof options.mail.sendAccountInvitation>
+                  >[0],
+                ) =>
+                  transactions.afterCommit(() =>
+                    options.mail.sendAccountInvitation!(message),
+                  ),
+              }
+            : {}),
           sendVerification: (message) =>
             transactions.afterCommit(() =>
               options.mail.sendVerification(message),

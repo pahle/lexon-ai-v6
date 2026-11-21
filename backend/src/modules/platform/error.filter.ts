@@ -121,7 +121,11 @@ export class SafeErrorFilter implements ExceptionFilter {
     };
     if (error instanceof IdentityError) {
       status = error.status;
-      detail = { code: error.code, message: error.message };
+      detail = {
+        code: error.code,
+        message: error.message,
+        ...(error.issues ? { issues: error.issues } : {}),
+      };
     } else if (error instanceof ChatApiError) {
       status = error.status;
       detail = {

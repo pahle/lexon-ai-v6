@@ -185,7 +185,16 @@ export function createAuthEngine(
       securityPlugin(security),
       sessionPlugin(security),
       provisioningPlugin(organizations, provisioning),
-      platformReadPlugin(platformRead),
+      platformReadPlugin(platformRead, async (email, token) => {
+        if (!options.mail.sendAccountInvitation)
+          throw new Error('Account invitation delivery unavailable');
+        const url = new URL('/sign-up', options.origin);
+        url.searchParams.set('accountInvitation', token);
+        await options.mail.sendAccountInvitation({
+          email,
+          url: url.toString(),
+        });
+      }),
       organizationPrimitivesPlugin(organizations),
       selectionPlugin(selection),
       organization({

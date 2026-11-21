@@ -7,7 +7,14 @@ export type SecurityNotice =
   | 'sessions_revoked';
 export type TransactionalEmail = EmailFields &
   (
-    | { kind: 'verification' | 'reset' | 'email-change' | 'admin-setup' }
+    | {
+        kind:
+          | 'verification'
+          | 'reset'
+          | 'email-change'
+          | 'admin-setup'
+          | 'account-invitation';
+      }
     | { kind: 'invitation'; organizationName: string }
     | { kind: 'security'; reason: SecurityNotice }
   );

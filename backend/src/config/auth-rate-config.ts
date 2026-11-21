@@ -12,6 +12,8 @@ export const AUTH_LIMIT_ACTIONS = [
   'setup-redemption',
   'bearer-issuance',
   'platform-session-revoke',
+  'platform-account-invite',
+  'platform-account-invite-resend',
 ] as const;
 export type AuthLimitAction = (typeof AUTH_LIMIT_ACTIONS)[number];
 export interface AuthRateRule {
@@ -30,6 +32,8 @@ export const DEFAULT_AUTH_RATE_RULES: AuthRateRules = {
   'setup-redemption': { account: 5, ip: 20, windowSeconds: 600 },
   'bearer-issuance': { account: 5, ip: 20, windowSeconds: 60 },
   'platform-session-revoke': { account: 5, ip: 20, windowSeconds: 600 },
+  'platform-account-invite': { account: 20, ip: 20, windowSeconds: 3600 },
+  'platform-account-invite-resend': { account: 3, ip: 10, windowSeconds: 600 },
 };
 const positive = z.number().int().positive();
 const rule = z.strictObject({

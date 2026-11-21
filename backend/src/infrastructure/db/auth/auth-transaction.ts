@@ -244,11 +244,17 @@ export function createAuthTransactions(database: Database) {
         invitationsTotal: () =>
           sql`auth.lexon_platform_account_invitations_total(${text(0)},${arr(1, 'text[]')})`,
         lockEnabledAdmins: () => sql`auth.lexon_platform_lock_enabled_admins()`,
+        createInvitation: () =>
+          sql`auth.lexon_create_account_invitation(${text(0)},${text(1)},${text(2)},${uuid(3)})`,
+        resendInvitation: () =>
+          sql`auth.lexon_resend_account_invitation(${uuid(0)},${text(1)})`,
+        cancelInvitation: () =>
+          sql`auth.lexon_cancel_account_invitation(${uuid(0)})`,
       };
-      const scalar = name.endsWith('Total');
+      const scalar = name.endsWith('Total') || name === 'cancelInvitation';
       const result = await state.database.execute<{ row: unknown }>(
         scalar
-          ? sql`SELECT to_jsonb(t) AS row FROM (SELECT ${calls[name]()} AS total) t`
+          ? sql`SELECT to_jsonb(t) AS row FROM (SELECT ${calls[name]()} AS ${sql.raw(name === 'cancelInvitation' ? 'cancelled' : 'total')}) t`
           : sql`SELECT to_jsonb(f) AS row FROM ${calls[name]()} f`,
       );
       return result.rows.map((r) => r.row as Record<string, unknown>);

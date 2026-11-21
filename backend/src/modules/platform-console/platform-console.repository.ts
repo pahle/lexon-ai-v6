@@ -51,6 +51,16 @@ function check<T extends z.ZodType>(schema: T, value: unknown): z.infer<T> {
   return parsed.data;
 }
 
+export const invitationItem = (r: Row) => ({
+  id: r.id,
+  email: r.email,
+  name: r.name,
+  status: r.status,
+  invitedBy: r.invited_by_name,
+  sentAt: iso(r.sent_at),
+  expiresAt: iso(r.expires_at),
+});
+
 export async function toNumberedPage<T>(
   rows: { item: T; total: number }[],
   page: number,
@@ -259,15 +269,7 @@ export class PlatformConsoleRepository {
       AccountInvitationsPageSchema,
       await toNumberedPage(
         rows.map((r) => ({
-          item: {
-            id: r.id,
-            email: r.email,
-            name: r.name,
-            status: r.status,
-            invitedBy: r.invited_by_name,
-            sentAt: iso(r.sent_at),
-            expiresAt: iso(r.expires_at),
-          },
+          item: invitationItem(r),
           total: num(r.total),
         })),
         page.page,

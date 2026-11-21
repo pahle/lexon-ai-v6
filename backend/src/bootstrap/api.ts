@@ -39,7 +39,10 @@ export async function createApi(
             invitationSeconds: config.auth.invitationSeconds,
             reauthSeconds: config.auth.reauthSeconds,
           }),
-          PlatformConsoleModule.forPort(identity.port),
+          PlatformConsoleModule.forPort(identity.port, {
+            limiter: identity.limiter,
+            reauthSeconds: config.auth.reauthSeconds,
+          }),
         ],
         { check: identity.check },
       ),

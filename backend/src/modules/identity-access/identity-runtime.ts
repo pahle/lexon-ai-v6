@@ -54,6 +54,13 @@ export async function createIdentityRuntime(
         sendPasswordReset: async ({ email, url }) => {
           await mail.send({ kind: 'reset', to: email, actionUrl: url });
         },
+        sendAccountInvitation: async ({ email, url }) => {
+          await mail.send({
+            kind: 'account-invitation',
+            to: email,
+            actionUrl: url,
+          });
+        },
         sendInvitation: async ({ email, url, organizationName }) => {
           await mail.send({
             kind: 'invitation',
@@ -226,6 +233,7 @@ export async function createIdentityRuntime(
     return {
       module,
       port,
+      limiter,
       selection,
       accounts,
       security,

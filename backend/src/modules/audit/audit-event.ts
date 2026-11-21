@@ -214,6 +214,24 @@ const verificationResent = z.strictObject({
   subjectUserId: UuidSchema,
   metadata: z.strictObject({}),
 });
+const invitationAudit = <T extends string>(type: T) =>
+  z.strictObject({
+    ...base,
+    type: z.literal(type),
+    outcome: z.literal('success'),
+    actorUserId: UuidSchema,
+    invitationId: UuidSchema,
+    metadata: z.strictObject({}),
+  });
+const accountInvitationCreated = invitationAudit(
+  'platform.account_invitation_created.v1',
+);
+const accountInvitationResent = invitationAudit(
+  'platform.account_invitation_resent.v1',
+);
+const accountInvitationCancelled = invitationAudit(
+  'platform.account_invitation_cancelled.v1',
+);
 const adminActivated = z.strictObject({
   ...base,
   type: z.literal('platform.admin_activated.v1'),
@@ -381,6 +399,9 @@ export const AuditEventSchema = z.union([
   disabledUser,
   sessionsRevoked,
   verificationResent,
+  accountInvitationCreated,
+  accountInvitationResent,
+  accountInvitationCancelled,
   adminActivated,
   aiRunStarted,
   aiRunFinished,

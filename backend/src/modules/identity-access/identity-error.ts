@@ -4,6 +4,7 @@ export class IdentityError extends Error {
   constructor(
     readonly code: IdentityErrorCode,
     readonly status: number,
+    readonly issues?: { path: string; message: string }[],
   ) {
     super(
       code === 'AUTH_REQUIRED'
