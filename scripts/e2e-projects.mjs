@@ -39,6 +39,7 @@ export const E2E_SHARD_PLAN = [
       e2e('foreign-org-bearer'),
       e2e('platform-identity'),
       e2e('organizations'),
+      e2e('platform-console-api'),
     ],
   },
   {

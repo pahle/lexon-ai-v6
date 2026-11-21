@@ -15,6 +15,10 @@ import { sql } from 'drizzle-orm';
 import { bindAuthAudit, endAuthAudit } from './auth-functions.js';
 import * as schema from './auth-schema.js';
 import type { AuthCommandSession, LexonServerApi } from './auth-types.js';
+import type {
+  PlatformReadName,
+  PlatformReadParam,
+} from './platform-read-plugin.js';
 import type { SecurityPrimitives } from './security-plugin.js';
 import type { SelectionPrimitives } from './selection-plugin.js';
 
@@ -204,8 +208,54 @@ export function createAuthTransactions(database: Database) {
       return result.rows[0]?.applied === true;
     },
   };
+  // Each read runs one named auth.lexon_platform_* function. Rows come back as
+  // JSON so timestamp-without-time-zone columns are not reinterpreted in the
+  // server's local zone by the driver.
+  const pgArray = (values: (string | boolean)[] | null, cast: string) =>
+    values === null
+      ? sql`${null}::${sql.raw(cast)}`
+      : sql`${`{${values.map((v) => `"${String(v)}"`).join(',')}}`}::${sql.raw(cast)}`;
+  const platformReadPrimitives = {
+    async run(name: PlatformReadName, p: PlatformReadParam[]) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      const text = (i: number) => sql`${(p[i] as string | null) ?? null}::text`;
+      const uuid = (i: number) => sql`${p[i] as string}::uuid`;
+      const int = (i: number) => sql`${p[i] as number}::int`;
+      const arr = (i: number, cast: string) =>
+        pgArray(p[i] as (string | boolean)[] | null, cast);
+      const calls: Record<PlatformReadName, () => ReturnType<typeof sql>> = {
+        accounts: () =>
+          sql`auth.lexon_platform_accounts(${text(0)},${arr(1, 'text[]')},${arr(2, 'boolean[]')},${int(3)},${int(4)})`,
+        accountsTotal: () =>
+          sql`auth.lexon_platform_accounts_total(${text(0)},${arr(1, 'text[]')},${arr(2, 'boolean[]')})`,
+        account: () => sql`auth.lexon_platform_account(${uuid(0)})`,
+        accountTeams: () => sql`auth.lexon_platform_account_teams(${uuid(0)})`,
+        organizations: () =>
+          sql`auth.lexon_platform_organizations(${text(0)},${arr(1, 'text[]')},${int(2)},${int(3)})`,
+        organizationsTotal: () =>
+          sql`auth.lexon_platform_organizations_total(${text(0)},${arr(1, 'text[]')})`,
+        organization: () => sql`auth.lexon_platform_organization(${uuid(0)})`,
+        members: () =>
+          sql`auth.lexon_platform_members(${uuid(0)},${int(1)},${int(2)})`,
+        membersTotal: () => sql`auth.lexon_platform_members_total(${uuid(0)})`,
+        invitations: () =>
+          sql`auth.lexon_platform_account_invitations(${text(0)},${arr(1, 'text[]')},${int(2)},${int(3)})`,
+        invitationsTotal: () =>
+          sql`auth.lexon_platform_account_invitations_total(${text(0)},${arr(1, 'text[]')})`,
+      };
+      const scalar = name.endsWith('Total');
+      const result = await state.database.execute<{ row: unknown }>(
+        scalar
+          ? sql`SELECT to_jsonb(t) AS row FROM (SELECT ${calls[name]()} AS total) t`
+          : sql`SELECT to_jsonb(f) AS row FROM ${calls[name]()} f`,
+      );
+      return result.rows.map((r) => r.row as Record<string, unknown>);
+    },
+  };
   return {
     adapterFactory,
+    platformReadPrimitives,
     transaction,
     afterCommit,
     accountLocks,

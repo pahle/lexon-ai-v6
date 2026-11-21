@@ -55,6 +55,7 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
       transactions.selectionPrimitives,
       transactions.provisioningPrimitives,
       transactions.adminSetupPrimitives,
+      transactions.platformReadPrimitives,
     );
     await auth.$context;
     const transaction: AuthIntegration['transaction'] = (work) =>

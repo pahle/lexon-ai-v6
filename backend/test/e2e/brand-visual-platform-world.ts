@@ -16,7 +16,10 @@ import {
 
 const password = 'Brand-operator-42!';
 
-async function enrollAdministrator(page: Page, email: string): Promise<string> {
+export async function enrollAdministrator(
+  page: Page,
+  email: string,
+): Promise<string> {
   const stack = descriptor();
   let uri: string | undefined;
   const seen: string[] = [];
