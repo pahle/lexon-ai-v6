@@ -7,8 +7,12 @@ export const DisplayNameSchema = z
   .trim()
   .min(1, 'Enter a name.')
   .max(100, 'Use at most 100 characters.');
+/** Canonical form of an email address: trimmed and lower-cased. */
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
 export const EmailAddressSchema = z
   .string()
   .trim()
   .pipe(z.email({ error: 'Enter a valid email address.' }))
-  .transform((value) => value.toLowerCase());
+  .transform(normalizeEmail);
