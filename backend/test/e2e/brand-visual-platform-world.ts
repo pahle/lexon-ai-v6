@@ -5,7 +5,7 @@
 // run again on a long-lived stack.
 import { expect, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
+import { readCapturedMail, waitForHydration } from './identity-support.js';
 import { operatorSetup } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
 import { sharedWorld } from './brand-visual-world.js';
@@ -46,6 +46,9 @@ async function enrollAdministrator(page: Page, email: string): Promise<string> {
     await page
       .getByRole('button', { name: 'Create setup account', exact: true })
       .click();
+    await waitForHydration(
+      page.getByRole('button', { name: 'Create account', exact: true }),
+    );
     await page
       .getByLabel('Full name', { exact: true })
       .fill(platformAdmin.name);

@@ -95,6 +95,7 @@ test('insecure cookies require explicit local mode and a loopback public origin'
       ...env,
       AUTH_PUBLIC_ORIGIN: 'https://lexon.example',
       AUTH_LOCAL_DEVELOPMENT: 'false',
+      AUTH_TRUSTED_PROXIES: '172.30.0.2',
     }).secureCookies,
   ).toBe(true);
 });
@@ -140,4 +141,29 @@ test('rate overrides and trusted proxy ranges are strict boot configuration', ()
   expect(() =>
     readAuthConfig({ ...env, AUTH_TRUSTED_PROXIES: '10.0.0.0/99' }),
   ).toThrow();
+});
+
+test('boot fails with an empty AUTH_TRUSTED_PROXIES when local development is off', () => {
+  const production = {
+    ...authConfigEnvironment(),
+    AUTH_PUBLIC_ORIGIN: 'https://lexon.example.test',
+    AUTH_LOCAL_DEVELOPMENT: 'false',
+  };
+  for (const proxies of [undefined, '', '  '])
+    expect(() =>
+      readAuthConfig({
+        ...production,
+        ...(proxies === undefined ? {} : { AUTH_TRUSTED_PROXIES: proxies }),
+      }),
+    ).toThrow(/AUTH_TRUSTED_PROXIES/);
+  expect(
+    readAuthConfig({ ...production, AUTH_TRUSTED_PROXIES: '172.30.0.2' })
+      .trustedProxies,
+  ).toEqual(['172.30.0.2']);
+  expect(
+    readAuthConfig({
+      ...authConfigEnvironment(),
+      AUTH_LOCAL_DEVELOPMENT: 'true',
+    }).trustedProxies,
+  ).toEqual([]);
 });

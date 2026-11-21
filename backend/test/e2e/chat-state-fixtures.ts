@@ -10,6 +10,12 @@ import {
   ChatTreeSchema,
 } from '@lexon/contracts';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import {
+  OrganizationSummarySchema,
+  SwitchResultSchema,
+} from '@lexon/contracts';
+import { authenticateApi } from './identity-support.js';
+import { descriptor } from './runtime-support.js';
 import { freezeMorningClock } from './greeting-clock.js';
 import {
   answer as prototypeAnswer,
@@ -21,10 +27,10 @@ import {
   searchResults,
 } from './prototype-fixtures.js';
 
-export const visualDirectory = resolve('docs/references/F4-visual');
-export const captureDirectory = resolve(visualDirectory, 'captures');
-export const indexPath = resolve(visualDirectory, 'index.json');
-export const manifestPath = resolve(visualDirectory, 'capture-manifest.json');
+// The F4 chat state list is kept as an archived record (index only).
+export const indexPath = resolve(
+  'docs/references/archive/f4-chat-state-index.json',
+);
 export const fixedNow = prototypeNow;
 export const chatId = '00000000-0000-4000-8000-000000000101';
 export const userMessageId = '00000000-0000-4000-8000-000000000102';
@@ -682,7 +688,9 @@ export async function openState(page: Page, baseUrl: string, state: string) {
         : '';
     await page.goto(`${baseUrl}/chats/${chatId}${captureState}`);
     if (state === 'thread-loading') {
-      await expect(page.locator('#main [role="status"]')).toBeVisible();
+      await expect(
+        page.locator('#main [data-slot="aui_thread-history-skeleton"]'),
+      ).toBeVisible();
       return;
     }
     if (state === 'thinking')
@@ -856,4 +864,53 @@ export async function openState(page: Page, baseUrl: string, state: string) {
 
 export function viewportWidth(page: Page) {
   return page.viewportSize()?.width ?? 1440;
+}
+
+/**
+ * Signs in the fixture user, creates the fixture team, and installs the
+ * mocked chat API in the `answer-complete` state (F4.2 G1/G3 browser tests).
+ */
+export async function setupAnsweredChat(page: Page, slug: string) {
+  const stack = descriptor();
+  // A fresh identity and slug per call: the account rate limit and the unique
+  // slug both reject a second test that reuses either.
+  const unique = Math.random().toString(16).slice(2, 10);
+  const headers = await authenticateApi(page.request, {
+    name: 'Ayu Wardani',
+    email: `ayu.wardani.${unique}@hukum-nusantara.co.id`,
+  });
+  const createdTeam = await page.request.post(
+    `${stack.apiUrl}/api/organizations`,
+    {
+      headers,
+      data: { name: 'Hukum Nusantara', slug: `${slug}-${unique}` },
+    },
+  );
+  expect(createdTeam.status()).toBe(201);
+  const team = OrganizationSummarySchema.parse(await createdTeam.json());
+  expect(team).toMatchObject({
+    name: 'Hukum Nusantara',
+    kind: 'team',
+    role: 'owner',
+  });
+  const activeTeam = await page.request.post(
+    `${stack.apiUrl}/api/organizations/active`,
+    { headers, data: { organizationId: team.id } },
+  );
+  expect(activeTeam.status()).toBe(200);
+  expect(SwitchResultSchema.parse(await activeTeam.json())).toMatchObject({
+    status: 'switched',
+    organization: { id: team.id, name: 'Hukum Nusantara', role: 'owner' },
+  });
+  const onboarded = await page.request.post(
+    `${stack.apiUrl}/api/identity/onboarding/complete`,
+    { headers, data: {} },
+  );
+  expect(onboarded.status()).toBe(204);
+  await installChatFixtures(
+    page,
+    () => 'answer-complete',
+    () => {},
+  );
+  return stack;
 }

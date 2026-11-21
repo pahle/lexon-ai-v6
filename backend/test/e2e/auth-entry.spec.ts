@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
+import { readCapturedMail, waitForHydration } from './identity-support.js';
 import { waitForVisualAuthFormReady } from './visual-support.js';
 
 test('F2 auth entry pages expose the shared skip target and responsive page landmarks', async ({
@@ -211,6 +211,9 @@ test('entry signup verifies email before authenticated continuation', async ({
   const email = randomUUID() + '@example.test';
   await page.goto(stack.frontendUrl + '/sign-up');
   await waitForVisualAuthFormReady(page);
+  await waitForHydration(
+    page.getByRole('button', { name: 'Create account', exact: true }),
+  );
   await page.getByLabel('Full name', { exact: true }).fill('Browser identity');
   await page.getByLabel('Work email', { exact: true }).fill(email);
   await page
@@ -245,6 +248,9 @@ test('credential-checked unverified sign-in offers safe verification resend', as
   const returnTo = '/workspace';
   await page.goto(stack.frontendUrl + '/sign-up?returnTo=%2Fworkspace');
   await waitForVisualAuthFormReady(page);
+  await waitForHydration(
+    page.getByRole('button', { name: 'Create account', exact: true }),
+  );
   await page.getByLabel('Full name', { exact: true }).fill('Pending identity');
   await page.getByLabel('Work email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);

@@ -15,7 +15,6 @@ const root = resolve(import.meta.dirname, '../..');
 const setIndex = process.argv.indexOf('--set');
 const visualSet = setIndex >= 0 ? process.argv[setIndex + 1] : undefined;
 const visualDirectory = visualSetDirectory(visualSet, root);
-const isLegacySet = visualDirectory.endsWith('F2.1-visual');
 const outputArgument = process.argv
   .slice(2)
   .find(
@@ -61,7 +60,7 @@ try {
       cwd: root,
       encoding: 'utf8',
     }).trim() === 'true';
-  if (!isLegacySet && !shallow)
+  if (!shallow)
     assertApprovalSourceReachable(approval, (sha) => {
       try {
         execFileSync('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], {
@@ -80,11 +79,9 @@ try {
     {
       sourceSha,
       generatedAt: new Date().toISOString(),
-      expectedViewCount: isLegacySet
-        ? 82
-        : Object.values(pixelLockedViews(index)).filter((view) =>
-            view.path?.startsWith('review/'),
-          ).length,
+      expectedViewCount: Object.values(pixelLockedViews(index)).filter((view) =>
+        view.path?.startsWith('review/'),
+      ).length,
       approvalSha256: sha256(approvalBytes),
       indexSha256: sha256(indexBytes),
       environment: {
@@ -104,10 +101,7 @@ try {
   );
   const output = resolve(
     root,
-    outputArgument ??
-      (isLegacySet
-        ? '.cache/f2.1-visual/baseline-manifest.json'
-        : '.cache/f4.1-visual/baseline-manifest.json'),
+    outputArgument ?? '.cache/f4.1-visual/baseline-manifest.json',
   );
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, JSON.stringify(manifest, null, 2) + '\n');

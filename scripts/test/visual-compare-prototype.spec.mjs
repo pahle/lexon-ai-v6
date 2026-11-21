@@ -17,6 +17,7 @@ import {
   prototypeState,
   variantsFor,
   runCompare,
+  pendingCompareIds,
 } from '../visual-compare-prototype.mjs';
 
 const script = resolve(import.meta.dirname, '../visual-compare-prototype.mjs');
@@ -212,4 +213,19 @@ test('without --gate sheets that fail exit 0; with --gate they exit 1', () => {
     resolve(f.dir, 'dev.md'),
   ]);
   assert.equal(allowed.status, 0, allowed.stderr.toString());
+});
+
+test('pendingCompareIds maps pending view keys to unique capture ids', () => {
+  assert.deepEqual(
+    pendingCompareIds({
+      pending: [
+        'a-b-desktop-light',
+        'a-b-desktop-dark',
+        'a-b-mobile-light',
+        'c-mobile-dark',
+      ],
+    }),
+    ['a-b', 'c'],
+  );
+  assert.deepEqual(pendingCompareIds({}), []);
 });

@@ -232,6 +232,7 @@ export function WorkspaceProvider({
       undefined,
       () => setChatTitleRefreshVersion((version) => version + 1),
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the identity ids; the identity object is rebuilt on each fetch and would re-run the title refresh
   }, [
     identity?.organization.id,
     identity?.user.id,

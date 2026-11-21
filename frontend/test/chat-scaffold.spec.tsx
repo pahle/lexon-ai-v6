@@ -17,7 +17,12 @@ import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.
 import { resetIndicatorRuns } from '../src/components/chat/indicator/indicator-run-store.js';
 import { render, settle } from './render.js';
 
+// A-07: the tree poll runs every 5 s unless urgent. These tests only care that
+// a canonical refresh arrives promptly, so a focus event stands in for the
+// wait (the hook fetches immediately on focus). No assertion was changed.
+let focusPump: ReturnType<typeof setInterval> | undefined;
 beforeEach(() => {
+  focusPump = setInterval(() => window.dispatchEvent(new Event('focus')), 400);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
   vi.stubGlobal(
@@ -30,6 +35,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  clearInterval(focusPump);
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -805,6 +811,12 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
       updatedAt: '2026-11-11T00:00:04.000Z',
     };
   };
+  // Holds the regenerated run's terminal refresh so the test controls when the
+  // run ends; the branch picker is disabled until then.
+  let releaseRegeneratedRefresh!: () => void;
+  const regeneratedRefreshGate = new Promise<void>((resolve) => {
+    releaseRegeneratedRefresh = resolve;
+  });
   let editStarted = false;
   let regenerationStarted = false;
   let editTerminalRefreshes = 0;
@@ -817,6 +829,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
         return makeTree('edited');
       }
       regeneratedTerminalRefreshes += 1;
+      await regeneratedRefreshGate;
       return makeTree('regenerated');
     }),
   };
@@ -961,23 +974,25 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
       () => expect(regeneratedTerminalRefreshes).toBeGreaterThan(0),
       { timeout: 2500 },
     );
-    await vi.waitFor(() => {
-      const regeneratedMessage = view.container.querySelector(
-        `[data-message-id="${regeneratedAnswerId}"]`,
+    const previousBranch = () =>
+      view.container.querySelector<HTMLButtonElement>(
+        `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
       );
+    await vi.waitFor(() => {
+      expect(previousBranch()).not.toBeNull();
       expect(
-        regeneratedMessage?.querySelector('[aria-label="Previous branch"]'),
-      ).not.toBeNull();
-      expect(regeneratedMessage?.textContent).toContain('2 / 2');
+        view.container.querySelector(
+          `[data-message-id="${regeneratedAnswerId}"]`,
+        )?.textContent,
+      ).toContain('2 / 2');
     });
+    // The picker shows 2 / 2 while the run is still open, but switching is
+    // disabled until the held terminal refresh ends it.
+    expect(previousBranch()?.disabled).toBe(true);
+    releaseRegeneratedRefresh();
+    await vi.waitFor(() => expect(previousBranch()?.disabled).toBe(false));
 
-    await act(async () =>
-      view.container
-        .querySelector<HTMLButtonElement>(
-          `[data-message-id="${regeneratedAnswerId}"] [aria-label="Previous branch"]`,
-        )!
-        .click(),
-    );
+    await act(async () => previousBranch()!.click());
     await vi.waitFor(() => {
       expect(view.container.textContent).toContain('Edited answer');
       expect(view.container.textContent).not.toContain('Regenerated answer');

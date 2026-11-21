@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Route } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
 import { descriptor } from './runtime-support.js';
@@ -358,6 +358,17 @@ test('F2 organization entry clears stale cookies without a redirect loop', async
     page.getByRole('heading', { name: 'Sign in to Lexon', exact: true }),
   ).toBeVisible();
 });
+// A request the page cancels while a handler awaits route.fetch() is finalised
+// by Playwright; the handler's later fulfill then throws. Only that is ignored.
+async function fulfillSafely(
+  route: Route,
+  options: Parameters<Route['fulfill']>[0],
+) {
+  await route.fulfill(options).catch((error: unknown) => {
+    if (!/already handled|Target .* closed/.test(String(error))) throw error;
+  });
+}
+
 test('F2 organization 2FA standby and active-page member removal preserve safe Personal selection', async ({
   page,
   playwright,
@@ -546,7 +557,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
         chatsFallbackHeaders.push(
           response.headers()['x-lexon-fallback-reason'],
         );
-        await route.fulfill({ response });
+        await fulfillSafely(route, { response });
       } finally {
         chatsFinished();
       }
@@ -565,7 +576,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
         );
         releaseChats();
         await chatsResponseFinished;
-        await route.fulfill({ response });
+        await fulfillSafely(route, { response });
       } finally {
         organizationsFinished();
       }
@@ -588,9 +599,9 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
             fallbackReason?: string;
           };
           identityFallbackBodies.push(body.fallbackReason);
-          await route.fulfill({ response, json: body });
+          await fulfillSafely(route, { response, json: body });
         } else {
-          await route.fulfill({ response });
+          await fulfillSafely(route, { response });
         }
       } finally {
         identityFinished();
@@ -654,6 +665,8 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     // the reloaded page raced a route the page had already handled, which
     // threw "Route is already handled!" intermittently. 'wait' lets any
     // handler still running finish first.
+    await chatsResponseFinished;
+    await organizationsResponseFinished;
     await page.unrouteAll({ behavior: 'wait' });
     await page.reload();
     await expect(fallback).toHaveCount(0);
@@ -668,7 +681,7 @@ test('F2 organization 2FA standby and active-page member removal preserve safe P
     releaseChats();
     releaseOrganizations();
     releaseIdentity();
-    await page.unrouteAll({ behavior: 'wait' });
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
     await owner.dispose();
   }
 });

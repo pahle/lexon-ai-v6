@@ -35,3 +35,4 @@ export { currentTenantContext } from './request-identity.js';
 export type { TenantRequestContext } from './request-identity.js';
 export type { RunActor } from './run-actor.js';
 export { createWorkerRunActorScope } from './run-actor.js';
+export { RevalidationCache } from './revalidation-cache.js';

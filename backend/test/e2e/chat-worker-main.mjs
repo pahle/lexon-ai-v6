@@ -271,11 +271,13 @@ function createScriptedGateway() {
               ? 'Reasoned synthetic answer.'
               : prompt.includes('[runtime-proof:error]')
                 ? 'Try again succeeded.'
-                : prompt.includes('[runtime-proof:edit]')
-                  ? 'Edited answer.'
-                  : prompt.includes('[runtime-proof:regenerate]')
-                    ? `Sibling answer ${count}.`
-                    : `Scripted answer: ${prompt.replace(/\[runtime-proof:[^\]]+\]/g, '').trim()}`;
+                : prompt.includes('[runtime-proof:edit-unique]')
+                  ? `Edited answer-${runId}.`
+                  : prompt.includes('[runtime-proof:edit]')
+                    ? 'Edited answer.'
+                    : prompt.includes('[runtime-proof:regenerate]')
+                      ? `Sibling answer ${count}.`
+                      : `Scripted answer: ${prompt.replace(/\[runtime-proof:[^\]]+\]/g, '').trim()}`;
         const parts = [...answer].map((text) => ({ type: 'text', text }));
         if (prompt.includes('[task14:preview]')) {
           for (let index = 0; index < answer.length; index += 24) {

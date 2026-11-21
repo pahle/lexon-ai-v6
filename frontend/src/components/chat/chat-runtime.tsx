@@ -27,6 +27,7 @@ import type {
 import type { CreateUIMessage, UIMessage } from 'ai';
 import type { ChatMessage, ChatTree } from '@lexon/contracts';
 import { Button } from '@/components/ui/button';
+import { useTreePolling } from './use-tree-polling';
 import { createChatClient } from '@/lib/chat-client';
 import { LexonChatTransport, type ChatUIMessage } from '@/lib/chat-transport';
 
@@ -48,6 +49,32 @@ export interface ChatRuntimeProps {
   readonly onRunId?: (runId: string | undefined) => void;
   readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
   readonly onStopReady?: (stop: () => Promise<void>) => void;
+}
+
+export interface LeafStore {
+  getSelectedLeafId(): string | null;
+  setSelectedLeafId(leafId: string | null): void;
+  /** Falls back to the server's viewed leaf when the selection vanished. */
+  syncFromTree(tree: ChatTree): void;
+}
+
+/** The single owner of the selected leaf for one chat runtime. */
+export function createLeafStore(initial: string | null): LeafStore {
+  let selected = initial;
+  return {
+    getSelectedLeafId: () => selected,
+    setSelectedLeafId: (leafId) => {
+      selected = leafId;
+    },
+    syncFromTree: (tree) => {
+      if (
+        selected !== null &&
+        tree.messages.some((message) => message.id === selected)
+      )
+        return;
+      selected = tree.viewedLeafId;
+    },
+  };
 }
 
 export function ChatRuntime(props: ChatRuntimeProps) {
@@ -78,10 +105,12 @@ function ChatRuntimeSession({
     string | undefined
   >(() => findActiveRun(tree)?.runId);
   const [selectionSaveFailed, setSelectionSaveFailed] = useState(false);
-  const selectedLeafIdRef = useRef(tree.viewedLeafId);
+  const [leafStore] = useState(() => createLeafStore(tree.viewedLeafId));
   const onRunIdRef = useRef(onRunId);
   const onStreamStateRef = useRef(onStreamState);
   const onStopReadyRef = useRef(onStopReady);
+  const streamReconnectingRef = useRef(false);
+  const streamFrameSeenRef = useRef(false);
   useEffect(() => {
     onRunIdRef.current = onRunId;
   }, [onRunId]);
@@ -105,12 +134,17 @@ function ChatRuntimeSession({
         baseUrl: '/api',
         chatId,
         actorScope,
-        selectedLeafId: tree.viewedLeafId,
+        getSelectedLeafId: leafStore.getSelectedLeafId,
+        setSelectedLeafId: leafStore.setSelectedLeafId,
         effort,
-        onStreamState: (state) => onStreamStateRef.current?.(state),
+        onStreamState: (state) => {
+          streamReconnectingRef.current = state === 'reconnecting';
+          onStreamStateRef.current?.(state);
+        },
         ...(activeRun ? { initialRunId: activeRun.runId } : {}),
         onRunId: handleRunId,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transport is created once per actor and chat; effort, active run and callbacks are read through setters and refs, and recreating it would drop the open stream
     [actorScope, chatId],
   );
 
@@ -124,6 +158,8 @@ function ChatRuntimeSession({
   });
   const chatStatusRef = useRef(chat.status);
   chatStatusRef.current = chat.status;
+  // Spec item 16: poll at 1 s until the first stream frame of the active run.
+  if (chat.status === 'streaming') streamFrameSeenRef.current = true;
   const threadRuntimeRef = useRef<
     ReturnType<typeof useAISDKRuntime>['thread'] | undefined
   >(undefined);
@@ -137,7 +173,7 @@ function ChatRuntimeSession({
       readonly headId: string | null;
     }) => {
       if (headId === null) return;
-      selectedLeafIdRef.current = headId;
+      leafStore.setSelectedLeafId(headId);
       setSelectionSaveFailed(false);
       void transport
         .selectLeaf(headId, () =>
@@ -154,84 +190,81 @@ function ChatRuntimeSession({
   }, [effort, transport]);
 
   useEffect(() => {
+    streamFrameSeenRef.current = false;
     transport.syncActiveRun(activeRun?.runId);
     if (activeRun) {
       setServerActiveRunId(activeRun.runId);
       setRunId(activeRun.runId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the run id only; activeRun is rebuilt from the tree each render
   }, [activeRun?.runId, transport]);
 
-  useEffect(() => {
-    if (!serverActiveRunId || !onTreeRefresh) return;
-    let active = true;
-    let timer: number | undefined;
-    const refresh = async () => {
-      try {
-        const freshTree = await onTreeRefresh();
-        if (!active) return;
-        const selectedLeafId = selectedLeafIdRef.current;
-        const refreshedTree =
-          selectedLeafId !== null &&
-          freshTree.messages.some((message) => message.id === selectedLeafId)
-            ? { ...freshTree, viewedLeafId: selectedLeafId }
-            : freshTree;
-        onTreeUpdate?.(refreshedTree);
-        const freshRun = findActiveRun(freshTree);
-        if (freshRun) {
-          setServerActiveRunId(freshRun.runId);
-          setRunId(freshRun.runId);
-          transport.syncActiveRun(freshRun.runId);
-        } else {
-          const threadRuntime = threadRuntimeRef.current;
-          const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
-          const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
-          const selectedLeafBeforeStop = selectedLeafIdRef.current;
-          const sdkRunIsActive =
-            chatStatusRef.current === 'submitted' ||
-            chatStatusRef.current === 'streaming';
-          transport.invalidateActiveRunStream();
-          if (sdkRunIsActive) await chat.stop();
-          if (!active) return;
-          const currentThreadRuntime = threadRuntimeRef.current;
-          if (currentThreadRuntime) {
-            const currentRepository = currentThreadRuntime.export();
-            const branchChangedDuringStop =
-              selectedLeafIdRef.current !== selectedLeafBeforeStop;
-            importCanonicalTerminalRepository(
-              currentThreadRuntime,
-              reconcileCanonicalTerminalMessages(
-                currentRepository,
-                freshTree,
-                branchChangedDuringStop
-                  ? currentRepository.headId
-                  : visibleLeafBeforeStop,
-                visibleMessagesBeforeStop,
-              ),
-              chat.setMessages,
-            );
-          }
-          setServerActiveRunId(undefined);
-          setRunId(undefined);
-          transport.syncActiveRun(undefined);
+  const refreshTree = async (signal: AbortSignal) => {
+    if (!onTreeRefresh) return;
+    try {
+      const freshTree = await onTreeRefresh();
+      if (signal.aborted) return;
+      leafStore.syncFromTree(freshTree);
+      const selectedLeafId = leafStore.getSelectedLeafId();
+      const refreshedTree =
+        selectedLeafId !== null && selectedLeafId !== freshTree.viewedLeafId
+          ? { ...freshTree, viewedLeafId: selectedLeafId }
+          : freshTree;
+      onTreeUpdate?.(refreshedTree);
+      const freshRun = findActiveRun(freshTree);
+      if (freshRun) {
+        setServerActiveRunId(freshRun.runId);
+        setRunId(freshRun.runId);
+        transport.syncActiveRun(freshRun.runId);
+      } else {
+        const threadRuntime = threadRuntimeRef.current;
+        const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
+        const visibleLeafBeforeStop = visibleMessagesBeforeStop?.at(-1)?.id;
+        const selectedLeafBeforeStop = leafStore.getSelectedLeafId();
+        const sdkRunIsActive =
+          chatStatusRef.current === 'submitted' ||
+          chatStatusRef.current === 'streaming';
+        transport.invalidateActiveRunStream();
+        if (sdkRunIsActive) await chat.stop();
+        if (signal.aborted) return;
+        const currentThreadRuntime = threadRuntimeRef.current;
+        if (currentThreadRuntime) {
+          const currentRepository = currentThreadRuntime.export();
+          const branchChangedDuringStop =
+            leafStore.getSelectedLeafId() !== selectedLeafBeforeStop;
+          importCanonicalTerminalRepository(
+            currentThreadRuntime,
+            reconcileCanonicalTerminalMessages(
+              currentRepository,
+              freshTree,
+              branchChangedDuringStop
+                ? currentRepository.headId
+                : visibleLeafBeforeStop,
+              visibleMessagesBeforeStop,
+            ),
+            chat.setMessages,
+          );
         }
-      } catch {
-        // Keep controls locked until an authoritative refresh succeeds.
+        setServerActiveRunId(undefined);
+        setRunId(undefined);
+        transport.syncActiveRun(undefined);
       }
-      if (active) timer = window.setTimeout(() => void refresh(), 1_000);
-    };
-    timer = window.setTimeout(() => void refresh(), 1_000);
-    return () => {
-      active = false;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [
-    chat.setMessages,
-    chat.stop,
-    onTreeRefresh,
-    onTreeUpdate,
-    serverActiveRunId,
-    transport,
-  ]);
+    } catch (error) {
+      // Keep controls locked until an authoritative refresh succeeds; the
+      // polling hook counts the failure and keeps going.
+      if (signal.aborted) return;
+      throw error;
+    }
+  };
+  useTreePolling({
+    enabled: Boolean(serverActiveRunId && onTreeRefresh),
+    fetchTree: refreshTree,
+    isUrgent: () =>
+      streamReconnectingRef.current ||
+      chatStatusRef.current === 'submitted' ||
+      !streamFrameSeenRef.current,
+    onFailures: () => onStreamStateRef.current?.('reconnecting'),
+  });
 
   const initialRunId = activeRun?.runId;
   const resumedRunRef = useRef<string | undefined>(undefined);
@@ -240,6 +273,7 @@ function ChatRuntimeSession({
     if (!chat.messages.some((message) => message.id === activeRun?.id)) return;
     resumedRunRef.current = initialRunId;
     void chat.resumeStream();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the active-run message and its arrival; chat is a new object each render and would re-resume the stream
   }, [activeRun?.id, chat.messages, chat.resumeStream, initialRunId]);
 
   const stop = useCallback(async () => {

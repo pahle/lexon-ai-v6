@@ -83,7 +83,7 @@ test('verified enrollment authenticates only its replacement session; old sessio
     )!;
     await expect(
       run('/two-factor/verify-totp', { code: invalidEnrollmentCode }, current),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ message: 'Native factor operation failed' });
     expect(
       (
         await proof.integration.transaction((tx) =>
@@ -134,7 +134,7 @@ test('verified enrollment authenticates only its replacement session; old sessio
         { code: totpForUri(setup.totpURI), trustDevice: true },
         full,
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ name: 'ZodError' });
     const challenge = await run(
       '/sign-in/email',
       { email, password },
@@ -164,7 +164,7 @@ test('verified enrollment authenticates only its replacement session; old sessio
         { code: setup.backupCodes[0]! },
         cookieHeaders(recovered),
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ message: 'Native factor operation failed' });
   } finally {
     await proof.close();
   }
@@ -386,7 +386,7 @@ test('audit failure rolls back verified enrollment, its replacement session and 
         { code: totpForUri(setup.totpURI) },
         headers,
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ cause: { code: 'P0001' } });
     const rolledBack = await proof.integration.transaction((tx) =>
       tx.call('getSession', { headers }),
     );
@@ -404,7 +404,7 @@ test('audit failure rolls back verified enrollment, its replacement session and 
     await audit.rejectInserts();
     await expect(
       security.run('/two-factor/generate-backup-codes', { password }, full),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ cause: { code: 'P0001' } });
     await audit.close();
     audit = createAuditInspector(services);
     await expect(

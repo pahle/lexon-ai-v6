@@ -8,8 +8,9 @@ node_modules/
 **/.next/
 **/.test-build/
 **/*.tsbuildinfo
-.env
-.env.local
+**/.env
+**/.env.*
+!**/.env.example
 coverage/
 playwright-report/
 test-results/
@@ -22,3 +23,6 @@ test-results/
 
 # Vitest JSON output written by test:unit
 .vitest/
+
+docs/references/F4.1-visual/compare/
+docs/references/F4.1-visual/review/contact-sheets/

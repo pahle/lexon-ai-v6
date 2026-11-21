@@ -8,7 +8,9 @@ import {
   type ChatStreamRecoveryMode,
 } from '@lexon/contracts';
 import {
+  IdentityError,
   RUN_SSE_REVALIDATION,
+  RevalidationCache,
   RunAuthorizationService,
   type RunActor,
   type VerifiedIdentity,
@@ -33,6 +35,7 @@ const PROCESS_ID = randomUUID();
 const MAX_PENDING_TITLE_INVALIDATIONS = 64;
 const TITLE_INVALIDATION_HEARTBEAT_MS = 15_000;
 const TITLE_INVALIDATION_DRAIN_MS = 5000;
+const REVALIDATION_INTERVAL_MS = 5000;
 interface AuthorizationCheck {
   expiresAt: number;
   readonly pending: Promise<void>;
@@ -96,6 +99,16 @@ async function sharedSnapshotRead(
   return pending;
 }
 
+// Only a revoked session (401/403) or a lost ownership check closes a stream;
+// an outage (AUTH_UNAVAILABLE, pool timeout) keeps it open for the next check.
+function closesStream(error: unknown): boolean {
+  return (
+    error instanceof NotFoundException ||
+    (error instanceof IdentityError &&
+      (error.status === 401 || error.status === 403))
+  );
+}
+
 interface RunSseRevalidation {
   assert(identity: VerifiedIdentity, orgId: string): Promise<void>;
 }
@@ -114,6 +127,15 @@ export class RunEventsService {
     @Inject(RUN_SSE_REVALIDATION)
     private readonly revalidation: RunSseRevalidation,
   ) {}
+
+  // One single-flight cache for every stream's session assert in this process.
+  readonly #revalidation = new RevalidationCache({ ttlMs: 1000 });
+  #revalidate(identity: VerifiedIdentity, orgId: string): Promise<void> {
+    return this.#revalidation.get(
+      { userId: identity.userId, sessionId: identity.sessionId, orgId },
+      () => this.revalidation.assert(identity, orgId),
+    );
+  }
 
   readonly #local = new Map<
     string,
@@ -160,7 +182,8 @@ export class RunEventsService {
       if (admitted.evicted?.processId === PROCESS_ID)
         await this.#local.get(admitted.evicted.connectionId)?.close();
     } catch {
-      throw new NotFoundException();
+      // The chat is known to be the caller's; a failed admission is an outage.
+      throw new IdentityError('STREAM_UNAVAILABLE', 503);
     }
 
     let closed = false;
@@ -210,10 +233,12 @@ export class RunEventsService {
             chatId = nextChatId;
           }
           try {
-            await this.revalidation.assert(identity, orgId);
-          } catch {
-            await close('revoked');
-            return;
+            await this.#revalidate(identity, orgId);
+          } catch (error) {
+            if (closesStream(error)) {
+              await close('revoked');
+              return;
+            }
           }
           if (closed) return;
           const event = ChatInvalidationEventSchema.parse({
@@ -291,6 +316,10 @@ export class RunEventsService {
         })();
       }, TITLE_INVALIDATION_HEARTBEAT_MS);
       heartbeat.unref();
+      // Lease renewal every 1 s; session revalidation every 5 s. Only a 401 or
+      // 403 (revoked session) closes the stream: an outage keeps it open and
+      // the next 5 s attempt decides.
+      let lastRevalidation = Date.now();
       renewal = setInterval(() => {
         if (closed || !lease || checkingLease) return;
         checkingLease = true;
@@ -298,7 +327,13 @@ export class RunEventsService {
           const current = await this.registry.renew(lease!);
           if (!current) return close('evicted');
           lease = current;
-          await this.revalidation.assert(identity, orgId);
+          if (Date.now() - lastRevalidation < REVALIDATION_INTERVAL_MS) return;
+          lastRevalidation = Date.now();
+          try {
+            await this.#revalidate(identity, orgId);
+          } catch (error) {
+            if (closesStream(error)) return close('revoked');
+          }
         })()
           .catch(() => close('revoked'))
           .finally(() => {
@@ -343,7 +378,8 @@ export class RunEventsService {
       if (admitted.evicted?.processId === PROCESS_ID)
         await this.#local.get(admitted.evicted.connectionId)?.close();
     } catch {
-      throw new NotFoundException();
+      // The chat is known to be the caller's; a failed admission is an outage.
+      throw new IdentityError('STREAM_UNAVAILABLE', 503);
     }
     const streamKey = `${this.queuePrefix}:{run-streams}:${runId}:events`;
     const snapshotKey = `${orgId}|${userId}|${runId}|${identity.channel}|${identity.sessionId}`;
@@ -385,7 +421,7 @@ export class RunEventsService {
             pending: Promise.resolve(),
           };
           const pending = (async () => {
-            await this.revalidation.assert(identity, orgId);
+            await this.#revalidate(identity, orgId);
             const owned = await this.database.withTenant(
               { orgId, userId },
               (tx) => this.runs.existsForOwnedChat(tx, runId, userId),
@@ -411,7 +447,9 @@ export class RunEventsService {
         }
         await check.pending;
       })()
-        .catch(() => close('revoked'))
+        .catch((error: unknown) => {
+          if (closesStream(error)) return close('revoked');
+        })
         .finally(() => {
           checkingAuthorization = false;
         });
@@ -456,7 +494,7 @@ export class RunEventsService {
       }
       const reloadFallback = async () => {
         const refreshed = await sharedSnapshotRead(snapshotKey, async () => {
-          await this.revalidation.assert(identity, orgId);
+          await this.#revalidate(identity, orgId);
           const value = await this.database.withTenant(
             { orgId, userId },
             (tx) => this.runs.authorizedChatSnapshot(tx, runId, userId),

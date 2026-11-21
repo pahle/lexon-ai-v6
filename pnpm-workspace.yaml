@@ -7,6 +7,7 @@ saveExact: true
 autoInstallPeers: false
 strictPeerDependencies: true
 overrides:
+  # pinned; frontend/test/assistant-ui-contract.spec.tsx must stay green on upgrade
   '@assistant-ui/core': 0.3.33
   '@assistant-ui/store': 0.3.23
   '@assistant-ui/tap': 0.9.25

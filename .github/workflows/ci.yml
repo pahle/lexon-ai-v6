@@ -59,11 +59,17 @@ jobs:
       - name: Tooling and cleanup assertions
         run: node --test scripts/test/*.spec.mjs
   compose-e2e:
+    name: compose-e2e (${{ matrix.shard }}/3)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       CI: true
       NEXT_TELEMETRY_DISABLED: 1
+      LEXON_E2E_PROJECT: lexon-e2e-${{ github.run_id }}-${{ matrix.shard }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -81,46 +87,194 @@ jobs:
         run: |
           visual_status="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(JSON.parse(readFileSync("docs/references/F4.1-visual/approval.json", "utf8")).status)')"
           printf 'status=%s\n' "$visual_status" >> "$GITHUB_OUTPUT"
-      - name: Record visual capture freshness marker
-        if: github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+      - name: Mark the start of this shard's visual output
         run: |
-          node -e 'const { mkdirSync, writeFileSync } = require("node:fs"); mkdirSync(".cache/f4.1-visual", { recursive: true }); writeFileSync(".cache/f4.1-visual/start-epoch-ms.txt", `${Date.now()}\n`);'
+          mkdir -p .cache
+          touch .cache/shard-start
       - name: Full Compose browser API and topology layer
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ inputs.visual_mode }}" = "update" ]; then
-              LEXON_VISUAL_MODE=update pnpm test:e2e --update-snapshots
+              LEXON_VISUAL_MODE=update pnpm test:e2e --shard=${{ matrix.shard }}/3 --reporter=blob --update-snapshots
             elif [ "${{ inputs.visual_mode }}" = "capture" ]; then
-              LEXON_VISUAL_MODE=capture pnpm test:e2e
+              LEXON_VISUAL_MODE=capture pnpm test:e2e --shard=${{ matrix.shard }}/3 --reporter=blob
             else
-              LEXON_VISUAL_MODE=compare pnpm test:e2e
+              LEXON_VISUAL_MODE=compare pnpm test:e2e --shard=${{ matrix.shard }}/3 --reporter=blob
             fi
           else
-            pnpm test:e2e
+            pnpm test:e2e --shard=${{ matrix.shard }}/3 --reporter=blob
           fi
+      - name: Upload Playwright blob report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: blob-${{ github.run_id }}-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Upload F4 chat preview captures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: f4-chat-preview-${{ github.sha }}
+          name: f4-chat-preview-${{ github.sha }}-shard-${{ matrix.shard }}
           path: |
             test-results/f4-chat/*.png
             test-results/f4-chat/*.json
           retention-days: 14
           if-no-files-found: ignore
+      - name: Read pending visual list
+        id: visual-pending
+        if: always()
+        run: |
+          pending_count="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(String((JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending ?? []).length))')"
+          printf 'count=%s\n' "$pending_count" >> "$GITHUB_OUTPUT"
+          # Only the pending views this shard captured (pending.txt is written by its capture helper).
+          pending_ids="$(node -e 'const { existsSync, readFileSync } = require("node:fs"); const dir = "docs/references/F4.1-visual/"; const pending = new Set(JSON.parse(readFileSync(dir + "index.json", "utf8")).pending ?? []); const lines = existsSync(dir + "pending.txt") ? readFileSync(dir + "pending.txt", "utf8").split("\n").map((l) => l.trim()) : []; process.stdout.write([...new Set(lines.filter((l) => pending.has(l)).map((l) => l.replace(/-(desktop|mobile)-(light|dark)$/, "")))].join(","))')"
+          printf 'ids=%s\n' "$pending_ids" >> "$GITHUB_OUTPUT"
+      - name: Compare pending captures with the prototype
+        if: always() && steps.visual-pending.outputs.ids != ''
+        run: node scripts/visual-compare-prototype.mjs --pending --ids "${{ steps.visual-pending.outputs.ids }}" --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/pending-compare
+      - name: Upload pending visual captures
+        if: always() && steps.visual-pending.outputs.ids != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-pending-${{ github.run_id }}-shard-${{ matrix.shard }}
+          path: |
+            docs/references/F4.1-visual/review/*.png
+            docs/references/F4.1-visual/review/*.masks.json
+            docs/references/F4.1-visual/pending.txt
+            docs/references/F4.1-visual/pending-compare/*
+            docs/references/F4.1-visual/pending-compare/results.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload visual compare sheets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-compare-${{ github.run_id }}-shard-${{ matrix.shard }}
+          path: |
+            docs/references/F4.1-visual/compare/*
+            docs/references/F4.1-visual/review/contact-sheets/*
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Collect this shard's visual output
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode != 'compare'
+        run: |
+          mkdir -p .cache/shard-visual
+          cd docs/references/F4.1-visual
+          find . -type f -newer "$GITHUB_WORKSPACE/.cache/shard-start" -print0 | xargs -0 -r cp --parents -t "$GITHUB_WORKSPACE/.cache/shard-visual"
+      - name: Upload F4.1 Linux visual set
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode != 'compare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f4.1-visual-${{ inputs.visual_mode }}-${{ github.sha }}-shard-${{ matrix.shard }}
+          # Only the files this shard wrote, under one root: shards never overlap.
+          path: .cache/shard-visual
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Sanitized test artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lexon-e2e-results-${{ github.run_id }}-shard-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+  merge-e2e:
+    needs: compose-e2e
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: blob-*
+          path: blob
+          merge-multiple: true
+      - name: Merge the shard reports
+        run: npx playwright merge-reports --reporter html ./blob
+      - name: Read pending visual list
+        id: pending
+        run: |
+          pending_count="$(node -e 'const { readFileSync } = require("node:fs"); process.stdout.write(String((JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending ?? []).length))')"
+          printf 'count=%s\n' "$pending_count" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: steps.pending.outputs.count != '0'
+        with:
+          pattern: visual-pending-${{ github.run_id }}-shard-*
+          path: pending-shards
+      - name: Every pending view was captured by some shard
+        if: steps.pending.outputs.count != '0'
+        run: |
+          node -e 'const { existsSync, readFileSync, readdirSync } = require("node:fs"); const pending = JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending; const got = new Set(); if (existsSync("pending-shards")) for (const dir of readdirSync("pending-shards")) { const file = "pending-shards/" + dir + "/pending.txt"; if (existsSync(file)) for (const l of readFileSync(file, "utf8").split("\n")) got.add(l.trim()); } const missing = pending.filter((id) => !got.has(id)); if (missing.length > 0) { console.error("No shard captured pending views: " + missing.join(", ")); process.exit(1); }'
+      - name: Upload merged Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report
+          retention-days: 14
+          if-no-files-found: ignore
+  visual-assemble:
+    needs: compose-e2e
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.visual_mode != 'compare' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @lexon/contracts build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Record visual capture freshness marker
+        if: inputs.visual_mode == 'capture'
+        run: |
+          node -e 'const { mkdirSync, writeFileSync } = require("node:fs"); mkdirSync(".cache/f4.1-visual", { recursive: true }); writeFileSync(".cache/f4.1-visual/start-epoch-ms.txt", `${Date.now()}\n`);'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: f4.1-visual-${{ inputs.visual_mode }}-${{ github.sha }}-shard-*
+          path: .cache/shard-in
+          merge-multiple: true
+      - name: Merge the shard output into the visual set
+        # Each shard uploaded only files newer than its own start marker, so a
+        # copy (new mtime, no -p) marks exactly the views the shards captured.
+        # A view no shard captured keeps its checkout time and fails the
+        # freshness check; the check does not rely on artifact mtimes.
+        run: |
+          mkdir -p .cache/shard-in
+          cp -R .cache/shard-in/. docs/references/F4.1-visual/
       - name: Write F4.1 visual capture manifest
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        if: inputs.visual_mode == 'capture'
         run: |
           marker="$(cat .cache/f4.1-visual/start-epoch-ms.txt)"
           node scripts/test/visual-capture-manifest.mjs --set F4.1-visual --not-before "$marker"
       - name: Compare F4.1 captures with the prototype
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'capture'
+        if: inputs.visual_mode == 'capture'
         run: node scripts/visual-compare-prototype.mjs --capture-dir docs/references/F4.1-visual/review --out-dir docs/references/F4.1-visual/compare
       - name: Verify F4.1 approved Linux baseline manifest
-        if: success() && github.event_name == 'workflow_dispatch' && inputs.visual_mode == 'update'
+        if: inputs.visual_mode == 'update' && needs.compose-e2e.result == 'success'
         run: node scripts/test/write-visual-baseline-manifest.mjs --set F4.1-visual
       - name: Upload F4.1 Linux visual set
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.visual_mode != 'compare'
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: f4.1-visual-${{ inputs.visual_mode }}-${{ github.sha }}
@@ -134,12 +288,4 @@ jobs:
             .cache/f4.1-visual/baseline-manifest.json
             .cache/f4.1-visual/start-epoch-ms.txt
           retention-days: 14
-          if-no-files-found: ignore
-      - name: Sanitized test artifacts
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: lexon-e2e-results
-          path: test-results/
-          retention-days: 7
           if-no-files-found: ignore

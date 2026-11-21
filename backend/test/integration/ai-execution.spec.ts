@@ -5338,14 +5338,14 @@ test('renews a short-lived claim while the context collector is delayed', async 
   try {
     let contextCompleted = false;
     const h = await setup(ai, [{ events: [success] }], {
-      leaseMs: 90,
+      leaseMs: 600,
       profile: { ...profile, contextBudgets: { delayed: 64 } },
       contexts: [
         {
           id: 'delayed',
           version: 1,
           async collect() {
-            await new Promise((resolve) => setTimeout(resolve, 260));
+            await new Promise((resolve) => setTimeout(resolve, 1800));
             contextCompleted = true;
             return [{ label: 'source', text: 'safe fact' }];
           },

@@ -31,6 +31,25 @@ export async function readCapturedMail(
   if (!captured) throw new Error('Expected test mail');
   return captured;
 }
+/**
+ * Waits until React has hydrated the element. The auth forms are plain
+ * `method="post"` forms, so a click before hydration is a native navigation
+ * that reloads the page with an empty form instead of running the client
+ * submit handler. React attaches `__reactProps$*` to an element only when it
+ * hydrates it, which also works in the production build (the
+ * data-lexon-visual-auth-ready marker only exists under LEXON_VISUAL_DEV).
+ */
+export async function waitForHydration(
+  locator: import('@playwright/test').Locator,
+): Promise<void> {
+  await expect
+    .poll(() =>
+      locator.evaluate((element) =>
+        Object.keys(element).some((key) => key.startsWith('__reactProps$')),
+      ),
+    )
+    .toBe(true);
+}
 export async function authenticateApi(
   request: import('@playwright/test').APIRequestContext,
   fixture: { name?: string; email?: string; password?: string } = {},

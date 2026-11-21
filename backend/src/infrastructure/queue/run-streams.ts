@@ -107,6 +107,8 @@ export interface RunStreamsOptions {
   readonly prefix: string;
   readonly authority: RunStreamAuthority;
   readonly capacity?: StreamCapacity;
+  /** Per-publication deadline; defaults to 250 ms. Tests on loaded runners may widen it. */
+  readonly publicationDeadlineMs?: number;
 }
 
 interface SerializedQueue {
@@ -124,7 +126,7 @@ interface SerializedQueue {
 
 const MAX_PENDING_PUBLICATIONS = 4;
 const MAX_PARTS_PER_PUBLICATION = 32;
-const PUBLICATION_DEADLINE_MS = 250;
+const DEFAULT_PUBLICATION_DEADLINE_MS = 250;
 // More than four publication deadlines; a fresh publication always rechecks PostgreSQL.
 const DELETED_RUN_STREAM_FENCE_TTL_SECONDS = 2;
 
@@ -139,6 +141,7 @@ export class RunStreams {
   readonly #authority: RunStreamAuthority;
   readonly #capacity: StreamCapacity;
   readonly #serial = new Map<string, SerializedQueue>();
+  readonly publicationDeadlineMs: number;
 
   constructor(options: RunStreamsOptions) {
     if (!/^[a-zA-Z0-9:_-]{1,80}$/.test(options.prefix))
@@ -146,6 +149,8 @@ export class RunStreams {
     this.#prefix = `${options.prefix}:{run-streams}`;
     this.#authority = options.authority;
     this.#capacity = options.capacity ?? new StreamCapacity();
+    this.publicationDeadlineMs =
+      options.publicationDeadlineMs ?? DEFAULT_PUBLICATION_DEADLINE_MS;
     this.#client = new Redis(options.url, {
       lazyConnect: true,
       enableOfflineQueue: false,
@@ -173,7 +178,7 @@ export class RunStreams {
     readonly eventId?: string;
     readonly generation: number;
   }> {
-    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    const deadlineAt = performance.now() + this.publicationDeadlineMs;
     if (
       !validClaim(claim) ||
       event.runId !== claim.runId ||
@@ -240,7 +245,7 @@ export class RunStreams {
     event: RunStreamEvent,
     options: { readonly resetToSnapshot?: boolean } = {},
   ): Promise<void> {
-    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    const deadlineAt = performance.now() + this.publicationDeadlineMs;
     await this.#finishWithinDeadline(claim, event, options, deadlineAt);
   }
 
@@ -369,7 +374,7 @@ export class RunStreams {
     claim: CommittedStreamReference,
     events: readonly RunStreamEvent[],
   ): Promise<'written' | 'unavailable' | 'stale'> {
-    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    const deadlineAt = performance.now() + this.publicationDeadlineMs;
     if (
       !validCommittedReference(claim) ||
       events.length < 1 ||
@@ -425,7 +430,7 @@ export class RunStreams {
     )
       throw new Error('Invalid run stream recovery snapshot');
     if (!validClaim(claim)) return 'stale';
-    const deadlineAt = performance.now() + PUBLICATION_DEADLINE_MS;
+    const deadlineAt = performance.now() + this.publicationDeadlineMs;
     const parts = encodeStreamParts(
       durableSnapshot,
       this.#capacity.limits.maxEventBytes,

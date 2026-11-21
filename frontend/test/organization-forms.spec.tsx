@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { vi, test, expect } from 'vitest';
 import { render, settle } from './render';
+import { IdentityClientError } from '../src/lib/identity-client';
 
 const api = vi.hoisted(() => ({ createOrganization: vi.fn() }));
 const toast = vi.hoisted(() => ({ success: vi.fn() }));
@@ -57,5 +58,28 @@ test('Create team shows pending feedback and toasts after the existing API call 
   expect(toast.success).toHaveBeenCalledWith(
     'Team created. Your current organization is unchanged.',
   );
+  await view.unmount();
+});
+
+test('a 409 ORG_SLUG_TAKEN response becomes the slug field error, not a form alert', async () => {
+  api.createOrganization.mockRejectedValue(
+    new IdentityClientError('ORG_SLUG_TAKEN', 409),
+  );
+  const view = await render(<CreateTeam />);
+  await fill(view.container.querySelector('input[name="name"]')!, 'Hukum');
+  await fill(view.container.querySelector('input[name="slug"]')!, 'hukum');
+  await act(async () =>
+    view.container
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+  );
+  await settle();
+  const error = view.container.querySelector('#slug-error, [id$="-error"]');
+  expect(error?.textContent).toBe(
+    'That team slug is already taken. Choose another.',
+  );
+  expect(
+    view.container.querySelector('[role="alert"]')?.textContent ?? '',
+  ).not.toContain('Unable to complete');
   await view.unmount();
 });

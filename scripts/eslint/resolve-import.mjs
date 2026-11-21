@@ -150,7 +150,11 @@ export function classifyImport({
     target === 'backend/src/infrastructure/db/index.js';
   const authTarget = target?.replace(/\.js$/, '.ts');
   const testSource = source.startsWith('backend/test/');
-  if (target?.startsWith('backend/test/') && !testSource)
+  // The burst harness unit test (F4.2 item 27) reads its pure helper module.
+  const burstHarnessTest =
+    source === 'scripts/test/chat-load-burst.spec.mjs' &&
+    target === 'backend/test/load/burst-harness.mjs';
+  if (target?.startsWith('backend/test/') && !testSource && !burstHarnessTest)
     return deny('test-private');
   if (dbPublic && owner === 'backend' && !inDb && !testSource && !typeOnly) {
     if (
@@ -190,7 +194,15 @@ export function classifyImport({
     specifier === 'pg' &&
     names.length === 1 &&
     names[0] === 'Client';
-  if (databasePackage(specifier) && !inDb && !e2eChatTreeReader)
+  // Test-only auth pool metric (LEXON_LOAD_METRICS=1, F4.2 item 27).
+  const e2eLoadPoolMetric =
+    source === 'backend/test/e2e/chat-load-api-main.mjs' && specifier === 'pg';
+  if (
+    databasePackage(specifier) &&
+    !inDb &&
+    !e2eChatTreeReader &&
+    !e2eLoadPoolMetric
+  )
     return deny('database-owner');
   if (aiPackage(specifier) && !inAi && !testSource) {
     const client =

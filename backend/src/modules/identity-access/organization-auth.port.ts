@@ -8,7 +8,7 @@ import {
   verifiedIdentityHeaders,
   type VerifiedIdentity,
 } from './identity.types.js';
-import { IdentityError } from './identity-error.js';
+import { IdentityError, mapSlugConflict } from './identity-error.js';
 import { IdentityPolicy } from './identity-policy.js';
 
 function databaseFailure(error: unknown): {
@@ -96,6 +96,8 @@ export class OrganizationAuthPort {
           return work(tx, new Headers(headers));
         });
       } catch (error) {
+        const conflict = mapSlugConflict(error);
+        if (conflict) throw conflict;
         const failure = databaseFailure(error);
         if (failure.constraint === 'lexon_team_owner')
           throw new IdentityError('ORG_LAST_OWNER', 409);

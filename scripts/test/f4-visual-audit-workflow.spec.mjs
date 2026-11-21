@@ -12,6 +12,10 @@ const composeJob = workflow.match(
   / {2}compose-e2e:\n([\s\S]*?)(?=\n {2}[\w-]+:\n|$)/,
 )?.[1];
 assert.ok(composeJob, 'Compose E2E job exists');
+const assembleJob = workflow.match(
+  / {2}visual-assemble:\n([\s\S]*?)(?=\n {2}[\w-]+:\n|$)/,
+)?.[1];
+assert.ok(assembleJob, 'visual assemble job exists');
 
 function stepBlock(job, name) {
   const start = job.indexOf(`      - name: ${name}\n`);
@@ -30,50 +34,63 @@ test('manual capture mode preserves compare, update, and normal Compose E2E beha
     'Full Compose browser API and topology layer',
   );
   assert.match(compose, /inputs\.visual_mode.*capture/);
-  assert.match(compose, /LEXON_VISUAL_MODE=capture pnpm test:e2e\s*(?:\n|$)/);
+  assert.match(
+    compose,
+    /LEXON_VISUAL_MODE=capture pnpm test:e2e --shard=\$\{\{ matrix\.shard \}\}\/3 --reporter=blob\s*(?:\n|$)/,
+  );
   assert.doesNotMatch(
     compose,
     /LEXON_VISUAL_MODE=capture[^\n]*--update-snapshots/,
   );
   assert.match(
     compose,
-    /LEXON_VISUAL_MODE=update pnpm test:e2e --update-snapshots/,
+    /LEXON_VISUAL_MODE=update pnpm test:e2e --shard=\$\{\{ matrix\.shard \}\}\/3 --reporter=blob --update-snapshots/,
   );
   assert.match(compose, /LEXON_VISUAL_MODE=compare pnpm test:e2e/);
-  assert.match(compose, /else\s+pnpm test:e2e/);
+  assert.match(compose, /else\s+pnpm test:e2e --shard=/);
 });
 
 test('manual capture records a post-checkout freshness marker and always validates the manifest', () => {
-  const checkout = composeJob.indexOf('- uses: actions/checkout@');
+  const checkout = assembleJob.indexOf('- uses: actions/checkout@');
   const marker = stepBlock(
-    composeJob,
+    assembleJob,
     'Record visual capture freshness marker',
   );
+  const download = assembleJob.indexOf('actions/download-artifact@');
+  const manifest = stepBlock(assembleJob, 'Write F4.1 visual capture manifest');
   const capture = stepBlock(
     composeJob,
     'Full Compose browser API and topology layer',
   );
-  const manifest = stepBlock(composeJob, 'Write F4.1 visual capture manifest');
   const captureBranch = capture.match(
     /(?:if|elif) \[ "\$\{\{ inputs\.visual_mode \}\}" = "capture" \]; then\n([\s\S]*?)\n\s*(?:elif|else|fi)/,
   )?.[1];
-  assert.ok(checkout >= 0, 'Compose job checks out the repository');
-  assert.ok(checkout < composeJob.indexOf(marker));
-  assert.ok(composeJob.indexOf(marker) < composeJob.indexOf(capture));
-  assert.ok(composeJob.indexOf(capture) < composeJob.indexOf(manifest));
+  assert.ok(checkout >= 0, 'assemble job checks out the repository');
+  assert.ok(checkout < assembleJob.indexOf(marker));
+  // The marker precedes the shard downloads, so downloaded images are newer.
+  assert.ok(assembleJob.indexOf(marker) < download);
+  assert.ok(download < assembleJob.indexOf(manifest));
+  // Freshness does not rest on extracted artifact mtimes: the shard output is
+  // staged, then copied (new mtime) into the set before the manifest check.
+  const merge = stepBlock(
+    assembleJob,
+    'Merge the shard output into the visual set',
+  );
+  assert.match(assembleJob.slice(download), /path: \.cache\/shard-in/);
+  assert.match(
+    merge,
+    /cp -R \.cache\/shard-in\/\. docs\/references\/F4\.1-visual\//,
+  );
+  assert.doesNotMatch(merge, /cp [^\n]*-[a-zA-Z]*p|--preserve|touch -r/);
+  assert.ok(download < assembleJob.indexOf(merge));
+  assert.ok(assembleJob.indexOf(merge) < assembleJob.indexOf(manifest));
   assert.ok(captureBranch, 'Compose step has an explicit capture branch');
   assert.match(captureBranch, /LEXON_VISUAL_MODE=capture pnpm test:e2e/);
   assert.doesNotMatch(captureBranch, /--update-snapshots/);
-  assert.match(
-    marker,
-    /if: github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'capture'/,
-  );
+  assert.match(marker, /if: inputs\.visual_mode == 'capture'/);
   assert.match(marker, /Date\.now\(\)/);
   assert.match(marker, /\.cache\/f4\.1-visual\/start-epoch-ms\.txt/);
-  assert.match(
-    manifest,
-    /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'capture'/,
-  );
+  assert.match(manifest, /if: inputs\.visual_mode == 'capture'/);
   assert.match(
     manifest,
     /scripts\/test\/visual-capture-manifest\.mjs --set F4\.1-visual/,
@@ -84,11 +101,15 @@ test('manual capture records a post-checkout freshness marker and always validat
 });
 
 test('manual capture and update artifacts always upload for fourteen days', () => {
-  const upload = stepBlock(composeJob, 'Upload F4.1 Linux visual set');
+  const upload = stepBlock(assembleJob, 'Upload F4.1 Linux visual set');
+  const shardUpload = stepBlock(composeJob, 'Upload F4.1 Linux visual set');
   assert.match(
-    upload,
+    shardUpload,
     /if: always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode != 'compare'/,
   );
+  assert.match(shardUpload, /-shard-\$\{\{ matrix\.shard \}\}/);
+  assert.match(shardUpload, /path: \.cache\/shard-visual\n/);
+  assert.match(upload, /if: always\(\)/);
   assert.match(upload, /uses: actions\/upload-artifact@[0-9a-f]{40}/);
   assert.match(
     upload,
@@ -110,12 +131,12 @@ test('manual capture and update artifacts always upload for fourteen days', () =
 
 test('baselines are verified only after a manual update on the approved set', () => {
   const verify = stepBlock(
-    composeJob,
+    assembleJob,
     'Verify F4.1 approved Linux baseline manifest',
   );
   assert.match(
     verify,
-    /if: success\(\) && github\.event_name == 'workflow_dispatch' && inputs\.visual_mode == 'update'/,
+    /if: inputs\.visual_mode == 'update' && needs\.compose-e2e\.result == 'success'/,
   );
   assert.match(
     verify,

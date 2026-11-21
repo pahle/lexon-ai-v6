@@ -241,6 +241,13 @@ test('AI_OUTPUT_LIMIT persists to run state and audit checks', async ({
         },
       }),
     );
+    const stored = await ai.withTenantSession(0, async (_tx, client) =>
+      client.query<{ id: string; error_code: string | null }>(
+        'SELECT id, error_code FROM app.ai_runs WHERE id=$1',
+        [runId],
+      ),
+    );
+    expect(stored.rows).toEqual([{ id: runId, error_code: 'AI_OUTPUT_LIMIT' }]);
   } finally {
     await ai.close();
   }
@@ -440,7 +447,7 @@ test('startWithin participates in caller rollback and rejects forged sessions', 
           actor,
           { profileId: profile.id, prompt: 'Forged session.' },
         ),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ message: 'Tenant session expired' });
     });
     expect(await ai.losingStartCounts(0)).toEqual({
       runs: 0,
@@ -671,12 +678,12 @@ test('copied or expired RunActor cannot persist a run or admission slot', async 
       } as import('../../src/modules/identity-access/index.js').RunActor;
       await expect(
         service.start(copied, { profileId: profile.id, prompt: 'No' }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ message: 'Run actor is not active' });
       return undefined;
     });
     await expect(
       service.start(escaped, { profileId: profile.id, prompt: 'No' }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ message: 'Run actor is not active' });
     expect(await ai.losingStartCounts(0)).toEqual({
       runs: 0,
       outbox: 0,

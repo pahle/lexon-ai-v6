@@ -36,6 +36,19 @@ export function pixelLockedViews(index) {
   );
 }
 
+/**
+ * Index views awaiting owner approval (an explicit, reviewed `pending` list in
+ * the visual index). A pending view is captured for review and listed, never
+ * compared with a golden, and needs no approval entry.
+ */
+export function pendingViewIds(index) {
+  return index.pending ?? [];
+}
+
+export function isPendingView(index, id) {
+  return pendingViewIds(index).includes(id);
+}
+
 export const DEFAULT_VISUAL_SET = 'F4.1-visual';
 
 /** The directory of a visual set under docs/references (default: F4.1). */
@@ -106,7 +119,7 @@ export function assertApprovalSourceReachable(approval, isAncestor) {
 
 export function resolveVisualMode({
   explicitMode = process.env.LEXON_VISUAL_MODE,
-  approvalPath = resolve('docs/references/F2.1-visual/approval.json'),
+  approvalPath = resolve('docs/references/F4.1-visual/approval.json'),
   updateSnapshots = process.argv.includes('--update-snapshots'),
   runtime = { ci: process.env.CI === 'true', platform: process.platform },
 } = {}) {
@@ -304,8 +317,17 @@ export function assertApprovedVisualSet(
     );
   }
 
+  const pending = pendingViewIds(index);
+  const unknownPending = pending.find((id) => !index.views[id]);
+  if (unknownPending)
+    throw new Error(
+      `Pending visual view "${unknownPending}" is not present in the visual index.`,
+    );
   const indexedViews = Object.entries(index.views).filter(
-    ([, view]) => view.path?.startsWith('review/') && isPixelLocked(view),
+    ([id, view]) =>
+      view.path?.startsWith('review/') &&
+      isPixelLocked(view) &&
+      !pending.includes(id),
   );
   const approvedUnlocked = Object.keys(approval.images ?? {}).find(
     (id) => index.views[id] && !isPixelLocked(index.views[id]),
@@ -319,7 +341,9 @@ export function assertApprovedVisualSet(
       `Visual index has ${indexedViews.length} review views; expected ${expectedViewCount}.`,
     );
   }
-  const approvedIds = Object.keys(approval.images);
+  const approvedIds = Object.keys(approval.images).filter(
+    (id) => !pending.includes(id),
+  );
   const indexedIds = indexedViews.map(([id]) => id);
   const extra = approvedIds.filter((id) => !index.views[id]);
   if (extra.length > 0) {

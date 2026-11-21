@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 import globals from 'globals';
 import prettier from 'eslint-config-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
 import lexon from './scripts/eslint/lexon-boundaries.mjs';
 export default ts.config(
   {
@@ -49,6 +50,14 @@ export default ts.config(
         },
       ],
       'lexon/server-boundary': 'error',
+    },
+  },
+  {
+    files: ['frontend/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   prettier,

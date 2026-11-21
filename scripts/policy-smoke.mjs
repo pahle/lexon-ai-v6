@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
 const source = process.argv[2];
-if (!/^lexon-e2e-[a-f0-9]+$/.test(source))
+if (!/^lexon-e2e-[a-f0-9]+(?:-[0-9]+)?$/.test(source))
   throw new Error('Invalid source E2E project');
 const directory = await mkdtemp(join(tmpdir(), 'lexon-policy-'));
 const project = 'lexon-e2e-' + randomBytes(8).toString('hex');
@@ -31,6 +31,10 @@ const env = await composeEnvironment(
     S3_BUCKET: 'lexon-policy',
     API_HOST_PORT: '0',
     FRONTEND_HOST_PORT: '0',
+    // The edge network has a fixed subnet (A-03); a /24 per stack keeps this
+    // throwaway stack from overlapping the E2E stack that is running it.
+    EDGE_SUBNET: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.0/24`,
+    CADDY_EDGE_IP: `10.${200 + (parseInt(project.slice(-2), 16) % 50)}.${parseInt(project.slice(-4, -2), 16)}.250`,
   },
   directory,
 );

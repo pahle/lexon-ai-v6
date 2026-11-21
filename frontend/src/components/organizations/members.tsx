@@ -189,7 +189,9 @@ export function Members({
         description={
           members.data
             ? `${rows.length} ${rows.length === 1 ? 'member' : 'members'} in ${organization.name}.`
-            : undefined
+            : members.error
+              ? `People in ${organization.name}.`
+              : undefined
         }
         action={
           canInvite ? (
@@ -205,7 +207,12 @@ export function Members({
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       ) : null}
-      {members.error ? <QueryFailure error={members.error} /> : null}
+      {members.error ? (
+        <QueryFailure
+          error={members.error}
+          list={{ thing: 'members', onRetry: () => void members.refetch() }}
+        />
+      ) : null}
       {!members.error && !members.data ? (
         <div
           role="status"
@@ -389,18 +396,21 @@ export function Members({
         </div>
       ) : null}
       {pagination}
-      <div className="-mt-3 flex justify-end pt-2">
-        <Button
-          variant="outline"
-          disabled={submission.pending}
-          onClick={() => {
-            setFailure('');
-            setConfirmLeave(true);
-          }}
-        >
-          Leave organization
-        </Button>
-      </div>
+      {/* Last-owner eligibility depends on the list: no list, no Leave. */}
+      {members.error ? null : (
+        <div className="-mt-3 flex justify-end pt-2">
+          <Button
+            variant="outline"
+            disabled={submission.pending}
+            onClick={() => {
+              setFailure('');
+              setConfirmLeave(true);
+            }}
+          >
+            Leave organization
+          </Button>
+        </div>
+      )}
       <AlertDialog
         open={removing !== null}
         onOpenChange={(open) => {

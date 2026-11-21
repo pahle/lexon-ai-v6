@@ -603,7 +603,7 @@ it('uses the explicitly selected server leaf as the new user parent, never the S
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId,
+    getSelectedLeafId: () => selectedLeafId,
     fetch,
   });
 
@@ -681,11 +681,15 @@ it('serializes rapid viewed-leaf writes and reload retains the last selected bra
       { status: 201 },
     );
   });
+  let leaf: string | null = assistantId;
   const transport = new LexonChatTransport({
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => leaf,
+    setSelectedLeafId: (next) => {
+      leaf = next;
+    },
     fetch,
   });
 
@@ -725,7 +729,7 @@ it('serializes rapid viewed-leaf writes and reload retains the last selected bra
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: serverViewedLeaf,
+    getSelectedLeafId: () => serverViewedLeaf,
     fetch,
   });
   await reloaded.sendMessages({
@@ -763,7 +767,7 @@ it('blocks a send after the selected branch write fails and restores the persist
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId,
+    getSelectedLeafId: () => selectedLeafId,
     fetch,
   });
 
@@ -793,7 +797,7 @@ it('blocks a send after the selected branch write fails and restores the persist
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId,
+    getSelectedLeafId: () => selectedLeafId,
     fetch,
   });
   await recovered.sendMessages({
@@ -876,7 +880,7 @@ it('regenerates the explicitly selected server answer when the public adapter om
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
 
@@ -1263,7 +1267,7 @@ it.each(['network error', 'HTTP 503'] as const)(
       baseUrl: '/api',
       chatId,
       actorScope: 'tenant-1:user-1',
-      selectedLeafId: assistantId,
+      getSelectedLeafId: () => assistantId,
       fetch,
     });
 
@@ -1387,7 +1391,7 @@ it.each(['error', 'eof'] as const)(
       baseUrl: '/api',
       chatId,
       actorScope: 'tenant-1:user-1',
-      selectedLeafId: assistantId,
+      getSelectedLeafId: () => assistantId,
       fetch,
       onStreamState: (state) => streamStates.push(state),
     });
@@ -1493,7 +1497,7 @@ it('does not retry an event stream after access is revoked', async () => {
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
 
@@ -1570,7 +1574,7 @@ it('stops a pending automatic retry when the transport closes', async () => {
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
     onStreamState: (state) => streamStates.push(state),
   });
@@ -1644,7 +1648,7 @@ it('caps automatic event-stream retries at five without creating another mutatio
     baseUrl: '/api',
     chatId,
     actorScope: 'tenant-1:user-1',
-    selectedLeafId: assistantId,
+    getSelectedLeafId: () => assistantId,
     fetch,
   });
 

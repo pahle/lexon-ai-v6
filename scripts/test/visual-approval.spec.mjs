@@ -9,6 +9,8 @@ import {
   assertApprovedVisualSet,
   buildVisualBaselineManifest,
   invalidateRecapturedApproval,
+  isPendingView,
+  pendingViewIds,
   resolveVisualMode,
   visualSetDirectory,
 } from '../visual-mode.mjs';
@@ -85,10 +87,6 @@ test('the F4.1 set is the default visual set', () => {
   assert.equal(
     visualSetDirectory(undefined, '/repository'),
     resolve('/repository/docs/references/F4.1-visual'),
-  );
-  assert.equal(
-    visualSetDirectory('F2.1-visual', '/repository'),
-    resolve('/repository/docs/references/F2.1-visual'),
   );
   assert.throws(() => visualSetDirectory('../secrets', '/repository'));
 });
@@ -299,5 +297,81 @@ test('a re-approved golden may differ from its approved review image', () => {
         { expectedViewCount: 2 },
       ),
     /re-approvals are invalid/,
+  );
+});
+
+test('an indexed view listed as pending needs no approval entry', () => {
+  const { directory, index, approval } = visualSet();
+  index.views['chat-copy-failed-desktop-light'] = {
+    path: 'review/chat-copy-failed-desktop-light.png',
+    viewport: 'desktop',
+  };
+  index.pending = ['chat-copy-failed-desktop-light'];
+  assert.equal(
+    assertApprovedVisualSet(index, approval, directory, {
+      expectedViewCount: 2,
+    }),
+    2,
+  );
+  assert.deepEqual(pendingViewIds(index), ['chat-copy-failed-desktop-light']);
+});
+
+test('an indexed view without an approval entry and not pending still fails', () => {
+  const { directory, index, approval } = visualSet();
+  index.views['chat-copy-failed-desktop-light'] = {
+    path: 'review/chat-copy-failed-desktop-light.png',
+    viewport: 'desktop',
+  };
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(index, approval, directory, {
+        expectedViewCount: 3,
+      }),
+    /Approved visual record is missing indexed view "chat-copy-failed-desktop-light"/,
+  );
+});
+
+test('a pending view that has an approval entry is not compared', () => {
+  const { directory, index, approval } = visualSet();
+  writeFileSync(
+    join(directory, 'review', 'sign-in-mobile-dark.png'),
+    png(390, 844, 9),
+  );
+  index.pending = ['sign-in-mobile-dark'];
+  assert.equal(
+    assertApprovedVisualSet(index, approval, directory, {
+      expectedViewCount: 1,
+    }),
+    1,
+  );
+  assert.equal(isPendingView(index, 'sign-in-mobile-dark'), true);
+  assert.equal(isPendingView(index, 'sign-in-desktop-light'), false);
+});
+
+test('a non-pending approved view with a bad hash still fails', () => {
+  const { directory, index, approval } = visualSet();
+  index.pending = ['sign-in-mobile-dark'];
+  writeFileSync(
+    join(directory, 'baseline', 'sign-in-desktop-light.png'),
+    png(1440, 900, 9),
+  );
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(index, approval, directory, {
+        expectedViewCount: 1,
+      }),
+    /sha256 does not match the approved record/,
+  );
+});
+
+test('a pending id that is not indexed is rejected', () => {
+  const { directory, index, approval } = visualSet();
+  index.pending = ['not-indexed-desktop-light'];
+  assert.throws(
+    () =>
+      assertApprovedVisualSet(index, approval, directory, {
+        expectedViewCount: 2,
+      }),
+    /Pending visual view "not-indexed-desktop-light" is not present in the visual index/,
   );
 });

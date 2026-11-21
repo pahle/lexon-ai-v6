@@ -2296,6 +2296,198 @@
       "state": "Thinking indicator, finished and settled on the Lexon mark",
       "prototypeReference": "r14/indicator-m-dark.png",
       "replaces": []
+    },
+    "chat-copy-failed-desktop-light": {
+      "path": "review/chat-copy-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Completed answer, copy failed",
+      "prototypeReference": "r15/chat-copy-failed-d.png",
+      "replaces": []
+    },
+    "chat-copy-failed-desktop-dark": {
+      "path": "review/chat-copy-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Completed answer, copy failed",
+      "prototypeReference": "r15/chat-copy-failed-d-dark.png",
+      "replaces": []
+    },
+    "chat-copy-failed-mobile-light": {
+      "path": "review/chat-copy-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Completed answer, copy failed",
+      "prototypeReference": "r15/chat-copy-failed-m.png",
+      "replaces": []
+    },
+    "chat-copy-failed-mobile-dark": {
+      "path": "review/chat-copy-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Completed answer, copy failed",
+      "prototypeReference": "r15/chat-copy-failed-m-dark.png",
+      "replaces": []
+    },
+    "chat-composer-running-desktop-light": {
+      "path": "review/chat-composer-running-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Composer while an answer is arriving",
+      "prototypeReference": "r15/chat-composer-running-d.png",
+      "replaces": []
+    },
+    "chat-composer-running-desktop-dark": {
+      "path": "review/chat-composer-running-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Composer while an answer is arriving",
+      "prototypeReference": "r15/chat-composer-running-d-dark.png",
+      "replaces": []
+    },
+    "chat-composer-running-mobile-light": {
+      "path": "review/chat-composer-running-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Composer while an answer is arriving",
+      "prototypeReference": "r15/chat-composer-running-m.png",
+      "replaces": []
+    },
+    "chat-composer-running-mobile-dark": {
+      "path": "review/chat-composer-running-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Composer while an answer is arriving",
+      "prototypeReference": "r15/chat-composer-running-m-dark.png",
+      "replaces": []
+    },
+    "recent-load-failed-desktop-light": {
+      "path": "review/recent-load-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Recent chats, load failed",
+      "prototypeReference": "r15/recent-load-failed-d.png",
+      "replaces": []
+    },
+    "recent-load-failed-desktop-dark": {
+      "path": "review/recent-load-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Recent chats, load failed",
+      "prototypeReference": "r15/recent-load-failed-d-dark.png",
+      "replaces": []
+    },
+    "recent-load-failed-mobile-light": {
+      "path": "review/recent-load-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Recent chats, load failed",
+      "prototypeReference": "r15/recent-load-failed-m.png",
+      "replaces": []
+    },
+    "recent-load-failed-mobile-dark": {
+      "path": "review/recent-load-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Recent chats, load failed",
+      "prototypeReference": "r15/recent-load-failed-m-dark.png",
+      "replaces": []
+    },
+    "chats-load-failed-desktop-light": {
+      "path": "review/chats-load-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, load failed",
+      "prototypeReference": "r15/chats-load-failed-d.png",
+      "replaces": []
+    },
+    "chats-load-failed-desktop-dark": {
+      "path": "review/chats-load-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, load failed",
+      "prototypeReference": "r15/chats-load-failed-d-dark.png",
+      "replaces": []
+    },
+    "chats-load-failed-mobile-light": {
+      "path": "review/chats-load-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, load failed",
+      "prototypeReference": "r15/chats-load-failed-m.png",
+      "replaces": []
+    },
+    "chats-load-failed-mobile-dark": {
+      "path": "review/chats-load-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, load failed",
+      "prototypeReference": "r15/chats-load-failed-m-dark.png",
+      "replaces": []
+    },
+    "settings-members-load-failed-desktop-light": {
+      "path": "review/settings-members-load-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Members load failed",
+      "prototypeReference": "r15/settings-members-load-failed-d.png",
+      "replaces": []
+    },
+    "settings-members-load-failed-desktop-dark": {
+      "path": "review/settings-members-load-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Members load failed",
+      "prototypeReference": "r15/settings-members-load-failed-d-dark.png",
+      "replaces": []
+    },
+    "settings-members-load-failed-mobile-light": {
+      "path": "review/settings-members-load-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Members load failed",
+      "prototypeReference": "r15/settings-members-load-failed-m.png",
+      "replaces": []
+    },
+    "settings-members-load-failed-mobile-dark": {
+      "path": "review/settings-members-load-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Members load failed",
+      "prototypeReference": "r15/settings-members-load-failed-m-dark.png",
+      "replaces": []
+    },
+    "settings-profile-save-failed-desktop-light": {
+      "path": "review/settings-profile-save-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Settings, Profile save failed",
+      "prototypeReference": "r15/settings-profile-save-failed-d.png",
+      "replaces": []
+    },
+    "settings-profile-save-failed-desktop-dark": {
+      "path": "review/settings-profile-save-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Settings, Profile save failed",
+      "prototypeReference": "r15/settings-profile-save-failed-d-dark.png",
+      "replaces": []
+    },
+    "settings-profile-save-failed-mobile-light": {
+      "path": "review/settings-profile-save-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Settings, Profile save failed",
+      "prototypeReference": "r15/settings-profile-save-failed-m.png",
+      "replaces": []
+    },
+    "settings-profile-save-failed-mobile-dark": {
+      "path": "review/settings-profile-save-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Settings, Profile save failed",
+      "prototypeReference": "r15/settings-profile-save-failed-m-dark.png",
+      "replaces": []
     }
   }
 }

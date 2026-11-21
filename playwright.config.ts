@@ -5,6 +5,7 @@ export default defineConfig({
   expect: { timeout: 10000 },
   snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',
   workers: 1,
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: 'list',
@@ -12,7 +13,11 @@ export default defineConfig({
   projects: [
     {
       name: 'identity-api',
-      testMatch: 'backend/test/e2e/identity-api.spec.ts',
+      testMatch: [
+        'backend/test/e2e/identity-api.spec.ts',
+        'backend/test/e2e/rate-limit-proxy.spec.ts',
+        'backend/test/e2e/foreign-org-bearer.spec.ts',
+      ],
       use: { trace: 'off', video: 'off', screenshot: 'off' },
     },
     {
@@ -64,6 +69,9 @@ export default defineConfig({
         'backend/test/e2e/chat-history.spec.ts',
         'backend/test/e2e/chat-accessibility.spec.ts',
         'backend/test/e2e/chat-states.spec.ts',
+        'backend/test/e2e/chat-copy.spec.ts',
+        'backend/test/e2e/chat-long-stress.spec.ts',
+        'backend/test/e2e/mobile-sheet.spec.ts',
       ],
       use: {
         trace: 'off',
@@ -114,7 +122,10 @@ export default defineConfig({
           {
             name: 'chat-sse-load',
             timeout: 180_000,
-            testMatch: 'backend/test/e2e/chat-sse-load.spec.ts',
+            testMatch: [
+              'backend/test/e2e/chat-sse-load.spec.ts',
+              'backend/test/e2e/chat-sse-load.z-burst.spec.ts',
+            ],
             use: {
               trace: 'off' as const,
               video: 'off' as const,

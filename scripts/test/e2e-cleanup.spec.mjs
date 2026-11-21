@@ -91,3 +91,31 @@ test('test and exercise-abort failures remove real private operator configuratio
     await assert.rejects(stat(path), { code: 'ENOENT' });
   }
 });
+
+test('a CI project named per run and shard is an owned stack', async () => {
+  const calls = [];
+  await withOwnedStack({
+    project: 'lexon-e2e-44722087204-2',
+    directory: '/test-owned',
+    start: async () => calls.push('start'),
+    exercise: async () => calls.push('exercise'),
+    down: async (project) => calls.push(`down:${project}`),
+    remove: async () => calls.push('remove'),
+  });
+  assert.deepEqual(calls, [
+    'start',
+    'exercise',
+    'down:lexon-e2e-44722087204-2',
+    'remove',
+  ]);
+  await assert.rejects(
+    withOwnedStack({ project: 'lexon-e2e-44722087204-x', directory: '/d' }),
+    /Invalid E2E project/,
+  );
+});
+
+test('Compose arguments accept the per-run shard project and reject others', async () => {
+  const { composeArgs } = await import('../compose-runner.mjs');
+  assert.ok(composeArgs('lexon-e2e-44722087204-3', ['ps'], []).length > 0);
+  assert.throws(() => composeArgs('lexon-e2e-44722087204-x', ['ps'], []));
+});

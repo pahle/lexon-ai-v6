@@ -5,22 +5,33 @@ import type { Page } from '@lexon/contracts';
 import {
   createIdentityClient,
   IdentityClientError,
+  SLUG_TAKEN_MESSAGE,
 } from '../../lib/identity-client';
 import { SessionBoundary } from '../auth/session-boundary';
 import { Button } from '../ui/button';
 import { ErrorState } from '../states/page-states';
+import { ListFailure } from '../states/list-failure';
 export const identityApi = createIdentityClient({ baseUrl: '/api' });
 export function identityMessage(error: unknown): string {
-  return error instanceof IdentityClientError && error.code === 'ORG_LAST_OWNER'
-    ? 'Promote another owner before leaving or removing the last owner.'
-    : error instanceof IdentityClientError &&
-        error.code === 'AUTH_REAUTH_REQUIRED'
-      ? 'Confirm your identity in account security, then try again.'
-      : error instanceof IdentityClientError && error.status === 503
-        ? 'Service temporarily unavailable. Please try again.'
-        : 'Unable to complete this action. Refresh and check your access.';
+  return error instanceof IdentityClientError && error.code === 'ORG_SLUG_TAKEN'
+    ? SLUG_TAKEN_MESSAGE
+    : error instanceof IdentityClientError && error.code === 'ORG_LAST_OWNER'
+      ? 'Promote another owner before leaving or removing the last owner.'
+      : error instanceof IdentityClientError &&
+          error.code === 'AUTH_REAUTH_REQUIRED'
+        ? 'Confirm your identity in account security, then try again.'
+        : error instanceof IdentityClientError && error.status === 503
+          ? 'Service temporarily unavailable. Please try again.'
+          : 'Unable to complete this action. Refresh and check your access.';
 }
-export function QueryFailure({ error }: { error: unknown }) {
+export function QueryFailure({
+  error,
+  list,
+}: {
+  error: unknown;
+  /** A list that failed to load: show the error row with Try again. */
+  list?: { thing: string; onRetry: () => void };
+}) {
   if (error instanceof IdentityClientError && error.status === 403)
     return (
       <>
@@ -37,6 +48,8 @@ export function QueryFailure({ error }: { error: unknown }) {
         </nav>
       </>
     );
+  if (list && !(error instanceof IdentityClientError && error.status === 401))
+    return <ListFailure thing={list.thing} onRetry={list.onRetry} />;
   return (
     <SessionBoundary
       embedded
@@ -49,6 +62,16 @@ export function QueryFailure({ error }: { error: unknown }) {
       {null}
     </SessionBoundary>
   );
+}
+/**
+ * The form alert for a failed save: the draft is still on screen, so say so.
+ * A failure that needs a specific action (confirm identity) keeps its own text.
+ */
+export function saveFailureMessage(thing: string, error: unknown): string {
+  return error instanceof IdentityClientError &&
+    error.code === 'AUTH_REAUTH_REQUIRED'
+    ? identityMessage(error)
+    : `We could not save ${thing}. Your changes are still here. Try again.`;
 }
 export function useCursorPage<T>(
   key: readonly unknown[],

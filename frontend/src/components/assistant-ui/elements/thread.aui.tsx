@@ -23,6 +23,17 @@ import {
   ChatComposerCancel,
   useChatActiveRun,
 } from '@/components/chat/chat-runtime';
+import {
+  BottomSentinel,
+  ScrollOnNewRun,
+  ScrollToLatest,
+} from '@/components/chat/thread-scroll';
+import { CopyAction } from '@/components/chat/copy-action';
+import {
+  ComposerReason,
+  sendLabel,
+  type ComposerReasonKind,
+} from '@/components/chat/composer-reason';
 import { composerClasses } from '@/components/chat/composer-styles';
 import { MAX_PROMPT_BYTES, promptByteLength } from '@/lib/chat-limits';
 import { cn } from '@/lib/utils';
@@ -34,17 +45,15 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   type AssistantState,
+  useAui,
   useAuiState,
 } from '@assistant-ui/react';
 import {
   ArrowUpIcon,
   Brain as BrainIcon,
-  CheckIcon,
   CircleAlertIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  CopyIcon,
   PenIcon,
   RefreshCwIcon,
   ThumbsDownIcon,
@@ -63,6 +72,7 @@ import {
   type DragEvent,
   type FC,
   type FormEvent,
+  type KeyboardEvent,
 } from 'react';
 
 const EditFocusContext = createContext<{
@@ -159,6 +169,8 @@ export const Thread: FC<ThreadProps> = ({
           turnAnchor="top"
           scrollToBottomOnInitialize={false}
           scrollToBottomOnThreadSwitch={false}
+          scrollToBottomOnRunStart={false}
+          autoScroll={false}
           data-slot="aui_thread-viewport"
           className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
@@ -199,10 +211,12 @@ export const Thread: FC<ThreadProps> = ({
             ) : null}
             <RunAnnouncer />
             <OpenAtLastUserMessage />
+            <ScrollOnNewRun />
             {isEmpty ? null : (
               <div aria-hidden="true" className="h-10 shrink-0 max-md:h-0" />
             )}
 
+            <BottomSentinel />
             <ThreadPrimitive.ViewportFooter
               className={cn(
                 'aui-thread-viewport-footer bg-background relative flex flex-col overflow-visible pb-3.5 max-md:-mx-0.5 max-md:pt-2.5 max-md:pb-3',
@@ -215,7 +229,6 @@ export const Thread: FC<ThreadProps> = ({
                 aria-hidden="true"
                 className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
               />
-              <ThreadScrollToBottom />
               <Composer effort={effort} onEffortChange={onEffortChange} />
             </ThreadPrimitive.ViewportFooter>
           </div>
@@ -429,7 +442,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
       className={cn(
         'group/turn wrap-break-word',
         role === 'user'
-          ? 'ms-auto flex max-w-[80%] flex-col items-end gap-1 max-md:max-w-[88%]'
+          ? 'ms-auto flex max-w-[80%] scroll-mt-6 flex-col items-end gap-1 max-md:max-w-[88%] max-md:scroll-mt-4'
           : 'flex flex-col gap-3',
         dimmed ? 'text-muted-foreground' : 'text-foreground',
       )}
@@ -675,20 +688,6 @@ export function useIncrementalAnnouncement(
     : { messageId, text: '', sequence: 0, active: running };
 }
 
-const ThreadScrollToBottom: FC = () => (
-  <ThreadPrimitive.ScrollToBottom
-    render={
-      <TooltipIconButton
-        tooltip="Scroll to bottom"
-        variant="ghost"
-        className="aui-thread-scroll-to-bottom bg-background text-muted-foreground hover:bg-background absolute top-0 left-1/2 z-10 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-0 p-0 shadow-[0_0_0_1px_var(--border),0_6px_16px_-6px_rgba(8,6,6,.25)] max-md:top-[22px] disabled:invisible dark:hover:bg-background [&_svg]:size-[18px]"
-      />
-    }
-  >
-    <ChevronDownIcon />
-  </ThreadPrimitive.ScrollToBottom>
-);
-
 const ThreadWelcome: FC<{ displayName: string }> = ({ displayName }) => (
   <div className="aui-thread-welcome-root mb-6 flex flex-col">
     <ChatGreeting
@@ -712,7 +711,7 @@ const AssistantActions: FC<{
   const serverActive = useChatActiveRun();
   const [rating, setRating] = useState<'good' | 'bad' | null>(feedback);
   useEffect(() => setRating(feedback), [feedback]);
-  const copied = useAuiState((state) => state.message.isCopied);
+  const aui = useAui();
   const branched = useAuiState((state) => state.message.branchCount > 1);
   const submitFeedback = (next: 'good' | 'bad') => {
     void Promise.resolve(onFeedback?.(messageId, next))
@@ -732,19 +731,13 @@ const AssistantActions: FC<{
         hideWhenRunning
         className="flex items-center gap-0.5"
       >
-        <ActionBarPrimitive.Copy
-          render={
-            <TooltipIconButton
-              tooltip={copied ? 'Copied' : 'Copy'}
-              side="top"
-              sideOffset={6}
-              className={cn(ACTION_BUTTON, copied && ACTION_ON)}
-              aria-label={copied ? 'Copied' : 'Copy answer'}
-            />
-          }
-        >
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </ActionBarPrimitive.Copy>
+        <CopyAction
+          first
+          label="answer"
+          getText={() => aui.message.getCopyText()}
+          className={ACTION_BUTTON}
+          copiedClassName={ACTION_ON}
+        />
         <TooltipIconButton
           tooltip="Good response"
           side="top"
@@ -795,25 +788,19 @@ const USER_ACTION =
 // reconnecting (prototype 14.6).
 const UserEditAction: FC = () => {
   const serverActive = useChatActiveRun();
-  const copied = useAuiState((state) => state.message.isCopied);
+  const aui = useAui();
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Copy
-        render={
-          <TooltipIconButton
-            tooltip={copied ? 'Copied' : 'Copy'}
-            side="top"
-            sideOffset={6}
-            className={cn(USER_ACTION, copied && ACTION_ON)}
-            aria-label={copied ? 'Copied' : 'Copy message'}
-          />
-        }
-      >
-        {copied ? <CheckIcon /> : <CopyIcon />}
-      </ActionBarPrimitive.Copy>
+      <CopyAction
+        first
+        label="message"
+        getText={() => aui.message.getCopyText()}
+        className={USER_ACTION}
+        copiedClassName={ACTION_ON}
+      />
       <ActionBarPrimitive.Edit
         className={USER_ACTION}
         aria-label="Edit message"
@@ -947,10 +934,35 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   const serverActive = useChatActiveRun();
   const running =
     useAuiState((state) => state.thread.isRunning) || serverActive;
+  const loading = useAuiState((state) => state.thread.isLoading);
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
+  const [attempted, setAttempted] = useState(false);
+  useEffect(() => {
+    if (!running) setAttempted(false);
+  }, [running]);
+  const reason: ComposerReasonKind = loading
+    ? 'loading'
+    : running && attempted
+      ? 'running-blocked'
+      : null;
+  const attemptWhileBusy = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      !composerText.trim()
+    )
+      return;
+    if (running) setAttempted(true);
+    if (running || loading) event.preventDefault();
+  };
+  const ignoreBlankPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = event.clipboardData.getData('text');
+    if (text && !text.trim()) event.preventDefault();
+  };
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    if (serverActive) {
+    if (serverActive || loading) {
       event.preventDefault();
       return;
     }
@@ -968,6 +980,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onPaste={preventFilePaste}
       onSubmit={validatePrompt}
     >
+      <ScrollToLatest />
       <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
@@ -984,6 +997,9 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           submitMode="enter"
           enterKeyHint="send"
           aria-label="Message input"
+          disabled={loading}
+          onKeyDown={attemptWhileBusy}
+          onPaste={ignoreBlankPaste}
         />
         <div
           className={cn(
@@ -1043,14 +1059,14 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
             <ComposerPrimitive.Send
               render={
                 <TooltipIconButton
-                  tooltip="Send message"
+                  tooltip={sendLabel(loading ? 'loading' : null)}
                   side="bottom"
                   type="button"
-                  disabled={tooLong || !composerText.trim()}
+                  disabled={loading || tooLong || !composerText.trim()}
                   variant="default"
                   size="icon"
                   className={cn('aui-composer-send', composerClasses.send)}
-                  aria-label="Send message"
+                  aria-label={sendLabel(loading ? 'loading' : null)}
                 >
                   <ArrowUpIcon className="aui-composer-send-icon" />
                 </TooltipIconButton>
@@ -1064,9 +1080,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           </p>
         ) : null}
       </div>
-      <p className={composerClasses.disclaimer}>
-        Lexon can make mistakes. Verify important legal information.
-      </p>
+      <ComposerReason reason={reason} />
     </ComposerPrimitive.Root>
   );
 };

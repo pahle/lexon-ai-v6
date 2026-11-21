@@ -35,6 +35,8 @@ export function notifyIdentityFallbackHint(
   return reason;
 }
 
+export const SLUG_TAKEN_MESSAGE =
+  'That team slug is already taken. Choose another.';
 export class IdentityClientError extends Error {
   constructor(
     readonly code: string,

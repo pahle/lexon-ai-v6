@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
+import { openState, setupAnsweredChat } from './chat-state-fixtures.js';
 
 async function workerControl(
   op:
@@ -375,11 +376,13 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${stack.publicUrl}/workspace`);
   const composer = page.getByRole('textbox', { name: 'Message input' });
-  await composer.fill('[runtime-proof:edit] review this clause');
+  await composer.fill('[runtime-proof:edit-unique] review this clause');
   await composer.press('Enter');
   await expect(page).toHaveURL(/\/chats\/[0-9a-f-]{36}$/i);
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   const originalUserId = await page
     .locator('[data-role="user"]')
@@ -389,7 +392,9 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   await editButton.press('Enter');
   const edit = page.getByRole('textbox', { name: 'Edit message input' });
   await expect(edit).toBeFocused();
-  await expect(edit).toHaveValue('[runtime-proof:edit] review this clause');
+  await expect(edit).toHaveValue(
+    '[runtime-proof:edit-unique] review this clause',
+  );
   await page.getByRole('button', { name: 'Cancel edit' }).click();
   await expect(editButton).toBeFocused();
   await editButton.click();
@@ -401,7 +406,7 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
     page.locator('form').filter({ has: edit }).getByRole('alert'),
   ).toContainText('16,384 bytes');
   await expect(edit).toHaveValue('🧾'.repeat(4_097));
-  await edit.fill('[runtime-proof:edit] revise this clause');
+  await edit.fill('[runtime-proof:edit-unique] revise this clause');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(
     page
@@ -417,7 +422,9 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
     )
     .not.toBe(originalUserId);
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.aui-composer-root')).toContainText(
     'Lexon can make mistakes. Verify important legal information.',
@@ -434,12 +441,28 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   ).toHaveCount(0);
   const originalAssistantId =
     await assistantMessage.getAttribute('data-message-id');
+  const originalAnswerText = await assistantMessage
+    .locator('.aui-md')
+    .innerText();
+  // The previous run must be terminal before regenerating: no Stop control,
+  // and the Send button is back to its idle name.
+  await expect(
+    page.getByRole('button', { name: 'Stop generating' }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Regenerate answer' }).click();
   await expect
     .poll(() => assistantMessage.getAttribute('data-message-id'))
     .not.toBe(originalAssistantId);
+  await expect(assistantMessage.locator('.aui-md')).not.toHaveText(
+    originalAnswerText,
+  );
   await expect(
-    page.locator('[data-role="assistant"] .aui-md').getByText('Edited answer.'),
+    page
+      .locator('[data-role="assistant"] .aui-md')
+      .getByText(/^Edited answer-[0-9a-f-]+\.$/),
   ).toBeVisible({ timeout: 20_000 });
   await expect(
     assistantMessage.getByRole('button', { name: 'Previous branch' }),
@@ -459,7 +482,7 @@ test('edits a user turn, regenerates an assistant sibling, and restores branch s
   ).toBeVisible();
   await page.reload();
   await expect(page).toHaveURL(threadUrl);
-  await expect(page.getByText('Edited answer.')).toBeVisible({
+  await expect(page.getByText(/^Edited answer-[0-9a-f-]+\.$/)).toBeVisible({
     timeout: 20_000,
   });
   await expect(
@@ -762,3 +785,47 @@ test('restores a failed answer with retry and a cancelled answer with stopped st
     'Ask Lexon about a contract, a regulation, or a case...',
   );
 });
+
+// G3 (F4.2): scroll-to-latest sits 12px above the composer box and follows
+// the bottom sentinel. A short viewport makes the answered thread overflow.
+for (const viewport of [
+  { name: 'desktop', width: 1440, height: 420 },
+  { name: 'mobile', width: 390, height: 520 },
+]) {
+  test(`scroll-to-latest bottom edge is 12px above the composer box top (${viewport.name})`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    const stack = await setupAnsweredChat(
+      page,
+      `hukum-nusantara-scroll-${viewport.name}`,
+    );
+    await openState(page, stack.publicUrl, 'answer-complete');
+    const scrollport = page.locator('[data-slot="aui_thread-viewport"]');
+    const button = page.locator('button.aui-thread-scroll-to-bottom');
+    // A thread opens at its last user message, so the long answer below can
+    // overflow: go to the bottom first, where the button is hidden.
+    await scrollport.evaluate((element) =>
+      element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }),
+    );
+    await expect(button).toBeHidden();
+    await scrollport.evaluate((element) =>
+      element.scrollTo({ top: 0, behavior: 'instant' }),
+    );
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    const shell = await page
+      .locator('[data-slot="aui_composer-shell"]')
+      .boundingBox();
+    expect(box).not.toBeNull();
+    expect(shell).not.toBeNull();
+    expect(box!.width).toBeCloseTo(36, 0);
+    expect(box!.y + box!.height).toBeCloseTo(shell!.y - 12, 0);
+    await button.click();
+    await expect(button).toBeHidden();
+  });
+}

@@ -147,6 +147,41 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
     'settings-profile',
     settingsHooks('Profile', (p) => p.getByLabel('Job title')),
   );
+  // F4.2 revision 15: the save is rejected; the form alert sits above the
+  // fields, the typed value stays, and Save stays enabled.
+  let failProfileSave = false;
+  await page.route(
+    (url) => url.pathname === '/api/identity/profile',
+    (route) =>
+      failProfileSave && route.request().method() === 'PATCH'
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'unavailable' }),
+          })
+        : route.fallback(),
+  );
+  const profileHooks = settingsHooks('Profile', (p) =>
+    p.getByLabel('Job title'),
+  );
+  await captureBrandViews(page, 'settings-profile-save-failed', {
+    open: async (viewport) => {
+      await profileHooks.open(viewport);
+      const dialog = page.getByRole('dialog', { name: 'Settings' });
+      const job = dialog.getByLabel('Job title');
+      await job.fill('Partner');
+      failProfileSave = true;
+      const save = dialog.getByRole('button', { name: 'Save', exact: true });
+      await save.click();
+      await expect(dialog.getByRole('alert')).toBeVisible();
+      await expect(job).toHaveValue('Partner');
+      await expect(save).toBeEnabled();
+    },
+    close: async (viewport) => {
+      failProfileSave = false;
+      await profileHooks.close(viewport);
+    },
+  });
   // The prototype shows System selected; the dark variant follows the
   // emulated color scheme instead of a forced Dark choice.
   const appearance = settingsHooks('Appearance', (p) =>
@@ -215,6 +250,28 @@ test('Settings sections for the team owner', async ({ page, playwright }) => {
   } finally {
     await members.remove();
   }
+  // F4.2 revision 15: the members request fails; the error row replaces the
+  // member rows.
+  let failMembers = true;
+  await page.route(
+    (url) => url.pathname === `/api/organizations/${teamId}/members`,
+    (route) =>
+      failMembers && route.request().method() === 'GET'
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'unavailable' }),
+          })
+        : route.fallback(),
+  );
+  await captureBrandViews(
+    page,
+    'settings-members-load-failed',
+    settingsHooks('Members', (p) =>
+      p.getByText('We could not load members.', { exact: true }),
+    ),
+  );
+  failMembers = false;
   const invitations = await installPrototypeInvitationExpiry(page, teamId);
   try {
     await captureBrandViews(
@@ -331,6 +388,32 @@ test('Chats history, search with highlights, and no results', async ({
         await expect(
           page.locator('#main').getByText(title, { exact: true }).first(),
         ).toBeVisible();
+    },
+  });
+
+  // F4.2 revision 15: the chat list request fails, so the error row replaces
+  // the list (and Recent in the sidebar shows its own failure line).
+  await page.route(
+    (url) => chatListRequest(url, 'GET'),
+    (route) =>
+      env.state === 'chats-load-failed' && route.request().method() === 'GET'
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'unavailable' }),
+          })
+        : route.fallback(),
+  );
+  await captureBrandViews(page, 'chats-load-failed', {
+    open: async () => {
+      env.state = 'chats-load-failed';
+      await page.clock.setFixedTime(brandFixedTime);
+      await page.goto(`${env.stack.frontendUrl}/chats`);
+      await expect(page.getByRole('heading', { name: 'Chats' })).toBeVisible();
+      await expect(
+        page.locator('#main').getByText('We could not load your chats.'),
+      ).toBeVisible();
+      await expect(page.locator('main')).toHaveCount(1);
     },
   });
 

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { root } from './compose-environment.mjs';
 export function composeArgs(project, args, files = []) {
-  if (!/^lexon-(?:dev|e2e-[a-f0-9]+)$/.test(project))
+  if (!/^lexon-(?:dev|e2e-[a-f0-9]+(?:-[0-9]+)?)$/.test(project))
     throw new Error('Invalid Compose project');
   return [
     'compose',

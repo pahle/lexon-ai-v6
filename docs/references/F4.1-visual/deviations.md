@@ -26,6 +26,10 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | onboarding-team                 | m-dark  | 1.70 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | organization-switcher-open      | m       | 3.14 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | organization-switcher-open      | m-dark  | 3.28 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-copy-failed                | m       | 2.58 | owner accepted 2026-11-20 (the thread rests about 1px off; layout identical)                    |
+| chat-copy-failed                | m-dark  | 2.59 | owner accepted 2026-11-20 (the thread rests about 1px off; layout identical)                    |
+| settings-profile-save-failed    | m       | 1.85 | owner accepted 2026-11-20 (sub-pixel text offset only)                                          |
+| settings-profile-save-failed    | m-dark  | 1.66 | owner accepted 2026-11-20 (sub-pixel text offset only)                                          |
 | platform-provisioning-detail    | m       | 2.31 | replaced in F4.3 (owner)                                                                        |
 | platform-provisioning-detail    | m-dark  | 2.51 | replaced in F4.3 (owner)                                                                        |
 | platform-provisioning-empty     | m       | 2.97 | replaced in F4.3 (owner)                                                                        |
@@ -149,3 +153,9 @@ Every row of the F4 ledger was marked for F4.1 polish review. Evidence is the ac
 ### Summary
 
 19 F4 rows: 10 resolved with nothing open (Streaming answer, Completed answer typography, Edit user message, Edited branch, Safe run error, Thread loading, Mobile Chats history, Inherited navigation, No-signal completion, Delete confirmation); 7 resolved with a named sub-item to judge on the review capture (New chat, Stopped, Reconnecting, Chat actions/rename/delete, Chats history/search, Empty Chats, Matching-message highlight); 2 open (Deep thinking, Mobile completed thread).
+
+## Owner-accepted behavior differences (F4.2 Task 6, 2026-11-20)
+
+| id                  | difference                                                                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| chat-thread-loading | The header title shows a skeleton while the chat loads, because the title is not yet known (0.62%, under the gate). Owner-accepted behavior. |

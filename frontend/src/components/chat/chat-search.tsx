@@ -72,6 +72,7 @@ function ChatSearchSession({
       requestVersion.current += 1;
       controller.current?.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount and unmount only; the callback is intentionally called once on mount
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {

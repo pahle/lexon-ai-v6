@@ -26,7 +26,9 @@ export interface LexonChatTransportOptions {
   readonly baseUrl: string;
   readonly chatId: string;
   readonly actorScope: string;
-  readonly selectedLeafId?: string | null;
+  /** The chat runtime store owns the selected leaf; the transport only reads it. */
+  readonly getSelectedLeafId?: () => string | null;
+  readonly setSelectedLeafId?: (leafId: string | null) => void;
   readonly effort?: 'high' | 'max';
   readonly initialRunId?: string;
   readonly fetch?: typeof fetch;
@@ -66,11 +68,8 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
   private readonly activeStreams = new Set<ReadableStream<UIMessageChunk>>();
   private readonly activeRequests = new Set<AbortController>();
   private readonly pendingRetryWaits = new Set<AbortController>();
-  private selectedLeafId: string | null;
-  private persistedLeafId: string | null;
   private selectionPersisted: Promise<void> = Promise.resolve();
   private selectionQueue: Promise<void> = Promise.resolve();
-  private selectionVersion = 0;
   private effort: 'high' | 'max';
 
   constructor(private readonly options: LexonChatTransportOptions) {
@@ -81,10 +80,6 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.fetcher = (options.fetch ?? globalThis.fetch).bind(globalThis);
     this.storageKey = `${STORAGE_PREFIX}${options.actorScope}:${options.chatId}`;
     this.effort = options.effort ?? 'high';
-    this.selectedLeafId = options.selectedLeafId
-      ? UuidSchema.parse(options.selectedLeafId)
-      : null;
-    this.persistedLeafId = this.selectedLeafId;
     this.runId = options.initialRunId
       ? UuidSchema.parse(options.initialRunId)
       : undefined;
@@ -100,22 +95,21 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     persist: () => Promise<unknown>,
   ): Promise<void> {
     const selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
-    const version = ++this.selectionVersion;
-    this.selectedLeafId = selectedLeafId;
+    const previousLeafId = this.currentLeafId();
+    this.options.setSelectedLeafId?.(selectedLeafId);
     const write = this.selectionQueue
       .catch(() => {})
       .then(() => persist())
-      .then(() => {
-        this.persistedLeafId = selectedLeafId;
-      });
+      .then(() => undefined);
     this.selectionQueue = write.then(
       () => undefined,
       () => undefined,
     );
     this.selectionPersisted = write;
     return write.catch((error: unknown) => {
-      if (version === this.selectionVersion)
-        this.selectedLeafId = this.persistedLeafId;
+      // Roll back through the store, unless a newer selection superseded this one.
+      if (this.currentLeafId() === selectedLeafId)
+        this.options.setSelectedLeafId?.(previousLeafId);
       throw error;
     });
   }
@@ -150,11 +144,6 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
     this.activeStreams.clear();
   }
 
-  syncSelectedLeaf(leafId: string | null): void {
-    this.selectedLeafId = leafId === null ? null : UuidSchema.parse(leafId);
-    this.persistedLeafId = this.selectedLeafId;
-  }
-
   async sendMessages(
     request: Parameters<ChatTransport<ChatUIMessage>['sendMessages']>[0],
   ) {
@@ -172,7 +161,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
         requestId: crypto.randomUUID(),
       });
       result = { runId: mutation.runId };
-      this.selectedLeafId = mutation.assistantMessageId;
+      this.options.setSelectedLeafId?.(mutation.assistantMessageId);
     } else {
       const user = [...request.messages]
         .reverse()
@@ -206,7 +195,7 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
               });
             })();
       result = { runId: mutation.runId };
-      this.selectedLeafId = mutation.assistantMessageId;
+      this.options.setSelectedLeafId?.(mutation.assistantMessageId);
     }
 
     if (generation !== this.generation)
@@ -726,15 +715,20 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
 
   private async waitForSelection(): Promise<string | null> {
     while (true) {
-      const selectedLeafId = this.selectedLeafId;
+      const selectedLeafId = this.currentLeafId();
       const pending = this.selectionPersisted;
       await pending;
       if (
-        selectedLeafId === this.selectedLeafId &&
+        selectedLeafId === this.currentLeafId() &&
         pending === this.selectionPersisted
       )
         return selectedLeafId;
     }
+  }
+
+  private currentLeafId(): string | null {
+    const leafId = this.options.getSelectedLeafId?.() ?? null;
+    return leafId === null ? null : UuidSchema.parse(leafId);
   }
 
   private assertActive(): void {

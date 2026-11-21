@@ -22,6 +22,16 @@ export async function settle() {
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 }
+/**
+ * Settles until a condition holds instead of sleeping a fixed interval, for
+ * UI that waits on a chain of requests (the fixed 10 ms of settle() is not
+ * enough when the runner is loaded). Bounded by the test timeout, not by a
+ * counter.
+ */
+export async function settleUntil(done: () => boolean) {
+  await settle();
+  while (!done()) await settle();
+}
 export async function submit(container: HTMLElement, value: string) {
   const input = container.querySelector('input')!;
   await act(async () => {

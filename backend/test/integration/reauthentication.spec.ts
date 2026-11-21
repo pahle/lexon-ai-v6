@@ -33,7 +33,7 @@ test('old non-MFA session requires password plus the enabled factor; reauthentic
           password: 'Wrong-password-42!',
           totp: totpForUri(enrolled.totpURI),
         }),
-      ).rejects.toBeDefined();
+      ).rejects.toMatchObject({ body: { code: 'INVALID_PASSWORD' } });
       expect(
         (await inspect.session(identity.sessionId))!.mfaVerifiedAt,
       ).toBeNull();

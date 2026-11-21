@@ -97,7 +97,7 @@ test('allows only the approved public chat runtime adapter and message types', a
   ).pathname;
   const adapter = await lint(
     runtimePath,
-    "import { useChat } from '@ai-sdk/react'; import { useAISDKRuntime } from '@assistant-ui/ai-sdk'; import type { UIMessage } from 'ai'; const chat = useChat({}); useAISDKRuntime(chat); const message: UIMessage = {} as UIMessage; void message;",
+    "import { useChat } from '@ai-sdk/react'; import { useAISDKRuntime } from '@assistant-ui/ai-sdk'; import type { UIMessage } from 'ai'; function Chat() { const chat = useChat({}); useAISDKRuntime(chat); return null; } void Chat; const message: UIMessage = {} as UIMessage; void message;",
   );
   assert.deepEqual(adapter, []);
 

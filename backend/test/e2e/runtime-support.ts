@@ -13,7 +13,7 @@ export function descriptor(): E2EDescriptor {
   const input = process.env.LEXON_E2E_DESCRIPTOR;
   if (!input) throw new Error('Run pnpm test:e2e to start an isolated stack');
   const value = JSON.parse(input) as E2EDescriptor;
-  if (!/^lexon-e2e-[a-f0-9]+$/.test(value.project))
+  if (!/^lexon-e2e-[a-f0-9]+(?:-[0-9]+)?$/.test(value.project))
     throw new Error('Invalid E2E project');
   return value;
 }

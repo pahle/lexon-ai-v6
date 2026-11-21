@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  InlineListFailure,
+  ListFailure,
+} from '@/components/states/list-failure';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useRef, useState, type ReactNode, type Ref } from 'react';
@@ -111,7 +115,7 @@ export function ChatHistory({
   if (query.isError)
     return (
       <div className="contents">
-        <p role="alert">Chats could not be loaded. Refresh to try again.</p>
+        <ListFailure thing="your chats" onRetry={() => void query.refetch()} />
         {deleteDialog}
       </div>
     );
@@ -252,10 +256,10 @@ export function RecentChats({
   if (query.isError)
     return (
       <>
-        <p role="alert" className="px-2.5 py-2 text-sm">
-          Recent chats could not be loaded.
-        </p>
-        {viewAll}
+        <InlineListFailure
+          thing="recent chats"
+          onRetry={() => void query.refetch()}
+        />
         {deleteDialog}
       </>
     );

@@ -123,7 +123,7 @@ test('only one live answer occupies the pointer and a title terminal transition 
     const secondAnswer = await createRun();
     await expect(
       fixture.chat.linkAnswer(0, chat.id, secondAnswer.id),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: '23505' });
     const title = await createRun();
     await fixture.chat.linkTitle(0, chat.id, title.id);
     expect(await fixture.inspect.chat(chat.id)).toMatchObject({
@@ -168,7 +168,7 @@ test('chat message parents and viewed leaves cannot cross chat boundaries', asyn
         text: 'Cross-chat child',
         effort: 'high',
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: '23514' });
     expect(await fixture.chat.selectLeaf(0, second.id, rootId)).toBe(false);
     await expect(
       fixture.chat.insertUser(0, {
@@ -178,7 +178,7 @@ test('chat message parents and viewed leaves cannot cross chat boundaries', asyn
         text: 'Same-role child',
         effort: 'high',
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: '23514' });
     await expect(
       fixture.chat.insertUser(0, {
         chatId: first.id,
@@ -187,7 +187,7 @@ test('chat message parents and viewed leaves cannot cross chat boundaries', asyn
         text: 'Missing parent',
         effort: 'high',
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: '23514' });
   } finally {
     await fixture.close();
   }

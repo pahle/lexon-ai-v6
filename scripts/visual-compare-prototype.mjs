@@ -6,8 +6,9 @@
 // and writes one sheet per variant: prototype | capture | diff overlay.
 //
 //   node scripts/visual-compare-prototype.mjs [--capture-dir <dir>]
-//     [--out-dir <dir>] [--ids a,b,c] [--prototype <html>] [--gate]
+//     [--out-dir <dir>] [--ids a,b,c] [--pending] [--prototype <html>] [--gate]
 //     [--deviations <md>]
+// --pending compares only the ids of index.json `pending` views.
 //
 // Only animated parts are masked: the prototype side by selector, the app side
 // by the `<image>.masks.json` sidecar the capture helper writes; the union of
@@ -31,6 +32,17 @@ const VIEWPORTS = {
 /** Elements that animate in the prototype; their boxes are masked. */
 export const PROTOTYPE_MASK_SELECTOR =
   '.lq, .lx, .ld, .spin, .caret, .mark.live';
+
+/** Unique capture ids of the index `pending` view keys. */
+export function pendingCompareIds(index) {
+  return [
+    ...new Set(
+      (index.pending ?? []).map((v) =>
+        v.replace(/-(desktop|mobile)-(light|dark)$/, ''),
+      ),
+    ),
+  ];
+}
 
 export function prototypeState(id) {
   return id.startsWith('indicator-')
@@ -308,7 +320,7 @@ export async function runCompare({
   );
   writeFileSync(
     resolve(outDir, 'README.md'),
-    `# Prototype comparison\n\nCaptures compared with prototype revision 14 (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
+    `# Prototype comparison\n\nCaptures compared with prototype revision 15 (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
   );
   return results;
 }
@@ -328,10 +340,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       resolve(root, 'docs/design/f4.1-prototype/source/prototype.html'),
   );
   let ids = option('--ids')?.split(',').filter(Boolean);
+  const index = JSON.parse(readFileSync(resolve(setDir, 'index.json'), 'utf8'));
+  if (!ids && process.argv.includes('--pending'))
+    ids = pendingCompareIds(index);
   if (!ids) {
-    const index = JSON.parse(
-      readFileSync(resolve(setDir, 'index.json'), 'utf8'),
-    );
     ids = [
       ...new Set(
         Object.keys(index.views).map((v) =>

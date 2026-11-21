@@ -117,3 +117,4 @@ export async function createAuthRuntime(
 ) {
   return (await import('./auth/auth-runtime.js')).createAuthRuntime(options);
 }
+export { accountProfileBodySchema } from './auth/account-profile-schema.js';

@@ -118,7 +118,7 @@ test('own profile accepts only the display name and onboarding is idempotent', a
             name: 'Changed',
             role: 'admin',
           } as never),
-        ).rejects.toBeDefined();
+        ).rejects.toMatchObject({ name: 'ZodError' });
         expect(
           await account.updateProfile(verified, { name: ' Changed ' }),
         ).toMatchObject({ id: identity.userId, name: 'Changed' });
@@ -173,7 +173,9 @@ test('password reset and its ID-only audit commit together; an audit failure pre
       });
     const before = await audit.count('identity.account_changed.v1');
     await audit.rejectInserts();
-    await expect(reset()).rejects.toBeDefined();
+    await expect(reset()).rejects.toMatchObject({
+      cause: { message: 'injected-audit-failure' },
+    });
     expect(
       await proof.integration.transaction((tx) =>
         tx.call('getSession', { headers: identity.cookieHeaders }),
@@ -362,7 +364,7 @@ test('a wrong current password preserves sessions; a correct change revokes othe
           },
         }),
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ body: { code: 'INVALID_PASSWORD' } });
     expect(
       await proof.integration.transaction((tx) =>
         tx.call('getSession', { headers: secondHeaders }),
@@ -410,7 +412,7 @@ test('signup requires verification; duplicate signup has no additional effect', 
       proof.integration.transaction((tx) =>
         tx.call('signInEmail', { body: { email: user.body.email, password } }),
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ body: { code: 'EMAIL_NOT_VERIFIED' } });
     const duplicate = await proof.integration.transaction((tx) =>
       tx.call('signUpEmail', { ...user, asResponse: true }),
     );
@@ -456,12 +458,12 @@ test('password reset consumes its proof and revokes every session atomically', a
     ).toBeNull();
     await expect(
       proof.integration.transaction((tx) => tx.call('resetPassword', { body })),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ body: { code: 'INVALID_TOKEN' } });
     await expect(
       proof.integration.transaction((tx) =>
         tx.call('signInEmail', { body: { email: user.body.email, password } }),
       ),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ body: { code: 'INVALID_EMAIL_OR_PASSWORD' } });
     await expect(
       proof.integration.transaction((tx) =>
         tx.call('signInEmail', {
