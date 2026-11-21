@@ -13,6 +13,7 @@ import {
   DataToolbar,
   FacetFilter,
   IdentityCell,
+  MutedCell,
   PagedFooter,
   RowMenu,
   StatusBadge,
@@ -29,6 +30,8 @@ const STATE = [
   { value: 'active', label: 'Active' },
   { value: 'provisioning', label: 'Provisioning' },
 ];
+const stateLabel = (o: PlatformOrganizationSummary) =>
+  o.state === 'active' ? 'Active' : 'Provisioning';
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -98,11 +101,7 @@ export function OrganizationsPage() {
       key: 'state',
       header: 'State',
       width: '128px',
-      cell: (o) => (
-        <StatusBadge>
-          {o.state === 'active' ? 'Active' : 'Provisioning'}
-        </StatusBadge>
-      ),
+      cell: (o) => <StatusBadge>{stateLabel(o)}</StatusBadge>,
     },
     {
       key: 'members',
@@ -192,6 +191,28 @@ export function OrganizationsPage() {
             onOpen={open}
             openLabel={(o) => `Open ${o.name}`}
             sort={{ key: 'created', direction: 'descending' }}
+            mobileRow={(o) => ({
+              lead: (
+                <span
+                  aria-hidden="true"
+                  className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg text-xs font-semibold"
+                >
+                  {initials(o.name)}
+                </span>
+              ),
+              title: o.name,
+              sub: o.slug,
+              badge: <StatusBadge>{stateLabel(o)}</StatusBadge>,
+              meta: (
+                <MutedCell>
+                  {`${
+                    o.state === 'active'
+                      ? `${o.memberCount} ${o.memberCount === 1 ? 'member' : 'members'}`
+                      : 'Owner invited'
+                  } · ${o.ownerEmail}`}
+                </MutedCell>
+              ),
+            })}
           />
         ) : (
           <DataStates
