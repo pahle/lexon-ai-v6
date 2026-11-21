@@ -59,3 +59,16 @@ export function observeSseResponses(
   },
   prototype: { writeHead: (...args: never[]) => unknown },
 ): void;
+export function createRetryBudget(
+  limitMs: number,
+  now?: () => number,
+): {
+  refused(): void;
+  pause(): void;
+  resume(): void;
+  elapsedMs(): number;
+  expired(): boolean;
+};
+export function classifySlots(
+  rows: Array<{ runId: string; status: string | null }>,
+): { total: number; active: string[]; leaked: string[] };

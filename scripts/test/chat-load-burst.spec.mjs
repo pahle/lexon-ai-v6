@@ -4,7 +4,9 @@ import { test } from 'node:test';
 import {
   BURST_RESULT_KEYS,
   buildBurstResult,
+  classifySlots,
   createPoolMetrics,
+  createRetryBudget,
   createSseCounter,
   drainBoundMs,
   isCapacityRefusal,
@@ -227,4 +229,58 @@ test('open-SSE ignores non-SSE responses and a lease without a response', () => 
   // Registry leases (admit without release) no longer move the counter.
   counter.reset();
   assert.deepEqual(counter.snapshot(), { open: 0, peak: 0 });
+});
+
+test('retry budget starts at the first refusal, not before', () => {
+  let now = 1_000;
+  const budget = createRetryBudget(60_000, () => now);
+  now += 500_000;
+  assert.equal(budget.expired(), false);
+  budget.refused();
+  now += 59_999;
+  assert.equal(budget.expired(), false);
+  now += 2;
+  assert.equal(budget.expired(), true);
+});
+
+test('retry budget keeps its first start and excludes paused waits', () => {
+  let now = 0;
+  const budget = createRetryBudget(60_000, () => now);
+  budget.refused();
+  now += 10_000;
+  budget.refused();
+  budget.pause();
+  now += 300_000;
+  budget.resume();
+  now += 49_000;
+  assert.equal(budget.expired(), false);
+  assert.equal(budget.elapsedMs(), 59_000);
+  now += 2_000;
+  assert.equal(budget.expired(), true);
+});
+
+test('retry budget never expires without a refusal, even with a pause', () => {
+  let now = 0;
+  const budget = createRetryBudget(1_000, () => now);
+  budget.pause();
+  now += 9_999_999;
+  budget.resume();
+  assert.equal(budget.expired(), false);
+  assert.equal(budget.elapsedMs(), 0);
+});
+
+test('classifySlots separates leaked slots (terminal run) from active ones', () => {
+  const rows = [
+    { runId: 'a', status: 'running' },
+    { runId: 'b', status: 'completed' },
+    { runId: 'c', status: 'queued' },
+    { runId: 'd', status: 'failed' },
+    { runId: 'e', status: null },
+  ];
+  assert.deepEqual(classifySlots(rows), {
+    total: 5,
+    active: ['a', 'c'],
+    leaked: ['b', 'd', 'e'],
+  });
+  assert.deepEqual(classifySlots([]), { total: 0, active: [], leaked: [] });
 });

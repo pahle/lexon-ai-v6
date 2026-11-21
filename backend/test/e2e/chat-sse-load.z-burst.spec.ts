@@ -15,6 +15,8 @@ import { authenticateApi } from './identity-support.js';
 import { containerId, descriptor, docker } from './runtime-support.js';
 import {
   buildBurstResult,
+  classifySlots,
+  createRetryBudget,
   drainBoundMs,
   isCapacityRefusal,
   parseBurstOptions,
@@ -94,6 +96,28 @@ async function activeRunStatuses(postgres: string) {
   );
 }
 
+// Every slot joined to its run, and the status of every run in the stack.
+async function slotRows(postgres: string) {
+  const output = await psql(
+    postgres,
+    `SELECT s.run_id || '|' || coalesce(r.status, '') FROM ops.ai_run_slots s LEFT JOIN app.ai_runs r ON r.id = s.run_id`,
+  );
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [runId, status] = line.split('|');
+      return { runId: runId!, status: status ? status : null };
+    });
+}
+
+async function allRunStatuses(postgres: string) {
+  return psql(
+    postgres,
+    `SELECT status || ':' || count(*) FROM app.ai_runs GROUP BY status ORDER BY status`,
+  );
+}
+
 async function provision(
   playwright: { request: { newContext(): Promise<APIRequestContext> } },
   apiUrl: string,
@@ -156,12 +180,50 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
     })
     .toEqual({ ready: true });
 
-  // Diagnostic for the capacity wait below: what was already active when the
-  // burst started (leftovers of the F4.1 load spec in the same stack).
+  // The burst needs a stack with no active run. Whatever the F4.1 spec left in
+  // the same stack is recorded first (every run's status, every slot with its
+  // run), then the slot count must reach 0, proven by query, within a bound.
+  // A slot whose run is terminal is a capacity leak (a product bug) and fails
+  // the spec at once; slots still legitimately active at the bound also fail,
+  // so the burst never starts on a busy stack.
+  const slotsAtStart = await slotRows(postgres);
   const activeAtStart = {
-    slots: await activeRuns(postgres),
+    slots: slotsAtStart.length,
     statuses: await activeRunStatuses(postgres),
+    allRunStatuses: await allRunStatuses(postgres),
+    classified: classifySlots(slotsAtStart),
   };
+  console.log(`Slots at burst start: ${JSON.stringify(activeAtStart)}`);
+  const quietStartedAt = Date.now();
+  let quiet = classifySlots(slotsAtStart);
+  const releasedLeftovers = new Set<string>();
+  while (quiet.total > 0 && Date.now() - quietStartedAt < 120_000) {
+    if (quiet.leaked.length > 0) break;
+    // The active slots belong to runs the F4.1 spec held in this stack; its
+    // release can land before the worker armed the gate, so release again.
+    for (const runId of quiet.active) {
+      releasedLeftovers.add(runId);
+      await workerRelease(worker, runId);
+    }
+    await delay(1000);
+    quiet = classifySlots(await slotRows(postgres));
+  }
+  const slotsQuietSeconds =
+    Math.round((Date.now() - quietStartedAt) / 100) / 10;
+  if (quiet.total > 0) {
+    const workerStatus = await Promise.all(
+      quiet.active.map(async (runId) =>
+        docker(['exec', worker, 'node', workerControlPath, 'status', runId])
+          .then((out) => `${runId}=${out.trim()}`)
+          .catch(() => `${runId}=unreadable`),
+      ),
+    );
+    console.log(`Worker status of remaining slots: ${workerStatus.join(' ')}`);
+    throw new Error(
+      `${quiet.leaked.length > 0 ? 'CAPACITY LEAK' : 'STACK NOT QUIET'}: ${quiet.total} slots after ${slotsQuietSeconds} s (leaked ${quiet.leaked.length}, active ${quiet.active.length}); runs: ${await allRunStatuses(postgres)}`,
+    );
+  }
+  expect(await activeRuns(postgres), 'ai_run_slots before the burst').toBe(0);
 
   // Provision while the API still has the load-test limits.
   const clients: Client[] = new Array(options.clients);
@@ -180,17 +242,21 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
     clients.slice(0, options.heldRuns),
     4,
     async (client, i) => {
-      const runDeadline = Date.now() + RUN_ADMISSION_MS;
+      // Starts at the first 503; waiting for the slot count is not spent.
+      const budget = createRetryBudget(RUN_ADMISSION_MS);
       let backoffMs = 250;
       for (;;) {
-        if (Date.now() > setupDeadline || Date.now() > runDeadline)
+        if (Date.now() > setupDeadline || budget.expired())
           throw new Error(
-            `Held run ${i} was not admitted within ${RUN_ADMISSION_MS} ms (${capacityRetries} capacity retries)`,
+            `Held run ${i} was not admitted within ${RUN_ADMISSION_MS} ms of its first capacity refusal (${budget.elapsedMs()} ms spent, ${capacityRetries} capacity retries)`,
           );
-        if ((await activeRuns(postgres)) >= capacity) {
+        budget.pause();
+        const full = (await activeRuns(postgres)) >= capacity;
+        if (full) {
           await delay(500);
           continue;
         }
+        budget.resume();
         const response = await fetch(`${stack.apiUrl}/api/chats`, {
           method: 'POST',
           headers: {
@@ -223,6 +289,7 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
         // Only a capacity refusal is retried; any other status fails.
         if (isCapacityRefusal(response.status, body)) {
           capacityRetries += 1;
+          budget.refused();
           await delay(backoffMs);
           backoffMs = Math.min(backoffMs * 2, 2000);
           continue;
@@ -351,7 +418,12 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
         heldRuns: options.heldRuns,
         invalidationStreams: options.invalidationStreams,
       },
-      setup: { activeAtStart, capacityRetries },
+      setup: {
+        activeAtStart,
+        leftoverRunsReleased: releasedLeftovers.size,
+        slotsQuietSeconds,
+        capacityRetries,
+      },
       activeRunsAtPeak,
       replay: { attaches: 0, drainSeconds: null as number | null, note: '' },
       results,

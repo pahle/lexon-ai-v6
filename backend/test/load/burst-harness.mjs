@@ -197,3 +197,50 @@ export function observeSseResponses(counter, prototype) {
     return result;
   };
 }
+
+// Admission retry budget for one held run. The clock starts at the first
+// capacity refusal (not at the start of the attempt) and does not run while
+// paused, so waiting for the database slot count never spends it.
+export function createRetryBudget(limitMs, now = () => Date.now()) {
+  let startedAt = null;
+  let pausedAt = null;
+  let pausedMs = 0;
+  const elapsedMs = () => {
+    if (startedAt === null) return 0;
+    const end = pausedAt ?? now();
+    return Math.max(0, end - startedAt - pausedMs);
+  };
+  return {
+    refused() {
+      if (startedAt === null) startedAt = now();
+    },
+    pause() {
+      if (pausedAt === null) pausedAt = now();
+    },
+    resume() {
+      if (pausedAt === null) return;
+      // A pause before the first refusal is outside the budget altogether.
+      if (startedAt !== null) pausedMs += now() - Math.max(pausedAt, startedAt);
+      pausedAt = null;
+    },
+    elapsedMs,
+    expired: () => elapsedMs() > limitMs,
+  };
+}
+
+const ACTIVE_STATUSES = [
+  'queued',
+  'running',
+  'awaiting_approval',
+  'cancelling',
+];
+
+// Rows of ops.ai_run_slots joined to their run status. A slot whose run is not
+// in an active status (or has no run) is a capacity leak.
+export function classifySlots(rows) {
+  const active = [];
+  const leaked = [];
+  for (const row of rows)
+    (ACTIVE_STATUSES.includes(row.status) ? active : leaked).push(row.runId);
+  return { total: rows.length, active, leaked };
+}
