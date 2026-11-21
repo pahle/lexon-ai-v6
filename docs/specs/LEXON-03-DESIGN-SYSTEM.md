@@ -691,11 +691,14 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
 - **Selection** (only for lists with bulk actions):
   - a 52px checkbox column; selected rows on `muted` at 70%;
   - a **floating action bar** that appears while at least one row is
-    selected. It sits centered just below the table card and stays pinned
-    20px above the bottom of the view while the page scrolls (sticky). It
-    has a `foreground` surface, radius 12px, a checkbox and "N selected", a
-    divider, icon and label actions (destructive in `red-text`), a divider,
-    and a clear (x) button that ends the selection.
+    selected. It always floats centered over the content area, 24px above
+    the bottom of the screen (16px on mobile), wherever the page is
+    scrolled. It enters with a short rise (none under reduced motion), and
+    the page gains 96px of bottom space so the last row and the footer stay
+    reachable. It has a `foreground` surface, radius 12px, a checkbox and
+    "N selected", a divider, icon and label actions (destructive in
+    `red-text`), a divider, and a clear (x) button that ends the
+    selection. On mobile, selectable rows show their checkbox at the left.
 - **Footer** (padding 10px 16px 10px 20px, 13px `muted-foreground`, a 1px
   `border` above):
   - the count ("248 accounts");
