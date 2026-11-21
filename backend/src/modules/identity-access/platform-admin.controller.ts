@@ -27,4 +27,12 @@ export class PlatformAdminController {
       UuidSchema.parse(userId),
     );
   }
+  @Post('accounts/:userId/verification-email') @HttpCode(204) resend(
+    @Param('userId') userId: string,
+  ) {
+    return this.platform.resendVerification(
+      currentVerifiedIdentity(),
+      UuidSchema.parse(userId),
+    );
+  }
 }

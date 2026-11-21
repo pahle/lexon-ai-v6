@@ -171,3 +171,48 @@ test('revoke signs out cookie and bearer sessions; route guard matrix', async ({
   expect((await target.get(stack.apiUrl + '/api/identity')).status()).toBe(401);
   expect((await bearer.get(stack.apiUrl + '/api/identity')).status()).toBe(401);
 });
+
+test('verification resend route: 401, 403, 204 for unverified, 409 for verified', async ({
+  page,
+  playwright,
+}) => {
+  const stack = descriptor();
+  const origin = { origin: stack.frontendUrl };
+  await enrollAdministrator(
+    page,
+    `resend.${Date.now().toString(36)}@example.test`,
+  );
+  const admin = page.request;
+  const anonymous = await playwright.request.newContext();
+  const member = await playwright.request.newContext();
+  await authenticateApi(member);
+  const memberId = (
+    (await (
+      await member.get(stack.apiUrl + '/api/auth/get-session')
+    ).json()) as { user: { id: string } }
+  ).user.id;
+  const pending = await playwright.request.newContext();
+  const email = `${randomUUID()}@example.test`;
+  const signup = await pending.post(stack.apiUrl + '/api/auth/sign-up/email', {
+    headers: origin,
+    data: { name: 'Pending user', email, password: 'E2E-api-identity-42!' },
+  });
+  expect(signup.status()).toBe(200);
+  const found = await admin.get(
+    `${stack.apiUrl}/api/platform/accounts?query=${encodeURIComponent(email)}`,
+  );
+  const pendingId = ((await found.json()) as { items: { id: string }[] })
+    .items[0]!.id;
+  const path = (id: string) =>
+    `${stack.apiUrl}/api/platform/accounts/${id}/verification-email`;
+  expect(
+    (await anonymous.post(path(pendingId), { headers: origin })).status(),
+  ).toBe(401);
+  expect(
+    (await member.post(path(pendingId), { headers: origin })).status(),
+  ).toBe(403);
+  const ok = await admin.post(path(pendingId), { headers: origin });
+  expect(ok.status(), await ok.text()).toBe(204);
+  const verified = await admin.post(path(memberId), { headers: origin });
+  expect(verified.status()).toBe(409);
+});

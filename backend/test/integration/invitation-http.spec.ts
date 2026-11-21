@@ -25,6 +25,7 @@ test('guarded Lexon invitation routes use the authenticated recipient and shared
     imports: [
       IdentityAccessModule.forPolicy({
         limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: FrameworkModule },
       }),

@@ -4,6 +4,7 @@ import { UuidSchema } from '@lexon/contracts';
 import { OrganizationAuthPort } from './organization-auth.port.js';
 import type { VerifiedIdentity } from './identity.types.js';
 import { IdentityError } from './identity-error.js';
+import { emailLimitKey } from './auth-http.js';
 import { appendAuthAudit } from '../audit/index.js';
 import {
   AuthLimitError,
@@ -20,9 +21,59 @@ export function assertNotLastAdministrator(
 export class PlatformAdminService {
   constructor(
     private readonly port: OrganizationAuthPort,
-    private readonly config: { reauthSeconds: number },
+    private readonly config: {
+      reauthSeconds: number;
+      correlationSecret: string;
+    },
     private readonly limiter: Pick<AuthLimiter, 'consume'>,
   ) {}
+  async resendVerification(
+    identity: VerifiedIdentity,
+    userId: string,
+  ): Promise<void> {
+    UuidSchema.parse(userId);
+    await this.port.platformTransaction(
+      identity,
+      this.config.reauthSeconds,
+      async (tx) => {
+        const read = await tx.call('lexonPlatformRead', {
+          body: { name: 'account', params: [userId] } as never,
+        });
+        const row = (
+          read as { rows: { email: string; email_verified: boolean }[] }
+        ).rows[0];
+        if (!row) throw new IdentityError('NOT_FOUND', 404);
+        if (row.email_verified)
+          throw new IdentityError('PLATFORM_ALREADY_VERIFIED', 409);
+        try {
+          // The user's own resend bucket (same key as the public endpoint).
+          await this.limiter.consume({
+            action: 'verification-resend',
+            clientAddress: '127.0.0.1',
+            scope: 'account',
+            accountKey: emailLimitKey(this.config.correlationSecret, row.email),
+          });
+        } catch (error) {
+          if (error instanceof AuthLimitError)
+            throw new IdentityError(error.code, error.status);
+          throw error;
+        }
+        // No admin headers: a session would trigger EMAIL_MISMATCH.
+        await tx.call('sendVerificationEmail', { body: { email: row.email } });
+        await appendAuthAudit(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          type: 'platform.verification_email_resent.v1',
+          outcome: 'success',
+          actorUserId: identity.userId,
+          subjectUserId: userId,
+          sessionId: identity.sessionId,
+          metadata: {},
+        });
+      },
+    );
+  }
   async revokeSessions(
     identity: VerifiedIdentity,
     userId: string,

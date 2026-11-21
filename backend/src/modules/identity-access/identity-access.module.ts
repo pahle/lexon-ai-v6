@@ -31,6 +31,7 @@ export class IdentityAccessModule {
     bearerSeconds?: number;
     reauthSeconds?: number;
     limiter: Pick<AuthLimiter, 'consume'>;
+    correlationSecret: string;
     requestPolicy?: ConstructorParameters<typeof TenantGuard>[3];
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);
@@ -56,7 +57,10 @@ export class IdentityAccessModule {
           provide: PlatformAdminService,
           useValue: new PlatformAdminService(
             new OrganizationAuthPort(options.integration),
-            { reauthSeconds: options.reauthSeconds ?? 300 },
+            {
+              reauthSeconds: options.reauthSeconds ?? 300,
+              correlationSecret: options.correlationSecret,
+            },
             options.limiter,
           ),
         },

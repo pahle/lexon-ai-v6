@@ -133,6 +133,13 @@ export interface AuthHttpPolicyDependencies {
     body: Record<string, unknown>,
   ) => Promise<string | undefined>;
 }
+// Shared by the user's own resend and the platform resend: one bucket per email.
+export function emailLimitKey(secret: string, email: string): string {
+  return createHmac('sha256', secret)
+    .update('lexon.auth.limit.email.v1\0')
+    .update(email.trim().toLowerCase())
+    .digest('hex');
+}
 async function readBody(request: Request): Promise<unknown> {
   if (!request.body) return {};
   const reader = request.body.getReader();
@@ -273,10 +280,7 @@ export function createAuthHttp(
       if (rule.action) {
         let accountKey: string | undefined;
         if (rule.scope === 'public' && typeof body.email === 'string')
-          accountKey = createHmac('sha256', deps.correlationSecret)
-            .update('lexon.auth.limit.email.v1\0')
-            .update(body.email.trim().toLowerCase())
-            .digest('hex');
+          accountKey = emailLimitKey(deps.correlationSecret, body.email);
         else if (rule.scope !== 'public') {
           await deps.limiter.consume({
             action: rule.action,

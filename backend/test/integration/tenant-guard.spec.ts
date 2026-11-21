@@ -99,6 +99,7 @@ test('Nest guard binds only verified tenant IDs across async controller work and
     imports: [
       IdentityAccessModule.forPolicy({
         limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: FrameworkModule },
       }),

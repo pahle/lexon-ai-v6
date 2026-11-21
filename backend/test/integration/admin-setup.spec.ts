@@ -176,6 +176,7 @@ test('setup HTTP exposes redemption but never operator initiation', async ({
     imports: [
       IdentityAccessModule.forPolicy({
         limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: Framework },
       }),

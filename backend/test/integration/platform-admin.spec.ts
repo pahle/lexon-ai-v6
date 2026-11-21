@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
+import { emailLimitKey } from '../../src/modules/identity-access/auth-http.js';
 import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 import { createAuthLimiter } from '../../src/infrastructure/queue/index.js';
 import { test } from '../setup/file-services.js';
@@ -10,6 +11,7 @@ import { SessionService } from '../../src/modules/identity-access/session.servic
 import { IdentitySessionService } from '../../src/modules/identity-access/identity-session.service.js';
 import { securityHarness, responseCookies } from '../setup/security-harness.js';
 import { createSecurityInspector } from '../../src/infrastructure/db/testing/security-fixture.js';
+const secret = 'test-correlation-secret-0123456789';
 const password = 'Platform-disable-42!';
 test('fresh fully authenticated platform admin disables and revokes both credential classes; unban restores no sessions', async ({
   services,
@@ -29,7 +31,7 @@ test('fresh fully authenticated platform admin disables and revokes both credent
     const port = new OrganizationAuthPort(proof.integration);
     const service = new PlatformAdminService(
       port,
-      { reauthSeconds: 300 },
+      { reauthSeconds: 300, correlationSecret: secret },
       unlimitedLimiter,
     );
     await harness.identity(user.cookieHeaders, async (identity) => {
@@ -96,7 +98,7 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
     const port = new OrganizationAuthPort(proof.integration);
     const service = new PlatformAdminService(
       port,
-      { reauthSeconds: 300 },
+      { reauthSeconds: 300, correlationSecret: secret },
       unlimitedLimiter,
     );
     const mk = async (label: string) => {
@@ -137,7 +139,7 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
             return work(tx, h) as Promise<T>;
           }),
       }),
-      { reauthSeconds: 300 },
+      { reauthSeconds: 300, correlationSecret: secret },
       unlimitedLimiter,
     );
     const results = await Promise.allSettled([
@@ -181,7 +183,7 @@ test('revoke deletes all target sessions, audits with empty metadata, refuses se
     const port = new OrganizationAuthPort(proof.integration);
     const service = new PlatformAdminService(
       port,
-      { reauthSeconds: 300 },
+      { reauthSeconds: 300, correlationSecret: secret },
       limiter,
     );
     const adminEmail = `${randomUUID()}@example.test`;
@@ -244,7 +246,7 @@ test('stale re-auth refusals do not burn the revoke budget', async ({
     const port = new OrganizationAuthPort(proof.integration);
     const service = new PlatformAdminService(
       port,
-      { reauthSeconds: 300 },
+      { reauthSeconds: 300, correlationSecret: secret },
       limiter,
     );
     const mk = async (label: string) => {
@@ -280,6 +282,82 @@ test('stale re-auth refusals do not burn the revoke budget', async ({
   } finally {
     await limiter.close();
     await inspect.close();
+    await proof.close();
+  }
+});
+test('verification resend: verified 409, unverified 204 sharing the own-resend bucket, no admin headers', async ({
+  services,
+}) => {
+  const sent: string[] = [];
+  const proof = await createAuthFixture(services, {
+    mailTransport: {
+      sendMail: async (options) => {
+        sent.push(String(options.to));
+      },
+    },
+  });
+  const limiter = await createAuthLimiter({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:rl:auth:`,
+  });
+  try {
+    const harness = securityHarness(proof);
+    const port = new OrganizationAuthPort(proof.integration);
+    const service = new PlatformAdminService(
+      port,
+      { reauthSeconds: 300, correlationSecret: secret },
+      limiter,
+    );
+    const adminEmail = `${randomUUID()}@example.test`;
+    const admin = await proof.signIn({
+      body: { name: 'Resend admin', email: adminEmail, password },
+    });
+    await proof.inspect.makeAdmin(admin.userId);
+    const full = await harness.enroll(adminEmail, password);
+    const verified = await proof.signIn({
+      body: {
+        name: 'Verified user',
+        email: `${randomUUID()}@example.test`,
+        password,
+      },
+    });
+    const email = `${randomUUID()}@example.test`;
+    const signup = (await proof.integration.transaction((tx) =>
+      tx.call('signUpEmail', {
+        body: { name: 'Unverified user', email, password },
+      }),
+    )) as { user: { id: string } };
+    const events = () =>
+      proof.inspect.auditCount('platform.verification_email_resent.v1');
+    const before = await events();
+    await harness.identity(full.headers, async (identity) => {
+      await expect(
+        service.resendVerification(identity, verified.userId),
+      ).rejects.toMatchObject({
+        code: 'PLATFORM_ALREADY_VERIFIED',
+        status: 409,
+      });
+      await proof.drainMail();
+      const mails = sent.filter((to) => to === email).length;
+      for (let i = 0; i < 3; i++)
+        await service.resendVerification(identity, signup.user.id);
+      await proof.drainMail();
+      expect(sent.filter((to) => to === email).length).toBe(mails + 3);
+      await expect(
+        service.resendVerification(identity, signup.user.id),
+      ).rejects.toMatchObject({ code: 'AUTH_RATE_LIMITED', status: 429 });
+    });
+    expect(await events()).toBe(before + 3);
+    // The user's own resend uses the same bucket and is now exhausted too.
+    await expect(
+      limiter.consume({
+        action: 'verification-resend',
+        clientAddress: '192.0.2.9',
+        accountKey: emailLimitKey(secret, email),
+      }),
+    ).rejects.toMatchObject({ status: 429, code: 'AUTH_RATE_LIMITED' });
+  } finally {
+    await limiter.close();
     await proof.close();
   }
 });

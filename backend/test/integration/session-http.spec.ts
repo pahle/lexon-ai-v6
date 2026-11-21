@@ -29,6 +29,7 @@ test('session HTTP returns token only once with no-store and lists safe revocabl
     imports: [
       IdentityAccessModule.forPolicy({
         limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: Framework },
       }),

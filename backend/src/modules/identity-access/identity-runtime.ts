@@ -149,6 +149,7 @@ export async function createIdentityRuntime(
       bearerSeconds: settings.bearerSeconds,
       reauthSeconds: settings.reauthSeconds,
       limiter,
+      correlationSecret: settings.auditHmacSecret,
       requestPolicy: async (request, headers, userId) => {
         // Express has already matched a controller route. Use its canonical
         // template so accepted case/trailing-slash aliases share one policy.
