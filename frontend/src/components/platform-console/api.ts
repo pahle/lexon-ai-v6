@@ -6,6 +6,7 @@ import {
   IdentityErrorResponseSchema,
   PlatformAccountDetailSchema,
   PlatformAccountsPageSchema,
+  PlatformOrganizationsPageSchema,
   UuidSchema,
   type AccountInvitation,
 } from '@lexon/contracts';
@@ -94,6 +95,11 @@ export const platformConsoleApi = {
       method: 'POST',
       body: AccountInvitationInputSchema.parse(input),
     }),
+  listOrganizations: (params: ListParams) =>
+    call(
+      '/platform/organizations' + search(params),
+      PlatformOrganizationsPageSchema,
+    ),
   account: (id: string) =>
     call(
       `/platform/accounts/${UuidSchema.parse(id)}`,
