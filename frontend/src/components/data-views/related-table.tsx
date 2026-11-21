@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { DataStates } from './data-states';
-import { DataTable, type DataColumn } from './data-table';
+import { DataTable, type DataColumn, type MobileRow } from './data-table';
 import { DataTableCard } from './data-table-card';
 
 /** A DataTableCard with title and count inside a record page; owns no paging or filters. */
@@ -18,6 +18,9 @@ export function RelatedTable<T>({
   emptyText,
   emptyTitle,
   footer,
+  count,
+  thing,
+  mobileRow,
 }: {
   title: string;
   description?: string;
@@ -30,12 +33,17 @@ export function RelatedTable<T>({
   emptyText: string;
   emptyTitle?: string;
   footer?: ReactNode;
+  /** The count pill; defaults to the rows shown (pass the total when paged). */
+  count?: number;
+  /** Completes "Loading <thing>" and "We could not load <thing>." */
+  thing?: string;
+  mobileRow?: (row: T) => MobileRow;
 }) {
   return (
     <DataTableCard
       title={title}
       {...(description ? { description } : {})}
-      {...(status === 'ready' ? { count: rows.length } : {})}
+      {...(status === 'ready' ? { count: count ?? rows.length } : {})}
       {...(footer ? { footer } : {})}
     >
       {status === 'ready' ? (
@@ -44,6 +52,7 @@ export function RelatedTable<T>({
           rows={rows}
           getRowId={getRowId}
           {...(onOpen ? { onOpen } : {})}
+          {...(mobileRow ? { mobileRow } : {})}
         />
       ) : (
         <DataStates
@@ -52,6 +61,7 @@ export function RelatedTable<T>({
           onRetry={onRetry}
           onReset={() => undefined}
           emptyText={emptyText}
+          {...(thing ? { thing } : {})}
           {...(emptyTitle ? { emptyTitle } : {})}
         />
       )}

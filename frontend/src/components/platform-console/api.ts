@@ -6,6 +6,8 @@ import {
   IdentityErrorResponseSchema,
   PlatformAccountDetailSchema,
   PlatformAccountsPageSchema,
+  PlatformMembersPageSchema,
+  PlatformOrganizationDetailSchema,
   PlatformOrganizationsPageSchema,
   UuidSchema,
   type AccountInvitation,
@@ -104,6 +106,17 @@ export const platformConsoleApi = {
     call(
       `/platform/accounts/${UuidSchema.parse(id)}`,
       PlatformAccountDetailSchema,
+    ),
+  organization: (id: string) =>
+    call(
+      `/platform/organizations/${UuidSchema.parse(id)}`,
+      PlatformOrganizationDetailSchema,
+    ),
+  members: (id: string, params: ListParams) =>
+    call(
+      `/platform/organizations/${UuidSchema.parse(id)}/members` +
+        search(params),
+      PlatformMembersPageSchema,
     ),
   setDisabled: (id: string, disabled: boolean) =>
     call<void>(`/platform/users/${UuidSchema.parse(id)}/disabled`, null, {

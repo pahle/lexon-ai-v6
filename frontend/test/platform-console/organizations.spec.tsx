@@ -7,12 +7,15 @@ import { byLabel, byText, click, typeInto } from '../data-views/helpers';
 
 const nav = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), search: '' }));
 const toastSuccess = vi.hoisted(() => vi.fn());
+const toastError = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: nav.replace, push: nav.push }),
   usePathname: () => '/platform/organizations',
   useSearchParams: () => new URLSearchParams(nav.search),
 }));
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn() } }));
+vi.mock('sonner', () => ({
+  toast: { success: toastSuccess, error: toastError },
+}));
 
 const ID = '3b241101-e2bb-4255-8caf-4136c566a962';
 const org = (over: object = {}) => ({
@@ -53,6 +56,7 @@ afterEach(() => {
   nav.replace.mockClear();
   nav.push.mockClear();
   toastSuccess.mockClear();
+  toastError.mockClear();
   document.body.innerHTML = '';
 });
 
@@ -131,7 +135,12 @@ test('lists organizations with the prototype columns', async () => {
   expect(nav.push).toHaveBeenLastCalledWith(`/platform/organizations/${ID}`);
   await click(byLabel(v.container, 'Actions for Harbor Legal Partners')!);
   const items = Array.from(document.body.querySelectorAll('[role="menuitem"]'));
-  expect(items.map((n) => n.textContent)).toEqual(['View organization']);
+  expect(items.map((n) => n.textContent)).toEqual([
+    'View organization',
+    'Resend invitation',
+    'Cancel provisioning',
+  ]);
+  expect(items[2]!.getAttribute('data-variant')).toBe('destructive');
   await click(items[0]!);
   expect(nav.push).toHaveBeenLastCalledWith(
     `/platform/organizations/${PROV_ID}`,
@@ -350,5 +359,112 @@ test('provision success opens the new record', async () => {
   // The organization list queries were invalidated and refetched.
   await settle();
   expect(listFetches()).toBe(before + 1);
+  await v.unmount();
+});
+
+const menuItems = () =>
+  Array.from(document.body.querySelectorAll('[role="menuitem"]'));
+async function mountRows(
+  mutation: (url: string, method: string) => Response = (url) =>
+    url.endsWith('/resend')
+      ? json({
+          version: 1,
+          id: PROV_ID,
+          name: 'Harbor Legal Partners',
+          slug: 'harbor-legal-partners',
+          kind: 'team',
+          state: 'provisioning',
+          createdAt: '2026-11-14T03:00:00.000Z',
+          invitation: {
+            id: ID,
+            status: 'pending',
+            expiresAt: '2026-11-21T03:00:00.000Z',
+          },
+        })
+      : new Response(null, { status: 204 }),
+) {
+  fetchMock.mockImplementation(
+    async (url: string, init?: { method?: string }) =>
+      init?.method && init.method !== 'GET'
+        ? mutation(url, init.method)
+        : json(page([org(), provisioningOrg()])),
+  );
+  const v = await mount();
+  await settleUntil(() => !!v.container.querySelector('table'));
+  return v;
+}
+const mutations = () =>
+  fetchMock.mock.calls.filter((c) => c[1]?.method && c[1].method !== 'GET');
+
+test('active rows offer only View organization', async () => {
+  const v = await mountRows();
+  await click(byLabel(v.container, 'Actions for Hukum Nusantara')!);
+  expect(menuItems().map((n) => n.textContent)).toEqual(['View organization']);
+  await v.unmount();
+});
+
+test('row menu Resend invitation resends the owner invitation and toasts', async () => {
+  const v = await mountRows();
+  await click(byLabel(v.container, 'Actions for Harbor Legal Partners')!);
+  const before = listFetches();
+  await click(byText(document.body, '[role="menuitem"]', 'Resend invitation')!);
+  await settleUntil(() => toastSuccess.mock.calls.length > 0);
+  expect(mutations().map((c) => `${c[1].method} ${c[0]}`)).toEqual([
+    `POST /api/platform/provisioning/${PROV_ID}/resend`,
+  ]);
+  expect(toastSuccess).toHaveBeenCalledWith('Owner invitation resent.');
+  await settleUntil(() => listFetches() > before);
+  await v.unmount();
+});
+
+test('row menu Resend failure toasts the safe message', async () => {
+  const v = await mountRows(() => failure('AUTH_UNAVAILABLE', 500));
+  await click(byLabel(v.container, 'Actions for Harbor Legal Partners')!);
+  await click(byText(document.body, '[role="menuitem"]', 'Resend invitation')!);
+  await settleUntil(() => toastError.mock.calls.length > 0);
+  expect(toastSuccess).not.toHaveBeenCalled();
+  await v.unmount();
+});
+
+test('row menu Cancel provisioning confirms first, then cancels and refreshes', async () => {
+  const v = await mountRows();
+  await click(byLabel(v.container, 'Actions for Harbor Legal Partners')!);
+  await click(
+    byText(document.body, '[role="menuitem"]', 'Cancel provisioning')!,
+  );
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(dialog.textContent).toContain(
+    'Cancel provisioning for Harbor Legal Partners?',
+  );
+  expect(dialog.textContent).toContain(
+    'This deletes the provisioning organization and invalidates its owner invitation.',
+  );
+  expect(mutations()).toHaveLength(0);
+  const confirm = byText(dialog, 'button', 'Cancel provisioning')!;
+  expect(confirm.className).toContain('--lexon-destructive-fill');
+  const before = listFetches();
+  await click(confirm);
+  await settleUntil(() => toastSuccess.mock.calls.length > 0);
+  expect(mutations().map((c) => `${c[1].method} ${c[0]}`)).toEqual([
+    `DELETE /api/platform/provisioning/${PROV_ID}`,
+  ]);
+  expect(toastSuccess).toHaveBeenCalledWith('Provisioning cancelled.');
+  await settleUntil(() => listFetches() > before);
+  expect(nav.push).not.toHaveBeenCalled();
+  await v.unmount();
+});
+
+test('row menu Cancel provisioning: dismissing makes no request', async () => {
+  const v = await mountRows();
+  await click(byLabel(v.container, 'Actions for Harbor Legal Partners')!);
+  await click(
+    byText(document.body, '[role="menuitem"]', 'Cancel provisioning')!,
+  );
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  await click(byText(dialog, 'button', 'Cancel')!);
+  await settle();
+  expect(mutations()).toHaveLength(0);
   await v.unmount();
 });

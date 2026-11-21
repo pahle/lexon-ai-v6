@@ -1,7 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { EyeIcon, PlusIcon } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { EyeIcon, MailIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { PlatformOrganizationSummary } from '@lexon/contracts';
@@ -25,6 +25,10 @@ import { formatPlatformDate } from '../platform/platform-format';
 import { Button } from '../ui/button';
 import { PlatformApiError, platformConsoleApi } from './api';
 import { ProvisionDialog } from './provision-dialog';
+import {
+  CancelProvisioningDialog,
+  resendOwnerInvitation,
+} from './provisioning-actions';
 
 const STATE = [
   { value: 'active', label: 'Active' },
@@ -44,7 +48,11 @@ const initials = (name: string) =>
 export function OrganizationsPage() {
   const router = useRouter();
   const view = useDataViewParams(['state']);
+  const queryClient = useQueryClient();
   const [provisioning, setProvisioning] = useState(false);
+  const [cancelTarget, setCancelTarget] =
+    useState<PlatformOrganizationSummary | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const state = view.facets.state ?? [];
   const list = useQuery({
     queryKey: [
@@ -132,6 +140,25 @@ export function OrganizationsPage() {
               icon: EyeIcon,
               onSelect: () => open(o),
             },
+            ...(o.state === 'provisioning'
+              ? [
+                  {
+                    label: 'Resend invitation',
+                    icon: MailIcon,
+                    onSelect: () =>
+                      void resendOwnerInvitation(queryClient, o.id),
+                  },
+                  {
+                    label: 'Cancel provisioning',
+                    icon: XIcon,
+                    destructive: true,
+                    onSelect: () => {
+                      setCancelTarget(o);
+                      setCancelOpen(true);
+                    },
+                  },
+                ]
+              : []),
           ]}
         />
       ),
@@ -229,6 +256,11 @@ export function OrganizationsPage() {
         )}
       </DataTableCard>
       <ProvisionDialog open={provisioning} onOpenChange={setProvisioning} />
+      <CancelProvisioningDialog
+        open={cancelOpen}
+        organization={cancelTarget}
+        onClose={() => setCancelOpen(false)}
+      />
     </DataListPage>
   );
 }

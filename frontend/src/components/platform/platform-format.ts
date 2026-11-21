@@ -15,6 +15,10 @@ export function formatPlatformDate(value: string | Date) {
   return `${day.format(date)} ${month.format(date)} ${year.format(date)}`;
 }
 
+export function formatPlatformTime(value: string | Date) {
+  return clock.format(new Date(value));
+}
+
 export function formatPlatformDateTime(value: string | Date) {
   const date = new Date(value);
   return `${formatPlatformDate(date)}, ${clock.format(date)}`;
