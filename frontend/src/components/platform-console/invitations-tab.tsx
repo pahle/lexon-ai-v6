@@ -1,0 +1,167 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import type { AccountInvitation } from '@lexon/contracts';
+import {
+  DataStates,
+  DataTable,
+  DataTableCard,
+  DataToolbar,
+  FacetFilter,
+  IdentityCell,
+  PagedFooter,
+  StatusBadge,
+  useDataViewParams,
+  type DataColumn,
+} from '../data-views';
+import { QueryFailure } from '../organizations/page-state';
+import { formatPlatformDate } from '../platform/platform-format';
+import { PlatformApiError, platformConsoleApi } from './api';
+import { INVITATIONS_KEY } from './invite-dialog';
+
+const STATUS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'expired', label: 'Expired' },
+];
+
+const columns: DataColumn<AccountInvitation>[] = [
+  {
+    key: 'person',
+    header: 'Invited person',
+    cell: (i) => (
+      <IdentityCell
+        shape="invitation"
+        name={i.name || i.email}
+        secondary={i.name ? i.email : 'No name given'}
+      />
+    ),
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    width: '112px',
+    cell: (i) => (
+      <StatusBadge tone={i.status === 'expired' ? 'warning' : 'neutral'}>
+        {i.status === 'expired' ? 'Expired' : 'Pending'}
+      </StatusBadge>
+    ),
+  },
+  {
+    key: 'invitedBy',
+    header: 'Invited by',
+    width: '150px',
+    muted: true,
+    cell: (i) => i.invitedBy,
+  },
+  {
+    key: 'sent',
+    header: 'Sent',
+    width: '120px',
+    muted: true,
+    cell: (i) => formatPlatformDate(i.sentAt),
+  },
+  {
+    key: 'expires',
+    header: 'Expires',
+    width: '120px',
+    muted: true,
+    cell: (i) => formatPlatformDate(i.expiresAt),
+  },
+];
+
+export function InvitationsTab() {
+  const view = useDataViewParams(['status', 'tab']);
+  const status = view.facets.status ?? [];
+  const list = useQuery({
+    queryKey: [
+      ...INVITATIONS_KEY,
+      view.query,
+      status,
+      view.page,
+      view.pageSize,
+    ],
+    queryFn: () =>
+      platformConsoleApi.listInvitations({
+        query: view.query,
+        status,
+        page: view.page,
+        pageSize: view.pageSize,
+      }),
+    retry: false,
+  });
+  const filtered = Boolean(view.query || status.length);
+  const rows = list.data?.items ?? [];
+  const state = list.isPending
+    ? 'loading'
+    : list.isError
+      ? 'error'
+      : rows.length
+        ? 'ready'
+        : filtered
+          ? 'no-results'
+          : 'empty';
+  if (
+    list.error instanceof PlatformApiError &&
+    (list.error.status === 401 || list.error.status === 403)
+  )
+    return <QueryFailure error={list.error} />;
+  // `tab` rides along as a facet key so filtering keeps the Invitations tab.
+  const resetFilters = () =>
+    view.set({ query: '', facets: { ...view.facets, status: [] } });
+  return (
+    <DataTableCard
+      toolbar={
+        <DataToolbar
+          query={view.query}
+          onQuery={(query) => view.set({ query })}
+          onReset={resetFilters}
+          hasFilters={filtered}
+          placeholder="Search by name or email"
+          facets={
+            <FacetFilter
+              label="Status"
+              options={STATUS}
+              selected={status}
+              onChange={(next) =>
+                view.set({ facets: { ...view.facets, status: next } })
+              }
+            />
+          }
+        />
+      }
+      footer={
+        list.data ? (
+          <PagedFooter
+            page={view.page}
+            pageSize={view.pageSize}
+            total={list.data.total}
+            noun="invitation"
+            ready={!list.isFetching}
+            onPage={(page) => view.set({ page })}
+            onPageSize={(pageSize) => view.set({ pageSize })}
+          />
+        ) : null
+      }
+    >
+      {rows.length && !list.isError ? (
+        <DataTable
+          columns={columns}
+          rows={rows}
+          getRowId={(i) => i.id}
+          sort={{ key: 'sent', direction: 'descending' }}
+        />
+      ) : (
+        <DataStates
+          status={state}
+          pageSize={view.pageSize}
+          onRetry={() => void list.refetch()}
+          onReset={resetFilters}
+          query={view.query}
+          thing="invitations"
+          emptyTitle="No invitations"
+          emptyText="Invite someone and they appear here until they create their account."
+        />
+      )}
+    </DataTableCard>
+  );
+}
