@@ -4,6 +4,8 @@ Last updated: 2026-11-19 by the brief generator.
 
 ## Next action
 
+**2026-11-21:** **F4.2 merged** (PR #46, 592aae5). Brief PR #45, spec-review amendments PR #47 (LEX-DS-001 v3.2, LEX-TS-001 v1.13, prototype revision 15: 6 new failure states, 3 changed; 75 states / 300 PNGs). S2 re-qualified on Linux (run 44852818707): 24 held live run streams + 476 invalidation streams, API at 384 MiB / 0.5 CPU, server-side open-SSE peak 500 for ramp and burst; p95 first frame 425 ms ramp / 6354 ms burst; auth-pool wait p95 497 ms / 2488 ms; peak memory about 313 MiB; no capacity leak. CI sharded 3 ways (19m10s -> 11m32s); required checks via ruleset `main`: unit-integration, compose-e2e (1/3..3/3), merge-e2e. Next: **F4.3 platform admin console brief** (Accounts, Organizations), prototype drawn from API contracts first.
+
 **2026-11-19:** **F4.1 merged** (PR #33, 960d6ab) after visual rounds 1-5, prototype revisions 13-14.9 (PRs #36-#44), LEX-DS-001 v3.1 (page patterns, 1:1 fidelity gate). Reviewer whole-branch review of b7faff9: approved (security review line for the session/security contract recorded in F4.1-acceptance.md). Next: write the **F4.2 hardening brief** (task 1 = legacy visual cleanup, then audit A-01..A-05, A-10, A-16, A-17, A-19, A-22, chat client A-07..A-09, gaps G1-G7, flaky tests, S2 re-qualification with distinct sessions, A-04 burst admission on the 5-connection auth pool, CI E2E sharding, F4.1 carry-overs), then the **F4.3 platform admin console brief** (Accounts, Organizations; prototype drawn from API contracts first).
 
 **2026-11-14:** F4 in Task 21 final fix wave (Codex, moving to a fresh thread because of usage limits). PO agreed to trial **Claude Code as F4.1 implementer** (fresh clean session on the PO's Mac with Docker; this contaminated session stays brief generator/reviewer). Prep done: PR #30 (`.claude/skills` symlinks to `.agents/skills`), F4.1 brief draft at `design-drafts/F4.1-brand-refresh.brief-draft.md`. When F4 merges: publish brief + prototype + brand v4.1 extract + LEX-DS-001 v3.0 in one PR.
@@ -25,8 +27,8 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F3 AI Run Engine | **Done** — merged to `main` (PR #27; fixes PR #25, #26) | Review: `reviews/F3-review.md` |
 | F4 Chat | **Done** — merged (PR #29) | Prototype `docs/design/f4-prototype/` |
 | F4.1 Brand refresh | **Done** — merged (PR #33, 960d6ab) | Prototype rev 14.9, DS v3.1, 272 Linux goldens |
-| F4.2 Hardening | Next: brief | Audit 1 findings + G1-G7 + cleanup |
-| F4.3 Platform admin console | Planned | Accounts, Organizations |
+| F4.2 Hardening | Done (PR #46, 2026-11-21) | Audit 1 findings + G1-G7 + cleanup |
+| F4.3 Platform admin console | Next: brief | Accounts, Organizations |
 | F5–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
@@ -164,3 +166,6 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   the product owner a ready-to-paste English answer for Codex.
 
 - F4.1 lessons (2026-11-19): (1) draw prototype states from the code and API contracts, never from memory (14.3 auth flows, 14.4 provisioning fields, 14.5 security rows were all wrong first); (2) a low pixel % is not correctness: review every sheet by eye, tooltips/icons/carets hide under 0.1%; (3) prototype layout bugs propagate 1:1 (sidebar padding): measure grid edges in the browser before publishing; (4) CI gate integrity: a job-level continue-on-error hid a failing load gate for weeks; every gate needs a guard against exit-code swallowing; (5) token budget: max 2-3 workers, low effort, round caps, read prototype.src.html not the 380 KB embedded file, open images only for failing sheets; (6) F4.2 task 1 cleans legacy visual sets (F2.1-visual, F4-visual, f2.1/f4 prototypes, lexon-2026 brand, rev-12 screens, committed compare sheets -> CI artifacts) with a guard test.
+- F4.2 lessons (2026-11-21): (1) local Docker on the Mac renders differently from the CI runner (110 false diffs): golden and deviation decisions only from CI captures, downloaded and reviewed by the brief generator; (2) CI went red for 3 runs unnoticed: every report must state the CI result of its head; (3) load-test 'admitted' counts are not evidence: count open SSE server-side, use a fresh stack or prove slots are 0 before a phase; (4) subagents must be stopped when done; (5) agents re-approved hashes and ran extra smoke rounds against caps: restate caps as hard stops in every prompt.
+- Carry to F20: burst p95 first frame 6.4 s and auth-pool wait p95 2.5 s at 384 MiB / 0.5 CPU (no threshold in F4.2); re-measure at production resources; ops.audit_events RLS is F17 (F4.2 decision 7).
+- Carry to F4.3 brief: 'Create setup account' works only after hydration (pre-F4.2); auth-entry.spec.ts:48-58 screenshot fill not hydration-guarded.
