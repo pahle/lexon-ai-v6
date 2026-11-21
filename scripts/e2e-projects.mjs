@@ -39,7 +39,6 @@ export const E2E_SHARD_PLAN = [
       e2e('foreign-org-bearer'),
       e2e('platform-identity'),
       e2e('organizations'),
-      e2e('platform-console-api'),
     ],
   },
   {
@@ -65,6 +64,7 @@ export const E2E_SHARD_PLAN = [
     // ~312 s
     projects: [
       'brand-visual',
+      'identity-api',
       'topology',
       'identity-browser',
       'chat-browser',
@@ -78,6 +78,9 @@ export const E2E_SHARD_PLAN = [
       e2e('brand-visual-chats-settings'),
       e2e('brand-visual-shell'),
       e2e('brand-visual-platform'),
+      // Creates an administrator through setup, so it must not share a stack
+      // with platform-identity (which needs the first-admin setup).
+      e2e('platform-console-api'),
       e2e('visual-comparison-regression'),
       e2e('topology'),
       e2e('valkey-policy'),
