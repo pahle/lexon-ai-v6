@@ -47,5 +47,9 @@ export function useDataViewParams(facetKeys: readonly string[]) {
     },
     [keys, pathname, router],
   );
-  return { params, set };
+  const reset = useCallback(() => {
+    latest.current = '';
+    router.replace(pathname);
+  }, [pathname, router]);
+  return { ...params, set, reset };
 }

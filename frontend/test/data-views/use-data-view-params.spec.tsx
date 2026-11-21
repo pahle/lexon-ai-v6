@@ -52,3 +52,21 @@ test('a page-only patch keeps the filters', async () => {
     '/platform/accounts?query=notaris&status=active&page=2',
   );
 });
+
+test('reads query, repeated facets, page and page size from the URL', async () => {
+  nav.search = 'query=ayu&status=active&status=disabled&page=2&pageSize=50';
+  const hook = await mount();
+  nav.search = 'query=notaris&status=active&page=4';
+  expect(hook.current).toMatchObject({
+    query: 'ayu',
+    facets: { status: ['active', 'disabled'] },
+    page: 2,
+    pageSize: 50,
+  });
+});
+
+test('reset clears query and facets and the page', async () => {
+  const hook = await mount();
+  await act(async () => hook.current.reset());
+  expect(nav.replace).toHaveBeenCalledExactlyOnceWith('/platform/accounts');
+});

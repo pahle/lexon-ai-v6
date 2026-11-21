@@ -131,7 +131,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ['Assistant', '/workspace'],
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
-    ['Platform', '/platform/provisioning'],
+    ['Platform', '/platform/accounts'],
   ]);
   // LEX-DS-001 §5.5: the inset shell, no Tools label, and Assistant open by
   // default with New chat and Chats as its sub-items.
@@ -227,8 +227,8 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   ).toEqual([
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
-    ['Provisioning', '/platform/provisioning'],
-    ['Account status', '/platform/accounts'],
+    ['Accounts', '/platform/accounts'],
+    ['Organizations', '/platform/organizations'],
   ]);
   expect(
     view.container.querySelector('a[href="/settings/profile"]'),
@@ -447,7 +447,7 @@ test('every active team role gets organization settings; only platform admins ge
       ['Assistant', '/workspace'],
       ['New chatCtrl Alt N', '/workspace'],
       ['Chats', '/chats'],
-      ['Platform', '/platform/provisioning'],
+      ['Platform', '/platform/accounts'],
     ]);
     expect(
       links
@@ -459,7 +459,7 @@ test('every active team role gets organization settings; only platform admins ge
     }
     await openNavigationGroup(view.container, 'Platform');
     expect(
-      view.container.querySelector('a[href="/platform/provisioning"]'),
+      view.container.querySelector('a[href="/platform/accounts"]'),
     ).not.toBeNull();
     await view.unmount();
   }
@@ -1126,7 +1126,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   ).toBeNull();
   expect(
     sidebar.querySelector(
-      'a[data-slot="sidebar-menu-button"][href="/platform/provisioning"]',
+      'a[data-slot="sidebar-menu-button"][href="/platform/accounts"]',
     ),
   ).not.toBeNull();
   expect(
