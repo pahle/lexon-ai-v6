@@ -4,14 +4,19 @@ import { AccountRecord } from '../../src/components/platform-console/account-rec
 import { render, settle, settleUntil } from '../render';
 import { byText, click } from '../data-views/helpers';
 
-const ME = vi.hoisted(() => ({ id: 'aaaaaaaa-e2bb-4255-8caf-4136c566a962' }));
+const ME = vi.hoisted(() => ({
+  id: 'aaaaaaaa-e2bb-4255-8caf-4136c566a962',
+  loaded: true,
+}));
 const toastSuccess = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({
   toast: { success: toastSuccess, error: toastError },
 }));
 vi.mock('../../src/components/shell/workspace-provider', () => ({
-  useWorkspace: () => ({ identity: { user: { id: ME.id } } }),
+  useWorkspace: () => ({
+    identity: ME.loaded ? { user: { id: ME.id } } : null,
+  }),
 }));
 
 const ID = '3b241101-e2bb-4255-8caf-4136c566a962';
@@ -70,6 +75,7 @@ const calls = (prefix: string) =>
 
 beforeEach(() => vi.stubGlobal('fetch', fetchMock));
 afterEach(() => {
+  ME.loaded = true;
   fetchMock.mockReset();
   toastSuccess.mockClear();
   toastError.mockClear();
@@ -303,4 +309,15 @@ test('loading, not found, and failure', async () => {
   expect(text(m)).toContain('We could not load this account.');
   expect(text(m)).not.toContain('Account not found');
   await m.unmount();
+});
+
+test('no account actions while identity has not loaded', async () => {
+  ME.loaded = false;
+  routes({ [GET]: () => json(detail()) });
+  const v = await mount();
+  expect(text(v)).toContain('Ayu Wardani');
+  expect(button('Disable account')).toBeUndefined();
+  expect(button('Sign out everywhere')).toBeUndefined();
+  expect(button('Resend verification email')).toBeUndefined();
+  await v.unmount();
 });

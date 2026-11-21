@@ -103,7 +103,8 @@ const teamColumns: DataColumn<PlatformAccountDetail['teams'][number]>[] = [
 function Body({ account }: { account: PlatformAccountDetail }) {
   const queryClient = useQueryClient();
   const { identity } = useWorkspace();
-  const isSelf = identity?.user.id === account.id;
+  // Unknown identity is treated as self: no destructive action until we know.
+  const isSelf = !identity || identity.user.id === account.id;
   const [confirm, setConfirm] = useState<'disable' | 'signout' | null>(null);
   const [busy, setBusy] = useState(false);
 
