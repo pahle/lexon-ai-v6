@@ -142,8 +142,12 @@ test('filters come from the URL into the request', async () => {
   expect(urls()).toContain(
     '/api/platform/accounts?query=ayu&status=active&status=disabled&twoFactor=off&page=2&pageSize=20',
   );
-  expect(byLabel(view.container, 'Status')).not.toBeNull();
-  expect(byLabel(view.container, 'Two-step')).not.toBeNull();
+  // Selected facets show their chips, which then name the trigger.
+  const facets = Array.from(
+    view.container.querySelectorAll('[data-slot="dropdown-menu-trigger"]'),
+  ).map((trigger) => trigger.textContent);
+  expect(facets).toContain('StatusActiveDisabled');
+  expect(facets).toContain('Two-stepOff');
   await view.unmount();
 });
 

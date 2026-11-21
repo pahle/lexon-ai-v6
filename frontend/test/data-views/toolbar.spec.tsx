@@ -145,3 +145,26 @@ test('URL params drop defaults and reject bad values', () => {
     facets: { status: [] },
   });
 });
+
+// WCAG 2.5.3 (axe label-content-name-mismatch): once chips show, a fixed
+// aria-label would hide them from the accessible name.
+test('facet trigger name always contains its visible text', async () => {
+  vi.useRealTimers();
+  for (const selected of [[], ['unverified'], ['active', 'disabled']]) {
+    const view = await render(
+      <FacetFilter
+        label="Status"
+        options={options}
+        selected={selected}
+        onChange={() => {}}
+      />,
+    );
+    const trigger = view.container.querySelector('button')!;
+    const visible = trigger.textContent!;
+    const name = trigger.getAttribute('aria-label') ?? visible;
+    expect(name, selected.join()).toContain(visible);
+    if (!selected.length)
+      expect(trigger.getAttribute('aria-label')).toBe('Status');
+    await view.unmount();
+  }
+});

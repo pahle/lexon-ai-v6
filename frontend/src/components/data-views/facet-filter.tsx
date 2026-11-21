@@ -24,7 +24,9 @@ export const FacetFilter: FC<{
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={label}
+        // With chips the visible text names the button (WCAG 2.5.3), so a
+        // fixed label would drop the selection from its accessible name.
+        {...(chips.length ? {} : { 'aria-label': label })}
         className="border-input focus-visible:ring-ring/50 inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-dashed px-3 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-3"
       >
         <CirclePlusIcon
