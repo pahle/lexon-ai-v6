@@ -1,4 +1,5 @@
 import { OrganizationRecord } from '../../../../../components/platform-console/organization-record';
+import { PlatformPage } from '../../../../../components/platform/platform-page';
 
 export default async function OrganizationRecordPage({
   params,
@@ -6,7 +7,11 @@ export default async function OrganizationRecordPage({
   params: Promise<{ organizationId: string }>;
 }) {
   const { organizationId } = await params;
-  return <OrganizationRecord organizationId={organizationId} />;
+  return (
+    <PlatformPage>
+      <OrganizationRecord organizationId={organizationId} />
+    </PlatformPage>
+  );
 }
 export const metadata = {
   title: 'Organization | Lexon',

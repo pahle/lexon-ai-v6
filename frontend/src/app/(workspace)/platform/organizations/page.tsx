@@ -1,7 +1,12 @@
 import { OrganizationsPage } from '../../../../components/platform-console/organizations-page';
+import { PlatformPage } from '../../../../components/platform/platform-page';
 
 export default function PlatformOrganizationsPage() {
-  return <OrganizationsPage />;
+  return (
+    <PlatformPage>
+      <OrganizationsPage />
+    </PlatformPage>
+  );
 }
 export const metadata = {
   title: 'Organizations | Lexon',

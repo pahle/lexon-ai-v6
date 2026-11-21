@@ -1,4 +1,5 @@
 import { AccountRecord } from '../../../../../components/platform-console/account-record';
+import { PlatformPage } from '../../../../../components/platform/platform-page';
 
 export default async function AccountRecordPage({
   params,
@@ -6,7 +7,11 @@ export default async function AccountRecordPage({
   params: Promise<{ userId: string }>;
 }) {
   const { userId } = await params;
-  return <AccountRecord userId={userId} />;
+  return (
+    <PlatformPage>
+      <AccountRecord userId={userId} />
+    </PlatformPage>
+  );
 }
 export const metadata = {
   title: 'Account | Lexon',

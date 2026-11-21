@@ -329,3 +329,23 @@ test('no account actions while identity has not loaded', async () => {
   expect(button('Disable account')).toBeUndefined();
   await u.unmount();
 });
+
+// Ported from platform-identity.spec.tsx (retired Account status form):
+// dismissing the named confirmation never sends the status change.
+test('dismissing the Disable confirmation makes no request', async () => {
+  routes({
+    [GET]: () => json(detail()),
+    [`PATCH /api/platform/users/${ID}/disabled`]: none,
+  });
+  const v = await mount();
+  await click(button('Disable account')!);
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(dialog.textContent).toContain('Disable Ayu Wardani?');
+  await click(byText(dialog, 'button', 'Cancel')!);
+  await settle();
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  expect(calls('PATCH')).toBe(0);
+  expect(toastSuccess).not.toHaveBeenCalled();
+  await v.unmount();
+});

@@ -526,3 +526,91 @@ test('loading, not found, and failure (never empty)', async () => {
   expect(detailCalls()).toBe(before + 1);
   await m.unmount();
 });
+
+// Ported from platform-identity.spec.tsx (retired provisioning detail): while
+// the resend is in flight no other action can start, and every control
+// unlocks again after a failure and after a success.
+test('Resend in flight locks Cancel and Replace; failure and success unlock them', async () => {
+  let rejectResend!: (error: Error) => void;
+  let resolveResend!: (response: Response) => void;
+  let pendingResend = new Promise<Response>((_resolve, reject) => {
+    rejectResend = reject;
+  });
+  routes({
+    [GET]: () => json(provisioning()),
+    [`POST ${PROV}/resend`]: () => pendingResend,
+  });
+  const v = await mount();
+  const resend = button('Resend invitation')!;
+  const cancel = button('Cancel provisioning')!;
+  const replace = v.container.querySelector(
+    'form button[type="submit"]',
+  ) as HTMLButtonElement;
+  expect(replace.textContent).toContain('Replace and send');
+  const email = v.container.querySelector(
+    'input[name="email"]',
+  ) as HTMLInputElement;
+  const locked = () => [
+    resend.disabled,
+    cancel.disabled,
+    replace.disabled,
+    email.disabled,
+  ];
+  expect(locked()).toEqual([false, false, false, false]);
+
+  await click(resend);
+  expect(locked()).toEqual([true, true, true, true]);
+  // Only the operation in flight would announce itself; Replace stays quiet.
+  expect(replace.querySelector('[aria-live="polite"]')).toBeNull();
+  expect(calls('DELETE')).toHaveLength(0);
+  expect(calls('PATCH')).toHaveLength(0);
+
+  await act(async () => rejectResend(new TypeError('network failure')));
+  await settleUntil(() => toastError.mock.calls.length > 0);
+  expect(toastError).toHaveBeenCalledWith(
+    'Service temporarily unavailable. Please try again.',
+  );
+  await settle();
+  expect(locked()).toEqual([false, false, false, false]);
+
+  pendingResend = new Promise<Response>((resolve) => {
+    resolveResend = resolve;
+  });
+  await click(resend);
+  expect(locked()).toEqual([true, true, true, true]);
+  await act(async () => resolveResend(json(summary())));
+  await settleUntil(() => toastSuccess.mock.calls.length > 0);
+  await settle();
+  expect(locked()).toEqual([false, false, false, false]);
+  expect(calls(`POST ${PROV}/resend`)).toHaveLength(2);
+  expect(calls('DELETE')).toHaveLength(0);
+  await v.unmount();
+});
+
+// Ported from platform-identity.spec.tsx: a failed cancel shows only the safe
+// message, never the server's own text.
+test('Cancel provisioning failure never shows the server message', async () => {
+  routes({
+    [GET]: () => json(provisioning()),
+    [`DELETE ${PROV}`]: () =>
+      json(
+        { error: { code: 'ORG_FORBIDDEN', message: 'Private failure' } },
+        403,
+      ),
+  });
+  const v = await mount();
+  await click(button('Cancel provisioning')!);
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  await click(button('Cancel provisioning', dialog)!);
+  await settleUntil(() => toastError.mock.calls.length > 0);
+  expect(toastError).toHaveBeenCalledWith(
+    'Unable to complete this action. Refresh and check your access.',
+  );
+  expect(JSON.stringify(toastError.mock.calls)).not.toContain(
+    'Private failure',
+  );
+  expect(document.body.textContent).not.toContain('Private failure');
+  expect(text(v)).toContain('Harbor Legal Partners');
+  await v.unmount();
+});

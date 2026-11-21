@@ -468,3 +468,24 @@ test('row menu Cancel provisioning: dismissing makes no request', async () => {
   expect(mutations()).toHaveLength(0);
   await v.unmount();
 });
+
+// Ported from platform-identity.spec.tsx (retired provisioning list): a
+// denied list never shows the provision form, before or after the response.
+test('a denied list shows the access failure and no provision form', async () => {
+  reply(failure('ORG_FORBIDDEN', 403));
+  const v = await mount();
+  expect(document.querySelector('form')).toBeNull();
+  await settleUntil(() =>
+    v.container.textContent!.includes(
+      'Unable to complete this action. Refresh and check your access.',
+    ),
+  );
+  expect(document.querySelector('form')).toBeNull();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(
+    byText(v.container, 'button', 'Provision organization'),
+  ).toBeUndefined();
+  expect(v.container.querySelector('table')).toBeNull();
+  expect(v.container.textContent).not.toContain('No team organizations yet');
+  await v.unmount();
+});

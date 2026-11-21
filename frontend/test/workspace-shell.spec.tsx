@@ -244,8 +244,8 @@ test('workspace chat chrome has no breadcrumb and never reveals the team name', 
   await view.unmount();
 });
 
-test('provisioning details and invalid organization routes have no breadcrumb and no pill', async () => {
-  navigation.path = '/platform/provisioning/org-private-id';
+test('platform record pages and invalid organization routes have no breadcrumb and no pill', async () => {
+  navigation.path = '/platform/organizations/org-private-id';
   vi.stubGlobal('matchMedia', () => ({
     addEventListener: () => undefined,
     removeEventListener: () => undefined,

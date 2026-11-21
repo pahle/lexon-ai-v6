@@ -54,7 +54,7 @@ test('platform no-access renders the shared StatusPage for a non-administrator',
   for (const identity of [null, { platformAdmin: false }]) {
     workspace.identity = identity;
     const view = await render(
-      <PlatformPage title="Accounts">
+      <PlatformPage>
         <p>Platform content</p>
       </PlatformPage>,
     );

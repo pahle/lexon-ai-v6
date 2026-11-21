@@ -88,8 +88,9 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
     refreshIdentity,
   }),
 }));
+const route = vi.hoisted(() => ({ pathname: '/workspace' }));
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/workspace',
+  usePathname: () => route.pathname,
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn() }),
 }));
@@ -131,7 +132,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ['Assistant', '/workspace'],
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
-    ['Platform', '/platform/provisioning'],
+    ['Platform', '/platform/accounts'],
   ]);
   // LEX-DS-001 §5.5: the inset shell, no Tools label, and Assistant open by
   // default with New chat and Chats as its sub-items.
@@ -227,8 +228,8 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
   ).toEqual([
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
-    ['Provisioning', '/platform/provisioning'],
-    ['Account status', '/platform/accounts'],
+    ['Accounts', '/platform/accounts'],
+    ['Organizations', '/platform/organizations'],
   ]);
   expect(
     view.container.querySelector('a[href="/settings/profile"]'),
@@ -447,7 +448,7 @@ test('every active team role gets organization settings; only platform admins ge
       ['Assistant', '/workspace'],
       ['New chatCtrl Alt N', '/workspace'],
       ['Chats', '/chats'],
-      ['Platform', '/platform/provisioning'],
+      ['Platform', '/platform/accounts'],
     ]);
     expect(
       links
@@ -459,7 +460,7 @@ test('every active team role gets organization settings; only platform admins ge
     }
     await openNavigationGroup(view.container, 'Platform');
     expect(
-      view.container.querySelector('a[href="/platform/provisioning"]'),
+      view.container.querySelector('a[href="/platform/accounts"]'),
     ).not.toBeNull();
     await view.unmount();
   }
@@ -1126,7 +1127,7 @@ test('native collapse persists sidebar_state and the keyboard shortcut toggles i
   ).toBeNull();
   expect(
     sidebar.querySelector(
-      'a[data-slot="sidebar-menu-button"][href="/platform/provisioning"]',
+      'a[data-slot="sidebar-menu-button"][href="/platform/accounts"]',
     ),
   ).not.toBeNull();
   expect(
@@ -1451,4 +1452,58 @@ test('an 80-character job title truncates inside the trigger', async () => {
   expect(line.parentElement?.className).toContain('min-w-0');
   expect(trigger.className).not.toContain('overflow-visible');
   await view.unmount();
+});
+
+test('platform record pages keep the Platform group open with Accounts and Organizations', async () => {
+  workspace.identity = identity;
+  vi.stubGlobal('fetch', sidebarFetch);
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('matchMedia', () => ({
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  for (const [pathname, current] of [
+    ['/platform/accounts', 'Accounts'],
+    ['/platform/organizations', 'Organizations'],
+    ['/platform/accounts/00000000-0000-4000-8000-000000000052', null],
+    ['/platform/organizations/00000000-0000-4000-8000-000000000062', null],
+  ] as const) {
+    route.pathname = pathname;
+    const view = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SidebarProvider>
+          <ChatRuntimeProvider
+            tenantId={`${identity.user.id}:${identity.organization.id}`}
+          >
+            <AppSidebar />
+          </ChatRuntimeProvider>
+        </SidebarProvider>
+      </QueryClientProvider>,
+    );
+    await settle();
+    // Open without a click: the group is active on every /platform/ page.
+    const platformLinks = [
+      ...view.container.querySelectorAll('a[href^="/platform/"]'),
+    ].filter((link) => link.closest('[data-slot="sidebar-menu-sub"]'));
+    expect(
+      platformLinks.map((link) => [
+        link.textContent?.trim(),
+        link.getAttribute('href'),
+      ]),
+      pathname,
+    ).toEqual([
+      ['Accounts', '/platform/accounts'],
+      ['Organizations', '/platform/organizations'],
+    ]);
+    expect(
+      platformLinks
+        .filter((link) => link.getAttribute('aria-current') === 'page')
+        .map((link) => link.textContent?.trim()),
+      pathname,
+    ).toEqual(current ? [current] : []);
+    expect(view.container.textContent).not.toContain('Provisioning');
+    expect(view.container.textContent).not.toContain('Account status');
+    await view.unmount();
+  }
+  route.pathname = '/workspace';
 });
