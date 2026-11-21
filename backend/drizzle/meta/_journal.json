@@ -281,6 +281,13 @@
       "when": 1793404800039,
       "tag": "0039_audit_append_execute",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793404800040,
+      "tag": "0040_platform_console",
+      "breakpoints": true
     }
   ]
 }
