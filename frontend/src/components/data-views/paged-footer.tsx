@@ -23,13 +23,24 @@ export const PagedFooter: FC<{
   pageSize: number;
   total: number;
   onPage: (page: number) => void;
+  /** Contract: also resets the page to 1 in the same update. */
   onPageSize: (pageSize: number) => void;
   noun?: string;
-}> = ({ page, pageSize, total, onPage, onPageSize, noun = 'record' }) => {
+  /** False while loading: an out-of-range page is only corrected on real data. */
+  ready?: boolean;
+}> = ({
+  page,
+  pageSize,
+  total,
+  onPage,
+  onPageSize,
+  noun = 'record',
+  ready = true,
+}) => {
   const last = Math.max(1, Math.ceil(total / pageSize));
   useEffect(() => {
-    if (page > last) onPage(last);
-  }, [page, last, onPage]);
+    if (ready && total > 0 && page > last) onPage(last);
+  }, [ready, total, page, last, onPage]);
   const nav = (
     label: string,
     target: number,
@@ -61,7 +72,6 @@ export const PagedFooter: FC<{
           value={String(pageSize)}
           onValueChange={(value) => {
             onPageSize(Number(value));
-            onPage(1);
           }}
         >
           <SelectTrigger size="sm" aria-labelledby="rows-per-page">

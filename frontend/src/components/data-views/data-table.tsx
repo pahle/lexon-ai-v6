@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from 'react';
@@ -73,6 +74,7 @@ export function DataTable<T>({
   selection,
   mobileRow,
   rowLabel = () => 'Select row',
+  openLabel = () => 'Open row',
 }: {
   columns: DataColumn<T>[];
   rows: T[];
@@ -83,6 +85,7 @@ export function DataTable<T>({
   /** Mobile list item; defaults to the first column as title and the rest as meta. */
   mobileRow?: (row: T) => MobileRow;
   rowLabel?: (row: T) => string;
+  openLabel?: (row: T) => string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useContainerWidth(ref);
@@ -91,6 +94,20 @@ export function DataTable<T>({
     if (onOpen && !(event.target as HTMLElement).closest(interactive))
       onOpen(row);
   };
+  const openProps = (row: T) =>
+    onOpen
+      ? {
+          tabIndex: 0,
+          'aria-label': openLabel(row),
+          onKeyDown: (event: ReactKeyboardEvent) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onOpen(row);
+            }
+          },
+        }
+      : {};
   const pageIds = rows.map(getRowId);
 
   return (
@@ -115,8 +132,9 @@ export function DataTable<T>({
                   selection?.selectedIds.has(id) ? 'selected' : undefined
                 }
                 onClick={open(row)}
+                {...openProps(row)}
                 className={cn(
-                  'border-border flex items-start gap-3 border-b py-3 pr-2 pl-4 last:border-b-0 data-[state=selected]:bg-muted/70',
+                  'focus-visible:ring-ring/50 outline-none focus-visible:ring-3 focus-visible:ring-inset border-border flex items-start gap-3 border-b py-3 pr-2 pl-4 last:border-b-0 data-[state=selected]:bg-muted/70',
                   onOpen && 'cursor-pointer',
                 )}
               >
@@ -217,8 +235,9 @@ export function DataTable<T>({
                     selection?.selectedIds.has(id) ? 'selected' : undefined
                   }
                   onClick={open(row)}
+                  {...openProps(row)}
                   className={cn(
-                    'data-[state=selected]:bg-muted/70',
+                    'focus-visible:ring-ring/50 outline-none focus-visible:ring-3 focus-visible:ring-inset data-[state=selected]:bg-muted/70',
                     onOpen && 'cursor-pointer',
                   )}
                 >

@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { act } from 'react';
 import { DataTable } from '../../src/components/data-views';
 import { render } from '../render';
-import { a11yViolations, click } from './helpers';
+import { a11yViolations, click, key } from './helpers';
 import { columns, people } from './fixture';
 
 afterEach(() => {
@@ -89,10 +89,29 @@ test('table above the breakpoint', async () => {
   ).toBeNull();
 });
 
-for (const theme of ['light', 'dark'] as const) {
-  test(`a11y rules clean in ${theme}`, async () => {
+{
+  test(`a11y rules clean `, async () => {
     await render(table({ onOpen: vi.fn() }));
     await act(async () => {});
-    expect(a11yViolations(theme)).toEqual([]);
+    expect(a11yViolations()).toEqual([]);
   });
 }
+
+test('keyboard opens a row with Enter or Space, table and mobile', async () => {
+  const onOpen = vi.fn();
+  const view = await render(table({ onOpen }));
+  const row = view.container.querySelectorAll('tbody tr')[2]!;
+  expect(row.getAttribute('tabindex')).toBe('0');
+  expect(row.getAttribute('aria-label')).toBe('Open row');
+  await key(row, 'Enter');
+  await key(row, ' ');
+  expect(onOpen).toHaveBeenCalledTimes(2);
+  expect(onOpen).toHaveBeenCalledWith(people[2]);
+  await view.unmount();
+  mockWidth(400);
+  const mobile = await render(table({ onOpen }));
+  const item = mobile.container.querySelector('[data-slot="data-mobile-row"]')!;
+  expect(item.getAttribute('tabindex')).toBe('0');
+  await key(item, 'Enter');
+  expect(onOpen).toHaveBeenCalledTimes(3);
+});

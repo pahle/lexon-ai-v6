@@ -73,7 +73,7 @@ test('page-size change resets to page 1', async () => {
   expect(options.map((o) => o.textContent)).toEqual(['10', '20', '50']);
   await click(options[2]!);
   expect(onPageSize).toHaveBeenCalledWith(50);
-  expect(onPage).toHaveBeenCalledWith(1);
+  expect(onPage).not.toHaveBeenCalled();
 });
 
 test('out-of-range page moves to last page', async () => {
@@ -97,4 +97,30 @@ test('an empty total has one page and does not move', async () => {
   );
   expect(view.container.textContent).toContain('Page 1 of 1');
   expect(onPage).not.toHaveBeenCalled();
+});
+
+test('a deep link does not move while loading, then moves to the last page', async () => {
+  const onPage = vi.fn();
+  const view = await render(
+    <PagedFooter
+      {...props}
+      onPage={onPage}
+      page={3}
+      pageSize={10}
+      total={0}
+      ready={false}
+    />,
+  );
+  expect(onPage).not.toHaveBeenCalled();
+  await view.rerender(
+    <PagedFooter
+      {...props}
+      onPage={onPage}
+      page={3}
+      pageSize={10}
+      total={15}
+      ready
+    />,
+  );
+  expect(onPage).toHaveBeenCalledExactlyOnceWith(2);
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   parseDataViewParams,
   serializeDataViewParams,
@@ -10,7 +10,8 @@ import {
 
 /**
  * The view state of a data list lives in the URL, so back/forward and reloads
- * keep it. A change to the query, a facet, or the page size resets to page 1.
+ * keep it. A change to the query, a facet, or the page size resets to page 1
+ * in the same URL update unless the patch names a page.
  */
 export function useDataViewParams(facetKeys: readonly string[]) {
   const router = useRouter();
@@ -25,17 +26,26 @@ export function useDataViewParams(facetKeys: readonly string[]) {
       ),
     [search, keys],
   );
-  const update = useCallback(
+  // Reads the URL as of the last write, so two sets in one tick both survive.
+  const latest = useRef(search.toString());
+  latest.current = search.toString();
+  const set = useCallback(
     (patch: Partial<DataViewParams>) => {
-      const resets = patch.page === undefined;
-      const next = { ...params, ...patch, page: resets ? 1 : patch.page! };
-      const qs = serializeDataViewParams(
-        next,
-        keys ? keys.split('\u0000') : [],
+      const list = keys ? keys.split('\u0000') : [];
+      const current = parseDataViewParams(
+        new URLSearchParams(latest.current),
+        list,
       );
+      const next = {
+        ...current,
+        ...patch,
+        page: patch.page ?? 1,
+      };
+      const qs = serializeDataViewParams(next, list);
+      latest.current = qs;
       router.replace(qs ? `${pathname}?${qs}` : pathname);
     },
-    [params, keys, pathname, router],
+    [keys, pathname, router],
   );
-  return { params, update };
+  return { params, set };
 }

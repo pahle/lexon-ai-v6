@@ -52,16 +52,15 @@ const nameOf = (el: Element) => {
 };
 
 /**
- * Accessibility rules that jsdom can check, in the given theme: accessible
+ * Accessibility rules that jsdom can check: accessible
  * names on buttons, links, checkboxes, inputs and menu items; column scope;
  * unique ids; valid roles. This stands in for axe-core, which is a dependency
  * of the root @axe-core/playwright only and cannot be imported from the
- * frontend package (module boundary); the e2e axe runs cover contrast and the
- * full rule set.
+ * frontend package (module boundary); real axe, dark mode and
+ * contrast are covered in Task 19.
  */
-export function a11yViolations(theme: 'light' | 'dark') {
-  document.documentElement.classList.toggle('dark', theme === 'dark');
-  try {
+export function a11yViolations() {
+  {
     const out: string[] = [];
     const named =
       'button, a[href], [role="checkbox"], [role="menuitem"], [role="menuitemcheckbox"], [role="tab"], input:not([type="hidden"])';
@@ -81,7 +80,5 @@ export function a11yViolations(theme: 'light' | 'dark') {
     for (const el of document.body.querySelectorAll('[role="tab"]'))
       if (!el.closest('[role="tablist"]')) out.push('tab outside tablist');
     return out;
-  } finally {
-    document.documentElement.classList.remove('dark');
   }
 }

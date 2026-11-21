@@ -105,10 +105,10 @@ test('keyboard reachability: checkboxes are focusable and Space toggles', async 
   ).toContain('1 selected');
 });
 
-for (const theme of ['light', 'dark'] as const) {
-  test(`selection and bar a11y rules clean in ${theme}`, async () => {
+{
+  test(`selection and bar a11y rules clean `, async () => {
     const view = await render(<Harness />);
     await click(rowBoxes(view.container)[0]!);
-    expect(a11yViolations(theme)).toEqual([]);
+    expect(a11yViolations()).toEqual([]);
   });
 }

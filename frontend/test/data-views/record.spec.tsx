@@ -156,8 +156,8 @@ test('confirm dialog: icon confirm button; destructive uses the deep fill', asyn
   expect(onConfirm).toHaveBeenCalledOnce();
 });
 
-for (const theme of ['light', 'dark'] as const) {
-  test(`record page parts a11y rules clean in ${theme}`, async () => {
+{
+  test(`record page parts a11y rules clean `, async () => {
     await render(
       <>
         <RecordHeader
@@ -176,6 +176,6 @@ for (const theme of ['light', 'dark'] as const) {
         <DetailsCard rows={[{ label: 'ID', value: 'abc', copy: true }]} />
       </>,
     );
-    expect(a11yViolations(theme)).toEqual([]);
+    expect(a11yViolations()).toEqual([]);
   });
 }
