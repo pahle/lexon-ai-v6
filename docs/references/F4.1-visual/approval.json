@@ -2502,9 +2502,9 @@
       ]
     },
     {
-      "reference": "F4.3: retirement of the revision 14 platform states (platform-accounts old meaning, platform-provisioning-*), replaced by the 21 revision 16 states approved by the owner on 2026-11-21 (PR #50); goldens removed, new views pending capture",
+      "reference": "F4.3 hotfix: retirement of the revision 14 platform states. Reason: prototype revision 16 (owner-approved 2026-11-21, merged as 861ef0d) replaces platform-accounts (account-status meaning) and platform-provisioning-{empty,loading,error,populated,detail} with 21 data-views-kit states; their goldens and approval entries are removed, the 21 new states are indexed as pending until F4.3 builds and captures them",
       "date": "2026-11-21",
-      "sourceSha": "c400f50ec0d31898684ad036734c27e7908ac451",
+      "sourceSha": "861ef0d7b720acf291bf06a57816118048322abf",
       "viewIds": [
         "platform-accounts-desktop-light",
         "platform-accounts-desktop-dark",
