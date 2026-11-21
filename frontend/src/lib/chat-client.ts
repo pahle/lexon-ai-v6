@@ -3,6 +3,7 @@ import * as contracts from '@lexon/contracts';
 import type { ChatApi } from '@lexon/contracts';
 import { chatClientError, ChatClientError } from './chat-errors';
 import { notifyIdentityFallbackHint } from './identity-client';
+import { parseJsonResponse, requestJson } from './request-json';
 
 export interface ChatClientOptions {
   readonly baseUrl: string;
@@ -27,34 +28,19 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
     body?: unknown,
     signal?: AbortSignal,
   ): Promise<T> {
-    let response: Response;
-    try {
-      response = await (options.fetch ?? globalThis.fetch)(base + path, {
-        method,
-        credentials: 'same-origin',
-        cache: 'no-store',
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
-          : AbortSignal.timeout(10_000),
-        ...(body !== undefined
-          ? {
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(body),
-            }
-          : {}),
-      });
-    } catch {
-      throw new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503);
-    }
+    const response = await requestJson(
+      base + path,
+      { fetch: options.fetch, method, body, signal },
+      () => new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503),
+    );
     if (notifyIdentityFallbackHint(response))
       throw new ChatClientError('AI_ACCESS_REVOKED', response.status);
     if (!response.ok) throw await chatClientError(response);
-    if (schema === null) return undefined as T;
-    try {
-      return schema.parse(await response.json());
-    } catch {
-      throw new ChatClientError('AI_INTERNAL', 503);
-    }
+    return parseJsonResponse(
+      response,
+      schema,
+      () => new ChatClientError('AI_INTERNAL', 503),
+    );
   }
 
   const withPage = (
