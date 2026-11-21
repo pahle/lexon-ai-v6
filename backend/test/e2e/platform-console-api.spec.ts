@@ -126,3 +126,48 @@ test('platform console read routes: guards, contract shapes, 404s and query vali
     total: 0,
   });
 });
+
+test('revoke signs out cookie and bearer sessions; route guard matrix', async ({
+  page,
+  playwright,
+}) => {
+  const stack = descriptor();
+  const origin = { origin: stack.frontendUrl };
+  await enrollAdministrator(
+    page,
+    `revoke.${Date.now().toString(36)}@example.test`,
+  );
+  const admin = page.request;
+  const anonymous = await playwright.request.newContext();
+  const member = await playwright.request.newContext();
+  await authenticateApi(member);
+  const target = await playwright.request.newContext();
+  const email = `${randomUUID()}@example.test`;
+  await authenticateApi(target, { email });
+  const userId = (
+    (await (
+      await target.get(stack.apiUrl + '/api/auth/get-session')
+    ).json()) as {
+      user: { id: string };
+    }
+  ).user.id;
+  const issued = (await (
+    await target.post(stack.apiUrl + '/api/identity/bearer-sessions', {
+      headers: origin,
+      data: {},
+    })
+  ).json()) as { token: string };
+  const bearer = await playwright.request.newContext({
+    extraHTTPHeaders: { authorization: 'Bearer ' + issued.token },
+  });
+  const url = `${stack.apiUrl}/api/platform/accounts/${userId}/sessions/revoke`;
+  expect((await target.get(stack.apiUrl + '/api/identity')).status()).toBe(200);
+  expect((await bearer.get(stack.apiUrl + '/api/identity')).status()).toBe(200);
+  expect((await anonymous.post(url, { headers: origin })).status()).toBe(401);
+  expect((await member.post(url, { headers: origin })).status()).toBe(403);
+  const done = await admin.post(url, { headers: origin });
+  expect(done.status(), await done.text()).toBe(204);
+  await page.waitForTimeout(1100);
+  expect((await target.get(stack.apiUrl + '/api/identity')).status()).toBe(401);
+  expect((await bearer.get(stack.apiUrl + '/api/identity')).status()).toBe(401);
+});

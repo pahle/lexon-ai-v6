@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
+import { createAuthLimiter } from '../../src/infrastructure/queue/index.js';
 import { test } from '../setup/file-services.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
 import { OrganizationAuthPort } from '../../src/modules/identity-access/index.js';
@@ -154,6 +155,68 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
     );
   } finally {
     await inspect.close();
+    await proof.close();
+  }
+});
+test('revoke deletes all target sessions, audits with empty metadata, refuses self and rate-limits per target', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const limiter = await createAuthLimiter({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:rl:auth:`,
+  });
+  try {
+    const harness = securityHarness(proof);
+    const port = new OrganizationAuthPort(proof.integration);
+    const service = new PlatformAdminService(
+      port,
+      { reauthSeconds: 300 },
+      limiter,
+    );
+    const adminEmail = `${randomUUID()}@example.test`;
+    const admin = await proof.signIn({
+      body: { name: 'Revoke admin', email: adminEmail, password },
+    });
+    await proof.inspect.makeAdmin(admin.userId);
+    const full = await harness.enroll(adminEmail, password);
+    const targetEmail = `${randomUUID()}@example.test`;
+    const target = await proof.signIn({
+      body: { name: 'Revoked user', email: targetEmail, password },
+    });
+    const second = responseCookies(
+      await harness.run(
+        '/sign-in/email',
+        { email: targetEmail, password },
+        new Headers(),
+      ),
+    );
+    const identities = new IdentitySessionService(proof.integration);
+    const before = await proof.inspect.auditCount(
+      'platform.user_sessions_revoked.v1',
+    );
+    await harness.identity(full.headers, async (identity) => {
+      await expect(
+        service.revokeSessions(identity, admin.userId),
+      ).rejects.toMatchObject({ code: 'PLATFORM_SELF_ACTION', status: 409 });
+      await service.revokeSessions(identity, target.userId);
+    });
+    expect(
+      await proof.inspect.auditCount('platform.user_sessions_revoked.v1'),
+    ).toBe(before + 1);
+    for (const headers of [target.cookieHeaders, second])
+      await expect(
+        identities.resolve(headers, { kind: 'account' }),
+      ).rejects.toMatchObject({ status: 401 });
+    await harness.identity(full.headers, async (identity) => {
+      for (let i = 0; i < 4; i++)
+        await service.revokeSessions(identity, target.userId);
+      await expect(
+        service.revokeSessions(identity, target.userId),
+      ).rejects.toMatchObject({ code: 'AUTH_RATE_LIMITED', status: 429 });
+    });
+  } finally {
+    await limiter.close();
     await proof.close();
   }
 });

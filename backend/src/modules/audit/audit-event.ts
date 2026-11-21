@@ -198,6 +198,14 @@ const disabledUser = z.strictObject({
   subjectUserId: UuidSchema,
   metadata: z.strictObject({ disabled: z.boolean() }),
 });
+const sessionsRevoked = z.strictObject({
+  ...base,
+  type: z.literal('platform.user_sessions_revoked.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({}),
+});
 const adminActivated = z.strictObject({
   ...base,
   type: z.literal('platform.admin_activated.v1'),
@@ -363,6 +371,7 @@ export const AuditEventSchema = z.union([
   sessionChange,
   provisioning,
   disabledUser,
+  sessionsRevoked,
   adminActivated,
   aiRunStarted,
   aiRunFinished,

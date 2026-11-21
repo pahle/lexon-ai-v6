@@ -148,6 +148,7 @@ export async function createIdentityRuntime(
       frameworkModule: runtime.mount(handler, context.middleware),
       bearerSeconds: settings.bearerSeconds,
       reauthSeconds: settings.reauthSeconds,
+      limiter,
       requestPolicy: async (request, headers, userId) => {
         // Express has already matched a controller route. Use its canonical
         // template so accepted case/trailing-slash aliases share one policy.
