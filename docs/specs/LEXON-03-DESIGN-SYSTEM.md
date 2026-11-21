@@ -691,10 +691,12 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
 - The whole row opens the record; the row menu holds the record's actions.
 - **Selection** (only for lists with bulk actions):
   - a 52px checkbox column; selected rows on `muted` at 70%;
-  - a **floating action bar** centered above the footer: `foreground`
-    surface, radius 12px, a checkbox and "N selected", a divider, icon and
-    label actions (destructive in `red-text`), a divider, and a clear (x)
-    button.
+  - a **floating action bar** that appears while at least one row is
+    selected. It sits centered just below the table card and stays pinned
+    20px above the bottom of the view while the page scrolls (sticky). It
+    has a `foreground` surface, radius 12px, a checkbox and "N selected", a
+    divider, icon and label actions (destructive in `red-text`), a divider,
+    and a clear (x) button that ends the selection.
 - **Footer** (padding 10px 16px 10px 20px, 13px `muted-foreground`, a 1px
   `border` above):
   - the count ("248 accounts");
@@ -723,22 +725,21 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
   - actions on the right: outline actions with icons, destructive ones in
     `red-text`, and one primary at most.
   - Mobile: a 48px avatar, a 26px title, and the actions wrap under it.
-- **Body:** two columns, the main column and a 320px aside, 20px apart
-  (one column on mobile).
-- **Main column:**
-  - **Stat tiles:** one row of 2–4 tiles (1px `border`, radius 12px,
-    padding 14px 16px): a 12px icon-and-label line, a 22px semibold
-    value, and an optional 12px supporting line. Mobile: one tile per row,
-    label left and value right.
-  - **Related records:** a data table card with a title and count pill,
-    using the same table, states, and footer.
-  - **Forms** that act on the record (for example Replace owner email):
-    a card with a title, description, field, and an action with an icon.
-- **Aside:**
-  - a **Details** card: header with a 1px rule, then property rows (13px
-    `muted-foreground` label left, 14px weight 500 value right, one line,
-    ellipsis, a 1px `border` between rows);
-  - ids in a 12px mono face with a copy button.
+- **Body:** one column, every card full width, so the edges always line
+  up. The order is:
+  1. **Stat tiles:** one row of 2–4 tiles (1px `border`, radius 12px,
+     padding 14px 16px): a 12px icon-and-label line, a 22px semibold value,
+     and an optional 12px supporting line. Mobile: one tile per row, label
+     left and value right.
+  2. **Details card:** header with a 1px rule, then property rows in two
+     columns (one on mobile). Each row has a 13px `muted-foreground` label
+     in a 132px column (104px on mobile) and a 14px weight 500 value,
+     left-aligned, one line with an ellipsis, and a 1px `border` between
+     rows. Ids use a 12px mono face with a copy button.
+  3. **Related records:** a data table card with a title and count pill,
+     using the same table, states, and footer.
+  4. **Forms** that act on the record (for example Replace owner email):
+     a card with a title, description, field, and an action with an icon.
 - **Confirmations** use the dialog pattern (§5.5). The confirm button
   carries its icon and is `primary`, or `destructive-fill` when it removes
   access or data.
