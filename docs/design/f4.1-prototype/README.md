@@ -17,7 +17,7 @@ gate is in §5.6.
   `prototype.html` without the embedded fonts and marks (about 110 KB instead of
   380 KB). **Read this file for values**; open `prototype.html` to view states.
 - `screens/r14/<state>-<d|m>[-dark].png`: every state of the current
-  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (352 files).
+  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (360 files).
   The folder keeps its name; it always holds the current revision.
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
 - The numbered PNGs in `screens/` (`00-personal.png` to `51-mobile-dark.png`)
@@ -29,16 +29,16 @@ gate is in §5.6.
 State names are the F4.1 visual capture ids. Each capture is compared with the
 state of the same name.
 
-| Group     | States                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth      | `sign-in`, `sign-in-field-errors`, `sign-in-form-alert`, `sign-in-pending`, `sign-up`, `forgot-password`, `forgot-password-sent`, `reset-password`, `reset-password-invalid`, `verify-email`, `two-factor`, `accept-invitation`, `accept-invitation-declined`, `accept-invitation-unavailable`, `admin-setup`, `admin-setup-activate`, `admin-setup-unavailable`, `onboarding`, `onboarding-invitations`, `onboarding-team`                                                                                                                                                              |
-| Status    | `not-found`, `organizations-not-found`, `workspace-error`, `platform-no-access`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`, `recent-load-failed`                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-copy-failed`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-composer-running`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`                                                                                                                                                                         |
-| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`, `chats-load-failed`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `settings-profile-save-failed`, `settings-members-load-failed`, `toast-success`                                                                                                                                                                                                                                                                                                                                                                          |
-| Platform  | `platform-accounts`, `platform-accounts-search`, `platform-accounts-filtered`, `platform-accounts-row-menu`, `platform-accounts-no-results`, `platform-accounts-loading`, `platform-accounts-error`, `platform-account-detail`, `platform-account-unverified`, `platform-account-disabled`, `platform-account-disable`, `platform-account-sign-out`, `platform-organizations`, `platform-organizations-empty`, `platform-organizations-loading`, `platform-organizations-error`, `platform-organization-provision`, `platform-organization-provisioning`, `platform-organization-active` |
-| Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Group     | States                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth      | `sign-in`, `sign-in-field-errors`, `sign-in-form-alert`, `sign-in-pending`, `sign-up`, `forgot-password`, `forgot-password-sent`, `reset-password`, `reset-password-invalid`, `verify-email`, `two-factor`, `accept-invitation`, `accept-invitation-declined`, `accept-invitation-unavailable`, `admin-setup`, `admin-setup-activate`, `admin-setup-unavailable`, `onboarding`, `onboarding-invitations`, `onboarding-team`                                                                                                                                                                                                                          |
+| Status    | `not-found`, `organizations-not-found`, `workspace-error`, `platform-no-access`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`, `recent-load-failed`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-copy-failed`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-composer-running`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`                                                                                                                                                                                                                                     |
+| Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`, `chats-load-failed`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `settings-profile-save-failed`, `settings-members-load-failed`, `toast-success`                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Platform  | `platform-accounts`, `platform-accounts-search`, `platform-accounts-filtered`, `platform-accounts-row-menu`, `platform-accounts-no-results`, `platform-accounts-loading`, `platform-accounts-error`, `platform-accounts-invitations`, `platform-account-invite`, `platform-account-detail`, `platform-account-unverified`, `platform-account-disabled`, `platform-account-disable`, `platform-account-sign-out`, `platform-organizations`, `platform-organizations-empty`, `platform-organizations-loading`, `platform-organizations-error`, `platform-organization-provision`, `platform-organization-provisioning`, `platform-organization-active` |
+| Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## Fixtures shown
 
@@ -133,23 +133,31 @@ The product owner approved these states in the F4.2 spec review. LEX-DS-001 v3.2
 Revision 16 adds the **data views kit** (LEX-DS-001 v3.3 §5.7): one list page and one record page that every list and record in Lexon reuses. The `kit` page shows every part on one page: open `prototype.html#kit`. It is a reference, not a capture state.
 
 - **List page:**
-  - toolbar with search, facet filters, and Reset;
-  - typed cells: identity, text, muted, number and money, status badge, tag, link, and row menu;
-  - optional selection with a bulk bar;
+  - tabs with counts;
+  - table card with title and count;
+  - toolbar with search, facet filters, Reset, Columns, and a primary action;
+  - sortable headers;
+  - typed cells: identity, text, number and money, status badge, on/off dot, tag, and row menu;
+  - selection with a floating action bar;
   - paged footer;
-  - loading, empty, no-results, and failure states inside the card;
+  - empty, no-results, loading, and failure states;
   - mobile rows.
-- **Record page:** header with actions and a ⋯ menu, stat tiles, a description list with copyable ids, and related tables.
+- **Record page:**
+  - header with icon actions;
+  - stat tiles;
+  - related tables;
+  - Details aside with copyable ids.
+- Every action button carries an icon.
 
 The platform console uses the kit. Every value shown is a field of the F4.3 brief's API contracts. It replaces the revision 14 platform states.
 
-- Sidebar Platform group: Accounts and Organizations.
 - **Accounts:**
-  - list with Status and Two-step facets;
-  - search, filtered (Status: Unverified and Disabled, facet open), row menu, no results, loading, and failure;
+  - tabs for Accounts and Invitations;
+  - list with Status and Two-step facets and Joined sorting;
+  - search, filtered (facet open), row menu, no results, loading, and failure;
+  - Invite account dialog and the Invitations tab;
   - record pages for active, unverified, and disabled accounts;
   - Disable and Sign out everywhere dialogs.
-  - The signed-in platform administrator carries the "Platform administrator" badge.
 - **Organizations:**
   - list with a State facet;
   - empty, loading, and failure;
