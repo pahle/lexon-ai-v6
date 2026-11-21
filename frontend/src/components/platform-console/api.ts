@@ -4,6 +4,7 @@ import {
   AccountInvitationSchema,
   AccountInvitationsPageSchema,
   IdentityErrorResponseSchema,
+  PlatformAccountDetailSchema,
   PlatformAccountsPageSchema,
   UuidSchema,
   type AccountInvitation,
@@ -93,6 +94,28 @@ export const platformConsoleApi = {
       method: 'POST',
       body: AccountInvitationInputSchema.parse(input),
     }),
+  account: (id: string) =>
+    call(
+      `/platform/accounts/${UuidSchema.parse(id)}`,
+      PlatformAccountDetailSchema,
+    ),
+  setDisabled: (id: string, disabled: boolean) =>
+    call<void>(`/platform/users/${UuidSchema.parse(id)}/disabled`, null, {
+      method: 'PATCH',
+      body: { disabled },
+    }),
+  revokeSessions: (id: string) =>
+    call<void>(
+      `/platform/accounts/${UuidSchema.parse(id)}/sessions/revoke`,
+      null,
+      { method: 'POST' },
+    ),
+  sendVerification: (id: string) =>
+    call<void>(
+      `/platform/accounts/${UuidSchema.parse(id)}/verification-email`,
+      null,
+      { method: 'POST' },
+    ),
   resend: (id: string) =>
     call<void>(
       `/platform/account-invitations/${UuidSchema.parse(id)}/resend`,

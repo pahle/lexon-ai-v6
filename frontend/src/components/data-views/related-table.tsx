@@ -16,6 +16,7 @@ export function RelatedTable<T>({
   onRetry,
   onOpen,
   emptyText,
+  emptyTitle,
   footer,
 }: {
   title: string;
@@ -27,6 +28,7 @@ export function RelatedTable<T>({
   onRetry: () => void;
   onOpen?: (row: T) => void;
   emptyText: string;
+  emptyTitle?: string;
   footer?: ReactNode;
 }) {
   return (
@@ -50,6 +52,7 @@ export function RelatedTable<T>({
           onRetry={onRetry}
           onReset={() => undefined}
           emptyText={emptyText}
+          {...(emptyTitle ? { emptyTitle } : {})}
         />
       )}
     </DataTableCard>
