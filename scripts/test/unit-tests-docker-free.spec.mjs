@@ -7,14 +7,23 @@ import { test } from 'node:test';
 // a Testcontainers project when its global setup or setup files reach the
 // `testcontainers` package through static or dynamic imports. Test files are
 // not scanned: unit specs may import the infrastructure module to exercise it
-// with an injected fake acquisition, which starts no container.
+// with an injected fake acquisition, which starts no container. A setup that
+// starts Docker without importing `testcontainers` (for example through
+// child_process) is out of scope; such a setup must not join test:unit.
 
 const root = resolve(import.meta.dirname, '../..');
 const read = (path) => readFileSync(path, 'utf8');
 const strings = (source) =>
   [...source.matchAll(/'([^']+)'/g)].map((match) => match[1]);
-const arrayOf = (source, key) =>
-  strings(source.match(new RegExp(`${key}:\\s*\\[([^\\]]*)\\]`))?.[1] ?? '');
+function arrayOf(source, key) {
+  if (!new RegExp(`\\b${key}:`).test(source)) return [];
+  const body = source.match(new RegExp(`\\b${key}:\\s*\\[([^\\]]*)\\]`))?.[1];
+  assert.ok(
+    body !== undefined && /^(?:\s*'[^']*'\s*,?)*\s*$/.test(body),
+    `${key} must be an array of single-quoted literals so this guard can read it`,
+  );
+  return strings(body);
+}
 
 const workspaces = new Map(
   ['backend', 'frontend', 'shared', 'evals'].map((dir) => {

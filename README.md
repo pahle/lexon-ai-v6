@@ -58,8 +58,8 @@ pnpm format:check
 Each workspace also supports `lint`, `typecheck`, `build`, `test`, `test:e2e`,
 and `format` through `pnpm --filter @lexon/<package>`. Build `contracts` before
 backend/frontend, and backend before evals. The root `pnpm typecheck` emits the
-`contracts` and backend types first (`build:types`), so it needs no prior build. Vitest test commands prepare the
-built package exports automatically. Formatting skips vendored skills,
+`contracts` and backend types first (`build:types`), so it needs no prior
+build. Vitest test commands prepare the built package exports automatically. Formatting skips vendored skills,
 generated outputs, and source specification/brief inputs.
 
 `pnpm test` runs unit/contracts and real integration tests independently of any
@@ -68,9 +68,9 @@ per integration run, migrates a template, then isolates each file with a cloned
 database, a Valkey prefix and an S3 bucket. Parallel integration files are capped
 at two. Teardown removes owned resources only; it never flushes shared keys.
 `pnpm test:unit` excludes every Testcontainers project (`backend-integration`
-and `evals`), so it runs without Docker; `scripts/test/unit-tests-docker-free.spec.mjs`
-guards this. The backend filtered `test`
-command includes its unit and integration projects.
+and `evals`), so it runs without Docker; a script test
+(`scripts/test/unit-tests-docker-free.spec.mjs`) guards this. The backend
+filtered `test` command includes its unit and integration projects.
 
 Optional local reuse: `LEXON_TEST_REUSE=1 pnpm test` retains reusable containers,
 while still creating new templates and file resources. Its ignored local
