@@ -22,12 +22,12 @@ const RUN_ALL =
   "needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true'";
 
 test('required check names are unchanged', () => {
-  assert.match(ci, /\n  unit-integration:\n/u);
+  assert.match(ci, /\n {2}unit-integration:\n/u);
   assert.match(
     ci,
-    /\n  compose-e2e:\n    name: compose-e2e \(\$\{\{ matrix\.shard \}\}\/3\)\n/u,
+    /\n {2}compose-e2e:\n {4}name: compose-e2e \(\$\{\{ matrix\.shard \}\}\/3\)\n/u,
   );
-  assert.match(ci, /\n  merge-e2e:\n/u);
+  assert.match(ci, /\n {2}merge-e2e:\n/u);
 });
 
 test('a changes job classifies the pull request files with the tested classifier', () => {
@@ -52,7 +52,7 @@ test('a changes job classifies the pull request files with the tested classifier
 test('merge-e2e skips at job level only for a successful docs-only classification', () => {
   const job = jobBlock('merge-e2e');
   assert.match(job, /needs: \[changes, compose-e2e\]/u);
-  const condition = /\n    if: \$\{\{ (.+) \}\}\n/u.exec(job)?.[1];
+  const condition = /\n {4}if: \$\{\{ (.+) \}\}\n/u.exec(job)?.[1];
   assert.ok(condition, 'merge-e2e has a job-level if');
   assert.match(condition, /!cancelled\(\)/u);
   assert.ok(condition.includes(`(${RUN_ALL})`), condition);
@@ -61,7 +61,7 @@ test('merge-e2e skips at job level only for a successful docs-only classificatio
 test('unit-integration always runs the docs gates and gates only the code steps', () => {
   const job = jobBlock('unit-integration');
   assert.match(job, /needs: changes/u);
-  assert.match(job, /\n    if: \$\{\{ !cancelled\(\) \}\}\n/u);
+  assert.match(job, /\n {4}if: \$\{\{ !cancelled\(\) \}\}\n/u);
   assert.ok(job.includes(`LEXON_RUN_ALL: \${{ ${RUN_ALL} }}`));
   const list = steps(job);
   const ungated = [
@@ -83,6 +83,13 @@ test('unit-integration always runs the docs gates and gates only the code steps'
     assert.match(step, /if: env\.LEXON_RUN_ALL == 'true'/u, name);
   }
   // Formatting and the tooling tests (which read docs) are never skipped.
+  // The tooling tests run backend/dist; a docs-only run builds it.
+  const build = list.find((s) =>
+    s.includes('name: Build what the tooling tests run (docs-only)'),
+  );
+  assert.ok(build);
+  assert.match(build, /if: env\.LEXON_RUN_ALL != 'true'/u);
+  assert.match(build, /pnpm --filter @lexon\/backend build/u);
   for (const name of ['Formatting', 'Tooling and cleanup assertions'])
     assert.doesNotMatch(
       list.find((s) => s.includes(`name: ${name}`)),
@@ -94,7 +101,7 @@ test('unit-integration always runs the docs gates and gates only the code steps'
 test('compose-e2e always runs its matrix (names stay expanded) and gates every step after the decision', () => {
   const job = jobBlock('compose-e2e');
   assert.match(job, /needs: changes/u);
-  assert.match(job, /\n    if: \$\{\{ !cancelled\(\) \}\}\n/u);
+  assert.match(job, /\n {4}if: \$\{\{ !cancelled\(\) \}\}\n/u);
   assert.ok(
     job.includes(`LEXON_RUN_E2E: \${{ ${RUN_ALL} }}`),
     'the job computes LEXON_RUN_E2E fail-safe',
@@ -183,6 +190,6 @@ test('Playwright browsers are cached on the exact Playwright version and install
 test('concurrency groups per workflow and ref and cancels only pull requests', () => {
   assert.match(
     ci,
-    /\nconcurrency:\n  group: lexon-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/u,
+    /\nconcurrency:\n {2}group: lexon-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/u,
   );
 });

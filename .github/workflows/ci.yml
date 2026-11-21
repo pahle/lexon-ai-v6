@@ -74,6 +74,11 @@ jobs:
       - name: Docs-only change, code gates not needed
         if: env.LEXON_RUN_ALL != 'true'
         run: echo "Docs-only change. Formatting and the tooling tests still run."
+      - name: Build what the tooling tests run (docs-only)
+        if: env.LEXON_RUN_ALL != 'true'
+        run: |
+          pnpm --filter @lexon/contracts build
+          pnpm --filter @lexon/backend build
       - name: Root lint
         if: env.LEXON_RUN_ALL == 'true'
         run: pnpm lint
