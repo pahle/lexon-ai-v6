@@ -412,13 +412,35 @@ test('active_session_count excludes expired and hard-expired', async ({
     await insert(`'1 day'`, null); // live
     await insert(`'-1 day'`, null); // expired
     await insert(`'1 day'`, `'2 days'`); // live bearer
-    await p.migrator
-      .query(
-        `INSERT INTO auth.session(expires_at,token,updated_at,user_id,channel,hard_expires_at)
-       VALUES (now()+interval '1 day',$1,now(),$2,'bearer',now()-interval '1 hour')`,
-        [randomUUID(), id],
-      )
-      .catch(() => undefined); // the session trigger may clamp or refuse a past hard expiry
+    // Future expires_at with a past hard_expires_at: the 0007 trigger clamps
+    // expires_at on insert, so it is disabled for this one insert only to
+    // isolate the hard_expires_at clause of the count.
+    const hardExpired = randomUUID();
+    const client = await p.migrator.connect();
+    try {
+      await client.query(
+        'ALTER TABLE auth.session DISABLE TRIGGER lexon_protect_session_security',
+      );
+      try {
+        await client.query(
+          `INSERT INTO auth.session(expires_at,token,updated_at,user_id,channel,hard_expires_at)
+           VALUES (now()+interval '1 day',$1,now(),$2,'bearer',now()-interval '1 hour')`,
+          [hardExpired, id],
+        );
+      } finally {
+        await client.query(
+          'ALTER TABLE auth.session ENABLE TRIGGER lexon_protect_session_security',
+        );
+      }
+    } finally {
+      client.release();
+    }
+    const stored = await p.migrator.query(
+      `SELECT expires_at > now() AS future, hard_expires_at < now() AS hard_past
+       FROM auth.session WHERE token=$1`,
+      [hardExpired],
+    );
+    expect(stored.rows).toEqual([{ future: true, hard_past: true }]);
     const row = (
       await p.auth.query(`SELECT * FROM auth.lexon_platform_account($1)`, [id])
     ).rows[0];
