@@ -213,7 +213,7 @@ function ActiveBody({ organization }: { organization: Active }) {
               { icon: CalendarIcon, label: 'Created', value: created },
             ]}
           />
-          <MembersCard organization={organization} />
+          <MembersCard key={organization.id} organization={organization} />
         </div>
         <DetailsCard
           rows={[

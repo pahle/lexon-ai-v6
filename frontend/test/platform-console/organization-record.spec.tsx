@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrganizationRecord } from '../../src/components/platform-console/organization-record';
+import { organizationKey } from '../../src/components/platform-console/provisioning-actions';
 import { render, settle, settleUntil } from '../render';
 import { byLabel, byText, click, typeInto } from '../data-views/helpers';
 
@@ -283,6 +284,43 @@ test('members paging asks for page 2', async () => {
   expect(calls(MEMBERS_GET).at(-1)![0]).toBe(
     `/api/platform/organizations/${ID}/members?page=2&pageSize=50`,
   );
+  await v.unmount();
+});
+
+test('members page resets to 1 when the organization changes in place', async () => {
+  const B = '4b241101-e2bb-4255-8caf-4136c566a962';
+  const B_MEMBERS_GET = `GET /api/platform/organizations/${B}/members`;
+  routes({
+    [GET]: () => json(active({ memberCount: 120 })),
+    [MEMBERS_GET]: () => json(membersPage(MEMBERS, 120)),
+    [`GET /api/platform/organizations/${B}`]: () =>
+      json(active({ id: B, name: 'Kantor Hukum Baru', memberCount: 3 })),
+    [B_MEMBERS_GET]: () => json(membersPage()),
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  // B was visited before, so its detail is cached and the record body stays
+  // mounted across the client-side navigation.
+  await client.prefetchQuery({
+    queryKey: organizationKey(B),
+    queryFn: async () =>
+      active({ id: B, name: 'Kantor Hukum Baru', memberCount: 3 }),
+  });
+  const tree = (id: string) => (
+    <QueryClientProvider client={client}>
+      <OrganizationRecord organizationId={id} />
+    </QueryClientProvider>
+  );
+  const v = await render(tree(ID));
+  await settleUntil(() => text(v).includes('Page 1 of 3'));
+  await click(byLabel(v.container, 'Next page')!);
+  await settleUntil(() => calls(MEMBERS_GET).length > 1);
+  await v.rerender(tree(B));
+  await settleUntil(() => calls(B_MEMBERS_GET).length > 0);
+  expect(calls(B_MEMBERS_GET).map((c) => c[0])).toEqual([
+    `/api/platform/organizations/${B}/members?page=1&pageSize=50`,
+  ]);
   await v.unmount();
 });
 
