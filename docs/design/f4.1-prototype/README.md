@@ -130,7 +130,7 @@ The product owner approved these states in the F4.2 spec review. LEX-DS-001 v3.2
 
 ## Revision 16 (2026-11-21): data views kit and the F4.3 platform console
 
-Revision 16 adds the **data views kit** (LEX-DS-001 v3.3 §5.7): one list page and one record page that every list and record in Lexon reuses. The `kit` page shows every part on one page: open `prototype.html#kit`. It is a reference, not a capture state.
+Revision 16 adds the **data views kit** (LEX-DS-001 v3.3 §5.7): one list page and one record page that every list and record in Lexon reuses. The **kit pages** show every part, one page per family, under a Kit group in the sidebar: `#kit-table`, `#kit-detail`, `#kit-states`, and `#kit-overlays` (`#kit` opens Table). They are references, not capture states. A new family of shared parts (for example forms) gets its own kit page when it is approved.
 
 - **List page:**
   - tabs with counts;

@@ -625,8 +625,7 @@ reused. A slice that needs a list or a record page composes them; it does
 not draw a new table or detail layout. A need these parts cannot meet (a
 board, a timeline, a document viewer) is a new pattern, added here first.
 
-The prototype's `kit` page shows every part on one page. The platform
-console (revision 16) is the first user. Values are measured at 1440×900 and
+The prototype's **kit pages** show every part, one page per family: `kit-table` (list page, cell types), `kit-detail` (record page), `kit-states` (loading, empty, no results, failure), and `kit-overlays` (row menu, facet filter, dialogs, floating action bar). A new family of shared parts, for example forms, gets its own kit page when it is approved. The platform console (revision 16) is the first user. Values are measured at 1440×900 and
 390×844.
 
 **Buttons carry icons.** Every action button pairs a 16px Lucide icon with
