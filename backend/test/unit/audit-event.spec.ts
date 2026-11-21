@@ -99,6 +99,12 @@ test('email correlation uses domain-separated keyed SHA256 and safe key identifi
   ).toThrow();
 });
 
+test('email correlation ignores surrounding whitespace and letter case', () => {
+  expect(
+    correlateEmail('  Person@Example.TEST\n', 'a'.repeat(48), 'key-v1'),
+  ).toEqual(correlateEmail('person@example.test', 'a'.repeat(48), 'key-v1'));
+});
+
 test('departure audit accepts fixed reasons and rejects recipient email metadata', () => {
   const departure = {
     version: 1,

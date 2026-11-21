@@ -8,6 +8,7 @@ import {
 import { z } from 'zod';
 import {
   ChatSearchRepository,
+  isPgStatementTimeout,
   TenantDatabase,
   type ChatSearchCursor,
   type ChatSearchSnippetMarkers,
@@ -142,15 +143,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function isStatementTimeout(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === '57014'
-  );
-}
-
 export class ChatSearchService {
   private readonly repository = new ChatSearchRepository();
 
@@ -213,7 +205,7 @@ export class ChatSearchService {
         },
       );
     } catch (error) {
-      if (isStatementTimeout(error))
+      if (isPgStatementTimeout(error))
         throw new ChatApiError('CHAT_SEARCH_TIMEOUT');
       throw error;
     }

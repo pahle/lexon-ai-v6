@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { z } from 'zod';
-import { UuidSchema } from '@lexon/contracts';
+import { normalizeEmail, UuidSchema } from '@lexon/contracts';
 
 const keyId = z.string().regex(/^[a-z0-9_-]{1,32}$/);
 const correlation = { subjectHmac: z.string().regex(/^[a-f0-9]{64}$/), keyId };
@@ -396,7 +396,7 @@ export function correlateEmail(
       .update('lexon.audit.email.v1\0')
       .update(identifier)
       .update('\0')
-      .update(normalizedEmail.trim().toLowerCase())
+      .update(normalizeEmail(normalizedEmail))
       .digest('hex'),
     keyId: identifier,
   };
