@@ -43,12 +43,15 @@ CREATE INDEX lexon_account_invitation_name_trgm_idx ON auth.lexon_account_invita
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_accounts(q text, statuses text[], two_factor boolean[], page_size int, page_offset int) RETURNS TABLE(id uuid, name text, email text, status text, two_factor_enabled boolean, is_platform_administrator boolean, team_count int, created_at timestamp, last_active_at timestamp, total bigint)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
-WITH filtered AS (
+-- Two complete queries (one for no search term, one for a search term) so each
+-- plans on its own: a generic plan cannot use the trigram indexes through
+-- "q IS NULL OR ...", and one query cannot serve both well.
+(WITH filtered AS (
   SELECT u.id, u.name, u.email, CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END AS status,
     coalesce(u.two_factor_enabled, false) AS two_factor_enabled,
     coalesce(u.role = 'admin', false) AS is_platform_administrator, u.created_at
   FROM auth."user" u
-  WHERE (q IS NULL OR lower(u.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(u.email) LIKE '%' || lower(q) || '%' ESCAPE '\')
+  WHERE q IS NULL
     AND (statuses IS NULL OR (CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END) = ANY (statuses))
     AND (two_factor IS NULL OR coalesce(u.two_factor_enabled, false) = ANY (two_factor))
 ), paged AS (
@@ -58,7 +61,25 @@ WITH filtered AS (
 )
 SELECT p.id, p.name, p.email, p.status, p.two_factor_enabled, p.is_platform_administrator,
   (SELECT count(*)::int FROM auth.member m JOIN auth.organization o ON o.id = m.organization_id WHERE m.user_id = p.id AND o.kind = 'team' AND o.state = 'active'), p.created_at, (SELECT max(s.updated_at) FROM auth.session s WHERE s.user_id = p.id), p.total
-FROM paged p ORDER BY p.created_at DESC, p.id DESC
+FROM paged p ORDER BY p.created_at DESC, p.id DESC)
+UNION ALL
+(WITH filtered AS (
+  SELECT u.id, u.name, u.email, CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END AS status,
+    coalesce(u.two_factor_enabled, false) AS two_factor_enabled,
+    coalesce(u.role = 'admin', false) AS is_platform_administrator, u.created_at
+  FROM auth."user" u
+  WHERE (q IS NOT NULL AND (lower(u.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(u.email) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+    AND (statuses IS NULL OR (CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END) = ANY (statuses))
+    AND (two_factor IS NULL OR coalesce(u.two_factor_enabled, false) = ANY (two_factor))
+), paged AS (
+  SELECT f.*, count(*) OVER () AS total FROM filtered f
+  WHERE page_size IN (10, 20, 50) AND page_offset >= 0
+  ORDER BY f.created_at DESC, f.id DESC LIMIT page_size OFFSET page_offset
+)
+SELECT p.id, p.name, p.email, p.status, p.two_factor_enabled, p.is_platform_administrator,
+  (SELECT count(*)::int FROM auth.member m JOIN auth.organization o ON o.id = m.organization_id WHERE m.user_id = p.id AND o.kind = 'team' AND o.state = 'active'), p.created_at, (SELECT max(s.updated_at) FROM auth.session s WHERE s.user_id = p.id), p.total
+FROM paged p ORDER BY p.created_at DESC, p.id DESC)
+ORDER BY created_at DESC, id DESC
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_accounts(text, text[], boolean[], int, int) FROM PUBLIC;
@@ -67,10 +88,17 @@ GRANT EXECUTE ON FUNCTION auth.lexon_platform_accounts(text, text[], boolean[], 
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_accounts_total(q text, statuses text[], two_factor boolean[]) RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
+SELECT (
 SELECT count(*) FROM auth."user" u
-  WHERE (q IS NULL OR lower(u.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(u.email) LIKE '%' || lower(q) || '%' ESCAPE '\')
+  WHERE q IS NULL
     AND (statuses IS NULL OR (CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END) = ANY (statuses))
     AND (two_factor IS NULL OR coalesce(u.two_factor_enabled, false) = ANY (two_factor))
+) + (
+SELECT count(*) FROM auth."user" u
+  WHERE (q IS NOT NULL AND (lower(u.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(u.email) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+    AND (statuses IS NULL OR (CASE WHEN coalesce(u.banned, false) THEN 'disabled' WHEN NOT u.email_verified THEN 'unverified' ELSE 'active' END) = ANY (statuses))
+    AND (two_factor IS NULL OR coalesce(u.two_factor_enabled, false) = ANY (two_factor))
+)
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_accounts_total(text, text[], boolean[]) FROM PUBLIC;
@@ -110,12 +138,15 @@ GRANT EXECUTE ON FUNCTION auth.lexon_platform_account_teams(uuid) TO lexon_auth;
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_organizations(q text, states text[], page_size int, page_offset int) RETURNS TABLE(id uuid, name text, slug text, state text, member_count int, owner_email text, created_at timestamp, total bigint)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
-WITH paged AS (
+-- Two complete queries (one for no search term, one for a search term) so each
+-- plans on its own: a generic plan cannot use the trigram indexes through
+-- "q IS NULL OR ...", and one query cannot serve both well.
+(WITH paged AS (
   SELECT o.id, o.name, o.slug, o.state, o.created_at, count(*) OVER () AS total
   FROM auth.organization o
   WHERE o.kind = 'team'
     AND (states IS NULL OR o.state = ANY (states))
-    AND (q IS NULL OR lower(o.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(o.slug) LIKE '%' || lower(q) || '%' ESCAPE '\')
+    AND q IS NULL
     AND page_size IN (10, 20, 50) AND page_offset >= 0
   ORDER BY o.created_at DESC, o.id DESC LIMIT page_size OFFSET page_offset
 )
@@ -126,7 +157,26 @@ SELECT p.id, p.name, p.slug, p.state, (SELECT count(*)::int FROM auth.member m W
     (SELECT i.email FROM auth.invitation i
       WHERE i.organization_id = p.id AND i.purpose = 'first_owner' AND i.replaced_by_invitation_id IS NULL LIMIT 1)
   END, p.created_at, p.total
-FROM paged p ORDER BY p.created_at DESC, p.id DESC
+FROM paged p ORDER BY p.created_at DESC, p.id DESC)
+UNION ALL
+(WITH paged AS (
+  SELECT o.id, o.name, o.slug, o.state, o.created_at, count(*) OVER () AS total
+  FROM auth.organization o
+  WHERE o.kind = 'team'
+    AND (states IS NULL OR o.state = ANY (states))
+    AND (q IS NOT NULL AND (lower(o.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(o.slug) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+    AND page_size IN (10, 20, 50) AND page_offset >= 0
+  ORDER BY o.created_at DESC, o.id DESC LIMIT page_size OFFSET page_offset
+)
+SELECT p.id, p.name, p.slug, p.state, (SELECT count(*)::int FROM auth.member m WHERE m.organization_id = p.id), CASE WHEN p.state = 'active' THEN
+    (SELECT u.email FROM auth.member m JOIN auth."user" u ON u.id = m.user_id
+      WHERE m.organization_id = p.id AND m.role = 'owner' ORDER BY m.created_at, m.user_id LIMIT 1)
+  ELSE
+    (SELECT i.email FROM auth.invitation i
+      WHERE i.organization_id = p.id AND i.purpose = 'first_owner' AND i.replaced_by_invitation_id IS NULL LIMIT 1)
+  END, p.created_at, p.total
+FROM paged p ORDER BY p.created_at DESC, p.id DESC)
+ORDER BY created_at DESC, id DESC
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_organizations(text, text[], int, int) FROM PUBLIC;
@@ -135,10 +185,17 @@ GRANT EXECUTE ON FUNCTION auth.lexon_platform_organizations(text, text[], int, i
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_organizations_total(q text, states text[]) RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
+SELECT (
 SELECT count(*) FROM auth.organization o
   WHERE o.kind = 'team'
     AND (states IS NULL OR o.state = ANY (states))
-    AND (q IS NULL OR lower(o.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(o.slug) LIKE '%' || lower(q) || '%' ESCAPE '\')
+    AND q IS NULL
+) + (
+SELECT count(*) FROM auth.organization o
+  WHERE o.kind = 'team'
+    AND (states IS NULL OR o.state = ANY (states))
+    AND (q IS NOT NULL AND (lower(o.name) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(o.slug) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+)
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_organizations_total(text, text[]) FROM PUBLIC;
@@ -198,13 +255,25 @@ GRANT EXECUTE ON FUNCTION auth.lexon_platform_members_total(uuid) TO lexon_auth;
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_account_invitations(q text, statuses text[], page_size int, page_offset int) RETURNS TABLE(id uuid, email text, name text, status text, invited_by_name text, sent_at timestamptz, expires_at timestamptz, total bigint)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
-SELECT i.id, i.email, i.name, CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END, u.name, i.sent_at, i.expires_at, count(*) OVER () AS total
+-- Two complete queries (one for no search term, one for a search term) so each
+-- plans on its own: a generic plan cannot use the trigram indexes through
+-- "q IS NULL OR ...", and one query cannot serve both well.
+(SELECT i.id, i.email, i.name, CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END, u.name, i.sent_at, i.expires_at, count(*) OVER () AS total
 FROM auth.lexon_account_invitation i JOIN auth."user" u ON u.id = i.invited_by
   WHERE i.status = 'pending'
     AND (statuses IS NULL OR (CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END) = ANY (statuses))
-    AND (q IS NULL OR lower(i.email) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(coalesce(i.name, '')) LIKE '%' || lower(q) || '%' ESCAPE '\')
+    AND q IS NULL
   AND page_size IN (10, 20, 50) AND page_offset >= 0
-ORDER BY i.sent_at DESC, i.id DESC LIMIT page_size OFFSET page_offset
+ORDER BY i.sent_at DESC, i.id DESC LIMIT page_size OFFSET page_offset)
+UNION ALL
+(SELECT i.id, i.email, i.name, CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END, u.name, i.sent_at, i.expires_at, count(*) OVER () AS total
+FROM auth.lexon_account_invitation i JOIN auth."user" u ON u.id = i.invited_by
+  WHERE i.status = 'pending'
+    AND (statuses IS NULL OR (CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END) = ANY (statuses))
+    AND (q IS NOT NULL AND (lower(i.email) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(coalesce(i.name, '')) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+  AND page_size IN (10, 20, 50) AND page_offset >= 0
+ORDER BY i.sent_at DESC, i.id DESC LIMIT page_size OFFSET page_offset)
+ORDER BY sent_at DESC, id DESC
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_account_invitations(text, text[], int, int) FROM PUBLIC;
@@ -213,10 +282,17 @@ GRANT EXECUTE ON FUNCTION auth.lexon_platform_account_invitations(text, text[], 
 --> statement-breakpoint
 CREATE FUNCTION auth.lexon_platform_account_invitations_total(q text, statuses text[]) RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, auth, pg_temp AS $$
+SELECT (
 SELECT count(*) FROM auth.lexon_account_invitation i
   WHERE i.status = 'pending'
     AND (statuses IS NULL OR (CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END) = ANY (statuses))
-    AND (q IS NULL OR lower(i.email) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(coalesce(i.name, '')) LIKE '%' || lower(q) || '%' ESCAPE '\')
+    AND q IS NULL
+) + (
+SELECT count(*) FROM auth.lexon_account_invitation i
+  WHERE i.status = 'pending'
+    AND (statuses IS NULL OR (CASE WHEN i.expires_at > now() THEN 'pending' ELSE 'expired' END) = ANY (statuses))
+    AND (q IS NOT NULL AND (lower(i.email) LIKE '%' || lower(q) || '%' ESCAPE '\' OR lower(coalesce(i.name, '')) LIKE '%' || lower(q) || '%' ESCAPE '\'))
+)
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION auth.lexon_platform_account_invitations_total(text, text[]) FROM PUBLIC;

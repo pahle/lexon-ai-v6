@@ -165,6 +165,7 @@ export type PlanNode = {
   'Node Type': string;
   'Relation Name'?: string;
   'Index Name'?: string;
+  'Actual Loops'?: number;
   Plans?: PlanNode[];
 };
 
@@ -175,7 +176,10 @@ export const SCANNED_RELATIONS = [
   'lexon_account_invitation',
 ];
 
+// A node that never ran (a branch skipped by a one-time filter on a parameter)
+// has Actual Loops = 0 and does not count.
 export function seqScans(node: PlanNode, out: string[] = []): string[] {
+  if (node['Actual Loops'] === 0) return out;
   if (
     node['Node Type'] === 'Seq Scan' &&
     SCANNED_RELATIONS.includes(node['Relation Name'] ?? '')
@@ -196,20 +200,29 @@ export function planNodes(node: PlanNode, out: string[] = []): string[] {
 /**
  * EXPLAIN (ANALYZE) of a SQL function's body. A call to a SQL function shows
  * only a Function Scan, so the body (pg_proc.prosrc) is prepared with its named
- * parameters rewritten to $n and executed with the literal arguments under a
- * custom plan, which is what a call with those arguments plans.
+ * parameters rewritten to $n. A non-inlined SQL function plans its body with
+ * unknown parameters, so the default is force_generic_plan; custom plans (the
+ * arguments folded in) are available for timing comparison. Everything runs in
+ * a transaction that is rolled back, so an index can be dropped for a negative
+ * case and GUCs never leak.
  */
 export async function explainFunctionBody(
   pool: Pool,
   fn: string,
   literals: string[],
-  options: { seqScan?: boolean; indexScan?: boolean } = {},
+  options: {
+    planCache?: 'generic' | 'custom';
+    gucs?: string[];
+    dropIndexes?: string[] | undefined;
+  } = {},
 ) {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+    for (const index of options.dropIndexes ?? [])
+      await client.query(`DROP INDEX auth.${index}`);
     const meta = await client.query(
       `SELECT p.prosrc, p.proargnames AS names,
-              pg_get_function_identity_arguments(p.oid) AS identity,
               string_to_array(oidvectortypes(p.proargtypes), ', ') AS types
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
        WHERE n.nspname = 'auth' AND p.proname = $1`,
@@ -227,75 +240,32 @@ export async function explainFunctionBody(
         () => `$${index + 1}`,
       );
     });
-    await client.query('SET plan_cache_mode = force_custom_plan');
-    if (options.seqScan === false)
-      await client.query('SET enable_seqscan = off');
-    if (options.indexScan === false)
-      await client.query('SET enable_indexscan = off');
+    await client.query(
+      `SET LOCAL plan_cache_mode = force_${options.planCache === 'custom' ? 'custom' : 'generic'}_plan`,
+    );
+    for (const guc of options.gucs ?? [])
+      await client.query(`SET LOCAL ${guc}`);
     await client.query(`PREPARE scale_plan(${row.types.join(',')}) AS ${body}`);
     const result = await client.query(
       `EXPLAIN (ANALYZE, FORMAT JSON) EXECUTE scale_plan(${literals.join(',')})`,
     );
     const json = (
       result.rows[0] as {
-        'QUERY PLAN': {
-          Plan: PlanNode;
-          'Execution Time': number;
-        }[];
+        'QUERY PLAN': { Plan: PlanNode; 'Execution Time': number }[];
       }
     )['QUERY PLAN'][0]!;
     return { plan: json.Plan, executionMs: json['Execution Time'] };
-  } finally {
-    await client.query('DISCARD ALL');
-    client.release();
-  }
-}
-
-/** Plans of the same body with the trigram index dropped, rolled back. */
-export async function explainWithoutIndex(
-  pool: Pool,
-  index: string,
-  fn: string,
-  literals: string[],
-  options: { bitmapScan?: boolean } = {},
-) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query(`DROP INDEX auth.${index}`);
-    const meta = await client.query(
-      `SELECT p.prosrc, p.proargnames AS names, string_to_array(oidvectortypes(p.proargtypes), ', ') AS types
-       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname = 'auth' AND p.proname = $1`,
-      [fn],
-    );
-    const row = meta.rows[0] as {
-      prosrc: string;
-      names: string[];
-      types: string[];
-    };
-    let body = row.prosrc;
-    row.names.slice(0, row.types.length).forEach((name, i) => {
-      body = body.replace(
-        new RegExp(`(?<![\\w.])${name}(?!\\w)`, 'g'),
-        () => `$${i + 1}`,
-      );
-    });
-    await client.query('SET LOCAL plan_cache_mode = force_custom_plan');
-    await client.query('SET LOCAL enable_seqscan = off');
-    await client.query('SET LOCAL enable_indexscan = off');
-    if (options.bitmapScan === false)
-      await client.query('SET LOCAL enable_bitmapscan = off');
-    await client.query(`PREPARE scale_plan(${row.types.join(',')}) AS ${body}`);
-    const result = await client.query(
-      `EXPLAIN (ANALYZE, FORMAT JSON) EXECUTE scale_plan(${literals.join(',')})`,
-    );
-    return (result.rows[0] as { 'QUERY PLAN': { Plan: PlanNode }[] })[
-      'QUERY PLAN'
-    ][0]!.Plan;
   } finally {
     await client.query('ROLLBACK');
     await client.query('DISCARD ALL');
     client.release();
   }
+}
+
+/** Index names used anywhere in a plan. */
+export function planIndexes(node: PlanNode, out: string[] = []): string[] {
+  if (node['Actual Loops'] === 0) return out;
+  if (node['Index Name']) out.push(node['Index Name']);
+  for (const child of node.Plans ?? []) planIndexes(child, out);
+  return out;
 }
