@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
-import { brandFixedTime, captureBrandViews } from './brand-visual-support.js';
+import { brandFixedTime } from './brand-visual-support.js';
 import { gateRequests } from './brand-visual-world.js';
 import {
   prototypeNow,
@@ -12,8 +12,10 @@ import {
   reauthenticatePlatform,
 } from './brand-visual-platform-world.js';
 
-// F4.1 visual set, platform group: provisioning and account status for a
-// real platform administrator.
+// F4.1 visual set, platform group. The revision 14 platform captures were
+// retired in F4.3 (approval.json amendment, 2026-11-21); until the F4.3 UI
+// tasks add the revision 16 captures, this keeps the functional checks of
+// today's provisioning and account status pages for a real administrator.
 
 /** The list shows each organization's prototype expiry and status. */
 async function installProvisioningListNormalization(page: Page) {
@@ -88,7 +90,6 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
         exact: true,
       }),
     ).toBeVisible();
-    await captureBrandViews(page, 'platform-provisioning-empty');
   } finally {
     await page.unroute(emptyList);
   }
@@ -101,7 +102,6 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await expect(
       page.getByRole('status', { name: 'Checking platform access' }),
     ).toBeVisible();
-    await captureBrandViews(page, 'platform-provisioning-loading');
   } finally {
     await list.finish();
   }
@@ -128,7 +128,6 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await expect(page.locator('body')).not.toContainText(
       'private platform detail',
     );
-    await captureBrandViews(page, 'platform-provisioning-error');
   } finally {
     await page.unroute(failingList);
   }
@@ -140,7 +139,6 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: 'Harbor Legal Partners', exact: true }),
   ).toBeVisible();
-  await captureBrandViews(page, 'platform-provisioning-populated');
   await normalized.remove();
 
   // The invitation expiry is the only time-dependent value on the detail page.
@@ -167,7 +165,6 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await expect(
       page.getByText('21 Nov 2026, 11:00', { exact: true }),
     ).toBeVisible();
-    await captureBrandViews(page, 'platform-provisioning-detail');
   } finally {
     await page.unroute(detailUrl);
   }
@@ -175,5 +172,4 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await reauthenticatePlatform(page, world);
   await page.goto(stack.frontendUrl + '/platform/accounts');
   await expect(page.getByLabel('User ID')).toBeVisible();
-  await captureBrandViews(page, 'platform-accounts');
 });
