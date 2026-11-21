@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "nest build",
+    "build:types": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node ../scripts/check-boundaries.mjs",
     "test": "vitest run --config ../vitest.config.ts --project backend-unit --project backend-integration",
