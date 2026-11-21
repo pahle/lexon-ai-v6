@@ -160,6 +160,9 @@ test('open sign-up: the setup link creates a platform administrator exactly once
     expect(denied.status()).toBeGreaterThanOrEqual(401);
     expect(denied.status()).toBeLessThan(500);
     await ordinaryPage.goto(stack.frontendUrl + '/platform/provisioning');
+    await expect(ordinaryPage).toHaveURL(
+      /\/platform\/organizations\?state=provisioning$/,
+    );
     await expect(ordinaryPage.locator('section[role="alert"]')).toContainText(
       'You do not have access',
     );

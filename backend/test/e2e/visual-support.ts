@@ -315,7 +315,7 @@ export async function captureShellReviewView(
     await expect(
       page
         .getByRole('navigation', { name: 'Primary navigation' })
-        .getByRole('link', { name: 'Provisioning', exact: true }),
+        .getByRole('link', { name: 'Organizations', exact: true }),
     ).toBeVisible();
   }
   if (view === 'organization-switcher-open') {

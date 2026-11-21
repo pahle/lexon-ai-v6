@@ -18,6 +18,38 @@ import { captureTask7BViewportReview } from './visual-support.js';
 
 let restoreSignupModeAfterTest = false;
 
+/** Provisions a team through the Organizations dialog; success opens its record. */
+async function provisionThroughDialog(
+  page: import('@playwright/test').Page,
+  name: string,
+  ownerEmail: string,
+) {
+  await page
+    .getByRole('button', { name: 'Provision organization', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Provision a team organization',
+  });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Organization name', { exact: true }).fill(name);
+  await dialog
+    .getByLabel('Organization slug', { exact: true })
+    .fill(name.split(' ')[0]!.toLowerCase() + '-' + randomUUID().slice(0, 8));
+  await dialog
+    .getByLabel('First owner email', { exact: true })
+    .fill(ownerEmail);
+  const created = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/platform/provisioning',
+  );
+  await dialog
+    .getByRole('button', { name: 'Provision organization', exact: true })
+    .click();
+  expect((await created).status()).toBe(201);
+  await expect(page).toHaveURL(/\/platform\/organizations\/[0-9a-f-]{36}$/);
+}
+
 test.afterEach(async () => {
   if (!restoreSignupModeAfterTest) return;
   restoreSignupModeAfterTest = false;
@@ -45,13 +77,25 @@ test('F2 platform navigation remains hidden and direct routes are denied for ord
     if (new URL(request.url()).pathname.startsWith('/api/platform/'))
       platformRequests.push(request.url());
   });
-  await page.goto(stack.frontendUrl + '/platform/provisioning');
-  await expect(page.locator('section[role="alert"]')).toContainText(
-    'You do not have access',
-  );
-  await expect(
-    primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
-  ).toHaveCount(0);
+  // The retired provisioning URL redirects into the console, which is denied
+  // like every other console page.
+  for (const [path, landed] of [
+    [
+      '/platform/provisioning',
+      /\/platform\/organizations\?state=provisioning$/,
+    ],
+    ['/platform/accounts', /\/platform\/accounts$/],
+    ['/platform/organizations', /\/platform\/organizations$/],
+  ] as const) {
+    await page.goto(stack.frontendUrl + path);
+    await expect(page).toHaveURL(landed);
+    await expect(page.locator('section[role="alert"]')).toContainText(
+      'You do not have access',
+    );
+    await expect(
+      primaryNavigation.getByRole('link', { name: 'Platform', exact: true }),
+    ).toHaveCount(0);
+  }
   expect(platformRequests).toEqual([]);
 });
 
@@ -72,7 +116,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
   await authenticateApi(target);
   const targetProfile = (await (
     await target.get(stack.apiUrl + '/api/identity/profile')
-  ).json()) as { id: string; email: string };
+  ).json()) as { id: string; email: string; name: string };
   await signupMode(false);
   restoreSignupModeAfterTest = true;
   try {
@@ -180,11 +224,12 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       ),
     ).toBeLessThanOrEqual(1);
     await platformDisclosure.click();
-    await expect(
-      page
-        .getByRole('navigation', { name: 'Primary navigation' })
-        .getByRole('link', { name: 'Provisioning', exact: true }),
-    ).toBeVisible();
+    for (const name of ['Accounts', 'Organizations'])
+      await expect(
+        page
+          .getByRole('navigation', { name: 'Primary navigation' })
+          .getByRole('link', { name, exact: true }),
+      ).toBeVisible();
     for (const theme of ['light', 'dark'] as const) {
       await captureShellReviewView(
         page,
@@ -215,11 +260,15 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     markOperatorStage('Task 9 user-menu captures complete');
     await page.goto(stack.frontendUrl + '/platform/provisioning');
+    await expect(page).toHaveURL(
+      /\/platform\/organizations\?state=provisioning$/,
+    );
     await expect(
-      page.getByRole('heading', { name: 'Provisioning' }),
+      page.getByRole('heading', { name: 'Organizations', exact: true }),
     ).toBeVisible();
+    // No organization is waiting for an owner: the provisioning filter is empty.
     const emptyProvisioningList = page.getByText(
-      'No organizations are waiting for an owner',
+      'No organizations match these filters',
       { exact: true },
     );
     await expect(emptyProvisioningList).toBeVisible();
@@ -230,7 +279,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
           'provisioning',
           theme,
           viewport,
-          'Organization provisioning',
+          'Organizations',
           { loadedContent: emptyProvisioningList },
         );
       }
@@ -263,7 +312,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await expect(platformToggle).toHaveAttribute('aria-expanded', 'false');
       await expect(
         primaryNavigation.getByRole('link', {
-          name: 'Provisioning',
+          name: 'Organizations',
           exact: true,
         }),
       ).toHaveCount(0);
@@ -281,7 +330,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       ).toBeVisible();
       await expect(
         primaryNavigation.getByRole('link', {
-          name: 'Provisioning',
+          name: 'Organizations',
           exact: true,
         }),
       ).toHaveCount(0);
@@ -289,11 +338,14 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     markOperatorStage('C operator menu screenshots captured');
     await page.goto(stack.frontendUrl + '/platform/provisioning');
-    await expect(page.locator('h1')).toHaveText('Organization provisioning');
+    await expect(page).toHaveURL(
+      /\/platform\/organizations\?state=provisioning$/,
+    );
+    await expect(page.locator('h1')).toHaveText('Organizations');
     markOperatorStage('provisioning list opened');
     const platformListUrl = (url: URL) =>
-      url.pathname === '/api/platform/provisioning' &&
-      url.searchParams.has('limit');
+      url.pathname === '/api/platform/organizations' &&
+      url.searchParams.has('page');
     const capturePlatformResponsiveState = async (name: string) => {
       for (const width of [390, 768] as const) {
         for (const theme of ['light', 'dark'] as const) {
@@ -340,11 +392,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await page.reload();
       await provisioningStarted;
       await expect(
-        page.getByRole('status', { name: 'Checking platform access' }),
+        page.getByRole('status', { name: 'Loading organizations' }),
       ).toBeVisible();
-      await capturePlatformResponsiveState('platform-provisioning-loading');
+      await capturePlatformResponsiveState('platform-organizations-loading');
       duplicateProvisioningRequest = page.evaluate(async () => {
-        const response = await fetch('/api/platform/provisioning?limit=2');
+        const response = await fetch(
+          '/api/platform/organizations?state=provisioning&page=1&pageSize=10',
+        );
         return response.status;
       });
       await atLeastTwoProvisioningRequests;
@@ -357,7 +411,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     }
     expect(await duplicateProvisioningRequest).toBe(200);
     await expect(
-      page.getByText('No organizations are waiting for an owner', {
+      page.getByText('No organizations match these filters', {
         exact: true,
       }),
     ).toBeVisible();
@@ -379,13 +433,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await expect(page.locator('body')).not.toContainText(
         'private platform detail',
       );
-      await capturePlatformResponsiveState('platform-provisioning-error');
+      await capturePlatformResponsiveState('platform-organizations-error');
     } finally {
       await page.unroute(platformListUrl);
     }
     await page.reload();
     await expect(
-      page.getByText('No organizations are waiting for an owner', {
+      page.getByText('No organizations match these filters', {
         exact: true,
       }),
     ).toBeVisible();
@@ -393,7 +447,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       for (const theme of ['light', 'dark'] as const) {
         await captureTask7BViewportReview(
           page,
-          'platform-provisioning-empty',
+          'platform-organizations-no-results',
           width,
           theme,
         );
@@ -420,44 +474,37 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     ).toEqual([]);
     markOperatorStage('dark provisioning axe passed');
     const ownerEmail = targetProfile.email;
-    await page
-      .getByLabel('Organization name', { exact: true })
-      .fill('Provisioned team');
-    await page
-      .getByLabel('Organization slug', { exact: true })
-      .fill('provision-' + randomUUID().slice(0, 8));
-    await page
-      .getByLabel('First owner email', { exact: true })
-      .fill(ownerEmail);
-    await page
-      .getByRole('button', { name: 'Provision organization', exact: true })
-      .click();
+    await provisionThroughDialog(page, 'Provisioned team', ownerEmail);
+    await expect(page.locator('h1')).toHaveText('Provisioned team');
+    await page.goto(
+      stack.frontendUrl + '/platform/organizations?state=provisioning',
+    );
     await expect(
-      page.getByRole('link', { name: 'Provisioned team', exact: true }),
+      page.getByLabel('Open Provisioned team', { exact: true }),
     ).toBeVisible();
     markOperatorStage('provisioned team appeared in list');
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
         await captureTask7BViewportReview(
           page,
-          'platform-provisioning-populated',
+          'platform-organizations-provisioning',
           width,
           theme,
         );
       }
     }
-    await page
-      .getByRole('link', { name: 'Provisioned team', exact: true })
-      .click();
+    await page.getByLabel('Open Provisioned team', { exact: true }).click();
+    await expect(page).toHaveURL(/\/platform\/organizations\/[0-9a-f-]{36}$/);
+    await expect(page.locator('h1')).toHaveText('Provisioned team');
     await expect(
-      page.locator('[data-slot="badge"]', { hasText: 'Provisioning' }),
+      page.getByRole('main').getByText('Provisioning', { exact: true }).first(),
     ).toBeVisible();
     markOperatorStage('provisioned detail opened');
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
         await captureTask7BViewportReview(
           page,
-          'platform-provisioning-detail',
+          'platform-organization-provisioning',
           width,
           theme,
         );
@@ -569,21 +616,8 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       await recipientContext.close();
     }
     await page.goto(stack.frontendUrl + '/platform/provisioning');
-    await page
-      .getByLabel('Organization name', { exact: true })
-      .fill('Cancelled team');
-    await page
-      .getByLabel('Organization slug', { exact: true })
-      .fill('cancel-' + randomUUID().slice(0, 8));
-    await page
-      .getByLabel('First owner email', { exact: true })
-      .fill(ownerEmail);
-    await page
-      .getByRole('button', { name: 'Provision organization', exact: true })
-      .click();
-    await page
-      .getByRole('link', { name: 'Cancelled team', exact: true })
-      .click();
+    await provisionThroughDialog(page, 'Cancelled team', ownerEmail);
+    await expect(page.locator('h1')).toHaveText('Cancelled team');
     const cancelledMail = await readCapturedMail(
       stack.project,
       ownerEmail,
@@ -611,9 +645,13 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       .getByRole('button', { name: 'Cancel provisioning', exact: true })
       .click();
     expect((await cancelRequest).status()).toBe(204);
-    await expect(page).toHaveURL(/\/platform\/provisioning$/);
+    await expect(page).toHaveURL(/\/platform\/organizations$/);
+    await expect(page.locator('h1')).toHaveText('Organizations');
     await expect(
-      page.getByRole('link', { name: 'Cancelled team', exact: true }),
+      page.getByLabel('Open Provisioned team', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel('Open Cancelled team', { exact: true }),
     ).toHaveCount(0);
     expect(
       (
@@ -629,20 +667,35 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
     expect(orgs.items.every((org) => org.kind === 'personal')).toBe(true);
     await page
       .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Account status', exact: true })
+      .getByRole('link', { name: 'Accounts', exact: true })
       .click();
-    await expect(page.getByLabel('User ID', { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/platform\/accounts$/);
+    await expect(page.locator('h1')).toHaveText('Accounts');
+    await page
+      .getByLabel('Search by name or email', { exact: true })
+      .fill(targetProfile.email);
+    // Every e2e account is named "E2E identity": wait until the search for
+    // the unique address leaves exactly the target.
+    const targetRow = page.getByLabel(`Open ${targetProfile.name}`, {
+      exact: true,
+    });
+    await expect(targetRow).toHaveCount(1);
+    await expect(targetRow).toContainText(targetProfile.email);
+    await targetRow.click();
+    await expect(page).toHaveURL(
+      new RegExp(`/platform/accounts/${targetProfile.id}$`),
+    );
+    await expect(page.locator('h1')).toHaveText(targetProfile.name);
     for (const width of [390, 768, 1440] as const) {
       for (const theme of ['light', 'dark'] as const) {
         await captureTask7BViewportReview(
           page,
-          'platform-account-status',
+          'platform-account-detail',
           width,
           theme,
         );
       }
     }
-    await page.getByLabel('User ID', { exact: true }).fill(targetProfile.id);
     const disableRequest = page.waitForResponse(
       (response) =>
         response.request().method() === 'PATCH' &&
@@ -654,7 +707,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       .getByRole('button', { name: 'Disable account', exact: true })
       .click();
     const disableDialog = page.getByRole('alertdialog', {
-      name: `Disable account ${targetProfile.id}?`,
+      name: `Disable ${targetProfile.name}?`,
     });
     await expect(disableDialog).toBeVisible();
     await disableDialog

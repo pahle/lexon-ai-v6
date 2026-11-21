@@ -1,8 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import { brandFixedTime } from './brand-visual-support.js';
 import { gateRequests } from './brand-visual-world.js';
 import {
+  platformAdmin,
   prototypeNow,
   provisioningOrganizations,
 } from './prototype-fixtures.js';
@@ -15,46 +16,8 @@ import {
 // F4.1 visual set, platform group. The revision 14 platform captures were
 // retired in F4.3 (approval.json amendment, 2026-11-21); until the F4.3 UI
 // tasks add the revision 16 captures, this keeps the functional checks of
-// today's provisioning and account status pages for a real administrator.
-
-/** The list shows each organization's prototype expiry and status. */
-async function installProvisioningListNormalization(page: Page) {
-  const matcher = (url: URL) =>
-    url.pathname === '/api/platform/provisioning' &&
-    url.searchParams.has('limit');
-  const handler = async (route: import('@playwright/test').Route) => {
-    if (route.request().method() !== 'GET') return route.fallback();
-    const response = await route.fetch();
-    if (!response.ok()) return route.fulfill({ response });
-    const body = (await response.json()) as {
-      items: Array<{
-        slug: string;
-        createdAt: string;
-        invitation: { status: string; expiresAt: string };
-      }>;
-    };
-    const items = provisioningOrganizations.flatMap((organization) => {
-      const row = body.items.find((item) => item.slug === organization.slug);
-      return row
-        ? [
-            {
-              ...row,
-              createdAt: prototypeNow,
-              invitation: {
-                ...row.invitation,
-                status:
-                  organization.status === 'Expired' ? 'expired' : 'pending',
-                expiresAt: organization.expiresAt,
-              },
-            },
-          ]
-        : [];
-    });
-    return route.fulfill({ response, json: { ...body, items } });
-  };
-  await page.route(matcher, handler);
-  return { remove: () => page.unroute(matcher, handler) };
-}
+// the platform console (Organizations, organization record, Accounts) for a
+// real administrator.
 
 // Platform, errors, and UI patterns.
 
@@ -69,10 +32,10 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await page.clock.setFixedTime(brandFixedTime);
 
   const listUrl = (url: URL, method: string) =>
-    url.pathname === '/api/platform/provisioning' &&
-    url.searchParams.has('limit') &&
+    url.pathname === '/api/platform/organizations' &&
+    url.searchParams.has('page') &&
     (method === 'GET' || method === '');
-  const provisioning = stack.frontendUrl + '/platform/provisioning';
+  const organizations = stack.frontendUrl + '/platform/organizations';
 
   // The empty list: the world already holds the organizations, so the list
   // answers with no items for this state.
@@ -80,13 +43,24 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   await page.route(emptyList, (route) =>
     route.request().method() !== 'GET'
       ? route.fallback()
-      : route.fulfill({ json: { items: [], pageInfo: { nextCursor: null } } }),
+      : route.fulfill({
+          json: { items: [], page: 1, pageSize: 20, total: 0 },
+        }),
   );
   try {
-    await page.goto(provisioning);
-    await expect(page.locator('h1')).toHaveText('Organization provisioning');
+    await page.goto(organizations);
+    await expect(page.locator('h1')).toHaveText('Organizations');
     await expect(
-      page.getByText('No organizations are waiting for an owner', {
+      page.getByText('No team organizations yet', { exact: true }),
+    ).toBeVisible();
+    // The retired provisioning URL lands on the provisioning-filtered list.
+    await page.goto(stack.frontendUrl + '/platform/provisioning');
+    await expect(page).toHaveURL(
+      /\/platform\/organizations\?state=provisioning$/,
+    );
+    await expect(page.locator('h1')).toHaveText('Organizations');
+    await expect(
+      page.getByText('No organizations match these filters', {
         exact: true,
       }),
     ).toBeVisible();
@@ -100,7 +74,7 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await page.reload();
     await list.started;
     await expect(
-      page.getByRole('status', { name: 'Checking platform access' }),
+      page.getByRole('status', { name: 'Loading organizations' }),
     ).toBeVisible();
   } finally {
     await list.finish();
@@ -132,17 +106,16 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
     await page.unroute(failingList);
   }
 
-  // The list shows the prototype dates and the expired invitation.
+  // The provisioning list shows every organization the world provisioned.
   await reauthenticatePlatform(page, world);
-  const normalized = await installProvisioningListNormalization(page);
-  await page.goto(provisioning);
-  await expect(
-    page.getByRole('link', { name: 'Harbor Legal Partners', exact: true }),
-  ).toBeVisible();
-  await normalized.remove();
+  await page.goto(organizations + '?state=provisioning');
+  for (const organization of provisioningOrganizations)
+    await expect(
+      page.getByLabel(`Open ${organization.name}`, { exact: true }),
+    ).toBeVisible();
 
-  // The invitation expiry is the only time-dependent value on the detail page.
-  const detailPath = `/api/platform/provisioning/${world.harborId}`;
+  // The invitation expiry is the only time-dependent value on the record.
+  const detailPath = `/api/platform/organizations/${world.harborId}`;
   const detailUrl = (url: URL) => url.pathname === detailPath;
   await page.route(detailUrl, async (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
@@ -157,19 +130,32 @@ test('Platform pages for a real platform administrator', async ({ page }) => {
   });
   try {
     await page
-      .getByRole('link', { name: 'Harbor Legal Partners', exact: true })
+      .getByLabel('Open Harbor Legal Partners', { exact: true })
       .click();
+    await expect(page).toHaveURL(
+      new RegExp(`/platform/organizations/${world.harborId}$`),
+    );
     await expect(
       page.getByRole('button', { name: 'Resend invitation' }),
     ).toBeVisible();
-    await expect(
-      page.getByText('21 Nov 2026, 11:00', { exact: true }),
-    ).toBeVisible();
+    const expires = page.locator('[data-slot="stat-tile"]', {
+      hasText: 'Expires',
+    });
+    await expect(expires).toContainText('21 Nov 2026');
+    await expect(expires).toContainText('11:00');
   } finally {
     await page.unroute(detailUrl);
   }
 
   await reauthenticatePlatform(page, world);
   await page.goto(stack.frontendUrl + '/platform/accounts');
-  await expect(page.getByLabel('User ID')).toBeVisible();
+  await expect(page.locator('h1')).toHaveText('Accounts');
+  await expect(page.getByRole('tab', { name: /^Invitations/ })).toBeVisible();
+  await page
+    .getByLabel('Search by name or email', { exact: true })
+    .fill(platformAdmin.name);
+  await expect(
+    page.getByLabel(`Open ${platformAdmin.name}`, { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByLabel('User ID')).toHaveCount(0);
 });

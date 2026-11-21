@@ -249,6 +249,10 @@ test('access denied and not-found pages', async ({ page, playwright }) => {
 
   const denied = await page.goto(stack.frontendUrl + '/platform/provisioning');
   expect(denied?.status()).toBe(200);
+  // The retired URL redirects into the console, which a member cannot open.
+  await expect(page).toHaveURL(
+    /\/platform\/organizations\?state=provisioning$/,
+  );
   await expect(
     page.getByText('This page is available to platform administrators only.'),
   ).toBeVisible();
