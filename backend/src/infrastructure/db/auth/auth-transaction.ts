@@ -34,6 +34,7 @@ export function createAuthTransactions(database: Database) {
     adapter: DBTransactionAdapter;
     active: boolean;
     afterCommit: Array<() => Promise<void>>;
+    accountInvitationAccepted?: boolean;
   }>();
   let adapter: DBAdapter;
   const adapterFactory = (options: BetterAuthOptions): DBAdapter => {
@@ -165,7 +166,35 @@ export function createAuthTransactions(database: Database) {
         sql`SELECT auth.lexon_lock_account(${userId}::uuid)`,
       );
     },
+    async accountInvitation(digest: string) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      const result = await state.database.execute<{
+        id: string;
+        email: string;
+        usable: boolean;
+      }>(
+        sql`SELECT id, email, usable FROM auth.lexon_account_invitation_signup_facts(${digest}::text)`,
+      );
+      return result.rows[0] ?? null;
+    },
+    markAccountInvitation() {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      state.accountInvitationAccepted = true;
+    },
+    async acceptAccountInvitation(digest: string, userId: string) {
+      const state = scope.getStore();
+      if (!state?.active) throw new Error('Auth transaction unavailable');
+      const result = await state.database.execute<{ ok: boolean }>(
+        sql`SELECT auth.lexon_accept_account_invitation(${digest}::text, ${userId}::uuid) AS ok`,
+      );
+      return result.rows[0]?.ok === true;
+    },
   };
+  // Request-scoped: lives in the transaction's AsyncLocalStorage state.
+  const accountInvitationFlag = () =>
+    scope.getStore()?.accountInvitationAccepted === true;
   const securityPrimitives: SecurityPrimitives = {
     async lock(userId, sessionId) {
       const state = scope.getStore();
@@ -265,6 +294,7 @@ export function createAuthTransactions(database: Database) {
     platformReadPrimitives,
     transaction,
     afterCommit,
+    accountInvitationFlag,
     accountLocks,
     securityPrimitives,
     organizationPrimitives,

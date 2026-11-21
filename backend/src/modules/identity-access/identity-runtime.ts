@@ -121,6 +121,9 @@ export async function createIdentityRuntime(
             password: body.password,
             ...(body.invitationId ? { invitationId: body.invitationId } : {}),
             ...(body.setupToken ? { setupToken: body.setupToken } : {}),
+            ...(body.accountInvitationToken
+              ? { accountInvitationToken: body.accountInvitationToken }
+              : {}),
           });
         const accountDone = await accounts.prepareOperation(
           tx,

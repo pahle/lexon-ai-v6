@@ -82,6 +82,7 @@ export const E2E_SHARD_PLAN = [
       // with platform-identity (which needs the first-admin setup).
       e2e('platform-console-api'),
       e2e('account-invitations'),
+      e2e('signup-account-invitation'),
       e2e('visual-comparison-regression'),
       e2e('topology'),
       e2e('valkey-policy'),

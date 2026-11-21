@@ -50,10 +50,13 @@ export async function composeAuthIntegration(options: AuthEngineOptions) {
                   ),
               }
             : {}),
-          sendVerification: (message) =>
-            transactions.afterCommit(() =>
+          sendVerification: async (message) => {
+            // An account invitation proved the address: nothing to verify.
+            if (transactions.accountInvitationFlag()) return;
+            await transactions.afterCommit(() =>
               options.mail.sendVerification(message),
-            ),
+            );
+          },
           sendPasswordReset: (message) =>
             transactions.afterCommit(() =>
               options.mail.sendPasswordReset(message),

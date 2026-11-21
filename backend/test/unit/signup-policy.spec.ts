@@ -110,3 +110,29 @@ test('setup eligibility uses a digest, matching email and pending unexpired stat
     ).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
   }
 });
+test('account invitation proof allows only usable facts with a case-insensitive email match', async () => {
+  const run = (
+    accountInvitation: { email: string; usable: boolean } | null,
+    input: { email: string; invitationId?: string } = { email },
+  ) =>
+    new SignupPolicy({
+      openSignup: false,
+      readFacts: async () => ({
+        invitation: null,
+        setup: null,
+        accountInvitation,
+      }),
+    }).authorize({ ...input, accountInvitationToken: 'token-value' });
+  await expect(
+    run({ email: 'PERSON@example.test', usable: true }),
+  ).resolves.toBeUndefined();
+  for (const facts of [
+    null,
+    { email, usable: false },
+    { email: 'other@example.test', usable: true },
+  ])
+    await expect(run(facts)).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
+  await expect(
+    run({ email, usable: true }, { email, invitationId }),
+  ).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
+});

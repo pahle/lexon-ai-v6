@@ -41,6 +41,15 @@ export function createAuthEngine(
     user: async () => {
       throw new Error('Auth transaction unavailable');
     },
+    accountInvitation: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    markAccountInvitation: () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    acceptAccountInvitation: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
   },
   security: SecurityPrimitives = {
     lock: async () => {
