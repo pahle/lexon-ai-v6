@@ -240,6 +240,14 @@ const accountInvitationAccepted = z.strictObject({
   subjectUserId: UuidSchema,
   metadata: z.strictObject({ invitationId: UuidSchema }),
 });
+const organizationMembersViewed = z.strictObject({
+  ...base,
+  type: z.literal('platform.organization_members_viewed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  orgId: UuidSchema,
+  metadata: z.strictObject({ page: z.number().int().positive() }),
+});
 const adminActivated = z.strictObject({
   ...base,
   type: z.literal('platform.admin_activated.v1'),
@@ -411,6 +419,7 @@ export const AuditEventSchema = z.union([
   accountInvitationResent,
   accountInvitationCancelled,
   accountInvitationAccepted,
+  organizationMembersViewed,
   adminActivated,
   aiRunStarted,
   aiRunFinished,

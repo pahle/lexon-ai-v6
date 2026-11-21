@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { appendAuthAudit } from '../audit/index.js';
 import {
   NumberedPageQuerySchema,
   PlatformOrganizationsQuerySchema,
@@ -56,7 +58,21 @@ export class PlatformOrganizationsService {
           pageSize: page.pageSize,
           total: 0,
         };
-      return this.repository.members(tx, id, page);
+      const result = await this.repository.members(tx, id, page);
+      // Same transaction as the read: no members page is shown unaudited.
+      // Provisioning organizations expose nothing, so they write nothing.
+      await appendAuthAudit(tx, {
+        version: 1,
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        type: 'platform.organization_members_viewed.v1',
+        outcome: 'success',
+        actorUserId: identity.userId,
+        sessionId: identity.sessionId,
+        orgId: id,
+        metadata: { page: page.page },
+      });
+      return result;
     });
   }
 }

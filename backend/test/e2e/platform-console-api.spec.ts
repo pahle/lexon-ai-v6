@@ -9,7 +9,7 @@ import {
   PlatformOrganizationsPageSchema,
   AccountInvitationsPageSchema,
 } from '@lexon/contracts';
-import { descriptor } from './runtime-support.js';
+import { containerId, descriptor, docker } from './runtime-support.js';
 import { authenticateApi } from './identity-support.js';
 import { enrollAdministrator } from './brand-visual-platform-world.js';
 
@@ -215,4 +215,57 @@ test('verification resend route: 401, 403, 204 for unverified, 409 for verified'
   expect(ok.status(), await ok.text()).toBe(204);
   const verified = await admin.post(path(memberId), { headers: origin });
   expect(verified.status()).toBe(409);
+});
+
+test('members page views are audited with their page number and no user ids', async ({
+  page,
+  playwright,
+}) => {
+  const stack = descriptor();
+  const origin = { origin: stack.frontendUrl };
+  await enrollAdministrator(
+    page,
+    `members.audit.${Date.now().toString(36)}@example.test`,
+  );
+  const admin = page.request;
+  const owner = await playwright.request.newContext();
+  const ownerHeaders = await authenticateApi(owner);
+  const team = await owner.post(stack.apiUrl + '/api/organizations', {
+    headers: ownerHeaders,
+    data: { name: 'Audited team', slug: `audit-${randomUUID().slice(0, 8)}` },
+  });
+  expect(team.status()).toBe(201);
+  const orgId = ((await team.json()) as { id: string }).id;
+  const members = (query: string) =>
+    admin.get(
+      `${stack.apiUrl}/api/platform/organizations/${orgId}/members${query}`,
+      {
+        headers: origin,
+      },
+    );
+  expect((await members('?page=1')).status()).toBe(200);
+  expect((await members('?page=2')).status()).toBe(200);
+  expect(
+    (
+      await admin.get(
+        `${stack.apiUrl}/api/platform/organizations/${randomUUID()}/members`,
+      )
+    ).status(),
+  ).toBe(404);
+  const psql = async (sql: string) =>
+    docker([
+      'exec',
+      await containerId('postgres'),
+      'sh',
+      '-c',
+      'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -U postgres -d lexon -v ON_ERROR_STOP=1 -At -c "$0"',
+      sql,
+    ]);
+  await expect
+    .poll(() =>
+      psql(
+        `SELECT string_agg(metadata::text, ',' ORDER BY (metadata->>'page')::int) FROM ops.audit_events WHERE type='platform.organization_members_viewed.v1' AND org_id='${orgId}'`,
+      ),
+    )
+    .toBe('{"page": 1},{"page": 2}');
 });

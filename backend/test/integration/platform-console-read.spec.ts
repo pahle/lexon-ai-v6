@@ -108,3 +108,54 @@ test('organizations, members and invitations read paths return contract pages', 
     await proof.close();
   }
 });
+
+test('each members page request writes platform.organization_members_viewed.v1 with { page } and no user ids', async ({
+  services,
+}) => {
+  const { proof, harness, port, adminEmail } = await world(services);
+  try {
+    const ownerId = (
+      await proof.signIn({
+        body: {
+          name: 'Team owner',
+          email: `${randomUUID()}@example.test`,
+          password,
+        },
+      })
+    ).userId;
+    const full = await harness.enroll(adminEmail, password);
+    const organizations = new PlatformOrganizationsService(
+      port,
+      new PlatformConsoleRepository(),
+    );
+    const active = randomUUID();
+    await proof.inspect.migratorQuery(
+      `WITH o AS (
+         INSERT INTO auth.organization(id,name,slug,created_at,kind,state)
+         VALUES ($1,'Audit active',$2,now(),'team','active') RETURNING id)
+       INSERT INTO auth.member(organization_id,user_id,role,created_at)
+       SELECT o.id, $3::uuid, 'owner', now() FROM o`,
+      [active, `audit-${active.slice(0, 8)}`, ownerId],
+    );
+    const rows = (orgId: string) =>
+      proof.inspect.migratorQuery(
+        `SELECT to_jsonb(a) AS row FROM ops.audit_events a WHERE type='platform.organization_members_viewed.v1' AND org_id=$1 ORDER BY (metadata->>'page')::int`,
+        [orgId],
+      );
+    await harness.identity(full.headers, async (identity) => {
+      await organizations.members(identity, active, { page: '1' });
+      await organizations.members(identity, active, { page: '2' });
+      await expect(
+        organizations.members(identity, randomUUID(), {}),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+    const written = (await rows(active)).map(
+      (r) => r.row as { metadata: unknown; actor_user_id: string },
+    );
+    expect(written.map((r) => r.metadata)).toEqual([{ page: 1 }, { page: 2 }]);
+    // Only the acting administrator is referenced, never a listed member.
+    expect(new Set(written.map((r) => r.actor_user_id)).size).toBe(1);
+  } finally {
+    await proof.close();
+  }
+});
