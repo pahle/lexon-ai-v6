@@ -5,6 +5,7 @@ import {
   AccountInvitationsPageSchema,
   IdentityErrorResponseSchema,
   PlatformAccountsPageSchema,
+  UuidSchema,
   type AccountInvitation,
 } from '@lexon/contracts';
 import { IdentityClientError } from '../../lib/identity-client';
@@ -24,8 +25,8 @@ export class PlatformApiError extends IdentityClientError {
 
 async function call<T>(
   path: string,
-  schema: z.ZodType<T>,
-  init?: { method: string; body: unknown },
+  schema: z.ZodType<T> | null,
+  init?: { method: string; body?: unknown },
 ): Promise<T> {
   let response: Response;
   try {
@@ -34,7 +35,7 @@ async function call<T>(
       credentials: 'same-origin',
       cache: 'no-store',
       signal: AbortSignal.timeout(10000),
-      ...(init
+      ...(init?.body !== undefined
         ? {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(init.body),
@@ -60,6 +61,7 @@ async function call<T>(
     }
     throw new PlatformApiError(code, response.status, issues);
   }
+  if (!schema) return undefined as T;
   try {
     return schema.parse(await response.json());
   } catch {
@@ -90,5 +92,15 @@ export const platformConsoleApi = {
     call('/platform/account-invitations', AccountInvitationSchema, {
       method: 'POST',
       body: AccountInvitationInputSchema.parse(input),
+    }),
+  resend: (id: string) =>
+    call<void>(
+      `/platform/account-invitations/${UuidSchema.parse(id)}/resend`,
+      null,
+      { method: 'POST' },
+    ),
+  cancel: (id: string) =>
+    call<void>(`/platform/account-invitations/${UuidSchema.parse(id)}`, null, {
+      method: 'DELETE',
     }),
 };

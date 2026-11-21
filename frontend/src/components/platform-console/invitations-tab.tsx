@@ -1,6 +1,9 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { BanIcon, MailIcon } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import type { AccountInvitation } from '@lexon/contracts';
 import {
   DataStates,
@@ -9,22 +12,26 @@ import {
   DataToolbar,
   FacetFilter,
   IdentityCell,
+  ConfirmDialog,
   PagedFooter,
+  RowMenu,
   StatusBadge,
   useDataViewParams,
   type DataColumn,
 } from '../data-views';
-import { QueryFailure } from '../organizations/page-state';
+import { identityMessage, QueryFailure } from '../organizations/page-state';
 import { formatPlatformDate } from '../platform/platform-format';
 import { PlatformApiError, platformConsoleApi } from './api';
-import { INVITATIONS_KEY } from './invite-dialog';
+import { COUNT_KEYS, INVITATIONS_KEY } from './invite-dialog';
 
 const STATUS = [
   { value: 'pending', label: 'Pending' },
   { value: 'expired', label: 'Expired' },
 ];
 
-const columns: DataColumn<AccountInvitation>[] = [
+const columnsFor = (
+  menu: (i: AccountInvitation) => React.ReactNode,
+): DataColumn<AccountInvitation>[] => [
   {
     key: 'person',
     header: 'Invited person',
@@ -67,9 +74,19 @@ const columns: DataColumn<AccountInvitation>[] = [
     muted: true,
     cell: (i) => formatPlatformDate(i.expiresAt),
   },
+  {
+    key: 'menu',
+    header: 'Actions',
+    hideHeader: true,
+    width: '56px',
+    cell: menu,
+  },
 ];
 
 export function InvitationsTab() {
+  const queryClient = useQueryClient();
+  const [cancelling, setCancelling] = useState<AccountInvitation | null>(null);
+  const [busy, setBusy] = useState(false);
   const view = useDataViewParams(['status', 'tab']);
   const status = view.facets.status ?? [];
   const list = useQuery({
@@ -89,6 +106,51 @@ export function InvitationsTab() {
       }),
     retry: false,
   });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: INVITATIONS_KEY }),
+      queryClient.invalidateQueries({ queryKey: COUNT_KEYS.invitations }),
+    ]);
+
+  /** Runs an action; the list is refreshed when it succeeded or the invitation is gone. */
+  async function act(action: () => Promise<void>, success: string) {
+    try {
+      await action();
+      toast.success(success);
+      await refresh();
+    } catch (error) {
+      const code = error instanceof PlatformApiError ? error.code : '';
+      if (error instanceof PlatformApiError && error.status === 404) {
+        toast.error('That invitation no longer exists.');
+        await refresh();
+      } else if (code === 'AUTH_RATE_LIMITED')
+        toast.error('Too many requests. Wait a moment and try again.');
+      else toast.error(identityMessage(error));
+    }
+  }
+
+  const columns = columnsFor((i) => (
+    <RowMenu
+      label={`Actions for ${i.email}`}
+      items={[
+        {
+          label: 'Resend invitation',
+          icon: MailIcon,
+          onSelect: () =>
+            void act(
+              () => platformConsoleApi.resend(i.id),
+              `Invitation resent to ${i.email}.`,
+            ),
+        },
+        {
+          label: 'Cancel invitation',
+          icon: BanIcon,
+          destructive: true,
+          onSelect: () => setCancelling(i),
+        },
+      ]}
+    />
+  ));
   const filtered = Boolean(view.query || status.length);
   const rows = list.data?.items ?? [];
   const state = list.isPending
@@ -162,6 +224,28 @@ export function InvitationsTab() {
           emptyText="Invite someone and they appear here until they create their account."
         />
       )}
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => !open && setCancelling(null)}
+        title={`Cancel the invitation to ${cancelling?.email ?? ''}?`}
+        description="The link in the email stops working. You can invite them again later."
+        confirmLabel="Cancel invitation"
+        icon={BanIcon}
+        destructive
+        pending={busy}
+        onConfirm={() => {
+          const target = cancelling;
+          if (!target) return;
+          setBusy(true);
+          void act(
+            () => platformConsoleApi.cancel(target.id),
+            `Invitation to ${target.email} canceled.`,
+          ).finally(() => {
+            setBusy(false);
+            setCancelling(null);
+          });
+        }}
+      />
     </DataTableCard>
   );
 }

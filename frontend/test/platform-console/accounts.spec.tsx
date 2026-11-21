@@ -12,7 +12,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/platform/accounts',
   useSearchParams: () => new URLSearchParams(nav.search),
 }));
-vi.mock('sonner', () => ({ toast: { success: toastSuccess } }));
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({
+  toast: { success: toastSuccess, error: toastError },
+}));
 
 const ID = '3b241101-e2bb-4255-8caf-4136c566a962';
 const account = (over: object = {}) => ({
@@ -69,6 +72,7 @@ afterEach(() => {
   nav.replace.mockClear();
   nav.push.mockClear();
   toastSuccess.mockClear();
+  toastError.mockClear();
   document.body.innerHTML = '';
 });
 
@@ -83,7 +87,7 @@ async function mount() {
   );
   return { view, client };
 }
-const urlOf = (call: number) => String(fetchMock.mock.calls[call]![0]);
+const urls = () => fetchMock.mock.calls.map((c) => String(c[0]));
 
 test('lists accounts with the prototype columns and the administrator badge', async () => {
   reply(
@@ -121,7 +125,7 @@ test('lists accounts with the prototype columns and the administrator badge', as
   expect(text).toContain('1 Sep 2026');
   expect(text).toContain('Never');
   expect(text).toContain('2 accounts');
-  expect(urlOf(0)).toBe('/api/platform/accounts?page=1&pageSize=20');
+  expect(urls()).toContain('/api/platform/accounts?page=1&pageSize=20');
   expect(byLabel(view.container, 'Open Dimas Prasetyo')).not.toBeNull();
   await click(byLabel(view.container, 'Open Bagus Santoso')!);
   expect(nav.push).toHaveBeenCalledWith(
@@ -134,8 +138,8 @@ test('filters come from the URL into the request', async () => {
   nav.search = 'query=ayu&status=active&status=disabled&twoFactor=off&page=2';
   reply(json({ ...page([account()], 45), page: 2 }));
   const { view } = await mount();
-  await settleUntil(() => fetchMock.mock.calls.length > 0);
-  expect(urlOf(0)).toBe(
+  await settleUntil(() => urls().some((u) => u.includes('page=2')));
+  expect(urls()).toContain(
     '/api/platform/accounts?query=ayu&status=active&status=disabled&twoFactor=off&page=2&pageSize=20',
   );
   expect(byLabel(view.container, 'Status')).not.toBeNull();
@@ -208,7 +212,9 @@ test('Invitations tab (?tab=invitations): rows, then each state', async () => {
   expect(text).toContain('Rina Kusuma');
   expect(text).toContain('Expired');
   expect(text).toContain('2 invitations');
-  expect(urlOf(0)).toBe('/api/platform/account-invitations?page=1&pageSize=20');
+  expect(urls()).toContain(
+    '/api/platform/account-invitations?page=1&pageSize=20',
+  );
   await view.unmount();
 });
 
@@ -369,5 +375,156 @@ test('a sent invitation is prepended to the cached Invitations list and toasts',
     'Invitation sent to rina@kusumalaw.co.id.',
   );
   expect(document.querySelector('form')).toBeNull();
+  await view.unmount();
+});
+
+const byUrl = (routes: Record<string, () => Response>) =>
+  fetchMock.mockImplementation(
+    async (url: string, init?: { method?: string }) => {
+      const key = `${init?.method ?? 'GET'} ${url}`;
+      const hit = Object.entries(routes).find(([k]) => key.startsWith(k));
+      return hit ? hit[1]() : json(page([]));
+    },
+  );
+const INV = '4b241101-e2bb-4255-8caf-4136c566a962';
+
+test('tab count pills show each list total, not the filtered page', async () => {
+  byUrl({
+    'GET /api/platform/accounts': () => json(page([account()], 248)),
+    'GET /api/platform/account-invitations': () =>
+      json(page([invitation()], 2)),
+  });
+  const { view } = await mount();
+  await settleUntil(
+    () => view.container.querySelectorAll('[role="tab"] span').length === 2,
+  );
+  const tabs = Array.from(view.container.querySelectorAll('[role="tab"]')).map(
+    (t) => t.textContent,
+  );
+  expect(tabs).toEqual(['Accounts248', 'Invitations2']);
+  await view.unmount();
+});
+
+async function openInvitationMenu(extra: Record<string, () => Response> = {}) {
+  nav.search = 'tab=invitations';
+  byUrl({
+    'GET /api/platform/account-invitations': () => json(page([invitation()])),
+    ...extra,
+  });
+  const m = await mount();
+  await settleUntil(() => !!m.view.container.querySelector('table'));
+  const trigger = byLabel(m.view.container, 'Actions for joko@gmail.com')!;
+  await click(trigger);
+  await settle();
+  return m;
+}
+const item = (label: string) =>
+  Array.from(document.body.querySelectorAll('[role="menuitem"]')).find(
+    (n) => n.textContent === label,
+  ) as HTMLElement;
+const listFetches = () =>
+  urls().filter((u) => u.includes('account-invitations?')).length;
+
+test('menu lists Resend then Cancel invitation last', async () => {
+  const { view } = await openInvitationMenu();
+  expect(
+    Array.from(document.body.querySelectorAll('[role="menuitem"]')).map(
+      (n) => n.textContent,
+    ),
+  ).toEqual(['Resend invitation', 'Cancel invitation']);
+  await view.unmount();
+});
+
+test('Resend posts, toasts, and refetches the list', async () => {
+  const { view } = await openInvitationMenu({
+    [`POST /api/platform/account-invitations/${INV}/resend`]: () =>
+      new Response(null, { status: 204 }),
+  });
+  const before = listFetches();
+  await click(item('Resend invitation'));
+  await settleUntil(() => listFetches() > before);
+  expect(urls()).toContain(`/api/platform/account-invitations/${INV}/resend`);
+  expect(toastSuccess).toHaveBeenCalledWith(
+    'Invitation resent to joko@gmail.com.',
+  );
+  await view.unmount();
+});
+
+test('Resend: 429 toasts, 404 refreshes the list, re-auth explains', async () => {
+  for (const [code, status, text, refetch] of [
+    [
+      'AUTH_RATE_LIMITED',
+      429,
+      'Too many requests. Wait a moment and try again.',
+      false,
+    ],
+    [
+      'PLATFORM_INVITATION_NOT_FOUND',
+      404,
+      'That invitation no longer exists.',
+      true,
+    ],
+    [
+      'AUTH_REAUTH_REQUIRED',
+      403,
+      'Confirm your identity in account security, then try again.',
+      false,
+    ],
+  ] as const) {
+    toastError.mockClear();
+    const { view } = await openInvitationMenu({
+      [`POST /api/platform/account-invitations/${INV}/resend`]: () =>
+        failure(code, status),
+    });
+    const before = listFetches();
+    await click(item('Resend invitation'));
+    await settleUntil(() => toastError.mock.calls.length > 0);
+    expect(toastError).toHaveBeenCalledWith(text);
+    expect(toastSuccess).not.toHaveBeenCalled();
+    if (refetch) await settleUntil(() => listFetches() > before);
+    else expect(listFetches()).toBe(before);
+    await view.unmount();
+    fetchMock.mockReset();
+  }
+});
+
+test('Cancel invitation asks first, naming the email, then deletes and refetches', async () => {
+  const { view } = await openInvitationMenu({
+    [`DELETE /api/platform/account-invitations/${INV}`]: () =>
+      new Response(null, { status: 204 }),
+  });
+  await click(item('Cancel invitation'));
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]')!;
+  expect(dialog.textContent).toContain(
+    'Cancel the invitation to joko@gmail.com?',
+  );
+  expect(urls().some((u) => u.endsWith(INV))).toBe(false);
+  const before = listFetches();
+  await click(byText(dialog as HTMLElement, 'button', 'Cancel invitation')!);
+  await settleUntil(() => listFetches() > before);
+  expect(fetchMock.mock.calls.some((c) => c[1]?.method === 'DELETE')).toBe(
+    true,
+  );
+  expect(toastSuccess).toHaveBeenCalledWith(
+    'Invitation to joko@gmail.com canceled.',
+  );
+  await view.unmount();
+});
+
+test('Cancel invitation: re-auth failure toasts and keeps the row', async () => {
+  const { view } = await openInvitationMenu({
+    [`DELETE /api/platform/account-invitations/${INV}`]: () =>
+      failure('AUTH_REAUTH_REQUIRED', 403),
+  });
+  await click(item('Cancel invitation'));
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]')!;
+  await click(byText(dialog as HTMLElement, 'button', 'Cancel invitation')!);
+  await settleUntil(() => toastError.mock.calls.length > 0);
+  expect(toastError).toHaveBeenCalledWith(
+    'Confirm your identity in account security, then try again.',
+  );
+  expect(view.container.textContent).toContain('joko@gmail.com');
   await view.unmount();
 });

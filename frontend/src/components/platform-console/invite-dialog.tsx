@@ -28,6 +28,10 @@ import { PlatformApiError, platformConsoleApi } from './api';
 
 type Values = { email: string; name?: string | undefined };
 
+export const COUNT_KEYS = {
+  accounts: ['platform', 'counts', 'accounts'],
+  invitations: ['platform', 'counts', 'invitations'],
+} as const;
 export const INVITATIONS_KEY = ['platform', 'account-invitations'] as const;
 
 /** Invite someone to Lexon: email, optional name; the account is created from the emailed link. */
@@ -83,6 +87,9 @@ export function InviteDialog({
         await queryClient.invalidateQueries({
           queryKey: INVITATIONS_KEY,
           refetchType: 'none',
+        });
+        void queryClient.invalidateQueries({
+          queryKey: COUNT_KEYS.invitations,
         });
         toast.success(`Invitation sent to ${created.email}.`);
         close(false);

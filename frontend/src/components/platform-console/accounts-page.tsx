@@ -24,7 +24,7 @@ import {
 import { QueryFailure } from '../organizations/page-state';
 import { PlatformApiError, platformConsoleApi } from './api';
 import { InvitationsTab } from './invitations-tab';
-import { InviteDialog } from './invite-dialog';
+import { COUNT_KEYS, InviteDialog } from './invite-dialog';
 import { Button } from '../ui/button';
 import { formatPlatformDate } from '../platform/platform-format';
 
@@ -58,6 +58,18 @@ export function AccountsPage() {
   const tab =
     useSearchParams().get('tab') === 'invitations' ? 'invitations' : 'accounts';
   const [inviting, setInviting] = useState(false);
+  // Pill counts are each list's own total, whichever tab is open.
+  const accounts = useQuery({
+    queryKey: COUNT_KEYS.accounts,
+    queryFn: () => platformConsoleApi.listAccounts({ page: 1, pageSize: 10 }),
+    retry: false,
+  });
+  const invitations = useQuery({
+    queryKey: COUNT_KEYS.invitations,
+    queryFn: () =>
+      platformConsoleApi.listInvitations({ page: 1, pageSize: 10 }),
+    retry: false,
+  });
   return (
     <DataListPage
       title="Accounts"
@@ -69,8 +81,16 @@ export function AccountsPage() {
         </Button>
       }
       tabs={[
-        { value: 'accounts', label: 'Accounts' },
-        { value: 'invitations', label: 'Invitations' },
+        {
+          value: 'accounts',
+          label: 'Accounts',
+          ...(accounts.data ? { count: accounts.data.total } : {}),
+        },
+        {
+          value: 'invitations',
+          label: 'Invitations',
+          ...(invitations.data ? { count: invitations.data.total } : {}),
+        },
       ]}
       tab={tab}
       onTab={(value) =>
