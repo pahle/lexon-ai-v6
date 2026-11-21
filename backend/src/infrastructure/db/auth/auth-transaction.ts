@@ -243,6 +243,7 @@ export function createAuthTransactions(database: Database) {
           sql`auth.lexon_platform_account_invitations(${text(0)},${arr(1, 'text[]')},${int(2)},${int(3)})`,
         invitationsTotal: () =>
           sql`auth.lexon_platform_account_invitations_total(${text(0)},${arr(1, 'text[]')})`,
+        lockEnabledAdmins: () => sql`auth.lexon_platform_lock_enabled_admins()`,
       };
       const scalar = name.endsWith('Total');
       const result = await state.database.execute<{ row: unknown }>(

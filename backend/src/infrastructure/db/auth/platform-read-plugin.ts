@@ -14,6 +14,7 @@ export const PLATFORM_READ_NAMES = [
   'membersTotal',
   'invitations',
   'invitationsTotal',
+  'lockEnabledAdmins',
 ] as const;
 export type PlatformReadName = (typeof PLATFORM_READ_NAMES)[number];
 export type PlatformReadParam =
