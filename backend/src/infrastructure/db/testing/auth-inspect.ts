@@ -31,6 +31,19 @@ export function createAuthInspector(options: {
         [userId, value],
       );
     },
+    async auditCount(type: string) {
+      return count(
+        'SELECT count(*) FROM ops.audit_events WHERE type = $1',
+        type,
+      );
+    },
+    async enabledAdminCount(userIds: string[]) {
+      const result = await migrator.query<{ count: string }>(
+        `SELECT count(*) FROM auth."user" WHERE role = 'admin' AND NOT coalesce(banned, false) AND id = ANY($1::uuid[])`,
+        [userIds],
+      );
+      return Number(result.rows[0]!.count);
+    },
     async makeAdmin(userId: string) {
       await migrator.query('UPDATE auth."user" SET role = $2 WHERE id=$1', [
         userId,

@@ -100,11 +100,15 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
     };
     const a = await mk('Admin A');
     const b = await mk('Admin B');
+    const events = () =>
+      proof.inspect.auditCount('platform.user_disabled_changed.v1');
+    const before = await events();
     await harness.identity(a.headers, async (identity) => {
       await expect(
         service.setDisabled(identity, a.id, true),
       ).rejects.toMatchObject({ code: 'PLATFORM_SELF_ACTION', status: 409 });
     });
+    expect(await events()).toBe(before);
     // Two enabled admins, each disables the other concurrently. A barrier
     // inside both transactions (after policy facts) forces real overlap.
     let arrived = 0;
@@ -132,14 +136,17 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
     const rejected = results.filter((r) => r.status === 'rejected');
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(rejected).toHaveLength(1);
-    // Each transaction already holds its own user row (security facts), so the
+    // Both outcomes are legitimate. Each transaction already holds its own user row (security facts), so the
     // two disables deadlock; Postgres aborts one and its retry finds the
     // actor disabled (401). A loser that reaches the count gets the 409.
-    expect((rejected[0] as PromiseRejectedResult).reason).toSatisfy(
-      (e: { code: string; status: number }) =>
-        (e.code === 'PLATFORM_LAST_ADMINISTRATOR' && e.status === 409) ||
-        (e.code === 'AUTH_REQUIRED' && e.status === 401),
+    const reason = (rejected[0] as PromiseRejectedResult).reason as {
+      code: string;
+      status: number;
+    };
+    expect(`${reason.status} ${reason.code}`).toMatch(
+      /^(409 PLATFORM_LAST_ADMINISTRATOR|401 AUTH_REQUIRED)$/,
     );
+    expect(await proof.inspect.enabledAdminCount([a.id, b.id])).toBe(1);
     const winner = results[0]!.status === 'fulfilled' ? a : b;
     const loser = winner === a ? b : a;
     await harness.identity(winner.headers, (i) =>
