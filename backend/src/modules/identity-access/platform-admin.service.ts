@@ -5,7 +5,10 @@ import { OrganizationAuthPort } from './organization-auth.port.js';
 import type { VerifiedIdentity } from './identity.types.js';
 import { IdentityError } from './identity-error.js';
 import { appendAuthAudit } from '../audit/index.js';
-import type { AuthLimiter } from '../../infrastructure/queue/index.js';
+import {
+  AuthLimitError,
+  type AuthLimiter,
+} from '../../infrastructure/queue/index.js';
 export function assertNotLastAdministrator(
   enabledAdminIds: string[],
   targetUserId: string,
@@ -18,7 +21,7 @@ export class PlatformAdminService {
   constructor(
     private readonly port: OrganizationAuthPort,
     private readonly config: { reauthSeconds: number },
-    private readonly limiter?: Pick<AuthLimiter, 'consume'>,
+    private readonly limiter: Pick<AuthLimiter, 'consume'>,
   ) {}
   async revokeSessions(
     identity: VerifiedIdentity,
@@ -27,23 +30,22 @@ export class PlatformAdminService {
     UuidSchema.parse(userId);
     if (userId === identity.userId)
       throw new IdentityError('PLATFORM_SELF_ACTION', 409);
-    try {
-      await this.limiter?.consume({
-        action: 'platform-session-revoke',
-        clientAddress: '127.0.0.1',
-        scope: 'account',
-        accountKey: createHash('sha256').update(userId).digest('hex'),
-      });
-    } catch (error) {
-      const e = error as { code?: string; status?: number };
-      if (e.code && e.status)
-        throw new IdentityError(e.code as never, e.status);
-      throw error;
-    }
     await this.port.platformTransaction(
       identity,
       this.config.reauthSeconds,
       async (tx, headers) => {
+        try {
+          await this.limiter.consume({
+            action: 'platform-session-revoke',
+            clientAddress: '127.0.0.1',
+            scope: 'account',
+            accountKey: createHash('sha256').update(userId).digest('hex'),
+          });
+        } catch (error) {
+          if (error instanceof AuthLimitError)
+            throw new IdentityError(error.code, error.status);
+          throw error;
+        }
         await tx.call('revokeUserSessions', { headers, body: { userId } });
         await appendAuthAudit(tx, {
           version: 1,

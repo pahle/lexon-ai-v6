@@ -30,7 +30,7 @@ export class IdentityAccessModule {
     frameworkModule: DynamicModule;
     bearerSeconds?: number;
     reauthSeconds?: number;
-    limiter?: AuthLimiter;
+    limiter: Pick<AuthLimiter, 'consume'>;
     requestPolicy?: ConstructorParameters<typeof TenantGuard>[3];
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);

@@ -37,6 +37,7 @@ import {
 import { IdentityError } from '../../src/modules/identity-access/identity-error.js';
 import { createSelectionInspector } from '../../src/infrastructure/db/testing/selection-fixture.js';
 import { securityHarness } from '../setup/security-harness.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 
 test('Nest guard binds only verified tenant IDs across async controller work and denies overrides', async ({
   services,
@@ -97,6 +98,7 @@ test('Nest guard binds only verified tenant IDs across async controller work and
   @Module({
     imports: [
       IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
         integration: proof.integration,
         frameworkModule: { module: FrameworkModule },
       }),

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 import { createAuthLimiter } from '../../src/infrastructure/queue/index.js';
 import { test } from '../setup/file-services.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
@@ -26,7 +27,11 @@ test('fresh fully authenticated platform admin disables and revokes both credent
     });
     const harness = securityHarness(proof);
     const port = new OrganizationAuthPort(proof.integration);
-    const service = new PlatformAdminService(port, { reauthSeconds: 300 });
+    const service = new PlatformAdminService(
+      port,
+      { reauthSeconds: 300 },
+      unlimitedLimiter,
+    );
     await harness.identity(user.cookieHeaders, async (identity) => {
       await expect(
         service.setDisabled(identity, admin.userId, true),
@@ -89,7 +94,11 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
   try {
     const harness = securityHarness(proof);
     const port = new OrganizationAuthPort(proof.integration);
-    const service = new PlatformAdminService(port, { reauthSeconds: 300 });
+    const service = new PlatformAdminService(
+      port,
+      { reauthSeconds: 300 },
+      unlimitedLimiter,
+    );
     const mk = async (label: string) => {
       const email = `${randomUUID()}@example.test`;
       const u = await proof.signIn({
@@ -129,6 +138,7 @@ test('disable refusals: self, last administrator, concurrent last two; enable st
           }),
       }),
       { reauthSeconds: 300 },
+      unlimitedLimiter,
     );
     const results = await Promise.allSettled([
       harness.identity(a.headers, (i) => racing.setDisabled(i, b.id, true)),
@@ -217,6 +227,59 @@ test('revoke deletes all target sessions, audits with empty metadata, refuses se
     });
   } finally {
     await limiter.close();
+    await proof.close();
+  }
+});
+test('stale re-auth refusals do not burn the revoke budget', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const inspect = createSecurityInspector(services);
+  const limiter = await createAuthLimiter({
+    url: services.valkey.limiterUrl,
+    prefix: `${services.queuePrefix}:rl:auth:`,
+  });
+  try {
+    const harness = securityHarness(proof);
+    const port = new OrganizationAuthPort(proof.integration);
+    const service = new PlatformAdminService(
+      port,
+      { reauthSeconds: 300 },
+      limiter,
+    );
+    const mk = async (label: string) => {
+      const email = `${randomUUID()}@example.test`;
+      const u = await proof.signIn({
+        body: { name: label, email, password },
+      });
+      await proof.inspect.makeAdmin(u.userId);
+      return { id: u.userId, full: await harness.enroll(email, password) };
+    };
+    const stale = await mk('Stale admin');
+    const fresh = await mk('Fresh admin');
+    const target = await proof.signIn({
+      body: {
+        name: 'Budget target',
+        email: `${randomUUID()}@example.test`,
+        password,
+      },
+    });
+    const session = await proof.integration.transaction((tx) =>
+      tx.call('getSession', { headers: stale.full.headers }),
+    );
+    await inspect.ageRecent(session!.session.id, 301);
+    for (let i = 0; i < 5; i++)
+      await harness.identity(stale.full.headers, async (identity) => {
+        await expect(
+          service.revokeSessions(identity, target.userId),
+        ).rejects.toMatchObject({ code: 'AUTH_REAUTH_REQUIRED' });
+      });
+    await harness.identity(fresh.full.headers, (identity) =>
+      service.revokeSessions(identity, target.userId),
+    );
+  } finally {
+    await limiter.close();
+    await inspect.close();
     await proof.close();
   }
 });

@@ -15,6 +15,7 @@ import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
 import { createAdminSetupFixture } from '../../src/infrastructure/db/testing/admin-setup-fixture.js';
 import { runAdminSetup } from '../../src/modules/identity-access/admin-setup.service.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 test('operator admission reserves one initial setup, repeats idempotently, and audits every run', async ({
   services,
 }) => {
@@ -174,6 +175,7 @@ test('setup HTTP exposes redemption but never operator initiation', async ({
   @Module({
     imports: [
       IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
         integration: proof.integration,
         frameworkModule: { module: Framework },
       }),
