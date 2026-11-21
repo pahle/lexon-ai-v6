@@ -1,0 +1,71 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "LEX-TS-001 version policy: exact pins, weekly scheduled updates, no automerge; AI SDK and model-provider updates must pass the evaluation subset (evals/) before merging.",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "timezone": "Asia/Jakarta",
+  "schedule": ["* 0-5 * * 1"],
+  "rangeStrategy": "pin",
+  "pinDigests": true,
+  "automerge": false,
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "assistant-ui and its internal packages pinned in pnpm-workspace.yaml overrides",
+      "matchPackageNames": [
+        "@assistant-ui/**",
+        "assistant-stream",
+        "assistant-cloud"
+      ],
+      "groupName": "assistant-ui"
+    },
+    {
+      "matchPackageNames": ["ai", "@ai-sdk/**"],
+      "groupName": "ai-sdk"
+    },
+    {
+      "matchPackageNames": ["@nestjs/**"],
+      "groupName": "nestjs"
+    },
+    {
+      "matchPackageNames": ["better-auth", "@better-auth/**"],
+      "groupName": "better-auth"
+    },
+    {
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ],
+      "groupName": "next-react"
+    },
+    {
+      "matchPackageNames": [
+        "@playwright/test",
+        "playwright",
+        "playwright-core"
+      ],
+      "groupName": "playwright"
+    },
+    {
+      "description": "LEX-TS-001 version policy: AI SDK and model-provider updates must pass the evals/ subset before merging",
+      "matchPackageNames": ["ai", "@ai-sdk/**", "/ai-sdk-provider$/"],
+      "addLabels": ["needs-evals"],
+      "prBodyNotes": [
+        "This update touches the AI SDK or a model provider. Run the evaluation subset (`evals/`) and record the result before merging."
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Shared image manifest: every image is pinned by exact tag and digest (LEX-TS-001)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^config/container-images\\.env$/"],
+      "matchStrings": [
+        "[A-Z0-9]+_IMAGE=(?<depName>[\\w./-]+):(?<currentValue>[\\w.-]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}

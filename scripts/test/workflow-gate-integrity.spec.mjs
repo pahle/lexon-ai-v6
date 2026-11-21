@@ -35,6 +35,36 @@ for (const file of files) {
   });
 }
 
+for (const file of files) {
+  test(`${file}: every action is pinned by full commit SHA`, () => {
+    const uses = readFileSync(new URL(file, dir), 'utf8')
+      .split(/\r?\n/u)
+      .filter((line) => /^\s*(?:-\s+)?uses:/u.test(line))
+      .map((line) => line.replace(/^\s*(?:-\s+)?uses:\s*/u, '').trim());
+    for (const ref of uses)
+      if (!ref.startsWith('./'))
+        assert.match(
+          ref,
+          /^[\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d/u,
+          `${file}: ${ref}`,
+        );
+  });
+}
+
+test('supply-chain.yml is covered and its gates cannot be skipped', () => {
+  assert.ok(files.includes('supply-chain.yml'));
+  const text = readFileSync(new URL('supply-chain.yml', dir), 'utf8');
+  assert.doesNotMatch(text, /continue-on-error|fail-on-vuln/u);
+  for (const gate of [
+    /google\/osv-scanner-action\//u,
+    /node scripts\/sbom-check\.mjs/u,
+  ]) {
+    const step = text.split(/\n(?= {6}- )/u).find((s) => gate.test(s));
+    assert.ok(step, `supply-chain.yml runs ${gate}`);
+    assert.doesNotMatch(step, /^\s+if:/mu, `${gate} always runs`);
+  }
+});
+
 test('ci.yml uploads pending visual captures as one per-run, per-shard artifact', () => {
   const text = readFileSync(new URL('ci.yml', dir), 'utf8');
   const steps = text.split(/\r?\n(?=\s{6}- name: )/u);
