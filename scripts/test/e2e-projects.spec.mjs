@@ -269,3 +269,84 @@ test('chat SSE load selects both chat runtime and load Compose overlays', () => 
     composeFiles.includes('/repository/backend/test/e2e/compose.chat-load.yml'),
   );
 });
+
+// CI runs three shards. Playwright splits shards by test count, which put all
+// brand-visual files (few tests, long) in shard 3. `--shard=N/3` therefore
+// resolves to an explicit, time-balanced plan of projects and files. The
+// plan must cover every default test exactly once.
+function listTests(args) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      `${repositoryRoot}node_modules/@playwright/test/cli.js`,
+      'test',
+      '--list',
+      '--reporter=json',
+      ...args,
+    ],
+    {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+      env: { ...process.env, CI: 'true', LEXON_CHAT_LOAD: '0' },
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  const ids = [];
+  const walk = (suite) => {
+    for (const spec of suite.specs ?? [])
+      for (const item of spec.tests)
+        ids.push(`${item.projectName} ${spec.file} ${spec.title} ${spec.line}`);
+    for (const child of suite.suites ?? []) walk(child);
+  };
+  for (const suite of report.suites) walk(suite);
+  return ids;
+}
+
+test('the three-shard plan replaces Playwright count sharding', () => {
+  for (const shard of [1, 2, 3]) {
+    const selection = resolveE2ESelection([
+      `--shard=${shard}/3`,
+      '--reporter=blob',
+    ]);
+    assert.ok(!selection.args.some((arg) => arg.startsWith('--shard')));
+    assert.ok(selection.args.includes('--reporter=blob'));
+    assert.ok(selection.args.some((arg) => arg.startsWith('--project=')));
+    assert.ok(selection.selectedProjects.length > 0);
+    assert.ok(
+      selection.selectedProjects.includes('brand-visual'),
+      'every shard carries part of the brand-visual set',
+    );
+  }
+});
+
+test('other shard counts and explicit selections keep Playwright sharding', () => {
+  assert.deepEqual(resolveE2ESelection(['--shard=1/4']).args, ['--shard=1/4']);
+  assert.ok(
+    resolveE2ESelection(['--project', 'topology', '--shard=1/3']).args.includes(
+      '--shard=1/3',
+    ),
+  );
+  assert.ok(
+    resolveE2ESelection(['--package', 'backend', '--shard=1/3']).args.includes(
+      '--shard=1/3',
+    ),
+  );
+});
+
+test('the shard plan covers every default test exactly once', () => {
+  const all = listTests([]);
+  assert.ok(all.length > 0);
+  const shards = [1, 2, 3].map((shard) =>
+    listTests(
+      resolveE2ESelection([`--shard=${shard}/3`]).args.filter(
+        (arg) => arg !== '--reporter=blob',
+      ),
+    ),
+  );
+  const union = shards.flat();
+  assert.equal(new Set(union).size, union.length, 'no test runs twice');
+  assert.deepEqual(union.toSorted(), all.toSorted(), 'no test is left out');
+  for (const shard of shards) assert.ok(shard.length > 0);
+});

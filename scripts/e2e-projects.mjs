@@ -20,6 +20,85 @@ export const E2E_PROJECTS = {
   evals: ['evaluation-smoke'],
 };
 
+// CI's three shards, balanced by measured test time (run 44889611515, test
+// seconds: brand-visual-chat 192, chat-recovery 99, brand-visual-chats-settings
+// 88, brand-visual-auth 60, ...). Playwright's own sharding splits by test
+// count and put every brand-visual file in shard 3 (185 / 324 / 442 s). Each
+// shard lists every file it runs: Playwright applies file filters to all
+// selected projects. scripts/test/e2e-projects.spec.mjs proves the plan
+// covers every default test exactly once, so a new spec file must be placed.
+const e2e = (name) => `backend/test/e2e/${name}.spec.ts`;
+export const E2E_SHARD_PLAN = [
+  {
+    // ~314 s
+    projects: ['brand-visual', 'identity-api', 'identity-browser'],
+    files: [
+      e2e('brand-visual-chat'),
+      e2e('identity-api'),
+      e2e('rate-limit-proxy'),
+      e2e('foreign-org-bearer'),
+      e2e('platform-identity'),
+      e2e('organizations'),
+    ],
+  },
+  {
+    // ~328 s
+    projects: [
+      'brand-visual',
+      'chat-runtime-proof',
+      'chat-browser',
+      'identity-browser',
+    ],
+    files: [
+      e2e('brand-visual-auth'),
+      e2e('chat-runtime-proof'),
+      e2e('chat-recovery'),
+      e2e('indicator-trace'),
+      e2e('chat-states'),
+      e2e('chat-thread'),
+      e2e('chat-accessibility'),
+      e2e('shell-accessibility'),
+    ],
+  },
+  {
+    // ~312 s
+    projects: [
+      'brand-visual',
+      'topology',
+      'identity-browser',
+      'chat-browser',
+      'runtime-health',
+      'backend-api',
+      'evaluation-smoke',
+      'chat-routing',
+      'frontend-browser',
+    ],
+    files: [
+      e2e('brand-visual-chats-settings'),
+      e2e('brand-visual-shell'),
+      e2e('brand-visual-platform'),
+      e2e('visual-comparison-regression'),
+      e2e('topology'),
+      e2e('valkey-policy'),
+      e2e('account-security'),
+      e2e('app-shell'),
+      e2e('auth-entry'),
+      e2e('invitation-entry'),
+      e2e('brand-layout'),
+      e2e('platform-setup-open-signup'),
+      e2e('theme-before-hydration'),
+      e2e('chat-copy'),
+      e2e('chat-history'),
+      e2e('chat-long-stress'),
+      e2e('mobile-sheet'),
+      e2e('runtime-health'),
+      e2e('api'),
+      e2e('chat-routing'),
+      'frontend/test/e2e/health-page.spec.ts',
+    ],
+  },
+];
+
 export function composeFilesForE2EProjects(selectedProjects, repositoryRoot) {
   const files = [
     `${repositoryRoot}backend/test/e2e/compose.egress-probe.yml`,
@@ -76,6 +155,29 @@ export function resolveE2ESelection(
       index -= 1;
     } else if (arg.startsWith('--project=')) {
       projectSelectors.push(arg.slice('--project='.length));
+    }
+  }
+
+  const shardIndex = args.findIndex((arg) => /^--shard=\d+\/\d+$/u.test(arg));
+  if (
+    shardIndex >= 0 &&
+    !packageName &&
+    projectSelectors.length === 0 &&
+    !includeLoad
+  ) {
+    const [shard, total] = args[shardIndex]
+      .slice('--shard='.length)
+      .split('/')
+      .map(Number);
+    const planned = E2E_SHARD_PLAN[shard - 1];
+    if (total === E2E_SHARD_PLAN.length && planned) {
+      args.splice(
+        shardIndex,
+        1,
+        ...planned.projects.map((project) => `--project=${project}`),
+        ...planned.files,
+      );
+      return { args, selectedProjects: [...planned.projects] };
     }
   }
 

@@ -134,7 +134,7 @@ test('each shard uploads blob-report and visual artifacts with names containing 
 
 test('merge-e2e depends on all shards and runs merge-reports', () => {
   const job = jobBlock(ci(), 'merge-e2e');
-  assert.match(job, /needs: compose-e2e/u);
+  assert.match(job, /needs: \[changes, compose-e2e\]/u);
   assert.match(job, /actions\/download-artifact@[0-9a-f]{40} # v4/u);
   assert.match(job, /pattern: blob-\*/u);
   assert.match(job, /merge-multiple: true/u);

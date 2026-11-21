@@ -78,3 +78,25 @@ test('the capture index state ids are exactly the prototype state ids', () => {
     'prototype states the index does not have',
   );
 });
+
+test('planned index views count as indexed and name prototype states', () => {
+  const index = JSON.parse(
+    readFileSync(
+      resolve(root, 'docs/references/F4.1-visual/index.json'),
+      'utf8',
+    ),
+  );
+  const prototype = new Set(toCaptureIds(prototypeSourceIds()));
+  const notInPrototype = (index.planned ?? []).filter((id) => {
+    const view = index.views[id];
+    return (
+      !view ||
+      !prototype.has(id.slice(0, -`-${view.viewport}-${view.theme}`.length))
+    );
+  });
+  assert.deepEqual(
+    notInPrototype,
+    [],
+    'planned views must be prototype states',
+  );
+});
