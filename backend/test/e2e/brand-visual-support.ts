@@ -7,6 +7,7 @@ import {
   assertApprovedVisualSet,
   assertIndexedArtifact,
   isPendingView,
+  isPlannedView,
   isPixelLocked,
   hasSvgSnapshot,
   resolveVisualMode,
@@ -290,6 +291,12 @@ export async function captureBrandView(
       test.info().config.updateSnapshots,
     ),
   });
+  // A planned view (index.json `planned`) is not built yet and is never
+  // captured; the slice that builds it moves it to `pending` first.
+  if (isPlannedView(index, id))
+    throw new Error(
+      `Visual view "${id}" is planned: move it from planned to pending before capturing it.`,
+    );
   // A pending view (index.json `pending`) awaits owner approval: it is
   // captured for review and listed, never compared with a golden.
   const pending = isPendingView(index, id);
@@ -323,7 +330,8 @@ export async function captureBrandView(
         ([indexedId, indexed]) =>
           indexed.path?.startsWith('review/') &&
           isPixelLocked(indexed) &&
-          !isPendingView(index, indexedId),
+          !isPendingView(index, indexedId) &&
+          !isPlannedView(index, indexedId),
       ).length,
     });
     validatedSets.add(validationKey);

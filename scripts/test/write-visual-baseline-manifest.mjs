@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import {
   assertApprovalSourceReachable,
   buildVisualBaselineManifest,
+  isPlannedView,
   pixelLockedViews,
   visualSetDirectory,
 } from '../visual-mode.mjs';
@@ -79,8 +80,9 @@ try {
     {
       sourceSha,
       generatedAt: new Date().toISOString(),
-      expectedViewCount: Object.values(pixelLockedViews(index)).filter((view) =>
-        view.path?.startsWith('review/'),
+      expectedViewCount: Object.entries(pixelLockedViews(index)).filter(
+        ([id, view]) =>
+          view.path?.startsWith('review/') && !isPlannedView(index, id),
       ).length,
       approvalSha256: sha256(approvalBytes),
       indexSha256: sha256(indexBytes),
