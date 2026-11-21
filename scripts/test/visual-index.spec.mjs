@@ -731,7 +731,27 @@ test('the F4.1 index lists every state in four variants and matches the captures
       (match) => match[1],
     ),
   );
-  assert.deepEqual([...captured].toSorted(), [...states.keys()].toSorted());
+  // A state whose four views are all pending owner capture (index `pending`)
+  // may not be captured yet: its page is built in a later task of the slice
+  // that added it. Every other state must be captured, and nothing else.
+  const pending = new Set(index.pending ?? []);
+  const awaitingCapture = new Set(
+    [...states]
+      .filter(([, variants]) => variants.every((id) => pending.has(id)))
+      .map(([state]) => state),
+  );
+  assert.deepEqual(
+    [...captured].filter((state) => !states.has(state)),
+    [],
+    'every captured state is indexed',
+  );
+  assert.deepEqual(
+    [...states.keys()]
+      .filter((state) => !captured.has(state) && !awaitingCapture.has(state))
+      .toSorted(),
+    [],
+    'every state not pending capture is captured',
+  );
   for (const state of [
     'sign-in',
     'sign-in-field-errors',

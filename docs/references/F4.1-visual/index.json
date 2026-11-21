@@ -1069,198 +1069,6 @@
       "prototypeReference": "r14/platform-no-access-m-dark.png",
       "replaces": []
     },
-    "platform-provisioning-loading-desktop-light": {
-      "path": "review/platform-provisioning-loading-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform provisioning, list loading",
-      "prototypeReference": "r14/platform-provisioning-loading-d.png",
-      "replaces": []
-    },
-    "platform-provisioning-loading-desktop-dark": {
-      "path": "review/platform-provisioning-loading-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform provisioning, list loading",
-      "prototypeReference": "r14/platform-provisioning-loading-d-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-loading-mobile-light": {
-      "path": "review/platform-provisioning-loading-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform provisioning, list loading",
-      "prototypeReference": "r14/platform-provisioning-loading-m.png",
-      "replaces": []
-    },
-    "platform-provisioning-loading-mobile-dark": {
-      "path": "review/platform-provisioning-loading-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform provisioning, list loading",
-      "prototypeReference": "r14/platform-provisioning-loading-m-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-empty-desktop-light": {
-      "path": "review/platform-provisioning-empty-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform provisioning, empty list",
-      "prototypeReference": "r14/platform-provisioning-empty-d.png",
-      "replaces": []
-    },
-    "platform-provisioning-empty-desktop-dark": {
-      "path": "review/platform-provisioning-empty-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform provisioning, empty list",
-      "prototypeReference": "r14/platform-provisioning-empty-d-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-empty-mobile-light": {
-      "path": "review/platform-provisioning-empty-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform provisioning, empty list",
-      "prototypeReference": "r14/platform-provisioning-empty-m.png",
-      "replaces": []
-    },
-    "platform-provisioning-empty-mobile-dark": {
-      "path": "review/platform-provisioning-empty-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform provisioning, empty list",
-      "prototypeReference": "r14/platform-provisioning-empty-m-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-populated-desktop-light": {
-      "path": "review/platform-provisioning-populated-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform provisioning, populated list",
-      "prototypeReference": "r14/platform-provisioning-populated-d.png",
-      "replaces": []
-    },
-    "platform-provisioning-populated-desktop-dark": {
-      "path": "review/platform-provisioning-populated-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform provisioning, populated list",
-      "prototypeReference": "r14/platform-provisioning-populated-d-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-populated-mobile-light": {
-      "path": "review/platform-provisioning-populated-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform provisioning, populated list",
-      "prototypeReference": "r14/platform-provisioning-populated-m.png",
-      "replaces": []
-    },
-    "platform-provisioning-populated-mobile-dark": {
-      "path": "review/platform-provisioning-populated-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform provisioning, populated list",
-      "prototypeReference": "r14/platform-provisioning-populated-m-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-detail-desktop-light": {
-      "path": "review/platform-provisioning-detail-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform provisioning, organization details",
-      "prototypeReference": "r14/platform-provisioning-detail-d.png",
-      "replaces": []
-    },
-    "platform-provisioning-detail-desktop-dark": {
-      "path": "review/platform-provisioning-detail-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform provisioning, organization details",
-      "prototypeReference": "r14/platform-provisioning-detail-d-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-detail-mobile-light": {
-      "path": "review/platform-provisioning-detail-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform provisioning, organization details",
-      "prototypeReference": "r14/platform-provisioning-detail-m.png",
-      "replaces": []
-    },
-    "platform-provisioning-detail-mobile-dark": {
-      "path": "review/platform-provisioning-detail-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform provisioning, organization details",
-      "prototypeReference": "r14/platform-provisioning-detail-m-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-error-desktop-light": {
-      "path": "review/platform-provisioning-error-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform provisioning, service unavailable",
-      "prototypeReference": "r14/platform-provisioning-error-d.png",
-      "replaces": []
-    },
-    "platform-provisioning-error-desktop-dark": {
-      "path": "review/platform-provisioning-error-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform provisioning, service unavailable",
-      "prototypeReference": "r14/platform-provisioning-error-d-dark.png",
-      "replaces": []
-    },
-    "platform-provisioning-error-mobile-light": {
-      "path": "review/platform-provisioning-error-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform provisioning, service unavailable",
-      "prototypeReference": "r14/platform-provisioning-error-m.png",
-      "replaces": []
-    },
-    "platform-provisioning-error-mobile-dark": {
-      "path": "review/platform-provisioning-error-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform provisioning, service unavailable",
-      "prototypeReference": "r14/platform-provisioning-error-m-dark.png",
-      "replaces": []
-    },
-    "platform-accounts-desktop-light": {
-      "path": "review/platform-accounts-desktop-light.png",
-      "viewport": "desktop",
-      "theme": "light",
-      "state": "Platform, account status",
-      "prototypeReference": "r14/platform-accounts-d.png",
-      "replaces": []
-    },
-    "platform-accounts-desktop-dark": {
-      "path": "review/platform-accounts-desktop-dark.png",
-      "viewport": "desktop",
-      "theme": "dark",
-      "state": "Platform, account status",
-      "prototypeReference": "r14/platform-accounts-d-dark.png",
-      "replaces": []
-    },
-    "platform-accounts-mobile-light": {
-      "path": "review/platform-accounts-mobile-light.png",
-      "viewport": "mobile",
-      "theme": "light",
-      "state": "Platform, account status",
-      "prototypeReference": "r14/platform-accounts-m.png",
-      "replaces": []
-    },
-    "platform-accounts-mobile-dark": {
-      "path": "review/platform-accounts-mobile-dark.png",
-      "viewport": "mobile",
-      "theme": "dark",
-      "state": "Platform, account status",
-      "prototypeReference": "r14/platform-accounts-m-dark.png",
-      "replaces": []
-    },
     "organizations-not-found-desktop-light": {
       "path": "review/organizations-not-found-desktop-light.png",
       "viewport": "desktop",
@@ -2488,6 +2296,764 @@
       "state": "Settings, Profile save failed",
       "prototypeReference": "r15/settings-profile-save-failed-m-dark.png",
       "replaces": []
+    },
+    "platform-accounts-desktop-light": {
+      "path": "review/platform-accounts-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts list",
+      "prototypeReference": "r14/platform-accounts-d.png",
+      "replaces": []
+    },
+    "platform-accounts-desktop-dark": {
+      "path": "review/platform-accounts-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts list",
+      "prototypeReference": "r14/platform-accounts-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-mobile-light": {
+      "path": "review/platform-accounts-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts list",
+      "prototypeReference": "r14/platform-accounts-m.png",
+      "replaces": []
+    },
+    "platform-accounts-mobile-dark": {
+      "path": "review/platform-accounts-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts list",
+      "prototypeReference": "r14/platform-accounts-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-search-desktop-light": {
+      "path": "review/platform-accounts-search-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, search",
+      "prototypeReference": "r14/platform-accounts-search-d.png",
+      "replaces": []
+    },
+    "platform-accounts-search-desktop-dark": {
+      "path": "review/platform-accounts-search-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, search",
+      "prototypeReference": "r14/platform-accounts-search-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-search-mobile-light": {
+      "path": "review/platform-accounts-search-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, search",
+      "prototypeReference": "r14/platform-accounts-search-m.png",
+      "replaces": []
+    },
+    "platform-accounts-search-mobile-dark": {
+      "path": "review/platform-accounts-search-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, search",
+      "prototypeReference": "r14/platform-accounts-search-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-filtered-desktop-light": {
+      "path": "review/platform-accounts-filtered-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, facet filtered",
+      "prototypeReference": "r14/platform-accounts-filtered-d.png",
+      "replaces": []
+    },
+    "platform-accounts-filtered-desktop-dark": {
+      "path": "review/platform-accounts-filtered-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, facet filtered",
+      "prototypeReference": "r14/platform-accounts-filtered-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-filtered-mobile-light": {
+      "path": "review/platform-accounts-filtered-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, facet filtered",
+      "prototypeReference": "r14/platform-accounts-filtered-m.png",
+      "replaces": []
+    },
+    "platform-accounts-filtered-mobile-dark": {
+      "path": "review/platform-accounts-filtered-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, facet filtered",
+      "prototypeReference": "r14/platform-accounts-filtered-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-row-menu-desktop-light": {
+      "path": "review/platform-accounts-row-menu-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, row menu",
+      "prototypeReference": "r14/platform-accounts-row-menu-d.png",
+      "replaces": []
+    },
+    "platform-accounts-row-menu-desktop-dark": {
+      "path": "review/platform-accounts-row-menu-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, row menu",
+      "prototypeReference": "r14/platform-accounts-row-menu-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-row-menu-mobile-light": {
+      "path": "review/platform-accounts-row-menu-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, row menu",
+      "prototypeReference": "r14/platform-accounts-row-menu-m.png",
+      "replaces": []
+    },
+    "platform-accounts-row-menu-mobile-dark": {
+      "path": "review/platform-accounts-row-menu-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, row menu",
+      "prototypeReference": "r14/platform-accounts-row-menu-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-no-results-desktop-light": {
+      "path": "review/platform-accounts-no-results-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, no results",
+      "prototypeReference": "r14/platform-accounts-no-results-d.png",
+      "replaces": []
+    },
+    "platform-accounts-no-results-desktop-dark": {
+      "path": "review/platform-accounts-no-results-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, no results",
+      "prototypeReference": "r14/platform-accounts-no-results-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-no-results-mobile-light": {
+      "path": "review/platform-accounts-no-results-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, no results",
+      "prototypeReference": "r14/platform-accounts-no-results-m.png",
+      "replaces": []
+    },
+    "platform-accounts-no-results-mobile-dark": {
+      "path": "review/platform-accounts-no-results-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, no results",
+      "prototypeReference": "r14/platform-accounts-no-results-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-loading-desktop-light": {
+      "path": "review/platform-accounts-loading-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, loading",
+      "prototypeReference": "r14/platform-accounts-loading-d.png",
+      "replaces": []
+    },
+    "platform-accounts-loading-desktop-dark": {
+      "path": "review/platform-accounts-loading-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, loading",
+      "prototypeReference": "r14/platform-accounts-loading-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-loading-mobile-light": {
+      "path": "review/platform-accounts-loading-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, loading",
+      "prototypeReference": "r14/platform-accounts-loading-m.png",
+      "replaces": []
+    },
+    "platform-accounts-loading-mobile-dark": {
+      "path": "review/platform-accounts-loading-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, loading",
+      "prototypeReference": "r14/platform-accounts-loading-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-error-desktop-light": {
+      "path": "review/platform-accounts-error-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, error",
+      "prototypeReference": "r14/platform-accounts-error-d.png",
+      "replaces": []
+    },
+    "platform-accounts-error-desktop-dark": {
+      "path": "review/platform-accounts-error-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, error",
+      "prototypeReference": "r14/platform-accounts-error-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-error-mobile-light": {
+      "path": "review/platform-accounts-error-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, error",
+      "prototypeReference": "r14/platform-accounts-error-m.png",
+      "replaces": []
+    },
+    "platform-accounts-error-mobile-dark": {
+      "path": "review/platform-accounts-error-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, error",
+      "prototypeReference": "r14/platform-accounts-error-m-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-invitations-desktop-light": {
+      "path": "review/platform-accounts-invitations-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, accounts, invitations tab",
+      "prototypeReference": "r14/platform-accounts-invitations-d.png",
+      "replaces": []
+    },
+    "platform-accounts-invitations-desktop-dark": {
+      "path": "review/platform-accounts-invitations-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, accounts, invitations tab",
+      "prototypeReference": "r14/platform-accounts-invitations-d-dark.png",
+      "replaces": []
+    },
+    "platform-accounts-invitations-mobile-light": {
+      "path": "review/platform-accounts-invitations-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, accounts, invitations tab",
+      "prototypeReference": "r14/platform-accounts-invitations-m.png",
+      "replaces": []
+    },
+    "platform-accounts-invitations-mobile-dark": {
+      "path": "review/platform-accounts-invitations-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, accounts, invitations tab",
+      "prototypeReference": "r14/platform-accounts-invitations-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-invite-desktop-light": {
+      "path": "review/platform-account-invite-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, invite account dialog",
+      "prototypeReference": "r14/platform-account-invite-d.png",
+      "replaces": []
+    },
+    "platform-account-invite-desktop-dark": {
+      "path": "review/platform-account-invite-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, invite account dialog",
+      "prototypeReference": "r14/platform-account-invite-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-invite-mobile-light": {
+      "path": "review/platform-account-invite-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, invite account dialog",
+      "prototypeReference": "r14/platform-account-invite-m.png",
+      "replaces": []
+    },
+    "platform-account-invite-mobile-dark": {
+      "path": "review/platform-account-invite-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, invite account dialog",
+      "prototypeReference": "r14/platform-account-invite-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-detail-desktop-light": {
+      "path": "review/platform-account-detail-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, account detail",
+      "prototypeReference": "r14/platform-account-detail-d.png",
+      "replaces": []
+    },
+    "platform-account-detail-desktop-dark": {
+      "path": "review/platform-account-detail-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, account detail",
+      "prototypeReference": "r14/platform-account-detail-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-detail-mobile-light": {
+      "path": "review/platform-account-detail-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, account detail",
+      "prototypeReference": "r14/platform-account-detail-m.png",
+      "replaces": []
+    },
+    "platform-account-detail-mobile-dark": {
+      "path": "review/platform-account-detail-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, account detail",
+      "prototypeReference": "r14/platform-account-detail-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-unverified-desktop-light": {
+      "path": "review/platform-account-unverified-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, account detail, unverified",
+      "prototypeReference": "r14/platform-account-unverified-d.png",
+      "replaces": []
+    },
+    "platform-account-unverified-desktop-dark": {
+      "path": "review/platform-account-unverified-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, account detail, unverified",
+      "prototypeReference": "r14/platform-account-unverified-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-unverified-mobile-light": {
+      "path": "review/platform-account-unverified-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, account detail, unverified",
+      "prototypeReference": "r14/platform-account-unverified-m.png",
+      "replaces": []
+    },
+    "platform-account-unverified-mobile-dark": {
+      "path": "review/platform-account-unverified-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, account detail, unverified",
+      "prototypeReference": "r14/platform-account-unverified-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-disabled-desktop-light": {
+      "path": "review/platform-account-disabled-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, account detail, disabled",
+      "prototypeReference": "r14/platform-account-disabled-d.png",
+      "replaces": []
+    },
+    "platform-account-disabled-desktop-dark": {
+      "path": "review/platform-account-disabled-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, account detail, disabled",
+      "prototypeReference": "r14/platform-account-disabled-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-disabled-mobile-light": {
+      "path": "review/platform-account-disabled-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, account detail, disabled",
+      "prototypeReference": "r14/platform-account-disabled-m.png",
+      "replaces": []
+    },
+    "platform-account-disabled-mobile-dark": {
+      "path": "review/platform-account-disabled-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, account detail, disabled",
+      "prototypeReference": "r14/platform-account-disabled-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-disable-desktop-light": {
+      "path": "review/platform-account-disable-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, disable account confirmation",
+      "prototypeReference": "r14/platform-account-disable-d.png",
+      "replaces": []
+    },
+    "platform-account-disable-desktop-dark": {
+      "path": "review/platform-account-disable-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, disable account confirmation",
+      "prototypeReference": "r14/platform-account-disable-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-disable-mobile-light": {
+      "path": "review/platform-account-disable-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, disable account confirmation",
+      "prototypeReference": "r14/platform-account-disable-m.png",
+      "replaces": []
+    },
+    "platform-account-disable-mobile-dark": {
+      "path": "review/platform-account-disable-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, disable account confirmation",
+      "prototypeReference": "r14/platform-account-disable-m-dark.png",
+      "replaces": []
+    },
+    "platform-account-sign-out-desktop-light": {
+      "path": "review/platform-account-sign-out-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, sign out everywhere confirmation",
+      "prototypeReference": "r14/platform-account-sign-out-d.png",
+      "replaces": []
+    },
+    "platform-account-sign-out-desktop-dark": {
+      "path": "review/platform-account-sign-out-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, sign out everywhere confirmation",
+      "prototypeReference": "r14/platform-account-sign-out-d-dark.png",
+      "replaces": []
+    },
+    "platform-account-sign-out-mobile-light": {
+      "path": "review/platform-account-sign-out-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, sign out everywhere confirmation",
+      "prototypeReference": "r14/platform-account-sign-out-m.png",
+      "replaces": []
+    },
+    "platform-account-sign-out-mobile-dark": {
+      "path": "review/platform-account-sign-out-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, sign out everywhere confirmation",
+      "prototypeReference": "r14/platform-account-sign-out-m-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-desktop-light": {
+      "path": "review/platform-organizations-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organizations list",
+      "prototypeReference": "r14/platform-organizations-d.png",
+      "replaces": []
+    },
+    "platform-organizations-desktop-dark": {
+      "path": "review/platform-organizations-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organizations list",
+      "prototypeReference": "r14/platform-organizations-d-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-mobile-light": {
+      "path": "review/platform-organizations-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organizations list",
+      "prototypeReference": "r14/platform-organizations-m.png",
+      "replaces": []
+    },
+    "platform-organizations-mobile-dark": {
+      "path": "review/platform-organizations-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organizations list",
+      "prototypeReference": "r14/platform-organizations-m-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-empty-desktop-light": {
+      "path": "review/platform-organizations-empty-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organizations, empty",
+      "prototypeReference": "r14/platform-organizations-empty-d.png",
+      "replaces": []
+    },
+    "platform-organizations-empty-desktop-dark": {
+      "path": "review/platform-organizations-empty-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organizations, empty",
+      "prototypeReference": "r14/platform-organizations-empty-d-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-empty-mobile-light": {
+      "path": "review/platform-organizations-empty-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organizations, empty",
+      "prototypeReference": "r14/platform-organizations-empty-m.png",
+      "replaces": []
+    },
+    "platform-organizations-empty-mobile-dark": {
+      "path": "review/platform-organizations-empty-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organizations, empty",
+      "prototypeReference": "r14/platform-organizations-empty-m-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-loading-desktop-light": {
+      "path": "review/platform-organizations-loading-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organizations, loading",
+      "prototypeReference": "r14/platform-organizations-loading-d.png",
+      "replaces": []
+    },
+    "platform-organizations-loading-desktop-dark": {
+      "path": "review/platform-organizations-loading-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organizations, loading",
+      "prototypeReference": "r14/platform-organizations-loading-d-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-loading-mobile-light": {
+      "path": "review/platform-organizations-loading-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organizations, loading",
+      "prototypeReference": "r14/platform-organizations-loading-m.png",
+      "replaces": []
+    },
+    "platform-organizations-loading-mobile-dark": {
+      "path": "review/platform-organizations-loading-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organizations, loading",
+      "prototypeReference": "r14/platform-organizations-loading-m-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-error-desktop-light": {
+      "path": "review/platform-organizations-error-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organizations, error",
+      "prototypeReference": "r14/platform-organizations-error-d.png",
+      "replaces": []
+    },
+    "platform-organizations-error-desktop-dark": {
+      "path": "review/platform-organizations-error-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organizations, error",
+      "prototypeReference": "r14/platform-organizations-error-d-dark.png",
+      "replaces": []
+    },
+    "platform-organizations-error-mobile-light": {
+      "path": "review/platform-organizations-error-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organizations, error",
+      "prototypeReference": "r14/platform-organizations-error-m.png",
+      "replaces": []
+    },
+    "platform-organizations-error-mobile-dark": {
+      "path": "review/platform-organizations-error-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organizations, error",
+      "prototypeReference": "r14/platform-organizations-error-m-dark.png",
+      "replaces": []
+    },
+    "platform-organization-provision-desktop-light": {
+      "path": "review/platform-organization-provision-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, provision organization dialog",
+      "prototypeReference": "r14/platform-organization-provision-d.png",
+      "replaces": []
+    },
+    "platform-organization-provision-desktop-dark": {
+      "path": "review/platform-organization-provision-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, provision organization dialog",
+      "prototypeReference": "r14/platform-organization-provision-d-dark.png",
+      "replaces": []
+    },
+    "platform-organization-provision-mobile-light": {
+      "path": "review/platform-organization-provision-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, provision organization dialog",
+      "prototypeReference": "r14/platform-organization-provision-m.png",
+      "replaces": []
+    },
+    "platform-organization-provision-mobile-dark": {
+      "path": "review/platform-organization-provision-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, provision organization dialog",
+      "prototypeReference": "r14/platform-organization-provision-m-dark.png",
+      "replaces": []
+    },
+    "platform-organization-provisioning-desktop-light": {
+      "path": "review/platform-organization-provisioning-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organization detail, provisioning",
+      "prototypeReference": "r14/platform-organization-provisioning-d.png",
+      "replaces": []
+    },
+    "platform-organization-provisioning-desktop-dark": {
+      "path": "review/platform-organization-provisioning-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organization detail, provisioning",
+      "prototypeReference": "r14/platform-organization-provisioning-d-dark.png",
+      "replaces": []
+    },
+    "platform-organization-provisioning-mobile-light": {
+      "path": "review/platform-organization-provisioning-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organization detail, provisioning",
+      "prototypeReference": "r14/platform-organization-provisioning-m.png",
+      "replaces": []
+    },
+    "platform-organization-provisioning-mobile-dark": {
+      "path": "review/platform-organization-provisioning-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organization detail, provisioning",
+      "prototypeReference": "r14/platform-organization-provisioning-m-dark.png",
+      "replaces": []
+    },
+    "platform-organization-active-desktop-light": {
+      "path": "review/platform-organization-active-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Platform, organization detail, active",
+      "prototypeReference": "r14/platform-organization-active-d.png",
+      "replaces": []
+    },
+    "platform-organization-active-desktop-dark": {
+      "path": "review/platform-organization-active-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Platform, organization detail, active",
+      "prototypeReference": "r14/platform-organization-active-d-dark.png",
+      "replaces": []
+    },
+    "platform-organization-active-mobile-light": {
+      "path": "review/platform-organization-active-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Platform, organization detail, active",
+      "prototypeReference": "r14/platform-organization-active-m.png",
+      "replaces": []
+    },
+    "platform-organization-active-mobile-dark": {
+      "path": "review/platform-organization-active-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Platform, organization detail, active",
+      "prototypeReference": "r14/platform-organization-active-m-dark.png",
+      "replaces": []
     }
-  }
+  },
+  "pending": [
+    "platform-accounts-desktop-light",
+    "platform-accounts-desktop-dark",
+    "platform-accounts-mobile-light",
+    "platform-accounts-mobile-dark",
+    "platform-accounts-search-desktop-light",
+    "platform-accounts-search-desktop-dark",
+    "platform-accounts-search-mobile-light",
+    "platform-accounts-search-mobile-dark",
+    "platform-accounts-filtered-desktop-light",
+    "platform-accounts-filtered-desktop-dark",
+    "platform-accounts-filtered-mobile-light",
+    "platform-accounts-filtered-mobile-dark",
+    "platform-accounts-row-menu-desktop-light",
+    "platform-accounts-row-menu-desktop-dark",
+    "platform-accounts-row-menu-mobile-light",
+    "platform-accounts-row-menu-mobile-dark",
+    "platform-accounts-no-results-desktop-light",
+    "platform-accounts-no-results-desktop-dark",
+    "platform-accounts-no-results-mobile-light",
+    "platform-accounts-no-results-mobile-dark",
+    "platform-accounts-loading-desktop-light",
+    "platform-accounts-loading-desktop-dark",
+    "platform-accounts-loading-mobile-light",
+    "platform-accounts-loading-mobile-dark",
+    "platform-accounts-error-desktop-light",
+    "platform-accounts-error-desktop-dark",
+    "platform-accounts-error-mobile-light",
+    "platform-accounts-error-mobile-dark",
+    "platform-accounts-invitations-desktop-light",
+    "platform-accounts-invitations-desktop-dark",
+    "platform-accounts-invitations-mobile-light",
+    "platform-accounts-invitations-mobile-dark",
+    "platform-account-invite-desktop-light",
+    "platform-account-invite-desktop-dark",
+    "platform-account-invite-mobile-light",
+    "platform-account-invite-mobile-dark",
+    "platform-account-detail-desktop-light",
+    "platform-account-detail-desktop-dark",
+    "platform-account-detail-mobile-light",
+    "platform-account-detail-mobile-dark",
+    "platform-account-unverified-desktop-light",
+    "platform-account-unverified-desktop-dark",
+    "platform-account-unverified-mobile-light",
+    "platform-account-unverified-mobile-dark",
+    "platform-account-disabled-desktop-light",
+    "platform-account-disabled-desktop-dark",
+    "platform-account-disabled-mobile-light",
+    "platform-account-disabled-mobile-dark",
+    "platform-account-disable-desktop-light",
+    "platform-account-disable-desktop-dark",
+    "platform-account-disable-mobile-light",
+    "platform-account-disable-mobile-dark",
+    "platform-account-sign-out-desktop-light",
+    "platform-account-sign-out-desktop-dark",
+    "platform-account-sign-out-mobile-light",
+    "platform-account-sign-out-mobile-dark",
+    "platform-organizations-desktop-light",
+    "platform-organizations-desktop-dark",
+    "platform-organizations-mobile-light",
+    "platform-organizations-mobile-dark",
+    "platform-organizations-empty-desktop-light",
+    "platform-organizations-empty-desktop-dark",
+    "platform-organizations-empty-mobile-light",
+    "platform-organizations-empty-mobile-dark",
+    "platform-organizations-loading-desktop-light",
+    "platform-organizations-loading-desktop-dark",
+    "platform-organizations-loading-mobile-light",
+    "platform-organizations-loading-mobile-dark",
+    "platform-organizations-error-desktop-light",
+    "platform-organizations-error-desktop-dark",
+    "platform-organizations-error-mobile-light",
+    "platform-organizations-error-mobile-dark",
+    "platform-organization-provision-desktop-light",
+    "platform-organization-provision-desktop-dark",
+    "platform-organization-provision-mobile-light",
+    "platform-organization-provision-mobile-dark",
+    "platform-organization-provisioning-desktop-light",
+    "platform-organization-provisioning-desktop-dark",
+    "platform-organization-provisioning-mobile-light",
+    "platform-organization-provisioning-mobile-dark",
+    "platform-organization-active-desktop-light",
+    "platform-organization-active-desktop-dark",
+    "platform-organization-active-mobile-light",
+    "platform-organization-active-mobile-dark"
+  ]
 }

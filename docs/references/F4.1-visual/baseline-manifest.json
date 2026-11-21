@@ -2,8 +2,8 @@
   "version": 1,
   "sourceSha": "364b3e8406df05793341533e60aa00e36078f87d",
   "generatedAt": "2026-11-20T12:13:34.506Z",
-  "approvalSha256": "908d05462eecaf405c7d3aaeeb6e12dd6529fba409472e10fdc803a3ddb110cd",
-  "indexSha256": "6312cafa0c0204e411d504eaf4e09f360f29367b4e4fe5650c75e261df8c7ccd",
+  "approvalSha256": "b338d78515ac811f28825caed116a167ec7bfb057a7745a88d97f8824e09f28d",
+  "indexSha256": "351a34f78cba8975e83a138a7126f4b1c332756d015e469f3e96eb17b7023df4",
   "environment": {
     "os": "Linux 7.0.0-1017-azure (linux/x64)",
     "browser": "Chromium 156.0.8078.4",
@@ -12,7 +12,7 @@
     "locale": "en-US",
     "timezone": "Asia/Jakarta"
   },
-  "viewCount": 296,
+  "viewCount": 272,
   "reapproved": [
     {
       "id": "onboarding-team-desktop-light",
@@ -1471,174 +1471,6 @@
     "platform-no-access-mobile-dark": {
       "path": "baseline/platform-no-access-mobile-dark.png",
       "sha256": "63809431f0092b168b59af2bed3ba6bc04a6909eb79e9dd41f2c473fc1230dfb",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-loading-desktop-light": {
-      "path": "baseline/platform-provisioning-loading-desktop-light.png",
-      "sha256": "599c0d25c5d31a7afc906b4360e988d64b606bf755b03b02bc8db22d69d2c27c",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-loading-desktop-dark": {
-      "path": "baseline/platform-provisioning-loading-desktop-dark.png",
-      "sha256": "acf13922e9e2a208783dbcc7bad1902973e589f689b27b10073a567b2db4e13a",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-loading-mobile-light": {
-      "path": "baseline/platform-provisioning-loading-mobile-light.png",
-      "sha256": "534bfe33d8cd7870330edb7b95a20c084829f64f9aba5267b6b2280f79a865b6",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-loading-mobile-dark": {
-      "path": "baseline/platform-provisioning-loading-mobile-dark.png",
-      "sha256": "69436e135c3836214c932f5a21f2f3b6bf2e90f0febc6c193801f87f363d7dc8",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-empty-desktop-light": {
-      "path": "baseline/platform-provisioning-empty-desktop-light.png",
-      "sha256": "74e426668d86c0ccc80ee239d1232eea0819222f361b8d58b2ab3b5533c73b94",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-empty-desktop-dark": {
-      "path": "baseline/platform-provisioning-empty-desktop-dark.png",
-      "sha256": "f69aa8a229235273558987ebabb2e6e1d276ef04fb95e8c9bde49b72caa5fbe5",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-empty-mobile-light": {
-      "path": "baseline/platform-provisioning-empty-mobile-light.png",
-      "sha256": "69ceb1a2e991bf9af932d34cd84f94081143dee2822b148aa1a5cf57040a0b10",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-empty-mobile-dark": {
-      "path": "baseline/platform-provisioning-empty-mobile-dark.png",
-      "sha256": "2cabc35808ed0194efb241670343423339dddbd8826af54b08778f3529ad961a",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-populated-desktop-light": {
-      "path": "baseline/platform-provisioning-populated-desktop-light.png",
-      "sha256": "0c62f8522c700643208a3f968f57a1aa59fcfdf65838c22a92b2b28ed2c00a2b",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-populated-desktop-dark": {
-      "path": "baseline/platform-provisioning-populated-desktop-dark.png",
-      "sha256": "69098b6fcb8ccbbc1680c9454ae617d1b3f7eaaf8517071185e63a022731b78e",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-populated-mobile-light": {
-      "path": "baseline/platform-provisioning-populated-mobile-light.png",
-      "sha256": "dce67b433258a55aec3ff9f1b7da2cf0ac533043e3910d8eb9fa653046c015e0",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-populated-mobile-dark": {
-      "path": "baseline/platform-provisioning-populated-mobile-dark.png",
-      "sha256": "b9b166ba4fdcf9732ef4b0fba246b0ef47061434386c9cae5bcc196439c9f150",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-detail-desktop-light": {
-      "path": "baseline/platform-provisioning-detail-desktop-light.png",
-      "sha256": "59db6fe59b40e81b8e16b3737eb753f8ca8f24bd9e4f7c8529b96d47376b72fc",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-detail-desktop-dark": {
-      "path": "baseline/platform-provisioning-detail-desktop-dark.png",
-      "sha256": "9ef5df815676d4b5f4ba8cba46b2d5214cb64ae55571dbec93e71b378a5856c8",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-detail-mobile-light": {
-      "path": "baseline/platform-provisioning-detail-mobile-light.png",
-      "sha256": "60156925fc33a2a714ad9e2f9c9fa77bbc3c623a9101f292fbc4731d0d70a5bc",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-detail-mobile-dark": {
-      "path": "baseline/platform-provisioning-detail-mobile-dark.png",
-      "sha256": "94c2c6b122a2f3ae443c52774ace3fa1d15cbe18728a5b18bedd5ad1bb34f01c",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-error-desktop-light": {
-      "path": "baseline/platform-provisioning-error-desktop-light.png",
-      "sha256": "7bf10f032140374d2f769297628574056187038f3d895166a4a23024064643b5",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-error-desktop-dark": {
-      "path": "baseline/platform-provisioning-error-desktop-dark.png",
-      "sha256": "03a2e5eb8fbd3fb9b95bcc7510198d469a3696d75a8217b2411764f333888edd",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-error-mobile-light": {
-      "path": "baseline/platform-provisioning-error-mobile-light.png",
-      "sha256": "6becfbc0b4d940fd1d12f300fd10518ef4239ff1046522793a259c1ea0f5f085",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-provisioning-error-mobile-dark": {
-      "path": "baseline/platform-provisioning-error-mobile-dark.png",
-      "sha256": "256911174f81d4e215fa19979f6cdfb0787f758012d201d16194ce84ff6d6373",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-accounts-desktop-light": {
-      "path": "baseline/platform-accounts-desktop-light.png",
-      "sha256": "e9effc9d565cfffbe481eba6c28124e7d0b7706b97180e7d1693a57730afda0d",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-accounts-desktop-dark": {
-      "path": "baseline/platform-accounts-desktop-dark.png",
-      "sha256": "c90fd66a8beaa52f9435a50b64ce20452646b2579a45f74d76f76ccac66c08ec",
-      "width": 1440,
-      "height": 900,
-      "deviceScaleFactor": 1
-    },
-    "platform-accounts-mobile-light": {
-      "path": "baseline/platform-accounts-mobile-light.png",
-      "sha256": "1fcecb3aab593012845256307f1a0208f095a40008a059427d059d70ceaef312",
-      "width": 390,
-      "height": 844,
-      "deviceScaleFactor": 1
-    },
-    "platform-accounts-mobile-dark": {
-      "path": "baseline/platform-accounts-mobile-dark.png",
-      "sha256": "278eef8956898cbfee6960bef691642cbedb6ada2896868bf1a4ff5fade075c0",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
