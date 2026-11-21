@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 replaces the platform pages with the F4.3 console (2026-11-21, awaiting owner approval).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -17,7 +17,7 @@ gate is in §5.6.
   `prototype.html` without the embedded fonts and marks (about 110 KB instead of
   380 KB). **Read this file for values**; open `prototype.html` to view states.
 - `screens/r14/<state>-<d|m>[-dark].png`: every state of the current
-  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (300 files).
+  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (344 files).
   The folder keeps its name; it always holds the current revision.
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
 - The numbered PNGs in `screens/` (`00-personal.png` to `51-mobile-dark.png`)
@@ -37,7 +37,7 @@ state of the same name.
 | Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-copy-failed`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-composer-running`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`            |
 | Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`, `chats-load-failed`                                                                                                                                                                                                                                                                                                                    |
 | Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `settings-profile-save-failed`, `settings-members-load-failed`, `toast-success`                                                                                                                                                                                                             |
-| Platform  | `platform-accounts`, `platform-provisioning-populated`, `platform-provisioning-empty`, `platform-provisioning-loading`, `platform-provisioning-error`, `platform-provisioning-detail`                                                                                                                                                                                                                                       |
+| Platform  | `platform-accounts`, `platform-accounts-search`, `platform-accounts-no-results`, `platform-accounts-loading`, `platform-accounts-error`, `platform-account-detail`, `platform-account-unverified`, `platform-account-disabled`, `platform-account-disable`, `platform-account-sign-out`, `platform-organizations`, `platform-organizations-empty`, `platform-organizations-loading`, `platform-organizations-error`, `platform-organization-provision`, `platform-organization-provisioning`, `platform-organization-active` |
 | Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                             |
 
 ## Fixtures shown
@@ -127,6 +127,26 @@ The product owner approved these states in the F4.2 spec review. LEX-DS-001 v3.2
 - `settings-profile-save-failed`: the form alert sits above the fields. The typed value ("Partner") is kept, and Save stays enabled. Organization General uses the same pattern. Appearance is saved on the device only (`next-themes`), so it cannot fail to save.
 - `chat-streaming-scroll` and `chat-reconnecting` (changed): scroll-to-latest now sits 12px above the composer box. In revision 14 it covered the top of the composer on mobile and touched it on desktop. This fixes a revision 14 defect.
 - On mobile, the tooltip of the first answer action aligns with the button's left edge.
+
+## Revision 16 (2026-11-21): F4.3 platform console
+
+Drawn from the API contracts in the [F4.3 brief](../../briefs/F4.3-platform-admin-console.md); every value shown is a field of those contracts. It replaces the revision 14 platform states (`platform-accounts` with a user ID field, and `platform-provisioning-*`).
+
+- Sidebar Platform group: Accounts and Organizations.
+- Accounts:
+  - list with search, status, two-step, teams, and last active;
+  - search results, no results, loading, and failure;
+  - three detail variants: active with Sign out everywhere and Disable; unverified with Resend verification email; disabled with Enable;
+  - two confirmation dialogs.
+  - The signed-in platform administrator (Dimas Prasetyo) carries the "Platform administrator" badge.
+- Organizations:
+  - list with search and an All / Active / Provisioning filter;
+  - empty, loading, and failure;
+  - the Provision dialog (today's form);
+  - provisioning detail (today's functions);
+  - active detail with facts and members, and the note that opening the member list is audited.
+- Mobile: rows stack with a one-line summary, and facts stay in two columns.
+- LEX-DS-001 v3.3 records the new patterns.
 
 ## Thinking indicator
 

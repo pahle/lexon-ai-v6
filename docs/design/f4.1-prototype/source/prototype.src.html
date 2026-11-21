@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Lexon v4.1 Prototype, revision 15</title>
+<title>Lexon v4.1 Prototype, revision 16</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @font-face{font-family:"Lexon Inter";src:url(__FONT_INTER__) format("woff2");font-weight:100 900;font-display:block}
@@ -331,13 +331,30 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .srow .inp{width:100%!important}
 .app.mobile .irow{flex-wrap:wrap}.app.mobile .irow .inp{flex-basis:100%}
 .app.mobile .pgrid{grid-template-columns:1fr}
+.tr.acc{grid-template-columns:minmax(0,2fr) 104px 84px 56px 112px 24px}
+.tr.org{grid-template-columns:minmax(0,1.6fr) 104px 72px minmax(0,1.5fr) 104px 24px}
+.tr.mem{grid-template-columns:minmax(0,2fr) 100px 120px 24px}
+.tr.team{grid-template-columns:minmax(0,2fr) 100px 24px}
+.tr .c1 b,.tr .c1 small,.tr .el{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tr .c1 b{font-weight:500}
+.tr .muted{color:var(--mfg)}.tr .mo{display:none}
+.badge.off{background:var(--muted);color:var(--mfg);border-color:transparent}
+.ptool{display:flex;gap:12px;align-items:center}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:8px;background:var(--muted);flex:none}
+.seg button{all:unset;height:28px;padding:0 10px;border-radius:6px;font-size:13px;font-weight:500;color:var(--mfg);cursor:pointer;display:inline-flex;align-items:center}
+.seg button.on{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px rgba(8,6,6,.08),0 0 0 1px var(--border)}
+.arows{display:flex;flex-direction:column}.arow{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-top:1px solid var(--border)}.arow:first-child{border-top:0;padding-top:0}.arow:last-child{padding-bottom:0}
+.arow .rt{font-size:14px;font-weight:500}.arow .rd{font-size:13px;color:var(--mfg);margin-top:2px;line-height:1.5}.arow .btn{flex:none}
+.app.mobile .tr .dk{display:none}.app.mobile .tr .mo{display:block;grid-column:1;color:var(--mfg);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app.mobile .tr.acc .go,.app.mobile .tr.org .go,.app.mobile .tr.mem .go{grid-row:1/4}
+.app.mobile .ptool{flex-direction:column;align-items:stretch}.app.mobile .seg{align-self:flex-start}
+.app.mobile .arow{flex-direction:column;align-items:flex-start;gap:10px}
 .app.mobile .tr{grid-template-columns:1fr auto;gap:4px 12px;padding:12px 16px}
 .app.mobile .tr.th{display:none}
 .app.mobile .tr .c3{grid-column:1;color:var(--mfg);font-size:13px}
 .app.mobile .tr .go{grid-row:1/3;grid-column:2}
 .app.mobile .tr .c2{grid-column:1}
 .app.mobile .pacts{flex-wrap:wrap}
-.app.mobile .idl.wide{grid-template-columns:1fr}
+.app.mobile .idl.wide{grid-template-columns:auto 1fr}
 .app.mobile .tcard{width:auto;flex:1}
 .app.mobile [role=radiogroup]{gap:10px!important}
 
@@ -414,7 +431,7 @@ function sidebar(S,c){
   <div style="position:relative"><button class="nb big">${S==='personal'?`<span class="ini" style="background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:20px;height:20px"></span><span class="two"><span class="a">Personal</span><span class="b">Your private workspace</span></span>`:`<span class="ini">HN</span><span class="two"><span class="a">Hukum Nusantara</span><span class="b">3 members</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${orgMenu}</div>
   <div style="height:8px"></div>
   <button class="nb ${!c.page&&!c.home?'':''}">${sv('chats')}<span class="t" style="font-weight:500">Assistant</span>${sv('down2',16,'style="color:var(--mfg)"')}</button>
-  <div class="sub"><button class="nb ${c.home?'on':''}"><span class="t">New chat</span><span class="kbd">Ctrl Alt N</span></button><button class="nb ${c.page?'on':''}"><span class="t">Chats</span></button></div>${c.platform?`<button class="nb">${sv('shield')}<span class="t" style="font-weight:500">Platform</span>${sv('down2',16,'style="color:var(--mfg)"')}</button><div class="sub"><button class="nb ${c.platform==='prov'?'on':''}"><span class="t">Provisioning</span></button><button class="nb ${c.platform==='acct'?'on':''}"><span class="t">Account status</span></button></div>`:''}
+  <div class="sub"><button class="nb ${c.home?'on':''}"><span class="t">New chat</span><span class="kbd">Ctrl Alt N</span></button><button class="nb ${c.page?'on':''}"><span class="t">Chats</span></button></div>${c.platform?`<button class="nb">${sv('shield')}<span class="t" style="font-weight:500">Platform</span>${sv('down2',16,'style="color:var(--mfg)"')}</button><div class="sub"><button class="nb ${c.platform==='acct'?'on':''}"><span class="t">Accounts</span></button><button class="nb ${c.platform==='org'?'on':''}"><span class="t">Organizations</span></button></div>`:''}
   <div class="glabel">Recent</div>${rec}
   <div style="margin-top:auto;position:relative"><button class="nb big">${c.platform?`<span class="avatar">DP</span><span class="two"><span class="a">Dimas Prasetyo</span><span class="b">Platform administrator</span></span>`:`<span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">Senior Associate</span></span>`}<span style="color:var(--mfg)">${sv('chev')}</span></button>${userMenu}</div>
  </aside>`;
@@ -716,6 +733,92 @@ function platformAccounts(){
  return `<div class="ppage"><div class="phead"><h1 class="ptitle">Account status</h1><p>Disable an account to sign it out everywhere and block sign-in. Its organizations and content stay unchanged.</p></div>
  ${pcard('Find an account','Enter the user ID from the audit log or a support request.',`${fs('uid','User ID',{ph:'usr_01J…'})}<div class="pacts"><button class="btn outline">Enable account</button><button class="btn danger">Disable account</button></div>`)}</div>`;
 }
+/* ===== Revision 16: platform console (F4.3), drawn from the brief's API contracts ===== */
+const PA=[
+ {id:'dp',n:'Dimas Prasetyo',e:'dimas@lexon.id',st:'active',tf:true,t:0,la:'Active now',admin:true,self:true},
+ {id:'aw',n:'Ayu Wardani',e:'ayu@hukum-nusantara.co.id',st:'active',tf:true,t:2,la:'Today'},
+ {id:'pa',n:'Putri Anggraini',e:'putri@probono.or.id',st:'active',tf:true,t:1,la:'Today'},
+ {id:'rp',n:'Rizky Pratama',e:'rizky@hukum-nusantara.co.id',st:'active',tf:true,t:1,la:'Yesterday'},
+ {id:'sw',n:'Sari Wibowo',e:'sari@hukum-nusantara.co.id',st:'active',tf:false,t:1,la:'3 days ago'},
+ {id:'as',n:'Andi Saputra',e:'andi.saputra@gmail.com',st:'active',tf:false,t:0,la:'5 days ago'},
+ {id:'bs',n:'Bagus Santoso',e:'bagus@sinarhukum.co.id',st:'unverified',tf:false,t:0,la:'Never'},
+ {id:'lh',n:'Lina Hartono',e:'lina@hukum-nusantara.co.id',st:'disabled',tf:false,t:1,la:'2 weeks ago'}
+];
+const PSTAT={active:['Active',''],unverified:['Unverified','warn'],disabled:['Disabled','off']};
+const pbadge=s=>`<span class="badge ${PSTAT[s][1]}">${PSTAT[s][0]}</span>`;
+const pmain=(body,extra='')=>`<div class="main">${topbar('',{nopill:true})}<div class="view">${body}</div>${extra}</div>`;
+const psearch=(ph,q='')=>`<div style="position:relative;flex:1;min-width:0"><span style="position:absolute;left:12px;top:10px;color:var(--mfg)">${sv('search')}</span><input class="inp ${q?'focus':''}" style="padding-left:36px" aria-label="${ph}" placeholder="${ph}" value="${q}"></div>`;
+const pback=t=>`<a class="slink" href="#" style="align-self:flex-start;margin:0 0 -12px -10px">${sv('back',16)}${t}</a>`;
+const perr=t=>`<div class="erow" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">${t}</span><button class="btn outline" style="flex:none">${sv('regen',14)}Try again</button></div>`;
+function accRow(a){return `<div class="tr acc"><span class="c1"><b>${a.n}${a.admin?' <span class="badge" style="margin-left:6px">Platform administrator</span>':''}</b><small>${a.e}</small></span><span class="c2">${pbadge(a.st)}</span><span class="dk">${a.tf?'On':'Off'}</span><span class="dk">${a.t}</span><span class="dk muted">${a.la}</span><span class="mo">Two-step ${a.tf?'on':'off'} · ${a.t} ${a.t===1?'team':'teams'} · ${a.la}</span><span class="go">${sv('right')}</span></div>`;}
+const accHead=`<div class="tr acc th"><span>Account</span><span>Status</span><span>Two-step</span><span>Teams</span><span>Last active</span><span></span></div>`;
+function platformAccountsList(kind){
+ const q=kind==='search'?'hukum-nusantara':kind==='noresults'?'notaris':'';
+ let body;
+ if(kind==='loading') body=`<div class="tbl">${accHead}${[58,44,64,50,40].map(w=>`<div class="tr acc"><span class="c1"><div class="skel" style="width:${w}%"></div></span><span class="c2"><div class="skel" style="width:56px"></div></span><span class="dk"><div class="skel" style="width:28px"></div></span><span class="dk"><div class="skel" style="width:16px"></div></span><span class="dk"><div class="skel" style="width:72px"></div></span><span></span></div>`).join('')}</div>`;
+ else if(kind==='error') body=perr('We could not load accounts.');
+ else if(kind==='noresults') body=`<div class="empty"><div class="ic">${sv('search',20)}</div><h2>No accounts match “notaris”</h2><p style="margin:0">Search looks in names and email addresses.</p><button class="btn outline" style="margin-top:8px">Clear search</button></div>`;
+ else {const rows=kind==='search'?PA.filter(a=>a.e.includes('hukum-nusantara')):PA;
+  body=`${kind==='search'?`<p style="margin:0;font-size:13px;color:var(--mfg)">${rows.length} accounts</p>`:''}<div class="tbl">${accHead}${rows.map(accRow).join('')}</div>${kind==='search'?'':'<div style="display:flex;justify-content:center"><button class="btn outline">Load more</button></div>'}`;}
+ return `<div class="ppage"><div class="phead"><h1 class="ptitle">Accounts</h1><p>Find an account by name or email to check its status or act on it.</p></div><div class="psec">${psearch('Search by name or email',q)}${body}</div></div>`;
+}
+function platformAccountDetail(kind){
+ const a=kind==='unverified'?PA[6]:kind==='disabled'?PA[7]:PA[1];
+ const facts={active:[['Signed up','2 Sep 2026'],['Email verified','Yes'],['Two-step verification','On'],['Last active','Today, 10:42'],['Active sessions','3']],unverified:[['Signed up','12 Nov 2026'],['Email verified','No'],['Two-step verification','Off'],['Last active','Never'],['Active sessions','0']],disabled:[['Signed up','5 Sep 2026'],['Email verified','Yes'],['Two-step verification','Off'],['Last active','31 Oct 2026'],['Active sessions','0']]}[kind];
+ const teams={active:[['Hukum Nusantara','hukum-nusantara','Owner'],['Pro Bono Clinic','pro-bono-clinic','Member']],unverified:[],disabled:[['Hukum Nusantara','hukum-nusantara','Member']]}[kind];
+ const tbl=teams.length?`<div class="tbl"><div class="tr team th"><span>Organization</span><span>Role</span><span></span></div>${teams.map(([n,s,r])=>`<div class="tr team"><span class="c1"><b>${n}</b><small>${s}</small></span><span class="c2">${r}</span><span class="go">${sv('right')}</span></div>`).join('')}</div>`:`<p class="pd" style="margin:0">Not a member of any team.</p>`;
+ const act=(t,d,b)=>`<div class="arow"><div><div class="rt">${t}</div><div class="rd">${d}</div></div>${b}</div>`;
+ let acts='';
+ if(kind==='unverified') acts+=act('Verification email','The email address is not verified yet. Send the verification email again.','<button class="btn outline">Resend verification email</button>');
+ if(kind==='active') acts+=act('Sign out everywhere','Ends all 3 sessions on every device, including apps signed in with a token.','<button class="btn outline">Sign out everywhere</button>');
+ acts+=kind==='disabled'?act('Enable account','Allows sign-in again. Teams and content were never changed.','<button class="btn outline">Enable account</button>'):act('Disable account','Signs the account out everywhere and blocks sign-in. Teams and content stay unchanged.','<button class="btn outline dtext">Disable account</button>');
+ return `<div class="ppage">${pback('Accounts')}<div class="phead"><div class="row"><h1 class="ptitle">${a.n}</h1>${pbadge(a.st)}</div><p>${a.e}</p></div>
+ ${pcard('Account','',`<div class="idl wide">${facts.map(([k,v])=>`<span>${k}</span><b>${v}</b>`).join('')}</div>`)}
+ ${pcard('Teams','',tbl)}
+ ${pcard('Actions','',`<div class="arows">${acts}</div>`)}</div>`;
+}
+const PO=[['Hukum Nusantara','hukum-nusantara','active','3','ayu@hukum-nusantara.co.id','2 Sep 2026'],['Pro Bono Clinic','pro-bono-clinic','active','5','putri@probono.or.id','18 Sep 2026'],['Harbor Legal Partners','harbor-legal-partners','provisioning','—','owner@harborlegal.co.id','14 Nov 2026'],['Kantor Hukum Wibowo','kantor-hukum-wibowo','provisioning','—','andi@khwibowo.co.id','13 Nov 2026'],['Sinar Hukum','sinar-hukum','provisioning','—','bagus@sinarhukum.co.id','5 Nov 2026']];
+const orgHead=`<div class="tr org th"><span>Organization</span><span>State</span><span>Members</span><span>Owner</span><span>Created</span><span></span></div>`;
+function platformOrgsList(kind){
+ let body;
+ if(kind==='loading') body=`<div class="tbl">${orgHead}${[52,60,44,56].map(w=>`<div class="tr org"><span class="c1"><div class="skel" style="width:${w}%"></div></span><span class="c2"><div class="skel" style="width:64px"></div></span><span class="dk"><div class="skel" style="width:16px"></div></span><span class="dk"><div class="skel" style="width:80%"></div></span><span class="dk"><div class="skel" style="width:76px"></div></span><span></span></div>`).join('')}</div>`;
+ else if(kind==='error') body=perr('We could not load organizations.');
+ else if(kind==='empty') body=`<div class="empty" style="padding:40px 0;border:1px dashed var(--border);border-radius:12px"><div class="ic">${sv('users',20)}</div><h2>No team organizations yet</h2><p style="margin:0">Organizations you provision appear here.</p><button class="btn primary" style="margin-top:8px">${sv('plus')}Provision organization</button></div>`;
+ else body=`<div class="tbl">${orgHead}${PO.map(([n,s,st,m,o,c])=>`<div class="tr org"><span class="c1"><b>${n}</b><small>${s}</small></span><span class="c2"><span class="badge">${st==='active'?'Active':'Provisioning'}</span></span><span class="dk">${m}</span><span class="dk muted el">${o}</span><span class="dk muted">${c}</span><span class="mo">${st==='active'?m+' members':'Owner invited'} · ${o}</span><span class="go">${sv('right')}</span></div>`).join('')}</div>`;
+ const seg=`<div class="seg" role="tablist" aria-label="State"><button class="on" role="tab" aria-selected="true">All</button><button role="tab" aria-selected="false">Active</button><button role="tab" aria-selected="false">Provisioning</button></div>`;
+ return `<div class="ppage"><div class="phead"><div class="row" style="justify-content:space-between"><h1 class="ptitle">Organizations</h1>${kind==='empty'?'':`<button class="btn primary">${sv('plus')}Provision organization</button>`}</div><p>Every team organization on Lexon. Personal workspaces are not listed.</p></div><div class="psec"><div class="ptool">${psearch('Search by name or slug')}${seg}</div>${body}</div></div>`;
+}
+function platformOrgActive(){
+ const mem=[['Ayu Wardani','ayu@hukum-nusantara.co.id','Owner','2 Sep 2026'],['Rizky Pratama','rizky@hukum-nusantara.co.id','Admin','3 Sep 2026'],['Sari Wibowo','sari@hukum-nusantara.co.id','Member','10 Sep 2026']];
+ return `<div class="ppage">${pback('Organizations')}<div class="phead"><div class="row"><h1 class="ptitle">Hukum Nusantara</h1><span class="badge">Active</span></div><p>hukum-nusantara · Created 2 Sep 2026</p></div>
+ ${pcard('Organization','',`<div class="idl wide"><span>Members</span><b>3</b><span>Two-step verification</span><b>Not required</b><span>Created</span><b>2 Sep 2026</b></div>`)}
+ <div class="psec"><div><h2>Members</h2><p class="pd">Opening this list is recorded in the audit log.</p></div><div class="tbl"><div class="tr mem th"><span>Member</span><span>Role</span><span>Joined</span><span></span></div>${mem.map(([n,e,r,j])=>`<div class="tr mem"><span class="c1"><b>${n}</b><small>${e}</small></span><span class="c2">${r}</span><span class="dk muted">${j}</span><span class="mo">Joined ${j}</span><span class="go">${sv('right')}</span></div>`).join('')}</div></div></div>`;
+}
+const provDialog=()=>`<div class="overlay"></div><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pvt"><h2 id="pvt">Provision a team organization</h2><p>The organization has no members or content until its first owner accepts the invitation.</p>${fs('on','Organization name',{value:'Harbor Legal Partners'})}${fs('os','Organization slug',{value:'harbor-legal-partners',hint:'Lowercase letters, numbers, and hyphens.'})}${fs('oe','First owner email',{value:'owner@harborlegal.co.id'})}<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn primary">Provision organization</button></div></div>`;
+const confirmDialog=(t,p,b,cls)=>`<div class="overlay"></div><div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="cdt"><h2 id="cdt">${t}</h2><p>${p}</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn outline">Cancel</button><button class="btn ${cls}">${b}</button></div></div>`;
+function platformScreen(st){
+ const P={
+  'platform-accounts':['acct',()=>platformAccountsList('list')],
+  'platform-accounts-search':['acct',()=>platformAccountsList('search')],
+  'platform-accounts-no-results':['acct',()=>platformAccountsList('noresults')],
+  'platform-accounts-loading':['acct',()=>platformAccountsList('loading')],
+  'platform-accounts-error':['acct',()=>platformAccountsList('error')],
+  'platform-account-detail':['acct',()=>platformAccountDetail('active')],
+  'platform-account-unverified':['acct',()=>platformAccountDetail('unverified')],
+  'platform-account-disabled':['acct',()=>platformAccountDetail('disabled')],
+  'platform-account-disable':['acct',()=>platformAccountDetail('active'),()=>confirmDialog('Disable Ayu Wardani’s account?','Ayu Wardani is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.','Disable account','danger')],
+  'platform-account-sign-out':['acct',()=>platformAccountDetail('active'),()=>confirmDialog('Sign Ayu Wardani out everywhere?','All 3 sessions end on every device, including apps signed in with a token. Ayu Wardani can sign in again.','Sign out everywhere','primary')],
+  'platform-organizations':['org',()=>platformOrgsList('list')],
+  'platform-organizations-empty':['org',()=>platformOrgsList('empty')],
+  'platform-organizations-loading':['org',()=>platformOrgsList('loading')],
+  'platform-organizations-error':['org',()=>platformOrgsList('error')],
+  'platform-organization-provision':['org',()=>platformOrgsList('list'),provDialog],
+  'platform-organization-provisioning':['org',()=>platformDetail().replace('Provisioning</a>','Organizations</a>')],
+  'platform-organization-active':['org',()=>platformOrgActive()]
+ }[st];
+ return `<div class="app ${MOB?'mobile':''}">${sidebar('personal',{platform:P[0],none:true})}${pmain(P[1]())}${P[2]?P[2]():''}</div>`;
+}
+
 const GROUPS=[
  ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-declined','accept-invitation-unavailable','admin-setup','admin-setup-activate','admin-setup-unavailable','onboarding','onboarding-invitations','onboarding-team']],
  ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
@@ -723,7 +826,7 @@ const GROUPS=[
  ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
  ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed']],
  ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
- ['Platform',['platform-accounts','platform-provisioning-populated','platform-provisioning-empty','platform-provisioning-loading','platform-provisioning-error','platform-provisioning-detail']],
+ ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],
  ['Indicator',['indicator']]
 ];
 const AUTHMAP={'sign-in':'signin','sign-in-field-errors':'signin-errors','sign-up':'signup','forgot-password':'forgot','forgot-password-sent':'forgot-sent','reset-password':'reset','reset-password-invalid':'reset-invalid','verify-email':'verify','two-factor':'twofactor','accept-invitation':'invite','accept-invitation-unavailable':'invite-invalid','admin-setup':'setup','admin-setup-unavailable':'setup-invalid','onboarding':'onboard-1','onboarding-invitations':'onboard-2','onboarding-team':'onboard-3','accept-invitation-declined':'invite-declined','admin-setup-activate':'setup-activate'};
@@ -743,7 +846,7 @@ function screen(st){
  if(st==='chat-copy-failed') return app(sidebar('x',{active:'a'}),chatShell(um(Q1)+`<div class="am">${who('Thought for 14 seconds',false)}${A1}${abar({failed:true})}</div>`).replace(MOB?'justify-content:center;overflow:hidden">':'@@','justify-content:center;align-items:flex-end;overflow:hidden">'));
  if(st==='chat-composer-running'){let m=thread('streaming');m=m.replace(/(<textarea id="cmp"[^>]*>)(<\/textarea>)/,'$1Bagaimana jika salah satu pihak masih di bawah umur?$2').replace('<div class="disc">Lexon can make mistakes. Verify important legal information.</div>','<div class="disc" role="status" style="color:var(--fg)">Wait for the answer to finish, or stop it.</div>');return app(sidebar('x',{active:'a'}),m);}
  if(st==='toast-success') return settingsAll('profile',{toast:toastEl('Changes saved.')});
- if(st.startsWith('platform-')){const p=st==='platform-accounts'?'acct':'prov';const main=`<div class="main">${topbar('',{nopill:true})}<div class="view">${st==='platform-accounts'?platformAccounts():st==='platform-provisioning-detail'?platformDetail():platformPage(st.replace('platform-provisioning-',''))}</div></div>`;return app(sidebar('personal',{platform:p,none:true}),main);}
+ if(st.startsWith('platform-')&&st!=='platform-no-access') return platformScreen(st);
  if(st==='indicator') return app(sidebar('x',{active:'a'}),thread('loaders'));
  if(st.startsWith('chats-')){const k={'chats-history':'history','chats-search':'search','chats-no-results':'noresults','chats-empty':'empty'}[st];
   if(st==='chats-loading') return app(sidebar('x',{page:true,loading:true}),historyLoading());

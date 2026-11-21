@@ -1,5 +1,5 @@
 ---
-version: "3.2"
+version: "3.3"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -249,7 +249,7 @@ Rules:
   - Sidebar header: the team switcher (§4).
   - Tools, with no group label: **Assistant** (sub-items New chat and Chats);
     later tools (Tabular Review, Editor) join it. **Platform** (sub-items
-    Provisioning and Account status) shows only to platform administrators.
+    Accounts and Organizations) shows only to platform administrators.
     **Matters** (F6) follows. **Recent** is the only labeled group: the six
     latest chats with a per-chat menu (Rename, Delete), then View all chats.
   - Footer: `NavUser` with name and **job title** (email when no job title).
@@ -589,6 +589,29 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
   500; rows 56px; status as badges (warning badges in `red-text`); a chevron
   opens the detail. Mobile: each row stacks its cells. Loading, empty, and
   error use the skeleton, `Empty`, and error-row patterns.
+- List toolbar: a 36px search input that fills the row, then an optional
+  segmented filter (`muted` track, padding 3px, radius 8px; 28px segments,
+  13px weight 500; the selected segment on `background` with a 1px `border`
+  ring). Mobile: the filter wraps under the search. The primary action
+  ("Provision organization") sits on the title row, right-aligned.
+- Status badges: neutral for normal states (Active, Provisioning), `red-text`
+  warning for states that need attention (Unverified), and a filled `muted`
+  badge with `muted-foreground` text for inactive states (Disabled). A role
+  badge ("Platform administrator") follows the name.
+- Table cells: name 14px weight 500 over a 12px `muted-foreground` second
+  line (email or slug), both single-line with an ellipsis; secondary columns
+  in `muted-foreground`. Mobile: name, second line, status badge, then one
+  13px `muted-foreground` summary line ("Two-step on · 2 teams · Today"); the
+  chevron spans the row.
+- Detail pages: a back link to the list, the title with its status badge,
+  and a 14px subtitle (email or slug and created date). Cards hold a facts
+  list (labels `muted-foreground`, values weight 500, two columns on desktop
+  and mobile), related records as a table, and an **Actions** card. Each
+  action is a row: a 14px weight 500 label with a 13px description on the
+  left and an outline button on the right (destructive actions use
+  `red-text`); rows are separated by a 1px `border`, and stack on mobile.
+  Confirmations use the dialog pattern; the confirm button is `primary`, or
+  `destructive-fill` when access is removed (Disable account).
 
 **Controls**
 
@@ -628,6 +651,7 @@ read from the prototype source. Colors are tokens (§2). "Mobile" means below
 
 | Version | Change |
 |---|---|
+| 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** platform console patterns (§5.5 Platform pages): list toolbar with segmented filter, status badge variants, table cell and mobile summary line, detail pages with facts list and Actions card. **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 |
 | 3.2 | **Added (product owner, F4.2 spec review, 2026-11-19):** load failures are never empty states, and save failures keep the draft (§5.1); Recent load failure, copy failure, and the composer reason line (§5.5), from prototype revision 15. **Changed:** scroll-to-latest sits 12px above the composer box instead of a fixed offset, so it never covers the composer; sessions show no location (as built in F4.1); the §5.1 pattern examples point to the F4.1 prototype. **Removed:** references to the retired F2.1 prototype and the v1.0 brand package |
 | 3.1 | **Changed (product owner, F4.1 visual review round 4, 2026-11-18):** the approved prototype now owns sizes, spacing, and type scale, and screens are built 1:1 with it; shadcn/ui and assistant-ui keep structure, behavior, and accessibility (rationale, §3, §5). This reverses the sizing rule of 1.3. **Added:** type scale (§3); page patterns with measured values (§5.5); prototype fidelity gate with comparison sheets (§5.6); chat title in the header, icon-only answer actions, status lines, error row, edit box (§5.3); Platform group in the sidebar. **Removed:** the "Tools" group label. Visual target: `docs/design/f4.1-prototype/` revision 14 |
 | 3.0.2 | **Changed (product owner, F4.1 visual review, 2026-11-17):** invalid field labels stay ink; only the border and the error text are red (§5.1), as in the approved F4.1 prototype, for every form |
