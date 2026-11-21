@@ -22,7 +22,7 @@ documents), `docs/briefs/README.md`, and the latest code on `main`.
 |---|---|---|
 | Product owner (human, speaks Indonesian) | Decides scope, approves, merges PRs, runs the implementer | — |
 | **Brief generator (you)** | Studies the reference product, writes clean briefs, answers the implementer's design questions, reviews and fixes implementations | this branch + PRs to `main` |
-| Implementer (ChatGPT Codex CLI with superpowers) | brainstorming → spec → plan → TDD implementation | `main` + feature branches; never this branch |
+| Implementer (Claude Code on the PO's Mac, superpowers; Codex earlier) | brainstorming → spec → plan → TDD implementation, one fresh session per phase | `main` + feature branches; never this branch |
 
 Reference product: https://github.com/open-legal-products/mike (AGPL-3.0).
 Pinned commit and how to clone it: `notes/00-research-log.md`.

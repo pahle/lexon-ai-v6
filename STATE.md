@@ -1,8 +1,42 @@
 # Project state
 
-Last updated: 2026-11-19 by the brief generator.
+Last updated: 2026-11-21 by the brief generator.
 
 ## Next action
+
+**2026-11-21 (latest): F4.3 Platform admin console in execution.**
+
+- **Where things are:**
+  - Brief: `docs/briefs/F4.3-platform-admin-console.md`, decisions 1–9:
+    - decision 8: the data views kit is the frontend baseline;
+    - decision 9: account invitations (owner approved).
+  - Prototype revision 16 (data views kit + 21 platform states, 84 PNGs, 360 in total) approved 2026-11-21, on main via PR #50 (861ef0d).
+  - Index hotfixes: PR #51 retired the revision 14 platform ids; PR #52 added the `planned` list and moved the 84 revision 16 views to it.
+  - CI speed: PR #53 (docs-only PRs ±2 min, code PRs ±10 min, time-balanced shard plan, Playwright cache).
+  - Spec revision 3 and plan (19 tasks) on main via PR #49 (f3ed1d5).
+  - Execution runs on branch `f4.3-console` (new draft PR) with subagent-driven development: Opus low manager, at most 2 Sonnet low workers.
+- **Next for the brief generator:**
+  - review Claude Code's reports after Task 5 (backend read routes) and after Task 10 (backend complete);
+  - at each approval point: a third Linux round; the shadcn checkbox if `package.json` changes; the CI comparison sheets for the 21 states (download the artifact yourself, see `playbooks/visual-review.md`); any re-approval or extra round; the final merge review.
+- **Owner answers on spec §11:**
+  1. `isPlatformAdministrator` is approved.
+  2. New 409 codes: `PLATFORM_SELF_ACTION`, `PLATFORM_LAST_ADMINISTRATOR`, `PLATFORM_ALREADY_VERIFIED`, `PLATFORM_INVITATION_CONFLICT`. Not found uses the existing `NOT_FOUND`.
+  3. Provisioning routes return 404 for unknown ids.
+  4. Last active is the latest session activity.
+  5. Uncaptured states get functional tests only.
+  6. Accepting an invitation marks the email verified.
+  7. `accountInvitationToken` and the 201 body are approved.
+- **Plan notes the owner added:**
+  - the lock function and the invitation write functions must be `VOLATILE`;
+  - every new E2E spec goes into the shard plan;
+  - capture ids move from planned to pending as they are captured.
+- **Process problem, open:**
+  - The ruleset `main` (required checks: unit-integration, compose-e2e (1/3..3/3), merge-e2e, source GitHub Actions) is not stopping merges. #50, #51 and #49 were merged while red or pending.
+  - Ask the owner to verify that Enforcement is Active and the Bypass list is empty.
+  - Until then, check CI yourself before telling the owner a PR is safe to merge.
+- **Prototype toolkit** (rebuild and render without the old scratchpad): `tools/prototype/README.md`.
+- **Shared prototype artifact:** https://claude.ai/artifact/1xFWhbFH5WxwAnHMZPDER6
+
 
 **2026-11-21:** **F4.2 merged** (PR #46, 592aae5). Brief PR #45, spec-review amendments PR #47 (LEX-DS-001 v3.2, LEX-TS-001 v1.13, prototype revision 15: 6 new failure states, 3 changed; 75 states / 300 PNGs). S2 re-qualified on Linux (run 44852818707): 24 held live run streams + 476 invalidation streams, API at 384 MiB / 0.5 CPU, server-side open-SSE peak 500 for ramp and burst; p95 first frame 425 ms ramp / 6354 ms burst; auth-pool wait p95 497 ms / 2488 ms; peak memory about 313 MiB; no capacity leak. CI sharded 3 ways (19m10s -> 11m32s); required checks via ruleset `main`: unit-integration, compose-e2e (1/3..3/3), merge-e2e. Next: **F4.3 platform admin console brief** (Accounts, Organizations), prototype drawn from API contracts first.
 
@@ -28,10 +62,25 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F4 Chat | **Done** — merged (PR #29) | Prototype `docs/design/f4-prototype/` |
 | F4.1 Brand refresh | **Done** — merged (PR #33, 960d6ab) | Prototype rev 14.9, DS v3.1, 272 Linux goldens |
 | F4.2 Hardening | Done (PR #46, 2026-11-21) | Audit 1 findings + G1-G7 + cleanup |
-| F4.3 Platform admin console | Next: brief | Accounts, Organizations |
+| F4.3 Platform admin console | **In execution** (brief #48, prototype rev 16 #50, spec+plan #49; branch `f4.3-console`) | Accounts + invitations, Organizations, data views kit |
 | F5–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
+
+- **Plans & entitlements (owner brainstorm, 2026-11-21):**
+  - Recommended two stages:
+    1. plans and entitlements set manually by the platform administrator (seats, AI quota, features), joined to F17;
+    2. self-serve payments as a later slice before public launch: a local gateway (Midtrans or Xendit: virtual accounts, QRIS, cards), invoices, PPN and e-Faktur.
+  - Rule to add to the briefs README: paid features check entitlements in one place, never "if Pro" scattered in code.
+  - Open owner questions: B2B law firms, B2C individual advocates, or both? Per seat, usage, or seat plus quota? Is a pilot before F7–F8?
+- **CI follow-ups:**
+  - Docker layer cache for the e2e images (buildx bake);
+  - a second shard rebalance (shard 2 is the longest at ±500 s; F4.3 adds specs anyway).
+- **F20:**
+  - Burst p95 first frame 6.4 s and auth-pool wait p95 2.5 s at 384 MiB / 0.5 CPU: re-measure at production resources.
+  - `ops.audit_events` RLS is F17.
+- **F8:** restore the auth cover statement "Every answer names the article it rests on, so you can check it yourself."
+- **SSO / Google sign-in (L14):** the owner decides whether it gets its own slice before launch.
 
 - **F6:** TenantGuard rejects bodies containing `userId`/`organizationId`/`orgId` keys on all workspace routes; project-member endpoints need a per-route allowance.
 
@@ -169,3 +218,13 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - F4.2 lessons (2026-11-21): (1) local Docker on the Mac renders differently from the CI runner (110 false diffs): golden and deviation decisions only from CI captures, downloaded and reviewed by the brief generator; (2) CI went red for 3 runs unnoticed: every report must state the CI result of its head; (3) load-test 'admitted' counts are not evidence: count open SSE server-side, use a fresh stack or prove slots are 0 before a phase; (4) subagents must be stopped when done; (5) agents re-approved hashes and ran extra smoke rounds against caps: restate caps as hard stops in every prompt.
 - Carry to F20: burst p95 first frame 6.4 s and auth-pool wait p95 2.5 s at 384 MiB / 0.5 CPU (no threshold in F4.2); re-measure at production resources; ops.audit_events RLS is F17 (F4.2 decision 7).
 - Carry to F4.3 brief: 'Create setup account' works only after hydration (pre-F4.2); auth-entry.spec.ts:48-58 screenshot fill not hydration-guarded.
+- F4.3 lessons (2026-11-21):
+  1. **Prototype state ids are locked to the capture index** (`prototype-state-ids.spec.mjs`). A prototype PR that adds or renames states must add them to `index.json` `planned` in the same PR, or main goes red (it happened with revision 15 in #47 and revision 16 in #50).
+  2. **Docs-only PRs that touch `docs/references|design|brand` still run the full CI.**
+  3. **Draw from the API contract first,** then the owner's references (Lexon v1 screenshots were used as inspiration, not copied).
+  4. **Data views kit:**
+     - one list page and one record page for every list or record;
+     - record pages are one column so the edges line up (the owner disliked uneven two-column heights);
+     - every action button carries an icon;
+     - the floating action bar is always fixed at the bottom of the screen.
+  5. **Re-check the ruleset;** merges slipped through three times.
