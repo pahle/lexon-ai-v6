@@ -264,3 +264,80 @@ test('Invitations tab and the invite dialog', async ({ page, playwright }) => {
   await expect(dialog).toHaveCount(0);
   await normalized.remove();
 });
+
+/** Opens an account record from the normalized Accounts list. */
+async function openRecord(page: Page, name: string) {
+  await openAccounts(page);
+  const row = page.getByLabel(`Open ${name}`, { exact: true });
+  await waitForHydration(row);
+  await row.click();
+  await expect(page).toHaveURL(/\/platform\/accounts\/[0-9a-f-]{36}$/);
+  await expect(page.locator('h1')).toHaveText(name);
+}
+
+test('Account record pages and their confirmations', async ({
+  page,
+  playwright,
+}) => {
+  test.setTimeout(420_000);
+  const world = await platformWorld(page, playwright);
+  const normalized = await installPlatformConsoleNormalization(page, world);
+
+  await openRecord(page, 'Ayu Wardani');
+  const signOut = page.getByRole('button', { name: 'Sign out everywhere' });
+  const disable = page.getByRole('button', { name: 'Disable account' });
+  await captureBrandViews(page, 'platform-account-detail', {
+    open: async () => {
+      await expect(signOut).toBeVisible();
+      await expect(disable).toBeVisible();
+      await expect(page.getByText('Pro Bono Clinic').first()).toBeVisible();
+    },
+  });
+
+  // The confirmations open from the header and are cancelled; nothing runs.
+  const disableDialog = page.getByRole('alertdialog', {
+    name: 'Disable Ayu Wardani?',
+  });
+  await waitForHydration(disable);
+  await disable.click();
+  await expect(disableDialog).toBeVisible();
+  await captureBrandViews(page, 'platform-account-disable', {
+    keepFocus: true,
+    open: () => expect(disableDialog).toBeVisible(),
+  });
+  await disableDialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(disableDialog).toHaveCount(0);
+
+  const signOutDialog = page.getByRole('alertdialog', {
+    name: 'Sign Ayu Wardani out everywhere?',
+  });
+  await signOut.click();
+  await expect(signOutDialog).toBeVisible();
+  await captureBrandViews(page, 'platform-account-sign-out', {
+    keepFocus: true,
+    open: () => expect(signOutDialog).toBeVisible(),
+  });
+  await signOutDialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(signOutDialog).toHaveCount(0);
+
+  await openRecord(page, 'Bagus Santoso');
+  await captureBrandViews(page, 'platform-account-unverified', {
+    open: () =>
+      expect(
+        page.getByRole('button', { name: 'Resend verification email' }),
+      ).toBeVisible(),
+  });
+
+  await openRecord(page, 'Lina Hartono');
+  await captureBrandViews(page, 'platform-account-disabled', {
+    open: async () => {
+      await expect(
+        page.getByRole('button', { name: 'Enable account' }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('Signed out when disabled', { exact: true }),
+      ).toBeVisible();
+    },
+  });
+  await normalized.remove();
+});
