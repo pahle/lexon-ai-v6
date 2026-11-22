@@ -115,6 +115,11 @@ test('Accounts list states', async ({ page, playwright }) => {
     'status facet',
   );
   await page.getByRole('menuitemcheckbox', { name: 'Unverified' }).click();
+  // Each choice builds on the facets in the URL: wait for the first one to
+  // land before the second (two clicks in one render lost "unverified").
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('status'))
+    .toEqual(['unverified']);
   await page.getByRole('menuitemcheckbox', { name: 'Disabled' }).click();
   await expect
     .poll(() => new URL(page.url()).searchParams.getAll('status'))
@@ -140,23 +145,38 @@ test('Accounts list states', async ({ page, playwright }) => {
     },
   });
 
-  // The row menu of Ayu Wardani. Mobile rows have no row menu (the
-  // prototype's mobile list shows none open either).
+  // The row menu of Ayu Wardani, as the prototype's: View account, a
+  // separator, Sign out everywhere, Disable account (destructive, last).
+  // Mobile rows have no row menu (the prototype's mobile list shows none
+  // open either). The relative Last active values come from the fixed clock
+  // (prototype-fixtures.ts `lastActive`).
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(footer(page, '248 accounts')).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText('2 days ago', { exact: true }).first(),
+  ).toBeVisible();
   await captureBrandViews(page, 'platform-accounts-row-menu', {
     keepFocus: true,
     open: async (viewport) => {
       await expect(
         page.getByLabel('Open Ayu Wardani', { exact: true }),
       ).toBeVisible();
-      if (viewport === 'desktop')
+      if (viewport === 'desktop') {
         await openMenuReliably(
           page,
           page.getByRole('button', { name: 'Actions for Ayu Wardani' }),
-          page.getByRole('menuitem', { name: 'View account' }),
+          page.getByRole('menuitem', { name: 'Disable account' }),
           'account row menu',
         );
+        await expect(page.getByRole('menuitem')).toHaveText([
+          'View account',
+          'Sign out everywhere',
+          'Disable account',
+        ]);
+        await expect(page.getByRole('menu').getByRole('separator')).toHaveCount(
+          1,
+        );
+      }
     },
     close: async (viewport) => {
       if (viewport !== 'desktop') return;
@@ -228,11 +248,18 @@ test('Invitations tab and the invite dialog', async ({ page, playwright }) => {
     'true',
   );
   await captureBrandViews(page, 'platform-accounts-invitations', {
-    open: async () => {
+    open: async (viewport) => {
       await expect(
         page.getByRole('main').getByText('joko.santosa@gmail.com').first(),
       ).toBeVisible();
       await expect(footer(page, '2 invitations')).toBeVisible();
+      // The prototype's mobile invitation row meta.
+      if (viewport === 'mobile')
+        await expect(
+          page.getByText('Sent 19 Nov 2026 · Expires 26 Nov 2026', {
+            exact: true,
+          }),
+        ).toBeVisible();
     },
   });
 
@@ -288,6 +315,9 @@ test('Account record pages and their confirmations', async ({
   const disable = page.getByRole('button', { name: 'Disable account' });
   await captureBrandViews(page, 'platform-account-detail', {
     open: async () => {
+      await expect(
+        page.getByText('Last active today', { exact: true }),
+      ).toBeVisible();
       await expect(signOut).toBeVisible();
       await expect(disable).toBeVisible();
       await expect(page.getByText('Pro Bono Clinic').first()).toBeVisible();
@@ -301,6 +331,9 @@ test('Account record pages and their confirmations', async ({
   await waitForHydration(disable);
   await disable.click();
   await expect(disableDialog).toBeVisible();
+  await expect(disableDialog).toContainText(
+    'Ayu Wardani is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.',
+  );
   await captureBrandViews(page, 'platform-account-disable', {
     keepFocus: true,
     open: () => expect(disableDialog).toBeVisible(),
@@ -313,6 +346,9 @@ test('Account record pages and their confirmations', async ({
   });
   await signOut.click();
   await expect(signOutDialog).toBeVisible();
+  await expect(signOutDialog).toContainText(
+    'All 3 sessions end on every device, including apps signed in with a token. Ayu Wardani can sign in again.',
+  );
   await captureBrandViews(page, 'platform-account-sign-out', {
     keepFocus: true,
     open: () => expect(signOutDialog).toBeVisible(),
