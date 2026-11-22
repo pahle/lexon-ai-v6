@@ -27,10 +27,13 @@ export const E2E_PROJECTS = {
 // shard lists every file it runs: Playwright applies file filters to all
 // selected projects. scripts/test/e2e-projects.spec.mjs proves the plan
 // covers every default test exactly once, so a new spec file must be placed.
+// F4.3 added local test seconds to the measured CI figures (platform console
+// browser 59, platform accounts captures 42, platform organizations captures
+// 19, shell-accessibility 15 moved from shard 2 to shard 1).
 const e2e = (name) => `backend/test/e2e/${name}.spec.ts`;
 export const E2E_SHARD_PLAN = [
   {
-    // ~314 s
+    // ~350 s
     projects: ['brand-visual', 'identity-api', 'identity-browser'],
     files: [
       e2e('brand-visual-chat'),
@@ -43,10 +46,11 @@ export const E2E_SHARD_PLAN = [
       // and identity-browser comes before brand-visual.
       e2e('brand-visual-platform-organizations'),
       e2e('organizations'),
+      e2e('shell-accessibility'),
     ],
   },
   {
-    // ~328 s
+    // ~315 s
     projects: [
       'brand-visual',
       'chat-runtime-proof',
@@ -61,11 +65,10 @@ export const E2E_SHARD_PLAN = [
       e2e('chat-states'),
       e2e('chat-thread'),
       e2e('chat-accessibility'),
-      e2e('shell-accessibility'),
     ],
   },
   {
-    // ~312 s
+    // ~375 s
     projects: [
       'brand-visual',
       'identity-api',
