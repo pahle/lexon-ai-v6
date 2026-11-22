@@ -16,6 +16,15 @@ const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({
   toast: { success: toastSuccess, error: toastError },
 }));
+const ME = vi.hoisted(() => ({
+  id: 'aaaaaaaa-e2bb-4255-8caf-4136c566a962',
+  loaded: true,
+}));
+vi.mock('../../src/components/shell/workspace-provider', () => ({
+  useWorkspace: () => ({
+    identity: ME.loaded ? { user: { id: ME.id } } : null,
+  }),
+}));
 
 const ID = '3b241101-e2bb-4255-8caf-4136c566a962';
 const account = (over: object = {}) => ({
@@ -68,6 +77,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => {
+  ME.loaded = true;
   fetchMock.mockReset();
   nav.replace.mockClear();
   nav.push.mockClear();
@@ -530,5 +540,143 @@ test('Cancel invitation: re-auth failure toasts and keeps the row', async () => 
     'Confirm your identity in account security, then try again.',
   );
   expect(view.container.textContent).toContain('joko@gmail.com');
+  await view.unmount();
+});
+
+// Brief item 2 (spec §13 entry 5): View account, Sign out everywhere, and
+// Disable or Enable account; self rules apply; the record page's
+// confirmations and toasts.
+async function openAccountMenu(
+  row: object,
+  extra: Record<string, () => Response> = {},
+) {
+  byUrl({
+    'GET /api/platform/accounts': () => json(page([account(row)])),
+    ...extra,
+  });
+  const m = await mount();
+  await settleUntil(() => !!m.view.container.querySelector('table'));
+  const name = (account(row) as { name: string }).name;
+  await click(byLabel(m.view.container, `Actions for ${name}`)!);
+  await settle();
+  return m;
+}
+const menuItems = () =>
+  Array.from(document.body.querySelectorAll('[role="menuitem"]')).map(
+    (n) => n.textContent,
+  );
+const listCalls = () =>
+  urls().filter((u) => u.startsWith('/api/platform/accounts?')).length;
+const OTHER = { isPlatformAdministrator: false, name: 'Ayu Wardani' };
+
+test('account row menu: View, a separator, Sign out everywhere, Disable last', async () => {
+  const { view } = await openAccountMenu(OTHER);
+  expect(menuItems()).toEqual([
+    'View account',
+    'Sign out everywhere',
+    'Disable account',
+  ]);
+  const menu = document.body.querySelector('[role="menu"]')!;
+  const children = Array.from(menu.children);
+  const sep = children.findIndex((c) => c.getAttribute('role') === 'separator');
+  expect(sep).toBe(1);
+  expect(item('Disable account').getAttribute('data-variant')).toBe(
+    'destructive',
+  );
+  await view.unmount();
+});
+
+test('row menu Disable asks with the record confirmation, then disables and refreshes', async () => {
+  const { view } = await openAccountMenu(OTHER, {
+    [`PATCH /api/platform/users/${ID}/disabled`]: () =>
+      new Response(null, { status: 204 }),
+  });
+  await click(item('Disable account'));
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(dialog).not.toBeNull();
+  const confirm = byText(dialog, 'button', 'Disable account')!;
+  expect(confirm.className).toContain('--lexon-destructive-fill');
+  expect(fetchMock.mock.calls.some((c) => c[1]?.method === 'PATCH')).toBe(
+    false,
+  );
+  const before = listCalls();
+  await click(confirm);
+  await settleUntil(() => listCalls() >= before + 2);
+  const patch = fetchMock.mock.calls.find((c) => c[1]?.method === 'PATCH')!;
+  expect(JSON.parse(patch[1].body)).toEqual({ disabled: true });
+  expect(toastSuccess).toHaveBeenCalledWith('Account disabled.');
+  await view.unmount();
+});
+
+test('row menu Sign out everywhere asks first, then revokes and refreshes', async () => {
+  const { view } = await openAccountMenu(OTHER, {
+    [`POST /api/platform/accounts/${ID}/sessions/revoke`]: () =>
+      new Response(null, { status: 204 }),
+  });
+  await click(item('Sign out everywhere'));
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(dialog.textContent).toContain('Sign Ayu Wardani out everywhere?');
+  expect(fetchMock.mock.calls.some((c) => c[1]?.method === 'POST')).toBe(false);
+  const before = listCalls();
+  await click(byText(dialog, 'button', 'Sign out everywhere')!);
+  await settleUntil(() => listCalls() >= before + 2);
+  expect(urls()).toContain(`/api/platform/accounts/${ID}/sessions/revoke`);
+  expect(toastSuccess).toHaveBeenCalledWith(
+    'Ayu Wardani was signed out everywhere.',
+  );
+  await view.unmount();
+});
+
+test('row menu on a disabled account: Enable account, no confirmation', async () => {
+  const { view } = await openAccountMenu(
+    { ...OTHER, status: 'disabled' },
+    {
+      [`PATCH /api/platform/users/${ID}/disabled`]: () =>
+        new Response(null, { status: 204 }),
+    },
+  );
+  expect(menuItems()).toEqual(['View account', 'Enable account']);
+  const before = listCalls();
+  await click(item('Enable account'));
+  await settleUntil(() => listCalls() >= before + 2);
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  const patch = fetchMock.mock.calls.find((c) => c[1]?.method === 'PATCH')!;
+  expect(JSON.parse(patch[1].body)).toEqual({ disabled: false });
+  expect(toastSuccess).toHaveBeenCalledWith('Account enabled.');
+  await view.unmount();
+});
+
+test('row menu on an unverified account: View and Disable', async () => {
+  const { view } = await openAccountMenu({ ...OTHER, status: 'unverified' });
+  expect(menuItems()).toEqual(['View account', 'Disable account']);
+  await view.unmount();
+});
+
+test('own row and unknown identity offer only View account', async () => {
+  let m = await openAccountMenu({ id: ME.id });
+  expect(menuItems()).toEqual(['View account']);
+  await m.view.unmount();
+  fetchMock.mockReset();
+  ME.loaded = false;
+  m = await openAccountMenu(OTHER);
+  expect(menuItems()).toEqual(['View account']);
+  await m.view.unmount();
+});
+
+test('row menu action failures toast the record page message', async () => {
+  const { view } = await openAccountMenu(OTHER, {
+    [`PATCH /api/platform/users/${ID}/disabled`]: () =>
+      failure('PLATFORM_LAST_ADMINISTRATOR', 409),
+  });
+  await click(item('Disable account'));
+  await settle();
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  await click(byText(dialog, 'button', 'Disable account')!);
+  await settleUntil(() => toastError.mock.calls.length > 0);
+  expect(toastError).toHaveBeenCalledWith(
+    'This is the last platform administrator. Make another account an administrator first.',
+  );
   await view.unmount();
 });

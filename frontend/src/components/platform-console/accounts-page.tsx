@@ -1,7 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { EyeIcon, UserPlusIcon } from 'lucide-react';
+import {
+  BanIcon,
+  CircleCheckIcon,
+  EyeIcon,
+  LogOutIcon,
+  UserPlusIcon,
+} from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import type { PlatformAccountSummary } from '@lexon/contracts';
@@ -18,10 +24,13 @@ import {
   PagedFooter,
   RowMenu,
   StatusBadge,
+  type RowMenuItem,
   useDataViewParams,
   type DataColumn,
 } from '../data-views';
 import { QueryFailure } from '../organizations/page-state';
+import { useWorkspace } from '../shell/workspace-provider';
+import { useAccountActions } from './account-actions';
 import { PlatformApiError, platformConsoleApi } from './api';
 import { InvitationsTab } from './invitations-tab';
 import { COUNT_KEYS, InviteDialog } from './invite-dialog';
@@ -105,8 +114,49 @@ export function AccountsPage() {
   );
 }
 
+/**
+ * Row menu items: the record page's actions under the same self rules
+ * (none on the viewer's own row, or while identity is unknown); Enable
+ * account for a disabled row; destructive last.
+ */
+function rowActions(
+  a: PlatformAccountSummary,
+  isSelf: boolean,
+  actions: ReturnType<typeof useAccountActions>,
+): RowMenuItem[] {
+  if (a.status === 'disabled')
+    return [
+      {
+        label: 'Enable account',
+        icon: CircleCheckIcon,
+        separatorBefore: true,
+        onSelect: () => void actions.enable(a),
+      },
+    ];
+  if (isSelf) return [];
+  return [
+    ...(a.status === 'active'
+      ? [
+          {
+            label: 'Sign out everywhere',
+            icon: LogOutIcon,
+            onSelect: () => actions.ask('signout', a),
+          },
+        ]
+      : []),
+    {
+      label: 'Disable account',
+      icon: BanIcon,
+      destructive: true,
+      onSelect: () => actions.ask('disable', a),
+    },
+  ].map((item, index) => ({ ...item, separatorBefore: index === 0 }));
+}
+
 export function AccountsTab() {
   const router = useRouter();
+  const { identity } = useWorkspace();
+  const actions = useAccountActions();
   const view = useDataViewParams(['status', 'twoFactor']);
   const status = view.facets.status ?? [];
   const twoFactor = view.facets.twoFactor ?? [];
@@ -209,6 +259,12 @@ export function AccountsTab() {
           label={`Actions for ${a.name}`}
           items={[
             { label: 'View account', icon: EyeIcon, onSelect: () => open(a) },
+            ...rowActions(
+              a,
+              // Unknown identity is treated as self.
+              !identity || identity.user.id === a.id,
+              actions,
+            ),
           ]}
         />
       ),
@@ -313,6 +369,7 @@ export function AccountsTab() {
           emptyText="Accounts appear here once people sign up or accept an invitation."
         />
       )}
+      {actions.dialogs}
     </DataTableCard>
   );
 }
