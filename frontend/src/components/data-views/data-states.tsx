@@ -68,31 +68,32 @@ export const DataStates: FC<{
   const noResults = status === 'no-results';
   const Icon = noResults ? SearchIcon : InboxIcon;
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Icon aria-hidden="true" />
+    // Prototype revision 16 `.dv-empty`.
+    <Empty className="gap-1.5 rounded-none p-0 px-5 pt-10 pb-11">
+      <EmptyHeader className="max-w-[360px] gap-1.5">
+        <EmptyMedia variant="icon" className="mb-1 size-10 rounded-[10px]">
+          <Icon className="size-5" aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle>
+        <EmptyTitle className="text-[15px] leading-[normal] font-semibold tracking-normal">
           {noResults
             ? query
               ? `No ${thing} match “${query}”`
               : `No ${thing} match these filters`
             : emptyTitle}
         </EmptyTitle>
-        <EmptyDescription>
+        <EmptyDescription className="text-[13px] leading-normal">
           {noResults ? 'Try other words or reset the filters.' : emptyText}
         </EmptyDescription>
       </EmptyHeader>
       {noResults ? (
-        <EmptyContent>
+        <EmptyContent className="mt-2">
           <Button type="button" variant="outline" onClick={onReset}>
             <XIcon className="size-3.5" aria-hidden="true" />
             Reset filters
           </Button>
         </EmptyContent>
       ) : emptyAction ? (
-        <EmptyContent>{emptyAction}</EmptyContent>
+        <EmptyContent className="mt-2">{emptyAction}</EmptyContent>
       ) : null}
     </Empty>
   );

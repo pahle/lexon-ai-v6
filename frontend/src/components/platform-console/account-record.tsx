@@ -224,6 +224,25 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         onRetry={() => undefined}
         emptyTitle="No teams yet"
         emptyText="This account is not a member of any team."
+        mobileRow={(t) => ({
+          lead: (
+            <span
+              aria-hidden="true"
+              className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 flex-none items-center justify-center rounded-lg text-xs font-semibold"
+            >
+              {initials(t.name)}
+            </span>
+          ),
+          title: t.name,
+          sub: t.slug,
+          badge: <TagCell>{cap(t.role)}</TagCell>,
+          trailing: (
+            <OpenCell
+              label={t.name}
+              href={`/platform/organizations/${t.organizationId}`}
+            />
+          ),
+        })}
       />
       {dialogs}
     </RecordPage>

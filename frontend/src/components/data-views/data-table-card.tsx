@@ -25,7 +25,7 @@ export const DataTableCard: FC<{
   <section
     data-slot="data-table-card"
     className={cn(
-      'border-border bg-background overflow-hidden rounded-xl border',
+      'border-border bg-background overflow-hidden rounded-[12px] border',
       className,
     )}
   >
@@ -37,7 +37,7 @@ export const DataTableCard: FC<{
         )}
       >
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+          <h2 className="flex items-center gap-2 text-[15px] leading-[normal] font-semibold">
             {title}
             {count !== undefined ? <CountPill>{count}</CountPill> : null}
           </h2>

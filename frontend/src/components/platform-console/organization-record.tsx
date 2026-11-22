@@ -335,10 +335,13 @@ function ProvisioningBody({ organization }: { organization: Provisioning }) {
       />
       <section
         aria-labelledby="replace-owner-email"
-        className="border-border bg-background rounded-xl border"
+        className="border-border bg-background rounded-[12px] border"
       >
         <div className="px-4 py-3.5 md:px-5 md:py-4">
-          <h2 id="replace-owner-email" className="text-[15px] font-semibold">
+          <h2
+            id="replace-owner-email"
+            className="text-[15px] leading-[normal] font-semibold"
+          >
             Replace owner email
           </h2>
           <p className="text-muted-foreground mt-0.5 text-[13px] leading-normal">
@@ -349,7 +352,7 @@ function ProvisioningBody({ organization }: { organization: Provisioning }) {
         <form
           noValidate
           onSubmit={replace}
-          className="flex flex-wrap items-end gap-3 px-4 pb-4 md:px-5 md:pb-5"
+          className="flex flex-wrap items-end gap-3 px-5 pb-5"
         >
           <div className="min-w-[220px] flex-1">
             <PlatformField

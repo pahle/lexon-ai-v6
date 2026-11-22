@@ -22,17 +22,17 @@ export const StatTiles: FC<{ items: StatTile[] }> = ({ items }) => (
       <div
         key={label}
         data-slot="stat-tile"
-        className="border-border bg-background grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-xl border px-3.5 py-3 md:flex md:flex-col md:items-stretch md:gap-1.5 md:px-4 md:py-3.5"
+        className="border-border bg-background grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-[12px] border px-3.5 py-3 md:flex md:flex-col md:items-stretch md:gap-1.5 md:px-4 md:py-3.5"
       >
-        <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground flex items-center gap-1.5 text-xs leading-[normal]">
           <Icon className="size-3.5" aria-hidden="true" />
           {label}
         </span>
-        <b className="col-start-2 row-span-2 row-start-1 truncate text-right text-lg leading-tight font-semibold tabular-nums md:text-[22px] md:text-left">
+        <b className="col-start-2 row-span-2 row-start-1 truncate text-right text-lg leading-[1.2] font-semibold tabular-nums md:text-[22px] md:text-left">
           {value}
         </b>
         {supporting ? (
-          <small className="text-muted-foreground text-xs md:-mt-0.5">
+          <small className="text-muted-foreground text-xs leading-[normal] md:-mt-0.5">
             {supporting}
           </small>
         ) : null}

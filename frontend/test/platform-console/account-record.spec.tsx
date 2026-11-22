@@ -554,3 +554,44 @@ test('unverified header badge and Email verified No use red-text', async () => {
   }
   await v.unmount();
 });
+
+// Prototype revision 16 teams card on mobile: an 8px-radius organization
+// tile, the name, the slug, the role tag on its own line (no menu).
+test('teams on a narrow card: the prototype mobile rows', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.cb(
+          [{ target, contentRect: { width: 356 } } as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  try {
+    routes({ [GET]: () => json(detail()) });
+    const v = await mount();
+    const rows = Array.from(
+      v.container.querySelectorAll('[data-slot="data-mobile-row"]'),
+    );
+    expect(rows.map((r) => r.textContent)).toEqual([
+      'HNHukum Nusantarahukum-nusantaraOwner',
+      'PBPro Bono Clinicpro-bono-clinicMember',
+    ]);
+    expect(rows[0]!.querySelector('b')!.textContent).toBe('Hukum Nusantara');
+    expect(rows[0]!.querySelector('small')!.textContent).toBe(
+      'hukum-nusantara',
+    );
+    expect(
+      rows[0]!.querySelector('a[href^="/platform/organizations/"]'),
+    ).not.toBeNull();
+    await v.unmount();
+  } finally {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', fetchMock);
+  }
+});

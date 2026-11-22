@@ -57,7 +57,7 @@ export const DetailsCard: FC<{ title?: string; rows: DetailRow[] }> = ({
       {rows.map(({ label, value, copy }) => (
         <div
           key={label}
-          className="border-border grid grid-cols-[104px_minmax(0,1fr)] items-center gap-3 border-t py-[11px] text-sm first:border-t-0 md:grid-cols-[132px_minmax(0,1fr)] md:gap-4 md:nth-2:border-t-0"
+          className="border-border grid grid-cols-[104px_minmax(0,1fr)] items-center gap-3 border-t py-[11px] text-sm leading-[normal] first:border-t-0 md:grid-cols-[132px_minmax(0,1fr)] md:gap-4 md:nth-2:border-t-0"
         >
           <dt className="text-muted-foreground text-[13px]">{label}</dt>
           <dd className="flex min-w-0 items-center gap-1.5 truncate font-medium">

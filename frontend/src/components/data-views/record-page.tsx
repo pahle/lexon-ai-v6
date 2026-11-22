@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 /** One column, all cards full width. */
 export const RecordPage: FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-5 pb-10 md:gap-5 md:px-6 md:pt-7">
+  <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-5 pb-5 md:gap-5 md:px-6 md:pt-7 md:pb-10">
     {children}
   </div>
 );
@@ -37,7 +37,7 @@ export const RecordHeader: FC<{
   <>
     <Link
       href={backHref}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mb-2 -ml-2.5 inline-flex items-center gap-1.5 self-start rounded-lg px-2.5 py-1.5 text-sm font-medium outline-none focus-visible:ring-3"
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mb-2 -ml-2.5 inline-flex items-center gap-2 self-start rounded-[8px] px-2.5 py-1.5 text-sm leading-[normal] font-medium outline-none focus-visible:ring-3"
     >
       <ArrowLeftIcon className="size-4" aria-hidden="true" />
       {backLabel}
@@ -63,7 +63,7 @@ export const RecordHeader: FC<{
           {badges}
         </div>
         {meta.length ? (
-          <div className="text-muted-foreground flex flex-wrap gap-4 text-[13px]">
+          <div className="text-muted-foreground flex flex-wrap gap-4 text-[13px] leading-[normal]">
             {meta.map(({ icon: Icon, text, title }) => (
               <span
                 key={text}

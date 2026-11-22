@@ -671,3 +671,27 @@ test('provisioning header actions are outline with icons; Cancel is red-text', a
   }
   await v.unmount();
 });
+
+// Prototype revision 16 Replace owner email card: radius 12px, header
+// 14px 16px mobile / 16px 20px desktop, body padding 0 20px 20px.
+test('Replace owner email card follows the prototype spacing', async () => {
+  routes({ [GET]: () => json(provisioning()) });
+  const v = await mount();
+  const card = v.container.querySelector(
+    'section[aria-labelledby="replace-owner-email"]',
+  )!;
+  const has = (el: Element | null, tokens: string[]) => {
+    const set = new Set((el?.getAttribute('class') ?? '').split(/\s+/));
+    for (const t of tokens) expect(set.has(t), t).toBe(true);
+  };
+  has(card, ['rounded-[12px]', 'border']);
+  has(card.querySelector('h2'), ['text-[15px]', 'leading-[normal]']);
+  has(card.querySelector('h2')!.parentElement, [
+    'px-4',
+    'py-3.5',
+    'md:px-5',
+    'md:py-4',
+  ]);
+  has(card.querySelector('form'), ['px-5', 'pb-5', 'gap-3', 'items-end']);
+  await v.unmount();
+});

@@ -54,6 +54,19 @@ export function RelatedTable<T>({
           {...(onOpen ? { onOpen } : {})}
           {...(mobileRow ? { mobileRow } : {})}
         />
+      ) : status === 'empty' ? (
+        // Prototype revision 16: a record card's empty state sits under a rule.
+        <div className="border-border border-t">
+          <DataStates
+            status={status}
+            pageSize={Math.max(rows.length, 3)}
+            onRetry={onRetry}
+            onReset={() => undefined}
+            emptyText={emptyText}
+            {...(thing ? { thing } : {})}
+            {...(emptyTitle ? { emptyTitle } : {})}
+          />
+        </div>
       ) : (
         <DataStates
           status={status}
