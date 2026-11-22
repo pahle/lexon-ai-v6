@@ -5,7 +5,7 @@ import {
   captureBrandViews,
   hideDevOverlayOnLoad,
 } from './brand-visual-support.js';
-import { gateRequests } from './brand-visual-world.js';
+import { gateRequests, gateStarted } from './brand-visual-world.js';
 import { waitForHydration } from './identity-support.js';
 import { openMenuReliably } from './visual-support.js';
 import { platformWorld } from './brand-visual-platform-world.js';
@@ -19,6 +19,17 @@ import { platformInvitee } from './prototype-fixtures.js';
 // show ten rows per page, so the lists open with ?pageSize=10.
 
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
+
+// Every test installs the normalizations; they are removed after it whatever
+// its outcome, and a recorded normalization failure fails the test (or is
+// reported next to the test's own error).
+let normalized:
+  Awaited<ReturnType<typeof installPlatformConsoleNormalization>> | undefined;
+test.afterEach(async () => {
+  const current = normalized;
+  normalized = undefined;
+  await current?.remove();
+});
 
 const accountsUrl = () => descriptor().frontendUrl + '/platform/accounts';
 const searchBox = (page: Page) =>
@@ -61,7 +72,7 @@ async function chooseTenRows(page: Page) {
 test('Accounts list states', async ({ page, playwright }) => {
   test.setTimeout(420_000);
   const world = await platformWorld(page, playwright);
-  const normalized = await installPlatformConsoleNormalization(page, world);
+  normalized = await installPlatformConsoleNormalization(page, world);
 
   await openAccounts(page);
   await captureBrandViews(page, 'platform-accounts', {
@@ -196,7 +207,7 @@ test('Accounts list states', async ({ page, playwright }) => {
   const list = await gateRequests(page, tenRows);
   try {
     await chooseTenRows(page);
-    await list.started;
+    await gateStarted(list, 'platform-accounts-loading');
     await captureBrandViews(page, 'platform-accounts-loading', {
       open: () =>
         expect(
@@ -234,13 +245,12 @@ test('Accounts list states', async ({ page, playwright }) => {
   } finally {
     await page.unroute(failing);
   }
-  await normalized.remove();
 });
 
 test('Invitations tab and the invite dialog', async ({ page, playwright }) => {
   test.setTimeout(300_000);
   const world = await platformWorld(page, playwright);
-  const normalized = await installPlatformConsoleNormalization(page, world);
+  normalized = await installPlatformConsoleNormalization(page, world);
 
   await openAccounts(page, '?tab=invitations&pageSize=10');
   await expect(page.getByRole('tab', { name: /^Invitations/ })).toHaveAttribute(
@@ -289,7 +299,6 @@ test('Invitations tab and the invite dialog', async ({ page, playwright }) => {
   });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
-  await normalized.remove();
 });
 
 /** Opens an account record from the normalized Accounts list. */
@@ -308,7 +317,7 @@ test('Account record pages and their confirmations', async ({
 }) => {
   test.setTimeout(420_000);
   const world = await platformWorld(page, playwright);
-  const normalized = await installPlatformConsoleNormalization(page, world);
+  normalized = await installPlatformConsoleNormalization(page, world);
 
   await openRecord(page, 'Ayu Wardani');
   const signOut = page.getByRole('button', { name: 'Sign out everywhere' });
@@ -375,5 +384,4 @@ test('Account record pages and their confirmations', async ({
       ).toBeVisible();
     },
   });
-  await normalized.remove();
 });

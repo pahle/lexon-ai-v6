@@ -5,7 +5,7 @@ import {
   captureBrandViews,
   hideDevOverlayOnLoad,
 } from './brand-visual-support.js';
-import { gateRequests } from './brand-visual-world.js';
+import { gateRequests, gateStarted } from './brand-visual-world.js';
 import { waitForHydration } from './identity-support.js';
 import { platformWorld } from './brand-visual-platform-world.js';
 import { installPlatformConsoleNormalization } from './brand-visual-platform-normalizations.js';
@@ -18,6 +18,17 @@ import { installPlatformConsoleNormalization } from './brand-visual-platform-nor
 // ?pageSize=10.
 
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
+
+// Every test installs the normalizations; they are removed after it whatever
+// its outcome, and a recorded normalization failure fails the test (or is
+// reported next to the test's own error).
+let normalized:
+  Awaited<ReturnType<typeof installPlatformConsoleNormalization>> | undefined;
+test.afterEach(async () => {
+  const current = normalized;
+  normalized = undefined;
+  await current?.remove();
+});
 
 const footer = (page: Page, text: string) =>
   page.locator('[data-slot="paged-footer"]').getByText(text, { exact: true });
@@ -38,7 +49,7 @@ const listRequest = (url: URL, method: string) =>
 test('Organizations list states', async ({ page, playwright }) => {
   test.setTimeout(360_000);
   const world = await platformWorld(page, playwright);
-  const normalized = await installPlatformConsoleNormalization(page, world);
+  normalized = await installPlatformConsoleNormalization(page, world);
 
   await openOrganizations(page);
   await captureBrandViews(page, 'platform-organizations', {
@@ -79,7 +90,7 @@ test('Organizations list states', async ({ page, playwright }) => {
   const list = await gateRequests(page, listRequest);
   try {
     await openOrganizations(page);
-    await list.started;
+    await gateStarted(list, 'platform-organizations-loading');
     await captureBrandViews(page, 'platform-organizations-loading', {
       open: () =>
         expect(
@@ -115,7 +126,6 @@ test('Organizations list states', async ({ page, playwright }) => {
   } finally {
     await page.unroute(failingList);
   }
-  await normalized.remove();
 });
 
 test('Provision dialog and organization record pages', async ({
@@ -124,7 +134,7 @@ test('Provision dialog and organization record pages', async ({
 }) => {
   test.setTimeout(300_000);
   const world = await platformWorld(page, playwright);
-  const normalized = await installPlatformConsoleNormalization(page, world);
+  normalized = await installPlatformConsoleNormalization(page, world);
 
   // The dialog over the list, filled as in the prototype; nothing is sent.
   await openOrganizations(page);
@@ -187,5 +197,4 @@ test('Provision dialog and organization record pages', async ({
       ).toBeVisible();
     },
   });
-  await normalized.remove();
 });
