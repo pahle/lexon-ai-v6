@@ -158,9 +158,10 @@ test('Accounts list states', async ({ page, playwright }) => {
 
   // The row menu of Ayu Wardani, as the prototype's: View account, a
   // separator, Sign out everywhere, Disable account (destructive, last).
-  // Mobile rows have no row menu (the prototype's mobile list shows none
-  // open either). The relative Last active values come from the fixed clock
-  // (prototype-fixtures.ts `lastActive`).
+  // On mobile the prototype's state shows every row's menu button and no
+  // open menu (its open menu is part of the desktop table cell only), so the
+  // mobile capture shows the buttons, menu closed. The relative Last active
+  // values come from the fixed clock (prototype-fixtures.ts `lastActive`).
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(footer(page, '248 accounts')).toBeVisible();
   await expect(
@@ -187,6 +188,11 @@ test('Accounts list states', async ({ page, playwright }) => {
         await expect(page.getByRole('menu').getByRole('separator')).toHaveCount(
           1,
         );
+      } else {
+        await expect(
+          page.getByRole('button', { name: 'Actions for Ayu Wardani' }),
+        ).toBeVisible();
+        await expect(page.getByRole('menu')).toHaveCount(0);
       }
     },
     close: async (viewport) => {
