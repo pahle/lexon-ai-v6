@@ -81,6 +81,9 @@ export const E2E_SHARD_PLAN = [
       // Creates an administrator through setup, so it must not share a stack
       // with platform-identity (which needs the first-admin setup).
       e2e('platform-console-api'),
+      // Enrols its administrators through additional setup like
+      // platform-console-api.
+      e2e('platform-console-browser'),
       e2e('account-invitations'),
       e2e('signup-account-invitation'),
       e2e('visual-comparison-regression'),

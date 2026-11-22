@@ -38,6 +38,7 @@ export default defineConfig({
         'backend/test/e2e/account-security.spec.ts',
         'backend/test/e2e/organizations.spec.ts',
         'backend/test/e2e/platform-identity.spec.ts',
+        'backend/test/e2e/platform-console-browser.spec.ts',
         'backend/test/e2e/platform-setup-open-signup.spec.ts',
         'backend/test/e2e/app-shell.spec.ts',
         'backend/test/e2e/theme-before-hydration.spec.ts',
