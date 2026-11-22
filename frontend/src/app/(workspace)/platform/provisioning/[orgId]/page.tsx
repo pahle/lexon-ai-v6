@@ -9,3 +9,9 @@ export default async function ProvisioningDetailPage({
   const { orgId } = await params;
   redirect(`/platform/organizations/${encodeURIComponent(orgId)}`);
 }
+export const metadata = {
+  title: 'Organization provisioning details | Lexon',
+  description: 'Review and complete organization provisioning.',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+};
