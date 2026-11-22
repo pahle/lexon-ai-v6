@@ -1,8 +1,42 @@
 # Project state
 
-Last updated: 2026-11-21 by the brief generator.
+Last updated: 2026-11-22 by the brief generator.
 
 ## Next action
+
+**2026-11-22 (latest): F4.3 Tasks 17-19 left; four parallel sessions; F5 brief in review.**
+
+- **Main:** F0-F4.2; F4.3 brief, prototype revision 16, F4.3 spec revision 3 + plan; CI speedups (docs-only fast path, time-balanced E2E shards).
+- **Worktrees:** home = `lexon-brief-generator` (this branch); docs PRs from `lexon-docs` (`git switch -c docs/<topic> origin/main`, Prettier, draft PR). Never touch `lexon-f43-console`, `lexon-dev-workflow`, `lexon-audit-2`, `lexon-supply-chain`, or the shared checkout `lexon-ai-v6` (stays detached at origin/main).
+- **Open PRs (checked 2026-11-22):**
+
+| PR | Branch / head | CI on head | Next |
+|---|---|---|---|
+| #55 F4.3 | `f4.3-console` b408b9a (draft) | **red**: unit-integration, `scripts/test/f2-route-inventory.spec.mjs:43` (retired `platform/provisioning/page.tsx` redirect has no title); compose-e2e 1-3/3 green | session A fixes it (log the changed assertion old -> new), then Task 17 |
+| #56 Audit 2 | `docs/audit-2` fb71d9d (draft) | green | owner reads Summary, "Changes in the second pass", "Reader leads checked and refuted"; ready; merge |
+| #57 dev-workflow | `chore/dev-workflow` 53c2dcf (draft) | green | owner review, ready, merge |
+| #58 supply chain | `chore/supply-chain` 84fa067 (ready) | green (osv-scanner, sbom too) | owner merges first; then check the run on main |
+| #59 F5 brief | `claude/focused-shannon-b5cmwe` f295869 (ready) | green (docs fast path) | title is the branch name: rename; answer the 2 F5 questions; prototype rev 17 before planning |
+
+- **Merge order:** #58, #56, #57, #59 (each only with green CI on its head); #55 when complete.
+- **Session A (F4.3, PR #55):**
+  - Task 16 a+b done (b408b9a). Shard 3 admin-setup failure (P1, one extra Linux round approved) is **resolved**: a2030af and cbcfc14 fully green, b408b9a compose-e2e all green. The red at b408b9a is a new unit failure (route inventory).
+  - Brief item 5 (Resend invitation / Cancel provisioning in the Organizations row menu for provisioning rows): folded into Task 16; UI-only (existing `POST /:organizationId/resend`, `DELETE /:organizationId`); tests first, reuse confirm dialog + toasts, spec deviation log entry.
+  - Task 17 question (no route exposes account-invitation facts by token): recommended answer = no new public route; drop prefill and pre-submit check; email and name editable; token sent as `accountInvitationToken`; `SignupPolicy` refusal shows the existing `invite-invalid` state; spec deviation log; adjust Task 17 tests; no new capture id. Sent? -> see owner.
+  - B-06 (E2E accepting any 4xx) goes to A for its platform tests. B-23, B-16 do not go into F4.3.
+  - Remaining: Tasks 17-19, stop point with the 21-state CI comparison sheets (review against revision 16, `playbooks/visual-review.md`).
+- **Session B (dev-workflow, PR #57):** A-18 (test:unit without Docker), typecheck without build, A-11 allowed subset. Follow-ups: (1) separate PR fixing two racy tests with RED evidence, no weakened assertions: unhandled rejection from `chat-fence.spec.ts` / `chat-fixture.ts:123`; `chat-history.spec.ts:331` checks the API before the DELETE finishes; (2) after merge `git worktree remove ../lexon-dev-workflow`, `rm -rf /tmp/lexon-fresh-*`; (3) after F4.3 merges: remaining A-11 in F4.3 paths (identity-access retry loops, organizations pagination schemas, pg check in `organization-auth.port.ts` reading `.cause` -> extend `pgFailure` first, email normalisation).
+- **Session C (Audit 2, PR #56), owner decisions pending (recommendations):** B-02 defer (own streaming-contract brief); B-08 F17 unless a basic limit now; B-09, B-15 LEX-ARC-001/LEX-TS-001 text (brief generator); B-11 one `cn` helper recorded in LEX-TS-001 (brief generator); B-16 separate slice after F4.3; B-21 yes, scheduled or changed-paths only; B-23 yes in the fix slice. **Fix slice (brief generator writes, e.g. F4.4):** tests only B-01, B-06, B-12, B-13; small test-first fixes B-03, B-04, B-05, B-14, B-22; cleanup B-10 + one-line A-18. F17, F18, F20 (A-21) own the rest. After merge `git worktree remove ../lexon-audit-2`.
+- **Session D (supply chain, PR #58):** Renovate + `supply-chain.yml` (SHA-pinned OSV-Scanner, Syft SBOM). Owner: install Mend Renovate app (first PRs Monday 00-05 WIB + Dependency Dashboard issue). Required checks: `sbom` now, `osv-scanner` only after the 16 vulnerabilities (allowlist expires 2026-12-22, then red on every PR). Priority: `@opentelemetry/propagator-jaeger` (HIGH); `next@16.4.3` (7); `qs@6.15.1` (4); minimatch, glob, mdast-util-to-hast (overrides in `pnpm-workspace.yaml`, tied to assistant-ui), esbuild. Next: dependency-upgrade PR in a new worktree with TDD, listing old -> new versions; brief generator writes LEX-TS-001 v1.14 for it. Trivy later.
+- **F5 brief (PR #59):** Ask the user (2-5 options + free text, "Waiting for you", Dismiss, max 2 questions per run); Deadline calculator (read-only; Indonesian holidays + cuti bersama 2026-2027 with SKB sources, no statutes, refuses uncovered years); Rename chat (write tool, inline approval card bound to snapshot hash, applied once). 24 h expiry = rejection; tool audit without K1; owner-only decisions; injection evals in CI subset. Prototype revision 17 must be approved before planning. **Open owner questions:** (1) questions reuse `awaiting_approval` with an operation kind (recommended) or new `awaiting_input` (needs LEX-ARC-001 revision)? (2) holiday calendar updated by one PR per year (recommended)?
+- **Next work, in order:**
+  1. Help owner send session A the Task 17 answer + route-inventory fix note.
+  2. Draft follow-up prompts for B, C, D for owner approval.
+  3. Amend F5 brief after owner answers.
+  4. Prototype revision 17 on revision 16 (`tools/prototype/`): tool activity row (collapsed, expanded, running, failed); ask-user card (pending, answered, dismissed); "Waiting for you" in the answer header + marker in Recent and Chats; approval card (pending, approved, rejected, expired); expired question. Light/dark, desktop/mobile. Same PR: `index.json` planned ids + revision 17 notes in the prototype README. Show PNGs, wait for approval before the F5 implementer prompt.
+  5. Fix-slice brief from Audit 2; LEX-TS-001 v1.14 (dependency versions, `cn` helper); LEX-ARC-001 text fixes (B-09, B-15).
+- **Backlog:** plans and entitlements (two stages, F17; owner questions open); CI Docker layer cache; second shard rebalance; F20 burst numbers; F8 cover statement; SSO decision (L14); owner check of ruleset enforcement and bypass list.
+- **Standing rules for prompts:** Docker rule verbatim ("Only touch containers and volumes named lexon-e2e-*, by explicit name filter. Never prune. Never touch the unnamed volume a4699d7d… or any lexon-dev_* volume. If disk space or leftover stacks block a gate, stop and ask me."); goldens only from Linux CI, gate 1.5%; max 2 Linux rounds per area; no model identifiers in repo/commits/PRs; always report head CI before a merge.
 
 **2026-11-21 (latest): F4.3 Platform admin console in execution.**
 
