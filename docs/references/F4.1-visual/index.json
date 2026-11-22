@@ -2998,9 +2998,7 @@
     "platform-accounts-error-desktop-light",
     "platform-accounts-error-desktop-dark",
     "platform-accounts-error-mobile-light",
-    "platform-accounts-error-mobile-dark"
-  ],
-  "planned": [
+    "platform-accounts-error-mobile-dark",
     "platform-accounts-invitations-desktop-light",
     "platform-accounts-invitations-desktop-dark",
     "platform-accounts-invitations-mobile-light",
@@ -3008,7 +3006,9 @@
     "platform-account-invite-desktop-light",
     "platform-account-invite-desktop-dark",
     "platform-account-invite-mobile-light",
-    "platform-account-invite-mobile-dark",
+    "platform-account-invite-mobile-dark"
+  ],
+  "planned": [
     "platform-account-detail-desktop-light",
     "platform-account-detail-desktop-dark",
     "platform-account-detail-mobile-light",

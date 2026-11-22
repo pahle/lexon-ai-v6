@@ -10,6 +10,7 @@ import { waitForHydration } from './identity-support.js';
 import { openMenuReliably } from './visual-support.js';
 import { platformWorld } from './brand-visual-platform-world.js';
 import { installPlatformConsoleNormalization } from './brand-visual-platform-normalizations.js';
+import { platformInvitee } from './prototype-fixtures.js';
 
 // F4.1 visual set, platform accounts group (revision 16): the Accounts list
 // and its states, the Invitations tab and the invite dialog, and the account
@@ -213,5 +214,53 @@ test('Accounts list states', async ({ page, playwright }) => {
   } finally {
     await page.unroute(failing);
   }
+  await normalized.remove();
+});
+
+test('Invitations tab and the invite dialog', async ({ page, playwright }) => {
+  test.setTimeout(300_000);
+  const world = await platformWorld(page, playwright);
+  const normalized = await installPlatformConsoleNormalization(page, world);
+
+  await openAccounts(page, '?tab=invitations&pageSize=10');
+  await expect(page.getByRole('tab', { name: /^Invitations/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await captureBrandViews(page, 'platform-accounts-invitations', {
+    open: async () => {
+      await expect(
+        page.getByRole('main').getByText('joko.santosa@gmail.com').first(),
+      ).toBeVisible();
+      await expect(footer(page, '2 invitations')).toBeVisible();
+    },
+  });
+
+  // The dialog over the Accounts list, filled as in the prototype; nothing
+  // is sent.
+  await openAccounts(page);
+  await expect(footer(page, '248 accounts')).toBeVisible();
+  const invite = page.getByRole('button', { name: 'Invite account' });
+  await waitForHydration(invite);
+  await invite.click();
+  const dialog = page.getByRole('dialog', { name: 'Invite someone to Lexon' });
+  await expect(dialog).toBeVisible();
+  await dialog
+    .getByRole('textbox', { name: /^Email/ })
+    .fill(platformInvitee.email);
+  await dialog
+    .getByRole('textbox', { name: /^Name/ })
+    .fill(platformInvitee.name);
+  await captureBrandViews(page, 'platform-account-invite', {
+    keepFocus: true,
+    open: async () => {
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole('button', { name: 'Send invitation' }),
+      ).toBeEnabled();
+    },
+  });
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
   await normalized.remove();
 });
