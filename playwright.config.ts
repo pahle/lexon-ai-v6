@@ -99,6 +99,7 @@ export default defineConfig({
         'backend/test/e2e/brand-visual-chat.spec.ts',
         'backend/test/e2e/brand-visual-chats-settings.spec.ts',
         'backend/test/e2e/brand-visual-platform.spec.ts',
+        'backend/test/e2e/brand-visual-platform-accounts.spec.ts',
         'backend/test/e2e/visual-comparison-regression.spec.ts',
       ],
       snapshotPathTemplate: '{testDir}/docs/references/F4.1-visual/{arg}{ext}',

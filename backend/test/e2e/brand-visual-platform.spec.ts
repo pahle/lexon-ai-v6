@@ -13,22 +13,25 @@ import {
   reauthenticatePlatform,
 } from './brand-visual-platform-world.js';
 
-// F4.1 visual set, platform group. The revision 14 platform captures were
-// retired in F4.3 (approval.json amendment, 2026-11-21); until the F4.3 UI
-// tasks add the revision 16 captures, this keeps the functional checks of
-// the platform console (Organizations, organization record, Accounts) for a
-// real administrator.
+// F4.1 visual set, platform group: the functional checks of the platform
+// console (Organizations, organization record, Accounts) for a real
+// administrator. The revision 16 captures are in
+// brand-visual-platform-accounts.spec.ts and
+// brand-visual-platform-organizations.spec.ts.
 
 // Platform, errors, and UI patterns.
 
 test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
 
-test('Platform pages for a real platform administrator', async ({ page }) => {
+test('Platform pages for a real platform administrator', async ({
+  page,
+  playwright,
+}) => {
   test.setTimeout(420_000);
   const stack = descriptor();
   // Built once per stack (administrator and the three organizations) and
   // reused afterwards, so this group can run again on a long-lived stack.
-  const world = await platformWorld(page);
+  const world = await platformWorld(page, playwright);
   await page.clock.setFixedTime(brandFixedTime);
 
   const listUrl = (url: URL, method: string) =>

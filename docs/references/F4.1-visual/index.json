@@ -2970,7 +2970,7 @@
       "replaces": []
     }
   },
-  "planned": [
+  "pending": [
     "platform-accounts-desktop-light",
     "platform-accounts-desktop-dark",
     "platform-accounts-mobile-light",
@@ -2998,7 +2998,9 @@
     "platform-accounts-error-desktop-light",
     "platform-accounts-error-desktop-dark",
     "platform-accounts-error-mobile-light",
-    "platform-accounts-error-mobile-dark",
+    "platform-accounts-error-mobile-dark"
+  ],
+  "planned": [
     "platform-accounts-invitations-desktop-light",
     "platform-accounts-invitations-desktop-dark",
     "platform-accounts-invitations-mobile-light",

@@ -1,0 +1,217 @@
+import { expect, test, type Page } from '@playwright/test';
+import { descriptor } from './runtime-support.js';
+import {
+  brandFixedTime,
+  captureBrandViews,
+  hideDevOverlayOnLoad,
+} from './brand-visual-support.js';
+import { gateRequests } from './brand-visual-world.js';
+import { waitForHydration } from './identity-support.js';
+import { openMenuReliably } from './visual-support.js';
+import { platformWorld } from './brand-visual-platform-world.js';
+import { installPlatformConsoleNormalization } from './brand-visual-platform-normalizations.js';
+
+// F4.1 visual set, platform accounts group (revision 16): the Accounts list
+// and its states, the Invitations tab and the invite dialog, and the account
+// record pages, for a real platform administrator. Content is the
+// prototype's (brand-visual-platform-normalizations.ts). The prototype pages
+// show ten rows per page, so the lists open with ?pageSize=10.
+
+test.beforeEach(({ page }) => hideDevOverlayOnLoad(page));
+
+const accountsUrl = () => descriptor().frontendUrl + '/platform/accounts';
+const searchBox = (page: Page) =>
+  page.getByLabel('Search by name or email', { exact: true });
+
+async function openAccounts(page: Page, query = '?pageSize=10') {
+  await page.clock.setFixedTime(brandFixedTime);
+  await page.goto(accountsUrl() + query);
+  await expect(page.locator('h1')).toHaveText('Accounts');
+  await expect(
+    page.getByRole('tab', { name: /^Accounts\s*248/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('tab', { name: /^Invitations\s*2/ }),
+  ).toBeVisible();
+}
+
+async function search(page: Page, value: string) {
+  const box = searchBox(page);
+  await waitForHydration(box);
+  await box.fill(value);
+  // The query reaches the URL after a debounce.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('query'))
+    .toBe(value);
+}
+
+const footer = (page: Page, text: string) =>
+  page.locator('[data-slot="paged-footer"]').getByText(text, { exact: true });
+
+/** Rows per page 10, chosen in the footer (desktop only shows the select). */
+async function chooseTenRows(page: Page) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const select = page.getByRole('combobox', { name: 'Rows per page' });
+  await waitForHydration(select);
+  await select.click();
+  await page.getByRole('option', { name: '10', exact: true }).click();
+}
+
+test('Accounts list states', async ({ page, playwright }) => {
+  test.setTimeout(420_000);
+  const world = await platformWorld(page, playwright);
+  const normalized = await installPlatformConsoleNormalization(page, world);
+
+  await openAccounts(page);
+  await captureBrandViews(page, 'platform-accounts', {
+    open: async () => {
+      await expect(
+        page.getByLabel('Open Ayu Wardani', { exact: true }),
+      ).toBeVisible();
+      await expect(footer(page, '248 accounts')).toBeVisible();
+    },
+  });
+
+  // Search applied: the four hukum-nusantara.co.id accounts, Reset shown.
+  await search(page, 'hukum-nusantara');
+  await expect(footer(page, '4 accounts')).toBeVisible();
+  await captureBrandViews(page, 'platform-accounts-search', {
+    keepFocus: true,
+    open: async () => {
+      await expect(
+        page.getByLabel('Open Lina Hartono', { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible();
+      await searchBox(page).focus();
+    },
+  });
+
+  await search(page, 'notaris');
+  await captureBrandViews(page, 'platform-accounts-no-results', {
+    keepFocus: true,
+    open: async () => {
+      await expect(
+        page.getByText('No accounts match “notaris”', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Reset filters' }),
+      ).toBeVisible();
+      await searchBox(page).focus();
+    },
+  });
+
+  // Status facet: Unverified and Disabled, the list open as in the prototype.
+  await page.getByRole('button', { name: 'Reset filters' }).click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('query'))
+    .toBeNull();
+  await expect(footer(page, '248 accounts')).toBeVisible();
+  const statusFacet = page.getByRole('button', { name: /^Status/ });
+  await openMenuReliably(
+    page,
+    statusFacet,
+    page.getByRole('menuitemcheckbox', { name: 'Unverified' }),
+    'status facet',
+  );
+  await page.getByRole('menuitemcheckbox', { name: 'Unverified' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Disabled' }).click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('status'))
+    .toEqual(['unverified', 'disabled']);
+  await expect(footer(page, '2 accounts')).toBeVisible();
+  await captureBrandViews(page, 'platform-accounts-filtered', {
+    keepFocus: true,
+    open: async () => {
+      await openMenuReliably(
+        page,
+        statusFacet,
+        page.getByRole('menuitemcheckbox', { name: 'Disabled' }),
+        'status facet',
+      );
+      await expect(
+        page.getByRole('menuitemcheckbox', { name: 'Unverified' }),
+      ).toBeChecked();
+      await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible();
+    },
+    close: async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    },
+  });
+
+  // The row menu of Ayu Wardani. Mobile rows have no row menu (the
+  // prototype's mobile list shows none open either).
+  await page.getByRole('button', { name: 'Reset' }).click();
+  await expect(footer(page, '248 accounts')).toBeVisible();
+  await captureBrandViews(page, 'platform-accounts-row-menu', {
+    keepFocus: true,
+    open: async (viewport) => {
+      await expect(
+        page.getByLabel('Open Ayu Wardani', { exact: true }),
+      ).toBeVisible();
+      if (viewport === 'desktop')
+        await openMenuReliably(
+          page,
+          page.getByRole('button', { name: 'Actions for Ayu Wardani' }),
+          page.getByRole('menuitem', { name: 'View account' }),
+          'account row menu',
+        );
+    },
+    close: async (viewport) => {
+      if (viewport !== 'desktop') return;
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    },
+  });
+
+  // Loading and failure: the tab counts are loaded first (default page
+  // size), then Rows per page 10 starts the held or failing list request.
+  const tenRows = (url: URL, method: string) =>
+    url.pathname === '/api/platform/accounts' &&
+    url.searchParams.get('pageSize') === '10' &&
+    (method === 'GET' || method === '');
+  await openAccounts(page, '');
+  await expect(footer(page, '248 accounts')).toBeVisible();
+  const list = await gateRequests(page, tenRows);
+  try {
+    await chooseTenRows(page);
+    await list.started;
+    await captureBrandViews(page, 'platform-accounts-loading', {
+      open: () =>
+        expect(
+          page.getByRole('status', { name: 'Loading accounts' }),
+        ).toBeVisible(),
+    });
+  } finally {
+    await list.finish();
+  }
+
+  await openAccounts(page, '');
+  await expect(footer(page, '248 accounts')).toBeVisible();
+  const failing = (url: URL) => tenRows(url, 'GET');
+  await page.route(failing, (route) =>
+    route.request().method() !== 'GET'
+      ? route.fallback()
+      : route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: '{"message":"private platform detail"}',
+        }),
+  );
+  try {
+    await chooseTenRows(page);
+    await expect(
+      page.getByText('We could not load accounts.', { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(
+      'private platform detail',
+    );
+    await captureBrandViews(page, 'platform-accounts-error', {
+      open: () =>
+        expect(page.getByRole('button', { name: 'Try again' })).toBeVisible(),
+    });
+  } finally {
+    await page.unroute(failing);
+  }
+  await normalized.remove();
+});

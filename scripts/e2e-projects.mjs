@@ -78,6 +78,7 @@ export const E2E_SHARD_PLAN = [
       e2e('brand-visual-chats-settings'),
       e2e('brand-visual-shell'),
       e2e('brand-visual-platform'),
+      e2e('brand-visual-platform-accounts'),
       // Creates an administrator through setup, so it must not share a stack
       // with platform-identity (which needs the first-admin setup).
       e2e('platform-console-api'),
