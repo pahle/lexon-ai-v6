@@ -5,6 +5,9 @@
 // session cookies in os.tmpdir(), see sharedWorld), so the platform group can
 // run again on a long-lived stack.
 import { expect, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
 import {
   authenticateApi,
@@ -141,13 +144,31 @@ export async function enrollAdministrator(
   return uri!;
 }
 /**
+ * When the shared administrator session last proved a fresh sign-in, kept
+ * next to the world cache so every spec on the stack sees it.
+ */
+const freshAtFile = () =>
+  resolve(tmpdir(), `${descriptor().project}-bv-platform-fresh-at`);
+const markFresh = () => writeFileSync(freshAtFile(), String(Date.now()));
+const freshAge = () =>
+  existsSync(freshAtFile())
+    ? Date.now() - Number(readFileSync(freshAtFile(), 'utf8'))
+    : Infinity;
+/** A session younger than this keeps at least 180 s of the 300 s window. */
+const reuseFreshMs = 120_000;
+
+/**
  * Platform routes need a fresh sign-in (300 s). The cached session ages, so
- * the administrator confirms the password and authenticator code again.
+ * the administrator confirms the password and authenticator code again,
+ * unless the session was made fresh in the last two minutes: authenticator
+ * codes are limited to five per account in 300 s (AUTH rate rule `totp`),
+ * and the platform specs of one shard share this administrator.
  */
 export async function reauthenticatePlatform(
   page: Page,
   world: { totpUri: string },
 ) {
+  if (freshAge() < reuseFreshMs) return;
   const stack = descriptor();
   let last = '';
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -158,7 +179,10 @@ export async function reauthenticatePlatform(
         data: { password, totp: totpForUri(world.totpUri) },
       },
     );
-    if (response.ok()) return;
+    if (response.ok()) {
+      markFresh();
+      return;
+    }
     last = response.status() + ' ' + (await response.text()).slice(0, 160);
     // The same code cannot be used twice in one 30 s window.
     await new Promise((done) => setTimeout(done, 31_000));
@@ -216,6 +240,8 @@ export async function platformWorld(
       `.${Date.now().toString(36)}@`,
     );
     const totpUri = await enrollAdministrator(page, adminEmail);
+    // Enrolment ends with a fresh sign-in.
+    markFresh();
     const ids = new Map<string, string>();
     for (const organization of provisioningOrganizations) {
       const created = await page.request.post(
