@@ -1027,3 +1027,27 @@ test('Unverified and Expired badges use the red-text warning badge', async () =>
   expectWarnBadge(second.view.container, 'Expired');
   await second.view.unmount();
 });
+
+// Prototype revision 16 inviteDialog: `<label>Name <span class="opt">Optional
+// </span></label>` with `.field label{display:flex;justify-content:
+// space-between}` and `.opt{font-weight:400;color:var(--mfg);font-size:13px}`.
+test('invite dialog shows Optional to the right of the Name label', async () => {
+  const { view } = await openDialog();
+  const label = byText(document.body, 'label', 'Name')!;
+  expect(label).toBeDefined();
+  const optional = byText(document.body, 'span', 'Optional')!;
+  expect(optional).toBeDefined();
+  const row = label.parentElement!;
+  expect(optional.parentElement).toBe(row);
+  const rowClasses = row.className.split(/\s+/);
+  for (const c of ['flex', 'items-start', 'justify-between'])
+    expect(rowClasses, c).toContain(c);
+  const optClasses = optional.className.split(/\s+/);
+  for (const c of ['text-[13px]', 'font-normal', 'text-muted-foreground'])
+    expect(optClasses, c).toContain(c);
+  const input = document.getElementById(label.getAttribute('for')!)!;
+  expect(input.getAttribute('aria-describedby')).toContain(optional.id);
+  // No hint line under the input any more.
+  expect(byText(document.body, 'p', 'Optional')).toBeUndefined();
+  await view.unmount();
+});

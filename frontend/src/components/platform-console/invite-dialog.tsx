@@ -135,7 +135,7 @@ export function InviteDialog({
           />
           <PlatformField
             label="Name"
-            hint="Optional"
+            optional
             autoComplete="off"
             registration={form.register('name')}
             error={form.formState.errors.name}
