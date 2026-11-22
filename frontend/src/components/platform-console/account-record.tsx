@@ -27,7 +27,12 @@ import {
 } from '../data-views';
 import { ListFailure } from '../states/list-failure';
 import { useWorkspace } from '../shell/workspace-provider';
-import { formatPlatformDate } from '../platform/platform-format';
+import { LastActive } from '../platform/last-active';
+import {
+  formatLastActiveHeader,
+  formatPlatformDate,
+  formatPlatformDateTime,
+} from '../platform/platform-format';
 import { Button } from '../ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '../ui/empty';
 import { Skeleton } from '../ui/skeleton';
@@ -150,9 +155,10 @@ function Body({ account }: { account: PlatformAccountDetail }) {
           },
           {
             icon: ClockIcon,
-            text: account.lastActiveAt
-              ? `Last active ${formatPlatformDate(account.lastActiveAt)}`
-              : 'Last active never',
+            text: formatLastActiveHeader(account.lastActiveAt),
+            ...(account.lastActiveAt
+              ? { title: formatPlatformDateTime(account.lastActiveAt) }
+              : {}),
           },
         ]}
         actions={actions}
@@ -196,9 +202,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
           },
           {
             label: 'Last active',
-            value: account.lastActiveAt
-              ? formatPlatformDate(account.lastActiveAt)
-              : 'Never',
+            value: <LastActive value={account.lastActiveAt} />,
           },
           { label: 'Account ID', value: account.id, copy: true },
         ]}

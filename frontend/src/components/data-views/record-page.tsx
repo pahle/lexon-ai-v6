@@ -17,7 +17,12 @@ export const RecordHeader: FC<{
   square?: boolean;
   title: string;
   badges?: ReactNode;
-  meta?: { icon: ComponentType<{ className?: string }>; text: string }[];
+  meta?: {
+    icon: ComponentType<{ className?: string }>;
+    text: string;
+    /** Shown on hover, e.g. the absolute date behind a relative one. */
+    title?: string;
+  }[];
   actions?: ReactNode;
 }> = ({
   backHref,
@@ -60,8 +65,12 @@ export const RecordHeader: FC<{
         </div>
         {meta.length ? (
           <div className="text-muted-foreground flex flex-wrap gap-4 text-[13px]">
-            {meta.map(({ icon: Icon, text }) => (
-              <span key={text} className="inline-flex items-center gap-1.5">
+            {meta.map(({ icon: Icon, text, title }) => (
+              <span
+                key={text}
+                title={title}
+                className="inline-flex items-center gap-1.5"
+              >
                 <Icon className="size-3.5" aria-hidden="true" />
                 {text}
               </span>

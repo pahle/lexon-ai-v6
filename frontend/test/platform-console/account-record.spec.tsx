@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AccountRecord } from '../../src/components/platform-console/account-record';
+import { formatPlatformDateTime } from '../../src/components/platform/platform-format';
 import { render, settle, settleUntil } from '../render';
 import { byText, click } from '../data-views/helpers';
 
@@ -112,7 +113,13 @@ test('active account: header, stat tiles, details, teams, actions', async () => 
   expect(t).toContain('Active');
   expect(t).toContain('ayu@hukum-nusantara.co.id');
   expect(t).toContain('Joined 2 Sep 2026');
-  expect(t).toContain('Last active 20 Nov 2026');
+  // Relative to the clock (see the fixed-clock test below); the absolute
+  // date and time is the title.
+  expect(
+    v.container.querySelector(
+      `[title="${formatPlatformDateTime('2026-11-20T03:00:00.000Z')}"]`,
+    ),
+  ).not.toBeNull();
   for (const s of ['Teams', 'Active sessions', 'Two-step verification'])
     expect(t).toContain(s);
   expect(t).toContain('On');
@@ -444,4 +451,44 @@ test('confirmations fall back to the email when the name is empty', async () => 
     'ayu@hukum-nusantara.co.id can sign in again.',
   );
   await v.unmount();
+});
+
+// Spec §13 entry 7: relative last active, the absolute value in a title.
+test('header and Details show last active relative to the clock', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 14, 11, 0));
+  try {
+    const cases = [
+      [new Date(2026, 10, 14, 10, 42), 'Last active today', 'Today'],
+      [new Date(2026, 10, 14, 10, 58), 'Active now', 'Active now'],
+      [new Date(2026, 9, 31, 10, 0), 'Last active 2 weeks ago', '2 weeks ago'],
+      [null, 'Last active never', 'Never'],
+    ] as const;
+    for (const [value, header, details] of cases) {
+      routes({
+        [GET]: () =>
+          json(detail({ lastActiveAt: value ? value.toISOString() : null })),
+      });
+      const v = await mount();
+      const meta = Array.from(v.container.querySelectorAll('span')).find(
+        (s) => s.textContent === header,
+      );
+      expect(meta, header).toBeDefined();
+      const row = Array.from(v.container.querySelectorAll('dt')).find(
+        (s) => s.textContent === 'Last active',
+      )!.parentElement!;
+      expect(row.textContent).toBe(`Last active${details}`);
+      if (value) {
+        const title = formatPlatformDateTime(value);
+        expect(meta!.getAttribute('title')).toBe(title);
+        expect(row.querySelector(`[title="${title}"]`)).not.toBeNull();
+      } else {
+        expect(meta!.getAttribute('title')).toBeNull();
+      }
+      await v.unmount();
+      document.body.innerHTML = '';
+    }
+  } finally {
+    vi.useRealTimers();
+  }
 });

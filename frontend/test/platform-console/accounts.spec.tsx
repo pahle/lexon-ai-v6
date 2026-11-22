@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AccountsPage } from '../../src/components/platform-console/accounts-page';
+import { formatPlatformDateTime } from '../../src/components/platform/platform-format';
 import { render, settle, settleUntil } from '../render';
 import { byLabel, byText, click, typeInto } from '../data-views/helpers';
 
@@ -710,4 +711,101 @@ test('row menu confirmations use the prototype copy without a session count', as
     'Ayu Wardani is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.',
   );
   await view.unmount();
+});
+
+// Spec §13 entry 7: relative last active, the absolute value in a title.
+const lastActiveRows = () =>
+  [
+    ['admin', new Date(2026, 10, 14, 11, 0)],
+    ['ayu', new Date(2026, 10, 14, 10, 42)],
+    ['rizky', new Date(2026, 10, 13, 10, 0)],
+    ['hendra', new Date(2026, 10, 12, 10, 0)],
+    ['lina', new Date(2026, 9, 31, 10, 0)],
+    ['old', new Date(2026, 8, 1, 10, 0)],
+    ['bagus', null],
+  ].map(([key, at], index) =>
+    account({
+      id: `0000000${index}-e2bb-4255-8caf-4136c566a962`,
+      name: `Person ${String(key)}`,
+      email: `${String(key)}@x.id`,
+      isPlatformAdministrator: false,
+      lastActiveAt: at ? (at as Date).toISOString() : null,
+    }),
+  );
+const LABELS = [
+  'Active now',
+  'Today',
+  'Yesterday',
+  '2 days ago',
+  '2 weeks ago',
+  '1 Sep 2026',
+  'Never',
+];
+
+test('Last active column is relative to the clock with the absolute title', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 14, 11, 0));
+  try {
+    const rows = lastActiveRows();
+    reply(json(page(rows)));
+    const { view } = await mount();
+    await settleUntil(() => !!view.container.querySelector('table'));
+    const lastActiveIndex = Array.from(
+      view.container.querySelectorAll('th'),
+    ).findIndex((th) => th.textContent === 'Last active');
+    const cells = Array.from(view.container.querySelectorAll('tbody tr')).map(
+      (tr) => tr.querySelectorAll('td')[lastActiveIndex]!,
+    );
+    expect(cells.map((c) => c.textContent)).toEqual(LABELS);
+    rows.forEach((row, i) => {
+      const value = (row as { lastActiveAt: string | null }).lastActiveAt;
+      const titled = cells[i]!.querySelector('[title]');
+      if (value)
+        expect(titled!.getAttribute('title')).toBe(
+          formatPlatformDateTime(value),
+        );
+      else expect(titled).toBeNull();
+    });
+    await view.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('mobile account rows end with the relative last active', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.cb(
+          [{ target, contentRect: { width: 400 } } as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 14, 11, 0));
+  try {
+    reply(json(page(lastActiveRows().slice(1, 3))));
+    const { view } = await mount();
+    await settleUntil(
+      () => !!view.container.querySelector('[data-slot="data-mobile-row"]'),
+    );
+    const rows = Array.from(
+      view.container.querySelectorAll('[data-slot="data-mobile-row"]'),
+    );
+    expect(rows.map((r) => r.textContent)).toEqual([
+      'PAPerson ayuayu@x.idActiveTwo-step on · 0 teams · Today',
+      'PRPerson rizkyrizky@x.idActiveTwo-step on · 0 teams · Yesterday',
+    ]);
+    await view.unmount();
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', fetchMock);
+  }
 });

@@ -35,6 +35,7 @@ import { PlatformApiError, platformConsoleApi } from './api';
 import { InvitationsTab } from './invitations-tab';
 import { COUNT_KEYS, InviteDialog } from './invite-dialog';
 import { Button } from '../ui/button';
+import { LastActive } from '../platform/last-active';
 import { formatPlatformDate } from '../platform/platform-format';
 
 const STATUS = [
@@ -246,8 +247,7 @@ export function AccountsTab() {
       header: 'Last active',
       width: '124px',
       muted: true,
-      cell: (a) =>
-        a.lastActiveAt ? formatPlatformDate(a.lastActiveAt) : 'Never',
+      cell: (a) => <LastActive value={a.lastActiveAt} />,
     },
     {
       key: 'menu',
@@ -352,7 +352,8 @@ export function AccountsTab() {
             ),
             meta: (
               <MutedCell>
-                {`Two-step ${a.twoFactorEnabled ? 'on' : 'off'} · ${a.teamCount} ${a.teamCount === 1 ? 'team' : 'teams'}`}
+                {`Two-step ${a.twoFactorEnabled ? 'on' : 'off'} · ${a.teamCount} ${a.teamCount === 1 ? 'team' : 'teams'} · `}
+                <LastActive value={a.lastActiveAt} />
               </MutedCell>
             ),
           })}
