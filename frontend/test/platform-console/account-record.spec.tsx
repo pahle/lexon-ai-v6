@@ -492,3 +492,42 @@ test('header and Details show last active relative to the clock', async () => {
     vi.useRealTimers();
   }
 });
+
+// LEX-DS-001 §5.7 and prototype revision 16 (platformAccountDetail `acts`):
+// every header action is `btn(icon, label)` = outline with an icon; the
+// destructive one is `outline dtext` (red-text); no primary.
+test('record header actions are outline with icons; Disable is red-text', async () => {
+  const cases = [
+    [
+      {},
+      [
+        ['Sign out everywhere', false],
+        ['Disable account', true],
+      ],
+    ],
+    [
+      { status: 'unverified', emailVerified: false, activeSessionCount: 0 },
+      [
+        ['Resend verification email', false],
+        ['Disable account', true],
+      ],
+    ],
+    [
+      { status: 'disabled', activeSessionCount: 0 },
+      [['Enable account', false]],
+    ],
+  ] as const;
+  for (const [over, actions] of cases) {
+    routes({ [GET]: () => json(detail(over)) });
+    const v = await mount();
+    for (const [label, destructive] of actions) {
+      const b = button(label)!;
+      const classes = b.className.split(/\s+/);
+      expect(classes, label).toContain('border-input');
+      expect(classes, label).not.toContain('bg-primary');
+      expect(b.querySelector('svg'), label).not.toBeNull();
+      expect(classes.includes('text-lexon-red-text'), label).toBe(destructive);
+    }
+    await v.unmount();
+  }
+});

@@ -283,6 +283,7 @@ function ProvisioningBody({ organization }: { organization: Provisioning }) {
           <>
             <Button
               type="button"
+              variant="outline"
               disabled={submission.pending}
               onClick={resend}
             >

@@ -96,6 +96,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
     account.status === 'disabled' ? (
       <Button
         type="button"
+        variant="outline"
         disabled={busy}
         onClick={() => void enable(account)}
       >
@@ -107,6 +108,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         {account.status === 'unverified' ? (
           <Button
             type="button"
+            variant="outline"
             disabled={busy}
             onClick={() => void sendVerification(account)}
           >
@@ -114,7 +116,11 @@ function Body({ account }: { account: PlatformAccountDetail }) {
             Resend verification email
           </Button>
         ) : (
-          <Button type="button" onClick={() => ask('signout', account)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => ask('signout', account)}
+          >
             <LogOutIcon aria-hidden="true" />
             Sign out everywhere
           </Button>
@@ -122,6 +128,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         <Button
           type="button"
           variant="outline"
+          className="text-lexon-red-text"
           onClick={() => ask('disable', account)}
         >
           <BanIcon aria-hidden="true" />

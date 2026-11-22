@@ -652,3 +652,22 @@ test('provisioning body is one column in LEX-DS-001 §5.7 order: stat tiles, Det
   const v = await mount();
   expectOneColumnBody(v.container, ['Details', 'Replace owner email']);
 });
+
+// LEX-DS-001 §5.7 and prototype revision 16 (platformOrgProvisioning `acts`):
+// Resend invitation is outline; Cancel provisioning is `outline dtext`.
+test('provisioning header actions are outline with icons; Cancel is red-text', async () => {
+  routes({ [GET]: () => json(provisioning()) });
+  const v = await mount();
+  for (const [label, destructive] of [
+    ['Resend invitation', false],
+    ['Cancel provisioning', true],
+  ] as const) {
+    const b = button(label)!;
+    const classes = b.className.split(/\s+/);
+    expect(classes, label).toContain('border-input');
+    expect(classes, label).not.toContain('bg-primary');
+    expect(b.querySelector('svg'), label).not.toBeNull();
+    expect(classes.includes('text-lexon-red-text'), label).toBe(destructive);
+  }
+  await v.unmount();
+});
