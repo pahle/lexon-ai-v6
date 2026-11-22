@@ -112,7 +112,7 @@ export function InviteDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Invite someone to Lexon</DialogTitle>
           <DialogDescription>
@@ -145,7 +145,7 @@ export function InviteDialog({
               <AlertDescription>{failure}</AlertDescription>
             </Alert>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="mt-2 flex-row justify-end">
             <Button
               type="button"
               variant="outline"

@@ -41,7 +41,7 @@ export const ConfirmDialog: FC<{
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>{description}</AlertDialogDescription>
       </AlertDialogHeader>
-      <AlertDialogFooter>
+      <AlertDialogFooter className="mt-2 flex-row justify-end">
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant={destructive ? 'destructive' : 'default'}

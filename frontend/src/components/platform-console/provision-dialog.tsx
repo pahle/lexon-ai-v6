@@ -79,7 +79,7 @@ export function ProvisionDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Provision a team organization</DialogTitle>
           <DialogDescription>
@@ -118,7 +118,7 @@ export function ProvisionDialog({
               <AlertDescription>{failure}</AlertDescription>
             </Alert>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="mt-2 flex-row justify-end">
             <Button
               type="button"
               variant="outline"
