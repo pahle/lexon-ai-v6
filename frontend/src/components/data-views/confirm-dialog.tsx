@@ -37,9 +37,13 @@ export const ConfirmDialog: FC<{
 }) => (
   <AlertDialog open={open} onOpenChange={onOpenChange}>
     <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>{title}</AlertDialogTitle>
-        <AlertDialogDescription>{description}</AlertDialogDescription>
+      <AlertDialogHeader className="gap-2 place-items-start text-left">
+        <AlertDialogTitle className="leading-[normal]">
+          {title}
+        </AlertDialogTitle>
+        <AlertDialogDescription className="text-wrap md:text-wrap">
+          {description}
+        </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter className="mt-2 flex-row justify-end">
         <AlertDialogCancel>Cancel</AlertDialogCancel>

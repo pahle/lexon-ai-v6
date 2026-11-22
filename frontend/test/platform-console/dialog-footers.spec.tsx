@@ -75,3 +75,35 @@ test('kit confirm dialog: row footer', async () => {
   expectRowFooter('alert-dialog-footer');
   expect(closeButton()).toBeUndefined();
 });
+
+test('kit confirm dialog: header aligns left like the chat delete dialog', async () => {
+  await render(
+    <ConfirmDialog
+      open
+      onOpenChange={vi.fn()}
+      title="Disable this account?"
+      description="Rina Kusuma can no longer sign in."
+      confirmLabel="Disable"
+      destructive
+      onConfirm={vi.fn()}
+    />,
+  );
+  await settle();
+  const classesOf = (slot: string) =>
+    new Set(
+      document.body
+        .querySelector(`[data-slot="${slot}"]`)!
+        .getAttribute('class')!
+        .split(/\s+/),
+    );
+  const header = classesOf('alert-dialog-header');
+  for (const token of ['gap-2', 'place-items-start', 'text-left'])
+    expect(header.has(token), token).toBe(true);
+  // tailwind-merge drops the shared centred defaults.
+  expect(header.has('place-items-center')).toBe(false);
+  expect(header.has('text-center')).toBe(false);
+  expect(classesOf('alert-dialog-title').has('leading-[normal]')).toBe(true);
+  const description = classesOf('alert-dialog-description');
+  expect(description.has('text-wrap')).toBe(true);
+  expect(description.has('md:text-wrap')).toBe(true);
+});
