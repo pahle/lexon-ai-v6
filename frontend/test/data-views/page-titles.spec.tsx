@@ -91,3 +91,30 @@ it('the record title uses the display face: 30px, 26px on mobile (LEX-DS-001 §5
   );
   expect(title.has('font-semibold')).toBe(false);
 });
+
+it('the record avatar is 48px / 16px below md and 56px / 18px from md (LEX-DS-001 §5.7)', async () => {
+  for (const square of [false, true]) {
+    document.body.innerHTML = '';
+    const view = await render(
+      <RecordHeader
+        backHref="/platform/organizations"
+        backLabel="Organizations"
+        initials="HN"
+        square={square}
+        title="Hukum Nusantara"
+      />,
+    );
+    const avatar = tokens(
+      view.container.querySelector('[data-slot="record-avatar"]'),
+    );
+    expect([...avatar]).toEqual(
+      expect.arrayContaining([
+        'size-12',
+        'text-base',
+        'md:size-14',
+        'md:text-lg',
+      ]),
+    );
+    expect(avatar.has('size-14')).toBe(false);
+  }
+});

@@ -48,7 +48,6 @@ export const RecordHeader: FC<{
         aria-hidden="true"
         className={cn(
           'flex size-12 flex-none items-center justify-center text-base font-semibold md:size-14 md:text-lg',
-          'size-14',
           square
             ? 'bg-sidebar-primary text-sidebar-primary-foreground rounded-[14px]'
             : 'bg-muted text-muted-foreground rounded-full',
