@@ -2,7 +2,10 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AccountsPage } from '../../src/components/platform-console/accounts-page';
-import { formatPlatformDateTime } from '../../src/components/platform/platform-format';
+import {
+  formatPlatformDate,
+  formatPlatformDateTime,
+} from '../../src/components/platform/platform-format';
 import { render, settle, settleUntil } from '../render';
 import { byLabel, byText, click, typeInto } from '../data-views/helpers';
 
@@ -805,6 +808,55 @@ test('mobile account rows end with the relative last active', async () => {
     await view.unmount();
   } finally {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', fetchMock);
+  }
+});
+
+// Spec §13 entry 8: the prototype's mobile invitation rows.
+test('mobile invitation rows: person, status, "Sent … · Expires …", row menu', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.cb(
+          [{ target, contentRect: { width: 400 } } as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  try {
+    nav.search = 'tab=invitations';
+    const rina = invitation({
+      id: '5b241101-e2bb-4255-8caf-4136c566a962',
+      name: 'Rina Kusuma',
+      email: 'rina@kusumalaw.co.id',
+      status: 'pending',
+      sentAt: '2026-11-19T03:00:00.000Z',
+      expiresAt: '2026-11-26T03:00:00.000Z',
+    });
+    reply(json(page([rina, invitation()])));
+    const { view } = await mount();
+    await settleUntil(
+      () => !!view.container.querySelector('[data-slot="data-mobile-row"]'),
+    );
+    const rows = Array.from(
+      view.container.querySelectorAll('[data-slot="data-mobile-row"]'),
+    );
+    const d = formatPlatformDate;
+    expect(rows.map((r) => r.textContent)).toEqual([
+      `Rina Kusumarina@kusumalaw.co.idPendingSent ${d('2026-11-19T03:00:00.000Z')} · Expires ${d('2026-11-26T03:00:00.000Z')}`,
+      `joko@gmail.comExpiredSent ${d('2026-11-02T03:00:00.000Z')} · Expires ${d('2026-11-09T03:00:00.000Z')}`,
+    ]);
+    expect(
+      rows[1]!.querySelector('[aria-label="Actions for joko@gmail.com"]'),
+    ).not.toBeNull();
+    await view.unmount();
+  } finally {
     vi.unstubAllGlobals();
     vi.stubGlobal('fetch', fetchMock);
   }

@@ -13,6 +13,7 @@ import {
   FacetFilter,
   IdentityCell,
   ConfirmDialog,
+  MutedCell,
   PagedFooter,
   RowMenu,
   StatusBadge,
@@ -28,6 +29,12 @@ const STATUS = [
   { value: 'pending', label: 'Pending' },
   { value: 'expired', label: 'Expired' },
 ];
+
+const statusBadge = (i: AccountInvitation) => (
+  <StatusBadge tone={i.status === 'expired' ? 'warning' : 'neutral'}>
+    {i.status === 'expired' ? 'Expired' : 'Pending'}
+  </StatusBadge>
+);
 
 const columnsFor = (
   menu: (i: AccountInvitation) => React.ReactNode,
@@ -47,11 +54,7 @@ const columnsFor = (
     key: 'status',
     header: 'Status',
     width: '112px',
-    cell: (i) => (
-      <StatusBadge tone={i.status === 'expired' ? 'warning' : 'neutral'}>
-        {i.status === 'expired' ? 'Expired' : 'Pending'}
-      </StatusBadge>
-    ),
+    cell: statusBadge,
   },
   {
     key: 'invitedBy',
@@ -129,7 +132,7 @@ export function InvitationsTab() {
     }
   }
 
-  const columns = columnsFor((i) => (
+  const menuFor = (i: AccountInvitation) => (
     <RowMenu
       label={`Actions for ${i.email}`}
       items={[
@@ -150,7 +153,8 @@ export function InvitationsTab() {
         },
       ]}
     />
-  ));
+  );
+  const columns = columnsFor(menuFor);
   const filtered = Boolean(view.query || status.length);
   const rows = list.data?.items ?? [];
   const state = list.isPending
@@ -211,6 +215,27 @@ export function InvitationsTab() {
           rows={rows}
           getRowId={(i) => i.id}
           sort={{ key: 'sent', direction: 'descending' }}
+          // The prototype's mobile invitation row; the menu stays at the
+          // right (the row opens nothing, so the actions live there).
+          mobileRow={(i) => ({
+            lead: (
+              <span
+                aria-hidden="true"
+                className="border-input text-muted-foreground flex size-8 flex-none items-center justify-center rounded-lg border border-dashed"
+              >
+                <MailIcon className="size-3.5" />
+              </span>
+            ),
+            title: i.name || i.email,
+            ...(i.name ? { sub: i.email } : {}),
+            badge: statusBadge(i),
+            meta: (
+              <MutedCell>
+                {`Sent ${formatPlatformDate(i.sentAt)} · Expires ${formatPlatformDate(i.expiresAt)}`}
+              </MutedCell>
+            ),
+            trailing: menuFor(i),
+          })}
         />
       ) : (
         <DataStates
