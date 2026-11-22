@@ -126,6 +126,10 @@ try {
         // times, and shard 3 enrolls more than six within ten minutes from
         // that one address, past the default 20 per IP.
         'setup-redemption': { account: 5, ip: loadIp, windowSeconds: 600 },
+        // Each enrollment and each platform re-authentication spends TOTP
+        // calls; shard 3 makes more than 30 within five minutes from that one
+        // address (default 30 per IP). Production keeps the default.
+        totp: { account: 5, ip: loadIp, windowSeconds: 300 },
       }),
       COMPOSE_PROFILES: '',
       AUTH_LOCAL_DEVELOPMENT: 'true',
