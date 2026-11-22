@@ -2,7 +2,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SignUpInputSchema, type SignUpInput } from '@lexon/contracts';
+import {
+  FlowTokenSchema,
+  SignUpInputSchema,
+  type SignUpInput,
+} from '@lexon/contracts';
 import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
 import { useVisualAuthFormReady } from './visual-readiness';
@@ -12,20 +16,34 @@ import { Field, FieldGroup, FieldDescription } from '../ui/field';
 import { AuthAlert, AuthHeader, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
 import { useSubmissionLock } from '../forms/use-submission-lock';
+import { InvitationUnavailable } from './invitation-unavailable';
 export function SignupForm({
   invitationId,
   setupToken,
+  accountInvitation,
   returnTo,
   visualClientReady = false,
 }: {
   invitationId?: string | undefined;
   setupToken?: string | undefined;
+  accountInvitation?: string | undefined;
   returnTo?: string | undefined;
   visualClientReady?: boolean | undefined;
 }) {
   useVisualAuthFormReady(visualClientReady);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState('');
+  // Account-invitation mode applies only without another sign-up proof (the
+  // server ignores the token when one is present). A token the contract
+  // rejects is shown as unavailable without a request.
+  const invitationMode =
+    accountInvitation !== undefined && !invitationId && !setupToken;
+  const accountInvitationToken = invitationMode
+    ? FlowTokenSchema.safeParse(accountInvitation).data
+    : undefined;
+  const [invitationRefused, setInvitationRefused] = useState(
+    invitationMode && accountInvitationToken === undefined,
+  );
   const submission = useSubmissionLock();
   const form = useForm<SignUpInput>({
     resolver: zodResolver(SignUpInputSchema),
@@ -35,6 +53,7 @@ export function SignupForm({
       password: '',
       ...(invitationId ? { invitationId } : {}),
       ...(setupToken ? { setupToken } : {}),
+      ...(accountInvitationToken ? { accountInvitationToken } : {}),
     },
     mode: 'onSubmit',
     reValidateMode: 'onChange',
@@ -45,6 +64,7 @@ export function SignupForm({
         ? '/accept-invitation?invitationId=' + encodeURIComponent(invitationId)
         : undefined),
   );
+  if (invitationRefused) return <InvitationUnavailable />;
   if (pending)
     return (
       <VerificationState
@@ -73,7 +93,27 @@ export function SignupForm({
               },
             });
             if (result.error) {
+              const refused = result.error as {
+                status?: number;
+                error?: { code?: unknown };
+              };
+              if (
+                invitationMode &&
+                refused.status === 401 &&
+                refused.error?.code === 'AUTH_REQUIRED'
+              ) {
+                setInvitationRefused(true);
+                return;
+              }
               setFailure(authFailure(result.error));
+              return;
+            }
+            // An invitation sign-up is verified on acceptance and sends no
+            // verification email, so the account can sign in right away.
+            if (invitationMode) {
+              window.location.assign(
+                '/sign-in?returnTo=' + encodeURIComponent(next),
+              );
               return;
             }
             setPending(true);

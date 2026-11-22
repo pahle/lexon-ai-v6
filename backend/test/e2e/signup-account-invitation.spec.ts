@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { containerId, descriptor, docker } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
+import { readCapturedMail, waitForHydration } from './identity-support.js';
 import { enrollAdministrator } from './brand-visual-platform-world.js';
 import { withSignupMode } from './setup-support.js';
 
@@ -18,6 +18,25 @@ const psql = async (sql: string) =>
     sql,
   ]);
 
+const inviter = (admin: APIRequestContext) => async (email: string) => {
+  const stack = descriptor();
+  const created = await admin.post(
+    `${stack.apiUrl}/api/platform/account-invitations`,
+    { headers: { origin: stack.frontendUrl }, data: { email } },
+  );
+  expect(created.status(), await created.text()).toBe(201);
+  const id = ((await created.json()) as { id: string }).id;
+  const mail = await readCapturedMail(
+    stack.project,
+    email,
+    'account-invitation',
+  );
+  return {
+    id,
+    token: new URL(mail.actionUrl).searchParams.get('accountInvitation')!,
+  };
+};
+
 test('sign-up with an account invitation while public sign-up is closed', async ({
   page,
   playwright,
@@ -30,23 +49,7 @@ test('sign-up with an account invitation while public sign-up is closed', async 
     `signup.invites.${Date.now().toString(36)}@example.test`,
   );
   const admin: APIRequestContext = page.request;
-  const invite = async (email: string) => {
-    const created = await admin.post(platform('/account-invitations'), {
-      headers: origin,
-      data: { email },
-    });
-    expect(created.status(), await created.text()).toBe(201);
-    const id = ((await created.json()) as { id: string }).id;
-    const mail = await readCapturedMail(
-      stack.project,
-      email,
-      'account-invitation',
-    );
-    return {
-      id,
-      token: new URL(mail.actionUrl).searchParams.get('accountInvitation')!,
-    };
-  };
+  const invite = inviter(admin);
   const signUp = async (email: string, accountInvitationToken?: string) => {
     const client = await playwright.request.newContext();
     return client.post(stack.apiUrl + '/api/auth/sign-up/email', {
@@ -129,4 +132,104 @@ test('sign-up with an account invitation while public sign-up is closed', async 
     expect((await signUp(resentEmail, resent.token)).status()).toBe(401);
     expect(await users(resentEmail)).toBe('0');
   });
+});
+
+test('invitation sign-up in the browser skips the verify-email screen, lands on sign-in with returnTo, and signs in right away', async ({
+  page,
+  browser,
+}) => {
+  const stack = descriptor();
+  await enrollAdministrator(
+    page,
+    `signup.browser.${Date.now().toString(36)}@example.test`,
+  );
+  const invite = inviter(page.request);
+  const context = await browser.newContext();
+  const visitor = await context.newPage();
+  try {
+    await withSignupMode(false, async () => {
+      const email = `${randomUUID()}@example.test`;
+      const { token } = await invite(email);
+      const fillSignUp = async (address: string) => {
+        await waitForHydration(
+          visitor.getByRole('button', { name: 'Create account', exact: true }),
+        );
+        await visitor
+          .getByLabel('Full name', { exact: true })
+          .fill('Invited Browser Person');
+        await visitor.getByLabel('Work email', { exact: true }).fill(address);
+        await visitor.getByLabel('Password', { exact: true }).fill(password);
+        const response = visitor.waitForResponse(
+          (candidate) =>
+            new URL(candidate.url()).pathname === '/api/auth/sign-up/email' &&
+            candidate.request().method() === 'POST',
+        );
+        await visitor
+          .getByRole('button', { name: 'Create account', exact: true })
+          .click();
+        return response;
+      };
+
+      await visitor.goto(
+        `${stack.frontendUrl}/sign-up?accountInvitation=${encodeURIComponent(token)}&returnTo=%2Fworkspace`,
+      );
+      expect((await fillSignUp(email)).status()).toBe(200);
+      await expect(visitor).toHaveURL(
+        `${stack.frontendUrl}/sign-in?returnTo=%2Fworkspace`,
+      );
+      await expect(
+        visitor.getByRole('heading', { name: 'Verify your email' }),
+      ).toHaveCount(0);
+
+      await waitForHydration(
+        visitor.getByRole('button', { name: 'Sign in', exact: true }),
+      );
+      await visitor.getByLabel('Email', { exact: true }).fill(email);
+      await visitor.getByLabel('Password', { exact: true }).fill(password);
+      const signedIn = visitor.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === '/api/auth/sign-in/email' &&
+          response.request().method() === 'POST',
+      );
+      await visitor
+        .getByRole('button', { name: 'Sign in', exact: true })
+        .click();
+      expect((await signedIn).status()).toBe(200);
+      await expect(visitor).toHaveURL(/\/(workspace|onboarding)/);
+      expect(
+        await psql(
+          `SELECT email_verified, coalesce(banned,false) FROM auth."user" WHERE email='${email}'`,
+        ),
+      ).toBe('t|f');
+      expect(
+        await docker([
+          'exec',
+          await containerId('api'),
+          'node',
+          'backend/test/e2e/mail-control.mjs',
+          email,
+          'verification',
+        ]),
+      ).toMatch(/^null/);
+
+      // A reused token is refused with the invitation unavailable state.
+      await visitor.context().clearCookies();
+      await visitor.goto(
+        `${stack.frontendUrl}/sign-up?accountInvitation=${encodeURIComponent(token)}`,
+      );
+      const refused = await fillSignUp(`${randomUUID()}@example.test`);
+      expect(refused.status()).toBe(401);
+      expect(await refused.json()).toEqual({
+        error: { code: 'AUTH_REQUIRED', message: 'Authentication required.' },
+      });
+      await expect(
+        visitor.getByRole('heading', { name: 'Invitation unavailable' }),
+      ).toBeVisible();
+      await expect(
+        visitor.getByRole('link', { name: 'Go to Lexon', exact: true }),
+      ).toBeVisible();
+    });
+  } finally {
+    await context.close();
+  }
 });
