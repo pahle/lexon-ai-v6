@@ -58,7 +58,7 @@ export const RecordHeader: FC<{
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-[26px] leading-[1.15] font-semibold md:text-3xl">
+          <h1 className="font-serif text-[26px] leading-[1.15] font-normal tracking-[-0.005em] md:text-[30px]">
             {title}
           </h1>
           {badges}

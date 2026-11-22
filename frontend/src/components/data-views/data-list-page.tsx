@@ -73,7 +73,9 @@ export const DataListPage: FC<{
   <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-5 pb-10 md:gap-5 md:px-6 md:pt-7 has-[[data-slot=floating-action-bar]]:pb-24">
     <div className="flex flex-col items-stretch gap-4 md:flex-row md:items-end">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <h1 className="text-3xl leading-tight font-semibold">{title}</h1>
+        <h1 className="min-w-0 font-serif text-[32px] leading-[normal] font-normal tracking-[-0.005em]">
+          {title}
+        </h1>
         {description ? (
           <p className="text-muted-foreground text-sm leading-[1.55]">
             {description}
