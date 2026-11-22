@@ -296,7 +296,7 @@ test('Account record pages and their confirmations', async ({
 
   // The confirmations open from the header and are cancelled; nothing runs.
   const disableDialog = page.getByRole('alertdialog', {
-    name: 'Disable Ayu Wardani?',
+    name: 'Disable Ayu Wardani’s account?',
   });
   await waitForHydration(disable);
   await disable.click();

@@ -14,7 +14,20 @@ export type AccountTarget = {
   id: string;
   name: string;
   email: string;
+  /** Known on the record page only; the list row has no session count. */
+  activeSessionCount?: number;
 };
+
+/** The name confirmations use: the account's name, or its email when empty. */
+export const displayName = (target: AccountTarget) =>
+  target.name.trim() || target.email;
+
+/** Prototype revision 16: "All N sessions end …", singular for one. */
+function sessionsSentence(count: number | undefined) {
+  if (count === 1) return 'The session ends';
+  if (count === undefined || count === 0) return 'All sessions end';
+  return `All ${count} sessions end`;
+}
 
 export function actionMessage(error: unknown): string {
   const code = error instanceof PlatformApiError ? error.code : '';
@@ -91,13 +104,14 @@ export function useAccountActions() {
   // The target is kept after closing so the copy does not change while the
   // dialog animates out.
   const target = confirm?.target;
+  const name = target ? displayName(target) : '';
   const dialogs = (
     <>
       <ConfirmDialog
         open={open && confirm?.kind === 'disable'}
         onOpenChange={(next) => !next && setOpen(false)}
-        title={`Disable ${target?.name ?? ''}?`}
-        description="They are signed out everywhere and cannot sign in. Their teams and content stay unchanged. You can enable the account again."
+        title={`Disable ${name}’s account?`}
+        description={`${name} is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.`}
         confirmLabel="Disable account"
         icon={BanIcon}
         destructive
@@ -114,8 +128,8 @@ export function useAccountActions() {
       <ConfirmDialog
         open={open && confirm?.kind === 'signout'}
         onOpenChange={(next) => !next && setOpen(false)}
-        title={`Sign ${target?.name ?? ''} out everywhere?`}
-        description="All their active sessions end. They can sign in again."
+        title={`Sign ${name} out everywhere?`}
+        description={`${sessionsSentence(target?.activeSessionCount)} on every device, including apps signed in with a token. ${name} can sign in again.`}
         confirmLabel="Sign out everywhere"
         icon={LogOutIcon}
         pending={busy}
@@ -124,7 +138,7 @@ export function useAccountActions() {
           void run(
             target,
             () => platformConsoleApi.revokeSessions(target.id),
-            `${target.name} was signed out everywhere.`,
+            `${displayName(target)} was signed out everywhere.`,
           )
         }
       />

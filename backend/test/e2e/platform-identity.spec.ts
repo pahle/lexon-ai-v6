@@ -707,7 +707,7 @@ test('F2 platform page passes both-theme axe checks in the real operator flow an
       .getByRole('button', { name: 'Disable account', exact: true })
       .click();
     const disableDialog = page.getByRole('alertdialog', {
-      name: `Disable ${targetProfile.name}?`,
+      name: `Disable ${targetProfile.name}’s account?`,
     });
     await expect(disableDialog).toBeVisible();
     await disableDialog

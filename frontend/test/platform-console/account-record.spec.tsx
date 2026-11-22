@@ -212,7 +212,7 @@ test('Disable confirmation names the person, uses the destructive fill, then dis
   await click(button('Disable account')!);
   await settle();
   const dialog = document.querySelector('[role="alertdialog"]')!;
-  expect(dialog.textContent).toContain('Disable Ayu Wardani?');
+  expect(dialog.textContent).toContain('Disable Ayu Wardani’s account?');
   const confirm = byText(dialog as HTMLElement, 'button', 'Disable account')!;
   expect(confirm.className).toContain('--lexon-destructive-fill');
   expect(calls('PATCH')).toBe(0);
@@ -341,7 +341,7 @@ test('dismissing the Disable confirmation makes no request', async () => {
   await click(button('Disable account')!);
   await settle();
   const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
-  expect(dialog.textContent).toContain('Disable Ayu Wardani?');
+  expect(dialog.textContent).toContain('Disable Ayu Wardani’s account?');
   await click(byText(dialog, 'button', 'Cancel')!);
   await settle();
   expect(document.querySelector('[role="alertdialog"]')).toBeNull();
@@ -372,4 +372,76 @@ test('body is one column in LEX-DS-001 §5.7 order: stat tiles, Details, Teams',
   expect(
     v.container.querySelector('[class*="grid-cols-[minmax(0,1fr)_360px]"]'),
   ).toBeNull();
+});
+
+// Prototype revision 16 copy (spec §13 entry 6).
+const DISABLE_TEXT = (name: string) =>
+  `${name} is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.`;
+const dialogParts = () => {
+  const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  return {
+    dialog,
+    title: dialog.querySelector('[data-slot="alert-dialog-title"]')!
+      .textContent,
+    description: dialog.querySelector('[data-slot="alert-dialog-description"]')!
+      .textContent,
+  };
+};
+
+test('Disable confirmation uses the prototype copy', async () => {
+  routes({ [GET]: () => json(detail()) });
+  const v = await mount();
+  await click(button('Disable account')!);
+  await settle();
+  const { dialog, title, description } = dialogParts();
+  expect(title).toBe('Disable Ayu Wardani’s account?');
+  expect(description).toBe(DISABLE_TEXT('Ayu Wardani'));
+  expect(byText(dialog, 'button', 'Disable account')!.className).toContain(
+    '--lexon-destructive-fill',
+  );
+  await v.unmount();
+});
+
+test('Sign out confirmation counts the active sessions', async () => {
+  for (const [count, sentence] of [
+    [3, 'All 3 sessions end on every device'],
+    [2, 'All 2 sessions end on every device'],
+    [1, 'The session ends on every device'],
+    [0, 'All sessions end on every device'],
+  ] as const) {
+    routes({ [GET]: () => json(detail({ activeSessionCount: count })) });
+    const v = await mount();
+    await click(button('Sign out everywhere')!);
+    await settle();
+    const { dialog, title, description } = dialogParts();
+    expect(title).toBe('Sign Ayu Wardani out everywhere?');
+    expect(description).toBe(
+      `${sentence}, including apps signed in with a token. Ayu Wardani can sign in again.`,
+    );
+    expect(
+      byText(dialog, 'button', 'Sign out everywhere')!.className,
+    ).not.toContain('--lexon-destructive-fill');
+    await v.unmount();
+    document.body.innerHTML = '';
+  }
+});
+
+test('confirmations fall back to the email when the name is empty', async () => {
+  routes({ [GET]: () => json(detail({ name: '' })) });
+  const v = await mount();
+  await click(button('Disable account')!);
+  await settle();
+  let parts = dialogParts();
+  expect(parts.title).toBe('Disable ayu@hukum-nusantara.co.id’s account?');
+  expect(parts.description).toBe(DISABLE_TEXT('ayu@hukum-nusantara.co.id'));
+  await click(byText(parts.dialog, 'button', 'Cancel')!);
+  await settle();
+  await click(button('Sign out everywhere')!);
+  await settle();
+  parts = dialogParts();
+  expect(parts.title).toBe('Sign ayu@hukum-nusantara.co.id out everywhere?');
+  expect(parts.description).toContain(
+    'ayu@hukum-nusantara.co.id can sign in again.',
+  );
+  await v.unmount();
 });

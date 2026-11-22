@@ -444,7 +444,7 @@ test('account support: verification resend limit, sign out everywhere, disable a
         .getByRole('button', { name: 'Disable account', exact: true })
         .click();
       const dialog = page.getByRole('alertdialog', {
-        name: `Disable ${targetName}?`,
+        name: `Disable ${targetName}’s account?`,
       });
       await expect(dialog).toBeVisible();
       await axeBothThemes(page, 'disable confirmation');

@@ -680,3 +680,34 @@ test('row menu action failures toast the record page message', async () => {
   );
   await view.unmount();
 });
+
+test('row menu confirmations use the prototype copy without a session count', async () => {
+  const { view } = await openAccountMenu(OTHER);
+  await click(item('Sign out everywhere'));
+  await settle();
+  let dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(
+    dialog.querySelector('[data-slot="alert-dialog-title"]')!.textContent,
+  ).toBe('Sign Ayu Wardani out everywhere?');
+  expect(
+    dialog.querySelector('[data-slot="alert-dialog-description"]')!.textContent,
+  ).toBe(
+    'All sessions end on every device, including apps signed in with a token. Ayu Wardani can sign in again.',
+  );
+  await click(byText(dialog, 'button', 'Cancel')!);
+  await settle();
+  await click(byLabel(view.container, 'Actions for Ayu Wardani')!);
+  await settle();
+  await click(item('Disable account'));
+  await settle();
+  dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+  expect(
+    dialog.querySelector('[data-slot="alert-dialog-title"]')!.textContent,
+  ).toBe('Disable Ayu Wardani’s account?');
+  expect(
+    dialog.querySelector('[data-slot="alert-dialog-description"]')!.textContent,
+  ).toBe(
+    'Ayu Wardani is signed out everywhere and cannot sign in until you enable the account again. Their teams and content stay unchanged.',
+  );
+  await view.unmount();
+});
