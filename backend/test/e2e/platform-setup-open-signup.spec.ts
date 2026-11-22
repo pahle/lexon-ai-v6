@@ -22,6 +22,9 @@ test.beforeAll(async () => {
 });
 
 async function signInThroughForm(page: Page, email: string, password: string) {
+  await waitForHydration(
+    page.getByRole('button', { name: 'Sign in', exact: true }),
+  );
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   const response = page.waitForResponse(
@@ -157,8 +160,12 @@ test('open sign-up: the setup link creates a platform administrator exactly once
       stack.apiUrl + '/api/platform/provisioning',
       { headers: { origin: stack.frontendUrl } },
     );
-    expect(denied.status()).toBeGreaterThanOrEqual(401);
-    expect(denied.status()).toBeLessThan(500);
+    // An authenticated, verified non-administrator on a platform route is
+    // refused with the identity contract's 403 ORG_FORBIDDEN (spec §4.2).
+    expect(denied.status()).toBe(403);
+    expect(await denied.json()).toMatchObject({
+      error: { code: 'ORG_FORBIDDEN' },
+    });
     await ordinaryPage.goto(stack.frontendUrl + '/platform/provisioning');
     await expect(ordinaryPage).toHaveURL(
       /\/platform\/organizations\?state=provisioning$/,
