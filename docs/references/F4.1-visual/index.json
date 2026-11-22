@@ -3026,9 +3026,7 @@
     "platform-account-sign-out-desktop-light",
     "platform-account-sign-out-desktop-dark",
     "platform-account-sign-out-mobile-light",
-    "platform-account-sign-out-mobile-dark"
-  ],
-  "planned": [
+    "platform-account-sign-out-mobile-dark",
     "platform-organizations-desktop-light",
     "platform-organizations-desktop-dark",
     "platform-organizations-mobile-light",
@@ -3044,7 +3042,9 @@
     "platform-organizations-error-desktop-light",
     "platform-organizations-error-desktop-dark",
     "platform-organizations-error-mobile-light",
-    "platform-organizations-error-mobile-dark",
+    "platform-organizations-error-mobile-dark"
+  ],
+  "planned": [
     "platform-organization-provision-desktop-light",
     "platform-organization-provision-desktop-dark",
     "platform-organization-provision-mobile-light",

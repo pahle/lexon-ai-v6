@@ -38,6 +38,10 @@ export const E2E_SHARD_PLAN = [
       e2e('rate-limit-proxy'),
       e2e('foreign-org-bearer'),
       e2e('platform-identity'),
+      // Enrols an additional administrator (platform world). Safe after
+      // platform-identity: one worker runs the projects in config order,
+      // and identity-browser comes before brand-visual.
+      e2e('brand-visual-platform-organizations'),
       e2e('organizations'),
     ],
   },
