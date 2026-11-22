@@ -15,6 +15,7 @@ import {
 import type { PlatformAccountDetail } from '@lexon/contracts';
 import {
   DetailsCard,
+  IdentityAvatar,
   IdentityCell,
   OpenCell,
   RecordHeader,
@@ -226,12 +227,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         emptyText="This account is not a member of any team."
         mobileRow={(t) => ({
           lead: (
-            <span
-              aria-hidden="true"
-              className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 flex-none items-center justify-center rounded-lg text-xs font-semibold"
-            >
-              {initials(t.name)}
-            </span>
+            <IdentityAvatar shape="organization" initials={initials(t.name)} />
           ),
           title: t.name,
           sub: t.slug,

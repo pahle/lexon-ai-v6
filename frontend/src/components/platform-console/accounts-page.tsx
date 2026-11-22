@@ -18,6 +18,7 @@ import {
   DataTableCard,
   DataToolbar,
   FacetFilter,
+  IdentityAvatar,
   IdentityCell,
   MutedCell,
   OnOffDot,
@@ -333,11 +334,7 @@ export function AccountsTab() {
           openLabel={(a) => `Open ${a.name}`}
           sort={{ key: 'joined', direction: 'descending' }}
           mobileRow={(a) => ({
-            lead: (
-              <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full text-xs font-semibold">
-                {initials(a.name)}
-              </span>
-            ),
+            lead: <IdentityAvatar initials={initials(a.name)} />,
             title: a.name,
             sub: a.email,
             badge: (

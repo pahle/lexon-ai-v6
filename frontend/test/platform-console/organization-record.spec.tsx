@@ -241,6 +241,13 @@ test('members on a narrow card: the prototype mobile rows, no menu', async () =>
     'AWAyu Wardaniayu@hukum-nusantara.co.idOwnerJoined 3 Sep 2026',
   );
   expect(rows[0]!.querySelector('a')).toBeNull();
+  // Prototype `.dv-av` lead (32px, round).
+  const lead = new Set(
+    rows[0]!
+      .querySelector('[data-slot="identity-avatar"]')!
+      .className.split(/\s+/),
+  );
+  for (const t of ['size-8', 'rounded-full']) expect(lead.has(t), t).toBe(true);
   await v.unmount();
 });
 

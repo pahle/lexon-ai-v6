@@ -12,6 +12,7 @@ import {
   DataTableCard,
   DataToolbar,
   FacetFilter,
+  IdentityAvatar,
   IdentityCell,
   MutedCell,
   PagedFooter,
@@ -223,12 +224,10 @@ export function OrganizationsPage() {
             sort={{ key: 'created', direction: 'descending' }}
             mobileRow={(o) => ({
               lead: (
-                <span
-                  aria-hidden="true"
-                  className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg text-xs font-semibold"
-                >
-                  {initials(o.name)}
-                </span>
+                <IdentityAvatar
+                  shape="organization"
+                  initials={initials(o.name)}
+                />
               ),
               title: o.name,
               sub: o.slug,

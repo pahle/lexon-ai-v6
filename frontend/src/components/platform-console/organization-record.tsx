@@ -24,6 +24,7 @@ import {
 } from '@lexon/contracts';
 import {
   DetailsCard,
+  IdentityAvatar,
   IdentityCell,
   MutedCell,
   OpenCell,
@@ -142,14 +143,7 @@ function MembersCard({ organization }: { organization: Active }) {
       emptyText="This organization has no members."
       {...(list.data ? { count: list.data.total } : {})}
       mobileRow={(m) => ({
-        lead: (
-          <span
-            aria-hidden="true"
-            className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full text-xs font-semibold"
-          >
-            {initials(m.name)}
-          </span>
-        ),
+        lead: <IdentityAvatar initials={initials(m.name)} />,
         title: m.name,
         sub: m.email,
         badge: <TagCell>{capitalize(m.role)}</TagCell>,

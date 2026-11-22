@@ -805,6 +805,16 @@ test('mobile account rows end with the relative last active', async () => {
       'PAPerson ayuayu@x.idActiveTwo-step on · 0 teams · Today',
       'PRPerson rizkyrizky@x.idActiveTwo-step on · 0 teams · Yesterday',
     ]);
+    // Prototype `.dv-av` lead (32px; LEX-DS-001 §5.7 mobile rows).
+    for (const r of rows) {
+      const lead = new Set(
+        r
+          .querySelector('[data-slot="identity-avatar"]')!
+          .className.split(/\s+/),
+      );
+      for (const t of ['size-8', 'rounded-full'])
+        expect(lead.has(t), t).toBe(true);
+    }
     await view.unmount();
   } finally {
     vi.useRealTimers();
@@ -855,6 +865,16 @@ test('mobile invitation rows: person, status, "Sent … · Expires …", row men
     expect(
       rows[1]!.querySelector('[aria-label="Actions for joko@gmail.com"]'),
     ).not.toBeNull();
+    // Prototype `.dv-av` lead (32px; LEX-DS-001 §5.7 mobile rows).
+    for (const r of rows) {
+      const lead = new Set(
+        r
+          .querySelector('[data-slot="identity-avatar"]')!
+          .className.split(/\s+/),
+      );
+      for (const t of ['size-8', 'rounded-full', 'border-dashed'])
+        expect(lead.has(t), t).toBe(true);
+    }
     await view.unmount();
   } finally {
     vi.unstubAllGlobals();

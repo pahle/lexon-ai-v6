@@ -11,6 +11,7 @@ import {
   DataTableCard,
   DataToolbar,
   FacetFilter,
+  IdentityAvatar,
   IdentityCell,
   ConfirmDialog,
   MutedCell,
@@ -215,14 +216,7 @@ export function InvitationsTab() {
           // The prototype's mobile invitation row; the menu stays at the
           // right (the row opens nothing, so the actions live there).
           mobileRow={(i) => ({
-            lead: (
-              <span
-                aria-hidden="true"
-                className="border-input text-muted-foreground flex size-8 flex-none items-center justify-center rounded-lg border border-dashed"
-              >
-                <MailIcon className="size-3.5" />
-              </span>
-            ),
+            lead: <IdentityAvatar shape="invitation" />,
             title: i.name || i.email,
             ...(i.name ? { sub: i.email } : {}),
             badge: statusBadge(i),

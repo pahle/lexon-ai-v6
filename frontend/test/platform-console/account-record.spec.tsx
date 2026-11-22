@@ -589,6 +589,16 @@ test('teams on a narrow card: the prototype mobile rows', async () => {
     expect(
       rows[0]!.querySelector('a[href^="/platform/organizations/"]'),
     ).not.toBeNull();
+    // Prototype `.dv-av` lead (32px; LEX-DS-001 §5.7 mobile rows).
+    for (const r of rows) {
+      const lead = new Set(
+        r
+          .querySelector('[data-slot="identity-avatar"]')!
+          .className.split(/\s+/),
+      );
+      for (const t of ['size-8', 'rounded-[8px]'])
+        expect(lead.has(t), t).toBe(true);
+    }
     await v.unmount();
   } finally {
     vi.unstubAllGlobals();

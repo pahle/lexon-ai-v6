@@ -5,7 +5,32 @@ import { cn } from '@/lib/utils';
 
 type Shape = 'person' | 'organization' | 'invitation';
 
-/** Avatar, organization tile, or dashed invitation tile; name, second line, optional badge. */
+/**
+ * The 32px lead of a table identity cell and a mobile row (prototype
+ * revision 16 `.dv-av`): a round initials avatar, an 8px-radius organization
+ * tile, or a round dashed invitation avatar with a mail icon.
+ */
+export const IdentityAvatar: FC<{ initials?: string; shape?: Shape }> = ({
+  initials,
+  shape = 'person',
+}) => (
+  <span
+    aria-hidden="true"
+    data-slot="identity-avatar"
+    className={cn(
+      'flex size-8 flex-none items-center justify-center text-xs font-semibold',
+      shape === 'person' && 'bg-muted text-muted-foreground rounded-full',
+      shape === 'organization' &&
+        'bg-sidebar-primary text-sidebar-primary-foreground rounded-[8px]',
+      shape === 'invitation' &&
+        'border-input text-muted-foreground rounded-full border border-dashed',
+    )}
+  >
+    {shape === 'invitation' ? <MailIcon className="size-3.5" /> : initials}
+  </span>
+);
+
+/** Avatar, organization tile, or dashed invitation avatar; name, second line, optional badge. */
 export const IdentityCell: FC<{
   name: string;
   secondary?: string;
@@ -14,19 +39,7 @@ export const IdentityCell: FC<{
   badge?: ReactNode;
 }> = ({ name, secondary, initials, shape = 'person', badge }) => (
   <div className="flex min-w-0 items-center gap-2.5">
-    <span
-      aria-hidden="true"
-      className={cn(
-        'flex size-8 flex-none items-center justify-center text-xs font-semibold',
-        shape === 'person' && 'bg-muted text-muted-foreground rounded-full',
-        shape === 'organization' &&
-          'bg-sidebar-primary text-sidebar-primary-foreground rounded-lg',
-        shape === 'invitation' &&
-          'border-input text-muted-foreground rounded-lg border border-dashed',
-      )}
-    >
-      {shape === 'invitation' ? <MailIcon className="size-3.5" /> : initials}
-    </span>
+    <IdentityAvatar shape={shape} {...(initials ? { initials } : {})} />
     <span className="flex min-w-0 flex-col leading-[1.3]">
       <b className="flex items-center gap-1.5 truncate font-medium">
         <span className="truncate">{name}</span>

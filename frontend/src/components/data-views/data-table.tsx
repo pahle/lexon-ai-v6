@@ -149,9 +149,11 @@ export function DataTable<T>({
                 ) : null}
                 {m.lead}
                 <span className="flex min-w-0 flex-1 flex-col gap-[3px] text-[13px] leading-[1.3]">
-                  <b className="truncate text-sm font-medium">{m.title}</b>
+                  <b className="truncate text-sm leading-[1.3] font-medium">
+                    {m.title}
+                  </b>
                   {m.sub ? (
-                    <small className="text-muted-foreground truncate text-xs">
+                    <small className="text-muted-foreground truncate text-xs leading-[1.3]">
                       {m.sub}
                     </small>
                   ) : null}

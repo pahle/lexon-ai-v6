@@ -175,6 +175,14 @@ test('list columns on a narrow card: the prototype mobile rows', async () => {
     'HNHukum Nusantarahukum-nusantaraActive3 members · ayu@hukum-nusantara.co.id',
     'HLHarbor Legal Partnersharbor-legal-partnersProvisioningOwner invited · owner@harborlegal.co.id',
   ]);
+  // Prototype `.dv-av` lead (32px; LEX-DS-001 §5.7 mobile rows).
+  for (const r of rows) {
+    const lead = new Set(
+      r.querySelector('[data-slot="identity-avatar"]')!.className.split(/\s+/),
+    );
+    for (const t of ['size-8', 'rounded-[8px]'])
+      expect(lead.has(t), t).toBe(true);
+  }
   await v.unmount();
 });
 
