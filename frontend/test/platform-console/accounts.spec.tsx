@@ -901,3 +901,97 @@ test('two facet toggles before the URL updates keep both choices', async () => {
   );
   await view.unmount();
 });
+
+// Prototype revision 16: mobile rows show the row menu unless the row sets
+// `menu:false`; account rows never do.
+function narrowCard() {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.cb(
+          [{ target, contentRect: { width: 400 } } as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+}
+
+test('mobile account rows keep the row menu, self rules included', async () => {
+  narrowCard();
+  try {
+    const rows = [
+      account({ id: ME.id, name: 'Dimas Prasetyo' }),
+      account({
+        id: '11111111-e2bb-4255-8caf-4136c566a962',
+        name: 'Ayu Wardani',
+        email: 'ayu@x.id',
+        isPlatformAdministrator: false,
+      }),
+      account({
+        id: '22222222-e2bb-4255-8caf-4136c566a962',
+        name: 'Lina Hartono',
+        email: 'lina@x.id',
+        status: 'disabled',
+        isPlatformAdministrator: false,
+      }),
+    ];
+    reply(json(page(rows)));
+    const { view } = await mount();
+    await settleUntil(
+      () => !!view.container.querySelector('[data-slot="data-mobile-row"]'),
+    );
+    const expected: [string, string[]][] = [
+      ['Dimas Prasetyo', ['View account']],
+      [
+        'Ayu Wardani',
+        ['View account', 'Sign out everywhere', 'Disable account'],
+      ],
+      ['Lina Hartono', ['View account', 'Enable account']],
+    ];
+    const mobileRows = Array.from(
+      view.container.querySelectorAll('[data-slot="data-mobile-row"]'),
+    );
+    for (const [index, [name, items]] of expected.entries()) {
+      const trigger = mobileRows[index]!.querySelector(
+        `[aria-label="Actions for ${name}"]`,
+      ) as HTMLElement;
+      expect(trigger, name).not.toBeNull();
+      await click(trigger);
+      await settle();
+      expect(menuItems()).toEqual(items);
+      // Opening the menu does not open the record.
+      expect(nav.push).not.toHaveBeenCalled();
+      await act(async () =>
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        ),
+      );
+      await settle();
+    }
+    // A menu action stays in the list: Disable asks first.
+    await click(
+      mobileRows[1]!.querySelector(
+        '[aria-label="Actions for Ayu Wardani"]',
+      ) as HTMLElement,
+    );
+    await settle();
+    await click(item('Disable account'));
+    await settle();
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(nav.push).not.toHaveBeenCalled();
+    // The row itself still opens the record.
+    await click(mobileRows[1]!.querySelector('b')!);
+    expect(nav.push).toHaveBeenCalledWith(
+      '/platform/accounts/11111111-e2bb-4255-8caf-4136c566a962',
+    );
+    await view.unmount();
+  } finally {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', fetchMock);
+  }
+});

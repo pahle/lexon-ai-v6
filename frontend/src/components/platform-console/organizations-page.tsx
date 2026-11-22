@@ -92,6 +92,39 @@ export function OrganizationsPage() {
     </Button>
   );
 
+  // The same menu on the desktop row and the mobile row (prototype: mobile
+  // rows show the row menu unless they set `menu:false`).
+  const rowMenu = (o: PlatformOrganizationSummary) => (
+    <RowMenu
+      label={`Actions for ${o.name}`}
+      items={[
+        {
+          label: 'View organization',
+          icon: EyeIcon,
+          onSelect: () => open(o),
+        },
+        ...(o.state === 'provisioning'
+          ? [
+              {
+                label: 'Resend invitation',
+                icon: MailIcon,
+                onSelect: () => void resendOwnerInvitation(queryClient, o.id),
+              },
+              {
+                label: 'Cancel provisioning',
+                icon: XIcon,
+                destructive: true,
+                onSelect: () => {
+                  setCancelTarget(o);
+                  setCancelOpen(true);
+                },
+              },
+            ]
+          : []),
+      ]}
+    />
+  );
+
   const columns: DataColumn<PlatformOrganizationSummary>[] = [
     {
       key: 'organization',
@@ -131,37 +164,7 @@ export function OrganizationsPage() {
       header: 'Actions',
       hideHeader: true,
       width: '56px',
-      cell: (o) => (
-        <RowMenu
-          label={`Actions for ${o.name}`}
-          items={[
-            {
-              label: 'View organization',
-              icon: EyeIcon,
-              onSelect: () => open(o),
-            },
-            ...(o.state === 'provisioning'
-              ? [
-                  {
-                    label: 'Resend invitation',
-                    icon: MailIcon,
-                    onSelect: () =>
-                      void resendOwnerInvitation(queryClient, o.id),
-                  },
-                  {
-                    label: 'Cancel provisioning',
-                    icon: XIcon,
-                    destructive: true,
-                    onSelect: () => {
-                      setCancelTarget(o);
-                      setCancelOpen(true);
-                    },
-                  },
-                ]
-              : []),
-          ]}
-        />
-      ),
+      cell: (o) => rowMenu(o),
     },
   ];
 
@@ -239,6 +242,7 @@ export function OrganizationsPage() {
                   } · ${o.ownerEmail}`}
                 </MutedCell>
               ),
+              trailing: rowMenu(o),
             })}
           />
         ) : (

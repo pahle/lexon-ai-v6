@@ -195,6 +195,23 @@ export function AccountsTab() {
   const open = (row: PlatformAccountSummary) =>
     router.push(`/platform/accounts/${row.id}`);
 
+  // The same menu on the desktop row and the mobile row (prototype: mobile
+  // rows show the row menu unless they set `menu:false`).
+  const rowMenu = (a: PlatformAccountSummary) => (
+    <RowMenu
+      label={`Actions for ${a.name}`}
+      items={[
+        { label: 'View account', icon: EyeIcon, onSelect: () => open(a) },
+        ...rowActions(
+          a,
+          // Unknown identity is treated as self.
+          !identity || identity.user.id === a.id,
+          actions,
+        ),
+      ]}
+    />
+  );
+
   const columns: DataColumn<PlatformAccountSummary>[] = [
     {
       key: 'account',
@@ -254,20 +271,7 @@ export function AccountsTab() {
       header: 'Actions',
       hideHeader: true,
       width: '56px',
-      cell: (a) => (
-        <RowMenu
-          label={`Actions for ${a.name}`}
-          items={[
-            { label: 'View account', icon: EyeIcon, onSelect: () => open(a) },
-            ...rowActions(
-              a,
-              // Unknown identity is treated as self.
-              !identity || identity.user.id === a.id,
-              actions,
-            ),
-          ]}
-        />
-      ),
+      cell: (a) => rowMenu(a),
     },
   ];
 
@@ -352,6 +356,7 @@ export function AccountsTab() {
                 <LastActive value={a.lastActiveAt} />
               </MutedCell>
             ),
+            trailing: rowMenu(a),
           })}
         />
       ) : (

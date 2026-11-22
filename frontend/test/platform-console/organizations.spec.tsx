@@ -489,3 +489,63 @@ test('a denied list shows the access failure and no provision form', async () =>
   expect(v.container.textContent).not.toContain('No team organizations yet');
   await v.unmount();
 });
+
+// Prototype revision 16: mobile organization rows show the row menu (the
+// rows never set `menu:false`).
+test('mobile organization rows keep the row menu; the row still opens', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.cb(
+          [{ target, contentRect: { width: 400 } } as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  reply(json(page([org(), provisioningOrg()])));
+  const v = await mount();
+  await settleUntil(
+    () => !!v.container.querySelector('[data-slot="data-mobile-row"]'),
+  );
+  const rows = Array.from(
+    v.container.querySelectorAll('[data-slot="data-mobile-row"]'),
+  );
+  const menuItems = () =>
+    Array.from(document.body.querySelectorAll('[role="menuitem"]')).map(
+      (n) => n.textContent,
+    );
+  for (const [index, [name, items]] of (
+    [
+      ['Hukum Nusantara', ['View organization']],
+      [
+        'Harbor Legal Partners',
+        ['View organization', 'Resend invitation', 'Cancel provisioning'],
+      ],
+    ] as const
+  ).entries()) {
+    const trigger = rows[index]!.querySelector(
+      `[aria-label="Actions for ${name}"]`,
+    ) as HTMLElement;
+    expect(trigger, name).not.toBeNull();
+    await click(trigger);
+    await settle();
+    expect(menuItems()).toEqual(items);
+    expect(nav.push).not.toHaveBeenCalled();
+    await act(async () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      ),
+    );
+    await settle();
+  }
+  await click(rows[1]!.querySelector('b')!);
+  expect(nav.push).toHaveBeenLastCalledWith(
+    `/platform/organizations/${PROV_ID}`,
+  );
+  await v.unmount();
+});
