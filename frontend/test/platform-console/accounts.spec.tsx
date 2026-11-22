@@ -1069,5 +1069,8 @@ test('invite dialog shows Optional to the right of the Name label', async () => 
   expect(input.getAttribute('aria-describedby')).toContain(optional.id);
   // No hint line under the input any more.
   expect(byText(document.body, 'p', 'Optional')).toBeUndefined();
+  // Prototype `btn('send','Send invitation','primary')` carries an icon.
+  const submit = document.body.querySelector('button[type="submit"]')!;
+  expect(submit.querySelector('svg:not([data-slot="spinner"])')).not.toBeNull();
   await view.unmount();
 });

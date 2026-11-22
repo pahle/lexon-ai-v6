@@ -287,7 +287,7 @@ function ProvisioningBody({ organization }: { organization: Provisioning }) {
             <Button
               type="button"
               variant="outline"
-              className="text-lexon-red-text"
+              className="text-lexon-red-text hover:text-lexon-red-text"
               disabled={submission.pending}
               onClick={() => setConfirmCancel(true)}
             >

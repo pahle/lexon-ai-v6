@@ -527,6 +527,9 @@ test('record header actions are outline with icons; Disable is red-text', async 
       expect(classes, label).not.toContain('bg-primary');
       expect(b.querySelector('svg'), label).not.toBeNull();
       expect(classes.includes('text-lexon-red-text'), label).toBe(destructive);
+      // Outline's hover:text-foreground must not hide the destructive red.
+      if (destructive)
+        expect(classes, label).toContain('hover:text-lexon-red-text');
     }
     await v.unmount();
   }
@@ -586,9 +589,8 @@ test('teams on a narrow card: the prototype mobile rows', async () => {
     expect(rows[0]!.querySelector('small')!.textContent).toBe(
       'hukum-nusantara',
     );
-    expect(
-      rows[0]!.querySelector('a[href^="/platform/organizations/"]'),
-    ).not.toBeNull();
+    // Prototype `menu:false`: no trailing open link on the mobile row.
+    expect(rows[0]!.querySelector('a')).toBeNull();
     // Prototype `.dv-av` lead (32px; LEX-DS-001 §5.7 mobile rows).
     for (const r of rows) {
       const lead = new Set(

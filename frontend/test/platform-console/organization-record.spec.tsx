@@ -675,6 +675,9 @@ test('provisioning header actions are outline with icons; Cancel is red-text', a
     expect(classes, label).not.toContain('bg-primary');
     expect(b.querySelector('svg'), label).not.toBeNull();
     expect(classes.includes('text-lexon-red-text'), label).toBe(destructive);
+    // Outline's hover:text-foreground must not hide the destructive red.
+    if (destructive)
+      expect(classes, label).toContain('hover:text-lexon-red-text');
   }
   await v.unmount();
 });

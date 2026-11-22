@@ -129,7 +129,7 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         <Button
           type="button"
           variant="outline"
-          className="text-lexon-red-text"
+          className="text-lexon-red-text hover:text-lexon-red-text"
           onClick={() => ask('disable', account)}
         >
           <BanIcon aria-hidden="true" />
@@ -232,12 +232,6 @@ function Body({ account }: { account: PlatformAccountDetail }) {
           title: t.name,
           sub: t.slug,
           badge: <TagCell>{cap(t.role)}</TagCell>,
-          trailing: (
-            <OpenCell
-              label={t.name}
-              href={`/platform/organizations/${t.organizationId}`}
-            />
-          ),
         })}
       />
       {dialogs}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { SendIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AccountInvitationInputSchema,
@@ -158,6 +159,7 @@ export function InviteDialog({
               pending={submission.pending}
               pendingLabel="Sending"
             >
+              <SendIcon aria-hidden="true" />
               Send invitation
             </PendingButton>
           </DialogFooter>
