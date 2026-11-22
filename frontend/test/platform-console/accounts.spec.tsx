@@ -995,3 +995,35 @@ test('mobile account rows keep the row menu, self rules included', async () => {
     vi.stubGlobal('fetch', fetchMock);
   }
 });
+
+// LEX-DS-001 §5.7, prototype revision 16 `.badge.warn`: red-text with a 45%
+// red-text border, never amber.
+const expectWarnBadge = (root: ParentNode, label: string) => {
+  const badges = Array.from(root.querySelectorAll('span.rounded-full')).filter(
+    (n) => n.textContent?.trim() === label,
+  );
+  expect(badges.length, label).toBeGreaterThan(0);
+  for (const b of badges) {
+    const classes = b.className.split(/\s+/);
+    expect(classes, label).toContain('text-lexon-red-text');
+    expect(classes, label).toContain('border-lexon-red-text/45');
+    expect(
+      classes.some((c) => c.includes('lexon-warning')),
+      label,
+    ).toBe(false);
+  }
+};
+
+test('Unverified and Expired badges use the red-text warning badge', async () => {
+  reply(json(page([account({ status: 'unverified' })])));
+  const { view } = await mount();
+  await settleUntil(() => !!view.container.querySelector('table'));
+  expectWarnBadge(view.container, 'Unverified');
+  await view.unmount();
+  nav.search = 'tab=invitations';
+  reply(json(page([invitation()])));
+  const second = await mount();
+  await settleUntil(() => !!second.view.container.querySelector('table'));
+  expectWarnBadge(second.view.container, 'Expired');
+  await second.view.unmount();
+});

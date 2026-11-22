@@ -62,7 +62,8 @@ export const MoneyCell: FC<{ amount: number }> = ({ amount }) => (
 
 const tones = {
   neutral: 'border-input text-foreground',
-  warning: 'border-lexon-warning/50 text-lexon-warning',
+  // Prototype revision 16 `.badge.warn`: red-text, border 45% red-text.
+  warning: 'border-lexon-red-text/45 text-lexon-red-text',
   inactive: 'border-input text-muted-foreground',
 } as const;
 

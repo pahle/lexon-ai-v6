@@ -531,3 +531,26 @@ test('record header actions are outline with icons; Disable is red-text', async 
     await v.unmount();
   }
 });
+
+// LEX-DS-001 §5.7, prototype revision 16 `C.badge('No','warn')` and
+// PSTAT.unverified: red-text badges, never amber.
+test('unverified header badge and Email verified No use red-text', async () => {
+  routes({
+    [GET]: () => json(detail({ status: 'unverified', emailVerified: false })),
+  });
+  const v = await mount();
+  for (const label of ['Unverified', 'No']) {
+    const b = Array.from(
+      v.container.querySelectorAll('span.rounded-full'),
+    ).find((n) => n.textContent?.trim() === label)!;
+    expect(b, label).toBeDefined();
+    const classes = b.className.split(/\s+/);
+    expect(classes, label).toContain('text-lexon-red-text');
+    expect(classes, label).toContain('border-lexon-red-text/45');
+    expect(
+      classes.some((c) => c.includes('lexon-warning')),
+      label,
+    ).toBe(false);
+  }
+  await v.unmount();
+});
