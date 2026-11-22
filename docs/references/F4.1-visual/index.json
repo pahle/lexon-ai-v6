@@ -3042,9 +3042,7 @@
     "platform-organizations-error-desktop-light",
     "platform-organizations-error-desktop-dark",
     "platform-organizations-error-mobile-light",
-    "platform-organizations-error-mobile-dark"
-  ],
-  "planned": [
+    "platform-organizations-error-mobile-dark",
     "platform-organization-provision-desktop-light",
     "platform-organization-provision-desktop-dark",
     "platform-organization-provision-mobile-light",
@@ -3057,5 +3055,6 @@
     "platform-organization-active-desktop-dark",
     "platform-organization-active-mobile-light",
     "platform-organization-active-mobile-dark"
-  ]
+  ],
+  "planned": []
 }

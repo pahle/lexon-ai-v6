@@ -117,3 +117,75 @@ test('Organizations list states', async ({ page, playwright }) => {
   }
   await normalized.remove();
 });
+
+test('Provision dialog and organization record pages', async ({
+  page,
+  playwright,
+}) => {
+  test.setTimeout(300_000);
+  const world = await platformWorld(page, playwright);
+  const normalized = await installPlatformConsoleNormalization(page, world);
+
+  // The dialog over the list, filled as in the prototype; nothing is sent.
+  await openOrganizations(page);
+  await expect(footer(page, '5 organizations')).toBeVisible();
+  const provision = page.getByRole('button', {
+    name: 'Provision organization',
+  });
+  await waitForHydration(provision);
+  await provision.click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Provision a team organization',
+  });
+  await expect(dialog).toBeVisible();
+  await dialog
+    .getByRole('textbox', { name: /^Organization name/ })
+    .fill('Harbor Legal Partners');
+  const slug = dialog.getByRole('textbox', { name: /^Organization slug/ });
+  await slug.fill('harbor-legal-partners');
+  await dialog
+    .getByRole('textbox', { name: /^First owner email/ })
+    .fill('owner@harborlegal.co.id');
+  await captureBrandViews(page, 'platform-organization-provision', {
+    keepFocus: true,
+    open: async () => {
+      await expect(dialog).toBeVisible();
+      await expect(slug).toHaveValue('harbor-legal-partners');
+    },
+  });
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  await page.getByLabel('Open Harbor Legal Partners', { exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/platform/organizations/${world.harborId}$`),
+  );
+  await captureBrandViews(page, 'platform-organization-provisioning', {
+    open: async () => {
+      await expect(
+        page.getByRole('button', { name: 'Resend invitation' }),
+      ).toBeVisible();
+      const expires = page.locator('[data-slot="stat-tile"]', {
+        hasText: 'Expires',
+      });
+      await expect(expires).toContainText('21 Nov 2026');
+      await expect(expires).toContainText('11:00');
+    },
+  });
+
+  await openOrganizations(page);
+  await page.getByLabel('Open Hukum Nusantara', { exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/platform/organizations/${world.organizations.team}$`),
+  );
+  await expect(page.locator('h1')).toHaveText('Hukum Nusantara');
+  await captureBrandViews(page, 'platform-organization-active', {
+    open: async () => {
+      await expect(footer(page, '3 members')).toBeVisible();
+      await expect(
+        page.getByRole('main').getByText('Sari Wibowo').first(),
+      ).toBeVisible();
+    },
+  });
+  await normalized.remove();
+});
