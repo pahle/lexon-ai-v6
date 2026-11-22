@@ -194,37 +194,31 @@ function ActiveBody({ organization }: { organization: Active }) {
           { icon: UsersIcon, text: members(organization.memberCount) },
         ]}
       />
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <StatTiles
-            items={[
-              {
-                icon: UsersIcon,
-                label: 'Members',
-                value: String(organization.memberCount),
-              },
-              {
-                icon: ShieldCheckIcon,
-                label: 'Two-step verification',
-                value: organization.requireTwoFactor
-                  ? 'Required'
-                  : 'Not required',
-              },
-              { icon: CalendarIcon, label: 'Created', value: created },
-            ]}
-          />
-          <MembersCard key={organization.id} organization={organization} />
-        </div>
-        <DetailsCard
-          rows={[
-            { label: 'Name', value: organization.name },
-            { label: 'Slug', value: organization.slug },
-            { label: 'Owner email', value: organization.ownerEmail },
-            { label: 'Created', value: created },
-            { label: 'Organization ID', value: organization.id, copy: true },
-          ]}
-        />
-      </div>
+      <StatTiles
+        items={[
+          {
+            icon: UsersIcon,
+            label: 'Members',
+            value: String(organization.memberCount),
+          },
+          {
+            icon: ShieldCheckIcon,
+            label: 'Two-step verification',
+            value: organization.requireTwoFactor ? 'Required' : 'Not required',
+          },
+          { icon: CalendarIcon, label: 'Created', value: created },
+        ]}
+      />
+      <DetailsCard
+        rows={[
+          { label: 'Name', value: organization.name },
+          { label: 'Slug', value: organization.slug },
+          { label: 'Owner email', value: organization.ownerEmail },
+          { label: 'Created', value: created },
+          { label: 'Organization ID', value: organization.id, copy: true },
+        ]}
+      />
+      <MembersCard key={organization.id} organization={organization} />
     </RecordPage>
   );
 }
@@ -308,85 +302,76 @@ function ProvisioningBody({ organization }: { organization: Provisioning }) {
           </>
         }
       />
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <StatTiles
-            items={[
-              {
-                icon: MailIcon,
-                label: 'Owner invitation',
-                value: capitalize(organization.invitation.status),
-              },
-              {
-                icon: ClockIcon,
-                label: 'Expires',
-                value: formatPlatformDate(organization.invitation.expiresAt),
-                supporting: formatPlatformTime(
-                  organization.invitation.expiresAt,
-                ),
-              },
-              {
-                icon: UsersIcon,
-                label: 'Members',
-                value: String(organization.memberCount),
-                supporting: 'Until the owner accepts',
-              },
-            ]}
-          />
-          <section
-            aria-labelledby="replace-owner-email"
-            className="border-border bg-background rounded-xl border"
-          >
-            <div className="px-4 py-3.5 md:px-5 md:py-4">
-              <h2
-                id="replace-owner-email"
-                className="text-[15px] font-semibold"
-              >
-                Replace owner email
-              </h2>
-              <p className="text-muted-foreground mt-0.5 text-[13px] leading-normal">
-                Sends a new invitation to a different person. The current
-                invitation stops working.
-              </p>
-            </div>
-            <form
-              noValidate
-              onSubmit={replace}
-              className="flex flex-wrap items-end gap-3 px-4 pb-4 md:px-5 md:pb-5"
-            >
-              <div className="min-w-[220px] flex-1">
-                <PlatformField
-                  label="New owner email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="owner@firm.co.id"
-                  disabled={submission.pending}
-                  registration={form.register('email')}
-                  error={form.formState.errors.email}
-                />
-              </div>
-              <PendingButton
-                type="submit"
-                pending={submission.pending && pendingOperation === 'replace'}
-                disabled={submission.pending}
-                pendingLabel="Replacing…"
-              >
-                <SendIcon aria-hidden="true" />
-                Replace and send
-              </PendingButton>
-            </form>
-          </section>
+      <StatTiles
+        items={[
+          {
+            icon: MailIcon,
+            label: 'Owner invitation',
+            value: capitalize(organization.invitation.status),
+          },
+          {
+            icon: ClockIcon,
+            label: 'Expires',
+            value: formatPlatformDate(organization.invitation.expiresAt),
+            supporting: formatPlatformTime(organization.invitation.expiresAt),
+          },
+          {
+            icon: UsersIcon,
+            label: 'Members',
+            value: String(organization.memberCount),
+            supporting: 'Until the owner accepts',
+          },
+        ]}
+      />
+      <DetailsCard
+        rows={[
+          { label: 'Name', value: organization.name },
+          { label: 'Slug', value: organization.slug },
+          { label: 'Owner email', value: organization.ownerEmail },
+          { label: 'Provisioned', value: provisioned },
+          { label: 'Organization ID', value: organization.id, copy: true },
+        ]}
+      />
+      <section
+        aria-labelledby="replace-owner-email"
+        className="border-border bg-background rounded-xl border"
+      >
+        <div className="px-4 py-3.5 md:px-5 md:py-4">
+          <h2 id="replace-owner-email" className="text-[15px] font-semibold">
+            Replace owner email
+          </h2>
+          <p className="text-muted-foreground mt-0.5 text-[13px] leading-normal">
+            Sends a new invitation to a different person. The current invitation
+            stops working.
+          </p>
         </div>
-        <DetailsCard
-          rows={[
-            { label: 'Name', value: organization.name },
-            { label: 'Slug', value: organization.slug },
-            { label: 'Owner email', value: organization.ownerEmail },
-            { label: 'Provisioned', value: provisioned },
-            { label: 'Organization ID', value: organization.id, copy: true },
-          ]}
-        />
-      </div>
+        <form
+          noValidate
+          onSubmit={replace}
+          className="flex flex-wrap items-end gap-3 px-4 pb-4 md:px-5 md:pb-5"
+        >
+          <div className="min-w-[220px] flex-1">
+            <PlatformField
+              label="New owner email"
+              type="email"
+              autoComplete="email"
+              placeholder="owner@firm.co.id"
+              disabled={submission.pending}
+              registration={form.register('email')}
+              error={form.formState.errors.email}
+            />
+          </div>
+          <PendingButton
+            type="submit"
+            pending={submission.pending && pendingOperation === 'replace'}
+            disabled={submission.pending}
+            pendingLabel="Replacing…"
+          >
+            <SendIcon aria-hidden="true" />
+            Replace and send
+          </PendingButton>
+        </form>
+      </section>
       <CancelProvisioningDialog
         open={confirmCancel}
         organization={organization}

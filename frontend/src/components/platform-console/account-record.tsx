@@ -209,67 +209,63 @@ function Body({ account }: { account: PlatformAccountDetail }) {
         ]}
         actions={actions}
       />
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <StatTiles
-            items={[
-              {
-                icon: UsersIcon,
-                label: 'Teams',
-                value: String(account.teamCount),
-              },
-              {
-                icon: KeyRoundIcon,
-                label: 'Active sessions',
-                value: String(account.activeSessionCount),
-                ...(account.status === 'disabled'
-                  ? { supporting: 'Signed out when disabled' }
-                  : {}),
-              },
-              {
-                icon: ShieldCheckIcon,
-                label: 'Two-step verification',
-                value: account.twoFactorEnabled ? 'On' : 'Off',
-              },
-            ]}
-          />
-          <RelatedTable
-            title="Teams"
-            description="Team organizations this account belongs to."
-            columns={teamColumns}
-            rows={account.teams}
-            getRowId={(t) => t.organizationId}
-            status={account.teams.length ? 'ready' : 'empty'}
-            onRetry={() => undefined}
-            emptyTitle="No teams yet"
-            emptyText="This account is not a member of any team."
-          />
-        </div>
-        <DetailsCard
-          rows={[
-            { label: 'Email', value: account.email },
-            {
-              label: 'Email verified',
-              value: account.emailVerified ? (
-                'Yes'
-              ) : (
-                <StatusBadge tone="warning">No</StatusBadge>
-              ),
-            },
-            {
-              label: 'Signed up',
-              value: formatPlatformDate(account.createdAt),
-            },
-            {
-              label: 'Last active',
-              value: account.lastActiveAt
-                ? formatPlatformDate(account.lastActiveAt)
-                : 'Never',
-            },
-            { label: 'Account ID', value: account.id, copy: true },
-          ]}
-        />
-      </div>
+      <StatTiles
+        items={[
+          {
+            icon: UsersIcon,
+            label: 'Teams',
+            value: String(account.teamCount),
+          },
+          {
+            icon: KeyRoundIcon,
+            label: 'Active sessions',
+            value: String(account.activeSessionCount),
+            ...(account.status === 'disabled'
+              ? { supporting: 'Signed out when disabled' }
+              : {}),
+          },
+          {
+            icon: ShieldCheckIcon,
+            label: 'Two-step verification',
+            value: account.twoFactorEnabled ? 'On' : 'Off',
+          },
+        ]}
+      />
+      <DetailsCard
+        rows={[
+          { label: 'Email', value: account.email },
+          {
+            label: 'Email verified',
+            value: account.emailVerified ? (
+              'Yes'
+            ) : (
+              <StatusBadge tone="warning">No</StatusBadge>
+            ),
+          },
+          {
+            label: 'Signed up',
+            value: formatPlatformDate(account.createdAt),
+          },
+          {
+            label: 'Last active',
+            value: account.lastActiveAt
+              ? formatPlatformDate(account.lastActiveAt)
+              : 'Never',
+          },
+          { label: 'Account ID', value: account.id, copy: true },
+        ]}
+      />
+      <RelatedTable
+        title="Teams"
+        description="Team organizations this account belongs to."
+        columns={teamColumns}
+        rows={account.teams}
+        getRowId={(t) => t.organizationId}
+        status={account.teams.length ? 'ready' : 'empty'}
+        onRetry={() => undefined}
+        emptyTitle="No teams yet"
+        emptyText="This account is not a member of any team."
+      />
       <ConfirmDialog
         open={confirm === 'disable'}
         onOpenChange={(open) => !open && setConfirm(null)}

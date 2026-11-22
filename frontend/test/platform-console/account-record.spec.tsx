@@ -349,3 +349,27 @@ test('dismissing the Disable confirmation makes no request', async () => {
   expect(toastSuccess).not.toHaveBeenCalled();
   await v.unmount();
 });
+
+test('body is one column in LEX-DS-001 §5.7 order: stat tiles, Details, Teams', async () => {
+  routes({ [GET]: () => json(detail()) });
+  const v = await mount();
+  const tilesBlock = v.container.querySelector(
+    '[data-slot="stat-tile"]',
+  )!.parentElement!;
+  const card = (title: string) =>
+    Array.from(v.container.querySelectorAll('section h2'))
+      .find((h) => h.textContent?.startsWith(title))!
+      .closest('section')!;
+  const body = [tilesBlock, card('Details'), card('Teams')];
+  const column = tilesBlock.parentElement!;
+  for (const el of body) expect(el.parentElement).toBe(column);
+  for (let i = 1; i < body.length; i++)
+    expect(
+      body[i - 1]!.compareDocumentPosition(body[i]!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  expect(column.className).toContain('flex-col');
+  expect(
+    v.container.querySelector('[class*="grid-cols-[minmax(0,1fr)_360px]"]'),
+  ).toBeNull();
+});

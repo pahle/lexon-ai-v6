@@ -614,3 +614,41 @@ test('Cancel provisioning failure never shows the server message', async () => {
   expect(text(v)).toContain('Harbor Legal Partners');
   await v.unmount();
 });
+
+function expectOneColumnBody(container: HTMLElement, titles: string[]) {
+  const tilesBlock = container.querySelector(
+    '[data-slot="stat-tile"]',
+  )!.parentElement!;
+  const card = (title: string) =>
+    Array.from(container.querySelectorAll('section h2'))
+      .find((h) => h.textContent?.startsWith(title))!
+      .closest('section')!;
+  const body = [tilesBlock, ...titles.map(card)];
+  const column = tilesBlock.parentElement!;
+  for (const el of body) expect(el.parentElement).toBe(column);
+  for (let i = 1; i < body.length; i++)
+    expect(
+      body[i - 1]!.compareDocumentPosition(body[i]!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  expect(column.className).toContain('flex-col');
+  expect(
+    container.querySelector('[class*="grid-cols-[minmax(0,1fr)_360px]"]'),
+  ).toBeNull();
+}
+
+test('active body is one column in LEX-DS-001 §5.7 order: stat tiles, Details, Members', async () => {
+  routes({
+    [GET]: () => json(active()),
+    [MEMBERS_GET]: () => json(membersPage()),
+  });
+  const v = await mount();
+  await settleUntil(() => text(v).includes('Rizky Pratama'));
+  expectOneColumnBody(v.container, ['Details', 'Members']);
+});
+
+test('provisioning body is one column in LEX-DS-001 §5.7 order: stat tiles, Details, Replace owner email', async () => {
+  routes({ [GET]: () => json(provisioning()) });
+  const v = await mount();
+  expectOneColumnBody(v.container, ['Details', 'Replace owner email']);
+});
