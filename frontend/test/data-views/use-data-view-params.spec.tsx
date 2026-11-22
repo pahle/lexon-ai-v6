@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { act } from 'react';
+import { act, useState } from 'react';
 import { useDataViewParams } from '../../src/components/data-views';
 import { render } from '../render';
 
@@ -69,4 +69,40 @@ test('reset clears query and facets and the page', async () => {
   const hook = await mount();
   await act(async () => hook.current.reset());
   expect(nav.replace).toHaveBeenCalledExactlyOnceWith('/platform/accounts');
+});
+
+test('a re-render before the URL lands keeps the pending write', async () => {
+  nav.search = '';
+  const box: { current?: Hook } = {};
+  let bump: () => void = () => undefined;
+  const Probe = () => {
+    const [, setN] = useState(0);
+    bump = () => setN((n) => n + 1);
+    box.current = useDataViewParams(['status', 'twoFactor']);
+    return null;
+  };
+  await render(<Probe />);
+  await act(async () => box.current!.set({ facets: { status: ['active'] } }));
+  // Something else re-renders the list while the URL still reads ''.
+  await act(async () => bump());
+  await act(async () => box.current!.set({ facets: { twoFactor: ['on'] } }));
+  expect(nav.replace).toHaveBeenLastCalledWith(
+    '/platform/accounts?status=active&twoFactor=on',
+  );
+  nav.search = 'query=notaris&status=active&page=4';
+});
+
+test('a facet patch changes only the facets it names', async () => {
+  const box: { current?: Hook } = {};
+  const Probe = () => {
+    box.current = useDataViewParams(['status', 'twoFactor']);
+    return null;
+  };
+  nav.search = 'status=active&twoFactor=off';
+  await render(<Probe />);
+  await act(async () => box.current!.set({ facets: { status: ['disabled'] } }));
+  expect(nav.replace).toHaveBeenLastCalledWith(
+    '/platform/accounts?status=disabled&twoFactor=off',
+  );
+  nav.search = 'query=notaris&status=active&page=4';
 });

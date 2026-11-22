@@ -168,3 +168,28 @@ test('facet trigger name always contains its visible text', async () => {
     await view.unmount();
   }
 });
+
+test('two toggles before the selection prop updates keep both', async () => {
+  vi.useRealTimers();
+  const onChange = vi.fn();
+  // The parent never re-renders with the new selection (a pending URL).
+  const view = await render(
+    <FacetFilter
+      label="Status"
+      options={options}
+      selected={[]}
+      onChange={onChange}
+    />,
+  );
+  await click(view.container.querySelector('button')!);
+  await settle();
+  const items = Array.from(
+    document.body.querySelectorAll('[role="menuitemcheckbox"]'),
+  ) as HTMLElement[];
+  await act(async () => {
+    items[1]!.click();
+    items[2]!.click();
+  });
+  expect(onChange).toHaveBeenLastCalledWith(['unverified', 'disabled']);
+  await view.unmount();
+});

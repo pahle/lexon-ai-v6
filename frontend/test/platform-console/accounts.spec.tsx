@@ -861,3 +861,43 @@ test('mobile invitation rows: person, status, "Sent … · Expires …", row men
     vi.stubGlobal('fetch', fetchMock);
   }
 });
+
+// Facet choices made before the URL update lands (router.replace is a
+// transition) must build on each other, not on the stale URL.
+test('two facet toggles before the URL updates keep both choices', async () => {
+  reply(json(page([account()])));
+  const { view } = await mount();
+  await settleUntil(() => !!view.container.querySelector('table'));
+  const facet = (name: string) =>
+    Array.from(
+      view.container.querySelectorAll('[data-slot="dropdown-menu-trigger"]'),
+    ).find((b) => b.textContent?.includes(name)) as HTMLElement;
+  await click(facet('Status'));
+  await settle();
+  const option = (label: string) =>
+    Array.from(
+      document.body.querySelectorAll('[role="menuitemcheckbox"]'),
+    ).find((n) => n.textContent === label) as HTMLElement;
+  // The mocked router never changes the URL: both clicks see the old one.
+  await act(async () => {
+    option('Unverified').click();
+    option('Disabled').click();
+  });
+  expect(nav.replace).toHaveBeenLastCalledWith(
+    '/platform/accounts?status=unverified&status=disabled',
+  );
+  await act(async () =>
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    ),
+  );
+  await settle();
+  // A different facet chosen right after keeps the pending status choice.
+  await click(facet('Two-step'));
+  await settle();
+  await act(async () => option('Off').click());
+  expect(nav.replace).toHaveBeenLastCalledWith(
+    '/platform/accounts?status=unverified&status=disabled&twoFactor=off',
+  );
+  await view.unmount();
+});

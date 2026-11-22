@@ -1,7 +1,7 @@
 'use client';
 
 import { CirclePlusIcon, XIcon } from 'lucide-react';
-import type { FC } from 'react';
+import { useRef, type FC } from 'react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -21,6 +21,19 @@ export const FacetFilter: FC<{
   onChange: (selected: string[]) => void;
 }> = ({ label, options, selected, onChange }) => {
   const chips = options.filter((o) => selected.includes(o.value));
+  // Toggles build on the last choice, not on `selected`: the URL behind it
+  // updates in a transition, so a second click can come before it does.
+  const key = selected.join('\u0000');
+  const pending = useRef(selected);
+  const seen = useRef(key);
+  if (seen.current !== key) {
+    seen.current = key;
+    pending.current = selected;
+  }
+  const change = (next: string[]) => {
+    pending.current = next;
+    onChange(next);
+  };
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -55,10 +68,13 @@ export const FacetFilter: FC<{
             checked={selected.includes(option.value)}
             closeOnClick={false}
             onCheckedChange={(on) =>
-              onChange(
+              change(
                 on
-                  ? [...selected, option.value]
-                  : selected.filter((v) => v !== option.value),
+                  ? [
+                      ...pending.current.filter((v) => v !== option.value),
+                      option.value,
+                    ]
+                  : pending.current.filter((v) => v !== option.value),
               )
             }
           >
@@ -70,7 +86,7 @@ export const FacetFilter: FC<{
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-muted-foreground justify-center"
-              onClick={() => onChange([])}
+              onClick={() => change([])}
             >
               <XIcon aria-hidden="true" />
               Clear filter

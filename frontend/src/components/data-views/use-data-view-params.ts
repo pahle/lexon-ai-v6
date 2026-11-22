@@ -11,7 +11,8 @@ import {
 /**
  * The view state of a data list lives in the URL, so back/forward and reloads
  * keep it. A change to the query, a facet, or the page size resets to page 1
- * in the same URL update unless the patch names a page.
+ * in the same URL update unless the patch names a page. A facet patch
+ * changes only the facets it names.
  */
 export function useDataViewParams(facetKeys: readonly string[]) {
   const router = useRouter();
@@ -26,9 +27,16 @@ export function useDataViewParams(facetKeys: readonly string[]) {
       ),
     [search, keys],
   );
-  // Reads the URL as of the last write, so two sets in one tick both survive.
-  const latest = useRef(search.toString());
-  latest.current = search.toString();
+  // Reads the URL as of the last write, so sets made before the URL update
+  // lands (router.replace is a transition) build on each other. Only a new
+  // URL replaces it; a re-render with the old URL keeps the pending write.
+  const searchString = search.toString();
+  const latest = useRef(searchString);
+  const seen = useRef(searchString);
+  if (seen.current !== searchString) {
+    seen.current = searchString;
+    latest.current = searchString;
+  }
   const set = useCallback(
     (patch: Partial<DataViewParams>) => {
       const list = keys ? keys.split('\u0000') : [];
@@ -39,6 +47,8 @@ export function useDataViewParams(facetKeys: readonly string[]) {
       const next = {
         ...current,
         ...patch,
+        // A facet patch names only the facets it changes.
+        facets: { ...current.facets, ...patch.facets },
         page: patch.page ?? 1,
       };
       const qs = serializeDataViewParams(next, list);

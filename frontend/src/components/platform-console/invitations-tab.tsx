@@ -172,8 +172,7 @@ export function InvitationsTab() {
   )
     return <QueryFailure error={list.error} />;
   // `tab` rides along as a facet key so filtering keeps the Invitations tab.
-  const resetFilters = () =>
-    view.set({ query: '', facets: { ...view.facets, status: [] } });
+  const resetFilters = () => view.set({ query: '', facets: { status: [] } });
   return (
     <DataTableCard
       toolbar={
@@ -188,9 +187,7 @@ export function InvitationsTab() {
               label="Status"
               options={STATUS}
               selected={status}
-              onChange={(next) =>
-                view.set({ facets: { ...view.facets, status: next } })
-              }
+              onChange={(next) => view.set({ facets: { status: next } })}
             />
           }
         />

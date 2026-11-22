@@ -294,17 +294,13 @@ export function AccountsTab() {
                 label="Status"
                 options={STATUS}
                 selected={status}
-                onChange={(next) =>
-                  view.set({ facets: { ...view.facets, status: next } })
-                }
+                onChange={(next) => view.set({ facets: { status: next } })}
               />
               <FacetFilter
                 label="Two-step"
                 options={TWO_STEP}
                 selected={twoFactor}
-                onChange={(next) =>
-                  view.set({ facets: { ...view.facets, twoFactor: next } })
-                }
+                onChange={(next) => view.set({ facets: { twoFactor: next } })}
               />
             </>
           }
