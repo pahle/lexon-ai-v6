@@ -164,8 +164,6 @@ export interface IdentityApi {
   cancelInvitation(invitationId: Uuid): Promise<void>;
   declineInvitation(invitationId: Uuid): Promise<void>;
   acceptInvitation(invitationId: Uuid): Promise<InvitationAcceptance>;
-  listProvisioning(page?: Pagination): Promise<Page<ProvisioningSummary>>;
-  getProvisioning(organizationId: Uuid): Promise<ProvisioningSummary>;
   createProvisioning(input: ProvisioningInput): Promise<ProvisioningSummary>;
   resendOwnerInvitation(organizationId: Uuid): Promise<ProvisioningSummary>;
   replaceOwnerEmail(
