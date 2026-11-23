@@ -21,3 +21,21 @@ The product owner pastes Codex/superpowers output and asks what to do.
 5. Remind the product owner of process points when relevant: work on a
    feature branch, push after each task so you can review incrementally,
    Squash and merge, delete merged branches.
+
+## Model policy for implementer sessions (owner, 2026-11-23)
+
+- Every implementer prompt says: "Run in Fusion (frontier lead + SWE-2
+  sidekick): the frontier lead does brainstorming, spec, plan and reviews;
+  SWE-2 writes code and tests." Never name an Opus manager or Sonnet
+  implementers in a prompt.
+- Routine steps (CI checks, merging `main`, lint fixes, worktree cleanup)
+  use SWE-2.
+- The brief generator runs in Fusion too. Ask the owner to switch to Opus
+  only for a heavy decision: the final spec review, a visual approval, a
+  security finding, or a debugging dead end.
+- Trial: F4.4 task 1 (dependency upgrades). Its review checks that every
+  task shows RED -> GREEN evidence (failing command and output before the
+  change, passing after), that the spec and quality reviews actually ran and
+  their findings were handled, and that every report states the CI result of
+  its head. Then recommend to the owner whether Fusion stays for the rest of
+  F4.4.

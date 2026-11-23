@@ -7,10 +7,15 @@ Last updated: 2026-11-23 by the brief generator.
 **2026-11-23 (latest): F4.4 Hardening 2 brief being written; then F5. One implementer session at a time.**
 
 - **Main:** F0-F4.3 (#55, 84 revision 16 goldens approved); #58 supply chain (Renovate, OSV-Scanner gate, Syft SBOM); #56 Audit 2 (`docs/references/audits/2026-11-audit-2.md`); #57 dev-workflow (Docker-free `test:unit`, build-free typecheck, part of A-11, `chat-fence` race fix); #59 F5 brief.
-- **No implementer session running;** all earlier worktrees removed. Implementer = one Devin session (Opus manager medium, Sonnet implementers high), superpowers flow, fresh session per phase. **Claude weekly quota hit 100% on 2026-11-23: start the F4.4 implementer only after reset.**
+- **No implementer session running;** all earlier worktrees removed. Implementer = one Devin session in **Fusion (frontier lead + SWE-2 sidekick)**, superpowers flow, fresh session per phase. **Claude weekly quota hit 100% on 2026-11-23: start the F4.4 implementer only after reset.**
 - **Worktrees:** home `lexon-brief-generator`; docs PRs from `lexon-docs` (`git switch -c docs/<topic> origin/main`, Prettier, draft PR). Never touch the shared checkout `lexon-ai-v6` or the implementer's worktree.
 - **Mend Renovate app:** owner installs it. Do not merge Renovate PRs touching the 16 OSV vulnerabilities (F4.4 handles them). After F4.4 item 1 lands, owner makes `osv-scanner` a required check. **OSV allowlist expires 2026-12-22.**
 - **Order: F4.4 -> F5.**
+- **Model policy (owner, 2026-11-23; Opus-only drained the Devin quota):**
+  - Implementer sessions run in **Fusion (frontier lead + SWE-2 sidekick)**: a Claude frontier model leads (brainstorming, spec, plan, reviews); SWE-2 writes code and tests.
+  - Routine steps (CI checks, merging main, lint fixes, worktree cleanup) use SWE-2.
+  - The brief generator also runs in Fusion. Ask the owner to switch to Opus only for a heavy decision: final spec review, visual approval, a security finding, or a debugging dead end.
+  - **Trial = F4.4 task 1 (dependency upgrades).** In its review check that RED -> GREEN evidence, spec/quality reviews and CI reporting meet the standard; then recommend to the owner whether Fusion stays for the rest of F4.4.
 - **F4.4 scope (owner, 2026-11-23; no UI, no visual rounds, lean):**
   1. Dependency upgrades first (16 OSV vulns): propagator-jaeger 2.8.0 via sdk-node 0.219.0 (HIGH, fixed 2.9.0); next 16.4.3 (7, fixed 16.4.5); qs 6.15.1 via typed-rest-client 2.3.1 / Stryker (4, fixed 6.16.1); minimatch 9.0.9 + 10.2.6 (fixed 11.0.1); glob 10.5.0 via archiver-utils / testcontainers (fixed 14.0.2); mdast-util-to-hast 13.2.0 override (fixed 13.2.1); esbuild 0.18.20 via drizzle-kit @esbuild-kit (fixed 0.25.0). LEX-TS-001 v1.14 = paired docs PR by me after the spec lists old -> new.
   2. Tests: B-01, B-06, B-07, B-12, B-13.
