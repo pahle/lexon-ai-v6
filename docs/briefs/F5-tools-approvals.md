@@ -48,9 +48,10 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 7. **Interaction model for tools, questions and approvals:**
    - **Tool rows follow text.** The assistant writes at least one sentence before a tool row; a row never sits directly under the thinking header. A row is one plain muted line (icon, what the tool did with its key result, chevron), with no border. Expanded, it shows the input and the result as readable fields, never raw JSON.
    - **A pending question or approval is a panel docked above the composer**, not a card in the thread. The thread shows the assistant's text and the "Waiting for you" marker.
-   - **Question panel:** the question, the options as numbered rows (a label and an optional one-line description; one click answers), a "Write another answer" row for free text, the expiry time, and "Answer in chat instead" (also the close button).
+   - **Question panel:** one `ask_user` call carries 1–3 questions. With several, the panel's top right shows Previous, "n of N", Next and the close button; each question has a "Skip this question" action, and the answers are sent together after the last one. Each question shows the options as numbered rows (a label and an optional one-line description; one click answers), a "Write another answer" row for free text, the expiry time, and "Answer in chat instead" (also the close button).
    - **Approval panel:** what Lexon wants to do, the details as fields (current and new title), Reject, Approve, and the expiry time. Approve needs a click or Ctrl+Enter; Enter alone never approves.
-   - **After a decision, a compact record stays in the thread:** an answered or dismissed question as a small box (the question, then the answer or "Answered in chat"); an approval as one muted line like a tool row ("Renamed this chat", "You rejected the rename", "Rename expired after 24 hours"), expandable to its fields.
+   - **After a decision, a compact record stays in the thread:** answered or dismissed questions as a small box (each question, then its answer, "Skipped", or "Answered in chat"); an approval as one muted line like a tool row ("Renamed this chat", "You rejected the rename", "Rename expired after 24 hours"), expandable to its fields.
+   - **Non-outcomes are red:** a failed tool row, a rejected approval and an expired approval or question use the `red-text` token; completed rows stay muted.
    - **The composer stays usable while a panel is open.** Sending a message while a question is open dismisses it as answered in chat and sends the message. Sending a message while an approval is open rejects the approval first, then sends the message.
 
 ## In scope
@@ -77,14 +78,14 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 ### Ask the user
 
 5. **Tool:**
-   - The model calls `ask_user` with a question (at most 300 characters) and 2–5 short options.
-   - It may allow a free-text answer, at most 500 characters.
+   - The model calls `ask_user` with 1–3 questions (each at most 300 characters, with 2–5 short options and an optional one-line description per option).
+   - Each question may allow a free-text answer, at most 500 characters. A skipped question is returned as unanswered.
    - The run pauses with the same mechanism as an approval (F3 §15–16): the run enters `awaiting_approval` with an operation of kind `question`, the job ends, and a resume job continues (decision 5).
 6. **Question panel (decision 7):**
    - A panel above the composer shows the question, the options as numbered rows, an optional free-text row, the expiry time, and Dismiss ("Answer in chat instead").
    - After the user answers, the thread keeps a small record of the question and the chosen answer, and the run resumes with that answer as the tool result. The answer is untrusted data like any user input.
 7. **Limits:**
-   - At most 2 questions per run. A third `ask_user` call is rejected with a safe error the model can read.
+   - At most 2 `ask_user` calls per run. A third call is rejected with a safe error the model can read.
    - Dismiss resumes the run with "the user chose to answer in chat".
 
 ### Deadline calculator
@@ -221,7 +222,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
   - [ ] pauses and resumes;
   - [ ] options and free text work;
   - [ ] Dismiss works;
-  - [ ] at most 2 questions per run;
+  - [ ] 1–3 questions per call with Previous/Next and Skip; at most 2 calls per run;
   - [ ] the waiting state shows in the thread and in Recent/Chats.
 - [ ] `deadline_calculator`:
   - [ ] is correct on the 2026–2027 calendar;

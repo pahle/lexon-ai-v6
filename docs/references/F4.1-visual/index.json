@@ -3133,7 +3133,7 @@
       "path": "review/chat-question-answered-desktop-light.png",
       "viewport": "desktop",
       "theme": "light",
-      "state": "Chat, question answered",
+      "state": "Chat, questions answered (one skipped)",
       "prototypeReference": "r14/chat-question-answered-d.png",
       "replaces": []
     },
@@ -3141,7 +3141,7 @@
       "path": "review/chat-question-answered-desktop-dark.png",
       "viewport": "desktop",
       "theme": "dark",
-      "state": "Chat, question answered",
+      "state": "Chat, questions answered (one skipped)",
       "prototypeReference": "r14/chat-question-answered-d-dark.png",
       "replaces": []
     },
@@ -3149,7 +3149,7 @@
       "path": "review/chat-question-answered-mobile-light.png",
       "viewport": "mobile",
       "theme": "light",
-      "state": "Chat, question answered",
+      "state": "Chat, questions answered (one skipped)",
       "prototypeReference": "r14/chat-question-answered-m.png",
       "replaces": []
     },
@@ -3157,7 +3157,7 @@
       "path": "review/chat-question-answered-mobile-dark.png",
       "viewport": "mobile",
       "theme": "dark",
-      "state": "Chat, question answered",
+      "state": "Chat, questions answered (one skipped)",
       "prototypeReference": "r14/chat-question-answered-m-dark.png",
       "replaces": []
     },
@@ -3352,6 +3352,38 @@
       "state": "Chats, chat waiting for you",
       "prototypeReference": "r14/chats-waiting-m-dark.png",
       "replaces": []
+    },
+    "chat-question-multi-desktop-light": {
+      "path": "review/chat-question-multi-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, multi-question panel (2 of 3), waiting for you",
+      "prototypeReference": "r14/chat-question-multi-d.png",
+      "replaces": []
+    },
+    "chat-question-multi-desktop-dark": {
+      "path": "review/chat-question-multi-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, multi-question panel (2 of 3), waiting for you",
+      "prototypeReference": "r14/chat-question-multi-d-dark.png",
+      "replaces": []
+    },
+    "chat-question-multi-mobile-light": {
+      "path": "review/chat-question-multi-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, multi-question panel (2 of 3), waiting for you",
+      "prototypeReference": "r14/chat-question-multi-m.png",
+      "replaces": []
+    },
+    "chat-question-multi-mobile-dark": {
+      "path": "review/chat-question-multi-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, multi-question panel (2 of 3), waiting for you",
+      "prototypeReference": "r14/chat-question-multi-m-dark.png",
+      "replaces": []
     }
   },
   "planned": [
@@ -3402,6 +3434,10 @@
     "chats-waiting-desktop-light",
     "chats-waiting-desktop-dark",
     "chats-waiting-mobile-light",
-    "chats-waiting-mobile-dark"
+    "chats-waiting-mobile-dark",
+    "chat-question-multi-desktop-light",
+    "chat-question-multi-desktop-dark",
+    "chat-question-multi-mobile-light",
+    "chat-question-multi-mobile-dark"
   ]
 }

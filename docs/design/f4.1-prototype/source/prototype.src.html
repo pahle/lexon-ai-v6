@@ -478,6 +478,17 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .dock .dbox{margin:4px 12px 0;background:var(--muted);border-radius:10px;padding:10px 12px}
 .dock .dbox .kv{grid-template-columns:110px 1fr;font-size:14px}
 .kbd2{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;font-size:11px;font-weight:500;margin-left:6px;background:color-mix(in srgb,currentColor 14%,transparent)}
+.trow.bad,.trow.bad .lb b{color:var(--redtext)}
+.dock .dnav{display:inline-flex;align-items:center;gap:2px;flex:none;color:var(--mfg);font-size:13px;font-weight:400}
+.dock .dnav .ib{width:28px;height:28px}
+.dock .dnav .ib[aria-disabled="true"]{opacity:.4}
+.dock .dnav .pg{min-width:44px;text-align:center}
+.dock .dsep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.orow.on .num{background:var(--tint);color:var(--redtext)}
+.orow.on .ot{font-weight:500}
+.orow .ck{margin-left:auto;color:var(--redtext);align-self:center}
+.qrec .qi+.qi{margin-top:8px}
+.qrec .qi{display:flex;flex-direction:column;gap:2px}
 .qrec{border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:4px;font-size:15px;line-height:1.5}
 .qrec .q{color:var(--mfg);font-size:14px}
 .qrec .a{color:var(--fg)}
@@ -1049,10 +1060,14 @@ const tpanel=()=>`<div class="texp">${trow('calendar',DL_ROW,true)}<div class="t
 const waitChip=()=>`<span class="wait" role="status"><span class="wd" aria-hidden="true"></span>Waiting for you</span>`;
 const ASKQ='Kontrak jenis apa yang Anda maksud?';
 const ASKO=[['Perjanjian kerja','PKWT atau PKWTT'],['Sewa-menyewa','Tanah, bangunan, atau kendaraan'],['Jual beli','Barang atau aset'],['Kerja sama usaha','Kemitraan atau joint venture']];
-const qdock=()=>`<section class="dock" aria-label="Question from Lexon"><div class="dh"><span id="aq">${ASKQ}</span><button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button></div><div class="ol" role="radiogroup" aria-labelledby="aq">${ASKO.map(([t,d],i)=>`<button class="orow" role="radio" aria-checked="false"><span class="num">${i+1}</span><span class="ot">${t}<small>${d}</small></span></button>`).join('')}<div class="orow"><span class="num">${sv('pen',13)}</span><span class="oin">Write another answer</span></div></div><div class="df"><span class="ox">Expires 24 Nov 2026, 10:42</span><button class="btn ghost sm">Answer in chat instead</button></div></section>`;
+const ASKM=[[ASKQ,ASKO],['Siapa pihak dalam kontrak ini?',[['Perusahaan dan karyawan','Hubungan kerja'],['Dua perusahaan','Hubungan bisnis'],['Perorangan','Antarindividu']]],['Kapan kontrak ditandatangani?',[['Kurang dari 1 tahun lalu',''],['1 sampai 3 tahun lalu',''],['Lebih dari 3 tahun lalu','']]]];
+const qdock=(page=0,total=1,picked=-1)=>{const [q,opts]=total>1?ASKM[page]:[ASKQ,ASKO];
+ const nav=total>1?`<span class="dnav"><button class="ib" aria-label="Previous question" ${page===0?'aria-disabled="true"':''}>${sv('left',16)}</button><span class="pg">${page+1} of ${total}</span><button class="ib" aria-label="Next question" ${page===total-1?'aria-disabled="true"':''}>${sv('right',16)}</button><span class="dsep" aria-hidden="true"></span><button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button></span>`:`<button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button>`;
+ return `<section class="dock" aria-label="${total>1?`Question ${page+1} of ${total} from Lexon`:'Question from Lexon'}"><div class="dh"><span id="aq">${q}</span>${nav}</div><div class="ol" role="radiogroup" aria-labelledby="aq">${opts.map(([t,d],i)=>`<button class="orow ${i===picked?'on':''}" role="radio" aria-checked="${i===picked}"><span class="num">${i+1}</span><span class="ot">${t}${d?`<small>${d}</small>`:''}</span>${i===picked?`<span class="ck">${sv('check',16)}</span>`:''}</button>`).join('')}<div class="orow"><span class="num">${sv('pen',13)}</span><span class="oin">Write another answer</span></div></div><div class="df"><span class="ox">Expires 24 Nov 2026, 10:42</span><span style="display:inline-flex;gap:4px">${total>1?'<button class="btn ghost sm">Skip this question</button>':''}<button class="btn ghost sm">Answer in chat instead</button></span></div></section>`;};
 const adock=()=>`<section class="dock" aria-label="Approval needed"><div class="dh"><span style="display:inline-flex;align-items:center;gap:6px">Lexon wants to rename this chat${sv('down2',14,'style="color:var(--mfg)"')}</span></div><div class="dbox"><dl class="kv"><dt>Current title</dt><dd>Draf somasi wanprestasi</dd><dt>New title</dt><dd><b style="font-weight:600">Somasi PT Sinar</b></dd></dl></div><div class="df" style="padding-top:10px"><button class="btn outline sm">Reject<span class="kbd2">Esc</span></button><span class="ox">Expires 24 Nov 2026, 10:42</span><button class="btn primary sm">Approve<span class="kbd2">Ctrl ↵</span></button></div></section>`;
 const docked=(panel,ph)=>{let c=composer().replace('<div class="comp','__DOCK__<div class="comp').replace('__DOCK__',panel);if(ph)c=c.replace('placeholder="Ask Lexon about a contract, a regulation, or a case…"',`placeholder="${ph}"`);return c;};
 const qrec=(answer,off=false)=>`<div class="qrec"><span class="q">${ASKQ}</span><span class="a ${off?'off':''}">${answer}</span></div>`;
+const qrecM=(answers)=>`<div class="qrec">${ASKM.map(([q],i)=>`<div class="qi"><span class="q">${q}</span><span class="a ${answers[i]===null?'off':''}">${answers[i]??'Skipped'}</span></div>`).join('')}</div>`;
 function f5Screen(st){
  const set=(title)=>{chats=CHATS0.slice();chats[0]=title;crumbT=title;};
  let b='',c=composer(),side={active:'a'};
@@ -1061,12 +1076,13 @@ function f5Screen(st){
   if(st==='chat-tool-activity') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${DL_PRE}${trow('calendar',DL_ROW)}${DL_ANS}${abar()}</div>`;
   if(st==='chat-tool-expanded') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${DL_PRE}${tpanel()}${DL_ANS}${abar()}</div>`;
   if(st==='chat-tool-running'){b=q+`<div class="am">${who('',null,true)}${DL_PRE}<span class="trow" aria-live="polite">${sv('calendar',15)}<span class="lb shim">Calculating the deadline…</span></span></div>`;c=composer({streaming:true});}
-  if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${DL_PRE}${trow('alert','Couldn’t calculate the deadline')}<p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
+  if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${DL_PRE}${trow('alert','Couldn’t calculate the deadline',false,'bad')}<p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
  }
  if(st.startsWith('chat-question')){set(F5.ask.title);
   const q=um(F5.ask.q),pre='<p>Saya perlu satu informasi sebelum menjawab.</p>';
   if(st==='chat-question'){b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${waitChip()}</div>`;c=docked(qdock(),'Or reply in your own words…');side.waiting='a';}
-  if(st==='chat-question-answered') b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${qrec('Perjanjian kerja')}<p>Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.</p>${abar()}</div>`;
+  if(st==='chat-question-multi'){b=q+`<div class="am">${who('Thought for 4 seconds',false)}<p>Saya perlu beberapa informasi sebelum menjawab.</p>${waitChip()}</div>`;c=docked(qdock(1,3,0),'Or reply in your own words…');side.waiting='a';}
+  if(st==='chat-question-answered') b=q+`<div class="am">${who('Thought for 4 seconds',false)}<p>Saya perlu beberapa informasi sebelum menjawab.</p>${qrecM(['Perjanjian kerja','Perusahaan dan karyawan',null])}<p>Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.</p>${abar()}</div>`;
   if(st==='chat-question-dismissed') b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${qrec('Answered in chat',true)}<p>Baik. Jelaskan jenis kontraknya di chat, dan saya akan melanjutkan.</p>${abar()}</div>`;
  }
  if(st.startsWith('chat-approval')){
@@ -1074,8 +1090,8 @@ function f5Screen(st){
   const q=um(F5.ren.q),pre='<p>Saya akan mengganti judul chat ini menjadi “Somasi PT Sinar”.</p>';
   if(st==='chat-approval'){b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${waitChip()}</div>`;c=docked(adock());side.waiting='a';}
   if(ok) b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('checkc','Renamed this chat')}<p>Judul chat sudah diganti menjadi “Somasi PT Sinar”.</p>${abar()}</div>`;
-  if(st==='chat-approval-rejected') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('xc','You rejected the rename')}<p>Baik, judul chat tidak diubah.</p>${abar()}</div>`;
-  if(st==='chat-approval-expired') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('hourglass','Rename expired after 24 hours')}<p>Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.</p>${abar()}</div>`;
+  if(st==='chat-approval-rejected') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('xc','You rejected the rename',false,'bad')}<p>Baik, judul chat tidak diubah.</p>${abar()}</div>`;
+  if(st==='chat-approval-expired') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('hourglass','Rename expired after 24 hours',false,'bad')}<p>Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.</p>${abar()}</div>`;
  }
  const main=`<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${c}</div></div>`;
  return `<div class="app ${MOB?'mobile':''}">${sidebar('x',side)}${main}</div>`;
@@ -1090,7 +1106,7 @@ const GROUPS=[
  ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-declined','accept-invitation-unavailable','admin-setup','admin-setup-activate','admin-setup-unavailable','onboarding','onboarding-invitations','onboarding-team']],
  ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
  ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open','recent-load-failed']],
- ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete','chat-tool-activity','chat-tool-expanded','chat-tool-running','chat-tool-failed','chat-question','chat-question-answered','chat-question-dismissed','chat-approval','chat-approval-approved','chat-approval-rejected','chat-approval-expired']],
+ ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete','chat-tool-activity','chat-tool-expanded','chat-tool-running','chat-tool-failed','chat-question','chat-question-multi','chat-question-answered','chat-question-dismissed','chat-approval','chat-approval-approved','chat-approval-rejected','chat-approval-expired']],
  ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed','chats-waiting']],
  ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
  ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-filtered','platform-accounts-row-menu','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-accounts-invitations','platform-account-invite','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],
