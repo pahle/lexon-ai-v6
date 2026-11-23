@@ -107,6 +107,10 @@ export type ThreadProps = {
   reconnecting?: boolean | undefined;
 };
 
+// B-22: a stable Parts components map — a fresh object per render would hand
+// each part new component identities and remount the message content.
+const messagePartComponents = { Text: MarkdownText, Reasoning: () => null };
+
 const preventFileDrop = (event: DragEvent<HTMLFormElement>) => {
   if (event.dataTransfer.files.length === 0) return;
   event.preventDefault();
@@ -476,9 +480,7 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
               )
             }
           >
-            <MessagePrimitive.Parts
-              components={{ Text: MarkdownText, Reasoning: () => null }}
-            />
+            <MessagePrimitive.Parts components={messagePartComponents} />
           </HideAnswerPulseContext.Provider>
         </AnswerDimmedContext.Provider>
       </div>

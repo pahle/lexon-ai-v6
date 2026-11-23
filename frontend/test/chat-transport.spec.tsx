@@ -2306,3 +2306,69 @@ it('does not persist a cursor from an id-bearing malformed event', async () => {
     vi.useRealTimers();
   }
 });
+
+it('parses a delta frame with a single schema check (type-first dispatch)', async () => {
+  const { ChatSnapshotFrameSchema, RunStreamEventSchema } =
+    await import('@lexon/contracts');
+  const snapshotParse = vi.spyOn(ChatSnapshotFrameSchema, 'safeParse');
+  const eventParse = vi.spyOn(RunStreamEventSchema, 'safeParse');
+  const { createChatUIMessageStream } =
+    await import('../src/lib/chat-stream.js');
+  const frame = {
+    version: 1,
+    type: 'text-delta',
+    runId,
+    id: 'part-1',
+    delta: 'more',
+  };
+  const stream = createChatUIMessageStream(
+    new Response(`data: ${JSON.stringify(frame)}\n\n`),
+    {},
+  );
+  const chunkTypes: string[] = [];
+  try {
+    const reader = stream.getReader();
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      chunkTypes.push(next.value.type);
+    }
+    expect(chunkTypes).toEqual(['text-delta']);
+    // One frame, one schema parse: the snapshot union must not probe every
+    // delta before the event schema wins.
+    expect(snapshotParse).not.toHaveBeenCalled();
+    expect(eventParse).toHaveBeenCalledTimes(1);
+  } finally {
+    await stream.cancel().catch(() => {});
+    snapshotParse.mockRestore();
+    eventParse.mockRestore();
+  }
+});
+
+it('a literal null frame keeps the same skip path as before type-first dispatch', async () => {
+  const { createChatUIMessageStream } =
+    await import('../src/lib/chat-stream.js');
+  const frame = {
+    version: 1,
+    type: 'text-delta',
+    runId,
+    id: 'part-1',
+    delta: 'more',
+  };
+  const stream = createChatUIMessageStream(
+    new Response(`data: null\n\ndata: ${JSON.stringify(frame)}\n\n`),
+    {},
+  );
+  const chunkTypes: string[] = [];
+  try {
+    const reader = stream.getReader();
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      chunkTypes.push(next.value.type);
+    }
+    expect(chunkTypes).toEqual(['text-delta']);
+  } finally {
+    await stream.cancel().catch(() => {});
+  }
+});

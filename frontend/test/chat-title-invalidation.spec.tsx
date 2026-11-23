@@ -355,6 +355,7 @@ it('publishes coalesced reconnect recovery to the mounted title consumer', async
       return created;
     },
     (invalidatedChatId) => callbackNotifications.push(invalidatedChatId),
+    () => 0,
   );
 
   try {
@@ -408,16 +409,22 @@ it('refetches after reconnect when an invalidation may have been missed offline'
         close: ReturnType<typeof vi.fn>;
       }
     | undefined;
-  const dispose = subscribeToChatInvalidations(queryClient, scope, () => {
-    const created = {
-      onmessage: null,
-      onopen: null,
-      onerror: null,
-      close: vi.fn(),
-    };
-    source = created;
-    return created;
-  });
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => {
+      const created = {
+        onmessage: null,
+        onopen: null,
+        onerror: null,
+        close: vi.fn(),
+      };
+      source = created;
+      return created;
+    },
+    undefined,
+    () => 0,
+  );
   source!.onopen!(new Event('open'));
   await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
   source!.onerror!(new Event('error'));
@@ -558,16 +565,22 @@ it('cancels a throttled reconnect refresh when the subscription is disposed', as
         close: ReturnType<typeof vi.fn>;
       }
     | undefined;
-  const dispose = subscribeToChatInvalidations(queryClient, scope, () => {
-    const created = {
-      onmessage: null,
-      onopen: null,
-      onerror: null,
-      close: vi.fn(),
-    };
-    source = created;
-    return created;
-  });
+  const dispose = subscribeToChatInvalidations(
+    queryClient,
+    scope,
+    () => {
+      const created = {
+        onmessage: null,
+        onopen: null,
+        onerror: null,
+        close: vi.fn(),
+      };
+      source = created;
+      return created;
+    },
+    undefined,
+    () => 0,
+  );
   source!.onopen!(new Event('open'));
   expect(invalidateQueries).toHaveBeenCalledTimes(1);
   source!.onerror!(new Event('error'));
@@ -594,6 +607,65 @@ it('rejects malformed or content-bearing invalidations', async () => {
   ).resolves.toBe(false);
   expect(invalidateQueries).not.toHaveBeenCalled();
   client.clear();
+});
+
+it('jitters the throttled reconnect refresh per instance', async () => {
+  vi.useFakeTimers();
+  const queryClientA = new QueryClient();
+  const invalidateA = vi.spyOn(queryClientA, 'invalidateQueries');
+  const queryClientB = new QueryClient();
+  const invalidateB = vi.spyOn(queryClientB, 'invalidateQueries');
+  const makeSource = () => ({
+    onmessage: null as ((event: MessageEvent<string>) => void) | null,
+    onopen: null as ((event: Event) => void) | null,
+    onerror: null as ((event: Event) => void) | null,
+    close: vi.fn(),
+  });
+  const sourceA = makeSource();
+  const sourceB = makeSource();
+  const disposeA = subscribeToChatInvalidations(
+    queryClientA,
+    scope,
+    () => sourceA,
+    undefined,
+    () => 0.1,
+  );
+  const disposeB = subscribeToChatInvalidations(
+    queryClientB,
+    scope,
+    () => sourceB,
+    undefined,
+    () => 0.9,
+  );
+
+  try {
+    sourceA.onopen!(new Event('open'));
+    sourceB.onopen!(new Event('open'));
+    expect(invalidateA).toHaveBeenCalledTimes(1);
+    expect(invalidateB).toHaveBeenCalledTimes(1);
+    // The first recovery refresh on error is immediate in both instances.
+    sourceA.onerror!(new Event('error'));
+    sourceB.onerror!(new Event('error'));
+    expect(invalidateA).toHaveBeenCalledTimes(2);
+    expect(invalidateB).toHaveBeenCalledTimes(2);
+    // The reconnect refresh waits out the throttle window plus the instance's
+    // jitter: A fires at 15_000 + 0.1 * 2_000 = 15_200, B at 15_000 + 1_800 =
+    // 16_800 — different times, so tabs do not refetch together.
+    sourceA.onopen!(new Event('open'));
+    sourceB.onopen!(new Event('open'));
+    await vi.advanceTimersByTimeAsync(15_200);
+    expect(invalidateA).toHaveBeenCalledTimes(3);
+    expect(invalidateB).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(invalidateB).toHaveBeenCalledTimes(3);
+  } finally {
+    disposeA();
+    disposeB();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    queryClientA.clear();
+    queryClientB.clear();
+  }
 });
 
 it('tenant transition clears the owner-scoped chat cache subtree', async () => {

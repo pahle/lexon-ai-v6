@@ -1,7 +1,10 @@
 'use client';
 
 import '@assistant-ui/react-markdown/styles/dot.css';
-import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import {
+  MarkdownTextPrimitive,
+  memoizeMarkdownComponents,
+} from '@assistant-ui/react-markdown';
 import { useAuiState, type TextMessagePartProps } from '@assistant-ui/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -41,40 +44,19 @@ export const AnswerDimmedContext = createContext(false);
 // unlayered, so it beats layered utilities; the important modifier wins.
 export const HideAnswerPulseContext = createContext(false);
 
-type MarkdownProps = Partial<TextMessagePartProps> & {
-  readonly source?: string;
-};
-
-export function MarkdownText(props: MarkdownProps) {
-  return props.source === undefined ? (
-    <LiveMarkdownText {...props} />
-  ) : (
-    <MarkdownBody {...props} smooth={false} />
-  );
-}
-
-function LiveMarkdownText(props: MarkdownProps) {
-  // Only the live message is revealed gradually; history renders in full.
-  // When the run ends smoothing turns off, so the full text appears.
-  const live = useAuiState((state) => state.message.status?.type === 'running');
-  const reducedMotion = usePrefersReducedMotion();
-  const smooth = live && !reducedMotion ? SMOOTH_REVEAL : false;
-  return <MarkdownBody {...props} smooth={smooth} />;
-}
-
-function MarkdownBody({
-  source,
-  smooth,
-  ...props
-}: MarkdownProps & { readonly smooth: false | typeof SMOOTH_REVEAL }) {
-  const dimmed = useContext(AnswerDimmedContext);
-  const hidePulse = useContext(HideAnswerPulseContext);
-  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none flex flex-col gap-3${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
-  // Everything inside a dimmed answer is muted, not only the wrapper text:
-  // bold text, headings, list markers, and links carry the color themselves.
+// B-22: the components maps are module constants so a streamed delta does not
+// hand react-markdown new component identities and remount the rendered nodes
+// (react-markdown #821/#849). memoizeMarkdownComponents additionally memoizes
+// each component on its hast node, so unchanged parts skip the re-render.
+// Dimmed variants live in a second constant: nothing in a map may close over
+// per-render props.
+type MarkdownComponentMap = NonNullable<
+  Parameters<typeof memoizeMarkdownComponents>[0]
+>;
+function createMarkdownComponents(dimmed: boolean): MarkdownComponentMap {
   const muted = dimmed && 'text-muted-foreground';
   const markerMuted = dimmed && 'marker:text-muted-foreground';
-  const components: Components = {
+  return {
     img: () => null,
     h1: ({ children }) => (
       <h1
@@ -141,6 +123,44 @@ function MarkdownBody({
         </a>
       ),
   };
+}
+const markdownComponents = memoizeMarkdownComponents(
+  createMarkdownComponents(false),
+) as Components;
+const markdownComponentsDimmed = memoizeMarkdownComponents(
+  createMarkdownComponents(true),
+) as Components;
+
+type MarkdownProps = Partial<TextMessagePartProps> & {
+  readonly source?: string;
+};
+
+export function MarkdownText(props: MarkdownProps) {
+  return props.source === undefined ? (
+    <LiveMarkdownText {...props} />
+  ) : (
+    <MarkdownBody {...props} smooth={false} />
+  );
+}
+
+function LiveMarkdownText(props: MarkdownProps) {
+  // Only the live message is revealed gradually; history renders in full.
+  // When the run ends smoothing turns off, so the full text appears.
+  const live = useAuiState((state) => state.message.status?.type === 'running');
+  const reducedMotion = usePrefersReducedMotion();
+  const smooth = live && !reducedMotion ? SMOOTH_REVEAL : false;
+  return <MarkdownBody {...props} smooth={smooth} />;
+}
+
+function MarkdownBody({
+  source,
+  smooth,
+  ...props
+}: MarkdownProps & { readonly smooth: false | typeof SMOOTH_REVEAL }) {
+  const dimmed = useContext(AnswerDimmedContext);
+  const hidePulse = useContext(HideAnswerPulseContext);
+  const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none flex flex-col gap-3${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
+  const components = dimmed ? markdownComponentsDimmed : markdownComponents;
   if (source !== undefined)
     return (
       <div className={wrapperClass}>

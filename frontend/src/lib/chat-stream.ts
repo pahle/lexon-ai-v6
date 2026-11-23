@@ -214,8 +214,16 @@ function chunksFromFrame(
     return [];
   }
 
-  const snapshot = ChatSnapshotFrameSchema.safeParse(value);
-  if (snapshot.success) {
+  // B-19: dispatch on the parsed type so a delta is checked against one
+  // schema only — today every event frame is probed by the snapshot union
+  // first. A snapshot-looking type that fails still falls through to the
+  // event schema, keeping the same rejection path for malformed frames.
+  const frameType = (value as { type?: unknown } | null)?.type;
+  const snapshot =
+    typeof frameType === 'string' && frameType.startsWith('snapshot-')
+      ? ChatSnapshotFrameSchema.safeParse(value)
+      : null;
+  if (snapshot?.success) {
     const frame = snapshot.data;
     if (frame.type === 'snapshot-reset') {
       delete state.snapshot;

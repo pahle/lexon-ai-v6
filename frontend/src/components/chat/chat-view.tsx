@@ -56,6 +56,41 @@ type PendingCreateIdentity = {
   readonly effort: 'high' | 'max';
 };
 
+// B-19: a refreshed tree identical to the mounted one must not allocate a new
+// state object — the runtime and thread re-render for nothing otherwise.
+// Structural deep equality over the JSON-shaped tree (plain objects, arrays,
+// scalars).
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (
+    typeof a !== 'object' ||
+    a === null ||
+    typeof b !== 'object' ||
+    b === null
+  )
+    return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((item, index) => deepEqual(item, b[index]));
+  }
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(b, key) &&
+      deepEqual(
+        (a as Record<string, unknown>)[key],
+        (b as Record<string, unknown>)[key],
+      ),
+  );
+}
+
+export function treesEqual(a: ChatTree, b: ChatTree): boolean {
+  return deepEqual(a, b);
+}
+
 export function ChatView(props: ChatViewProps) {
   return (
     <ChatViewSession
@@ -99,7 +134,9 @@ function ChatViewSession({
     [chatId, client],
   );
   const updateCanonicalTree = useCallback((nextTree: ChatTree) => {
-    setTree(nextTree);
+    setTree((current) =>
+      current !== null && treesEqual(current, nextTree) ? current : nextTree,
+    );
   }, []);
 
   useEffect(() => {
