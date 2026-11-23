@@ -3101,7 +3101,7 @@
       "path": "review/chat-question-desktop-light.png",
       "viewport": "desktop",
       "theme": "light",
-      "state": "Chat, question card pending, waiting for you",
+      "state": "Chat, question panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-question-d.png",
       "replaces": []
     },
@@ -3109,7 +3109,7 @@
       "path": "review/chat-question-desktop-dark.png",
       "viewport": "desktop",
       "theme": "dark",
-      "state": "Chat, question card pending, waiting for you",
+      "state": "Chat, question panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-question-d-dark.png",
       "replaces": []
     },
@@ -3117,7 +3117,7 @@
       "path": "review/chat-question-mobile-light.png",
       "viewport": "mobile",
       "theme": "light",
-      "state": "Chat, question card pending, waiting for you",
+      "state": "Chat, question panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-question-m.png",
       "replaces": []
     },
@@ -3125,7 +3125,7 @@
       "path": "review/chat-question-mobile-dark.png",
       "viewport": "mobile",
       "theme": "dark",
-      "state": "Chat, question card pending, waiting for you",
+      "state": "Chat, question panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-question-m-dark.png",
       "replaces": []
     },
@@ -3197,7 +3197,7 @@
       "path": "review/chat-approval-desktop-light.png",
       "viewport": "desktop",
       "theme": "light",
-      "state": "Chat, approval card pending, waiting for you",
+      "state": "Chat, approval panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-approval-d.png",
       "replaces": []
     },
@@ -3205,7 +3205,7 @@
       "path": "review/chat-approval-desktop-dark.png",
       "viewport": "desktop",
       "theme": "dark",
-      "state": "Chat, approval card pending, waiting for you",
+      "state": "Chat, approval panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-approval-d-dark.png",
       "replaces": []
     },
@@ -3213,7 +3213,7 @@
       "path": "review/chat-approval-mobile-light.png",
       "viewport": "mobile",
       "theme": "light",
-      "state": "Chat, approval card pending, waiting for you",
+      "state": "Chat, approval panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-approval-m.png",
       "replaces": []
     },
@@ -3221,7 +3221,7 @@
       "path": "review/chat-approval-mobile-dark.png",
       "viewport": "mobile",
       "theme": "dark",
-      "state": "Chat, approval card pending, waiting for you",
+      "state": "Chat, approval panel above the composer, waiting for you",
       "prototypeReference": "r14/chat-approval-m-dark.png",
       "replaces": []
     },

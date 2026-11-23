@@ -48,31 +48,33 @@ brief's contracts on top of revision 16. Their 48 views are listed in
 names revision 16 as current: the F5 slice moves it to revision 17 together
 with `PROTOTYPE_REVISION` in `scripts/visual-compare-prototype.mjs`.
 
+- **Interaction model** (F5 brief decision 7): tool rows follow the
+  assistant's text; pending questions and approvals are panels docked above
+  the composer; decided ones leave a compact record in the thread; the
+  composer stays usable.
 - **Tool activity row** (`chat-tool-activity`, `chat-tool-expanded`,
-  `chat-tool-running`, `chat-tool-failed`): a compact row inside the answer
-  with the tool icon, the tool name, a one-line summary and a chevron;
-  collapsed by default. Expanded, it shows the inputs and the result
-  (deadline, skipped non-working days with their names, calendar used).
-  Running shows the live thinking mark and a shimmering summary; failed shows
-  the error row without Try again, and the answer continues without the tool.
-  On mobile the collapsed row hides the summary.
-- **Question card** (`chat-question`, `chat-question-answered`,
-  `chat-question-dismissed`): "Lexon asks", the question, 2–5 options as a
-  radio group of pills, an optional free-text field, the expiry time, and
-  Answer plus "Answer in chat instead". After a decision it is read-only:
-  the chosen answer with its time, or "You chose to answer in chat."
-- **Approval card** (`chat-approval`, `chat-approval-approved`,
-  `chat-approval-rejected`, `chat-approval-expired`): "Rename this chat",
-  what will happen, the current and the new title, the expiry time, Reject
-  and Approve. After a decision it is read-only with an Approved, Rejected or
-  Expired badge, the time and the outcome; Approved also renames the chat in
-  the header and in Recent.
+  `chat-tool-running`, `chat-tool-failed`): one muted line after the text,
+  with the tool icon, what the tool did with its key result, and a chevron;
+  no border. Expanded, it shows Input and Result as fields on `muted`
+  blocks. Running shows a shimmering present-tense label while the header
+  keeps the live mark; failed shows the alert icon and "Couldn’t calculate
+  the deadline", and the answer continues.
+- **Question panel** (`chat-question`): docked above the composer: the
+  question, numbered option rows with a one-line description, a "Write
+  another answer" row, the expiry time, and "Answer in chat instead" (also
+  the close button). The composer placeholder reads "Or reply in your own
+  words…". Answered and dismissed (`chat-question-answered`,
+  `chat-question-dismissed`) leave a small bordered record: the question,
+  then the answer or "Answered in chat".
+- **Approval panel** (`chat-approval`): "Lexon wants to rename this chat",
+  the current and new title on a `muted` block, Reject (Esc), the expiry
+  time, and Approve (Ctrl+Enter). Approved, rejected and expired
+  (`chat-approval-approved`, `chat-approval-rejected`,
+  `chat-approval-expired`) leave one muted line like a tool row; Approved
+  also renames the chat in the header and in Recent.
 - **Waiting for you** (`chat-question`, `chat-approval`, `chats-waiting`):
-  a tint pill with a clock in the answer header while a question or an
-  approval is open, a dot on the chat in Recent, and the same pill on the
-  chat's row in Chats. The composer stays usable.
-- Pending cards are elevated (card background and the composer shadow);
-  decided cards are flat on the page background.
+  a `tint` pill with a dot after the assistant's text, a dot on the chat in
+  Recent, and the same pill on the chat's row in Chats.
 
 ## Fixtures shown
 

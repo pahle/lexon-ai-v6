@@ -448,51 +448,45 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .sb.icon .nb{width:32px!important;padding:0!important;justify-content:center}
 
 /* Revision 17 (F5): tool activity, questions, approvals, waiting state */
-.tact{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;max-width:100%;height:32px;padding:0 10px 0 9px;border:1px solid var(--border);border-radius:10px;font-size:14px;line-height:1;color:var(--mfg);cursor:pointer}
-.tact .tn{color:var(--fg);font-weight:500;white-space:nowrap}
-.tact .ts{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tact .sep{width:1px;height:14px;background:var(--border);flex:none}
-.tact .lq{width:16px;height:16px}
-.tbox{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;align-self:stretch}
-.tbox>.tact{border:0;border-radius:0;height:40px;padding:0 12px;align-self:stretch}
-.tbox .tb{border-top:1px solid var(--border);padding:12px 14px 14px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.5}
-.tbox .tl{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mfg)}
-.kv{display:grid;grid-template-columns:230px 1fr;gap:6px 16px;margin:0}
+.trow{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:7px;align-self:flex-start;max-width:100%;font-size:15px;line-height:1.5;color:var(--mfg);cursor:pointer}
+.trow svg{flex:none}
+.trow .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .lb b{font-weight:500;color:var(--fg)}
+.texp{display:flex;flex-direction:column;gap:10px;align-self:stretch}
+.tpanel{display:flex;flex-direction:column;gap:8px}
+.tsec{background:var(--muted);border-radius:12px;padding:10px 14px 12px;font-size:14px;line-height:1.5}
+.tsec .tl{font-size:12.5px;color:var(--mfg);margin-bottom:6px}
+.kv{display:grid;grid-template-columns:230px 1fr;gap:4px 16px;margin:0}
 .kv dt{color:var(--mfg)}
 .kv dd{margin:0;color:var(--fg)}
-.erow.tool{font-size:14px;padding:10px 14px}
-.wait{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 8px;border-radius:999px;background:var(--tint);color:var(--redtext);font-size:12.5px;font-weight:500;white-space:nowrap}
+.wait{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;height:24px;padding:0 10px 0 8px;border-radius:999px;background:var(--tint);color:var(--redtext);font-size:13px;font-weight:500;white-space:nowrap}
+.wait .wd{width:8px;height:8px;border-radius:50%;background:var(--redtext);box-shadow:0 0 0 3px color-mix(in srgb,var(--redtext) 22%,transparent)}
 .wdot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--primary)}
 .nb .wdot{margin-right:2px}
-.ocard{border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:var(--shadow);padding:16px 16px 14px;display:flex;flex-direction:column;gap:14px;font-size:14px;line-height:1.5}
-.ocard.done{box-shadow:none;background:var(--bg)}
-.ocard .oh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--mfg)}
-.ocard .oh svg{color:var(--mfg)}
-.ocard .oq{font-size:16px;font-weight:500;line-height:1.5;color:var(--fg)}
-.ocard .opts{display:flex;flex-wrap:wrap;gap:8px}
-.opt{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 14px;border:1px solid var(--input);border-radius:999px;background:var(--bg);font-size:14px;cursor:pointer}
-.opt.on{border-color:var(--redtext);background:var(--tint);color:var(--redtext);font-weight:500}
-.ocard .of{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.ocard .ox{font-size:13px;color:var(--mfg);display:inline-flex;align-items:center;gap:6px}
-.ocard .oa{display:flex;gap:8px;margin-left:auto}
-.ocard .btn{margin-top:0}
-.ocard .btn[disabled]{opacity:.5}
-.ocard .kv{grid-template-columns:110px 1fr;font-size:14px}
-.ocard .kv dd b{font-weight:600}
-.ocard .res{display:flex;align-items:flex-start;gap:8px;color:var(--fg)}
-.ocard .res svg{flex:none;margin-top:3px}
-.ocard .meta{font-size:13px;color:var(--mfg)}
-.ostat{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px 0 7px;border-radius:999px;border:1px solid var(--input);font-size:12.5px;font-weight:500;color:var(--fg);background:var(--bg)}
-.ostat.ok{color:var(--fg)}
-.ostat.off{color:var(--mfg)}
+.dock{border:1px solid var(--border);border-radius:16px;background:var(--bg);margin-bottom:8px;overflow:hidden;box-shadow:0 10px 30px -14px rgba(8,6,6,.22),0 2px 6px -2px rgba(8,6,6,.06)}
+.dock .dh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 10px 6px 16px;font-size:15px;font-weight:500;line-height:1.45}
+.dock .dh .ib{flex:none}
+.dock .ol{display:flex;flex-direction:column;padding:2px 8px 4px}
+.orow{all:unset;box-sizing:border-box;display:flex;gap:12px;align-items:flex-start;padding:9px 8px;border-radius:10px;cursor:pointer}
+.orow+.orow{border-top:1px solid var(--border);border-top-left-radius:0;border-top-right-radius:0}
+.orow .num{flex:none;width:24px;height:24px;border-radius:7px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--mfg);margin-top:1px}
+.orow .ot{display:flex;flex-direction:column;gap:1px;font-size:14.5px;line-height:1.45;color:var(--fg)}
+.orow .ot small{font-size:13px;color:var(--mfg)}
+.orow .oin{flex:1;font-size:14.5px;color:var(--mfg);line-height:26px}
+.dock .df{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 12px 12px 16px;font-size:13px;color:var(--mfg)}
+.dock .df .btn{margin-top:0}
+.dock .dbox{margin:4px 12px 0;background:var(--muted);border-radius:10px;padding:10px 12px}
+.dock .dbox .kv{grid-template-columns:110px 1fr;font-size:14px}
+.kbd2{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;font-size:11px;font-weight:500;margin-left:6px;background:color-mix(in srgb,currentColor 14%,transparent)}
+.qrec{border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:4px;font-size:15px;line-height:1.5}
+.qrec .q{color:var(--mfg);font-size:14px}
+.qrec .a{color:var(--fg)}
+.qrec .a.off{color:var(--mfg)}
 .hrow .ht .hr{display:inline-flex;align-items:center;gap:10px}
-.app.mobile .kv{grid-template-columns:1fr;gap:2px 0}
+.app.mobile .kv,.app.mobile .dock .dbox .kv{grid-template-columns:1fr;gap:0}
 .app.mobile .kv dd{margin-bottom:6px}
-.app.mobile .ocard .kv{grid-template-columns:1fr}
-.app.mobile .ocard .oa{width:100%}
-.app.mobile .ocard .oa .btn{flex:1}
-.app.mobile .tact .ts{display:none}
-.app.mobile .tbox>.tact .ts{display:none}
+.app.mobile .dock .df .ox{display:none}
+.app.mobile .kbd2{display:none}
 </style>
 <div id="root"></div>
 <script>
@@ -1047,49 +1041,41 @@ const F5={
  ask:{title:'Masa berlaku kontrak',q:'Apakah kontrak ini masih berlaku?'},
  ren:{title:'Draf somasi wanprestasi',q:'Ganti judul chat ini jadi “Somasi PT Sinar”.'}
 };
-const DL_SUM='Deadline: Wednesday, 18 August 2027';
+const DL_PRE='<p>Saya hitung tenggatnya dengan kalender hari kerja Indonesia.</p>';
 const DL_ANS='<p>Batas akhir pengajuan banding jatuh pada <b>Rabu, 18 Agustus 2027</b>.</p><p>Perhitungan memakai 14 hari kalender sejak hari setelah putusan dibacakan. Hari ke-14 jatuh pada Selasa, 17 Agustus 2027 (Hari Kemerdekaan), sehingga digeser ke hari kerja berikutnya. Periksa kembali tenggang waktu yang berlaku untuk perkara Anda.</p>';
-const tact=({icon='calendar',name='Deadline calculator',sum=DL_SUM,open=false,live=false})=>`<button class="tact" aria-expanded="${open}">${live?lq():sv(icon,16)}<span class="tn">${name}</span><span class="sep" aria-hidden="true"></span><span class="ts ${live?'shim':''}">${sum}</span>${sv(open?'down2':'right',14)}</button>`;
-const tbox=()=>`<div class="tbox">${tact({open:true})}<div class="tb"><div class="tl">Inputs</div><dl class="kv"><dt>Start date</dt><dd>Tuesday, 3 August 2027</dd><dt>Period</dt><dd>14 calendar days</dd><dt>Start day counts</dt><dd>No</dd><dt>If it ends on a non-working day</dt><dd>Move to the next working day</dd></dl><div class="tl">Result</div><dl class="kv"><dt>Deadline</dt><dd><b>Wednesday, 18 August 2027</b></dd><dt>Skipped</dt><dd>Tuesday, 17 August 2027 · Independence Day</dd><dt>Calendar</dt><dd>Indonesian national holidays and joint leave days, 2027</dd></dl></div></div>`;
-const waitWho=()=>`<div class="who"><img src="${MONO}" alt="" style="width:20px;height:20px"><span class="wait" role="status">${sv('clock',12)}Waiting for you</span></div>`;
+const trow=(icon,label,open=false,cls='')=>`<button class="trow ${cls}" aria-expanded="${open}">${icon?sv(icon,15):''}<span class="lb">${label}</span>${sv(open?'down2':'right',14)}</button>`;
+const DL_ROW='Calculated the deadline: <b>Wednesday, 18 August 2027</b>';
+const tpanel=()=>`<div class="texp">${trow('calendar',DL_ROW,true)}<div class="tpanel"><div class="tsec"><div class="tl">Input</div><dl class="kv"><dt>Start date</dt><dd>Tuesday, 3 August 2027</dd><dt>Period</dt><dd>14 calendar days</dd><dt>Start day counts</dt><dd>No</dd><dt>If it ends on a non-working day</dt><dd>Move to the next working day</dd></dl></div><div class="tsec"><div class="tl">Result</div><dl class="kv"><dt>Deadline</dt><dd><b>Wednesday, 18 August 2027</b></dd><dt>Skipped</dt><dd>Tuesday, 17 August 2027 · Independence Day</dd><dt>Calendar</dt><dd>Indonesian national holidays and joint leave days, 2027</dd></dl></div></div></div>`;
+const waitChip=()=>`<span class="wait" role="status"><span class="wd" aria-hidden="true"></span>Waiting for you</span>`;
 const ASKQ='Kontrak jenis apa yang Anda maksud?';
-const ASKO=['Perjanjian kerja (PKWT/PKWTT)','Sewa-menyewa','Jual beli','Kerja sama usaha'];
-const qcard=(st)=>{
- if(st==='pending') return `<section class="ocard" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asks</div><div class="oq" id="aq">${ASKQ}</div><div class="opts" role="radiogroup" aria-labelledby="aq">${ASKO.map((o,i)=>`<button class="opt ${i===0?'on':''}" role="radio" aria-checked="${i===0}">${i===0?sv('check',14):''}${o}</button>`).join('')}</div><input class="inp" aria-label="Or write your own answer" placeholder="Or write your own answer"><div class="of"><span class="ox">${sv('clock',14)}Expires 24 Nov 2026, 10:42</span><div class="oa"><button class="btn ghost">Answer in chat instead</button><button class="btn primary">Answer</button></div></div></section>`;
- if(st==='answered') return `<section class="ocard done" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asked</div><div class="oq">${ASKQ}</div><div class="res">${sv('checkc',16)}<span><b style="font-weight:600">Perjanjian kerja (PKWT/PKWTT)</b></span></div><div class="meta">Answered 23 Nov 2026, 10:44</div></section>`;
- return `<section class="ocard done" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asked</div><div class="oq" style="color:var(--mfg)">${ASKQ}</div><div class="res" style="color:var(--mfg)">${sv('chats',16)}<span>You chose to answer in chat.</span></div><div class="meta">Dismissed 23 Nov 2026, 10:44</div></section>`;
-};
-const acard=(st)=>{
- const kv=(cur,nw)=>`<dl class="kv"><dt>Current title</dt><dd>${cur}</dd><dt>New title</dt><dd><b>${nw}</b></dd></dl>`;
- const head=(stat)=>`<div class="oh" style="justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:8px">${sv('pen',16)}Rename this chat</span>${stat}</div>`;
- if(st==='pending') return `<section class="ocard" aria-label="Approval needed"><div class="oh">${sv('pen',16)}Rename this chat</div><div class="oq">Lexon wants to rename this chat. Nothing changes until you approve.</div>${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="of"><span class="ox">${sv('clock',14)}Expires 24 Nov 2026, 10:42</span><div class="oa"><button class="btn outline">${sv('x',16)}Reject</button><button class="btn primary">${sv('check',16)}Approve</button></div></div></section>`;
- if(st==='approved') return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat ok">${sv('checkc',13)}Approved</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Approved 23 Nov 2026, 10:44 · The chat was renamed.</div></section>`;
- if(st==='rejected') return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat off">${sv('xc',13)}Rejected</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Rejected 23 Nov 2026, 10:44 · The title was not changed.</div></section>`;
- return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat off">${sv('hourglass',13)}Expired</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Expired 24 Nov 2026, 10:42 · No decision within 24 hours, so the title was not changed.</div></section>`;
-};
+const ASKO=[['Perjanjian kerja','PKWT atau PKWTT'],['Sewa-menyewa','Tanah, bangunan, atau kendaraan'],['Jual beli','Barang atau aset'],['Kerja sama usaha','Kemitraan atau joint venture']];
+const qdock=()=>`<section class="dock" aria-label="Question from Lexon"><div class="dh"><span id="aq">${ASKQ}</span><button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button></div><div class="ol" role="radiogroup" aria-labelledby="aq">${ASKO.map(([t,d],i)=>`<button class="orow" role="radio" aria-checked="false"><span class="num">${i+1}</span><span class="ot">${t}<small>${d}</small></span></button>`).join('')}<div class="orow"><span class="num">${sv('pen',13)}</span><span class="oin">Write another answer</span></div></div><div class="df"><span class="ox">Expires 24 Nov 2026, 10:42</span><button class="btn ghost sm">Answer in chat instead</button></div></section>`;
+const adock=()=>`<section class="dock" aria-label="Approval needed"><div class="dh"><span style="display:inline-flex;align-items:center;gap:6px">Lexon wants to rename this chat${sv('down2',14,'style="color:var(--mfg)"')}</span></div><div class="dbox"><dl class="kv"><dt>Current title</dt><dd>Draf somasi wanprestasi</dd><dt>New title</dt><dd><b style="font-weight:600">Somasi PT Sinar</b></dd></dl></div><div class="df" style="padding-top:10px"><button class="btn outline sm">Reject<span class="kbd2">Esc</span></button><span class="ox">Expires 24 Nov 2026, 10:42</span><button class="btn primary sm">Approve<span class="kbd2">Ctrl ↵</span></button></div></section>`;
+const docked=(panel,ph)=>{let c=composer().replace('<div class="comp','__DOCK__<div class="comp').replace('__DOCK__',panel);if(ph)c=c.replace('placeholder="Ask Lexon about a contract, a regulation, or a case…"',`placeholder="${ph}"`);return c;};
+const qrec=(answer,off=false)=>`<div class="qrec"><span class="q">${ASKQ}</span><span class="a ${off?'off':''}">${answer}</span></div>`;
 function f5Screen(st){
- const set=(k,title)=>{chats=CHATS0.slice();chats[0]=title;crumbT=title;};
+ const set=(title)=>{chats=CHATS0.slice();chats[0]=title;crumbT=title;};
  let b='',c=composer(),side={active:'a'};
- if(st.startsWith('chat-tool')){set('tool',F5.tool.title);
+ if(st.startsWith('chat-tool')){set(F5.tool.title);
   const q=um(F5.tool.q);
-  if(st==='chat-tool-activity') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${tact({})}${DL_ANS}${abar()}</div>`;
-  if(st==='chat-tool-expanded') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${tbox()}${DL_ANS}${abar()}</div>`;
-  if(st==='chat-tool-running'){b=q+`<div class="am"><div class="who">${lq()}<span class="shim">Thinking…</span></div>${tact({live:true,sum:'Calculating the deadline…'})}</div>`;c=composer({streaming:true});}
-  if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${tact({icon:'alert',sum:'Could not finish'})}<div class="erow tool" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The deadline calculator could not finish. Lexon answered without it.</span></div><p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
+  if(st==='chat-tool-activity') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${DL_PRE}${trow('calendar',DL_ROW)}${DL_ANS}${abar()}</div>`;
+  if(st==='chat-tool-expanded') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${DL_PRE}${tpanel()}${DL_ANS}${abar()}</div>`;
+  if(st==='chat-tool-running'){b=q+`<div class="am">${who('',null,true)}${DL_PRE}<span class="trow" aria-live="polite">${sv('calendar',15)}<span class="lb shim">Calculating the deadline…</span></span></div>`;c=composer({streaming:true});}
+  if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${DL_PRE}${trow('alert','Couldn’t calculate the deadline')}<p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
  }
- if(st.startsWith('chat-question')){set('ask',F5.ask.title);
-  const q=um(F5.ask.q);
-  if(st==='chat-question'){b=q+`<div class="am">${waitWho()}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('pending')}</div>`;side.waiting='a';}
-  if(st==='chat-question-answered') b=q+`<div class="am">${who('Thought for 11 seconds',false)}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('answered')}<p>Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.</p>${abar()}</div>`;
-  if(st==='chat-question-dismissed') b=q+`<div class="am">${who('Thought for 6 seconds',false)}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('dismissed')}<p>Baik. Jelaskan jenis kontraknya di chat, dan saya akan melanjutkan.</p>${abar()}</div>`;
+ if(st.startsWith('chat-question')){set(F5.ask.title);
+  const q=um(F5.ask.q),pre='<p>Saya perlu satu informasi sebelum menjawab.</p>';
+  if(st==='chat-question'){b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${waitChip()}</div>`;c=docked(qdock(),'Or reply in your own words…');side.waiting='a';}
+  if(st==='chat-question-answered') b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${qrec('Perjanjian kerja')}<p>Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.</p>${abar()}</div>`;
+  if(st==='chat-question-dismissed') b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${qrec('Answered in chat',true)}<p>Baik. Jelaskan jenis kontraknya di chat, dan saya akan melanjutkan.</p>${abar()}</div>`;
  }
  if(st.startsWith('chat-approval')){
-  const ok=st==='chat-approval-approved';set('ren',ok?'Somasi PT Sinar':F5.ren.title);
-  const q=um(F5.ren.q);
-  if(st==='chat-approval'){b=q+`<div class="am">${waitWho()}${acard('pending')}</div>`;side.waiting='a';}
-  if(ok) b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('approved')}<p>Judul chat sudah diganti menjadi “Somasi PT Sinar”.</p>${abar()}</div>`;
-  if(st==='chat-approval-rejected') b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('rejected')}<p>Baik, judul chat tidak diubah.</p>${abar()}</div>`;
-  if(st==='chat-approval-expired') b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('expired')}<p>Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.</p>${abar()}</div>`;
+  const ok=st==='chat-approval-approved';set(ok?'Somasi PT Sinar':F5.ren.title);
+  const q=um(F5.ren.q),pre='<p>Saya akan mengganti judul chat ini menjadi “Somasi PT Sinar”.</p>';
+  if(st==='chat-approval'){b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${waitChip()}</div>`;c=docked(adock());side.waiting='a';}
+  if(ok) b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('checkc','Renamed this chat')}<p>Judul chat sudah diganti menjadi “Somasi PT Sinar”.</p>${abar()}</div>`;
+  if(st==='chat-approval-rejected') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('xc','You rejected the rename')}<p>Baik, judul chat tidak diubah.</p>${abar()}</div>`;
+  if(st==='chat-approval-expired') b=q+`<div class="am">${who('Thought for 2 seconds',false)}${pre}${trow('hourglass','Rename expired after 24 hours')}<p>Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.</p>${abar()}</div>`;
  }
  const main=`<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${c}</div></div>`;
  return `<div class="app ${MOB?'mobile':''}">${sidebar('x',side)}${main}</div>`;
@@ -1097,7 +1083,7 @@ function f5Screen(st){
 function chatsWaiting(){
  chats=CHATS0.slice();chats[0]=F5.ask.title;
  let h=history('history');
- h=h.replace(`<span>${chats[0]}</span><span class="hd">10:42</span>`,`<span>${chats[0]}</span><span class="hr"><span class="wait">${sv('clock',12)}Waiting for you</span><span class="hd">10:42</span></span>`);
+ h=h.replace(`<span>${chats[0]}</span><span class="hd">10:42</span>`,`<span>${chats[0]}</span><span class="hr"><span class="wait"><span class="wd" aria-hidden="true"></span>Waiting for you</span><span class="hd">10:42</span></span>`);
  return `<div class="app ${MOB?'mobile':''}">${sidebar('x',{page:true,waiting:'a'})}${h}</div>`;
 }
 const GROUPS=[
