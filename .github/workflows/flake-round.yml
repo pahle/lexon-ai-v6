@@ -1,14 +1,9 @@
 name: Flake round
 on:
+  # F4.4 task 5: the pull_request trigger that ran the pre-merge round is
+  # retired — the guarded spec files stay in this PR's diff, so it would
+  # re-fire on every push. workflow_dispatch works once the file is on main.
   workflow_dispatch:
-  # F4.4 task 5: workflow_dispatch only runs when the file exists on main;
-  # this pull_request trigger lets the round run from the hardening PR before
-  # merge. It fires while any of the guarded files differ from the base.
-  pull_request:
-    paths:
-      - '.github/workflows/flake-round.yml'
-      - 'backend/test/integration/ai-execution.spec.ts'
-      - 'frontend/test/chat-scaffold.spec.tsx'
 permissions:
   contents: read
 concurrency:
