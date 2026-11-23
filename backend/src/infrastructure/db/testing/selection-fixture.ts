@@ -39,6 +39,11 @@ export function createSelectionInspector(options: { migratorUrl: string }) {
       await pool.query('REVOKE SELECT ON auth.session FROM lexon_auth');
       denied = true;
     },
+    async permitSessionReads() {
+      if (!denied) return;
+      await pool.query('GRANT SELECT ON auth.session TO lexon_auth');
+      denied = false;
+    },
     async close() {
       try {
         if (denied)

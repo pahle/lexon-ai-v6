@@ -10,10 +10,16 @@ import type {
   DBTransactionAdapter,
 } from '@better-auth/core/db/adapter';
 import type { BetterAuthOptions } from 'better-auth';
+import {
+  AccountInvitationStatusSchema,
+  PlatformAccountStatusSchema,
+  PlatformOrganizationStateSchema,
+} from '@lexon/contracts';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { bindAuthAudit, endAuthAudit } from './auth-functions.js';
 import * as schema from './auth-schema.js';
+import { pgArray } from './pg-array.js';
 import type { AuthCommandSession, LexonServerApi } from './auth-types.js';
 import type {
   PlatformReadName,
@@ -240,10 +246,6 @@ export function createAuthTransactions(database: Database) {
   // Each read runs one named auth.lexon_platform_* function. Rows come back as
   // JSON so timestamp-without-time-zone columns are not reinterpreted in the
   // server's local zone by the driver.
-  const pgArray = (values: (string | boolean)[] | null, cast: string) =>
-    values === null
-      ? sql`${null}::${sql.raw(cast)}`
-      : sql`${`{${values.map((v) => `"${String(v)}"`).join(',')}}`}::${sql.raw(cast)}`;
   const platformReadPrimitives = {
     async run(name: PlatformReadName, p: PlatformReadParam[]) {
       const state = scope.getStore();
@@ -251,27 +253,32 @@ export function createAuthTransactions(database: Database) {
       const text = (i: number) => sql`${(p[i] as string | null) ?? null}::text`;
       const uuid = (i: number) => sql`${p[i] as string}::uuid`;
       const int = (i: number) => sql`${p[i] as number}::int`;
-      const arr = (i: number, cast: string) =>
-        pgArray(p[i] as (string | boolean)[] | null, cast);
+      const arr = (
+        i: number,
+        cast: string,
+        allowed: readonly (string | boolean)[],
+      ) => pgArray(p[i] as (string | boolean)[] | null, cast, allowed);
+      // The 'on'|'off' two-factor facet maps to the boolean domain upstream.
+      const twoFactor: readonly boolean[] = [true, false];
       const calls: Record<PlatformReadName, () => ReturnType<typeof sql>> = {
         accounts: () =>
-          sql`auth.lexon_platform_accounts(${text(0)},${arr(1, 'text[]')},${arr(2, 'boolean[]')},${int(3)},${int(4)})`,
+          sql`auth.lexon_platform_accounts(${text(0)},${arr(1, 'text[]', PlatformAccountStatusSchema.options)},${arr(2, 'boolean[]', twoFactor)},${int(3)},${int(4)})`,
         accountsTotal: () =>
-          sql`auth.lexon_platform_accounts_total(${text(0)},${arr(1, 'text[]')},${arr(2, 'boolean[]')})`,
+          sql`auth.lexon_platform_accounts_total(${text(0)},${arr(1, 'text[]', PlatformAccountStatusSchema.options)},${arr(2, 'boolean[]', twoFactor)})`,
         account: () => sql`auth.lexon_platform_account(${uuid(0)})`,
         accountTeams: () => sql`auth.lexon_platform_account_teams(${uuid(0)})`,
         organizations: () =>
-          sql`auth.lexon_platform_organizations(${text(0)},${arr(1, 'text[]')},${int(2)},${int(3)})`,
+          sql`auth.lexon_platform_organizations(${text(0)},${arr(1, 'text[]', PlatformOrganizationStateSchema.options)},${int(2)},${int(3)})`,
         organizationsTotal: () =>
-          sql`auth.lexon_platform_organizations_total(${text(0)},${arr(1, 'text[]')})`,
+          sql`auth.lexon_platform_organizations_total(${text(0)},${arr(1, 'text[]', PlatformOrganizationStateSchema.options)})`,
         organization: () => sql`auth.lexon_platform_organization(${uuid(0)})`,
         members: () =>
           sql`auth.lexon_platform_members(${uuid(0)},${int(1)},${int(2)})`,
         membersTotal: () => sql`auth.lexon_platform_members_total(${uuid(0)})`,
         invitations: () =>
-          sql`auth.lexon_platform_account_invitations(${text(0)},${arr(1, 'text[]')},${int(2)},${int(3)})`,
+          sql`auth.lexon_platform_account_invitations(${text(0)},${arr(1, 'text[]', AccountInvitationStatusSchema.options)},${int(2)},${int(3)})`,
         invitationsTotal: () =>
-          sql`auth.lexon_platform_account_invitations_total(${text(0)},${arr(1, 'text[]')})`,
+          sql`auth.lexon_platform_account_invitations_total(${text(0)},${arr(1, 'text[]', AccountInvitationStatusSchema.options)})`,
         lockEnabledAdmins: () => sql`auth.lexon_platform_lock_enabled_admins()`,
         createInvitation: () =>
           sql`auth.lexon_create_account_invitation(${text(0)},${text(1)},${text(2)},${uuid(3)})`,
