@@ -1,18 +1,16 @@
-import { AccountStatusForm } from '../../../../components/platform/account-status-form';
+import { AccountsPage } from '../../../../components/platform-console/accounts-page';
 import { PlatformPage } from '../../../../components/platform/platform-page';
-export default function AccountStatusPage() {
+
+export default function PlatformAccountsPage() {
   return (
-    <PlatformPage
-      title="Account status"
-      description="Disable an account to sign it out everywhere and block sign-in. Its organizations and content stay unchanged."
-    >
-      <AccountStatusForm />
+    <PlatformPage>
+      <AccountsPage />
     </PlatformPage>
   );
 }
 export const metadata = {
-  title: 'Account status | Lexon',
-  description: 'Manage account access and status.',
+  title: 'Accounts | Lexon',
+  description: 'Review Lexon accounts and the people invited to create one.',
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

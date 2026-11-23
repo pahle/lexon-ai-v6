@@ -221,13 +221,6 @@ export function buildIdentityClient(
         contracts.InvitationAcceptanceSchema,
         'POST',
       ),
-    listProvisioning: (input) =>
-      call(
-        withPage('/platform/provisioning', input),
-        contracts.pageSchema(contracts.ProvisioningSummarySchema),
-      ),
-    getProvisioning: (organizationId) =>
-      call(provisioning(organizationId), contracts.ProvisioningSummarySchema),
     createProvisioning: (input) =>
       call(
         '/platform/provisioning',

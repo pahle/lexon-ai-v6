@@ -37,6 +37,7 @@ export const SignUpInputSchema = z.strictObject({
   password: NewPasswordSchema,
   invitationId: UuidSchema.optional(),
   setupToken: FlowTokenSchema.optional(),
+  accountInvitationToken: FlowTokenSchema.optional(),
 });
 export type SignUpInput = z.infer<typeof SignUpInputSchema>;
 export const SignInInputSchema = z.strictObject({
@@ -101,6 +102,11 @@ export const IdentityErrorCodeSchema = z.enum([
   'ORG_MEMBERSHIP_REQUIRED',
   'ORG_LAST_OWNER',
   'ORG_FORBIDDEN',
+  'NOT_FOUND',
+  'PLATFORM_SELF_ACTION',
+  'PLATFORM_LAST_ADMINISTRATOR',
+  'PLATFORM_ALREADY_VERIFIED',
+  'PLATFORM_INVITATION_CONFLICT',
   'ORG_SLUG_TAKEN',
   'STREAM_UNAVAILABLE',
   'INVITATION_UNAVAILABLE',
@@ -158,8 +164,6 @@ export interface IdentityApi {
   cancelInvitation(invitationId: Uuid): Promise<void>;
   declineInvitation(invitationId: Uuid): Promise<void>;
   acceptInvitation(invitationId: Uuid): Promise<InvitationAcceptance>;
-  listProvisioning(page?: Pagination): Promise<Page<ProvisioningSummary>>;
-  getProvisioning(organizationId: Uuid): Promise<ProvisioningSummary>;
   createProvisioning(input: ProvisioningInput): Promise<ProvisioningSummary>;
   resendOwnerInvitation(organizationId: Uuid): Promise<ProvisioningSummary>;
   replaceOwnerEmail(

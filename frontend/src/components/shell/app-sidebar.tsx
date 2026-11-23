@@ -342,8 +342,11 @@ export function AppSidebar() {
                   active={pathname.startsWith('/platform/')}
                   onNavigate={requestNavigationFocus}
                   destinations={[
-                    { title: 'Provisioning', href: '/platform/provisioning' },
-                    { title: 'Account status', href: '/platform/accounts' },
+                    { title: 'Accounts', href: '/platform/accounts' },
+                    {
+                      title: 'Organizations',
+                      href: '/platform/organizations',
+                    },
                   ]}
                 />
               ) : null}

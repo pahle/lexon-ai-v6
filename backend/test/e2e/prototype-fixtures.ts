@@ -172,35 +172,263 @@ export const platformAdmin = {
   email: 'dimas.prasetyo.bv@example.test',
 } as const;
 
-/** Organizations in "Awaiting first owner". */
+/**
+ * Provisioning organizations of the platform world, with the first owner
+ * emails of revision 16 (`PO` in prototype.src.html).
+ */
 export const provisioningOrganizations = [
   {
     name: 'Harbor Legal Partners',
     slug: 'harbor-legal-partners',
     ownerEmail: 'owner@harborlegal.co.id',
-    status: 'Pending',
     expiresAt: jakarta('2026-11-21', '11:00'),
-    shown: '21 Nov 2026',
-    detail: {
-      provisioned: '14 Nov 2026',
-      sent: '14 Nov 2026, 11:00',
-      expires: '21 Nov 2026, 11:00',
-    },
-  },
-  {
-    name: 'Sinar Hukum',
-    slug: 'sinar-hukum',
-    ownerEmail: 'owner@sinarhukum.co.id',
-    status: 'Expired',
-    expiresAt: jakarta('2026-11-12', '11:00'),
-    shown: '12 Nov 2026',
   },
   {
     name: 'Kantor Hukum Wibowo',
     slug: 'kantor-hukum-wibowo',
-    ownerEmail: 'owner@kantorwibowo.co.id',
-    status: 'Pending',
-    expiresAt: jakarta('2026-11-23', '11:00'),
-    shown: '23 Nov 2026',
+    ownerEmail: 'andi@khwibowo.co.id',
+  },
+  {
+    name: 'Sinar Hukum',
+    slug: 'sinar-hukum',
+    ownerEmail: 'bagus@sinarhukum.co.id',
   },
 ] as const;
+
+// Platform console (F4.3), revision 16 of the prototype
+// (docs/design/f4.1-prototype/source/prototype.src.html: `PA`, `PO`,
+// platformInvitationsList, platformAccountDetail, platformOrgActive,
+// platformOrgProvisioning). Dates are calendar days in Asia/Jakarta.
+
+/** A calendar day in Asia/Jakarta (10:00 local). */
+const day = (date: string) => jakarta(date, '10:00');
+
+/** The prototype's Accounts tab count (the list shows its first 10 rows). */
+export const platformAccountsTotal = 248;
+
+/**
+ * The prototype's accounts, in its row order. `lastActive` turns the
+ * prototype's relative labels into instants on the frozen clock: "Active
+ * now" is prototypeNow, "Today" 10:42, "Yesterday" 13 Nov, "N days ago"
+ * 14 Nov minus N, "2 weeks ago" 31 Oct (the record page of Lina Hartono).
+ */
+export const platformAccounts = [
+  {
+    key: 'admin',
+    name: 'Dimas Prasetyo',
+    email: 'dimas@lexon.id',
+    status: 'active',
+    twoFactor: true,
+    teams: 0,
+    joined: day('2026-09-01'),
+    lastActive: prototypeNow,
+    admin: true,
+  },
+  {
+    key: 'ayu',
+    name: 'Ayu Wardani',
+    email: 'ayu@hukum-nusantara.co.id',
+    status: 'active',
+    twoFactor: true,
+    teams: 2,
+    joined: day('2026-09-02'),
+    lastActive: jakarta('2026-11-14', '10:42'),
+  },
+  {
+    key: 'putri',
+    name: 'Putri Anggraini',
+    email: 'putri@probono.or.id',
+    status: 'active',
+    twoFactor: true,
+    teams: 1,
+    joined: day('2026-09-18'),
+    lastActive: jakarta('2026-11-14', '10:42'),
+  },
+  {
+    key: 'rizky',
+    name: 'Rizky Pratama',
+    email: 'rizky@hukum-nusantara.co.id',
+    status: 'active',
+    twoFactor: true,
+    teams: 1,
+    joined: day('2026-09-03'),
+    lastActive: day('2026-11-13'),
+  },
+  {
+    key: 'hendra',
+    name: 'Hendra Gunawan',
+    email: 'hendra@gunawanlaw.co.id',
+    status: 'active',
+    twoFactor: true,
+    teams: 1,
+    joined: day('2026-09-21'),
+    lastActive: day('2026-11-12'),
+  },
+  {
+    key: 'sari',
+    name: 'Sari Wibowo',
+    email: 'sari@hukum-nusantara.co.id',
+    status: 'active',
+    twoFactor: false,
+    teams: 1,
+    joined: day('2026-09-10'),
+    lastActive: day('2026-11-11'),
+  },
+  {
+    key: 'maya',
+    name: 'Maya Lestari',
+    email: 'maya.lestari@probono.or.id',
+    status: 'active',
+    twoFactor: false,
+    teams: 1,
+    joined: day('2026-09-25'),
+    lastActive: day('2026-11-10'),
+  },
+  {
+    key: 'andi',
+    name: 'Andi Saputra',
+    email: 'andi.saputra@gmail.com',
+    status: 'active',
+    twoFactor: false,
+    teams: 0,
+    joined: day('2026-10-02'),
+    lastActive: day('2026-11-09'),
+  },
+  {
+    key: 'unverified',
+    name: 'Bagus Santoso',
+    email: 'bagus@sinarhukum.co.id',
+    status: 'unverified',
+    twoFactor: false,
+    teams: 0,
+    joined: day('2026-11-12'),
+    lastActive: null,
+  },
+  {
+    key: 'disabled',
+    name: 'Lina Hartono',
+    email: 'lina@hukum-nusantara.co.id',
+    status: 'disabled',
+    twoFactor: false,
+    teams: 1,
+    joined: day('2026-09-05'),
+    lastActive: day('2026-10-31'),
+  },
+] as const;
+
+/** The three record pages: platformAccountDetail('active' | 'unverified' | 'disabled'). */
+export const platformAccountRecords = {
+  ayu: {
+    id: '7f3d2a1e-9c4b-4e8a-b6d2-1a0c5e9f3b77',
+    sessions: 3,
+    teams: [
+      { organization: 'team', role: 'owner' },
+      { organization: 'other', role: 'member' },
+    ],
+  },
+  unverified: {
+    id: '0b9e41c2-7d3a-4f19-8e55-2c61a0f4d7b8',
+    sessions: 0,
+    teams: [],
+  },
+  disabled: {
+    id: '5a2c7e90-1b4d-4c8e-9f36-7d0e8a1b2c43',
+    sessions: 0,
+    teams: [{ organization: 'team', role: 'member' }],
+  },
+} as const;
+
+/** The Invitations tab (platformInvitationsList). */
+export const platformInvitations = [
+  {
+    id: '00000000-0000-4000-8000-00000000f401',
+    name: 'Rina Kusuma',
+    email: 'rina@kusumalaw.co.id',
+    status: 'pending',
+    invitedBy: 'Dimas Prasetyo',
+    sentAt: day('2026-11-19'),
+    expiresAt: day('2026-11-26'),
+  },
+  {
+    id: '00000000-0000-4000-8000-00000000f402',
+    name: null,
+    email: 'joko.santosa@gmail.com',
+    status: 'expired',
+    invitedBy: 'Dimas Prasetyo',
+    sentAt: day('2026-11-02'),
+    expiresAt: day('2026-11-09'),
+  },
+] as const;
+
+/** The invite dialog's values (inviteDialog). */
+export const platformInvitee = {
+  email: 'rina@kusumalaw.co.id',
+  name: 'Rina Kusuma',
+} as const;
+
+/** The Organizations list (`PO`), in its row order. */
+export const platformOrganizations = [
+  {
+    key: 'team',
+    name: 'Hukum Nusantara',
+    slug: 'hukum-nusantara',
+    state: 'active',
+    members: 3,
+    ownerEmail: 'ayu@hukum-nusantara.co.id',
+    createdAt: day('2026-09-02'),
+  },
+  {
+    key: 'other',
+    name: 'Pro Bono Clinic',
+    slug: 'pro-bono-clinic',
+    state: 'active',
+    members: 5,
+    ownerEmail: 'putri@probono.or.id',
+    createdAt: day('2026-09-18'),
+  },
+  {
+    key: 'harbor-legal-partners',
+    name: 'Harbor Legal Partners',
+    slug: 'harbor-legal-partners',
+    state: 'provisioning',
+    members: 0,
+    ownerEmail: 'owner@harborlegal.co.id',
+    createdAt: prototypeNow,
+  },
+  {
+    key: 'kantor-hukum-wibowo',
+    name: 'Kantor Hukum Wibowo',
+    slug: 'kantor-hukum-wibowo',
+    state: 'provisioning',
+    members: 0,
+    ownerEmail: 'andi@khwibowo.co.id',
+    createdAt: day('2026-11-13'),
+  },
+  {
+    key: 'sinar-hukum',
+    name: 'Sinar Hukum',
+    slug: 'sinar-hukum',
+    state: 'provisioning',
+    members: 0,
+    ownerEmail: 'bagus@sinarhukum.co.id',
+    createdAt: day('2026-11-05'),
+  },
+] as const;
+
+/** The active record page (platformOrgActive): Hukum Nusantara. */
+export const platformActiveOrganization = {
+  id: '3c8e1f6a-2b7d-4a90-8c15-e4d9b0a72f31',
+  createdAt: day('2026-09-02'),
+  members: [
+    { email: ayu.email, joinedAt: day('2026-09-02') },
+    { email: 'rizky@hukum-nusantara.co.id', joinedAt: day('2026-09-03') },
+    { email: 'sari@hukum-nusantara.co.id', joinedAt: day('2026-09-10') },
+  ],
+} as const;
+
+/** The provisioning record page (platformOrgProvisioning): Harbor Legal Partners. */
+export const platformProvisioningOrganization = {
+  id: '9d41b7e2-5c08-4f3a-a6e1-0b72c9d85e14',
+  createdAt: prototypeNow,
+  expiresAt: jakarta('2026-11-21', '11:00'),
+} as const;

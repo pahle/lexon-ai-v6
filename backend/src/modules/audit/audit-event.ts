@@ -198,6 +198,56 @@ const disabledUser = z.strictObject({
   subjectUserId: UuidSchema,
   metadata: z.strictObject({ disabled: z.boolean() }),
 });
+const sessionsRevoked = z.strictObject({
+  ...base,
+  type: z.literal('platform.user_sessions_revoked.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({}),
+});
+const verificationResent = z.strictObject({
+  ...base,
+  type: z.literal('platform.verification_email_resent.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({}),
+});
+const invitationAudit = <T extends string>(type: T) =>
+  z.strictObject({
+    ...base,
+    type: z.literal(type),
+    outcome: z.literal('success'),
+    actorUserId: UuidSchema,
+    invitationId: UuidSchema,
+    metadata: z.strictObject({}),
+  });
+const accountInvitationCreated = invitationAudit(
+  'platform.account_invitation_created.v1',
+);
+const accountInvitationResent = invitationAudit(
+  'platform.account_invitation_resent.v1',
+);
+const accountInvitationCancelled = invitationAudit(
+  'platform.account_invitation_cancelled.v1',
+);
+const accountInvitationAccepted = z.strictObject({
+  ...base,
+  type: z.literal('platform.account_invitation_accepted.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ invitationId: UuidSchema }),
+});
+const organizationMembersViewed = z.strictObject({
+  ...base,
+  type: z.literal('platform.organization_members_viewed.v1'),
+  outcome: z.literal('success'),
+  actorUserId: UuidSchema,
+  orgId: UuidSchema,
+  metadata: z.strictObject({ page: z.number().int().positive() }),
+});
 const adminActivated = z.strictObject({
   ...base,
   type: z.literal('platform.admin_activated.v1'),
@@ -363,6 +413,13 @@ export const AuditEventSchema = z.union([
   sessionChange,
   provisioning,
   disabledUser,
+  sessionsRevoked,
+  verificationResent,
+  accountInvitationCreated,
+  accountInvitationResent,
+  accountInvitationCancelled,
+  accountInvitationAccepted,
+  organizationMembersViewed,
   adminActivated,
   aiRunStarted,
   aiRunFinished,

@@ -8,6 +8,7 @@ const subjects = {
   'email-change': 'Confirm your new email address',
   security: 'Your Lexon account security changed',
   'admin-setup': 'Set up your Lexon platform administrator account',
+  'account-invitation': 'You have been invited to Lexon',
 };
 const securityCopy = {
   password_changed: 'Your password changed.',
@@ -60,7 +61,9 @@ export function renderEmail(message: TransactionalEmail, origin: string) {
       ? `You have been invited to ${message.organizationName}.`
       : message.kind === 'security'
         ? securityCopy[message.reason]
-        : subject + '.';
+        : message.kind === 'account-invitation'
+          ? 'You have been invited to create a Lexon account.'
+          : subject + '.';
   const url = action.href;
   return {
     to: message.to,

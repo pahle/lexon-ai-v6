@@ -5,6 +5,7 @@ export default async function SignupPage({
   searchParams: Promise<{
     invitationId?: string | undefined;
     setupToken?: string | undefined;
+    accountInvitation?: string | undefined;
     returnTo?: string | undefined;
   }>;
 }) {
@@ -13,6 +14,7 @@ export default async function SignupPage({
     <SignupForm
       invitationId={query.invitationId}
       setupToken={query.setupToken}
+      accountInvitation={query.accountInvitation}
       returnTo={query.returnTo}
       visualClientReady={process.env.LEXON_VISUAL_DEV === '1'}
     />

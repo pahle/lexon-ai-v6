@@ -1,15 +1,15 @@
-import { Body, Controller, HttpCode, Param, Patch } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { UuidSchema } from '@lexon/contracts';
 import { PlatformRoute } from './route-access.js';
 import { currentVerifiedIdentity } from './identity.types.js';
 import { PlatformAdminService } from './platform-admin.service.js';
 const inputSchema = z.strictObject({ disabled: z.boolean() });
-@Controller('platform/users')
+@Controller('platform')
 @PlatformRoute()
 export class PlatformAdminController {
   constructor(private readonly platform: PlatformAdminService) {}
-  @Patch(':userId/disabled') @HttpCode(204) disabled(
+  @Patch('users/:userId/disabled') @HttpCode(204) disabled(
     @Param('userId') userId: string,
     @Body() input: unknown,
   ) {
@@ -17,6 +17,22 @@ export class PlatformAdminController {
       currentVerifiedIdentity(),
       UuidSchema.parse(userId),
       inputSchema.parse(input).disabled,
+    );
+  }
+  @Post('accounts/:userId/sessions/revoke') @HttpCode(204) revoke(
+    @Param('userId') userId: string,
+  ) {
+    return this.platform.revokeSessions(
+      currentVerifiedIdentity(),
+      UuidSchema.parse(userId),
+    );
+  }
+  @Post('accounts/:userId/verification-email') @HttpCode(204) resend(
+    @Param('userId') userId: string,
+  ) {
+    return this.platform.resendVerification(
+      currentVerifiedIdentity(),
+      UuidSchema.parse(userId),
     );
   }
 }

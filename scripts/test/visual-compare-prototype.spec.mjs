@@ -18,6 +18,7 @@ import {
   variantsFor,
   runCompare,
   pendingCompareIds,
+  PROTOTYPE_REVISION,
 } from '../visual-compare-prototype.mjs';
 
 const script = resolve(import.meta.dirname, '../visual-compare-prototype.mjs');
@@ -168,6 +169,11 @@ test('matching capture is 0 percent, mismatch fails, missing is reported', async
     assert.ok(existsSync(resolve(f.outDir, name)), name);
   assert.equal(existsSync(resolve(f.outDir, 'alpha-m.png')), false);
   const readme = readFileSync(resolve(f.outDir, 'README.md'), 'utf8');
+  assert.match(
+    readme,
+    new RegExp(`compared with prototype revision ${PROTOTYPE_REVISION} `),
+  );
+  assert.doesNotMatch(readme, /revision 15/);
   assert.match(readme, /beta \| d \| 100\.00/);
   assert.match(readme, /MISSING/);
   assert.ok(
@@ -228,4 +234,18 @@ test('pendingCompareIds maps pending view keys to unique capture ids', () => {
     ['a-b', 'c'],
   );
   assert.deepEqual(pendingCompareIds({}), []);
+});
+
+test('the comparison names the prototype revision the README calls current', () => {
+  const lead = readFileSync(
+    resolve(import.meta.dirname, '../../docs/design/f4.1-prototype/README.md'),
+    'utf8',
+  )
+    .split('\n')
+    .find((line) => line.startsWith('**Approved'));
+  const revisions = [...lead.matchAll(/revision (\d+)(?:\.\d+)?/g)].map(
+    (match) => Number(match[1]),
+  );
+  assert.equal(PROTOTYPE_REVISION, 16);
+  assert.equal(PROTOTYPE_REVISION, Math.max(...revisions));
 });

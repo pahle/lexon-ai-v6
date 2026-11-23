@@ -9,11 +9,11 @@ import {
 import { transitionTenant } from '../../lib/tenant-queries';
 import { authClient } from '../../lib/auth-client';
 import { AuthCard } from './auth-card';
-import { ArrowLeft } from 'lucide-react';
 import { cn } from 'cn';
 import { buttonVariants } from '../ui/button';
-import { AuthAlert, AuthLink, authButtonClass } from './auth-parts';
+import { AuthAlert, authButtonClass } from './auth-parts';
 import { PendingButton } from '../forms/pending-button';
+import { InvitationUnavailable } from './invitation-unavailable';
 export function AcceptInvitation({ invitationId }: { invitationId: string }) {
   const [declined, setDeclined] = useState(false);
   const [failure, setFailure] = useState('');
@@ -40,24 +40,7 @@ export function AcceptInvitation({ invitationId }: { invitationId: string }) {
         </a>
       </AuthCard>
     );
-  if (!valid)
-    return (
-      <AuthCard
-        presentation="page"
-        title="Invitation unavailable"
-        description="This invitation was cancelled, has expired, or has already been used. Ask the person who invited you to send a new one."
-      >
-        <a
-          href="/workspace"
-          className={cn(buttonVariants({ size: 'lg' }), authButtonClass)}
-        >
-          Go to Lexon
-        </a>
-        <AuthLink href="/sign-in" icon={<ArrowLeft aria-hidden="true" />}>
-          Back to sign in
-        </AuthLink>
-      </AuthCard>
-    );
+  if (!valid) return <InvitationUnavailable />;
   return (
     <AuthCard
       presentation="page"

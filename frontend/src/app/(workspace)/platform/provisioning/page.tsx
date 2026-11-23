@@ -1,14 +1,8 @@
-import { ProvisioningList } from '../../../../components/platform/provisioning';
-import { PlatformPage } from '../../../../components/platform/platform-page';
-export default function ProvisioningPage() {
-  return (
-    <PlatformPage
-      title="Organization provisioning"
-      description="Create team organizations and track their first owner invitations."
-    >
-      <ProvisioningList />
-    </PlatformPage>
-  );
+import { redirect } from 'next/navigation';
+
+/** Retired route: provisioning lives in the Organizations list now. */
+export default function ProvisioningPage(): never {
+  redirect('/platform/organizations?state=provisioning');
 }
 export const metadata = {
   title: 'Organization provisioning | Lexon',

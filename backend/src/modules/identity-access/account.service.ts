@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   SignUpInputSchema,
   ProfileInputSchema,
@@ -55,6 +55,41 @@ export class AccountService {
     });
     return async (response) => {
       if (response.status >= 400) return response;
+      if (
+        path === '/sign-up/email' &&
+        !this.config.openSignup &&
+        typeof body.accountInvitationToken === 'string' &&
+        !body.invitationId &&
+        !body.setupToken
+      ) {
+        const created = (await response.clone().json()) as {
+          user?: { id?: string };
+        };
+        const userId = created.user?.id;
+        const accepted = userId
+          ? await tx.call('lexonAcceptAccountInvitation', {
+              body: {
+                digest: createHash('sha256')
+                  .update(body.accountInvitationToken)
+                  .digest('hex'),
+                userId,
+              },
+            })
+          : null;
+        // Cancelled or resent since the policy check: roll the sign-up back.
+        if (!userId || !accepted?.invitationId)
+          throw new IdentityError('AUTH_REQUIRED', 401);
+        await appendAuthAudit(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          type: 'platform.account_invitation_accepted.v1',
+          outcome: 'success',
+          actorUserId: userId,
+          subjectUserId: userId,
+          metadata: { invitationId: accepted.invitationId },
+        });
+      }
       const actions: Record<
         string,
         | 'password_changed'
@@ -172,6 +207,9 @@ export class AccountService {
       email: body.email,
       ...(body.invitationId ? { invitationId: body.invitationId } : {}),
       ...(body.setupToken ? { setupToken: body.setupToken } : {}),
+      ...(body.accountInvitationToken
+        ? { accountInvitationToken: body.accountInvitationToken }
+        : {}),
     });
   }
   async signUp(input: unknown): Promise<{ status: true }> {

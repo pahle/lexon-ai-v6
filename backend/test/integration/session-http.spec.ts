@@ -17,6 +17,7 @@ import {
   IdentityError,
 } from '../../src/modules/identity-access/index.js';
 import { securityHarness, responseCookies } from '../setup/security-harness.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 test('session HTTP returns token only once with no-store and lists safe revocable session IDs', async ({
   services,
 }) => {
@@ -27,6 +28,8 @@ test('session HTTP returns token only once with no-store and lists safe revocabl
   @Module({
     imports: [
       IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: Framework },
       }),
