@@ -35,7 +35,7 @@ jobs:
           set -e
           passes=0
           for i in $(seq 1 20); do
-            (cd backend && pnpm vitest run --config vitest.integration.config.ts test/integration/ai-execution.spec.ts -t 'renews through the bounded retry backoff|stops claim renewal')
+            pnpm exec vitest run --project backend-integration backend/test/integration/ai-execution.spec.ts -t 'renews through the bounded retry backoff|stops claim renewal'
             passes=$((passes + 1))
             echo "PASS $passes/20"
           done
@@ -45,7 +45,7 @@ jobs:
           set -e
           passes=0
           for i in $(seq 1 20); do
-            (cd frontend && pnpm vitest run --config vitest.config.ts test/chat-scaffold.spec.tsx -t 'refreshes the canonical off-branch tree')
+            pnpm exec vitest run --project frontend frontend/test/chat-scaffold.spec.tsx -t 'refreshes the canonical off-branch tree'
             passes=$((passes + 1))
             echo "PASS $passes/20"
           done
