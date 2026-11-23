@@ -346,9 +346,18 @@ export const ChatAuditEventSchema = z.discriminatedUnion('type', [
 ]);
 export type ChatAuditEvent = z.infer<typeof ChatAuditEventSchema>;
 
+export interface ChatGetOptions {
+  readonly signal?: AbortSignal;
+  readonly ifNoneMatch?: string | undefined;
+}
+
+export type ChatGetResult =
+  | { notModified: false; tree: ChatTree; etag: string | null }
+  | { notModified: true; etag: string };
+
 export interface ChatApi {
   create(input: CreateChatInput): Promise<ChatMutationResult>;
-  get(chatId: string): Promise<ChatTree>;
+  get(chatId: string, options?: ChatGetOptions): Promise<ChatGetResult>;
   list(
     input?: { cursor?: string; limit?: number },
     signal?: AbortSignal,

@@ -91,10 +91,13 @@ function ChatViewSession({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCreateIdentity = useRef<PendingCreateIdentity | null>(null);
   const bytes = promptByteLength(text);
-  const refreshActiveTree = useCallback(() => {
-    if (!chatId) throw new Error('This conversation is not available.');
-    return client.get(chatId);
-  }, [chatId, client]);
+  const refreshActiveTree = useCallback(
+    (signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      if (!chatId) throw new Error('This conversation is not available.');
+      return client.get(chatId, { signal, ifNoneMatch });
+    },
+    [chatId, client],
+  );
   const updateCanonicalTree = useCallback((nextTree: ChatTree) => {
     setTree(nextTree);
   }, []);
@@ -106,11 +109,12 @@ function ChatViewSession({
     setLoading(true);
     void client
       .get(chatId)
-      .then((next) => {
+      .then((result) => {
+        if (result.notModified) return;
         if (mounted) {
-          setTree(next);
+          setTree(result.tree);
           if (requestVersion === titleRequestVersion.current)
-            setChatTitle(chatId, actorScope, next.title);
+            setChatTitle(chatId, actorScope, result.tree.title);
         }
       })
       .catch((error: unknown) => {
@@ -137,9 +141,10 @@ function ChatViewSession({
     const requestVersion = ++titleRequestVersion.current;
     void client
       .get(chatId)
-      .then((next) => {
+      .then((result) => {
+        if (result.notModified) return;
         if (current && requestVersion === titleRequestVersion.current)
-          setChatTitle(chatId, actorScope, next.title);
+          setChatTitle(chatId, actorScope, result.tree.title);
       })
       .catch(() => undefined);
     return () => {

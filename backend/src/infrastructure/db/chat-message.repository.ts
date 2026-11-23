@@ -54,6 +54,63 @@ interface TreeRow {
   created_at: Date;
 }
 
+/**
+ * The literal column list the `tree` query projects (spec §5 item 15 coverage
+ * guard). Kept next to the query; `VALIDATOR_INPUTS` in
+ * `chat-tree-validator.ts` must name validator inputs for every entry.
+ */
+export const TREE_SELECTED_COLUMNS = [
+  'id',
+  'parent_message_id',
+  'role',
+  'user_text',
+  'effort',
+  'run_id',
+  'status',
+  'assistant_text',
+  'reasoning_summary',
+  'reasoning_duration_ms',
+  'feedback',
+  'created_at',
+  'viewed_leaf_id',
+] as const;
+
+/**
+ * The literal tree query — exported so the cost spec can EXPLAIN exactly
+ * what `tree()` runs instead of re-measuring a hand-copied variant.
+ */
+export const TREE_SQL = `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.effort,m.run_id,r.status,
+    CASE WHEN m.role='user' THEN NULL
+      WHEN r.final_output IS NOT NULL THEN r.final_output
+      WHEN r.status IN ('queued','running','awaiting_approval','cancelling')
+        THEN COALESCE(r.partial_output,'') || COALESCE(cp.text,'')
+      ELSE COALESCE(r.partial_output,'') END AS assistant_text,
+    CASE WHEN m.role='assistant' THEN r.reasoning_summary ELSE NULL END AS reasoning_summary,
+    CASE WHEN m.role='assistant' THEN r.reasoning_duration_ms ELSE NULL END AS reasoning_duration_ms,
+    feedback.rating AS feedback,m.created_at,c.viewed_leaf_id
+  FROM app.chats c
+  LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
+  LEFT JOIN app.ai_runs r ON r.org_id=m.org_id AND r.id=m.run_id
+  LEFT JOIN app.message_feedback feedback ON feedback.org_id=m.org_id
+    AND feedback.chat_id=m.chat_id AND feedback.message_id=m.id
+    AND feedback.owner_user_id=c.owner_user_id
+  LEFT JOIN LATERAL (
+    SELECT checkpoint.text FROM app.ai_steps current_step
+    JOIN app.ai_checkpoints checkpoint
+      ON checkpoint.org_id=current_step.org_id
+      AND checkpoint.run_id=current_step.run_id
+      AND checkpoint.step_id=current_step.id
+      AND checkpoint.fence=current_step.fence
+    JOIN app.ai_attempts attempt
+      ON attempt.org_id=checkpoint.org_id AND attempt.run_id=checkpoint.run_id
+      AND attempt.id=checkpoint.attempt_id AND attempt.active=true
+    WHERE current_step.org_id=r.org_id AND current_step.run_id=r.id
+      AND current_step.sequence=r.next_sequence AND current_step.state='claimed'
+    ORDER BY checkpoint.created_at DESC,checkpoint.id DESC LIMIT 1
+  ) cp ON true
+  WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
+  ORDER BY m.created_at,m.id`;
+
 export class ChatMessageRepository {
   async branchSource(
     tx: TenantSession,
@@ -279,40 +336,7 @@ export class ChatMessageRepository {
     });
     const result = await client.query<
       TreeRow & { viewed_leaf_id: string | null }
-    >(
-      `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.effort,m.run_id,r.status,
-        CASE WHEN m.role='user' THEN NULL
-          WHEN r.final_output IS NOT NULL THEN r.final_output
-          WHEN r.status IN ('queued','running','awaiting_approval','cancelling')
-            THEN COALESCE(r.partial_output,'') || COALESCE(cp.text,'')
-          ELSE COALESCE(r.partial_output,'') END AS assistant_text,
-        CASE WHEN m.role='assistant' THEN r.reasoning_summary ELSE NULL END AS reasoning_summary,
-        CASE WHEN m.role='assistant' THEN r.reasoning_duration_ms ELSE NULL END AS reasoning_duration_ms,
-        feedback.rating AS feedback,m.created_at,c.viewed_leaf_id
-       FROM app.chats c
-       LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
-       LEFT JOIN app.ai_runs r ON r.org_id=m.org_id AND r.id=m.run_id
-       LEFT JOIN app.message_feedback feedback ON feedback.org_id=m.org_id
-         AND feedback.chat_id=m.chat_id AND feedback.message_id=m.id
-         AND feedback.owner_user_id=c.owner_user_id
-       LEFT JOIN LATERAL (
-         SELECT checkpoint.text FROM app.ai_steps current_step
-         JOIN app.ai_checkpoints checkpoint
-           ON checkpoint.org_id=current_step.org_id
-          AND checkpoint.run_id=current_step.run_id
-          AND checkpoint.step_id=current_step.id
-          AND checkpoint.fence=current_step.fence
-         JOIN app.ai_attempts attempt
-           ON attempt.org_id=checkpoint.org_id AND attempt.run_id=checkpoint.run_id
-          AND attempt.id=checkpoint.attempt_id AND attempt.active=true
-         WHERE current_step.org_id=r.org_id AND current_step.run_id=r.id
-           AND current_step.sequence=r.next_sequence AND current_step.state='claimed'
-         ORDER BY checkpoint.created_at DESC,checkpoint.id DESC LIMIT 1
-       ) cp ON true
-       WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
-       ORDER BY m.created_at,m.id`,
-      [scope.orgId, scope.userId, chatId],
-    );
+    >(TREE_SQL, [scope.orgId, scope.userId, chatId]);
     if (!result.rows.length) return null;
     const rows = result.rows.filter((row) => row.id !== null);
     return {

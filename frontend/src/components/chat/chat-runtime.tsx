@@ -25,7 +25,7 @@ import type {
   ThreadMessage,
 } from '@assistant-ui/react';
 import type { CreateUIMessage, UIMessage } from 'ai';
-import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import type { ChatGetResult, ChatMessage, ChatTree } from '@lexon/contracts';
 import { Button } from '@/components/ui/button';
 import { useTreePolling } from './use-tree-polling';
 import { createChatClient } from '@/lib/chat-client';
@@ -44,7 +44,10 @@ export interface ChatRuntimeProps {
   readonly tree: ChatTree;
   readonly effort?: 'high' | 'max';
   readonly children: ReactNode;
-  readonly onTreeRefresh?: () => Promise<ChatTree>;
+  readonly onTreeRefresh?: (
+    signal: AbortSignal,
+    ifNoneMatch: string | undefined,
+  ) => Promise<ChatGetResult>;
   readonly onTreeUpdate?: (tree: ChatTree) => void;
   readonly onRunId?: (runId: string | undefined) => void;
   readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
@@ -199,11 +202,18 @@ function ChatRuntimeSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the run id only; activeRun is rebuilt from the tree each render
   }, [activeRun?.runId, transport]);
 
-  const refreshTree = async (signal: AbortSignal) => {
+  const refreshTree = async (
+    signal: AbortSignal,
+    ifNoneMatch: string | undefined,
+  ) => {
     if (!onTreeRefresh) return;
     try {
-      const freshTree = await onTreeRefresh();
+      const result = await onTreeRefresh(signal, ifNoneMatch);
       if (signal.aborted) return;
+      // A 304 keeps the current tree object untouched: no leaf sync, no
+      // onTreeUpdate, no state update.
+      if (result.notModified) return { etag: result.etag };
+      const freshTree = result.tree;
       leafStore.syncFromTree(freshTree);
       const selectedLeafId = leafStore.getSelectedLeafId();
       const refreshedTree =
@@ -249,6 +259,7 @@ function ChatRuntimeSession({
         setRunId(undefined);
         transport.syncActiveRun(undefined);
       }
+      return { etag: result.etag };
     } catch (error) {
       // Keep controls locked until an authoritative refresh succeeds; the
       // polling hook counts the failure and keeps going.
@@ -264,6 +275,7 @@ function ChatRuntimeSession({
       chatStatusRef.current === 'submitted' ||
       !streamFrameSeenRef.current,
     onFailures: () => onStreamStateRef.current?.('reconnecting'),
+    resetKey: chatId,
   });
 
   const initialRunId = activeRun?.runId;

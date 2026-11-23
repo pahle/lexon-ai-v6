@@ -17,6 +17,29 @@ import { ThreadList } from '../src/components/assistant-ui/elements/thread-list.
 import { resetIndicatorRuns } from '../src/components/chat/indicator/indicator-run-store.js';
 import { render, settle } from './render.js';
 
+// Test doubles in this file still resolve bare trees; wrap the client so
+// `get` answers the ChatGetResult envelope the real client returns (spec §5
+// item 15). Call arguments pass straight through to the underlying mock.
+// The wrapper is memoized per client object: ChatView effects key on the
+// client identity, so a fresh wrapper each render would refire the loads.
+const chatGetEnvelopeCache = new WeakMap<object, unknown>();
+const chatGetEnvelope = <T extends object>(client: T): T => {
+  const get = (client as { get?: unknown }).get;
+  if (typeof get !== 'function') return client;
+  const cached = chatGetEnvelopeCache.get(client);
+  if (cached) return cached as T;
+  const wrapped = {
+    ...client,
+    get: async (...args: unknown[]) => ({
+      notModified: false as const,
+      tree: await (get as (...a: unknown[]) => unknown)(...args),
+      etag: null,
+    }),
+  } as T;
+  chatGetEnvelopeCache.set(client, wrapped);
+  return wrapped;
+};
+
 // A-07: the tree poll runs every 5 s unless urgent. These tests only care that
 // a canonical refresh arrives promptly, so a focus event stands in for the
 // wait (the hook fetches immediately on focus). No assertion was changed.
@@ -246,7 +269,7 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={activeTree.id}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -592,7 +615,7 @@ it('preserves the regenerated assistant sibling across canonical active and term
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -916,7 +939,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -1145,7 +1168,7 @@ it('keeps off-branch run B active when run A finishes after canonical refresh', 
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -1407,7 +1430,7 @@ it('reconciles a viewed active answer from canonical terminal state while SSE st
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -1611,7 +1634,7 @@ it('plays the indicator finish and announces Answer complete once through the te
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"
@@ -1868,7 +1891,7 @@ it('reconciles terminal state while the initial active-run request awaits header
     <QueryClientProvider client={new QueryClient()}>
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant-1:user-1"
         displayName="Ada"
         orgId="tenant-1"

@@ -128,9 +128,12 @@ it('uses the same-origin chat API and validates its persisted tree', async () =>
   const client = createChatClient({ baseUrl: '/api', fetch });
 
   await expect(client.get(chatId)).resolves.toMatchObject({
-    id: chatId,
-    viewedLeafId: assistantId,
-    messages: [{ id: userId }, { id: assistantId, parentId: userId }],
+    notModified: false,
+    tree: {
+      id: chatId,
+      viewedLeafId: assistantId,
+      messages: [{ id: userId }, { id: assistantId, parentId: userId }],
+    },
   });
   expect(fetch).toHaveBeenCalledWith(
     `/api/chats/${chatId}`,

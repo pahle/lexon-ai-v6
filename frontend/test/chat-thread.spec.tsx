@@ -10,6 +10,29 @@ import { TooltipIconButton } from '../src/components/assistant-ui/elements/toolt
 import { rememberChatSearchHighlight } from '../src/lib/chat-search-highlight.js';
 import { render, settle } from './render.js';
 
+// Test doubles in this file still resolve bare trees; wrap the client so
+// `get` answers the ChatGetResult envelope the real client returns (spec §5
+// item 15). Call arguments pass straight through to the underlying mock.
+// The wrapper is memoized per client object: ChatView effects key on the
+// client identity, so a fresh wrapper each render would refire the loads.
+const chatGetEnvelopeCache = new WeakMap<object, unknown>();
+const chatGetEnvelope = <T extends object>(client: T): T => {
+  const get = (client as { get?: unknown }).get;
+  if (typeof get !== 'function') return client;
+  const cached = chatGetEnvelopeCache.get(client);
+  if (cached) return cached as T;
+  const wrapped = {
+    ...client,
+    get: async (...args: unknown[]) => ({
+      notModified: false as const,
+      tree: await (get as (...a: unknown[]) => unknown)(...args),
+      etag: null,
+    }),
+  } as T;
+  chatGetEnvelopeCache.set(client, wrapped);
+  return wrapped;
+};
+
 const invalidationSubscribe = vi.hoisted(() => vi.fn(() => vi.fn()));
 const toastSpy = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const setChatTitleSpy = vi.hoisted(() => vi.fn());
@@ -415,7 +438,7 @@ it('explains Deep thinking on hover and focus in the thread composer', async () 
       {wrapped(
         <ChatView
           chatId={chatId}
-          client={client as never}
+          client={chatGetEnvelope(client) as never}
           actorScope="org:user"
           displayName="Ada"
           orgId="org-id"
@@ -470,7 +493,7 @@ it('creates a server chat only after an accepted text send and navigates to its 
   const view = await render(
     wrapped(
       <ChatView
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -568,7 +591,7 @@ it('refreshes the mounted thread title after the workspace title event', async (
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -625,7 +648,7 @@ it('does not let a delayed initial tree overwrite a newer title refresh', async 
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -661,7 +684,7 @@ it('keeps Deep thinking selected when the server rejects the initial send', asyn
   const view = await render(
     wrapped(
       <ChatView
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -715,7 +738,7 @@ it('blocks over-limit UTF-8 prompts while allowing the exact byte boundary', asy
   const view = await render(
     wrapped(
       <ChatView
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="tenant-α"
@@ -833,7 +856,7 @@ it('renders the edit submit as Save after Cancel with accessible name Save', asy
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -913,7 +936,7 @@ it('keeps the answer under an open edit readable and operable, dimmed by color o
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1002,7 +1025,7 @@ it('renders a persisted answer through the proven runtime and saves feedback aga
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1135,7 +1158,7 @@ it.each([
       wrapped(
         <ChatView
           chatId={chatId}
-          client={client as never}
+          client={chatGetEnvelope(client) as never}
           actorScope="org:user"
           displayName="Ada"
           orgId="org-id"
@@ -1271,7 +1294,7 @@ it('renders persisted measured reasoning time through the public runtime when su
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1327,7 +1350,7 @@ it('retains persisted feedback when saving a new rating fails', async () => {
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1402,7 +1425,7 @@ it('renders a persisted failed response with a retry action after reload', async
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1576,7 +1599,7 @@ it('clears a prior scoped transcript immediately and ignores its in-flight respo
   const makeView = (actorScope: string, currentChatId = chatId) =>
     wrapped(
       <ChatView
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope={actorScope}
         chatId={currentChatId}
         displayName="Ada"
@@ -1646,7 +1669,7 @@ it('ignores a stale tree response after the route changes', async () => {
   const makeView = (id: string) =>
     wrapped(
       <ChatView
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="tenant:user"
         chatId={id}
         displayName="Ada"
@@ -1728,7 +1751,7 @@ it('disables an empty thread send and does not submit whitespace with Enter', as
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -1987,7 +2010,7 @@ it('shows the loading skeleton at the top with a disabled composer beneath it', 
     wrapped(
       <ChatView
         chatId="11111111-1111-4111-8111-111111111111"
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -2072,7 +2095,7 @@ it('keeps the edit controls inside the bubble and dims the answer below while ed
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -2471,7 +2494,7 @@ it('fills the given thumb in the red text color and thanks the user', async () =
     wrapped(
       <ChatView
         chatId={tree.id}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"
@@ -2652,7 +2675,7 @@ it('opens a thread with the last user message at the top of the viewport', async
     wrapped(
       <ChatView
         chatId={chatId}
-        client={client as never}
+        client={chatGetEnvelope(client) as never}
         actorScope="org:user"
         displayName="Ada"
         orgId="org-id"

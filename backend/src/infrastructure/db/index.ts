@@ -10,7 +10,7 @@ export {
   type TenantContext,
 } from './authorization-predicate.js';
 export type { TenantSession } from './tenant-session.js';
-export { assertTenantSession } from './tenant-session.js';
+export { assertTenantSession, requireSession } from './tenant-session.js';
 export { AuditRepository } from './audit.repository.js';
 export type { AuditWriteRecord } from './audit-write-record.js';
 export type { AuthCommandSession } from './auth/auth-types.js';
@@ -36,7 +36,13 @@ export type {
 } from './step-permit.repository.js';
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
+export { TREE_SELECTED_COLUMNS, TREE_SQL } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
+export {
+  readTreeValidator,
+  VALIDATOR_INPUTS,
+  VALIDATOR_SQL,
+} from './chat-tree-validator.js';
 export { ChatSearchRepository } from './chat-search.repository.js';
 export type {
   ChatListCursor,
