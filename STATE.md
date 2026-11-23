@@ -4,7 +4,14 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-24 00:25 WIB (latest): F4.4 near done; prototype revision 17 drawn (PR #67, draft, awaiting owner approval).**
+**2026-11-24 (latest): F4.4 ready to merge; revision 17 approved; LEX-TS-001 v1.14 and LEX-DS-001 v3.4 written.**
+
+- Open PRs: #65 F4.4 deps (19319967, green incl. osv-scanner and chat-sse-load; lockfile reviewed: only listed chains + their own deps); #68 LEX-TS-001 v1.14 (merge with/after #65); #66 F4.4 hardening (01014961, green, run B load 500/500 both modes, zero server closes; must merge main after #65); #67 revision 17 + LEX-DS-001 v3.4 + F5 brief decision 7 (owner approved 2026-11-24).
+- Merge order: #65 -> #68 -> implementer merges main into #66, CI -> #66 -> #67. After #65: owner makes osv-scanner a required check.
+- F5 decision 7 (owner, 2026-11-24): tool rows follow text; question/approval panels docked above composer; 1-3 questions per ask_user call (pager top right, Skip this question), max 2 calls/run; one click answers; Enter never approves (Ctrl+Enter); message sent while panel open = question answered in chat / approval rejected first; red-text for failed/rejected/expired; decision records in thread. Clean room: interaction pattern from Claude/Mike screenshots the owner supplied; all copy and visuals our own.
+- Next: F5 brainstorming/spec prompt (recommend Fusion for spec/plan, SWE-2 max for execution with per-task diff review). Prototype revision bump (PROTOTYPE_REVISION 16 -> 17 + README lead line) belongs to the F5 slice.
+
+**2026-11-24 00:25 WIB (earlier): F4.4 near done; prototype revision 17 drawn (PR #67, draft, awaiting owner approval).**
 
 - F4.4: #65 deps (step B: typescript-eslint 8.73.0 eligible from 2026-11-23 17:08 UTC; then my review + LEX-TS-001 v1.14 docs PR); #66 tasks 2-13 done and final-reviewed by me (I-1 pgFailure, I-2 compose logs, M-1, M-2 fixed); load check: run B (health-bucket race fix) pending; if it fails -> owner-approved deviation carried to B-02 brief. Merge order: #65 + v1.14, merge main into #66, CI, #66. Backlog flakes: account-security TOTP (73/74), ai-cancel.spec.ts. Burst auth-pool wait p95 3488 ms vs F4.2 2488 ms -> B-02/F20.
 - Implementer twice mis-stated the clock; run B and step B prompts make it check `date -u`.
