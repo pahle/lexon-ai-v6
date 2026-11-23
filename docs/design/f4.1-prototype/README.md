@@ -40,7 +40,7 @@ state of the same name.
 | Platform  | `platform-accounts`, `platform-accounts-search`, `platform-accounts-filtered`, `platform-accounts-row-menu`, `platform-accounts-no-results`, `platform-accounts-loading`, `platform-accounts-error`, `platform-accounts-invitations`, `platform-account-invite`, `platform-account-detail`, `platform-account-unverified`, `platform-account-disabled`, `platform-account-disable`, `platform-account-sign-out`, `platform-organizations`, `platform-organizations-empty`, `platform-organizations-loading`, `platform-organizations-error`, `platform-organization-provision`, `platform-organization-provisioning`, `platform-organization-active`                                             |
 | Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
-## Revision 17 (F5 tools and approvals): proposed, awaiting owner approval
+## Revision 17 (F5 tools and approvals): approved by the owner on 2026-11-24
 
 Thirteen new states for [F5](../../briefs/F5-tools-approvals.md), drawn from the
 brief's contracts on top of revision 16. Their 52 views are listed in

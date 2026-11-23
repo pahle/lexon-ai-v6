@@ -1,5 +1,5 @@
 ---
-version: "3.3"
+version: "3.4"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -358,6 +358,45 @@ the approved prototype (`docs/design/f4.1-prototype/`).
   again.
 - **Editing a message:** the message becomes an edit box with Cancel and Save
   below it, right-aligned; the answers after it are muted until saved.
+- **Tool activity rows** (F5, prototype revision 17): a tool row always
+  follows at least one sentence of the answer, never directly under the
+  thinking header. It is one plain line in `muted-foreground` at the answer's
+  15px size: a 15px Lucide icon, what the tool did with its key result in
+  `foreground` weight 500, and a 14px chevron; no border, no background.
+  Expanded, the input and the result are field lists (label column in
+  `muted-foreground`, value in `foreground`) on `muted` blocks with radius
+  12px; never raw JSON. Running: a shimmering present-tense label while the
+  header keeps the live mark. A non-outcome (failed tool, rejected or
+  expired approval) uses `red-text` for icon and label; completed rows stay
+  muted.
+- **Waiting for you:** while a run waits for the user, the answer ends with a
+  `tint` pill (24px high, a `red-text` 8px dot, 13px weight 500 `red-text`
+  label "Waiting for you"). The chat's Recent item shows a 7px `primary` dot,
+  and its Chats row shows the same pill before the time.
+- **Docked panels:** a pending question or approval is a panel directly
+  above the composer (same width, 1px `border`, radius 16px, the composer
+  shadow, 8px gap), never a modal and never a card in the thread. The
+  composer stays usable.
+  - Question: the question at 15px weight 500 in the header with the close
+    button (Answer in chat instead) on the right; with several questions the
+    right side also shows Previous, "n of N" and Next before a divider and
+    the close button. Options are numbered rows (24px `muted` number tile,
+    14.5px label, optional 13px description) separated by 1px `border`; one
+    click answers, number keys select, and a chosen row gets a `tint` tile
+    and a `red-text` check. A last row "Write another answer" takes free
+    text. The footer has the expiry time on the left and "Skip this
+    question" (several questions) and "Answer in chat instead" on the right.
+  - Approval: the header says what Lexon wants to do; the details are a
+    field list on a `muted` block; the footer has the expiry time on the
+    left and Reject (outline, Esc) and Approve (primary, Ctrl+Enter)
+    side by side on the right. Enter alone never approves.
+  - On mobile the expiry time and the keyboard hints are hidden and the
+    field lists stack.
+- **Decision records:** after a decision the thread keeps a compact record:
+  questions as a bordered box (radius 12px; each question in
+  `muted-foreground`, then the answer, "Skipped" or "Answered in chat");
+  approvals as one tool-style row ("Renamed this chat", "You rejected the
+  rename", "Rename expired after 24 hours").
 
 ### 5.4 Thinking indicator
 
@@ -759,6 +798,7 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
 
 | Version | Change |
 |---|---|
+| 3.4 | **Added (product owner, F5 prototype review, 2026-11-24):** tool activity rows that follow the answer text, the Waiting for you marker, question and approval panels docked above the composer (single and several questions), and decision records in the thread (§5.3). Visual target: `docs/design/f4.1-prototype/` revision 17 |
 | 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** the data views kit (§5.7). A list page has tabs, a data table card, a toolbar with facet filters, sortable headers, typed cells, a row menu, selection with a floating action bar, a paged footer, states, and mobile rows. A record page has a header with icon actions, a two-column body with stat tiles and related tables, and a Details aside. Every action button carries an icon. The kit is built once as shared components for every list and record in Lexon. Status badge variants (§5.5). **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 and its `kit` page |
 | 3.2 | **Added (product owner, F4.2 spec review, 2026-11-19):** load failures are never empty states, and save failures keep the draft (§5.1); Recent load failure, copy failure, and the composer reason line (§5.5), from prototype revision 15. **Changed:** scroll-to-latest sits 12px above the composer box instead of a fixed offset, so it never covers the composer; sessions show no location (as built in F4.1); the §5.1 pattern examples point to the F4.1 prototype. **Removed:** references to the retired F2.1 prototype and the v1.0 brand package |
 | 3.1 | **Changed (product owner, F4.1 visual review round 4, 2026-11-18):** the approved prototype now owns sizes, spacing, and type scale, and screens are built 1:1 with it; shadcn/ui and assistant-ui keep structure, behavior, and accessibility (rationale, §3, §5). This reverses the sizing rule of 1.3. **Added:** type scale (§3); page patterns with measured values (§5.5); prototype fidelity gate with comparison sheets (§5.6); chat title in the header, icon-only answer actions, status lines, error row, edit box (§5.3); Platform group in the sidebar. **Removed:** the "Tools" group label. Visual target: `docs/design/f4.1-prototype/` revision 14 |

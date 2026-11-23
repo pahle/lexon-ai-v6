@@ -4,7 +4,7 @@
 |---|---|
 | **Depends on** | F4.4 (hardening 2: chat poll and stream groundwork), F4.3 (merged), F3 (engine contracts), F4 (chat) |
 | **Architecture** | [LEX-ARC-001](../specs/LEXON-02-SYSTEM-ARCHITECTURE.md) §4.1 step 8 (approval pause and resume), §4.7 (tool provider, capability policy), §5.1 (prompt injection) |
-| **Design system** | [LEX-DS-001 v3.3](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat), §5.4 (labels) |
+| **Design system** | [LEX-DS-001 v3.4](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat: tool rows, waiting marker, docked panels, decision records), §5.4 (labels) |
 | **Visual target** | `docs/design/f4.1-prototype/` revision 17 (to be drawn and approved before planning; its new states enter `index.json` `planned` in the same PR) |
 
 ## Goal
@@ -43,7 +43,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
    - A CI test fails when the last covered year ends within 90 days, so the update cannot be forgotten (item 9).
    - The tool still refuses any date outside the covered years.
 
-## Decisions from the prototype review (product owner, 2026-11-24, proposed in prototype revision 17)
+## Decisions from the prototype review (product owner, 2026-11-24, approved with prototype revision 17)
 
 7. **Interaction model for tools, questions and approvals:**
    - **Tool rows follow text.** The assistant writes at least one sentence before a tool row; a row never sits directly under the thinking header. A row is one plain muted line (icon, what the tool did with its key result, chevron), with no border. Expanded, it shows the input and the result as readable fields, never raw JSON.
@@ -244,7 +244,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 
 ## References
 
-- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.3 §5.3–§5.7; LEX-TS-001 v1.13.
+- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.4 §5.3–§5.7; LEX-TS-001 v1.14.
 - F3 brief (engine contracts, approval pause and resume), F4 brief (chat, ownership), F4.2 (client polling and state).
 
 ## Open questions
