@@ -302,6 +302,330 @@
       "variant": "m-dark",
       "percent": 1.66,
       "reason": "owner accepted 2026-11-20 (sub-pixel text offset only)"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "d",
+      "percent": 4.12,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "d-dark",
+      "percent": 4.22,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "m",
+      "percent": 6.13,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts",
+      "variant": "m-dark",
+      "percent": 6.26,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-search",
+      "variant": "d",
+      "percent": 2.65,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4; the clear-x in the search input is accepted permanently)"
+    },
+    {
+      "id": "platform-accounts-search",
+      "variant": "d-dark",
+      "percent": 2.74,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4; the clear-x in the search input is accepted permanently)"
+    },
+    {
+      "id": "platform-accounts-search",
+      "variant": "m",
+      "percent": 6.48,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4; the clear-x in the search input is accepted permanently)"
+    },
+    {
+      "id": "platform-accounts-search",
+      "variant": "m-dark",
+      "percent": 6.67,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4; the clear-x in the search input is accepted permanently)"
+    },
+    {
+      "id": "platform-accounts-filtered",
+      "variant": "d",
+      "percent": 2.41,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-filtered",
+      "variant": "d-dark",
+      "percent": 2.42,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-filtered",
+      "variant": "m",
+      "percent": 4.59,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-filtered",
+      "variant": "m-dark",
+      "percent": 4.56,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-row-menu",
+      "variant": "d",
+      "percent": 4.36,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-row-menu",
+      "variant": "d-dark",
+      "percent": 4.42,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-row-menu",
+      "variant": "m",
+      "percent": 6.13,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-row-menu",
+      "variant": "m-dark",
+      "percent": 6.26,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-no-results",
+      "variant": "d",
+      "percent": 2.06,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-no-results",
+      "variant": "d-dark",
+      "percent": 2.14,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-no-results",
+      "variant": "m",
+      "percent": 4.17,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-no-results",
+      "variant": "m-dark",
+      "percent": 4.32,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-loading",
+      "variant": "m",
+      "percent": 1.89,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; skeleton rows follow page size)"
+    },
+    {
+      "id": "platform-accounts-loading",
+      "variant": "m-dark",
+      "percent": 1.95,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; skeleton rows follow page size)"
+    },
+    {
+      "id": "platform-accounts-error",
+      "variant": "d",
+      "percent": 1.63,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-error",
+      "variant": "d-dark",
+      "percent": 1.7,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-error",
+      "variant": "m",
+      "percent": 2.65,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-error",
+      "variant": "m-dark",
+      "percent": 2.83,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-invitations",
+      "variant": "d",
+      "percent": 2.11,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-invitations",
+      "variant": "d-dark",
+      "percent": 2.19,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-invitations",
+      "variant": "m",
+      "percent": 4.12,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-accounts-invitations",
+      "variant": "m-dark",
+      "percent": 4.34,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; mobile adds a ~2px list-top offset moved to F4.4)"
+    },
+    {
+      "id": "platform-account-invite",
+      "variant": "d",
+      "percent": 4.29,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small mobile dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-account-invite",
+      "variant": "d-dark",
+      "percent": 3.98,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small mobile dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-account-invite",
+      "variant": "m",
+      "percent": 6.18,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small mobile dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-account-invite",
+      "variant": "m-dark",
+      "percent": 6.08,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small mobile dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-account-detail",
+      "variant": "m",
+      "percent": 7.49,
+      "reason": "owner accepted 2026-11-23 (relative last-active text does not wrap like the prototype fixture; ~20px shift below the meta line (approved deviation))"
+    },
+    {
+      "id": "platform-account-detail",
+      "variant": "m-dark",
+      "percent": 7.61,
+      "reason": "owner accepted 2026-11-23 (relative last-active text does not wrap like the prototype fixture; ~20px shift below the meta line (approved deviation))"
+    },
+    {
+      "id": "platform-account-disable",
+      "variant": "m",
+      "percent": 5.49,
+      "reason": "owner accepted 2026-11-23 (the dimmed record behind the dialog shifts with the approved last-active wrap deviation; the dialog itself is identical)"
+    },
+    {
+      "id": "platform-account-disable",
+      "variant": "m-dark",
+      "percent": 5.03,
+      "reason": "owner accepted 2026-11-23 (the dimmed record behind the dialog shifts with the approved last-active wrap deviation; the dialog itself is identical)"
+    },
+    {
+      "id": "platform-account-sign-out",
+      "variant": "m",
+      "percent": 5.51,
+      "reason": "owner accepted 2026-11-23 (the dimmed record behind the dialog shifts with the approved last-active wrap deviation; the dialog itself is identical)"
+    },
+    {
+      "id": "platform-account-sign-out",
+      "variant": "m-dark",
+      "percent": 5.35,
+      "reason": "owner accepted 2026-11-23 (the dimmed record behind the dialog shifts with the approved last-active wrap deviation; the dialog itself is identical)"
+    },
+    {
+      "id": "platform-organizations",
+      "variant": "d",
+      "percent": 1.98,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals, layout identical)"
+    },
+    {
+      "id": "platform-organizations",
+      "variant": "d-dark",
+      "percent": 2.08,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals, layout identical)"
+    },
+    {
+      "id": "platform-organizations-empty",
+      "variant": "d",
+      "percent": 1.89,
+      "reason": "owner accepted 2026-11-23 (empty-state icon is inbox not building (moved to F4.4); text-rendering residuals)"
+    },
+    {
+      "id": "platform-organizations-empty",
+      "variant": "d-dark",
+      "percent": 1.97,
+      "reason": "owner accepted 2026-11-23 (empty-state icon is inbox not building (moved to F4.4); text-rendering residuals)"
+    },
+    {
+      "id": "platform-organizations-empty",
+      "variant": "m",
+      "percent": 2.42,
+      "reason": "owner accepted 2026-11-23 (empty-state icon is inbox not building (moved to F4.4); text-rendering residuals)"
+    },
+    {
+      "id": "platform-organizations-empty",
+      "variant": "m-dark",
+      "percent": 2.52,
+      "reason": "owner accepted 2026-11-23 (empty-state icon is inbox not building (moved to F4.4); text-rendering residuals)"
+    },
+    {
+      "id": "platform-organizations-error",
+      "variant": "d",
+      "percent": 1.63,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-organizations-error",
+      "variant": "d-dark",
+      "percent": 1.72,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-organizations-error",
+      "variant": "m",
+      "percent": 1.59,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-organizations-error",
+      "variant": "m-dark",
+      "percent": 1.74,
+      "reason": "owner accepted 2026-11-23 (text-rendering residuals; error-state padding moved to F4.4)"
+    },
+    {
+      "id": "platform-organization-provision",
+      "variant": "d",
+      "percent": 2.88,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-organization-provision",
+      "variant": "d-dark",
+      "percent": 3.01,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-organization-provision",
+      "variant": "m",
+      "percent": 5.03,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small dialog offset moved to F4.4)"
+    },
+    {
+      "id": "platform-organization-provision",
+      "variant": "m-dark",
+      "percent": 5.82,
+      "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small dialog offset moved to F4.4)"
     }
   ],
   "images": {
@@ -2208,6 +2532,594 @@
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
+    },
+    "platform-accounts-desktop-light": {
+      "path": "review/platform-accounts-desktop-light.png",
+      "sha256": "7745273dde5e334fed5b6ab48fe7fac04b9826f94b51bd2b92c28b073af0e546",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-desktop-dark": {
+      "path": "review/platform-accounts-desktop-dark.png",
+      "sha256": "aa927021360bc369a17462ba3e5d26771ea8337fd8f0043b14e5a75df288cad7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-mobile-light": {
+      "path": "review/platform-accounts-mobile-light.png",
+      "sha256": "a8984bda4c4c303c573d172d0e4dcaa8885fe5640e848f63e5f68a70e739b6c5",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-mobile-dark": {
+      "path": "review/platform-accounts-mobile-dark.png",
+      "sha256": "e70fa43731ae6cb36bdab79f9310a16918cbf9ea151a7426ba64b56a38ca6df7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-search-desktop-light": {
+      "path": "review/platform-accounts-search-desktop-light.png",
+      "sha256": "9a735674cd81222d914b6adbc60205830973ad265a29e4d0d689acff83044517",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-search-desktop-dark": {
+      "path": "review/platform-accounts-search-desktop-dark.png",
+      "sha256": "a47e5ac629714c02e21e6aade04c9fa53b5083053578b06578182b495b178a9e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-search-mobile-light": {
+      "path": "review/platform-accounts-search-mobile-light.png",
+      "sha256": "885ade40132900670b98e92496832f3fbfc7d7dfb9b251882c1db31da91d8188",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-search-mobile-dark": {
+      "path": "review/platform-accounts-search-mobile-dark.png",
+      "sha256": "8b0749c73e7a65aa41b3c7e9e9ec8b0ec40cd6713c749a720c4d1940b100364f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-filtered-desktop-light": {
+      "path": "review/platform-accounts-filtered-desktop-light.png",
+      "sha256": "5fcd84106320b19080bf69784df3a9a19108a2f474d0589be157ee8dfa69de61",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-filtered-desktop-dark": {
+      "path": "review/platform-accounts-filtered-desktop-dark.png",
+      "sha256": "fcda6c1c11350d4ff4c8847a020fb9d4d2741527e40cb855c987c64ae6be1379",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-filtered-mobile-light": {
+      "path": "review/platform-accounts-filtered-mobile-light.png",
+      "sha256": "0bd8506270c16d1dec255c14db25a48553700d5771c47d385b9acf54afc459a9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-filtered-mobile-dark": {
+      "path": "review/platform-accounts-filtered-mobile-dark.png",
+      "sha256": "883ef35f65bf0ff4b57793abe2c60e312b189e8a6ef002926700a2f73371146e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-row-menu-desktop-light": {
+      "path": "review/platform-accounts-row-menu-desktop-light.png",
+      "sha256": "5f27cac34fd8baab1717e401ab7564c3f62b59d1899ea7d7e109cbb040748f1f",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-row-menu-desktop-dark": {
+      "path": "review/platform-accounts-row-menu-desktop-dark.png",
+      "sha256": "2886f7dc1ccde690a5a2d79bd84a15a622454e66c1595325d6d2ed3aec8318b9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-row-menu-mobile-light": {
+      "path": "review/platform-accounts-row-menu-mobile-light.png",
+      "sha256": "a8984bda4c4c303c573d172d0e4dcaa8885fe5640e848f63e5f68a70e739b6c5",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-row-menu-mobile-dark": {
+      "path": "review/platform-accounts-row-menu-mobile-dark.png",
+      "sha256": "e70fa43731ae6cb36bdab79f9310a16918cbf9ea151a7426ba64b56a38ca6df7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-no-results-desktop-light": {
+      "path": "review/platform-accounts-no-results-desktop-light.png",
+      "sha256": "83eeee6c48ab0c5c91804ae7a97820736eb7cd52e95e366f569c79d96a061ea3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-no-results-desktop-dark": {
+      "path": "review/platform-accounts-no-results-desktop-dark.png",
+      "sha256": "606ac0bf5183684df2d6fbf4d67ff8a24b0c09b3f8feef1df9edf38ee7a26740",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-no-results-mobile-light": {
+      "path": "review/platform-accounts-no-results-mobile-light.png",
+      "sha256": "442a173decaed3391751e8f930900cdfbceb2c6642746d24a3b1e65994184021",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-no-results-mobile-dark": {
+      "path": "review/platform-accounts-no-results-mobile-dark.png",
+      "sha256": "a2c34c72ea056120be1f1030fa722e9d9671d08effe052a6e5a57aba359d0810",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-loading-desktop-light": {
+      "path": "review/platform-accounts-loading-desktop-light.png",
+      "sha256": "be9aa408dc7c6707b11854c53dfe668fd5c90d598674a79e9ffdab379ef28a39",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-loading-desktop-dark": {
+      "path": "review/platform-accounts-loading-desktop-dark.png",
+      "sha256": "fbc2ac700276e48000d562da43cc1d30e650ed926ad56d4f80ed0586b4afeae6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-loading-mobile-light": {
+      "path": "review/platform-accounts-loading-mobile-light.png",
+      "sha256": "efe5c5ee16eb9f30da4981077446b60665275d11da35f4c7aa3d4080e6372fad",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-loading-mobile-dark": {
+      "path": "review/platform-accounts-loading-mobile-dark.png",
+      "sha256": "f0cccc4cc72bf642a212688155b7253374194743456e6d7a46a7fd2244ce725b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-error-desktop-light": {
+      "path": "review/platform-accounts-error-desktop-light.png",
+      "sha256": "0b698a071ae61c74c755e24dca15ce82b42c239cb3e3341e084df48f987edee0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-error-desktop-dark": {
+      "path": "review/platform-accounts-error-desktop-dark.png",
+      "sha256": "dbbf69f221bedcd91a3decdd167736a53dcd72eb3d6b77c54dc516aeacb4c168",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-error-mobile-light": {
+      "path": "review/platform-accounts-error-mobile-light.png",
+      "sha256": "8d4f8c69507298e724a862cf770c860ae1788570f115e13ea0398929cc70d051",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-error-mobile-dark": {
+      "path": "review/platform-accounts-error-mobile-dark.png",
+      "sha256": "cebb03c3fedfabe73df3fb01663f77914dbe77027497e117d52beb02e6a72d57",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-invitations-desktop-light": {
+      "path": "review/platform-accounts-invitations-desktop-light.png",
+      "sha256": "80500c4ac18bd286490a04332ea69adf642e88dd3440ba626c4242d4f1423da0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-invitations-desktop-dark": {
+      "path": "review/platform-accounts-invitations-desktop-dark.png",
+      "sha256": "1b7eaa9de6c1a0a5a3e9b5529fb4df6e7f3b6381ab3bee5816eeba0570490755",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-invitations-mobile-light": {
+      "path": "review/platform-accounts-invitations-mobile-light.png",
+      "sha256": "e4092531a371bec822abfdeddfa94ba6185a992b17f8f1ddf57dc5917c18dea9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-accounts-invitations-mobile-dark": {
+      "path": "review/platform-accounts-invitations-mobile-dark.png",
+      "sha256": "80c5c2714129236da48f732588569f72460c0da1f4db3a2faa0806d8e199e6f1",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-invite-desktop-light": {
+      "path": "review/platform-account-invite-desktop-light.png",
+      "sha256": "2d4bbfe34bdd03557bb6eb46855760829e489197dbcac82c29907af045d7fe86",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-invite-desktop-dark": {
+      "path": "review/platform-account-invite-desktop-dark.png",
+      "sha256": "9cd4d4c8be501c00eb5ced8ef81903605837c3f18d3b9d5e6afabfc5c2de48df",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-invite-mobile-light": {
+      "path": "review/platform-account-invite-mobile-light.png",
+      "sha256": "f972ab13aab36e4fdd47c82c580a8de681f30a3677720be49c5bb420be612bea",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-invite-mobile-dark": {
+      "path": "review/platform-account-invite-mobile-dark.png",
+      "sha256": "a0dd1260ac98a073c8d217d4cac58709f11632853092324b8b18cd447b52db0f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-detail-desktop-light": {
+      "path": "review/platform-account-detail-desktop-light.png",
+      "sha256": "d3ea4ca961141d24448972e05d7658054baafa2a823a1e1bb3cca4b63eeb9c9b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-detail-desktop-dark": {
+      "path": "review/platform-account-detail-desktop-dark.png",
+      "sha256": "40e3e06664b5df2c072a5e5861bbc752f10c4d1b354a08b99110358899e606a2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-detail-mobile-light": {
+      "path": "review/platform-account-detail-mobile-light.png",
+      "sha256": "2d5fcf357b565d9c55438d62571c5ae0f2d9553f0698f8e7fca1886b27971c27",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-detail-mobile-dark": {
+      "path": "review/platform-account-detail-mobile-dark.png",
+      "sha256": "be64344f75734579da8d01998265b847b1e68b9e835e96a17dd9b29a48eb2edc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-unverified-desktop-light": {
+      "path": "review/platform-account-unverified-desktop-light.png",
+      "sha256": "235b4dddaee23c959e891fafff98e35067bd388d6b3964fcfb158a2c5dc09ddb",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-unverified-desktop-dark": {
+      "path": "review/platform-account-unverified-desktop-dark.png",
+      "sha256": "e42fc9358cf63b0d8c19f0bbd11177f0c8e90c221c73fdda9165d6ea799940c7",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-unverified-mobile-light": {
+      "path": "review/platform-account-unverified-mobile-light.png",
+      "sha256": "5a301ff86e5e5d41b375f5e61d9e71c3ab88b620bfc4fe16dc04cb3577c6af68",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-unverified-mobile-dark": {
+      "path": "review/platform-account-unverified-mobile-dark.png",
+      "sha256": "f14b5c8cd026092c74de75e2698d87d7d97edba3054d8dc348b70c1210fd1753",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disabled-desktop-light": {
+      "path": "review/platform-account-disabled-desktop-light.png",
+      "sha256": "9e3492986ffef0327104fce26e8fec07646c76dc402161d2027430d35d51fe74",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disabled-desktop-dark": {
+      "path": "review/platform-account-disabled-desktop-dark.png",
+      "sha256": "5e321ad6bea28b74167de488b442df04e516ca2149f6ad2889e809383e433484",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disabled-mobile-light": {
+      "path": "review/platform-account-disabled-mobile-light.png",
+      "sha256": "4ebcfbbdd0db4d60b90dd446d7eb3711f1ce3c1259f42713980b384599ee4b34",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disabled-mobile-dark": {
+      "path": "review/platform-account-disabled-mobile-dark.png",
+      "sha256": "636d9be5731bcdbd3c03c8d420957f390f2414e34aa1384df0c7e619a25ebdab",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disable-desktop-light": {
+      "path": "review/platform-account-disable-desktop-light.png",
+      "sha256": "a7fdf1d1babff6450c7c3290cf658b9b5ab6ba7feb3f042a13e127ff203484b8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disable-desktop-dark": {
+      "path": "review/platform-account-disable-desktop-dark.png",
+      "sha256": "e1959f32bdb9a62e8298632d46367f2b78469946ddc2152f936c181efe3cc516",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disable-mobile-light": {
+      "path": "review/platform-account-disable-mobile-light.png",
+      "sha256": "8a389f60917564b9e0580209248a3d2631e6500871bb6e4b55f2cba38a27207e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-disable-mobile-dark": {
+      "path": "review/platform-account-disable-mobile-dark.png",
+      "sha256": "29d64399f1e39ce4231265ddd16c25aa7ddcc5dae55600f8a657e7796dc69955",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-sign-out-desktop-light": {
+      "path": "review/platform-account-sign-out-desktop-light.png",
+      "sha256": "07c6b90f40c7f191ac494b7c0a38fbcc33a53c6d93d9adaf914aa083370e1d82",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-sign-out-desktop-dark": {
+      "path": "review/platform-account-sign-out-desktop-dark.png",
+      "sha256": "554c5922c6828fe59218747f7b6b703ff2aeb4bd008917f983b29d38aca65762",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-sign-out-mobile-light": {
+      "path": "review/platform-account-sign-out-mobile-light.png",
+      "sha256": "f19a18338bff065ce7719e2ed500cd840c0c3bd7325da30332b29453841a57fc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-account-sign-out-mobile-dark": {
+      "path": "review/platform-account-sign-out-mobile-dark.png",
+      "sha256": "758fe73ab693ee20db46b4761db33317e1504cc4cbba5b94dcf70a0974f61c82",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-desktop-light": {
+      "path": "review/platform-organizations-desktop-light.png",
+      "sha256": "6d1088b216e50e740222bc72ea7988b37bd73a8a6e3b13a6a576ef280a4c5ebf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-desktop-dark": {
+      "path": "review/platform-organizations-desktop-dark.png",
+      "sha256": "ac7df6ab16dfe2e5a0d7d63cb31b68bd37a1ee1f12f3fc85a567b4019cd539cd",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-mobile-light": {
+      "path": "review/platform-organizations-mobile-light.png",
+      "sha256": "a9cc186608d2a89ab7aa883a11fc5996a9c2c4c9bd19c2834d2444b3107fe0e9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-mobile-dark": {
+      "path": "review/platform-organizations-mobile-dark.png",
+      "sha256": "31ce7c760f163cb2e36301567ecfeba1f3def0afeacdfa70f8293a7bf0c05bf7",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-empty-desktop-light": {
+      "path": "review/platform-organizations-empty-desktop-light.png",
+      "sha256": "284eed9a9ce3fceee9358bf04a2ca25aa6717270c819f58172d05ecfc11cdb3e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-empty-desktop-dark": {
+      "path": "review/platform-organizations-empty-desktop-dark.png",
+      "sha256": "b3f7f7a6cae764f51ad1b44064ee79b61183cf0754bafefc11f22d51d8ad1514",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-empty-mobile-light": {
+      "path": "review/platform-organizations-empty-mobile-light.png",
+      "sha256": "25be2b7d4b2a6a1ec8bad36ba7ade36c2850479da86d30ebf9eacc8c492ee03d",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-empty-mobile-dark": {
+      "path": "review/platform-organizations-empty-mobile-dark.png",
+      "sha256": "1e794881af628ffe3288288c7910e2214e5c14e64dd720964f603a1aba16d184",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-loading-desktop-light": {
+      "path": "review/platform-organizations-loading-desktop-light.png",
+      "sha256": "0c30e0b2c0d9faacab9ad5d94ba6a0ded7c7e737701c79a096915cf991b6108e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-loading-desktop-dark": {
+      "path": "review/platform-organizations-loading-desktop-dark.png",
+      "sha256": "38b8ff8f7e382f257692aa6ce4ddef242e578499bedfba1244c425d034d4daa8",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-loading-mobile-light": {
+      "path": "review/platform-organizations-loading-mobile-light.png",
+      "sha256": "957de2ffe53aab5dfc19d882ea1f87dee37c25a9edf660dd19786db145a4fad6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-loading-mobile-dark": {
+      "path": "review/platform-organizations-loading-mobile-dark.png",
+      "sha256": "c71f4666f2b5375ac2a4951fbfce28edc35a1d4b648b639b882cf90b41ced42f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-error-desktop-light": {
+      "path": "review/platform-organizations-error-desktop-light.png",
+      "sha256": "7e8b67fbab6521c6437725ae6ad931796d67179b5146f39e7b9e99d216d56c23",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-error-desktop-dark": {
+      "path": "review/platform-organizations-error-desktop-dark.png",
+      "sha256": "3c8d09284f8354b9e9d37158f30196531edfd1aa81a3b70df29f7fa85a586a2c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-error-mobile-light": {
+      "path": "review/platform-organizations-error-mobile-light.png",
+      "sha256": "8ccb41cb0d0d8fc73bdfdfb19af933146a5f40cb68083236761ba6517b560e3e",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organizations-error-mobile-dark": {
+      "path": "review/platform-organizations-error-mobile-dark.png",
+      "sha256": "7515fb2a63ffd0e1e34090b688e253d8bc97e1af5e88aab5071319736cf41da5",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provision-desktop-light": {
+      "path": "review/platform-organization-provision-desktop-light.png",
+      "sha256": "480a8eb0e86359c3462b20f189c7ce45fad64f415df141c5b840c483b7f394d0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provision-desktop-dark": {
+      "path": "review/platform-organization-provision-desktop-dark.png",
+      "sha256": "55b4606212680f7ec6cf7958d7c6cf0d233c72e3c2a41316704baab0279a0102",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provision-mobile-light": {
+      "path": "review/platform-organization-provision-mobile-light.png",
+      "sha256": "c1d41541329fc29d716ba53a93c16968bf45fb337e8d11056275c6f11ec7222b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provision-mobile-dark": {
+      "path": "review/platform-organization-provision-mobile-dark.png",
+      "sha256": "b7c600029052f1da5489666231c0115cc462459d184227619df6791bd127f0d1",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provisioning-desktop-light": {
+      "path": "review/platform-organization-provisioning-desktop-light.png",
+      "sha256": "ebb11cb491d943ccb3f8780a41c20fab19d2325f632ac409aa4ffbb317656ff6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provisioning-desktop-dark": {
+      "path": "review/platform-organization-provisioning-desktop-dark.png",
+      "sha256": "e01083d12bb99e35ec1b409d10fd35b6218d3d0ad38336c2777f5686fdb6e60e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provisioning-mobile-light": {
+      "path": "review/platform-organization-provisioning-mobile-light.png",
+      "sha256": "f6fc1688a50b600fd635a63a7860446b41fd00ad586ffeab07d66b9347d35fde",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-provisioning-mobile-dark": {
+      "path": "review/platform-organization-provisioning-mobile-dark.png",
+      "sha256": "74ad84e7ca062446c74fcb35586754ec3802f212c364639ffe12dac51059d8d9",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-active-desktop-light": {
+      "path": "review/platform-organization-active-desktop-light.png",
+      "sha256": "709a8ad43a9c7b94f92ddbda4c83925b8a80ce1e9e7acdb5d12d897514a1254e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-active-desktop-dark": {
+      "path": "review/platform-organization-active-desktop-dark.png",
+      "sha256": "0b699afb1f400097acec1451df4e7e13a28a4e5735bf2cb53b784da5d642f8e3",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-active-mobile-light": {
+      "path": "review/platform-organization-active-mobile-light.png",
+      "sha256": "45fb8e77b0b958d699c20ff624ec6f016056329a5991b8cdb4489773cc122800",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "platform-organization-active-mobile-dark": {
+      "path": "review/platform-organization-active-mobile-dark.png",
+      "sha256": "1dfd05b7fd0e4d7f29c27eb894e65e6190a0ee6d74f360057ef7289a30ba9268",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
     }
   },
   "reapproved": [
@@ -2530,6 +3442,97 @@
         "platform-provisioning-detail-desktop-dark",
         "platform-provisioning-detail-mobile-light",
         "platform-provisioning-detail-mobile-dark"
+      ]
+    },
+    {
+      "reference": "F4.3 Task 19: owner approval of the 21 revision 16 platform console states (84 views) from CI run 45031400524 at head c3b2ef4a, artifacts visual-pending-45031400524-shard-1 and visual-pending-45031400524-shard-3",
+      "date": "2026-11-23",
+      "sourceSha": "c3b2ef4afb55e3cebadd8da3284b23d9e48a0fda",
+      "viewIds": [
+        "platform-accounts-desktop-light",
+        "platform-accounts-desktop-dark",
+        "platform-accounts-mobile-light",
+        "platform-accounts-mobile-dark",
+        "platform-accounts-search-desktop-light",
+        "platform-accounts-search-desktop-dark",
+        "platform-accounts-search-mobile-light",
+        "platform-accounts-search-mobile-dark",
+        "platform-accounts-filtered-desktop-light",
+        "platform-accounts-filtered-desktop-dark",
+        "platform-accounts-filtered-mobile-light",
+        "platform-accounts-filtered-mobile-dark",
+        "platform-accounts-row-menu-desktop-light",
+        "platform-accounts-row-menu-desktop-dark",
+        "platform-accounts-row-menu-mobile-light",
+        "platform-accounts-row-menu-mobile-dark",
+        "platform-accounts-no-results-desktop-light",
+        "platform-accounts-no-results-desktop-dark",
+        "platform-accounts-no-results-mobile-light",
+        "platform-accounts-no-results-mobile-dark",
+        "platform-accounts-loading-desktop-light",
+        "platform-accounts-loading-desktop-dark",
+        "platform-accounts-loading-mobile-light",
+        "platform-accounts-loading-mobile-dark",
+        "platform-accounts-error-desktop-light",
+        "platform-accounts-error-desktop-dark",
+        "platform-accounts-error-mobile-light",
+        "platform-accounts-error-mobile-dark",
+        "platform-accounts-invitations-desktop-light",
+        "platform-accounts-invitations-desktop-dark",
+        "platform-accounts-invitations-mobile-light",
+        "platform-accounts-invitations-mobile-dark",
+        "platform-account-invite-desktop-light",
+        "platform-account-invite-desktop-dark",
+        "platform-account-invite-mobile-light",
+        "platform-account-invite-mobile-dark",
+        "platform-account-detail-desktop-light",
+        "platform-account-detail-desktop-dark",
+        "platform-account-detail-mobile-light",
+        "platform-account-detail-mobile-dark",
+        "platform-account-unverified-desktop-light",
+        "platform-account-unverified-desktop-dark",
+        "platform-account-unverified-mobile-light",
+        "platform-account-unverified-mobile-dark",
+        "platform-account-disabled-desktop-light",
+        "platform-account-disabled-desktop-dark",
+        "platform-account-disabled-mobile-light",
+        "platform-account-disabled-mobile-dark",
+        "platform-account-disable-desktop-light",
+        "platform-account-disable-desktop-dark",
+        "platform-account-disable-mobile-light",
+        "platform-account-disable-mobile-dark",
+        "platform-account-sign-out-desktop-light",
+        "platform-account-sign-out-desktop-dark",
+        "platform-account-sign-out-mobile-light",
+        "platform-account-sign-out-mobile-dark",
+        "platform-organizations-desktop-light",
+        "platform-organizations-desktop-dark",
+        "platform-organizations-mobile-light",
+        "platform-organizations-mobile-dark",
+        "platform-organizations-empty-desktop-light",
+        "platform-organizations-empty-desktop-dark",
+        "platform-organizations-empty-mobile-light",
+        "platform-organizations-empty-mobile-dark",
+        "platform-organizations-loading-desktop-light",
+        "platform-organizations-loading-desktop-dark",
+        "platform-organizations-loading-mobile-light",
+        "platform-organizations-loading-mobile-dark",
+        "platform-organizations-error-desktop-light",
+        "platform-organizations-error-desktop-dark",
+        "platform-organizations-error-mobile-light",
+        "platform-organizations-error-mobile-dark",
+        "platform-organization-provision-desktop-light",
+        "platform-organization-provision-desktop-dark",
+        "platform-organization-provision-mobile-light",
+        "platform-organization-provision-mobile-dark",
+        "platform-organization-provisioning-desktop-light",
+        "platform-organization-provisioning-desktop-dark",
+        "platform-organization-provisioning-mobile-light",
+        "platform-organization-provisioning-mobile-dark",
+        "platform-organization-active-desktop-light",
+        "platform-organization-active-desktop-dark",
+        "platform-organization-active-mobile-light",
+        "platform-organization-active-mobile-dark"
       ]
     }
   ]
