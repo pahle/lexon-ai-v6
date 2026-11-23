@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Depends on** | F4.3 (merged), F3 (engine contracts), F4 (chat) |
+| **Depends on** | F4.4 (hardening 2: chat poll and stream groundwork), F4.3 (merged), F3 (engine contracts), F4 (chat) |
 | **Architecture** | [LEX-ARC-001](../specs/LEXON-02-SYSTEM-ARCHITECTURE.md) §4.1 step 8 (approval pause and resume), §4.7 (tool provider, capability policy), §5.1 (prompt injection) |
 | **Design system** | [LEX-DS-001 v3.3](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat), §5.4 (labels) |
 | **Visual target** | `docs/design/f4.1-prototype/` revision 17 (to be drawn and approved before planning; its new states enter `index.json` `planned` in the same PR) |
@@ -32,6 +32,17 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 3. **The approval card is inline in the thread.** It stays in the chat history with its outcome. It is not a modal.
 4. **Chat client hardening** (planned as the F5 opener in the F4 review) was done in F4.2 (A-07, A-08) and is not repeated.
 
+## Decisions from the brief review (product owner, 2026-11-23)
+
+5. **Questions reuse `awaiting_approval`, with an operation kind** (`approval` or `question`).
+   - There is no new run state and no LEX-ARC-001 revision.
+   - The UI tells a question from an approval by the operation kind.
+   - Questions and approvals share one mechanism: pause, resume, the 24-hour expiry, audit, and owner-only decisions.
+6. **The holiday calendar is updated by one PR per year.**
+   - The brief generator opens it once the joint decree (SKB) for the next year is published, usually in the second half of the year.
+   - A CI test fails when the last covered year ends within 90 days, so the update cannot be forgotten (item 9).
+   - The tool still refuses any date outside the covered years.
+
 ## In scope
 
 ### Tool framework
@@ -58,7 +69,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 5. **Tool:**
    - The model calls `ask_user` with a question (at most 300 characters) and 2–5 short options.
    - It may allow a free-text answer, at most 500 characters.
-   - The run pauses with the same mechanism as an approval (F3 §15–16): the job ends and a resume job continues.
+   - The run pauses with the same mechanism as an approval (F3 §15–16): the run enters `awaiting_approval` with an operation of kind `question`, the job ends, and a resume job continues (decision 5).
 6. **Card:**
    - An inline card shows the question, the options as buttons, an optional text field, and Answer; plus Dismiss ("Answer in chat instead").
    - After the user answers, the card shows the chosen answer read-only, and the run resumes with that answer as the tool result. The answer is untrusted data like any user input.
@@ -83,9 +94,10 @@ Every tool call is visible in the thread, every write needs approval, unanswered
    - **It encodes no statute.** The model chooses the period from the law it cites, and the answer must show the inputs it used.
 9. **Calendar data:**
    - Indonesian national holidays and joint leave days (cuti bersama) for 2026 and 2027, stored as a versioned data file in `shared/`.
-   - Each year cites its official decree (SKB), and is updated by PR.
+   - Each year cites its official decree (SKB). A new year is added by one PR per year (decision 6).
    - A date outside the covered years makes the tool refuse with a clear message. It never guesses.
    - Weekends are Saturday and Sunday. Regional holidays are out of scope.
+   - **Expiry guard:** a CI test reads the last covered year from the data file. It fails when 31 December of that year is 90 days or less after the day the test runs. Its failure message says which year to add and that the update needs the official SKB. With 2026 and 2027 covered, it first fails on 2 October 2027.
 10. **Result row:** the activity row's summary reads, for example, "Deadline: Monday, 14 December 2026". Expanded, it lists the inputs and the skipped days.
 
 ### Rename chat (write, approval required)
@@ -149,7 +161,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
   - stream events for tool activity, approval-required, and question-required (versioned);
   - the holiday calendar data file and its schema.
 - **Routes:** decide an approval and answer a question, owner-only, idempotent on the operation id; a repeated decision returns the stored outcome.
-- **Run state:** questions reuse the pause and resume mechanism. If the spec needs a new run state (for example `awaiting_input`) rather than an operation kind on `awaiting_approval`, that is a LEX-ARC-001 revision and goes to the owner first.
+- **Run state:** no new state. A question is an operation of kind `question` on `awaiting_approval` (decision 5). Questions and approvals share the pause, resume, expiry, audit and decision routes, and the operation kind selects the card and the allowed outcomes.
 - **Storage:** operations already exist from F3 (pending tool operations). Add the question payload, the expiry, and the decision actor and time. New tables keep FORCE RLS and cross-tenant tests.
 
 ## Non-functional requirements
@@ -205,7 +217,8 @@ Every tool call is visible in the thread, every write needs approval, unanswered
   - [ ] is correct on the 2026–2027 calendar;
   - [ ] refuses dates outside the covered years;
   - [ ] shows the skipped days;
-  - [ ] the calendar data cites its SKB sources.
+  - [ ] the calendar data cites its SKB sources;
+  - [ ] the expiry guard fails within 90 days of the last covered year's end (tested with an injected date).
 - [ ] `rename_chat`:
   - [ ] always needs approval;
   - [ ] Approve applies the rename once;
@@ -215,7 +228,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 - [ ] Owner-only decisions: negative tests for a member, an organization owner, a platform administrator, and another organization; snapshot hash enforced.
 - [ ] Audit events for every tool, approval, and question outcome, with no K1 content.
 - [ ] Evals added, including the prompt-injection cases; the injection cases are in the CI eval subset.
-- [ ] Revision 17 states approved and captured; CI comparison sheets at or under 1.5%, or owner-approved deviations.
+- [ ] Revision 17 states approved and captured; the Linux CI comparison sheets are reviewed by the owner by eye, at most 2 Linux UI rounds, and remaining differences are logged as deviations; the new app goldens pass the 1.5% gate.
 - [ ] All F0–F4.3 tests pass; CI green on the final head.
 
 ## References
@@ -225,5 +238,4 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 
 ## Open questions
 
-1. **Run state for questions:** reuse `awaiting_approval` with an operation kind, or add `awaiting_input`, which needs a LEX-ARC-001 revision? The spec recommends one; the owner decides.
-2. **Holiday data upkeep:** who updates the calendar each year (a yearly PR from the brief generator, or a platform setting later)? Default: a yearly PR.
+None. The brief review settled them on 2026-11-23 (decisions 5 and 6).
