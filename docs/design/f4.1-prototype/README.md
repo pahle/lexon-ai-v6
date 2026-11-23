@@ -70,8 +70,7 @@ with `PROTOTYPE_REVISION` in `scripts/visual-compare-prototype.mjs`.
   small bordered record: each question, then its answer, "Skipped", or
   "Answered in chat".
 - **Approval panel** (`chat-approval`): "Lexon wants to rename this chat",
-  the current and new title on a `muted` block, Reject (Esc), the expiry
-  time, and Approve (Ctrl+Enter). Approved, rejected and expired
+  the current and new title on a `muted` block, then the expiry time on the left and Reject (Esc) and Approve (Ctrl+Enter) side by side on the right. Approved, rejected and expired
   (`chat-approval-approved`, `chat-approval-rejected`,
   `chat-approval-expired`) leave one line like a tool row; Approved is
   muted and also renames the chat in the header and in Recent. Rejected,
