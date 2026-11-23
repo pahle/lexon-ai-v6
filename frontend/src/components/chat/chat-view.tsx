@@ -115,6 +115,9 @@ function ChatViewSession({
   const titleRequestVersion = useRef(0);
   const observedTitleRefreshVersion = useRef(chatTitleRefreshVersion);
   const [tree, setTree] = useState<ChatTree | null>(null);
+  // The validator the last non-poll tree write carried (the initial GET); the
+  // poll seeds its stored tag from it so a tag never describes another tree.
+  const [treeEtag, setTreeEtag] = useState<string | null>(null);
   const [loading, setLoading] = useState(chatId !== undefined);
   const [loadError, setLoadError] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -150,6 +153,7 @@ function ChatViewSession({
         if (result.notModified) return;
         if (mounted) {
           setTree(result.tree);
+          setTreeEtag(result.etag);
           if (requestVersion === titleRequestVersion.current)
             setChatTitle(chatId, actorScope, result.tree.title);
         }
@@ -337,6 +341,7 @@ function ChatViewSession({
         chatId={chatId}
         tree={tree}
         onTreeRefresh={refreshActiveTree}
+        treeEtag={treeEtag}
         onTreeUpdate={updateCanonicalTree}
         effort={effort}
         onRunId={(runId) => {

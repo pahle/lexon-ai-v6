@@ -12,6 +12,7 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
 import {
+  captureComposeLogs,
   describeChatLoadFailure,
   tagChatLoadStep,
   withOwnedStack,
@@ -192,6 +193,13 @@ try {
         { env, signal },
       );
     },
+    captureLogs: () =>
+      captureComposeLogs({
+        project,
+        files,
+        env,
+        target: join(root, 'test-results', 'compose-logs.txt'),
+      }),
     async exercise(signal) {
       const descriptor = buildStackDescriptor({
         project,

@@ -21,6 +21,12 @@ export interface TreePollingOptions {
   readonly enabled?: boolean;
   /** Resets the stored validator tag when it changes (the chat id). */
   readonly resetKey?: string;
+  /**
+   * The validator the latest non-poll tree write carried (the initial GET).
+   * When it changes, the stored tag resets to it — a tag never outlives the
+   * tree it describes; a write with no tag clears it entirely.
+   */
+  readonly seedEtag?: string | null;
 }
 
 /**
@@ -36,6 +42,7 @@ export function useTreePolling(options: TreePollingOptions): {
   const refreshNowRef = useRef<() => void>(() => undefined);
   const enabled = options.enabled ?? true;
   const resetKey = options.resetKey;
+  const seedEtag = options.seedEtag;
 
   useEffect(() => {
     if (!enabled) {
@@ -46,7 +53,7 @@ export function useTreePolling(options: TreePollingOptions): {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
     let failures = 0;
-    let lastEtag: string | undefined;
+    let lastEtag: string | undefined = seedEtag ?? undefined;
 
     const hidden = () => document.visibilityState === 'hidden';
     const clearTimer = () => {
@@ -109,7 +116,7 @@ export function useTreePolling(options: TreePollingOptions): {
       window.removeEventListener('focus', onFocus);
       refreshNowRef.current = () => undefined;
     };
-  }, [enabled, resetKey]);
+  }, [enabled, resetKey, seedEtag]);
 
   const refreshNow = useCallback(() => refreshNowRef.current(), []);
   return { refreshNow };

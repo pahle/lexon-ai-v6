@@ -2,6 +2,27 @@ import {
   ChatLoadEvidenceError,
   collectChatLoadEvidence,
 } from './chat-load-evidence.mjs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { composeArgs, run } from './compose-runner.mjs';
+
+// The compose-logs artifact must be captured before teardown: by the time a
+// workflow step runs `docker compose logs` the owned stack is already down and
+// the upload is an empty file. `composeArgs` keeps this to `lexon-e2e-*`.
+export async function captureComposeLogs({
+  project,
+  files = [],
+  env = process.env,
+  target,
+}) {
+  const output = await run(
+    'docker',
+    composeArgs(project, ['logs', '--no-color'], files),
+    { env, quiet: true, timeoutMs: 30_000 },
+  );
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, output);
+}
 
 export function tagChatLoadStep(step, error) {
   if (error instanceof Error)
@@ -50,6 +71,11 @@ export async function withOwnedStack(options) {
     return result;
   } catch (error) {
     keep = false;
+    // The stack is still up here; after `down` its logs are unrecoverable.
+    if (options.captureLogs)
+      await options
+        .captureLogs()
+        .catch(() => console.error('compose logs capture failed'));
     throw error;
   } finally {
     if (!keep)

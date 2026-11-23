@@ -27,12 +27,14 @@ vi.mock('../src/components/shell/workspace-provider', () => ({
 const runtimeProps = vi.hoisted(() => ({
   seen: [] as Array<{
     tree: ChatTree;
+    treeEtag?: string | null | undefined;
     onTreeUpdate?: ((tree: ChatTree) => void) | undefined;
   }>,
 }));
 vi.mock('../src/components/chat/chat-runtime.js', () => ({
   ChatRuntime: (props: {
     tree: ChatTree;
+    treeEtag?: string | null | undefined;
     onTreeUpdate?: ((tree: ChatTree) => void) | undefined;
     children?: ReactNode;
   }) => {
@@ -76,12 +78,12 @@ const tree: ChatTree = {
   updatedAt: '2026-11-11T00:00:01.000Z',
 };
 
-function view() {
+function view(etag: string | null = null) {
   const client = {
     get: vi.fn(async () => ({
       notModified: false as const,
       tree,
-      etag: null,
+      etag,
     })),
   } as unknown as ChatApi;
   return render(
@@ -97,6 +99,19 @@ function view() {
     </QueryClientProvider>,
   );
 }
+
+it('hands the initial read\u2019s validator to the poll as the tree\u2019s tag', async () => {
+  // The tree was set outside the poll (the first GET): the poll must seed its
+  // stored tag from that response, never from a stale validator.
+  runtimeProps.seen.length = 0;
+  const rendered = await view('W/"v1.initial"');
+  try {
+    await settleUntil(() => runtimeProps.seen.length > 0);
+    expect(runtimeProps.seen.at(-1)!.treeEtag).toBe('W/"v1.initial"');
+  } finally {
+    await rendered.unmount();
+  }
+});
 
 it('keeps the canonical tree object when a refresh returns a structurally equal tree', async () => {
   runtimeProps.seen.length = 0;

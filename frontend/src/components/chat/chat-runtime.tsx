@@ -48,6 +48,8 @@ export interface ChatRuntimeProps {
     signal: AbortSignal,
     ifNoneMatch: string | undefined,
   ) => Promise<ChatGetResult>;
+  /** The validator the latest non-poll tree write carried (the initial GET). */
+  readonly treeEtag?: string | null;
   readonly onTreeUpdate?: (tree: ChatTree) => void;
   readonly onRunId?: (runId: string | undefined) => void;
   readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
@@ -96,6 +98,7 @@ function ChatRuntimeSession({
   effort = 'high',
   children,
   onTreeRefresh,
+  treeEtag,
   onTreeUpdate,
   onRunId,
   onStreamState,
@@ -276,6 +279,7 @@ function ChatRuntimeSession({
       !streamFrameSeenRef.current,
     onFailures: () => onStreamStateRef.current?.('reconnecting'),
     resetKey: chatId,
+    seedEtag: treeEtag ?? null,
   });
 
   const initialRunId = activeRun?.runId;

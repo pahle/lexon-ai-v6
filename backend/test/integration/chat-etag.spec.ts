@@ -290,7 +290,12 @@ test('validator header values stay out of request and response logs', async ({
       'if-none-match': tag!,
     });
     expect(again.status).toBe(304);
-    expect(harness.logs.join('')).not.toContain(tag!);
+    const logs = harness.logs.join('');
+    expect(logs).not.toContain(tag!);
+    // The ended 304 hands nothing back to the transport: no headers-sent
+    // complaint and no error-level record for the request.
+    expect(logs).not.toContain('ERR_HTTP_HEADERS_SENT');
+    expect(logs).not.toMatch(/"level":\s*(?:50|60)\b/);
   } finally {
     await harness.close();
   }

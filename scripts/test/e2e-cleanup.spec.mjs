@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withOwnedStack } from '../e2e-lifecycle.mjs';
+import { captureComposeLogs, withOwnedStack } from '../e2e-lifecycle.mjs';
 test('failed startup always tears down only the owned project and removes private temp data', async () => {
   const calls = [];
   await assert.rejects(
@@ -89,6 +89,81 @@ test('test and exercise-abort failures remove real private operator configuratio
     );
     assert.equal(down, true);
     await assert.rejects(stat(path), { code: 'ENOENT' });
+  }
+});
+
+test('a failed exercise captures compose logs before teardown runs', async () => {
+  const calls = [];
+  await assert.rejects(
+    withOwnedStack({
+      project: 'lexon-e2e-abc123',
+      directory: '/test-owned',
+      start: async () => calls.push('start'),
+      exercise: async () => {
+        calls.push('exercise');
+        throw new Error('exercise failed');
+      },
+      captureLogs: async () => calls.push('logs'),
+      down: async (project) => calls.push(`down:${project}`),
+      remove: async (path) => calls.push(`remove:${path}`),
+    }),
+    /exercise failed/,
+  );
+  assert.deepEqual(calls, [
+    'start',
+    'exercise',
+    'logs',
+    'down:lexon-e2e-abc123',
+    'remove:/test-owned',
+  ]);
+});
+
+test('a successful run captures no compose logs', async () => {
+  const calls = [];
+  await withOwnedStack({
+    project: 'lexon-e2e-abc123',
+    directory: '/test-owned',
+    start: async () => calls.push('start'),
+    exercise: async () => calls.push('exercise'),
+    captureLogs: async () => calls.push('logs'),
+    down: async (project) => calls.push(`down:${project}`),
+    remove: async (path) => calls.push(`remove:${path}`),
+  });
+  assert.deepEqual(calls, [
+    'start',
+    'exercise',
+    'down:lexon-e2e-abc123',
+    'remove:/test-owned',
+  ]);
+});
+
+test('captureComposeLogs writes the owned project logs to the target file', async () => {
+  const { mkdir, mkdtemp, readFile, rm, writeFile } =
+    await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const directory = await mkdtemp(join(tmpdir(), 'lexon-compose-logs-'));
+  const binDirectory = join(directory, 'bin');
+  const target = join(directory, 'test-results', 'compose-logs.txt');
+  try {
+    await mkdir(binDirectory, { recursive: true });
+    const fakeDocker = String.raw`#!${process.execPath}
+const args = process.argv.slice(2);
+if (args.includes('logs')) process.stdout.write('api-1  | boot log\nvalkey-1 | ready\n');
+`;
+    await writeFile(join(binDirectory, 'docker'), fakeDocker, {
+      mode: 0o755,
+    });
+    await captureComposeLogs({
+      project: 'lexon-e2e-abc123',
+      env: { PATH: `${binDirectory}:/usr/bin:/bin:/usr/local/bin` },
+      target,
+    });
+    const written = await readFile(target, 'utf8');
+    assert.match(written, /api-1 {2}\| boot log/);
+    assert.match(written, /valkey-1 \| ready/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 

@@ -194,7 +194,10 @@ export class ChatController {
     // no-store so a stale poll body is never replayed. No Vary.
     res.setHeader('etag', result.etag);
     res.setHeader('cache-control', 'no-store');
-    if (result.notModified) return res.status(304).end();
+    if (result.notModified) {
+      res.status(304).end();
+      return;
+    }
     return result.tree;
   }
 
