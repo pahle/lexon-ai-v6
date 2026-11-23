@@ -4,10 +4,10 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-TS-001 |
-| **Version** | 1.13 |
+| **Version** | 1.14 |
 | **Status** | **LOCKED** — subject to validation prerequisites (§9) |
-| **Date** | 9 November 2026 |
-| **Supersedes** | v1.11 (3 November 2026) |
+| **Date** | 24 November 2026 |
+| **Supersedes** | v1.13 (19 November 2026) |
 | **Product** | Lexon — Indonesian Legal AI Workspace |
 | **Classification** | Internal · Product & Engineering |
 
@@ -202,7 +202,7 @@ or changed notable pin must be recorded here before installation.
 | `unified` | `11.0.5` | Notable parsing pipeline transitive |
 | `remark-parse` / `remark-rehype` / `remark-stringify` | `11.0.0` / `11.1.2` / `11.0.0` | Notable Markdown/AST pipeline transitives |
 | `micromark` / `mdast-util-gfm` / `micromark-extension-gfm` | `4.0.2` / `3.1.0` / `3.0.0` | Notable Markdown/GFM parser transitives |
-| `mdast-util-to-hast` / `hast-util-to-jsx-runtime` / `vfile` | `13.2.0` / `2.3.6` / `6.0.3` | Notable AST/rendering transitives |
+| `mdast-util-to-hast` / `hast-util-to-jsx-runtime` / `vfile` | `13.2.1` (v1.14) / `2.3.6` / `6.0.3` | Notable AST/rendering transitives |
 | `classnames` / `@types/hast` / `micromark-util-html-tag-name` | `2.5.1` / `3.0.5` / `2.0.1` | Renderer support transitives |
 | `@radix-ui/react-primitive` | `2.2.0` | Vendor renderer internal transitive only; no direct Lexon-owned imports |
 | `@assistant-ui/core` / `@assistant-ui/store` / `@assistant-ui/tap` | `0.3.33` / `0.3.23` / `0.9.25` | Matching assistant-ui runtime transitives |
@@ -227,6 +227,38 @@ Product-owner-approved revision, 19 November 2026.
 | Package | Exact version | Purpose |
 |---|---|---|
 | `eslint-plugin-react-hooks` | `7.1.1` | Lint for `frontend/` only. Enable exactly two rules, `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps`, both as errors. Do not use the plugin's `recommended` preset: its React Compiler rules do not apply, because Lexon does not use React Compiler. |
+
+### F4.4 dependency upgrades (v1.14)
+
+Product-owner-approved revision, 24 November 2026. These versions close the 16
+OSV-Scanner findings of the supply-chain baseline (2026-11-22), so
+`osv-scanner.toml` has no allowlist entries. Every version was published at
+least 7 days before installation (2026-11-23), the same rule as the Renovate
+`minimumReleaseAge`. A parent upgrade is preferred; an override in
+`pnpm-workspace.yaml` is used only where no parent release fixes the chain. It
+is scoped to its parent (`parent>child`) and carries a comment naming the
+advisory and its guard test. Evidence: `docs/references/F4.4-acceptance.md`,
+Task 1.
+
+| Package | Old → new | How | Advisories |
+|---|---|---|---|
+| `@opentelemetry/sdk-node` | `0.219.0` → `0.223.2` | direct (backend) | GHSA-45rx-2jwx-cxfr: pulls `@opentelemetry/propagator-jaeger` `2.8.0` → `2.12.1` |
+| `@opentelemetry/exporter-trace-otlp-http` | `0.219.0` → `0.223.2` | direct (backend) | Same OTel release line as `sdk-node` |
+| `@opentelemetry/sdk-trace-base` | `2.8.0` → `2.12.1` | direct dev (backend) | Same OTel release line; `@opentelemetry/api` stays `1.9.1` |
+| `next` | `16.4.3` → `16.4.6` | direct (frontend) | GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2, GHSA-mfr8-8qww-v76h, GHSA-pc58-hwjq-p385, GHSA-rhh4-g77r-r9qj, GHSA-vc7v-qv4w-wrv8, GHSA-vvgp-ww4w-46vf. 16.4.6 also compresses Next route-handler responses; Lexon's only route handler is the frontend health check, and chat SSE is served by NestJS |
+| `mdast-util-to-hast` | `13.2.0` → `13.2.1` | existing workspace override (assistant-ui renderer) | GHSA-4fh9-h7wg-q85m |
+| `eslint` | `10.14.0` → `10.15.0` | direct dev (root) | GHSA-g3hv-75wg-m249 (its `minimatch`) |
+| `typescript-eslint` | `8.72.1` → `8.73.0` | direct dev (root) | GHSA-g3hv-75wg-m249 (its `minimatch`) |
+| `@nestjs/cli` | `12.0.11` → `12.0.13` | direct dev (backend) | GHSA-g3hv-75wg-m249 (its `minimatch`) |
+| `qs` | `6.15.1` → `6.16.1` | override `typed-rest-client>qs` (Stryker 10.1.1) | GHSA-4mjr-xmp4-gh2g, GHSA-6pq8-jhm2-2vcw, GHSA-q8mj-m7cp-5q26, GHSA-x5fp-wj9c-mxmx |
+| `glob` | `10.5.0` → `14.0.6` | override `archiver-utils>glob` (Testcontainers) | GHSA-3g3m-2fjr-6pw4; also removes `minimatch` 9.x |
+| `minimatch` | `10.2.6` → `11.0.8` | overrides `@stryker-mutator/core>minimatch`, `@ts-morph/common>minimatch` (shadcn CLI) | GHSA-g3hv-75wg-m249; the ESLint and Nest CLI parents resolve `11.0.5`–`11.0.9` on their own |
+| `esbuild` | `0.18.20` → `0.25.12` | override `@esbuild-kit/core-utils>esbuild` (drizzle-kit) | GHSA-67mh-4wv8-2f99 |
+
+All of these are development tools except `@opentelemetry/sdk-node` and its
+exporter (AI worker telemetry), `next` and `mdast-util-to-hast` (frontend
+runtime). The OpenTelemetry SDK 3 line (`0.300+`) removes the Jaeger
+propagator and is a separate decision.
 
 ## 8. Integration Principles
 
@@ -315,3 +347,4 @@ Changing a technology choice in this version requires an explicit product and en
 | 1.11 | **Added (product owner, F2.1 prototype):** `sonner` for toast notifications through the shadcn/ui `Sonner` component (Design System v2.1 §5.1) |
 | 1.12 | **Added (product owner, F4):** Caddy 2.11.9 for loopback HTTP development/E2E routing and immediate SSE flushing, sharing `infra/Caddyfile` with future production work; official digest-pinned k6 2.3.0 load-test tool. **Recorded:** exact F4 Markdown/GFM dependencies and notable transitives, plus the explicit assistant-ui 0.15.33 registry-compatible patch and matching internal pins. No new dependency is installed before being listed. Production TLS/hardening/add-in domain remain F20 |
 | 1.13 | **Changed (product owner, F4.2, 2026-11-19):**<br>• fonts and brand assets now record what F4.1 shipped: Inter, EB Garamond, and TeX Gyre Bonum through `next/font/local`, and brand assets from `docs/brand/lexon-2026-v4.1/`<br>• Georgia and the v1.0 brand package are retired; the v1.0 package was removed from the repository in F4.2<br>**Added:** `eslint-plugin-react-hooks` 7.1.1 for `frontend/`, with two rules only (§7, F4.2 additions) |
+| 1.14 | **Changed (product owner, F4.4, 2026-11-24):** dependency upgrades that close the 16 OSV-Scanner findings of the supply-chain baseline: OpenTelemetry SDK `0.219.0` → `0.223.2`, Next.js `16.4.3` → `16.4.6`, `mdast-util-to-hast` `13.2.0` → `13.2.1`, ESLint `10.15.0`, `typescript-eslint` `8.73.0`, `@nestjs/cli` `12.0.13`, and scoped overrides for `qs`, `glob`, `minimatch` and `esbuild` (§7, F4.4 dependency upgrades). The OSV allowlist is empty |
