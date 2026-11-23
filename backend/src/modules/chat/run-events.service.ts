@@ -454,6 +454,9 @@ export class RunEventsService {
           checkingAuthorization = false;
         });
     };
+    // Lease renewal every 1 s; the session + ownership revalidation runs once
+    // per REVALIDATION_INTERVAL_MS, same cadence as the invalidation stream.
+    let lastRevalidation = Date.now();
     const renewal = setInterval(() => {
       const currentLease = lease;
       if (closed || !currentLease || renewingLease) return;
@@ -464,6 +467,8 @@ export class RunEventsService {
           if (closed) return;
           if (!current) return close('evicted');
           lease = current;
+          if (Date.now() - lastRevalidation < REVALIDATION_INTERVAL_MS) return;
+          lastRevalidation = Date.now();
           checkAuthorization();
         })
         .catch(() => close('revoked'))

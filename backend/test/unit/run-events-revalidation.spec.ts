@@ -192,7 +192,16 @@ function runStream(
     release: vi.fn(async () => true),
     close: vi.fn(async () => undefined),
   };
+  let onDeleted: (() => void) | undefined;
+  const signals = {
+    bind: () => () => undefined,
+    subscribeDeletion: vi.fn(async (_runId: string, callback: () => void) => {
+      onDeleted = callback;
+      return async () => undefined;
+    }),
+  };
   const snapshot = { snapshot: {}, streamGeneration: 1, resumable: true };
+  const existsForOwnedChat = vi.fn(async () => owned);
   const service = new RunEventsService(
     {
       withTenant: async (_s: unknown, work: (tx: never) => unknown) =>
@@ -200,17 +209,14 @@ function runStream(
     } as never,
     {
       authorizedChatSnapshot: async () => snapshot,
-      existsForOwnedChat: async () => owned,
+      existsForOwnedChat,
     } as never,
     { assertLiveActor: vi.fn() } as never,
     {
       subscribe: vi.fn(async () => ({ close: async () => undefined })),
     } as never,
     registry as never,
-    {
-      bind: () => () => undefined,
-      subscribeDeletion: async () => async () => undefined,
-    } as never,
+    signals as never,
     'test',
     50,
     { assert },
@@ -224,7 +230,14 @@ function runStream(
       { write: () => true, drain: async () => true, close } as never,
       identity,
     );
-  return { connect, close };
+  return {
+    connect,
+    close,
+    existsForOwnedChat,
+    registry,
+    signals,
+    deleteSignal: () => onDeleted?.(),
+  };
 }
 
 test('AUTH_UNAVAILABLE during a run-stream authorization check keeps the stream open', async () => {
@@ -241,10 +254,50 @@ test('a revoked session or a lost ownership check still closes the run stream', 
     throw revoked();
   }, true);
   await revokedStream.connect();
-  await vi.advanceTimersByTimeAsync(3000);
+  await vi.advanceTimersByTimeAsync(5000);
   expect(revokedStream.close).toHaveBeenCalledWith('revoked');
   const foreign = runStream(async () => undefined, false);
   await foreign.connect();
-  await vi.advanceTimersByTimeAsync(3000);
+  await vi.advanceTimersByTimeAsync(5000);
   expect(foreign.close).toHaveBeenCalledWith('revoked');
+});
+
+test('run stream: over 10 s, at most 2 session checks and 2 ownership checks', async () => {
+  const assert = vi.fn(async () => undefined);
+  const { connect, existsForOwnedChat } = runStream(assert, true);
+  await connect();
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(assert.mock.calls.length).toBeLessThanOrEqual(2);
+  expect(existsForOwnedChat.mock.calls.length).toBeLessThanOrEqual(2);
+});
+
+test('run stream: a revoked session closes at the next 5 s revalidation tick', async () => {
+  const { connect, close } = runStream(async () => {
+    throw revoked();
+  }, true);
+  await connect();
+  await vi.advanceTimersByTimeAsync(4999);
+  expect(close).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(close).toHaveBeenCalledWith('revoked');
+});
+
+test('run stream: a deletion signal closes the stream at once, not at the next interval', async () => {
+  const { connect, close, deleteSignal } = runStream(
+    async () => undefined,
+    true,
+  );
+  await connect();
+  await vi.advanceTimersByTimeAsync(2000);
+  deleteSignal();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(close).toHaveBeenCalledWith('revoked');
+});
+
+test('run stream: a lost lease renewal still closes the stream at once', async () => {
+  const { connect, close, registry } = runStream(async () => undefined, true);
+  await connect();
+  registry.renew.mockImplementation(async () => null);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(close).toHaveBeenCalledWith('evicted');
 });
