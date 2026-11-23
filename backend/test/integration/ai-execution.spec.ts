@@ -5393,7 +5393,20 @@ test('renews through the bounded retry backoff with a short lease', async ({
         },
         { events: [success] },
       ],
-      { leaseMs: 90 },
+      {
+        leaseMs: 600,
+        profile: { ...profile, contextBudgets: { delayed: 64 } },
+        contexts: [
+          {
+            id: 'delayed',
+            version: 1,
+            async collect() {
+              await new Promise((resolve) => setTimeout(resolve, 1800));
+              return [{ label: 'source', text: 'safe fact' }];
+            },
+          },
+        ],
+      },
     );
     const renew = vi.spyOn(h.coordinator, 'renew');
     await expect(
@@ -5417,14 +5430,14 @@ test('stops claim renewal after an early context error returns', async ({
   try {
     const contextError = new Error('context unavailable');
     const h = await setup(ai, [], {
-      leaseMs: 60,
+      leaseMs: 600,
       profile: { ...profile, contextBudgets: { delayed: 64 } },
       contexts: [
         {
           id: 'delayed',
           version: 1,
           async collect() {
-            await new Promise((resolve) => setTimeout(resolve, 75));
+            await new Promise((resolve) => setTimeout(resolve, 750));
             throw contextError;
           },
         },
@@ -5438,7 +5451,7 @@ test('stops claim renewal after an early context error returns', async ({
     ).rejects.toBe(contextError);
     const callCountAtReturn = renew.mock.calls.length;
     expect(callCountAtReturn).toBeGreaterThan(0);
-    await new Promise((resolve) => setTimeout(resolve, 35));
+    await new Promise((resolve) => setTimeout(resolve, 350));
     expect(renew).toHaveBeenCalledTimes(callCountAtReturn);
   } finally {
     await ai.close();

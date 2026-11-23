@@ -211,6 +211,15 @@ function makeCanonicalBranchTree(active: boolean): ChatTree {
 }
 
 it('refreshes the canonical off-branch tree after cancellation reaches terminal status', async () => {
+  // B-13: the tree poll (URGENT_MS 1 s while no stream frame has arrived)
+  // drives every refresh. The old form raced those real ticks and the focus
+  // pump with vi.waitFor call counts; under load a second poll landed inside
+  // settle() and toHaveBeenCalledTimes(1) failed. Fake timers make each tick
+  // explicit and the assertions read the refreshed content, not the count.
+  clearInterval(focusPump);
+  focusPump = undefined;
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
   const activeTree = makeCanonicalBranchTree(true);
   const terminalTree = makeCanonicalBranchTree(false);
   let terminalAvailable = false;
@@ -245,10 +254,22 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
       />
     </QueryClientProvider>,
   );
+  const flush = () =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+  const pollTick = () =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+  const sendLocked = () =>
+    view.container.querySelector('[aria-label="Send message"]') === null ||
+    view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
+    )?.disabled === true;
 
   try {
-    await settle();
-    expect(client.get).toHaveBeenCalledTimes(1);
+    await flush();
     expect(view.container.textContent).toContain('Selected branch answer');
     expect(view.container.textContent).not.toContain(
       'Terminal off-branch answer',
@@ -273,50 +294,33 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
     expect
       .soft(fetch.mock.calls.map(([request]) => String(request)))
       .toContain('/api/runs/77777777-7777-4777-8777-777777777777/cancel');
-    expect
-      .soft(
-        view.container.querySelector('[aria-label="Send message"]') === null ||
-          view.container.querySelector<HTMLButtonElement>(
-            '[aria-label="Send message"]',
-          )?.disabled,
-      )
-      .toBe(true);
+    expect.soft(sendLocked()).toBe(true);
     expect(view.container.textContent).toContain('Selected branch answer');
     expect(view.container.textContent).not.toContain(
       'Terminal off-branch answer',
     );
 
-    await vi.waitFor(
-      () => expect(client.get.mock.calls.length).toBeGreaterThan(1),
-      { timeout: 2000 },
+    // A poll tick while the run is still active refreshes the active tree.
+    await pollTick();
+    expect.soft(sendLocked()).toBe(true);
+    expect(view.container.textContent).toContain('Selected branch answer');
+    expect(view.container.textContent).not.toContain(
+      'Terminal off-branch answer',
     );
-    expect
-      .soft(
-        view.container.querySelector('[aria-label="Send message"]') === null ||
-          view.container.querySelector<HTMLButtonElement>(
-            '[aria-label="Send message"]',
-          )?.disabled,
-      )
-      .toBe(true);
+
+    // The cancellation reaches terminal status on the server; the next poll
+    // tick applies the terminal tree, so the controls unlock and the
+    // refreshed content is what renders.
     terminalAvailable = true;
-    const previousFetchCount = client.get.mock.calls.length;
-    await vi.waitFor(
-      () =>
-        expect(client.get.mock.calls.length).toBeGreaterThan(
-          previousFetchCount,
-        ),
-      { timeout: 2000 },
+    await pollTick();
+    expect(
+      view.container.querySelector('[aria-label="Stop generating"]'),
+    ).toBeNull();
+    const send = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send message"]',
     );
-    await vi.waitFor(() => {
-      expect(
-        view.container.querySelector('[aria-label="Stop generating"]'),
-      ).toBeNull();
-      const send = view.container.querySelector<HTMLButtonElement>(
-        '[aria-label="Send message"]',
-      );
-      expect(send).not.toBeNull();
-      expect(send?.disabled).toBe(false);
-    });
+    expect(send).not.toBeNull();
+    expect(send?.disabled).toBe(false);
     expect(view.container.textContent).toContain('Selected branch answer');
     expect(view.container.textContent).not.toContain(
       'Terminal off-branch answer',
@@ -328,11 +332,7 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
     if (!nextBranch)
       throw new Error('The public next-branch control is missing.');
     await act(async () => nextBranch.click());
-    await vi.waitFor(() => {
-      expect(view.container.textContent).toContain(
-        'Terminal off-branch answer',
-      );
-    });
+    expect(view.container.textContent).toContain('Terminal off-branch answer');
     const branchSelection = fetch.mock.calls.find(
       ([request, init]) =>
         String(request).endsWith('/viewed-leaf') && init?.method === 'PUT',
@@ -349,6 +349,7 @@ it('refreshes the canonical off-branch tree after cancellation reaches terminal 
     ).toBeNull();
   } finally {
     await view.unmount();
+    vi.useRealTimers();
     vi.stubGlobal('fetch', originalFetch);
   }
 });
