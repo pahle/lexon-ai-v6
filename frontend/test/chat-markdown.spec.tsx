@@ -121,6 +121,20 @@ it('renders ordered lists, unordered lists, and bold text with the exact baselin
   }
 });
 
+// GHSA-4fh9 (mdast-util-to-hast <13.2.1): a character reference in a fenced
+// info string decodes to a space, so `js&#x20;xss` adds a second class to the
+// rendered code element. The fix limits the language class to the first word.
+it('ignores character references in a fenced info string (GHSA-4fh9)', async () => {
+  const view = await render(<MarkdownText source={'```js&#x20;xss\n```'} />);
+  try {
+    const code = view.container.querySelector('code');
+    expect(code).not.toBeNull();
+    expect([...(code?.classList ?? [])]).toEqual(['language-js']);
+  } finally {
+    await view.unmount();
+  }
+});
+
 // Tailwind finds utilities by scanning source text, so a class glued to a
 // template interpolation (for example `ps-1${muted}`) is never generated.
 it('keeps every Markdown utility class a complete literal token in the source', async () => {
