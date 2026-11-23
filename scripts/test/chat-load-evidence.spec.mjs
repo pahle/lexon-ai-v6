@@ -160,14 +160,14 @@ test('invalid load observations reject and still tear down the owned stack', asy
       },
     ],
     [
-      'health purpose count above its observed warm peak',
+      'health purpose count more than one probe above its warm peak',
       (value) => {
         addAdditionalPurposeCounts(value, {
           warmPeak: 2,
           plateau: [0, 1, 2, 2, 1, 0, 0],
           teardown: 0,
         });
-        value.plateauSamples[3].valkeyClientsByPurpose.health = 3;
+        value.plateauSamples[3].valkeyClientsByPurpose.health = 4;
       },
     ],
     [
@@ -532,6 +532,21 @@ test('transient health Valkey clients remain bounded by observed warm peak', asy
   );
   assert.equal(report?.teardown?.valkeyClientsByPurpose.health, 0);
   assert.deepEqual(events, ['start', 'exercise', 'down', 'remove']);
+});
+
+test('one transient healthcheck probe client above the warm peak passes', async () => {
+  const observations = addAdditionalPurposeCounts(
+    structuredClone(SYNTHETIC_OBSERVATIONS),
+    {
+      warmPeak: 2,
+      plateau: [0, 1, 2, 3, 1, 0, 0],
+      teardown: 0,
+    },
+  );
+  const { report, error } = await tryCapture(observations);
+
+  assert.equal(error, undefined);
+  assert.equal(report?.plateauSamples[3].valkeyClientsByPurpose.health, 3);
 });
 
 test('health clients may remain at teardown within the observed warm peak', async () => {

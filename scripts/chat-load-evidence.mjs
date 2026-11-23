@@ -108,7 +108,10 @@ function compareValkeyPurposeCounts(
     if (purpose === 'reader') {
       equal(value.reader, activeReaderCount, `${bound}.reader`);
     } else if (purpose === 'health') {
-      if (value.health > baseline.health) invalid(`${bound}.health`);
+      // The Compose healthcheck probes /api/health every 5 s and each
+      // probe opens a transient unnamed Valkey client, so a sample may
+      // catch one client above the observed warm peak.
+      if (value.health > baseline.health + 1) invalid(`${bound}.health`);
     } else equal(value[purpose], baseline[purpose], `${bound}.${purpose}`);
   }
 }
