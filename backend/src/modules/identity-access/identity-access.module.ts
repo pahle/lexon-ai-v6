@@ -18,6 +18,7 @@ import { PlatformAdminService } from './platform-admin.service.js';
 import { PlatformAdminController } from './platform-admin.controller.js';
 import { SessionService } from './session.service.js';
 import { SessionController } from './session.controller.js';
+import type { AuthLimiter } from '../../infrastructure/queue/index.js';
 import { OrganizationAuthPort } from './organization-auth.port.js';
 
 export const AUTH_INTEGRATION = Symbol('AuthIntegration');
@@ -29,6 +30,8 @@ export class IdentityAccessModule {
     frameworkModule: DynamicModule;
     bearerSeconds?: number;
     reauthSeconds?: number;
+    limiter: Pick<AuthLimiter, 'consume'>;
+    correlationSecret: string;
     requestPolicy?: ConstructorParameters<typeof TenantGuard>[3];
   }): DynamicModule {
     const identities = new IdentitySessionService(options.integration);
@@ -54,7 +57,11 @@ export class IdentityAccessModule {
           provide: PlatformAdminService,
           useValue: new PlatformAdminService(
             new OrganizationAuthPort(options.integration),
-            { reauthSeconds: options.reauthSeconds ?? 300 },
+            {
+              reauthSeconds: options.reauthSeconds ?? 300,
+              correlationSecret: options.correlationSecret,
+            },
+            options.limiter,
           ),
         },
         {

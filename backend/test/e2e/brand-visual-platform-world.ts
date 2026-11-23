@@ -1,22 +1,34 @@
 // The platform world of the F4.1 visual set: Dimas Prasetyo (platform
-// administrator, authenticator enrolled) and the three provisioning
-// organizations of the prototype. Built once per stack and cached (lock plus
+// administrator, authenticator enrolled), the three provisioning
+// organizations of the prototype, and the accounts and team organizations
+// the revision 16 console captures open. Built once per stack and cached (lock plus
 // session cookies in os.tmpdir(), see sharedWorld), so the platform group can
 // run again on a long-lived stack.
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail, waitForHydration } from './identity-support.js';
+import {
+  authenticateApi,
+  readCapturedMail,
+  waitForHydration,
+} from './identity-support.js';
 import { operatorSetup } from './setup-support.js';
 import { totpForUri } from '../setup/totp.js';
-import { sharedWorld } from './brand-visual-world.js';
+import { sharedWorld, teamWorld } from './brand-visual-world.js';
 import {
+  ayu,
   platformAdmin,
   provisioningOrganizations,
 } from './prototype-fixtures.js';
 
 const password = 'Brand-operator-42!';
 
-async function enrollAdministrator(page: Page, email: string): Promise<string> {
+export async function enrollAdministrator(
+  page: Page,
+  email: string,
+): Promise<string> {
   const stack = descriptor();
   let uri: string | undefined;
   const seen: string[] = [];
@@ -132,13 +144,31 @@ async function enrollAdministrator(page: Page, email: string): Promise<string> {
   return uri!;
 }
 /**
+ * When the shared administrator session last proved a fresh sign-in, kept
+ * next to the world cache so every spec on the stack sees it.
+ */
+const freshAtFile = () =>
+  resolve(tmpdir(), `${descriptor().project}-bv-platform-fresh-at`);
+const markFresh = () => writeFileSync(freshAtFile(), String(Date.now()));
+const freshAge = () =>
+  existsSync(freshAtFile())
+    ? Date.now() - Number(readFileSync(freshAtFile(), 'utf8'))
+    : Infinity;
+/** A session younger than this keeps at least 180 s of the 300 s window. */
+const reuseFreshMs = 120_000;
+
+/**
  * Platform routes need a fresh sign-in (300 s). The cached session ages, so
- * the administrator confirms the password and authenticator code again.
+ * the administrator confirms the password and authenticator code again,
+ * unless the session was made fresh in the last two minutes: authenticator
+ * codes are limited to five per account in 300 s (AUTH rate rule `totp`),
+ * and the platform specs of one shard share this administrator.
  */
 export async function reauthenticatePlatform(
   page: Page,
   world: { totpUri: string },
 ) {
+  if (freshAge() < reuseFreshMs) return;
   const stack = descriptor();
   let last = '';
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -149,7 +179,10 @@ export async function reauthenticatePlatform(
         data: { password, totp: totpForUri(world.totpUri) },
       },
     );
-    if (response.ok()) return;
+    if (response.ok()) {
+      markFresh();
+      return;
+    }
     last = response.status() + ' ' + (await response.text()).slice(0, 160);
     // The same code cannot be used twice in one 30 s window.
     await new Promise((done) => setTimeout(done, 31_000));
@@ -157,16 +190,58 @@ export async function reauthenticatePlatform(
   throw new Error('Platform administrator could not reauthenticate: ' + last);
 }
 
-export async function platformWorld(page: Page) {
+export type PlatformWorld = {
+  totpUri: string;
+  /** Real account ids, keyed like platformAccounts (prototype-fixtures.ts). */
+  accounts: Record<'admin' | 'ayu' | 'unverified' | 'disabled', string>;
+  /** Real organization ids, keyed like platformOrganizations. */
+  organizations: Record<string, string>;
+  harborId: string;
+};
+
+/** The id of the one account the platform search finds for an address. */
+async function accountId(page: Page, email: string) {
   const stack = descriptor();
-  const world = await sharedWorld(page, 'platform', async () => {
+  const listed = await page.request.get(
+    stack.apiUrl +
+      '/api/platform/accounts?pageSize=10&query=' +
+      encodeURIComponent(email),
+  );
+  expect(listed.status()).toBe(200);
+  const items = (
+    (await listed.json()) as {
+      items: Array<{ id: string; email: string }>;
+    }
+  ).items.filter((item) => item.email === email);
+  expect(items, `one account for ${email}`).toHaveLength(1);
+  return items[0]!.id;
+}
+
+/**
+ * The platform world of revision 16: the administrator, the three
+ * provisioning organizations, an unverified and a disabled account (unique
+ * addresses; the console shows the prototype's names and addresses through
+ * the normalizations in brand-visual-platform-normalizations.ts), and the
+ * team world (Ayu Wardani, Hukum Nusantara with its three members, Pro Bono
+ * Clinic), built in a separate browser context so this page stays signed in
+ * as the administrator.
+ */
+export async function platformWorld(
+  page: Page,
+  playwright: PlaywrightWorkerArgs['playwright'],
+): Promise<PlatformWorld> {
+  const stack = descriptor();
+  const world = await sharedWorld(page, 'platform-r16', async () => {
     // The prototype shows no address for the administrator. The address is
     // unique to this world, so an administrator that an earlier run left on
     // the stack (its authenticator secret is gone) cannot block it.
-    const totpUri = await enrollAdministrator(
-      page,
-      platformAdmin.email.replace('.bv@', `.${Date.now().toString(36)}@`),
+    const adminEmail = platformAdmin.email.replace(
+      '.bv@',
+      `.${Date.now().toString(36)}@`,
     );
+    const totpUri = await enrollAdministrator(page, adminEmail);
+    // Enrolment ends with a fresh sign-in.
+    markFresh();
     const ids = new Map<string, string>();
     for (const organization of provisioningOrganizations) {
       const created = await page.request.post(
@@ -200,8 +275,70 @@ export async function platformWorld(page: Page) {
       ).items)
         if (!ids.has(item.slug)) ids.set(item.slug, item.id);
     }
-    expect(ids.has(provisioningOrganizations[0].slug)).toBe(true);
-    return { harborId: ids.get(provisioningOrganizations[0].slug)!, totpUri };
+    for (const organization of provisioningOrganizations)
+      expect(ids.has(organization.slug), organization.slug).toBe(true);
+
+    // Bagus Santoso signs up and never verifies; Lina Hartono is verified
+    // and then disabled by the administrator. Both statuses are real.
+    const suffix = Date.now().toString(36);
+    const unverifiedEmail = `bagus.santoso.${suffix}.bv@example.test`;
+    const disabledEmail = `lina.hartono.${suffix}.bv@example.test`;
+    const outsider = await playwright.request.newContext();
+    try {
+      expect(
+        (
+          await outsider.post(stack.apiUrl + '/api/auth/sign-up/email', {
+            headers: { origin: stack.frontendUrl },
+            data: {
+              name: 'Bagus Santoso',
+              email: unverifiedEmail,
+              password: 'Brand-unverified-42!',
+            },
+          })
+        ).status(),
+      ).toBe(200);
+      await authenticateApi(outsider, {
+        name: 'Lina Hartono',
+        email: disabledEmail,
+      });
+    } finally {
+      await outsider.dispose();
+    }
+    const disabledId = await accountId(page, disabledEmail);
+    expect(
+      (
+        await page.request.patch(
+          stack.apiUrl + `/api/platform/users/${disabledId}/disabled`,
+          { headers: { origin: stack.frontendUrl }, data: { disabled: true } },
+        )
+      ).status(),
+    ).toBe(204);
+
+    // The team world signs its own context in as Ayu Wardani.
+    const browser = page.context().browser();
+    if (!browser) throw new Error('The platform world needs a browser');
+    const teamContext = await browser.newContext();
+    let team: { teamId: string; otherId: string };
+    try {
+      team = await teamWorld(await teamContext.newPage(), playwright);
+    } finally {
+      await teamContext.close();
+    }
+    return {
+      totpUri,
+      accounts: {
+        admin: await accountId(page, adminEmail),
+        ayu: await accountId(page, ayu.email),
+        unverified: await accountId(page, unverifiedEmail),
+        disabled: disabledId,
+      },
+      organizations: {
+        team: team.teamId,
+        other: team.otherId,
+        ...Object.fromEntries(ids),
+      },
+      harborId: ids.get(provisioningOrganizations[0].slug)!,
+    };
   });
   await reauthenticatePlatform(page, world);
   return world;

@@ -5,7 +5,6 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { Members } from '../src/components/organizations/members';
 import { Invitations } from '../src/components/organizations/invitations';
 import { AccountSecurity } from '../src/components/auth/account-security';
-import { ProvisioningList } from '../src/components/platform/provisioning';
 import { render, settle, settleUntil } from './render';
 
 vi.mock('next/navigation', () => ({
@@ -202,26 +201,5 @@ it('sessions: Try again refetches and the list renders', async () => {
     () => !!view.container.textContent?.includes('Chrome on macOS'),
   );
   expect(view.container.textContent).toContain('Chrome on macOS');
-  await view.unmount();
-});
-
-it('platform: a failed fetch keeps the failure row and Try again refetches', async () => {
-  stubFetch({
-    failFirst: '/provisioning',
-    ok: () => page([]),
-  });
-  const view = await render(wrap(<ProvisioningList />));
-  await settle();
-  expect(alerts(view.container).join()).toContain(
-    'We could not load organizations.',
-  );
-  expect(view.container.textContent).not.toContain(
-    'No organizations are waiting for an owner',
-  );
-  await act(async () => retry(view.container)!.click());
-  await settle();
-  expect(view.container.textContent).toContain(
-    'No organizations are waiting for an owner',
-  );
   await view.unmount();
 });

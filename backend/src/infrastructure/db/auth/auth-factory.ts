@@ -13,6 +13,10 @@ import {
   provisioningPlugin,
   type ProvisioningPrimitives,
 } from './provisioning-plugin.js';
+import {
+  platformReadPlugin,
+  type PlatformReadPrimitives,
+} from './platform-read-plugin.js';
 import { sessionPlugin } from './session-plugin.js';
 import { invitationPlugin } from './invitation-plugin.js';
 import { accountPlugin, type AccountLocks } from './account-plugin.js';
@@ -35,6 +39,15 @@ export function createAuthEngine(
       throw new Error('Auth transaction unavailable');
     },
     user: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    accountInvitation: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    markAccountInvitation: () => {
+      throw new Error('Auth transaction unavailable');
+    },
+    acceptAccountInvitation: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -72,6 +85,11 @@ export function createAuthEngine(
       throw new Error('Auth transaction unavailable');
     },
     consume: async () => {
+      throw new Error('Auth transaction unavailable');
+    },
+  },
+  platformRead: PlatformReadPrimitives = {
+    run: async () => {
       throw new Error('Auth transaction unavailable');
     },
   },
@@ -176,6 +194,16 @@ export function createAuthEngine(
       securityPlugin(security),
       sessionPlugin(security),
       provisioningPlugin(organizations, provisioning),
+      platformReadPlugin(platformRead, async (email, token) => {
+        if (!options.mail.sendAccountInvitation)
+          throw new Error('Account invitation delivery unavailable');
+        const url = new URL('/sign-up', options.origin);
+        url.searchParams.set('accountInvitation', token);
+        await options.mail.sendAccountInvitation({
+          email,
+          url: url.toString(),
+        });
+      }),
       organizationPrimitivesPlugin(organizations),
       selectionPlugin(selection),
       organization({

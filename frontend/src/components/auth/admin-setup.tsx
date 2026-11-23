@@ -64,7 +64,7 @@ export function AdminSetup({ setupToken }: { setupToken: string }) {
         title="Administrator setup complete"
         description="Your verified account is now a platform administrator."
       >
-        <AuthLink href="/platform/provisioning">Provisioning</AuthLink>
+        <AuthLink href="/platform/organizations">Organizations</AuthLink>
         <AuthLink href="/workspace" icon={<ArrowLeft aria-hidden="true" />}>
           Return to workspace
         </AuthLink>

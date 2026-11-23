@@ -266,7 +266,7 @@ test('route changes still move focus to the single h1', async () => {
 
 for (const path of [
   `/organizations/${identity.organization.id}/members`,
-  '/platform/provisioning',
+  '/platform/organizations',
 ]) {
   test(`non-chat route ${path} keeps the trigger and a serif h1 without the pill`, async () => {
     navigation.path = path;

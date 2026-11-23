@@ -106,6 +106,7 @@ test('pending reset button reserves the longer pending label intrinsic width', a
   await page.goto(descriptor().frontendUrl + '/forgot-password');
   const email = page.getByLabel('Email', { exact: true });
   const button = page.locator('form button[type="submit"]');
+  await waitForHydration(button);
   await button.click();
   await expect(email).toHaveAttribute('aria-invalid', 'true');
   await email.fill('synthetic@example.test');
@@ -232,6 +233,9 @@ test('entry signup verifies email before authenticated continuation', async ({
   ).toBeVisible();
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
   await waitForVisualAuthFormReady(page);
+  await waitForHydration(
+    page.getByRole('button', { name: 'Sign in', exact: true }),
+  );
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page
     .getByLabel('Password', { exact: true })
@@ -265,6 +269,9 @@ test('credential-checked unverified sign-in offers safe verification resend', as
     stack.frontendUrl + '/sign-in?returnTo=' + encodeURIComponent(returnTo),
   );
   await waitForVisualAuthFormReady(page);
+  await waitForHydration(
+    page.getByRole('button', { name: 'Sign in', exact: true }),
+  );
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   const outcome = page.waitForResponse(
@@ -314,6 +321,9 @@ test('entry failures never disclose account existence and dependency errors stay
 }) => {
   const base = descriptor().frontendUrl;
   await page.goto(base + '/sign-in');
+  await waitForHydration(
+    page.getByRole('button', { name: 'Sign in', exact: true }),
+  );
   await page
     .getByLabel('Email', { exact: true })
     .fill('absent-' + randomUUID() + '@example.test');

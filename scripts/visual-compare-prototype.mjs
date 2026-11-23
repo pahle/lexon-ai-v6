@@ -22,6 +22,12 @@ import { chromium } from 'playwright-core';
 const root = resolve(import.meta.dirname, '..');
 const setDir = resolve(root, 'docs/references/F4.1-visual');
 export const THRESHOLD_PERCENT = 1.5;
+/** The prototype the comparison renders, and its revision (docs/design/f4.1-prototype/README.md). */
+const PROTOTYPE_PATH = resolve(
+  root,
+  'docs/design/f4.1-prototype/source/prototype.html',
+);
+export const PROTOTYPE_REVISION = 16;
 export const DEVIATIONS_HEADING = '## Comparison deviations (round 4)';
 
 const VIEWPORTS = {
@@ -257,7 +263,7 @@ export async function runCompare({
   captureDir,
   outDir,
   ids,
-  prototype = resolve(root, 'docs/design/f4.1-prototype/source/prototype.html'),
+  prototype = PROTOTYPE_PATH,
 }) {
   mkdirSync(outDir, { recursive: true });
   const results = [];
@@ -320,7 +326,7 @@ export async function runCompare({
   );
   writeFileSync(
     resolve(outDir, 'README.md'),
-    `# Prototype comparison\n\nCaptures compared with prototype revision 15 (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
+    `# Prototype comparison\n\nCaptures compared with prototype revision ${PROTOTYPE_REVISION} (pixel diff, YIQ threshold 0.1, animated parts masked). Gate: ${THRESHOLD_PERCENT}%. Variants: d desktop, m mobile, -dark dark. Sheets: prototype | capture | diff.\n\n${over} over ${THRESHOLD_PERCENT}% of ${results.length} variants.\n\n| id | variant | % differing | result |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`,
   );
   return results;
 }
@@ -335,10 +341,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     option('--capture-dir') ?? resolve(setDir, 'review'),
   );
   const outDir = resolve(option('--out-dir') ?? resolve(setDir, 'compare'));
-  const prototype = resolve(
-    option('--prototype') ??
-      resolve(root, 'docs/design/f4.1-prototype/source/prototype.html'),
-  );
+  const prototype = resolve(option('--prototype') ?? PROTOTYPE_PATH);
   let ids = option('--ids')?.split(',').filter(Boolean);
   const index = JSON.parse(readFileSync(resolve(setDir, 'index.json'), 'utf8'));
   if (!ids && process.argv.includes('--pending'))

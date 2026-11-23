@@ -7,6 +7,7 @@ if (
     'verification',
     'reset',
     'invitation',
+    'account-invitation',
     'admin-setup',
     'email-change',
     'security',

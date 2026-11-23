@@ -9,7 +9,8 @@
 //   node scripts/visual-capture-stack.mjs run <group...> [--ids a,b]
 //        [--linux]  (browser + compare inside the Playwright Linux image, CI numbers)
 //        lock, rebuild + recreate the frontend, capture the groups (auth,
-//        shell, chat, chats-settings, platform), compare with the prototype
+//        shell, chat, chats-settings, platform, platform-accounts,
+//        platform-organizations), compare with the prototype
 //   node scripts/visual-capture-stack.mjs down      remove this stack only
 //
 // Captures go to .cache/f4.1-visual/review/, sheets to
@@ -27,7 +28,15 @@ import { root } from './compose-environment.mjs';
 const stackDirectory = resolve(root, '.cache/visual-capture-stack');
 const descriptorFile = resolve(stackDirectory, 'descriptor.json');
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.64.1-noble';
-const GROUPS = ['auth', 'shell', 'chat', 'chats-settings', 'platform'];
+const GROUPS = [
+  'auth',
+  'shell',
+  'chat',
+  'chats-settings',
+  'platform',
+  'platform-accounts',
+  'platform-organizations',
+];
 
 function readDescriptor() {
   if (!existsSync(descriptorFile))

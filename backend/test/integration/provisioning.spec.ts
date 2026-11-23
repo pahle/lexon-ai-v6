@@ -109,7 +109,7 @@ test('platform provisions no members, replaces owner links, and verified accepta
     await harness.identity(full.headers, async (identity) => {
       await expect(
         service.cancel(identity, provisioned.id),
-      ).rejects.toMatchObject({ status: 403 });
+      ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
     });
   } finally {
     await inspect.close();
@@ -172,7 +172,8 @@ test('expired owner invitation stays provisioning; resend replaces it and cancel
     );
     await harness.identity(full.headers, async (identity) => {
       await expect(service.get(identity, created.id)).rejects.toMatchObject({
-        status: 403,
+        status: 404,
+        code: 'NOT_FOUND',
       });
     });
     expect(await inspect.member(admin.userId, created.id)).toBeNull();

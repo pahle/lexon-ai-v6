@@ -23,7 +23,7 @@ type Facts = Awaited<ReturnType<ProvisioningService['facts']>>;
 function summary(facts: Facts): ProvisioningSummary {
   const { organization, invitation } = facts;
   if (!organization || !invitation || organization.state !== 'provisioning')
-    throw new IdentityError('ORG_FORBIDDEN', 403);
+    throw new IdentityError('NOT_FOUND', 404);
   return ProvisioningSummarySchema.parse({
     version: 1,
     id: organization.id,
@@ -213,7 +213,7 @@ export class ProvisioningService {
         const result = await tx.call('lexonCancelProvisioning', {
           body: { organizationId, expectedInvitationId: facts.invitation!.id },
         });
-        if (!result.cancelled) throw new IdentityError('ORG_FORBIDDEN', 403);
+        if (!result.cancelled) throw new IdentityError('NOT_FOUND', 404);
         await this.audit(
           tx,
           identity,

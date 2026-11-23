@@ -11,6 +11,7 @@ import type { ApiConfig } from '../config/runtime-config.js';
 import type { EmailPort } from '../infrastructure/email/index.js';
 import { createIdentityRuntime } from '../modules/identity-access/identity-runtime.js';
 import { OrganizationsModule } from '../modules/organizations/index.js';
+import { PlatformConsoleModule } from '../modules/platform-console/index.js';
 import { ApiRootModule } from '../entrypoints/api/root.module.js';
 import {
   SafeErrorFilter,
@@ -36,6 +37,10 @@ export async function createApi(
             selection: identity.selection,
             pagination: config.auth.organizationPagination,
             invitationSeconds: config.auth.invitationSeconds,
+            reauthSeconds: config.auth.reauthSeconds,
+          }),
+          PlatformConsoleModule.forPort(identity.port, {
+            limiter: identity.limiter,
             reauthSeconds: config.auth.reauthSeconds,
           }),
         ],

@@ -12,6 +12,7 @@ import {
   OrganizationAuthPort,
 } from '../../src/modules/identity-access/index.js';
 import { IdentitySessionService } from '../../src/modules/identity-access/identity-session.service.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 
 test('guarded Lexon invitation routes use the authenticated recipient and shared safe contracts', async ({
   services,
@@ -23,6 +24,8 @@ test('guarded Lexon invitation routes use the authenticated recipient and shared
   @Module({
     imports: [
       IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
         integration: proof.integration,
         frameworkModule: { module: FrameworkModule },
       }),

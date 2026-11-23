@@ -315,7 +315,14 @@ test('Chats history supports submit search, inline rename, permanent delete and 
     path: 'test-results/f4-chat/task-15-delete-confirm-search.png',
     fullPage: true,
   });
+  // The list drops the chat optimistically; wait for the server to confirm.
+  const deleted = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'DELETE' &&
+      new URL(response.url()).pathname === `/api/chats/${renamedChatId}`,
+  );
   await page.getByRole('button', { name: 'Delete chat' }).click();
+  expect((await deleted).status()).toBe(204);
   await expect(page.getByText('1 chat', { exact: true })).toBeVisible();
   await expect(
     page

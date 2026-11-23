@@ -159,6 +159,35 @@ export async function gateRequests(
   };
 }
 
+/**
+ * Waits for a gated request to start, at most `ms`: a request that never
+ * fires (a cached response, no refetch) fails fast with the state's name
+ * instead of hanging for the whole test budget.
+ */
+export async function gateStarted(
+  gate: { started: Promise<void> },
+  state: string,
+  ms = 15_000,
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `${state}: the gated request did not start within ${ms / 1000} s (cached response or no refetch?)`,
+          ),
+        ),
+      ms,
+    );
+  });
+  try {
+    await Promise.race([gate.started, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const chatListRequest = (url: URL, method: string) =>
   url.pathname === '/api/chats' && (method === 'GET' || method === '');
 

@@ -45,22 +45,37 @@ export function isRetryableAuthError(error: unknown): boolean {
 @Injectable()
 export class OrganizationAuthPort {
   constructor(private readonly integration: AuthIntegration) {}
+  private async platformFacts(tx: AuthCommandSession, headers: Headers) {
+    const facts = await tx.call('lexonSecurityFacts', { headers });
+    if (!facts.user || !facts.session)
+      throw new IdentityError('AUTH_REQUIRED', 401);
+    new IdentityPolicy().requireAccount(
+      facts.user,
+      facts.session.mfaVerifiedAt,
+      { platform: true },
+    );
+    return facts.session;
+  }
+  // Platform policy re-check without the re-authentication age: reads are not
+  // sensitive actions (F4.3 spec 4.2); mutations keep platformTransaction.
+  async platformRead<T>(
+    identity: VerifiedIdentity,
+    work: (tx: AuthCommandSession) => Promise<T>,
+  ): Promise<T> {
+    return this.transaction(identity, async (tx, headers) => {
+      await this.platformFacts(tx, headers);
+      return work(tx);
+    });
+  }
   async platformTransaction<T>(
     identity: VerifiedIdentity,
     reauthSeconds: number,
     work: (commands: AuthCommandSession, headers: Headers) => Promise<T>,
   ): Promise<T> {
     return this.transaction(identity, async (tx, headers) => {
-      const facts = await tx.call('lexonSecurityFacts', { headers });
-      if (!facts.user || !facts.session)
-        throw new IdentityError('AUTH_REQUIRED', 401);
-      new IdentityPolicy().requireAccount(
-        facts.user,
-        facts.session.mfaVerifiedAt,
-        { platform: true },
-      );
-      const age = facts.session.reauthenticatedAt
-        ? Date.now() - facts.session.reauthenticatedAt.getTime()
+      const session = await this.platformFacts(tx, headers);
+      const age = session.reauthenticatedAt
+        ? Date.now() - session.reauthenticatedAt.getTime()
         : Number.NaN;
       if (!Number.isFinite(age) || age < 0 || age >= reauthSeconds * 1000)
         throw new IdentityError('AUTH_REAUTH_REQUIRED', 403);
