@@ -30,6 +30,10 @@ jobs:
           node-version: 24.22.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Fresh checkouts have no built shared dist; without it vitest file
+      # discovery in backend-integration returns zero files (and vite 8
+      # crashes printing the error). Same pre-step the load wrapper runs.
+      - run: pnpm exec tsc -p shared/tsconfig.build.json
       - name: ai-execution lease tests x20
         run: |
           set -e
