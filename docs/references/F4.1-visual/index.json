@@ -2968,7 +2968,440 @@
       "state": "Platform, organization detail, active",
       "prototypeReference": "r14/platform-organization-active-m-dark.png",
       "replaces": []
+    },
+    "chat-tool-activity-desktop-light": {
+      "path": "review/chat-tool-activity-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, tool activity row collapsed",
+      "prototypeReference": "r14/chat-tool-activity-d.png",
+      "replaces": []
+    },
+    "chat-tool-activity-desktop-dark": {
+      "path": "review/chat-tool-activity-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, tool activity row collapsed",
+      "prototypeReference": "r14/chat-tool-activity-d-dark.png",
+      "replaces": []
+    },
+    "chat-tool-activity-mobile-light": {
+      "path": "review/chat-tool-activity-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, tool activity row collapsed",
+      "prototypeReference": "r14/chat-tool-activity-m.png",
+      "replaces": []
+    },
+    "chat-tool-activity-mobile-dark": {
+      "path": "review/chat-tool-activity-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, tool activity row collapsed",
+      "prototypeReference": "r14/chat-tool-activity-m-dark.png",
+      "replaces": []
+    },
+    "chat-tool-expanded-desktop-light": {
+      "path": "review/chat-tool-expanded-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, tool activity row expanded with inputs and result",
+      "prototypeReference": "r14/chat-tool-expanded-d.png",
+      "replaces": []
+    },
+    "chat-tool-expanded-desktop-dark": {
+      "path": "review/chat-tool-expanded-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, tool activity row expanded with inputs and result",
+      "prototypeReference": "r14/chat-tool-expanded-d-dark.png",
+      "replaces": []
+    },
+    "chat-tool-expanded-mobile-light": {
+      "path": "review/chat-tool-expanded-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, tool activity row expanded with inputs and result",
+      "prototypeReference": "r14/chat-tool-expanded-m.png",
+      "replaces": []
+    },
+    "chat-tool-expanded-mobile-dark": {
+      "path": "review/chat-tool-expanded-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, tool activity row expanded with inputs and result",
+      "prototypeReference": "r14/chat-tool-expanded-m-dark.png",
+      "replaces": []
+    },
+    "chat-tool-running-desktop-light": {
+      "path": "review/chat-tool-running-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, tool call running",
+      "prototypeReference": "r14/chat-tool-running-d.png",
+      "replaces": []
+    },
+    "chat-tool-running-desktop-dark": {
+      "path": "review/chat-tool-running-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, tool call running",
+      "prototypeReference": "r14/chat-tool-running-d-dark.png",
+      "replaces": []
+    },
+    "chat-tool-running-mobile-light": {
+      "path": "review/chat-tool-running-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, tool call running",
+      "prototypeReference": "r14/chat-tool-running-m.png",
+      "replaces": []
+    },
+    "chat-tool-running-mobile-dark": {
+      "path": "review/chat-tool-running-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, tool call running",
+      "prototypeReference": "r14/chat-tool-running-m-dark.png",
+      "replaces": []
+    },
+    "chat-tool-failed-desktop-light": {
+      "path": "review/chat-tool-failed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, tool call failed",
+      "prototypeReference": "r14/chat-tool-failed-d.png",
+      "replaces": []
+    },
+    "chat-tool-failed-desktop-dark": {
+      "path": "review/chat-tool-failed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, tool call failed",
+      "prototypeReference": "r14/chat-tool-failed-d-dark.png",
+      "replaces": []
+    },
+    "chat-tool-failed-mobile-light": {
+      "path": "review/chat-tool-failed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, tool call failed",
+      "prototypeReference": "r14/chat-tool-failed-m.png",
+      "replaces": []
+    },
+    "chat-tool-failed-mobile-dark": {
+      "path": "review/chat-tool-failed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, tool call failed",
+      "prototypeReference": "r14/chat-tool-failed-m-dark.png",
+      "replaces": []
+    },
+    "chat-question-desktop-light": {
+      "path": "review/chat-question-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, question card pending, waiting for you",
+      "prototypeReference": "r14/chat-question-d.png",
+      "replaces": []
+    },
+    "chat-question-desktop-dark": {
+      "path": "review/chat-question-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, question card pending, waiting for you",
+      "prototypeReference": "r14/chat-question-d-dark.png",
+      "replaces": []
+    },
+    "chat-question-mobile-light": {
+      "path": "review/chat-question-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, question card pending, waiting for you",
+      "prototypeReference": "r14/chat-question-m.png",
+      "replaces": []
+    },
+    "chat-question-mobile-dark": {
+      "path": "review/chat-question-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, question card pending, waiting for you",
+      "prototypeReference": "r14/chat-question-m-dark.png",
+      "replaces": []
+    },
+    "chat-question-answered-desktop-light": {
+      "path": "review/chat-question-answered-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, question answered",
+      "prototypeReference": "r14/chat-question-answered-d.png",
+      "replaces": []
+    },
+    "chat-question-answered-desktop-dark": {
+      "path": "review/chat-question-answered-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, question answered",
+      "prototypeReference": "r14/chat-question-answered-d-dark.png",
+      "replaces": []
+    },
+    "chat-question-answered-mobile-light": {
+      "path": "review/chat-question-answered-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, question answered",
+      "prototypeReference": "r14/chat-question-answered-m.png",
+      "replaces": []
+    },
+    "chat-question-answered-mobile-dark": {
+      "path": "review/chat-question-answered-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, question answered",
+      "prototypeReference": "r14/chat-question-answered-m-dark.png",
+      "replaces": []
+    },
+    "chat-question-dismissed-desktop-light": {
+      "path": "review/chat-question-dismissed-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, question dismissed",
+      "prototypeReference": "r14/chat-question-dismissed-d.png",
+      "replaces": []
+    },
+    "chat-question-dismissed-desktop-dark": {
+      "path": "review/chat-question-dismissed-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, question dismissed",
+      "prototypeReference": "r14/chat-question-dismissed-d-dark.png",
+      "replaces": []
+    },
+    "chat-question-dismissed-mobile-light": {
+      "path": "review/chat-question-dismissed-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, question dismissed",
+      "prototypeReference": "r14/chat-question-dismissed-m.png",
+      "replaces": []
+    },
+    "chat-question-dismissed-mobile-dark": {
+      "path": "review/chat-question-dismissed-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, question dismissed",
+      "prototypeReference": "r14/chat-question-dismissed-m-dark.png",
+      "replaces": []
+    },
+    "chat-approval-desktop-light": {
+      "path": "review/chat-approval-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, approval card pending, waiting for you",
+      "prototypeReference": "r14/chat-approval-d.png",
+      "replaces": []
+    },
+    "chat-approval-desktop-dark": {
+      "path": "review/chat-approval-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, approval card pending, waiting for you",
+      "prototypeReference": "r14/chat-approval-d-dark.png",
+      "replaces": []
+    },
+    "chat-approval-mobile-light": {
+      "path": "review/chat-approval-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, approval card pending, waiting for you",
+      "prototypeReference": "r14/chat-approval-m.png",
+      "replaces": []
+    },
+    "chat-approval-mobile-dark": {
+      "path": "review/chat-approval-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, approval card pending, waiting for you",
+      "prototypeReference": "r14/chat-approval-m-dark.png",
+      "replaces": []
+    },
+    "chat-approval-approved-desktop-light": {
+      "path": "review/chat-approval-approved-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, approval approved",
+      "prototypeReference": "r14/chat-approval-approved-d.png",
+      "replaces": []
+    },
+    "chat-approval-approved-desktop-dark": {
+      "path": "review/chat-approval-approved-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, approval approved",
+      "prototypeReference": "r14/chat-approval-approved-d-dark.png",
+      "replaces": []
+    },
+    "chat-approval-approved-mobile-light": {
+      "path": "review/chat-approval-approved-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, approval approved",
+      "prototypeReference": "r14/chat-approval-approved-m.png",
+      "replaces": []
+    },
+    "chat-approval-approved-mobile-dark": {
+      "path": "review/chat-approval-approved-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, approval approved",
+      "prototypeReference": "r14/chat-approval-approved-m-dark.png",
+      "replaces": []
+    },
+    "chat-approval-rejected-desktop-light": {
+      "path": "review/chat-approval-rejected-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, approval rejected",
+      "prototypeReference": "r14/chat-approval-rejected-d.png",
+      "replaces": []
+    },
+    "chat-approval-rejected-desktop-dark": {
+      "path": "review/chat-approval-rejected-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, approval rejected",
+      "prototypeReference": "r14/chat-approval-rejected-d-dark.png",
+      "replaces": []
+    },
+    "chat-approval-rejected-mobile-light": {
+      "path": "review/chat-approval-rejected-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, approval rejected",
+      "prototypeReference": "r14/chat-approval-rejected-m.png",
+      "replaces": []
+    },
+    "chat-approval-rejected-mobile-dark": {
+      "path": "review/chat-approval-rejected-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, approval rejected",
+      "prototypeReference": "r14/chat-approval-rejected-m-dark.png",
+      "replaces": []
+    },
+    "chat-approval-expired-desktop-light": {
+      "path": "review/chat-approval-expired-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chat, approval expired",
+      "prototypeReference": "r14/chat-approval-expired-d.png",
+      "replaces": []
+    },
+    "chat-approval-expired-desktop-dark": {
+      "path": "review/chat-approval-expired-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chat, approval expired",
+      "prototypeReference": "r14/chat-approval-expired-d-dark.png",
+      "replaces": []
+    },
+    "chat-approval-expired-mobile-light": {
+      "path": "review/chat-approval-expired-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chat, approval expired",
+      "prototypeReference": "r14/chat-approval-expired-m.png",
+      "replaces": []
+    },
+    "chat-approval-expired-mobile-dark": {
+      "path": "review/chat-approval-expired-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chat, approval expired",
+      "prototypeReference": "r14/chat-approval-expired-m-dark.png",
+      "replaces": []
+    },
+    "chats-waiting-desktop-light": {
+      "path": "review/chats-waiting-desktop-light.png",
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "Chats, chat waiting for you",
+      "prototypeReference": "r14/chats-waiting-d.png",
+      "replaces": []
+    },
+    "chats-waiting-desktop-dark": {
+      "path": "review/chats-waiting-desktop-dark.png",
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "Chats, chat waiting for you",
+      "prototypeReference": "r14/chats-waiting-d-dark.png",
+      "replaces": []
+    },
+    "chats-waiting-mobile-light": {
+      "path": "review/chats-waiting-mobile-light.png",
+      "viewport": "mobile",
+      "theme": "light",
+      "state": "Chats, chat waiting for you",
+      "prototypeReference": "r14/chats-waiting-m.png",
+      "replaces": []
+    },
+    "chats-waiting-mobile-dark": {
+      "path": "review/chats-waiting-mobile-dark.png",
+      "viewport": "mobile",
+      "theme": "dark",
+      "state": "Chats, chat waiting for you",
+      "prototypeReference": "r14/chats-waiting-m-dark.png",
+      "replaces": []
     }
   },
-  "planned": []
+  "planned": [
+    "chat-tool-activity-desktop-light",
+    "chat-tool-activity-desktop-dark",
+    "chat-tool-activity-mobile-light",
+    "chat-tool-activity-mobile-dark",
+    "chat-tool-expanded-desktop-light",
+    "chat-tool-expanded-desktop-dark",
+    "chat-tool-expanded-mobile-light",
+    "chat-tool-expanded-mobile-dark",
+    "chat-tool-running-desktop-light",
+    "chat-tool-running-desktop-dark",
+    "chat-tool-running-mobile-light",
+    "chat-tool-running-mobile-dark",
+    "chat-tool-failed-desktop-light",
+    "chat-tool-failed-desktop-dark",
+    "chat-tool-failed-mobile-light",
+    "chat-tool-failed-mobile-dark",
+    "chat-question-desktop-light",
+    "chat-question-desktop-dark",
+    "chat-question-mobile-light",
+    "chat-question-mobile-dark",
+    "chat-question-answered-desktop-light",
+    "chat-question-answered-desktop-dark",
+    "chat-question-answered-mobile-light",
+    "chat-question-answered-mobile-dark",
+    "chat-question-dismissed-desktop-light",
+    "chat-question-dismissed-desktop-dark",
+    "chat-question-dismissed-mobile-light",
+    "chat-question-dismissed-mobile-dark",
+    "chat-approval-desktop-light",
+    "chat-approval-desktop-dark",
+    "chat-approval-mobile-light",
+    "chat-approval-mobile-dark",
+    "chat-approval-approved-desktop-light",
+    "chat-approval-approved-desktop-dark",
+    "chat-approval-approved-mobile-light",
+    "chat-approval-approved-mobile-dark",
+    "chat-approval-rejected-desktop-light",
+    "chat-approval-rejected-desktop-dark",
+    "chat-approval-rejected-mobile-light",
+    "chat-approval-rejected-mobile-dark",
+    "chat-approval-expired-desktop-light",
+    "chat-approval-expired-desktop-dark",
+    "chat-approval-expired-mobile-light",
+    "chat-approval-expired-mobile-dark",
+    "chats-waiting-desktop-light",
+    "chats-waiting-desktop-dark",
+    "chats-waiting-mobile-light",
+    "chats-waiting-mobile-dark"
+  ]
 }

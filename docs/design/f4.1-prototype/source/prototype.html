@@ -446,6 +446,53 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .sb .nb.va>svg:first-child{margin-left:-3px}
 .sb.icon{width:64px;padding:8px 16px;align-items:flex-start}
 .sb.icon .nb{width:32px!important;padding:0!important;justify-content:center}
+
+/* Revision 17 (F5): tool activity, questions, approvals, waiting state */
+.tact{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;max-width:100%;height:32px;padding:0 10px 0 9px;border:1px solid var(--border);border-radius:10px;font-size:14px;line-height:1;color:var(--mfg);cursor:pointer}
+.tact .tn{color:var(--fg);font-weight:500;white-space:nowrap}
+.tact .ts{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tact .sep{width:1px;height:14px;background:var(--border);flex:none}
+.tact .lq{width:16px;height:16px}
+.tbox{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;align-self:stretch}
+.tbox>.tact{border:0;border-radius:0;height:40px;padding:0 12px;align-self:stretch}
+.tbox .tb{border-top:1px solid var(--border);padding:12px 14px 14px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.5}
+.tbox .tl{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mfg)}
+.kv{display:grid;grid-template-columns:230px 1fr;gap:6px 16px;margin:0}
+.kv dt{color:var(--mfg)}
+.kv dd{margin:0;color:var(--fg)}
+.erow.tool{font-size:14px;padding:10px 14px}
+.wait{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 8px;border-radius:999px;background:var(--tint);color:var(--redtext);font-size:12.5px;font-weight:500;white-space:nowrap}
+.wdot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--primary)}
+.nb .wdot{margin-right:2px}
+.ocard{border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:var(--shadow);padding:16px 16px 14px;display:flex;flex-direction:column;gap:14px;font-size:14px;line-height:1.5}
+.ocard.done{box-shadow:none;background:var(--bg)}
+.ocard .oh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--mfg)}
+.ocard .oh svg{color:var(--mfg)}
+.ocard .oq{font-size:16px;font-weight:500;line-height:1.5;color:var(--fg)}
+.ocard .opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 14px;border:1px solid var(--input);border-radius:999px;background:var(--bg);font-size:14px;cursor:pointer}
+.opt.on{border-color:var(--redtext);background:var(--tint);color:var(--redtext);font-weight:500}
+.ocard .of{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ocard .ox{font-size:13px;color:var(--mfg);display:inline-flex;align-items:center;gap:6px}
+.ocard .oa{display:flex;gap:8px;margin-left:auto}
+.ocard .btn{margin-top:0}
+.ocard .btn[disabled]{opacity:.5}
+.ocard .kv{grid-template-columns:110px 1fr;font-size:14px}
+.ocard .kv dd b{font-weight:600}
+.ocard .res{display:flex;align-items:flex-start;gap:8px;color:var(--fg)}
+.ocard .res svg{flex:none;margin-top:3px}
+.ocard .meta{font-size:13px;color:var(--mfg)}
+.ostat{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px 0 7px;border-radius:999px;border:1px solid var(--input);font-size:12.5px;font-weight:500;color:var(--fg);background:var(--bg)}
+.ostat.ok{color:var(--fg)}
+.ostat.off{color:var(--mfg)}
+.hrow .ht .hr{display:inline-flex;align-items:center;gap:10px}
+.app.mobile .kv{grid-template-columns:1fr;gap:2px 0}
+.app.mobile .kv dd{margin-bottom:6px}
+.app.mobile .ocard .kv{grid-template-columns:1fr}
+.app.mobile .ocard .oa{width:100%}
+.app.mobile .ocard .oa .btn{flex:1}
+.app.mobile .tact .ts{display:none}
+.app.mobile .tbox>.tact .ts{display:none}
 </style>
 <div id="root"></div>
 <script>
@@ -467,11 +514,11 @@ const I={
  square:'<rect x="4" y="4" width="16" height="16" rx="2"/>', wifi:'<path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/>',
  plus:'<path d="M12 5v14M5 12h14"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
  out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>', eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
- shield:'<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>'
+ help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', xc:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>', hourglass:'<path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/>', shield:'<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>'
 };
 const sv=(n,s=16,x='')=>`<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${x}>${I[n]}</svg>`;
 const STATES=['loaders','personal','signin','signin-errors','newchat','deep','thinking','streaming','reasoning','thread','feedback','edit','branch','stopped','error','reconnect','loading','menu','rename','delete','history','search','noresults','empty','settings','appearance','org','user','collapsed','mobile'];
-const chats=['Syarat sah perjanjian (Pasal 1320)','Due diligence checklist for PT acquisition','PKWT vs PKWTT after the Job Creation Law','Force majeure clause, supply agreement','Wanprestasi remedies and damages','Data transfer under UU PDP Article 56'];
+const CHATS0=['Syarat sah perjanjian (Pasal 1320)','Due diligence checklist for PT acquisition','PKWT vs PKWTT after the Job Creation Law','Force majeure clause, supply agreement','Wanprestasi remedies and damages','Data transfer under UU PDP Article 56'];let chats=CHATS0.slice();
 const Q1='Apa saja syarat sahnya perjanjian menurut KUHPerdata, dan apa akibatnya jika salah satu syarat tidak terpenuhi?';
 const A1=`<p>Pasal 1320 KUHPerdata menetapkan empat syarat sahnya perjanjian:</p><ol><li><b>Kesepakatan</b> para pihak yang mengikatkan dirinya.</li><li><b>Kecakapan</b> untuk membuat suatu perikatan.</li><li><b>Suatu hal tertentu</b> sebagai objek perjanjian.</li><li><b>Suatu sebab yang halal</b>.</li></ol><h3>Akibat jika syarat tidak terpenuhi</h3><ul><li>Syarat 1 dan 2 adalah <b>syarat subjektif</b>. Jika tidak terpenuhi, perjanjian <b>dapat dibatalkan</b> atas permintaan pihak yang dirugikan.</li><li>Syarat 3 dan 4 adalah <b>syarat objektif</b>. Jika tidak terpenuhi, perjanjian <b>batal demi hukum</b>, dianggap tidak pernah ada.</li></ul>`;
 const A1b=`<p>Ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syarat objektif (hal tertentu dan sebab yang halal) dalam Pasal 1320 KUHPerdata.</p><p>Pelanggaran syarat subjektif membuat perjanjian dapat dibatalkan; pelanggaran syarat objektif membuatnya batal demi hukum.</p>`;
@@ -485,7 +532,7 @@ function sidebar(S,c){
  else if(c.none) rec='<p style="margin:0;padding:4px 8px;font-size:13px;color:var(--mfg)">No chats yet.</p>';
  else { chats.forEach((t,i)=>{const id='abcdef'[i];const on=c.active===id&&!c.page;
    if(c.rename===id){rec+=`<div style="padding:2px 4px"><input class="rin" aria-label="Chat title" value="Due diligence: PT acquisition"></div>`;return;}
-   rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span><span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
+   rec+=`<div style="position:relative"><button class="nb ${on?'on':''} ${c.menu===id?'menuopen':''}"><span class="t">${t}</span>${c.waiting===id?'<span class="wdot" role="img" aria-label="Waiting for you" title="Waiting for you"></span>':''}<span class="more">${sv('dots')}</span></button>${c.menu===id?`<div class="menu" role="menu" style="top:30px;right:0;min-width:160px"><button class="mi">${sv('pen')}Rename</button><button class="mi">${sv('trash')}Delete</button></div>`:''}</div>`;});
    rec+=`<button class="nb va" style="color:var(--mfg)">${sv('dots')}<span class="t">View all chats</span></button>`;}
  const orgMenu=S==='org'?`<div class="menu om" role="menu" style="top:0;left:calc(100% + 8px);min-width:260px"><div class="ml">Organizations</div><button class="mi"><span class="ini" style="width:24px;height:24px;border-radius:6px;background:var(--bg);box-shadow:0 0 0 1px var(--border)"><img src="${MONO}" alt="" style="width:15px;height:15px"></span><span style="flex:1">Personal</span></button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">HN</span><span style="flex:1">Hukum Nusantara</span>${sv('check')}</button><button class="mi"><span class="ini" style="width:24px;height:24px;font-size:10px;border-radius:6px">PB</span><span style="flex:1">Pro Bono Clinic</span></button><div class="msep"></div><button class="mi" style="color:var(--mfg)">${sv('plus')}Create a team</button></div>`:'';
  const userMenu=S==='user'?`<div class="menu umn" role="menu" style="bottom:0;left:calc(100% + 8px);min-width:240px"><div style="display:flex;gap:8px;align-items:center;padding:6px 8px"><span class="avatar">AW</span><span class="two"><span class="a">Ayu Wardani</span><span class="b">ayu@hukum-nusantara.co.id</span></span></div><div class="msep"></div><button class="mi">${sv('gear')}Settings<span class="kbd">Ctrl ,</span></button><div class="msep"></div><button class="mi">${sv('out')}Sign out</button></div>`:'';
@@ -604,7 +651,7 @@ const who=(label,open=null,live=false,kind='col')=>`<div class="who">${live?lq()
 const um=(t,{branch=false,show=false}={})=>`<div class="um"><div class="ubub">${t}</div><div class="bar" style="${show?'':'opacity:0'}">${branch?`<span class="branch"><button class="ib" aria-label="Previous version">${sv('left',14)}</button>2 / 2<button class="ib" aria-label="Next version" style="opacity:.4">${sv('right',14)}</button></span>`:''}<button class="ib" aria-label="Copy">${sv('copy',14)}</button><button class="ib" aria-label="Edit message">${sv('pen',14)}</button></div></div>`;
 const abar=({fb=null,copied=false,branch=false,tip='',failed=false}={})=>`<div class="bar">${branch?`<span class="branch"><button class="ib">${sv('left',14)}</button>2 / 2<button class="ib" style="opacity:.4">${sv('right',14)}</button></span>`:''}${failed?`<button class="ab hov" aria-label="Could not copy. Try again">${sv('alert',16)}<span class="tip">Could not copy</span></button>`:`<button class="ab ${copied?'on':''} ${tip==='copy'?'hov':''}" aria-label="${copied?'Copied':'Copy'}">${sv(copied?'check':'copy',16)}${tip==='copy'?'<span class="tip">Copy</span>':''}${copied?'<span class="tip">Copied</span>':''}</button>`}<button class="ab ${fb==='up'?'on':''}" aria-label="Good response">${sv('up',16,fb==='up'?'fill="currentColor"':'')}</button><button class="ab" aria-label="Bad response">${sv('down',16)}</button><button class="ab" aria-label="Regenerate">${sv('regen',16)}</button></div>`;
 const SUMMARY='<div class="tbody">The question asks for the validity conditions in Article 1320 of the Civil Code. List the four conditions, separate subjective from objective conditions, and explain voidable versus void by law.</div>';
-const crumbT='Syarat sah perjanjian (Pasal 1320)';
+const CRUMB0='Syarat sah perjanjian (Pasal 1320)';let crumbT=CRUMB0;
 
 function thread(S){
  let b='',c=composer(),toast='';
@@ -993,12 +1040,72 @@ document.addEventListener('click',e=>{const cb=e.target.closest('.dv-table .dv-c
  if(bar){bar.hidden=n===0;bar.querySelector('.k').textContent=n;}});
 document.addEventListener('click',e=>{const x=e.target.closest('.dv-bar .x');if(!x)return;const bar=x.closest('.dv-bar');const card=bar.previousElementSibling;card.querySelectorAll('.dv-cb.on').forEach(c=>{c.classList.remove('on');c.setAttribute('aria-checked','false');c.innerHTML='';});card.querySelectorAll('tr.sel').forEach(r=>r.classList.remove('sel'));bar.hidden=true;});
 
+
+// ---- Revision 17 (F5): tools, questions, approvals ----
+const F5={
+ tool:{title:'Batas waktu banding',q:'Kapan batas akhir mengajukan banding jika putusan dibacakan pada 3 Agustus 2027?'},
+ ask:{title:'Masa berlaku kontrak',q:'Apakah kontrak ini masih berlaku?'},
+ ren:{title:'Draf somasi wanprestasi',q:'Ganti judul chat ini jadi “Somasi PT Sinar”.'}
+};
+const DL_SUM='Deadline: Wednesday, 18 August 2027';
+const DL_ANS='<p>Batas akhir pengajuan banding jatuh pada <b>Rabu, 18 Agustus 2027</b>.</p><p>Perhitungan memakai 14 hari kalender sejak hari setelah putusan dibacakan. Hari ke-14 jatuh pada Selasa, 17 Agustus 2027 (Hari Kemerdekaan), sehingga digeser ke hari kerja berikutnya. Periksa kembali tenggang waktu yang berlaku untuk perkara Anda.</p>';
+const tact=({icon='calendar',name='Deadline calculator',sum=DL_SUM,open=false,live=false})=>`<button class="tact" aria-expanded="${open}">${live?lq():sv(icon,16)}<span class="tn">${name}</span><span class="sep" aria-hidden="true"></span><span class="ts ${live?'shim':''}">${sum}</span>${sv(open?'down2':'right',14)}</button>`;
+const tbox=()=>`<div class="tbox">${tact({open:true})}<div class="tb"><div class="tl">Inputs</div><dl class="kv"><dt>Start date</dt><dd>Tuesday, 3 August 2027</dd><dt>Period</dt><dd>14 calendar days</dd><dt>Start day counts</dt><dd>No</dd><dt>If it ends on a non-working day</dt><dd>Move to the next working day</dd></dl><div class="tl">Result</div><dl class="kv"><dt>Deadline</dt><dd><b>Wednesday, 18 August 2027</b></dd><dt>Skipped</dt><dd>Tuesday, 17 August 2027 · Independence Day</dd><dt>Calendar</dt><dd>Indonesian national holidays and joint leave days, 2027</dd></dl></div></div>`;
+const waitWho=()=>`<div class="who"><img src="${MONO}" alt="" style="width:20px;height:20px"><span class="wait" role="status">${sv('clock',12)}Waiting for you</span></div>`;
+const ASKQ='Kontrak jenis apa yang Anda maksud?';
+const ASKO=['Perjanjian kerja (PKWT/PKWTT)','Sewa-menyewa','Jual beli','Kerja sama usaha'];
+const qcard=(st)=>{
+ if(st==='pending') return `<section class="ocard" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asks</div><div class="oq" id="aq">${ASKQ}</div><div class="opts" role="radiogroup" aria-labelledby="aq">${ASKO.map((o,i)=>`<button class="opt ${i===0?'on':''}" role="radio" aria-checked="${i===0}">${i===0?sv('check',14):''}${o}</button>`).join('')}</div><input class="inp" aria-label="Or write your own answer" placeholder="Or write your own answer"><div class="of"><span class="ox">${sv('clock',14)}Expires 24 Nov 2026, 10:42</span><div class="oa"><button class="btn ghost">Answer in chat instead</button><button class="btn primary">Answer</button></div></div></section>`;
+ if(st==='answered') return `<section class="ocard done" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asked</div><div class="oq">${ASKQ}</div><div class="res">${sv('checkc',16)}<span><b style="font-weight:600">Perjanjian kerja (PKWT/PKWTT)</b></span></div><div class="meta">Answered 23 Nov 2026, 10:44</div></section>`;
+ return `<section class="ocard done" aria-label="Question from Lexon"><div class="oh">${sv('help',16)}Lexon asked</div><div class="oq" style="color:var(--mfg)">${ASKQ}</div><div class="res" style="color:var(--mfg)">${sv('chats',16)}<span>You chose to answer in chat.</span></div><div class="meta">Dismissed 23 Nov 2026, 10:44</div></section>`;
+};
+const acard=(st)=>{
+ const kv=(cur,nw)=>`<dl class="kv"><dt>Current title</dt><dd>${cur}</dd><dt>New title</dt><dd><b>${nw}</b></dd></dl>`;
+ const head=(stat)=>`<div class="oh" style="justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:8px">${sv('pen',16)}Rename this chat</span>${stat}</div>`;
+ if(st==='pending') return `<section class="ocard" aria-label="Approval needed"><div class="oh">${sv('pen',16)}Rename this chat</div><div class="oq">Lexon wants to rename this chat. Nothing changes until you approve.</div>${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="of"><span class="ox">${sv('clock',14)}Expires 24 Nov 2026, 10:42</span><div class="oa"><button class="btn outline">${sv('x',16)}Reject</button><button class="btn primary">${sv('check',16)}Approve</button></div></div></section>`;
+ if(st==='approved') return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat ok">${sv('checkc',13)}Approved</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Approved 23 Nov 2026, 10:44 · The chat was renamed.</div></section>`;
+ if(st==='rejected') return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat off">${sv('xc',13)}Rejected</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Rejected 23 Nov 2026, 10:44 · The title was not changed.</div></section>`;
+ return `<section class="ocard done" aria-label="Approval">${head(`<span class="ostat off">${sv('hourglass',13)}Expired</span>`)}${kv('Draf somasi wanprestasi','Somasi PT Sinar')}<div class="meta">Expired 24 Nov 2026, 10:42 · No decision within 24 hours, so the title was not changed.</div></section>`;
+};
+function f5Screen(st){
+ const set=(k,title)=>{chats=CHATS0.slice();chats[0]=title;crumbT=title;};
+ let b='',c=composer(),side={active:'a'};
+ if(st.startsWith('chat-tool')){set('tool',F5.tool.title);
+  const q=um(F5.tool.q);
+  if(st==='chat-tool-activity') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${tact({})}${DL_ANS}${abar()}</div>`;
+  if(st==='chat-tool-expanded') b=q+`<div class="am">${who('Thought for 7 seconds',false)}${tbox()}${DL_ANS}${abar()}</div>`;
+  if(st==='chat-tool-running'){b=q+`<div class="am"><div class="who">${lq()}<span class="shim">Thinking…</span></div>${tact({live:true,sum:'Calculating the deadline…'})}</div>`;c=composer({streaming:true});}
+  if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${tact({icon:'alert',sum:'Could not finish'})}<div class="erow tool" role="alert"><span class="ic">${sv('alert',18)}</span><span class="tx">The deadline calculator could not finish. Lexon answered without it.</span></div><p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
+ }
+ if(st.startsWith('chat-question')){set('ask',F5.ask.title);
+  const q=um(F5.ask.q);
+  if(st==='chat-question'){b=q+`<div class="am">${waitWho()}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('pending')}</div>`;side.waiting='a';}
+  if(st==='chat-question-answered') b=q+`<div class="am">${who('Thought for 11 seconds',false)}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('answered')}<p>Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.</p>${abar()}</div>`;
+  if(st==='chat-question-dismissed') b=q+`<div class="am">${who('Thought for 6 seconds',false)}<p>Saya perlu satu informasi sebelum menjawab.</p>${qcard('dismissed')}<p>Baik. Jelaskan jenis kontraknya di chat, dan saya akan melanjutkan.</p>${abar()}</div>`;
+ }
+ if(st.startsWith('chat-approval')){
+  const ok=st==='chat-approval-approved';set('ren',ok?'Somasi PT Sinar':F5.ren.title);
+  const q=um(F5.ren.q);
+  if(st==='chat-approval'){b=q+`<div class="am">${waitWho()}${acard('pending')}</div>`;side.waiting='a';}
+  if(ok) b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('approved')}<p>Judul chat sudah diganti menjadi “Somasi PT Sinar”.</p>${abar()}</div>`;
+  if(st==='chat-approval-rejected') b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('rejected')}<p>Baik, judul chat tidak diubah.</p>${abar()}</div>`;
+  if(st==='chat-approval-expired') b=q+`<div class="am">${who('Thought for 4 seconds',false)}${acard('expired')}<p>Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.</p>${abar()}</div>`;
+ }
+ const main=`<div class="main">${topbar(crumbT)}<div class="view"><div style="flex:1;width:100%;display:flex;justify-content:center;overflow:hidden"><div class="thread">${b}</div></div>${c}</div></div>`;
+ return `<div class="app ${MOB?'mobile':''}">${sidebar('x',side)}${main}</div>`;
+}
+function chatsWaiting(){
+ chats=CHATS0.slice();chats[0]=F5.ask.title;
+ let h=history('history');
+ h=h.replace(`<span>${chats[0]}</span><span class="hd">10:42</span>`,`<span>${chats[0]}</span><span class="hr"><span class="wait">${sv('clock',12)}Waiting for you</span><span class="hd">10:42</span></span>`);
+ return `<div class="app ${MOB?'mobile':''}">${sidebar('x',{page:true,waiting:'a'})}${h}</div>`;
+}
 const GROUPS=[
  ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-declined','accept-invitation-unavailable','admin-setup','admin-setup-activate','admin-setup-unavailable','onboarding','onboarding-invitations','onboarding-team']],
  ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
  ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open','recent-load-failed']],
- ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete']],
- ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed']],
+ ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete','chat-tool-activity','chat-tool-expanded','chat-tool-running','chat-tool-failed','chat-question','chat-question-answered','chat-question-dismissed','chat-approval','chat-approval-approved','chat-approval-rejected','chat-approval-expired']],
+ ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed','chats-waiting']],
  ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
  ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-filtered','platform-accounts-row-menu','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-accounts-invitations','platform-account-invite','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],
  ['Indicator',['indicator']]
@@ -1008,6 +1115,9 @@ const STATUSMAP={'not-found':'notfound','organizations-not-found':'org-notfound'
 const THREADMAP={'chat-thinking':'thinking','chat-streaming-scroll':'streaming','chat-reasoning-collapsed':'thread','chat-reasoning-open':'reasoning','chat-answer-actions':'actions','chat-edit':'edit','chat-branch':'branch','chat-stopped':'stopped','chat-error':'error','chat-reconnecting':'reconnect','chat-thread-loading':'loading','chat-floating-menu':'thread','chat-rename':'thread','chat-delete':'thread','organization-switcher-open':'thread','user-menu-open':'thread','recent-menu':'thread','sidebar-collapsed':'thread','mobile-sheet-open':'thread'};
 function screen(st){
  UI={fmenu:st==='chat-floating-menu'};
+ chats=CHATS0.slice();crumbT=CRUMB0;
+ if(/^chat-(tool|question|approval)/.test(st)) return f5Screen(st);
+ if(st==='chats-waiting') return chatsWaiting();
  const app=(sb,main,extra='',sheet=false)=>`<div class="app ${MOB?'mobile':''} ${MOB&&sheet?'sheet':''}">${MOB&&sheet?'<div class="overlay"></div>':''}${sb}${main}${extra}</div>`;
  const KF={'kit-table':kitTable,'kit-detail':kitDetail,'kit-states':kitStates,'kit-overlays':kitOverlays};
  if(KF[st]) return `<div class="app ${MOB?'mobile':''}">${sidebar('personal',{kit:st,none:true})}${pmain(KF[st]())}</div>`;
