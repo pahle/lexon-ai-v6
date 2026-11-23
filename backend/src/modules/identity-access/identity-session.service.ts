@@ -114,7 +114,9 @@ export class IdentitySessionService implements OrganizationSelectionPort {
       map: (error) =>
         error instanceof IdentityError
           ? error
-          : new IdentityError('AUTH_UNAVAILABLE', 503),
+          : error instanceof SelectionChanged
+            ? new IdentityError('ORG_STATE_CHANGED', 409)
+            : new IdentityError('AUTH_UNAVAILABLE', 503),
     });
   }
   private async actor(

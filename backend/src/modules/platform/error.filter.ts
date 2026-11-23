@@ -10,6 +10,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import type { Request, Response } from 'express';
 import type { ErrorResponse } from '@lexon/contracts';
 import { ChatApiError, SafeErrorMessages } from '@lexon/contracts';
+import { routeFamily } from './route-family.js';
 
 // A 23505 is a client conflict only for constraints we expect callers to hit.
 // Any other unique violation stays a 500: chat-branches.spec.ts pins that an
@@ -159,11 +160,20 @@ export class SafeErrorFilter implements ExceptionFilter {
         message: SafeErrorMessages.AI_CAPACITY_EXCEEDED,
       };
     } else if (unavailable(error)) {
+      // Ruling P2: the outage code depends on which dependency family the
+      // route serves. Identity routes keep AUTH_UNAVAILABLE; every other
+      // route (chats, runs, diagnostics, health, future) is SERVICE_UNAVAILABLE.
       status = 503;
-      detail = {
-        code: 'AUTH_UNAVAILABLE',
-        message: 'Authentication is temporarily unavailable.',
-      };
+      detail =
+        routeFamily(request.originalUrl ?? request.url ?? '') === 'identity'
+          ? {
+              code: 'AUTH_UNAVAILABLE',
+              message: 'Authentication is temporarily unavailable.',
+            }
+          : {
+              code: 'SERVICE_UNAVAILABLE',
+              message: SafeErrorMessages.SERVICE_UNAVAILABLE,
+            };
     } else if (
       uniqueConflict(error) ||
       databaseCode(error, CONFLICT_SQLSTATES)

@@ -1,13 +1,17 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
 import { describe, expect, test, vi } from 'vitest';
 import { SafeErrorFilter } from '../../src/modules/platform/error.filter.js';
+import { IdentityError } from '../../src/modules/identity-access/identity-error.js';
 
-function run(error: unknown) {
+function run(error: unknown, path?: string) {
   const json = vi.fn();
   const status = vi.fn((code: number) => ({ json, code }));
   const host = {
     switchToHttp: () => ({
-      getRequest: () => ({ id: 'req-1' }),
+      getRequest: () => ({
+        id: 'req-1',
+        ...(path !== undefined ? { originalUrl: path } : {}),
+      }),
       getResponse: () => ({ status, getHeader: () => undefined }),
     }),
   };
@@ -25,7 +29,11 @@ function pg(code: string, extra: Record<string, unknown> = {}) {
     ...extra,
   });
 }
-const cases: Array<[string, unknown, number, string]> = [
+// ioredis surfaces a plain shaped object, not an Error subclass.
+const redisRefused = () => ({ code: 'ECONNREFUSED', syscall: 'connect' });
+const pgCrash = () => pg('57P01');
+const ID = '00000000-0000-4000-8000-000000000001';
+const cases: Array<[string, unknown, number, string, string?]> = [
   [
     'HttpException(418)',
     new HttpException('teapot stack', 418),
@@ -95,11 +103,13 @@ const cases: Array<[string, unknown, number, string]> = [
     500,
     'INTERNAL_ERROR',
   ],
+  // P2: an outage on a non-identity route is SERVICE_UNAVAILABLE; a missing
+  // path is never an identity route.
   [
     'pool timeout',
     new Error('timeout exceeded when trying to connect'),
     503,
-    'AUTH_UNAVAILABLE',
+    'SERVICE_UNAVAILABLE',
   ],
   [
     'ECONNREFUSED',
@@ -107,19 +117,69 @@ const cases: Array<[string, unknown, number, string]> = [
       code: 'ECONNREFUSED',
     }),
     503,
-    'AUTH_UNAVAILABLE',
+    'SERVICE_UNAVAILABLE',
   ],
-  ['pg 57P01', pg('57P01'), 503, 'AUTH_UNAVAILABLE'],
-  ['pg 57P03', pg('57P03'), 503, 'AUTH_UNAVAILABLE'],
+  ['pg 57P01', pg('57P01'), 503, 'SERVICE_UNAVAILABLE'],
+  ['pg 57P03', pg('57P03'), 503, 'SERVICE_UNAVAILABLE'],
   ['unknown error', new Error('boom SELECT stack'), 500, 'INTERNAL_ERROR'],
 ];
 describe('SafeErrorFilter', () => {
-  test.each(cases)('%s', (_name, error, status, code) => {
-    const result = run(error);
+  test.each(cases)('%s', (_name, error, status, code, path) => {
+    const result = run(error, path);
     expect(result.status).toBe(status);
     expect(result.body.error.code).toBe(code);
     expect(JSON.stringify(result.body)).not.toMatch(
       /stack|SELECT|constraint|organization_slug/,
     );
+  });
+});
+
+describe('SafeErrorFilter outage routing (P2)', () => {
+  const serviceRoutes = [
+    `/api/chats/${ID}`,
+    `/api/runs/${ID}/events`,
+    '/api/diagnostics',
+    '/api/health',
+  ];
+  const identityRoutes = [
+    '/api/identity/session',
+    '/api/organizations',
+    `/api/invitations/${ID}`,
+    '/api/platform/accounts',
+    '/api/auth/sign-in/email',
+  ];
+  test.each(
+    serviceRoutes.flatMap((path) =>
+      (['ioredis', '57P01'] as const).map((shape) => [shape, path] as const),
+    ),
+  )('%s outage on %s is 503 SERVICE_UNAVAILABLE', (shape, path) => {
+    const result = run(shape === 'ioredis' ? redisRefused() : pgCrash(), path);
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+  });
+  test.each(
+    identityRoutes.flatMap((path) =>
+      (['ioredis', '57P01'] as const).map((shape) => [shape, path] as const),
+    ),
+  )('%s outage on %s is 503 AUTH_UNAVAILABLE', (shape, path) => {
+    const result = run(shape === 'ioredis' ? redisRefused() : pgCrash(), path);
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('AUTH_UNAVAILABLE');
+  });
+  test.each(['/api/identityx', '/api/platformer'])(
+    'prefix boundary %s is a service route',
+    (path) => {
+      const result = run(redisRefused(), path);
+      expect(result.status).toBe(503);
+      expect(result.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    },
+  );
+  test('an IdentityError passes through unchanged on a service route', () => {
+    const result = run(
+      new IdentityError('AUTH_UNAVAILABLE', 503),
+      `/api/chats/${ID}`,
+    );
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('AUTH_UNAVAILABLE');
   });
 });

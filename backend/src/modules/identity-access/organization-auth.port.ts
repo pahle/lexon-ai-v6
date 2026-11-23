@@ -91,7 +91,9 @@ export class OrganizationAuthPort {
           mapSlugConflict(error) ??
           (pgFailure(error).constraint === 'lexon_team_owner'
             ? new IdentityError('ORG_LAST_OWNER', 409)
-            : error),
+            : isRetryableAuthError(error)
+              ? new IdentityError('AUTH_UNAVAILABLE', 503)
+              : error),
       },
     );
   }

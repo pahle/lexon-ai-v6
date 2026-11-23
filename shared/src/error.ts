@@ -5,6 +5,7 @@ export const ChatErrorCodeSchema = z.enum([
   'CHAT_CONFLICT',
   'CHAT_NOT_FOUND',
   'CHAT_SEARCH_TIMEOUT',
+  'SERVICE_UNAVAILABLE',
 ]);
 export type ChatErrorCode = z.infer<typeof ChatErrorCodeSchema>;
 
@@ -36,6 +37,7 @@ export const SafeErrorMessages = {
     'This chat is busy. Try again when the current answer finishes.',
   CHAT_NOT_FOUND: 'Chat not found.',
   CHAT_SEARCH_TIMEOUT: 'Search took too long. Try more specific words.',
+  SERVICE_UNAVAILABLE: 'Service temporarily unavailable. Please try again.',
 } as const satisfies Record<SafeErrorCode, string>;
 
 export class ChatApiError extends Error {

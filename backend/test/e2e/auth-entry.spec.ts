@@ -284,7 +284,7 @@ test('credential-checked unverified sign-in offers safe verification resend', as
   expect(response.status()).toBe(403);
   expect(await response.json()).toEqual({
     error: {
-      code: 'EMAIL_NOT_VERIFIED',
+      code: 'AUTH_EMAIL_VERIFICATION_REQUIRED',
       message: 'Verify your email address before signing in.',
     },
   });

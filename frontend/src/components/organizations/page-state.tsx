@@ -20,9 +20,12 @@ export function identityMessage(error: unknown): string {
       : error instanceof IdentityClientError &&
           error.code === 'AUTH_REAUTH_REQUIRED'
         ? 'Confirm your identity in account security, then try again.'
-        : error instanceof IdentityClientError && error.status === 503
-          ? 'Service temporarily unavailable. Please try again.'
-          : 'Unable to complete this action. Refresh and check your access.';
+        : error instanceof IdentityClientError &&
+            error.code === 'ORG_STATE_CHANGED'
+          ? 'Something changed while you were working. Refresh and try again.'
+          : error instanceof IdentityClientError && error.status === 503
+            ? 'Service temporarily unavailable. Please try again.'
+            : 'Unable to complete this action. Refresh and check your access.';
 }
 export function QueryFailure({
   error,
