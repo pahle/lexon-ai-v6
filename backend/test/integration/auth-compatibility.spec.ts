@@ -236,7 +236,9 @@ test('withholds a successful Response and its credentials when commit fails', as
         .then((response) => {
           released = response;
         }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: { code: 'P0001', message: 'injected-auth-commit-failure' },
+    });
     expect(released).toBeUndefined();
     expect(proof.lastNativeResponse()?.status).toBe(200);
     expect(proof.lastNativeResponse()?.headers.has('set-cookie')).toBe(true);

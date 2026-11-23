@@ -790,7 +790,7 @@ it('blocks a send after the selected branch write fails and restores the persist
       ],
       abortSignal: undefined,
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow('safe failure');
   expect(fetch).not.toHaveBeenCalled();
 
   const recovered = new LexonChatTransport({
@@ -1532,7 +1532,10 @@ it('does not retry an event stream after access is revoked', async () => {
     await consuming;
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(streamError).toBeDefined();
+    expect(streamError).toMatchObject({
+      code: 'AI_ACCESS_REVOKED',
+      status: 403,
+    });
     expect(
       requests.filter((request) => request.endsWith('/events')),
     ).toHaveLength(2);
@@ -1681,7 +1684,9 @@ it('caps automatic event-stream retries at five without creating another mutatio
     await vi.runAllTimersAsync();
     await consuming;
 
-    expect(streamError).toBeDefined();
+    expect(streamError).toMatchObject({
+      message: 'Chat stream was interrupted. Reconnect to continue.',
+    });
     expect(
       requests.filter((request) => request.endsWith('/events')),
     ).toHaveLength(6);

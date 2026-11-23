@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { z } from 'zod';
 import { createIdentityClient } from '../src/lib/identity-client';
 import { createServerIdentityClient } from '../src/lib/server-identity-client';
 test('browser identity requests use shared input, same-origin credentials and safe errors', async () => {
@@ -23,13 +24,13 @@ test('browser identity requests use shared input, same-origin credentials and sa
   expect(
     new Headers(fetch.mock.calls[0]![1]?.headers).has('authorization'),
   ).toBe(false);
-  await expect(
-    client.createOrganization({
-      name: 'Team',
-      slug: 'team',
-      userId: 'forged',
-    } as never),
-  ).rejects.toThrow();
+  const forged = client.createOrganization({
+    name: 'Team',
+    slug: 'team',
+    userId: 'forged',
+  } as never);
+  await expect(forged).rejects.toThrowError(z.ZodError);
+  await expect(forged).rejects.toThrow('"userId"');
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(() =>
     createIdentityClient({ baseUrl: 'https://outside.example/api' }),

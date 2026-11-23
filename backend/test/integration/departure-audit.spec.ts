@@ -110,7 +110,9 @@ test('an audit failure rolls back native membership deletion and leaves the outb
     const before = await inspect.outboxCount();
     await audits.rejectInserts();
     await harness.identity(users[1]!.cookieHeaders, async (identity) => {
-      await expect(service.leave(identity, team.id)).rejects.toThrow();
+      await expect(service.leave(identity, team.id)).rejects.toMatchObject({
+        cause: { code: 'P0001', message: 'injected-audit-failure' },
+      });
     });
     expect(await inspect.member(users[1]!.userId, team.id)).not.toBeNull();
     expect(await inspect.outboxCount()).toBe(before);

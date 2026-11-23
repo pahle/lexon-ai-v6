@@ -273,8 +273,20 @@ test('a chat-bound run cannot remove its declared resource to escape the fence',
     await fixture.chat.linkAnswer(0, chat.id, run.id);
     await expect(
       fixture.chat.setRunResourcesAs(tenant, run.id, []),
-    ).rejects.toThrow();
-    expect(await fixture.chat.tree(0, chat.id)).toBeDefined();
+    ).rejects.toMatchObject({
+      code: '23514',
+      message: 'Chat resource owner or binding mismatch',
+      constraint: 'chat_resource_binding',
+    });
+    expect(
+      (
+        await fixture.inspect.query(
+          `SELECT resolved_config->'resourceIds' AS resource_ids
+           FROM app.ai_runs WHERE org_id=$1 AND id=$2`,
+          [tenant.orgId, run.id],
+        )
+      ).rows[0]?.resource_ids,
+    ).toEqual([chat.id]);
   } finally {
     await fixture.close();
   }
@@ -666,7 +678,11 @@ test('direct run-output SQL waits for deletion then fails without a deadlock or 
     await locked.promise;
     const writer = fixture.startDirectRunOutputWrite(tenant, run.id);
     // Attach the rejection handler before the fenced write can reject.
-    const writeRejected = expect(writer.done).rejects.toThrow();
+    const writeRejected = expect(writer.done).rejects.toMatchObject({
+      code: '23514',
+      message: 'Chat content write fenced',
+      constraint: 'chat_content_write_fenced',
+    });
     const waiting = await fixture.waitForLockWait(await writer.pid);
     release.resolve();
     await deletion;
