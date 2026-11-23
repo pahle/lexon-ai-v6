@@ -29,6 +29,7 @@ skill is vendored). Sources and pinned commits are in
 | `valkey` | valkey-io/valkey-skills | F0, F3 |
 | `vitest`, `pnpm` | antfu/skills | F0 |
 | `better-auth-best-practices`, `email-and-password-best-practices`, `organization-best-practices`, `two-factor-authentication-best-practices`, `better-auth-security-best-practices` | better-auth/skills (no license file upstream; vendored by product-owner decision) | F1 |
+| `brainstorming`, `diagnosing-superpowers`, `dispatching-parallel-agents`, `executing-plans`, `finishing-a-development-branch`, `receiving-code-review`, `requesting-code-review`, `subagent-driven-development`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`, `using-superpowers`, `verification-before-completion`, `writing-plans`, `writing-skills` | obra/superpowers v7.0.2 (MIT) | All slices: the superpowers workflow (brainstorming → plans → TDD → review) |
 | `karpathy-guidelines` | multica-ai/andrej-karpathy-skills (MIT) | All slices: think before coding, simplicity, surgical changes, verifiable goals. Superpowers' workflow and `AGENTS.md` take precedence |
 
 ## Known conflicts with Lexon documents
