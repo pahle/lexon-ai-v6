@@ -71,8 +71,13 @@ export async function withOwnedStack(options) {
     return result;
   } catch (error) {
     keep = false;
-    // The stack is still up here; after `down` its logs are unrecoverable.
-    if (options.captureLogs)
+    // The stack is still up here; after `down` its logs are unrecoverable. A
+    // `start` failure means services never came up, so there is nothing to
+    // capture — the spec's "on a failed exercise" boundary.
+    if (
+      options.captureLogs &&
+      !(error instanceof Error && error.chatLoadStep === 'start')
+    )
       await options
         .captureLogs()
         .catch(() => console.error('compose logs capture failed'));

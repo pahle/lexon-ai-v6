@@ -118,6 +118,30 @@ test('a failed exercise captures compose logs before teardown runs', async () =>
   ]);
 });
 
+test('a failed start captures no compose logs because nothing came up', async () => {
+  const calls = [];
+  await assert.rejects(
+    withOwnedStack({
+      project: 'lexon-e2e-abc123',
+      directory: '/test-owned',
+      start: async () => {
+        calls.push('start');
+        throw new Error('start failed');
+      },
+      exercise: async () => calls.push('exercise'),
+      captureLogs: async () => calls.push('logs'),
+      down: async (project) => calls.push(`down:${project}`),
+      remove: async (path) => calls.push(`remove:${path}`),
+    }),
+    /start failed/,
+  );
+  assert.deepEqual(calls, [
+    'start',
+    'down:lexon-e2e-abc123',
+    'remove:/test-owned',
+  ]);
+});
+
 test('a successful run captures no compose logs', async () => {
   const calls = [];
   await withOwnedStack({
