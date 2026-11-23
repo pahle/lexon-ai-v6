@@ -14,8 +14,8 @@ skill is vendored). Sources and pinned commits are in
    are re-copied from a new commit after reviewing the diff.
 3. **Just in time:** skills are added when their slice starts (see each
    brief's "Skills to use"), so agents are not flooded with irrelevant skills.
-4. **Advice, not authority:** `docs/specs/` always wins. Known conflicts are
-   listed below; follow the Lexon column.
+4. **Advice, not authority:** `AGENTS.md` and `docs/specs/` always win.
+   Known conflicts are listed below; follow the Lexon column.
 
 ## Installed
 
@@ -29,6 +29,7 @@ skill is vendored). Sources and pinned commits are in
 | `valkey` | valkey-io/valkey-skills | F0, F3 |
 | `vitest`, `pnpm` | antfu/skills | F0 |
 | `better-auth-best-practices`, `email-and-password-best-practices`, `organization-best-practices`, `two-factor-authentication-best-practices`, `better-auth-security-best-practices` | better-auth/skills (no license file upstream; vendored by product-owner decision) | F1 |
+| `brainstorming`, `diagnosing-superpowers`, `dispatching-parallel-agents`, `executing-plans`, `finishing-a-development-branch`, `receiving-code-review`, `requesting-code-review`, `subagent-driven-development`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`, `using-superpowers`, `verification-before-completion`, `writing-plans`, `writing-skills` | obra/superpowers v7.0.2 (MIT) | All slices: the superpowers workflow (brainstorming → plans → TDD → review) |
 | `karpathy-guidelines` | multica-ai/andrej-karpathy-skills (MIT) | All slices: think before coding, simplicity, surgical changes, verifiable goals. Superpowers' workflow and `AGENTS.md` take precedence |
 
 ## Known conflicts with Lexon documents
@@ -46,3 +47,7 @@ skill is vendored). Sources and pinned commits are in
 | Better Auth skills: `socialProviders`, stateless `cookieCache` mode | No social login or SSO in the MVP; sessions are stored in the database (LEX-ARC-001 §1, §3.2) |
 | Better Auth skills: Admin plugin impersonation | Disabled; platform staff never act as users (LEX-ARC-001 §6.2 break-glass) |
 | Better Auth skills: `auth` CLI `mcp` setup for editors | Do not modify editor/agent configuration; propose tooling to the human |
+| Superpowers skills: `AGENTS.md` and `docs/specs/` versus any skill instruction | `AGENTS.md` and `docs/specs/` take precedence over every skill, including the superpowers workflow skills and `using-superpowers` |
+| `finishing-a-development-branch`: merge back to the base branch locally, delete the branch, or discard the work | Never merge, delete, or discard a branch locally. Push the feature branch and open a **draft** PR; the product owner merges (Squash and merge) and deletes the branch |
+| `diagnosing-superpowers`: search and file upstream GitHub issues, build and share a session bundle | Never file or comment on upstream issues and never send transcripts, bundles, or other session data outside this repository. Write findings to the workspace and give them to the product owner |
+| `dispatching-parallel-agents`, `using-git-worktrees`: parallel agents and new worktrees (for example under `.worktrees/`) | These apply only to subagents inside one implementer session, working in that session's own worktree. Only one implementer session runs at a time; never touch another session's worktree or the shared checkout |

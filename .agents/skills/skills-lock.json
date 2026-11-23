@@ -1,6 +1,6 @@
 {
   "$comment": "Vendored third-party agent skills. Update only by re-copying from the pinned upstream commit after reviewing the diff. See README.md.",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-22",
   "skills": {
     "ai-sdk": {
       "repo": "vercel/ai",
@@ -107,6 +107,96 @@
       "repo": "multica-ai/andrej-karpathy-skills",
       "path": "skills/karpathy-guidelines",
       "commit": "2c606141936f1eeef17fa3043a72095b4765b9c2",
+      "license": "MIT"
+    },
+    "brainstorming": {
+      "repo": "obra/superpowers",
+      "path": "skills/brainstorming",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "diagnosing-superpowers": {
+      "repo": "obra/superpowers",
+      "path": "skills/diagnosing-superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "dispatching-parallel-agents": {
+      "repo": "obra/superpowers",
+      "path": "skills/dispatching-parallel-agents",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "executing-plans": {
+      "repo": "obra/superpowers",
+      "path": "skills/executing-plans",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "finishing-a-development-branch": {
+      "repo": "obra/superpowers",
+      "path": "skills/finishing-a-development-branch",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "receiving-code-review": {
+      "repo": "obra/superpowers",
+      "path": "skills/receiving-code-review",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "requesting-code-review": {
+      "repo": "obra/superpowers",
+      "path": "skills/requesting-code-review",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "subagent-driven-development": {
+      "repo": "obra/superpowers",
+      "path": "skills/subagent-driven-development",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "systematic-debugging": {
+      "repo": "obra/superpowers",
+      "path": "skills/systematic-debugging",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "test-driven-development": {
+      "repo": "obra/superpowers",
+      "path": "skills/test-driven-development",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "using-git-worktrees": {
+      "repo": "obra/superpowers",
+      "path": "skills/using-git-worktrees",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "using-superpowers": {
+      "repo": "obra/superpowers",
+      "path": "skills/using-superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "verification-before-completion": {
+      "repo": "obra/superpowers",
+      "path": "skills/verification-before-completion",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "writing-plans": {
+      "repo": "obra/superpowers",
+      "path": "skills/writing-plans",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT"
+    },
+    "writing-skills": {
+      "repo": "obra/superpowers",
+      "path": "skills/writing-skills",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
       "license": "MIT"
     }
   }
