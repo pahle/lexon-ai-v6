@@ -39,3 +39,20 @@ The product owner pastes Codex/superpowers output and asks what to do.
   their findings were handled, and that every report states the CI result of
   its head. Then recommend to the owner whether Fusion stays for the rest of
   F4.4.
+
+### F4.4 setup (owner, 2026-11-23)
+
+- The owner selects the model with `/fusion` before pasting a prompt (lead
+  Claude Opus 5.5 at low effort, sidekick SWE-2). Prompts never set or name
+  the model.
+- SDD uses Devin's built-in subagents only; no custom subagent files.
+  `subagent_general` inherits the parent's Fusion model and is used for
+  implementers and task reviewers; `subagent_explore` is router-chosen and
+  read-only, for research and reading code and docs. Every implementer
+  prompt carries: "Use explore subagents for research and reading; use
+  general subagents only for code changes and task reviews."
+- Trial evidence: the implementer attaches `/session-stats` output (cost by
+  model) before and after F4.4 task 1. The review assesses that cost plus
+  the quality of the RED evidence and the reviews, and recommends keep or
+  change (for example a medium-effort lead for the final whole-branch
+  review).
