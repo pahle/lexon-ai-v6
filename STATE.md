@@ -1,10 +1,34 @@
 # Project state
 
-Last updated: 2026-11-22 by the brief generator.
+Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-22 (latest): F4.3 Tasks 17-19 left; four parallel sessions; F5 brief in review.**
+**2026-11-23 (latest): F4.4 Hardening 2 brief being written; then F5. One implementer session at a time.**
+
+- **Main:** F0-F4.3 (#55, 84 revision 16 goldens approved); #58 supply chain (Renovate, OSV-Scanner gate, Syft SBOM); #56 Audit 2 (`docs/references/audits/2026-11-audit-2.md`); #57 dev-workflow (Docker-free `test:unit`, build-free typecheck, part of A-11, `chat-fence` race fix); #59 F5 brief.
+- **No implementer session running;** all earlier worktrees removed. Implementer = one Devin session (Opus manager medium, Sonnet implementers high), superpowers flow, fresh session per phase. **Claude weekly quota hit 100% on 2026-11-23: start the F4.4 implementer only after reset.**
+- **Worktrees:** home `lexon-brief-generator`; docs PRs from `lexon-docs` (`git switch -c docs/<topic> origin/main`, Prettier, draft PR). Never touch the shared checkout `lexon-ai-v6` or the implementer's worktree.
+- **Mend Renovate app:** owner installs it. Do not merge Renovate PRs touching the 16 OSV vulnerabilities (F4.4 handles them). After F4.4 item 1 lands, owner makes `osv-scanner` a required check. **OSV allowlist expires 2026-12-22.**
+- **Order: F4.4 -> F5.**
+- **F4.4 scope (owner, 2026-11-23; no UI, no visual rounds, lean):**
+  1. Dependency upgrades first (16 OSV vulns): propagator-jaeger 2.8.0 via sdk-node 0.219.0 (HIGH, fixed 2.9.0); next 16.4.3 (7, fixed 16.4.5); qs 6.15.1 via typed-rest-client 2.3.1 / Stryker (4, fixed 6.16.1); minimatch 9.0.9 + 10.2.6 (fixed 11.0.1); glob 10.5.0 via archiver-utils / testcontainers (fixed 14.0.2); mdast-util-to-hast 13.2.0 override (fixed 13.2.1); esbuild 0.18.20 via drizzle-kit @esbuild-kit (fixed 0.25.0). LEX-TS-001 v1.14 = paired docs PR by me after the spec lists old -> new.
+  2. Tests: B-01, B-06, B-07, B-12, B-13.
+  3. Small fixes: B-03, B-23 (incl. `ORG_STATE_CHANGED`), B-14, B-18, A-11 rest (identity retry loops, pagination schemas, `pgFailure` reads `.cause` first, email normalisation), A-18 leftovers, other B-20 items re-checked.
+  4. Chat perf for F5: B-04, B-05, B-22, B-19.
+  5. CI: B-21 mutation gates (changed paths / schedule).
+  6. Docs (mine, docs PR): B-09, B-15, B-11 (`cn` choice in LEX-TS-001; code change in Polish slice).
+- **Not in F4.4:** Polish slice after F5 (F4.3 UI carry-over list in `F4.3-handoff.md`, app-wide mobile dialog footer = deviation §13 entry 11, B-10, B-11 code, B-16); B-08 -> F17; B-02 -> own brief.
+- **F5:** brief merged (#59). Owner questions open: (1) questions reuse `awaiting_approval` + operation kind (recommended) or new `awaiting_input` (LEX-ARC-001 revision)? (2) holiday calendar one PR per year (recommended)? Prototype revision 17 (small: tool activity row, ask-user card, "Waiting for you", approval card; light/dark, desktop/mobile) approved before planning; `planned` ids in the same PR. Max 2 Linux UI rounds in F5.
+- **Next work, in order:**
+  1. Write F4.4 brief + README row, docs PR, report CI, stop for owner approval.
+  2. After approval: implementer prompt for F4.4 brainstorming/spec (TDD + RED evidence, draft PR from first task, CI per report, never weaken assertions (log old -> new), Docker rule, own worktree).
+  3. While F4.4 runs: ask the two F5 questions, amend F5 brief, draw prototype rev 17, show PNGs, wait.
+  4. Review each F4.4 report (spec, plan, tasks, final review, CI).
+  5. Backlog: plans and entitlements (two stages, F17; owner questions open); CI Docker layer cache; second shard rebalance; F20 burst numbers; F8 cover statement; SSO decision (L14); owner check of ruleset enforcement and bypass list.
+- **Standing rules for prompts:** Docker rule verbatim ("Only touch containers and volumes named `lexon-e2e-*`, by explicit name filter. Never prune. Never touch the unnamed volume `a4699d7d…` or any `lexon-dev_*` volume. If disk space or leftover stacks block a gate, stop and ask me."); own worktree; goldens only from Linux CI, 1.5% gate for app goldens; max 2 Linux UI rounds per area; no model identifiers; report head CI before every merge; `gh pr checks` once per question, no polling.
+
+**2026-11-22: F4.3 Tasks 17-19 left; four parallel sessions; F5 brief in review.** (superseded)
 
 - **Main:** F0-F4.2; F4.3 brief, prototype revision 16, F4.3 spec revision 3 + plan; CI speedups (docs-only fast path, time-balanced E2E shards).
 - **Worktrees:** home = `lexon-brief-generator` (this branch); docs PRs from `lexon-docs` (`git switch -c docs/<topic> origin/main`, Prettier, draft PR). Never touch `lexon-f43-console`, `lexon-dev-workflow`, `lexon-audit-2`, `lexon-supply-chain`, or the shared checkout `lexon-ai-v6` (stays detached at origin/main).
@@ -38,7 +62,7 @@ Last updated: 2026-11-22 by the brief generator.
 - **Backlog:** plans and entitlements (two stages, F17; owner questions open); CI Docker layer cache; second shard rebalance; F20 burst numbers; F8 cover statement; SSO decision (L14); owner check of ruleset enforcement and bypass list.
 - **Standing rules for prompts:** Docker rule verbatim ("Only touch containers and volumes named lexon-e2e-*, by explicit name filter. Never prune. Never touch the unnamed volume a4699d7d… or any lexon-dev_* volume. If disk space or leftover stacks block a gate, stop and ask me."); goldens only from Linux CI, gate 1.5%; max 2 Linux rounds per area; no model identifiers in repo/commits/PRs; always report head CI before a merge.
 
-**2026-11-21 (latest): F4.3 Platform admin console in execution.**
+**2026-11-21: F4.3 Platform admin console in execution.**
 
 - **Where things are:**
   - Brief: `docs/briefs/F4.3-platform-admin-console.md`, decisions 1–9:
