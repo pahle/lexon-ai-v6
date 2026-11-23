@@ -4,7 +4,11 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-24 (latest): F4.4 ready to merge; revision 17 approved; LEX-TS-001 v1.14 and LEX-DS-001 v3.4 written.**
+**2026-11-24 (latest, later): #65 merged (cbb39da6, main green). #69 (test guard follow-up, unblocks #68) flaked in compose-e2e 3/3 (TOTP + setup nav race, unrelated); failed job rerun once. F4.5 Flakes brief PR #70 (owner decision: small slice before F5; TOTP account-security:111/238, platform-setup-open-signup:39/169 nav race, ai-cancel :786/:207). F5 now depends on F4.5.**
+
+- Merge order now: #69 -> I merge main into #68 -> #68 -> implementer merges main into #66 -> #66 -> #67 -> #70. Then F4.5 implementer session (spec+plan in one doc, stop for review; execution session after).
+
+**2026-11-24 (earlier): F4.4 ready to merge; revision 17 approved; LEX-TS-001 v1.14 and LEX-DS-001 v3.4 written.**
 
 - Open PRs: #65 F4.4 deps (19319967, green incl. osv-scanner and chat-sse-load; lockfile reviewed: only listed chains + their own deps); #68 LEX-TS-001 v1.14 (merge with/after #65); #66 F4.4 hardening (01014961, green, run B load 500/500 both modes, zero server closes; must merge main after #65); #67 revision 17 + LEX-DS-001 v3.4 + F5 brief decision 7 (owner approved 2026-11-24).
 - Merge order: #65 -> #68 -> implementer merges main into #66, CI -> #66 -> #67. After #65: owner makes osv-scanner a required check.
