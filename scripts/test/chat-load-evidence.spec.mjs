@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { withOwnedStack } from '../e2e-lifecycle.mjs';
+import { describeChatLoadFailure, withOwnedStack } from '../e2e-lifecycle.mjs';
+import { ChatLoadEvidenceError } from '../chat-load-evidence.mjs';
 import { SYNTHETIC_OBSERVATIONS } from './fixtures/chat-load-observations.mjs';
 
 async function capture(observations, events) {
@@ -392,9 +393,10 @@ test('invalid load observations reject and still tear down the owned stack', asy
 
       assert.deepEqual(events, ['start', 'exercise', 'down', 'remove']);
       assert.ok(failure instanceof Error, `${name} should reject capture`);
-      assert.equal(
+      assert.equal(failure.chatLoadStep, 'validation');
+      assert.match(
         failure.message,
-        'Chat load evidence is incomplete or invalid.',
+        /^Chat load evidence is incomplete or invalid/u,
       );
       assert.doesNotMatch(
         `${failure.name}: ${failure.message}`,
@@ -402,6 +404,73 @@ test('invalid load observations reject and still tear down the owned stack', asy
       );
     });
   }
+});
+
+test('a validation failure reports its step, class and bound name', async () => {
+  const observations = structuredClone(SYNTHETIC_OBSERVATIONS);
+  observations.plateauSamples[3].activeSubscriptions = 499;
+  const { error } = await tryCapture(observations);
+
+  assert.ok(error instanceof ChatLoadEvidenceError);
+  assert.equal(error.chatLoadStep, 'validation');
+  const line = describeChatLoadFailure(error);
+  assert.match(line, /at validation: ChatLoadEvidenceError/u);
+  assert.match(line, /plateauSamples\[3\]\.activeSubscriptions/u);
+});
+
+test('an arbitrary exercise failure reports only its class and step', async () => {
+  const marker = 'marker-canary-9f8e7d6c';
+  const failure = await withOwnedStack({
+    project: 'lexon-e2e-18aabb',
+    directory: '/tmp/lexon-e2e-task18',
+    captureChatLoad: true,
+    async start() {},
+    async exercise() {
+      throw new Error(`boom ${marker}`);
+    },
+    async down() {},
+    async remove() {},
+  }).then(
+    () => undefined,
+    (caught) => caught,
+  );
+
+  assert.equal(failure.chatLoadStep, 'exercise');
+  const line = describeChatLoadFailure(failure);
+  assert.match(line, /at exercise: Error/u);
+  assert.doesNotMatch(line, new RegExp(marker, 'u'));
+});
+
+test('a teardown failure reports only its class and the teardown step', async () => {
+  const marker = 'marker-canary-1a2b3c4d';
+  const failure = await withOwnedStack({
+    project: 'lexon-e2e-18aabb',
+    directory: '/tmp/lexon-e2e-task18',
+    captureChatLoad: true,
+    async start() {},
+    async exercise() {
+      return structuredClone(SYNTHETIC_OBSERVATIONS);
+    },
+    async down() {
+      throw new Error(`boom ${marker}`);
+    },
+    async remove() {},
+  }).then(
+    () => undefined,
+    (caught) => caught,
+  );
+
+  assert.equal(failure.chatLoadStep, 'teardown');
+  const line = describeChatLoadFailure(failure);
+  assert.match(line, /at teardown: Error/u);
+  assert.doesNotMatch(line, new RegExp(marker, 'u'));
+});
+
+test('an untagged error still reports its class with an unknown step', () => {
+  const line = describeChatLoadFailure(new TypeError('marker-canary-5e6f'));
+
+  assert.match(line, /at unknown: TypeError/u);
+  assert.doesNotMatch(line, /marker-canary-5e6f/u);
 });
 
 test('local runner provenance is recorded without requiring an Ubuntu runner', async () => {
