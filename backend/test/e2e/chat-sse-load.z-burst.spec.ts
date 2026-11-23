@@ -157,12 +157,17 @@ async function eachLimited<T>(
 }
 
 type Sse = { open: number | null; peak: number | null };
+type CloseBreakdown = Record<
+  string,
+  Record<string, { total: number; buckets: Record<string, number> }>
+>;
 type Metrics = {
   waitingMax: number | null;
   waitP95Ms: number | null;
   waitCount: number;
   peakRssBytes: number;
   sse: Sse;
+  closeReasons: CloseBreakdown;
 };
 
 test('S2 burst: 500 distinct users are all admitted at the Compose limits', async ({
@@ -404,6 +409,7 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
           authPoolWaitMs: metrics.waitP95Ms === null ? [] : [metrics.waitP95Ms],
           poolWaitingMax: metrics.waitingMax,
           serverPeakOpenSse: metrics.sse.peak,
+          closeReasons: metrics.closeReasons,
         }),
       );
     }

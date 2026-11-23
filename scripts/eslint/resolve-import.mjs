@@ -150,11 +150,12 @@ export function classifyImport({
     target === 'backend/src/infrastructure/db/index.js';
   const authTarget = target?.replace(/\.js$/, '.ts');
   const testSource = source.startsWith('backend/test/');
-  // The burst harness unit test (F4.2 item 27) reads its pure helper module.
-  const burstHarnessTest =
-    source === 'scripts/test/chat-load-burst.spec.mjs' &&
-    target === 'backend/test/load/burst-harness.mjs';
-  if (target?.startsWith('backend/test/') && !testSource && !burstHarnessTest)
+  // Load-harness unit tests (F4.2 item 27, F4.4 close-reason counters) read
+  // the pure helper modules under backend/test/load/.
+  const loadHarnessTest =
+    /^scripts\/test\/chat-load-.+\.spec\.mjs$/u.test(source) &&
+    /^backend\/test\/load\/[^/]+\.mjs$/u.test(target ?? '');
+  if (target?.startsWith('backend/test/') && !testSource && !loadHarnessTest)
     return deny('test-private');
   if (dbPublic && owner === 'backend' && !inDb && !testSource && !typeOnly) {
     if (
