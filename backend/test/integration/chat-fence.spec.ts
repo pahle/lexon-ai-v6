@@ -665,11 +665,13 @@ test('direct run-output SQL waits for deletion then fails without a deadlock or 
     });
     await locked.promise;
     const writer = fixture.startDirectRunOutputWrite(tenant, run.id);
+    // Attach the rejection handler before the fenced write can reject.
+    const writeRejected = expect(writer.done).rejects.toThrow();
     const waiting = await fixture.waitForLockWait(await writer.pid);
     release.resolve();
     await deletion;
     expect(waiting).toBe(true);
-    await expect(writer.done).rejects.toThrow();
+    await writeRejected;
     expect(await fixture.inspect.runs(run.id)).toMatchObject({
       partial_output: '',
       final_output: null,

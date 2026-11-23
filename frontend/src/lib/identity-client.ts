@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import * as contracts from '@lexon/contracts';
 import type { IdentityApi } from '@lexon/contracts';
+import { parseJsonResponse, requestJson } from './request-json';
 export const IDENTITY_FALLBACK_HINT_EVENT =
   'lexon:identity-fallback-hint' as const;
 export type IdentityFallbackReason =
@@ -78,22 +79,16 @@ export function buildIdentityClient(
     method = 'GET',
     body?: unknown,
   ): Promise<T> {
-    let response: Response;
-    try {
-      response = await (options.fetch ?? globalThis.fetch)(base + path, {
+    const response = await requestJson(
+      base + path,
+      {
+        fetch: options.fetch,
         method,
-        credentials: 'same-origin',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000),
-        headers: {
-          ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
-          ...(serverCookie ? { cookie: serverCookie } : {}),
-        },
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-      });
-    } catch {
-      throw new IdentityClientError('AUTH_UNAVAILABLE', 503);
-    }
+        body,
+        headers: serverCookie ? { cookie: serverCookie } : {},
+      },
+      () => new IdentityClientError('AUTH_UNAVAILABLE', 503),
+    );
     if (
       path !== '/identity' &&
       !serverCookie &&
@@ -113,12 +108,11 @@ export function buildIdentityClient(
       }
       throw new IdentityClientError(code, response.status);
     }
-    if (!schema) return undefined as T;
-    try {
-      return schema.parse(await response.json());
-    } catch {
-      throw new IdentityClientError('AUTH_UNAVAILABLE', 503);
-    }
+    return parseJsonResponse(
+      response,
+      schema,
+      () => new IdentityClientError('AUTH_UNAVAILABLE', 503),
+    );
   }
   const withPage = (path: string, input: unknown) => {
     const inputPage = page(input);

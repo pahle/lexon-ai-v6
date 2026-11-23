@@ -11,6 +11,7 @@ import {
   ChatMutationRepository,
   ChatRepository,
   ChatDeletionRepository,
+  isPgUniqueViolation,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -124,7 +125,7 @@ export class ChatBranchService {
           };
         } catch (error) {
           if (
-            isExpectedMutationUniqueViolation(error, [
+            isPgUniqueViolation(error, [
               'chat_messages_pkey',
               'chat_messages_org_id_chat_id_id_key',
               'chat_messages_org_id_run_id_key',
@@ -227,7 +228,7 @@ export class ChatBranchService {
           };
         } catch (error) {
           if (
-            isExpectedMutationUniqueViolation(error, [
+            isPgUniqueViolation(error, [
               'chat_messages_pkey',
               'chat_messages_org_id_chat_id_id_key',
               'chat_messages_org_id_run_id_key',
@@ -259,16 +260,4 @@ export class ChatBranchService {
       },
     );
   }
-}
-
-function isExpectedMutationUniqueViolation(
-  error: unknown,
-  constraints: readonly string[],
-): boolean {
-  const candidate = error as { code?: unknown; constraint?: unknown } | null;
-  return (
-    candidate?.code === '23505' &&
-    typeof candidate.constraint === 'string' &&
-    constraints.includes(candidate.constraint)
-  );
 }
