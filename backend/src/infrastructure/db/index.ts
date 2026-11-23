@@ -125,3 +125,8 @@ export {
   pgFailure,
   type PgFailure,
 } from './pg-failure.js';
+export {
+  isRetryableAuthError,
+  withAuthRetry,
+  type AuthRetryOptions,
+} from './auth-retry.js';

@@ -3,17 +3,36 @@ export interface PgFailure {
   readonly constraint?: string;
 }
 
-/** SQLSTATE code and constraint of a node-postgres error, when present. */
+/**
+ * SQLSTATE code and constraint of a node-postgres error, when present. Walks
+ * the `.cause` chain (bounded at six levels, cycle-safe) and returns the first
+ * level where a `code` or `constraint` is found; the top level still counts.
+ */
 export function pgFailure(error: unknown): PgFailure {
-  if (typeof error !== 'object' || error === null) return {};
-  const { code, constraint } = error as {
-    code?: unknown;
-    constraint?: unknown;
-  };
-  return {
-    ...(typeof code === 'string' ? { code } : {}),
-    ...(typeof constraint === 'string' ? { constraint } : {}),
-  };
+  const seen = new Set<unknown>();
+  let current = error;
+  for (
+    let depth = 0;
+    depth < 6 && current && typeof current === 'object' && !seen.has(current);
+    depth++
+  ) {
+    seen.add(current);
+    const candidate = current as {
+      code?: unknown;
+      constraint?: unknown;
+      cause?: unknown;
+    };
+    const failure = {
+      ...(typeof candidate.code === 'string' ? { code: candidate.code } : {}),
+      ...(typeof candidate.constraint === 'string'
+        ? { constraint: candidate.constraint }
+        : {}),
+    };
+    if (failure.code !== undefined || failure.constraint !== undefined)
+      return failure;
+    current = candidate.cause;
+  }
+  return {};
 }
 
 export function isPgUniqueViolation(

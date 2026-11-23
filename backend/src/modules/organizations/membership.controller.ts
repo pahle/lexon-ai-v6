@@ -10,14 +10,15 @@ import {
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { OrgRoleSchema, UuidSchema } from '@lexon/contracts';
+import {
+  OrgRoleSchema,
+  PaginationQuerySchema,
+  UuidSchema,
+} from '@lexon/contracts';
 import { currentVerifiedIdentity } from '../identity-access/index.js';
 import { MembershipService } from './membership.service.js';
 const roleSchema = z.strictObject({ role: OrgRoleSchema });
-const querySchema = z.strictObject({
-  limit: z.coerce.number().optional(),
-  cursor: UuidSchema.optional(),
-});
+const querySchema = PaginationQuerySchema;
 @Controller('organizations/:organizationId')
 export class MembershipController {
   constructor(private readonly memberships: MembershipService) {}

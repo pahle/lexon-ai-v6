@@ -8,12 +8,12 @@ import {
   Query,
   HttpCode,
 } from '@nestjs/common';
-import { z } from 'zod';
 import {
   CreateOrganizationInputSchema,
   OrganizationSettingsInputSchema,
   UuidSchema,
   ActiveOrganizationInputSchema,
+  PaginationQuerySchema,
 } from '@lexon/contracts';
 import {
   currentVerifiedIdentity,
@@ -22,12 +22,7 @@ import {
 import { OrganizationService } from './organization.service.js';
 import { OrganizationSwitchService } from './organization-switch.service.js';
 
-const querySchema = z
-  .object({
-    limit: z.coerce.number().optional(),
-    cursor: UuidSchema.optional(),
-  })
-  .strict();
+const querySchema = PaginationQuerySchema;
 @Controller('organizations')
 export class OrganizationController {
   constructor(

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import {
   ProvisioningInputSchema,
   EmailAddressSchema,
+  PaginationQuerySchema,
   UuidSchema,
 } from '@lexon/contracts';
 import {
@@ -20,10 +21,7 @@ import {
   currentVerifiedIdentity,
 } from '../identity-access/index.js';
 import { ProvisioningService } from './provisioning.service.js';
-const querySchema = z.strictObject({
-  limit: z.coerce.number().optional(),
-  cursor: UuidSchema.optional(),
-});
+const querySchema = PaginationQuerySchema;
 const ownerSchema = z.strictObject({ ownerEmail: EmailAddressSchema });
 @Controller('platform/provisioning')
 @PlatformRoute()

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { normalizeEmail } from '@lexon/contracts';
 import { IdentityError } from './identity-error.js';
 
 export interface SignupFacts {
@@ -43,7 +44,7 @@ export class SignupPolicy {
     accountInvitationToken?: string;
   }): Promise<void> {
     if (this.options.openSignup) return;
-    const email = input.email.trim().toLowerCase();
+    const email = normalizeEmail(input.email);
     const useAccountInvitation =
       !!input.accountInvitationToken &&
       !input.invitationId &&
@@ -68,7 +69,8 @@ export class SignupPolicy {
     const invitation = facts.invitation;
     if (
       input.invitationId &&
-      invitation?.email.trim().toLowerCase() === email &&
+      invitation &&
+      normalizeEmail(invitation.email) === email &&
       invitation.status === 'pending' &&
       Date.parse(invitation.expiresAt) > Date.now() &&
       ((invitation.purpose === 'team' &&
@@ -89,13 +91,12 @@ export class SignupPolicy {
         value = null;
       }
       const grant = setupGrant.safeParse(value);
-      if (grant.success && grant.data.email.trim().toLowerCase() === email)
-        return;
+      if (grant.success && normalizeEmail(grant.data.email) === email) return;
     }
     if (
       useAccountInvitation &&
       facts.accountInvitation?.usable === true &&
-      facts.accountInvitation.email.trim().toLowerCase() === email
+      normalizeEmail(facts.accountInvitation.email) === email
     )
       return;
     throw new IdentityError('AUTH_REQUIRED', 401);

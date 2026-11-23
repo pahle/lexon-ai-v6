@@ -13,6 +13,7 @@ import {
   ExistingPasswordSchema,
   TotpInputSchema,
   RecoveryCodeInputSchema,
+  normalizeEmail,
 } from '@lexon/contracts';
 import type {
   AuthIntegration,
@@ -137,7 +138,7 @@ export interface AuthHttpPolicyDependencies {
 export function emailLimitKey(secret: string, email: string): string {
   return createHmac('sha256', secret)
     .update('lexon.auth.limit.email.v1\0')
-    .update(email.trim().toLowerCase())
+    .update(normalizeEmail(email))
     .digest('hex');
 }
 async function readBody(request: Request): Promise<unknown> {
