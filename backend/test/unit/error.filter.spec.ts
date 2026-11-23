@@ -1,7 +1,10 @@
+import { Writable } from 'node:stream';
 import { BadRequestException, HttpException } from '@nestjs/common';
+import { pino } from 'pino';
 import { describe, expect, test, vi } from 'vitest';
 import { SafeErrorFilter } from '../../src/modules/platform/error.filter.js';
 import { IdentityError } from '../../src/modules/identity-access/identity-error.js';
+import { createLoggingOptions } from '../../src/infrastructure/telemetry/logging.js';
 
 function run(error: unknown, path?: string) {
   const json = vi.fn();
@@ -181,5 +184,100 @@ describe('SafeErrorFilter outage routing (P2)', () => {
     );
     expect(result.status).toBe(503);
     expect(result.body.error.code).toBe('AUTH_UNAVAILABLE');
+  });
+});
+
+describe('SafeErrorFilter http_request_failed record (B-18)', () => {
+  function runLogged(error: unknown, logger: { warn: (r: object) => void }) {
+    const json = vi.fn();
+    const status = vi.fn((code: number) => ({ json, code }));
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({ id: 'req-1' }),
+        getResponse: () => ({ status, getHeader: () => undefined }),
+      }),
+    };
+    new SafeErrorFilter(logger as never).catch(error, host as never);
+    return status.mock.calls[0]![0] as number;
+  }
+
+  test('a 5xx logs code and errorKind, never message or stack content', () => {
+    const warn = vi.fn();
+    const status = runLogged(
+      Object.assign(new Error('MARKER-7f3a'), { cause: { code: '42P01' } }),
+      { warn },
+    );
+    expect(status).toBe(500);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const record = warn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(record).toMatchObject({
+      event: 'http_request_failed',
+      code: 'INTERNAL_ERROR',
+      errorKind: 'Error:42P01',
+    });
+    const serialized = JSON.stringify(record);
+    expect(serialized).not.toContain('MARKER-7f3a');
+    expect(serialized).not.toMatch(/stack|message/i);
+  });
+
+  test('a 5xx without a pg cause still logs the constructor name', () => {
+    const warn = vi.fn();
+    runLogged(new RangeError('MARKER-7f3a'), { warn });
+    const record = warn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(record).toMatchObject({
+      code: 'INTERNAL_ERROR',
+      errorKind: 'RangeError',
+    });
+  });
+
+  test('a thrown object without a readable constructor name degrades to Unknown', () => {
+    const warn = vi.fn();
+    runLogged(Object.create(null) as object, { warn });
+    const record = warn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(record).toMatchObject({
+      code: 'INTERNAL_ERROR',
+      errorKind: 'Unknown',
+    });
+  });
+
+  test('a 4xx logs code and no errorKind', () => {
+    const warn = vi.fn();
+    const status = runLogged(new HttpException('MARKER-7f3a', 404), { warn });
+    expect(status).toBe(404);
+    const record = warn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(record).toMatchObject({
+      event: 'http_request_failed',
+      code: 'NOT_FOUND',
+    });
+    expect(record).not.toHaveProperty('errorKind');
+  });
+
+  test('the serialized log line carries code and errorKind with no marker or stack', () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk, _encoding, done) {
+        lines.push(String(chunk));
+        done();
+      },
+    });
+    const params = createLoggingOptions('api');
+    const options = params.pinoHttp;
+    if (!options || Array.isArray(options))
+      throw new Error('expected pino options');
+    const logger = pino(options, sink);
+    runLogged(
+      Object.assign(new Error('MARKER-7f3a'), { cause: { code: '42P01' } }),
+      { warn: (record) => logger.warn(record) },
+    );
+    expect(lines).toHaveLength(1);
+    const line = JSON.parse(lines[0]!) as Record<string, unknown>;
+    expect(line).toMatchObject({
+      event: 'http_request_failed',
+      code: 'INTERNAL_ERROR',
+      errorKind: 'Error:42P01',
+    });
+    const output = lines.join('');
+    expect(output).not.toContain('MARKER-7f3a');
+    expect(output).not.toMatch(/stack|SELECT/i);
   });
 });

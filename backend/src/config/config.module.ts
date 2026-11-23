@@ -1,4 +1,4 @@
-import { Module, type DynamicModule } from '@nestjs/common';
+import { Global, Module, type DynamicModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import {
   loadRuntimeConfig,
@@ -8,6 +8,9 @@ import {
 
 export const RUNTIME_CONFIG = Symbol('RuntimeConfig');
 
+// The validated runtime config is the application's one configuration object;
+// any module may inject RUNTIME_CONFIG instead of reading process.env.
+@Global()
 @Module({})
 export class RuntimeConfigModule {
   static forConfig(config: RuntimeConfig): DynamicModule {

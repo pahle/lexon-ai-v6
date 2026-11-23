@@ -5,6 +5,10 @@ import type { Options } from 'pino-http';
 import type { RuntimeName } from '../../config/runtime-config.js';
 
 const identifier = /^[a-zA-Z0-9_-]{1,128}$/;
+// Response codes are the declared contract enum; errorKind is a class name
+// plus an optional driver code (SQLSTATE or ECONNREFUSED-style), never text.
+const contractCode = /^[A-Z][A-Z0-9_]*$/;
+const errorKindField = /^[A-Za-z_$][\w$]{0,63}(?::[0-9A-Z]{1,16})?$/;
 const events = new Set([
   'job_processed',
   'http_request_failed',
@@ -95,6 +99,13 @@ export function createLoggingOptions(
           }
           if (typeof object.event === 'string' && events.has(object.event))
             safe.event = object.event;
+          if (typeof object.code === 'string' && contractCode.test(object.code))
+            safe.code = object.code;
+          if (
+            typeof object.errorKind === 'string' &&
+            errorKindField.test(object.errorKind)
+          )
+            safe.errorKind = object.errorKind;
           if (
             typeof object.responseTime === 'number' &&
             Number.isFinite(object.responseTime)
@@ -134,6 +145,13 @@ export function createLoggingOptions(
           }
           if (typeof record.event === 'string' && events.has(record.event))
             safe.event = record.event;
+          if (typeof record.code === 'string' && contractCode.test(record.code))
+            safe.code = record.code;
+          if (
+            typeof record.errorKind === 'string' &&
+            errorKindField.test(record.errorKind)
+          )
+            safe.errorKind = record.errorKind;
           if (typeof record.responseTime === 'number')
             safe.responseTime = record.responseTime;
           if (Array.isArray(record.fields))

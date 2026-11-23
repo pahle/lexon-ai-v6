@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { Module } from '@nestjs/common';
+import { RUNTIME_CONFIG } from '../../config/config.module.js';
+import type { RuntimeConfig } from '../../config/runtime-config.js';
 import { ModelAllowlistSchema } from './model-allowlist.js';
 import { createMcpClient } from './mcp-client.js';
 import { createOpenRouterProvider } from './openrouter-provider.js';
@@ -37,12 +39,13 @@ export const MODEL_GATEWAY = Symbol('ModelGateway');
     },
     {
       provide: MODEL_GATEWAY,
-      inject: [MODEL_ALLOWLIST],
-      useFactory: (allowlist: unknown) =>
+      inject: [MODEL_ALLOWLIST, RUNTIME_CONFIG],
+      useFactory: (allowlist: unknown, config: RuntimeConfig) =>
         createRealModelGateway({
           allowlist,
-          key: process.env.OPENROUTER_API_KEY,
-          attestation: process.env.LEXON_OPENROUTER_ZDR_ONLY_VERIFIED,
+          key: 'ai' in config ? config.ai.openRouterApiKey : undefined,
+          attestation:
+            'ai' in config ? config.ai.openRouterZdrOnlyVerified : undefined,
         }),
     },
   ],
