@@ -4,7 +4,14 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-23 (latest, later): F4.4 spec session running; F5 answers in PR #63; prototype revision 17 PAUSED.**
+**2026-11-24 00:25 WIB (latest): F4.4 near done; prototype revision 17 drawn (PR #67, draft, awaiting owner approval).**
+
+- F4.4: #65 deps (step B: typescript-eslint 8.73.0 eligible from 2026-11-23 17:08 UTC; then my review + LEX-TS-001 v1.14 docs PR); #66 tasks 2-13 done and final-reviewed by me (I-1 pgFailure, I-2 compose logs, M-1, M-2 fixed); load check: run B (health-bucket race fix) pending; if it fails -> owner-approved deviation carried to B-02 brief. Merge order: #65 + v1.14, merge main into #66, CI, #66. Backlog flakes: account-security TOTP (73/74), ai-cancel.spec.ts. Burst auth-pool wait p95 3488 ms vs F4.2 2488 ms -> B-02/F20.
+- Implementer twice mis-stated the clock; run B and step B prompts make it check `date -u`.
+- SWE-2 max trial (owner, not recorded as policy): good tests/RED; misses caught only by my diff review. Recommendation for F5: Fusion for brainstorming/spec/plan, SWE-2 max for execution with per-task diff review.
+- Prototype revision 17 (PR #67): 12 states x 4 variants, `planned` ids in the same PR; README lead line still revision 16 (PROTOTYPE_REVISION=16 in scripts; F5 slice bumps both). Review sheets in /tmp/proto17/review/. After approval: LEX-DS-001 v3.4 (tool row, question card, approval card, waiting marker patterns).
+
+**2026-11-23 (later): F4.4 spec session running; F5 answers in PR #63; prototype revision 17 PAUSED.**
 
 - **PR #63** (F5 brief: decisions 5 question = `awaiting_approval` + operation kind, 6 yearly calendar PR + CI guard failing within 90 days of the last covered year; open questions closed; depends on F4.4; visual criterion = sheets by eye, max 2 Linux UI rounds): draft, CI green on head 2d9640ee. Owner merges.
 - **Prototype revision 17 paused by the owner until F4.4 reaches its final review.** Planned 12 states x 4 variants: tool activity row (collapsed, expanded, running, failed); question card (pending with "Waiting for you" + Recent marker, answered, dismissed); approval card (pending, approved, rejected, expired); Chats page with the waiting marker. Toolkit check done (Playwright 1.64.1 in a scratch folder works with the cached Chromium). LEX-DS-001 has no tool/approval pattern yet: add one (v3.4) with the approved revision 17.
