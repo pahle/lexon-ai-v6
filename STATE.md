@@ -4,7 +4,9 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-23 (latest): F4.4 Hardening 2 brief being written; then F5. One implementer session at a time.**
+**2026-11-23 (latest): F4.4 brief merged (#62, 6b7bf7df, decisions 1-9); superpowers skills vendored (#61, 817f0152; both PR heads green before merge). Next: owner starts the F4.4 brainstorming/spec session (prompt in this session's reply; Fusion via /fusion, after quota reset). Main CI on 817f0152 was still running at merge time: check it once before the next merge. Worktree `lexon-superpowers-skill` removed; `lexon-docs` detached at origin/main.**
+
+**2026-11-23 F4.4 Hardening 2 brief being written; then F5. One implementer session at a time.**
 
 - **Main:** F0-F4.3 (#55, 84 revision 16 goldens approved); #58 supply chain (Renovate, OSV-Scanner gate, Syft SBOM); #56 Audit 2 (`docs/references/audits/2026-11-audit-2.md`); #57 dev-workflow (Docker-free `test:unit`, build-free typecheck, part of A-11, `chat-fence` race fix); #59 F5 brief.
 - **No implementer session running;** all earlier worktrees removed. Implementer = one Devin session in **Fusion (frontier lead + SWE-2 sidekick)**, superpowers flow, fresh session per phase. **Claude weekly quota hit 100% on 2026-11-23: start the F4.4 implementer only after reset.**
