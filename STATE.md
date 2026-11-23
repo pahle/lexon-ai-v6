@@ -4,7 +4,13 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-23 (latest): F4.4 brief merged (#62, 6b7bf7df, decisions 1-9); superpowers skills vendored (#61, 817f0152; both PR heads green before merge). Next: owner starts the F4.4 brainstorming/spec session (prompt in this session's reply; Fusion via /fusion, after quota reset). Main CI on 817f0152 was still running at merge time: check it once before the next merge. Worktree `lexon-superpowers-skill` removed; `lexon-docs` detached at origin/main.**
+**2026-11-23 (latest, later): F4.4 spec session running; F5 answers in PR #63; prototype revision 17 PAUSED.**
+
+- **PR #63** (F5 brief: decisions 5 question = `awaiting_approval` + operation kind, 6 yearly calendar PR + CI guard failing within 90 days of the last covered year; open questions closed; depends on F4.4; visual criterion = sheets by eye, max 2 Linux UI rounds): draft, CI green on head 2d9640ee. Owner merges.
+- **Prototype revision 17 paused by the owner until F4.4 reaches its final review.** Planned 12 states x 4 variants: tool activity row (collapsed, expanded, running, failed); question card (pending with "Waiting for you" + Recent marker, answered, dismissed); approval card (pending, approved, rejected, expired); Chats page with the waiting marker. Toolkit check done (Playwright 1.64.1 in a scratch folder works with the cached Chromium). LEX-DS-001 has no tool/approval pattern yet: add one (v3.4) with the approved revision 17.
+- **F4.4 implementer question answered (dev-only chains):** override all four, scoped `parent>child`: `typed-rest-client>qs` (Stryker 10.1.1 pins typed-rest-client ~2.3.0 -> qs 6.15.1), `archiver-utils>glob` (testcontainers 12.2.x -> archiver ^7 -> archiver-utils 5 -> glob ^10), the ESLint parents of minimatch (>= 11.0.1), `@esbuild-kit/core-utils>esbuild` (drizzle-kit itself uses ^0.25.4). Each guard proves the feature works (Stryker dry run, Testcontainers directory copy, ESLint fixture fails in a linted path and passes in an ignored one + same file count, drizzle-kit command). A failing guard stops for the owner; allowlist only with owner approval; the allowlist ends empty.
+
+**2026-11-23: F4.4 brief merged (#62, 6b7bf7df, decisions 1-9); superpowers skills vendored (#61, 817f0152; both PR heads green before merge). Next: owner starts the F4.4 brainstorming/spec session (prompt in this session's reply; Fusion via /fusion, after quota reset). Main CI on 817f0152 was still running at merge time: check it once before the next merge. Worktree `lexon-superpowers-skill` removed; `lexon-docs` detached at origin/main.**
 
 **2026-11-23 F4.4 Hardening 2 brief being written; then F5. One implementer session at a time.**
 
