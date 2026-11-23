@@ -22,7 +22,7 @@ overrides:
   micromark: 4.0.2
   mdast-util-gfm: 3.1.0
   micromark-extension-gfm: 3.0.0
-  mdast-util-to-hast: 13.2.0
+  mdast-util-to-hast: 13.2.1
   hast-util-to-jsx-runtime: 2.3.6
   vfile: 6.0.3
   classnames: 2.5.1
@@ -31,6 +31,21 @@ overrides:
   '@radix-ui/react-primitive': 2.2.0
   typescript: 6.0.3
   zod: 4.6.7
+  # GHSA-4mjr/-6pq8/-q8mj/-x5fp: typed-rest-client 2.3.1 (Stryker 10.1.1) pins qs 6.15.1.
+  # Guard: `pnpm --filter @lexon/backend exec stryker run stryker.identity.config.mjs --dryRunOnly` exits 0 with the baseline 218 mutants.
+  'typed-rest-client>qs': 6.16.1
+  # GHSA-3g3m: archiver-utils 5.0.2 (testcontainers copy) requires glob at module load and resolves 10.5.0.
+  # Guard: backend/test/integration/testcontainers-copy.spec.ts — a host directory copied into a container and read back, plus the resolved glob exporting a callable sync.
+  'archiver-utils>glob': 14.0.6
+  # GHSA-g3hv: @stryker-mutator/core 10.1.1 pins minimatch ~10.2.4; stryker core loads its own minimatch during file enumeration.
+  # Guard: `pnpm --filter @lexon/backend exec stryker run stryker.identity.config.mjs --dryRunOnly` exits 0 with the baseline 218 mutants.
+  '@stryker-mutator/core>minimatch': 11.0.8
+  # GHSA-g3hv: @ts-morph/common 0.27.0 (ts-morph 26 via shadcn 4.23.0) accepts minimatch ^10.0.1; ts-morph's in-memory file globs route through its getPathMatchesPattern -> minimatch. Only the shadcn CLI loads it.
+  # Guard: scripts/test/ts-morph-glob.spec.mjs — a getSourceFiles('a-*') in-memory glob returns only a-match.ts. Secondary: `pnpm why -r minimatch` resolves 11.0.8, nothing in 7.0.0–11.0.0.
+  '@ts-morph/common>minimatch': 11.0.8
+  # GHSA-67mh: @esbuild-kit/core-utils 3.3.2 (@esbuild-kit/esm-loader via drizzle-kit 0.31.11) pins esbuild ~0.18.20.
+  # Guard: `pnpm --filter @lexon/backend exec drizzle-kit check` exits 0 with unchanged output.
+  '@esbuild-kit/core-utils>esbuild': 0.25.12
 onlyBuiltDependencies:
   - '@nestjs/core'
   - esbuild
