@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { readdir, readFile } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
   CLOSE_ELAPSED_BUCKETS,
@@ -7,6 +10,8 @@ import {
   closeElapsedBucket,
   createCloseCounters,
 } from '../../backend/test/load/close-counters.mjs';
+
+const root = fileURLToPath(new URL('../..', import.meta.url));
 
 test('close reason buckets cover the F4.4 diagnosis contract', () => {
   assert.deepEqual([...CLOSE_KINDS].sort(), ['invalidation', 'run']);
@@ -166,4 +171,41 @@ test('a close without a recorded owner still counts but never attributes', () =>
   counters.begin(0);
   counters.recordClose({ kind: 'run', reason: 'revoked', nowMs: 50 });
   assert.equal(counters.snapshot().run.revokedOther.total, 1);
+});
+
+test('every local module the load api imports is mounted into the api container', async () => {
+  const apiMain = await readFile(
+    join(root, 'backend/test/e2e/chat-load-api-main.mjs'),
+    'utf8',
+  );
+  // The api image carries no backend/test/: every helper reaches the
+  // container through a compose overlay mount or an e2e.mjs env binding
+  // (IDENTITY_TEST_ENTRY_PATH style).
+  const compose = (
+    await Promise.all(
+      (await readdir(join(root, 'backend/test/e2e')))
+        .filter((name) => /^compose\..+\.yml$/u.test(name))
+        .map((name) => readFile(join(root, 'backend/test/e2e', name), 'utf8')),
+    )
+  ).join('\n');
+  const e2eRunner = await readFile(join(root, 'scripts/e2e.mjs'), 'utf8');
+  const relativeImports = [
+    ...apiMain.matchAll(/from '(\.{1,2}\/[^']+\.mjs)'/gu),
+    ...apiMain.matchAll(/import\('(\.{1,2}\/[^']+\.mjs)'\)/gu),
+  ].map((match) => match[1]);
+  assert.ok(relativeImports.length > 0);
+  for (const specifier of relativeImports) {
+    const repoPath = relative(
+      root,
+      resolve(root, 'backend/test/e2e', specifier),
+    )
+      .split(sep)
+      .join('/');
+    const mounted =
+      compose.includes(`./${repoPath}:`) || e2eRunner.includes(`'${repoPath}'`);
+    assert.ok(
+      mounted,
+      `no overlay mount or env binding ships ${repoPath} to the api container`,
+    );
+  }
 });
