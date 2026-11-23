@@ -17,7 +17,7 @@ const stepPayloadSchema = z.strictObject({
   sequence: z.number().int().positive().safe(),
   expectedVersion: z.number().int().positive().safe(),
 });
-const schema = z.discriminatedUnion('type', [
+export const JobEnvelopeSchema = z.discriminatedUnion('type', [
   z.strictObject({
     outboxId: z.uuid(),
     type: z.literal('platform.noop.v1'),
@@ -106,7 +106,7 @@ export function isRunStepJob(job: JobEnvelope): job is RunStepJobEnvelope {
 }
 
 export function parseJobEnvelope(input: unknown): JobEnvelope {
-  const result = schema.safeParse(input);
+  const result = JobEnvelopeSchema.safeParse(input);
   // Zod issues can contain input values. Never expose them for queue metadata.
   if (!result.success) throw new Error('Invalid job envelope');
   const { outboxId, type, ctx } = result.data;

@@ -82,6 +82,7 @@ export {
   isJobQueue,
   parseJobEnvelope,
   isRunStepJob,
+  JobEnvelopeSchema,
   type JobQueue,
   type JobEnvelope,
   type RunStepJobEnvelope,

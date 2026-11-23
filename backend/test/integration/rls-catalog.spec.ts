@@ -1,5 +1,6 @@
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
+import { createPlatformPools } from '../../src/infrastructure/db/testing/platform-console-fixture.js';
 import { createAiFixture } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import {
   AiOperationRepository,
@@ -17,6 +18,47 @@ test('every app table has row-level security enabled and forced', async ({
     expect(await inspect.unfencedTables()).toEqual([]);
   } finally {
     await inspect.close();
+  }
+});
+
+// B-07: nothing but tables may live in `app` — a view bypasses RLS checks.
+test('the app schema holds no views or materialized views', async ({
+  services,
+}) => {
+  const inspect = createRlsInspector(services);
+  try {
+    expect(await inspect.appViews()).toEqual([]);
+  } finally {
+    await inspect.close();
+  }
+});
+
+// B-07: the catalog checks must not be vacuous — a partitioned table is a
+// table (it can carry relrowsecurity) and must be fenced like the rest, and a
+// view must trip the view guard. Both probes are rolled back.
+test('the catalog catches a probe partitioned table and a probe view', async ({
+  services,
+}) => {
+  const inspect = createRlsInspector(services);
+  const pools = createPlatformPools(services);
+  const client = await pools.migrator.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'CREATE TABLE app.f44_probe_p (id int NOT NULL, org_id uuid NOT NULL) PARTITION BY LIST (org_id)',
+    );
+    await client.query('CREATE VIEW app.f44_probe_v AS SELECT 1');
+    // Same client: the probes are only visible inside this transaction.
+    expect(await inspect.unfencedTables(client)).toContain('f44_probe_p');
+    expect(await inspect.appViews(client)).toContainEqual({
+      relname: 'f44_probe_v',
+      relkind: 'v',
+    });
+    await client.query('ROLLBACK');
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    client.release();
+    await Promise.all([inspect.close(), pools.close()]);
   }
 });
 

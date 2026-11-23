@@ -1,4 +1,7 @@
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
+
+/** A pool or a single client (for in-transaction catalog probes). */
+type Queryable = Pick<PoolClient, 'query'>;
 
 /** A-17 catalog and no-context checks over every table in the app schema. */
 export function createRlsInspector(options: {
@@ -43,15 +46,24 @@ export function createRlsInspector(options: {
     }
   };
   return {
-    async unfencedTables() {
+    async unfencedTables(queryable: Queryable = migrator) {
       return (
-        await migrator.query<{ relname: string }>(
+        await queryable.query<{ relname: string }>(
           `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-           WHERE n.nspname='app' AND c.relkind='r'
+           WHERE n.nspname='app' AND c.relkind IN ('r','p')
              AND NOT (c.relrowsecurity AND c.relforcerowsecurity)
            ORDER BY c.relname`,
         )
       ).rows.map((row) => row.relname);
+    },
+    /** B-07: views and materialized views in `app` (they bypass RLS). */
+    async appViews(queryable: Queryable = migrator) {
+      return (
+        await queryable.query<{ relname: string; relkind: string }>(
+          `SELECT c.relname, c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+           WHERE n.nspname='app' AND c.relkind IN ('v','m') ORDER BY c.relname`,
+        )
+      ).rows;
     },
     async runIds() {
       return (
@@ -64,7 +76,7 @@ export function createRlsInspector(options: {
       return (
         await migrator.query(
           `SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-           WHERE n.nspname='app' AND c.relkind='r'`,
+           WHERE n.nspname='app' AND c.relkind IN ('r','p')`,
         )
       ).rowCount;
     },
@@ -77,7 +89,7 @@ export function createRlsInspector(options: {
       const tables = (
         await migrator.query<{ relname: string }>(
           `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-           WHERE n.nspname='app' AND c.relkind='r' ORDER BY c.relname`,
+           WHERE n.nspname='app' AND c.relkind IN ('r','p') ORDER BY c.relname`,
         )
       ).rows.map((row) => row.relname);
       const result: Record<string, { withContext: number; noContext: number }> =
@@ -109,7 +121,7 @@ export function createRlsInspector(options: {
         const tables = (
           await migrator.query<{ relname: string }>(
             `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-             WHERE n.nspname='app' AND c.relkind='r' ORDER BY c.relname`,
+             WHERE n.nspname='app' AND c.relkind IN ('r','p') ORDER BY c.relname`,
           )
         ).rows.map((row) => row.relname);
         let progressed = false;
