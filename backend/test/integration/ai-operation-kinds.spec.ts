@@ -199,7 +199,17 @@ test('backfilled rows carry created_at + 24h and are indexed', async ({
     });
     expect(row).toEqual({ kind: 'approval', backfilled: true });
     await ai.withTenantSession(0, async (tx, client) => {
-      await client.query('SET LOCAL enable_seqscan=off');
+      // Pin the plan space to index-only paths: on a near-empty table the
+      // planner is free to satisfy ORDER BY via another index + sort (and
+      // clock_timestamp() is volatile, so it is a filter, not a scan key) —
+      // disabling seq/bitmap/sort makes ai_operations_expiry_idx the only
+      // ordering provider, which is what this assertion is about.
+      await client.query(
+        `SET LOCAL enable_seqscan=off;
+         SET LOCAL enable_bitmapscan=off;
+         SET LOCAL enable_sort=off;
+         SET LOCAL enable_incremental_sort=off`,
+      );
       const explained = await client.query<{
         'QUERY PLAN': [{ Plan: PlanNode }];
       }>(
