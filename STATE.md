@@ -4,6 +4,8 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
+**2026-11-24 (F4.5 plan re-review): #72 head ee42c29c fixes all five points (diff checked; rate-limit claim matches scripts/e2e.mjs:121-138; signup/setup-redemption 600 s windows not discussed but the local 20x dry run covers them). Plan approved pending green CI (unit-integration was still pending at check). Execution prompt given to owner: same branch/PR, three stop points (before first push after task 5 with local evidence; after chat-sse-load run 1 naming the close reason; final).**
+
 **2026-11-24 (F4.5 plan review): #71 merged by me (172cff1f, all checks green). F4.5 plan = PR #72 (head 51f15738), doc docs/superpowers/specs/2026-11-24-f4.5-flakes.md. Verdict: approve with 5 fixes (sent to implementer as one prompt): (1) unit-integration fails on Prettier - assertion-log row broken by an unescaped `|` in the toHaveURL regex; implementer's "Prettier applied" claim was false; (2) local 20x dry run of each flake-round leg on one kept stack before dispatch (protects the 2-dispatch cap; rate-limit check for 20 sign-ins/TOTP); (3) item 4 exactly-once dedupe between service-reason recordClose and writableFinished classification; drain barrier fails loudly with the missing count; (4) item 3 wording "sufficient mechanism" (CI shows no deadline evidence) and 250->2000 logged as a timeout margin with cause; (5) no push between task 1 and task 5 completion. Checked: test names for -t/-g match; open-signup uses `additional` so unique emails make it repeatable; identity-browser trace is off (playwright.config.ts).**
 
 - Next: implementer fixes #72, checks CI once; I re-review; then execution prompt (fresh session).
