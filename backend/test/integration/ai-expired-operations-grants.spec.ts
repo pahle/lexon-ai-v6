@@ -141,30 +141,28 @@ test('lexon_auth, lexon_setup and an ungranted role are denied', async ({
     .digest('hex');
   const guestPassword = createHash('sha256')
     .update(new URL(services.migratorUrl).password)
-    .update('lexon.spec.guest')
+    .update('spec.guest')
     .digest('hex');
   try {
     await migrator.connect();
     await migrator.query(`ALTER ROLE lexon_setup PASSWORD '${setupPassword}'`);
     await migrator.query(
-      `DROP ROLE IF EXISTS lexon_spec_guest;
-       CREATE ROLE lexon_spec_guest LOGIN PASSWORD '${guestPassword}'`,
+      `DROP ROLE IF EXISTS spec_guest;
+       CREATE ROLE spec_guest LOGIN PASSWORD '${guestPassword}'`,
     );
     // Schema USAGE keeps the probe honest: the denial must come from the
     // function grant, not the schema.
     await migrator.query(
-      'GRANT USAGE ON SCHEMA app TO lexon_auth, lexon_setup, lexon_spec_guest',
+      'GRANT USAGE ON SCHEMA app TO lexon_auth, lexon_setup, spec_guest',
     );
     await denied(services.authUrl);
     await denied(roleUrl(services.migratorUrl, 'lexon_setup', setupPassword));
-    await denied(
-      roleUrl(services.migratorUrl, 'lexon_spec_guest', guestPassword),
-    );
+    await denied(roleUrl(services.migratorUrl, 'spec_guest', guestPassword));
   } finally {
     await migrator
       .query(
         `REVOKE USAGE ON SCHEMA app FROM lexon_auth, lexon_setup;
-         DROP ROLE IF EXISTS lexon_spec_guest`,
+         DROP ROLE IF EXISTS spec_guest`,
       )
       .catch(() => undefined);
     await migrator.end();
