@@ -4,7 +4,7 @@
 |---|---|
 | **Depends on** | F4.5 (flakes, merged), F4.4 (hardening 2: chat poll and stream groundwork), F4.3 (merged), F3 (engine contracts), F4 (chat) |
 | **Architecture** | [LEX-ARC-001](../specs/LEXON-02-SYSTEM-ARCHITECTURE.md) §4.1 step 8 (approval pause and resume), §4.7 (tool provider, capability policy), §5.1 (prompt injection) |
-| **Design system** | [LEX-DS-001 v3.4](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat: tool rows, waiting marker, docked panels, decision records), §5.4 (labels) |
+| **Design system** | [LEX-DS-001 v3.5](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat: tool rows, waiting marker, docked panels, decision records), §5.4 (labels) |
 | **Visual target** | `docs/design/f4.1-prototype/` revision 17 (to be drawn and approved before planning; its new states enter `index.json` `planned` in the same PR) |
 
 ## Goal
@@ -48,11 +48,20 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 7. **Interaction model for tools, questions and approvals:**
    - **Tool rows follow text.** The assistant writes at least one sentence before a tool row; a row never sits directly under the thinking header. A row is one plain muted line (icon, what the tool did with its key result, chevron), with no border. Expanded, it shows the input and the result as readable fields, never raw JSON.
    - **A pending question or approval is a panel docked above the composer**, not a card in the thread. The thread shows the assistant's text and the "Waiting for you" marker.
-   - **Question panel:** one `ask_user` call carries 1–3 questions. With several, the panel's top right shows Previous, "n of N", Next and the close button; each question has a "Skip this question" action, and the answers are sent together after the last one. Each question shows the options as numbered rows (a label and an optional one-line description; one click answers), a "Write another answer" row for free text, the expiry time, and "Answer in chat instead" (also the close button).
+   - **Question panel:** one `ask_user` call carries 1–5 questions (decision 8). With several, the panel's top right shows Previous, "n of N", Next and the close button; each question has a "Skip this question" action, and the answers are sent together after the last one. Each question shows the options as numbered rows (a label and an optional one-line description; one click answers), a "Write another answer" row for free text, the expiry time, and "Answer in chat instead" (also the close button).
    - **Approval panel:** what Lexon wants to do, the details as fields (current and new title), Reject, Approve, and the expiry time. Approve needs a click or Ctrl+Enter; Enter alone never approves.
    - **After a decision, a compact record stays in the thread:** answered or dismissed questions as a small box (each question, then its answer, "Skipped", or "Answered in chat"); an approval as one muted line like a tool row ("Renamed this chat", "You rejected the rename", "Rename expired after 24 hours"), expandable to its fields.
    - **Non-outcomes are red:** a failed tool row, a rejected approval and an expired approval or question use the `red-text` token; completed rows stay muted.
    - **The composer stays usable while a panel is open.** Sending a message while a question is open dismisses it as answered in chat and sends the message. Sending a message while an approval is open rejects the approval first, then sends the message.
+
+## Decisions during F5 execution (product owner, 2026-11-24, approved with prototype revision 17 states `chat-question-text` and `chat-question-select`)
+
+8. **Three question kinds and up to five questions per call.** Drafting needs facts that have no sensible options (party names, addresses, amounts) and choices that allow several answers (which information an NDA protects). So:
+   - **Choice** (`single`): 2–5 options, one click answers; optional free text ("Write another answer").
+   - **Select all that apply** (`multiple`): 2–5 options shown as checkboxes; at least one option or a free-text answer; Next (Send on the last question) submits.
+   - **Text only** (`text`): no options, one text field (at most 500 characters); Enter or Next submits.
+   - One `ask_user` call carries **1–5 questions**; at most 2 calls per run stays.
+   - Document upload as a question is out of scope until F7.
 
 ## In scope
 
@@ -78,11 +87,11 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 ### Ask the user
 
 5. **Tool:**
-   - The model calls `ask_user` with 1–3 questions (each at most 300 characters, with 2–5 short options and an optional one-line description per option).
-   - Each question may allow a free-text answer, at most 500 characters. A skipped question is returned as unanswered.
+   - The model calls `ask_user` with 1–5 questions (each at most 300 characters). Each question has a kind (decision 8): `single` or `multiple` with 2–5 short options and an optional one-line description per option, or `text` with no options.
+   - A `single` or `multiple` question may allow a free-text answer; a `text` question is answered only in text. Free text is at most 500 characters. A skipped question is returned as unanswered.
    - The run pauses with the same mechanism as an approval (F3 §15–16): the run enters `awaiting_approval` with an operation of kind `question`, the job ends, and a resume job continues (decision 5).
 6. **Question panel (decision 7):**
-   - A panel above the composer shows the question, the options as numbered rows, an optional free-text row, the expiry time, and Dismiss ("Answer in chat instead").
+   - A panel above the composer shows the question and, by kind, numbered option rows (`single`), checkbox rows with "Select all that apply" (`multiple`), or one text field (`text`); an optional free-text row; the expiry time; and Dismiss ("Answer in chat instead").
    - After the user answers, the thread keeps a small record of the question and the chosen answer, and the run resumes with that answer as the tool result. The answer is untrusted data like any user input.
 7. **Limits:**
    - At most 2 `ask_user` calls per run. A third call is rejected with a safe error the model can read.
@@ -220,9 +229,9 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 - [ ] Tool activity rows render live and after reload; failed calls use the error-row pattern.
 - [ ] `ask_user`:
   - [ ] pauses and resumes;
-  - [ ] options and free text work;
+  - [ ] the three question kinds work: `single` (one click), `multiple` (several options), `text` (no options); free text works;
   - [ ] Dismiss works;
-  - [ ] 1–3 questions per call with Previous/Next and Skip; at most 2 calls per run;
+  - [ ] 1–5 questions per call with Previous/Next and Skip; at most 2 calls per run;
   - [ ] the waiting state shows in the thread and in Recent/Chats.
 - [ ] `deadline_calculator`:
   - [ ] is correct on the 2026–2027 calendar;
@@ -244,7 +253,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 
 ## References
 
-- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.4 §5.3–§5.7; LEX-TS-001 v1.14.
+- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.5 §5.3–§5.7; LEX-TS-001 v1.14.
 - F3 brief (engine contracts, approval pause and resume), F4 brief (chat, ownership), F4.2 (client polling and state).
 
 ## Open questions

@@ -156,7 +156,7 @@ Spec §10 preamble + all three tool rows; research notes: `PRODUCTION_ENGINE_REG
 **Interfaces produced:** the engine paths task 5's decide/resume and task 6's expiry resume rely on.
 
 - [ ] **Step 1: Failing tests.**
-  - `run-registry.spec.ts` (extend): the three tools registered with correct `kind`/`pauseKind`/capabilities/mode; the `shared/src/chat-tools.ts` schemas reject out-of-range (empty questions, 4 questions, 6 options, label >80, text >300, `newTitle` >120, `currentTitle` present in args → schema strips/rejects); `.describe()` present on key fields.
+  - `run-registry.spec.ts` (extend): the three tools registered with correct `kind`/`pauseKind`/capabilities/mode; the `shared/src/chat-tools.ts` schemas reject out-of-range (empty questions, 6 questions, 6 options, a `single`/`multiple` question without options, a `text` question with options or with `allowFreeText`, label >80, text >300, `newTitle` >120, `currentTitle` present in args → schema strips/rejects); `.describe()` present on key fields.
   - `step-executor-tools.spec.ts` **[Docker]** where the flow needs DB: a generation proposing `ask_user` persists a `kind:'question'` op in `awaiting_approval` **with `expires_at` set in the same commit**; a generation proposing two pause tools → first pauses, second persisted `failed`/`one_decision_at_a_time`; the 3rd `ask_user` in a run → `failed`/`question_limit` with `maxPerRun:2`; an `ask_user` result from a stored decision is fed to the next generation via `toolResultsAsMessages` + `fenceUntrusted` (never raw); `pending` read op + pause op in one generation → run pauses, read op executes on the resumed continuation.
   - Profile spec: chat profiles carry the three capabilities and `maxIterations: 6`; a run reaching the limit after tool flow ends `failed`/`AI_ITERATION_LIMIT` (existing failure surface — records the safe copy).
 - [ ] **Step 2: RED** → exit 1.
@@ -181,7 +181,7 @@ Spec §6.2–§6.4, §9 decision schemas; research notes: `ApprovalService.decid
 **Interfaces produced:** the route + tx the client (task 7) and the E2E (task 10) exercise.
 
 - [ ] **Step 1: Failing tests.**
-  - `operation-decision.spec.ts` **[Docker]**: owner `approve` → CAS → audit → resume outbox + run `running`; `answer` validated against stored args (unknown `questionId`, out-of-range index, text when `allowFreeText:false`, >500 chars, incomplete coverage → 400); `dismiss`; **idempotent replay** — repeat same action → 200 stored outcome; **conflicting action** → 200 stored outcome (no error); **owner-only**: member/org owner/platform admin/other org → 404; stale/mismatched `snapshotHash` → the CAS-loss refusal; kind/action mismatch → 400.
+  - `operation-decision.spec.ts` **[Docker]**: owner `approve` → CAS → audit → resume outbox + run `running`; `answer` validated against stored args (unknown `questionId`, out-of-range or duplicate index, a choice kind that does not match the question kind (`option` on `multiple`, `options` on `single`, any option on `text`), empty `options`, text when `allowFreeText:false`, >500 chars, incomplete coverage → 400); `dismiss`; **idempotent replay** — repeat same action → 200 stored outcome; **conflicting action** → 200 stored outcome (no error); **owner-only**: member/org owner/platform admin/other org → 404; stale/mismatched `snapshotHash` → the CAS-loss refusal; kind/action mismatch → 400.
   - `send-while-paused.spec.ts` **[Docker]**: send while a question is open → op `dismissed`/`{answered_in_chat:true}`, run `completed`, audit `reason:'superseded_by_message'`, new run queued, all questions recorded "Answered in chat"; send while an approval is open → op `rejected`/`{denied:'superseded'}`, same pattern; **leftover `pending` read ops settle `failed`/`not_run`**; **`run_finished.v1` audit for the superseded run**; **the CAS race** (approve+send in flight — exactly one wins; rename executes at most once — run the pair concurrently and assert final state); CAS-loss path → `CHAT_CONFLICT`.
 - [ ] **Step 2: RED** → exit 1 (route 404; send → `CHAT_CONFLICT`).
 - [ ] **Step 3: Implement** — `decideOperation` (kind-aware CAS + stored results + audit + resume), the controller (404 for non-owners incl. platform admin — never a distinguishing status), the supersede tx per spec §6.4 steps 1–3 (op CAS → settle others → run `completed` + `run_finished.v1` → message → new run → `run.start.v1`).
@@ -230,7 +230,7 @@ Spec §9 (all client bullets), §15; research notes: `chat-stream.ts` `chunksFro
 
 - [ ] **Step 1: Failing tests.**
   - Backend: `tool-input-available` published on proposal (running row); `approval-required`/`question-required` carry the op summary under the cap; **over-cap events (maximal multibyte `ask_user` input — `Buffer.byteLength` > 4096) drop `operation`/`input` but keep `operationId`/`kind`/ids**; `snapshot-operation` frame cap-fallback shape; `operation-status` emits `answered|dismissed|expired`; `chat.invalidated` fires on pause + on decision; `awaitingUser` true while paused, cleared after.
-  - Frontend: `chunksFromFrame` maps each event to the right part state; a missing-summary `question-required` triggers a tree fetch (spy) and still renders the panel; paused run is not torn down (poll stays active past the 5 s window); panel renders options as a radio group, number keys select, Esc dismisses, Ctrl+Enter approves, Enter never approves; send enabled while paused → calls send (the supersede is server-side); **two-tab case** — a 200 stored-outcome response different from the sent action renders the stored record and closes the panel; decision records render from op state (approved/rejected/expired/"Answered in chat"/"Not run"); rows render live and identically after a replayed snapshot.
+  - Frontend: `chunksFromFrame` maps each event to the right part state; a missing-summary `question-required` triggers a tree fetch (spy) and still renders the panel; paused run is not torn down (poll stays active past the 5 s window); panel renders `single` options as a radio group (one click answers), `multiple` options as a checkbox group (number keys toggle, Next submits, at least one option or free text) and a `text` question as one field (Enter = Next), number keys select, Esc dismisses, Ctrl+Enter approves, Enter never approves; send enabled while paused → calls send (the supersede is server-side); **two-tab case** — a 200 stored-outcome response different from the sent action renders the stored record and closes the panel; decision records render from op state (approved/rejected/expired/"Answered in chat"/"Not run"); rows render live and identically after a replayed snapshot.
 - [ ] **Step 2: RED** → exit 1 per suite.
 - [ ] **Step 3: Implement** per spec §9 mapping table + §15 keyboard/a11y rules (radio-group pattern from `frontend/src/components/settings/appearance-settings.tsx`, `role="status"` announcements).
 - [ ] **Step 4: GREEN** → exit 0; gate; commit `feat(chat): tool rows, decision panels, waiting markers`; push; draft PR.
@@ -263,11 +263,11 @@ Spec §13; research notes: `evals/` layout, `backend/src/evaluation/index.ts` + 
 
 ### Task 9: Visual captures — r17 planned→pending, masks, Linux rounds, 1.5% gate (last)
 
-Spec §14; research notes: `index.json` 52 planned ids, `captureBrandViews` convention, `PROTOTYPE_REVISION` binding.
+Spec §14; research notes: `index.json` 60 planned ids, `captureBrandViews` convention, `PROTOTYPE_REVISION` binding.
 
 **Files:**
 
-- Modify: `docs/references/F4.1-visual/index.json` (52 ids → `pending`), `backend/test/e2e/brand-visual-chat.spec.ts` (12 `captureBrandViews`), `backend/test/e2e/brand-visual-chats-settings.spec.ts` (`chats-waiting`), `scripts/visual-compare-prototype.mjs` (`PROTOTYPE_REVISION` → 17), `docs/design/f4.1-prototype/README.md` (lead line 16 → 17), app-side capture fixtures (`installChatFixtures`/`installRunStreamFixture` for `awaiting_approval`/tool events/panels/records), the mask list (shimmer label, waiting dot/pill if animated).
+- Modify: `docs/references/F4.1-visual/index.json` (60 ids → `pending`), `backend/test/e2e/brand-visual-chat.spec.ts` (14 `captureBrandViews`, incl. `chat-question-text` and `chat-question-select`), `backend/test/e2e/brand-visual-chats-settings.spec.ts` (`chats-waiting`), `scripts/visual-compare-prototype.mjs` (`PROTOTYPE_REVISION` → 17), `docs/design/f4.1-prototype/README.md` (lead line 16 → 17), app-side capture fixtures (`installChatFixtures`/`installRunStreamFixture` for `awaiting_approval`/tool events/panels/records), the mask list (shimmer label, waiting dot/pill if animated).
 - Evidence: CI `pending-compare` artifacts, `deviations.md` rows, golden `update` output.
 
 - [ ] **Step 1: Failing tests** — `node scripts/test/prototype-state-ids.spec.mjs` + `visual-index.spec.mjs` → exit 1 (ids still `planned`, revision 16).
@@ -275,7 +275,7 @@ Spec §14; research notes: `index.json` 52 planned ids, `captureBrandViews` conv
 - [ ] **Step 3:** `run chat --ids <f5 ids> --linux`; push; **[Linux]** CI `pending` captures + `pending-compare` sheets → owner eye review (round 1 of ≤2).
 - [ ] **Step 4:** accepted over-gate rows logged in `deviations.md`; approval + `update` writes `baseline/` goldens; the new app goldens pass the 1.5% gate (`maxDiffPixelRatio` + `--gate`).
 
-**Review focus:** every r17 state appears (13 × 4 = 52, call-count invariant); masks added before capture (no shimmer flakiness); axe on each new capture both themes; deviations logged, not silently accepted; **any golden re-approval is a stop point**.
+**Review focus:** every r17 state appears (15 × 4 = 60, call-count invariant); masks added before capture (no shimmer flakiness); axe on each new capture both themes; deviations logged, not silently accepted; **any golden re-approval is a stop point**.
 
 **Evidence:** spec-test RED/GREEN; CI artifact links; `deviations.md` rows; gate output.
 
