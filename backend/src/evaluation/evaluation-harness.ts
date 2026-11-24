@@ -507,7 +507,7 @@ export async function createEvaluationHarness(
           fixture!,
           authorization,
           (runActor) =>
-            approval.decide(runActor, {
+            approval.decideOperation(runActor, {
               runId: input.runId,
               operationId: pending.id,
               snapshotHash: pending.snapshotHash,

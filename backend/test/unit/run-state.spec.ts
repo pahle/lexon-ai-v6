@@ -21,6 +21,7 @@ describe('run state', () => {
       ['running', 'failed'],
       ['running', 'cancelling'],
       ['awaiting_approval', 'running'],
+      ['awaiting_approval', 'completed'],
       ['awaiting_approval', 'failed'],
       ['awaiting_approval', 'cancelling'],
       ['cancelling', 'cancelled'],

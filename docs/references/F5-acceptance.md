@@ -500,3 +500,126 @@ GREEN: pnpm vitest run --project backend-unit test/unit/chat-profiles.spec.ts
 - `lockLiveForRun` requires a `chat_runs` link for `resourceIds` runs — the
   rename test inserts the chat, associates it to the run, then drives the
   first step (same pattern as `chat.chat.associateFor` in ai-execution).
+
+## Task 5 — decision route + send-while-paused supersede tx
+
+Owner-only route `POST /api/runs/{runId}/operations/{operationId}/decision`
+(new `operations.controller.ts`, registered in `root.module.ts`) +
+`ApprovalService.decideOperation` generalizing the old `decide` to all four
+actions (`approve`/`reject`/`answer`/`dismiss`), and the §6.4
+send-while-paused supersede inside `ChatService.send()`'s single tenant tx:
+supersede CAS → settle leftovers → decision + `run_finished` audits →
+`awaiting_approval→completed` transition → normal send insertions →
+post-commit `streams.finish`. Exactly-one-winner against the decision route:
+the send's supersede CAS and `decideOperation`'s decide CAS both predicate on
+`status='awaiting_approval' AND decision IS NULL`, so a lost send falls back
+to `CHAT_CONFLICT` and a lost decide replays the stored outcome.
+`result.previousTitle` stays server-stamped inside the step commit tx
+(`chat-tools.ts` rename handler — the superseded approval never executes, so
+no client/model value can reach it). PR #82 → `f5-tools-approvals` (draft).
+
+### Test evidence
+
+```
+RED (before implementation): pnpm vitest run --project backend-integration
+  test/integration/operation-decision.spec.ts
+  test/integration/send-while-paused.spec.ts
+→ exit 1 — 8 failed + 1 trivial pass. Route specs fail on 404
+  (no route registered); send-while-paused fails on 409 CHAT_CONFLICT
+  (paused run still rejects sends). Fixture fix during RED: seeded
+  ai_steps start at fence 0 but AiOperationRepository.persist requires
+  claim.fence > 0, so fixtures UPDATE ai_steps fence=fence+1 first and
+  build the claim with fence: step.fence + 1.
+
+GREEN (after implementation, re-verified post-format):
+pnpm vitest run --project backend-integration
+  test/integration/operation-decision.spec.ts
+  test/integration/send-while-paused.spec.ts
+→ exit 0 — 9/9:
+  operation-decision.spec.ts 5/5
+    'owner approve, answer and dismiss resume the run and return the
+     stored outcome' — approve/reject + answer/dismiss over the route;
+     audit counts chat.approval_decided.v1 / chat.question_decided.v1
+     incremented and run resumes.
+    'malformed answer payloads and kind-mismatched actions are 400s' —
+     wrong-kind action, missing/extra answers, choice outside options,
+     free text when allowFreeText=false → 400 VALIDATION_ERROR.
+    'a second decision call returns the stored outcome without
+     re-validating' — replay returns identical outcome.
+    'member, same-org owner, platform admin and other-org callers all get
+     the identical random-id 404' — CHAT_NOT_FOUND body is byte-identical
+     across roles (platform admin seeded via pools.migrator since the pg
+     import violates the boundary rule).
+    'a stale snapshotHash hits the CAS-loss refusal and a missing op is
+     the identical 404'.
+  send-while-paused.spec.ts 4/4
+    'send while a question panel is open dismisses the call, completes
+     the run and starts a new one' — question→dismissed
+     {answered_in_chat:true}; audit rows: chat.question_decided.v1
+     reason 'superseded_by_message' + chat.run_finished.v1 'completed'
+     (+1 each); message_audit '2' = user message + assistant run.
+    'send while an approval panel is open rejects the call with
+     {denied:superseded} and the rename never runs' — chat title
+     unchanged, chat.approval_decided.v1 + run_finished audits +1.
+    'a decided operation makes the send fall through to CHAT_CONFLICT;
+     a losing decide still returns the stored outcome' — deterministic
+     CAS-loss order (decide first, then send → conflict; send first,
+     then decide → stored-outcome replay).
+    'approve + send raced concurrently have exactly one winner' —
+     Promise.all(approve, send): whichever order commits, exactly one
+     succeeds; the other either replays the stored outcome (decide) or
+     throws CHAT_CONFLICT (send). Both interleavings are also covered
+     deterministically by the fall-through test above.
+
+Regression: ai-execution.spec.ts 86/86, step-executor-tools.spec.ts 9/9,
+chat-send.spec.ts 4/4, ai-approval-concurrency.spec.ts 1/1,
+unit (run-state + chat-service-get) 7/7 — all exit 0.
+```
+
+Assertion log (pre-existing tests updated to the new contract):
+
+- `ai-execution.spec.ts` ~18 `approvals.decide(...)` call sites renamed to
+  `decideOperation({...decision:'approve'|'reject'})` (same for
+  `evaluation-harness.ts:510`).
+- Concurrency test: `settled.filter(fulfilled)` old `toHaveLength(1)` →
+  new `toHaveLength(2)` — the CAS loser now re-reads the decided row and
+  returns the stored outcome (decisions idempotent on the op id) instead
+  of rejecting.
+- Two post-access-loss retry assertions: old
+  `rejects.toThrow('AI approval decision refused')` → new resolves with
+  `{status:'rejected', decision:'reject'}` — the settle path wrote the
+  refusal as the stored decision, so a retry replays it.
+- `run-state.spec.ts` legal-transition list: `awaiting_approval` targets
+  `['running']` → `['running','completed','failed','cancelling']` (repo
+  map + module map kept in lockstep).
+
+Gates:
+
+```
+eslint (changed files incl. boundary rule) → exit 0
+pnpm typecheck (shared/backend/frontend/evals) → exit 0
+pnpm format:check → exit 0 (whole repo; 3 files formatted)
+node --test scripts/test/*.spec.mjs → exit 0, 469/469
+```
+
+### Deviations / calls within spec latitude
+
+- `decideOperation` takes an opt-in `requireOwnedChat` flag used only by
+  the HTTP route: the route must 404 non-owners, but service callers
+  (ai-execution fixtures drive runs with no chat link) keep the
+  initiator check + plain refusal Error. One service, two auth shapes.
+- Kind-mismatch → 400 via `IdentityError('VALIDATION_ERROR', 400, issues)`
+  rather than the error.filter `ValidationFailure` — importing
+  `../platform/error.filter.js` trips the lexon/boundaries ESLint rule;
+  `IdentityError` with a 400 status produces the same response body.
+- Access-loss settle path remains approval-shaped only (`kind!=='approval'`
+  → refused): a question op can only be paused on an owned chat, so the
+  revoked-access sweep can't reach it with a meaningful answer.
+- `failUnresolvedForSupersede` settles leftover `pending` +
+  `awaiting_approval` ops as `failed`/`{not_run:'superseded_by_message'}`
+  with `decision` kept NULL — satisfies `ai_operations_decision_lifecycle`
+  (failed rows need result+completed_at; decision stays NULL since no
+  decide happened).
+- Malformed persisted ask args → plain Error (surfaces as 500
+  INTERNAL_ERROR): stored args were Zod-validated at creation, so
+  unparseable args are a data invariant violation, not a client error.

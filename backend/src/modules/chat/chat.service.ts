@@ -11,6 +11,8 @@ import { ChatApiError } from '@lexon/contracts';
 import { ChatPageSchema, ChatTreeSchema } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
 import {
+  AiOperationRepository,
+  AiRunRepository,
   AiStepRepository,
   ChatMessageRepository,
   ChatMutationRepository,
@@ -21,6 +23,11 @@ import {
   readTreeValidator,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
+import type {
+  TenantSession,
+  TerminalStreamReference,
+} from '../../infrastructure/db/index.js';
+import type { RunStreams } from '../../infrastructure/queue/index.js';
 import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
@@ -45,6 +52,12 @@ function ownerDigest(actor: RunActor): string {
     .digest('hex');
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 /**
  * The service always computes a validator tag, unlike the shared
  * `ChatGetResult` wire shape where a plain 200 may carry no ETag header.
@@ -58,6 +71,8 @@ export class ChatService {
   private readonly messages = new ChatMessageRepository();
   private readonly mutations = new ChatMutationRepository();
   private readonly steps = new AiStepRepository();
+  private readonly runs = new AiRunRepository();
+  private readonly operations = new AiOperationRepository();
   private readonly audit = new AuditService();
   private readonly deletions = new ChatDeletionRepository();
   private readonly searchRepository = new ChatSearchRepository();
@@ -66,6 +81,7 @@ export class ChatService {
     private readonly database: TenantDatabase,
     private readonly runService: RunService,
     private readonly authorization: RunAuthorizationService,
+    private readonly streams?: RunStreams,
   ) {}
 
   async create(
@@ -185,7 +201,7 @@ export class ChatService {
     input: SendMessageInput,
   ): Promise<ChatMutationResult> {
     this.authorization.assertLiveActor(actor);
-    return this.database.withTenant(
+    const outcome = await this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         await this.steps.lockTenantClaimGuard(tx);
@@ -203,11 +219,26 @@ export class ChatService {
             retry.effort !== input.effort
           )
             throw new ChatApiError('CHAT_CONFLICT');
-          return this.mutations.toMutationResult(retry);
+          return {
+            result: this.mutations.toMutationResult(retry),
+            superseded: undefined,
+          };
         }
         if (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
           throw new ChatApiError('CHAT_CONFLICT');
-        if (chat.activeAnswerRunId) throw new ChatApiError('CHAT_CONFLICT');
+        // §6.4 owner ruling A: a send while an undecided panel is open
+        // resolves the paused call in this same transaction, completes the
+        // run and continues as a normal send. Any other active answer still
+        // conflicts exactly as before.
+        let superseded: TerminalStreamReference | undefined;
+        if (chat.activeAnswerRunId) {
+          superseded = await this.supersedePausedRun(
+            tx,
+            actor,
+            chat.activeAnswerRunId,
+          );
+          if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
+        }
 
         try {
           await this.messages.insertUser(tx, {
@@ -250,10 +281,13 @@ export class ChatService {
             metadata: { chatId, messageId: input.userMessageId },
           });
           return {
-            chatId,
-            userMessageId: input.userMessageId,
-            assistantMessageId: runId,
-            runId,
+            result: {
+              chatId,
+              userMessageId: input.userMessageId,
+              assistantMessageId: runId,
+              runId,
+            },
+            superseded,
           };
         } catch (error) {
           if (
@@ -267,6 +301,121 @@ export class ChatService {
         }
       },
     );
+    if (outcome.superseded)
+      await this.streams?.finish(outcome.superseded, {
+        version: 1,
+        runId: outcome.superseded.runId,
+        type: 'finish',
+      });
+    return outcome.result;
+  }
+
+  /**
+   * §6.4 one-transaction supersede: while the chat lock is held, CAS the
+   * still-waiting panel op to its kind-appropriate settled state (approval
+   * → rejected {denied:'superseded'}, question → dismissed
+   * {answered_in_chat:true}), settle leftover pending ops failed with
+   * {not_run:'superseded_by_message'}, record the decided + run_finished
+   * audits and complete the run so the normal send insertions can link the
+   * new answer run underneath the freed pointer. Returns the dead run's
+   * terminal stream reference for the post-commit finish event, or
+   * undefined when the pause cannot be superseded (decided op, resumed or
+   * finished run, lost CAS) — the caller then throws CHAT_CONFLICT and the
+   * whole send rolls back.
+   */
+  private async supersedePausedRun(
+    tx: TenantSession,
+    actor: RunActor,
+    runId: string,
+  ): Promise<TerminalStreamReference | undefined> {
+    const run = await this.runs.find(tx, runId);
+    if (!run || run.status !== 'awaiting_approval') return undefined;
+    const operation = (
+      await this.operations.forRun(tx, {
+        runId,
+        throughSequence: run.nextSequence,
+      })
+    ).find(
+      (candidate) =>
+        candidate.status === 'awaiting_approval' && candidate.decision == null,
+    );
+    if (!operation) return undefined;
+    const superseded = await this.operations.supersedeForMessage(tx, {
+      runId,
+      operationId: operation.id,
+      userId: actor.userId,
+    });
+    if (!superseded) return undefined;
+    await this.operations.failUnresolvedForSupersede(tx, { runId });
+    const provider = asRecord(run.resolvedConfig).provider;
+    if (
+      typeof provider !== 'string' ||
+      !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+    )
+      throw new Error('Invalid AI run provider');
+    const occurredAt = new Date().toISOString();
+    if (superseded.kind === 'question') {
+      await this.audit.append(tx, {
+        version: 1,
+        eventId: randomUUID(),
+        type: 'chat.question_decided.v1',
+        occurredAt,
+        outcome: 'success',
+        orgId: actor.orgId,
+        actorUserId: actor.userId,
+        metadata: {
+          runId: run.id,
+          operationId: superseded.id,
+          status: 'dismissed',
+          reason: 'superseded_by_message',
+        },
+      });
+    } else {
+      await this.audit.append(tx, {
+        version: 1,
+        eventId: randomUUID(),
+        type: 'chat.approval_decided.v1',
+        occurredAt,
+        outcome: 'success',
+        orgId: actor.orgId,
+        actorUserId: actor.userId,
+        metadata: {
+          runId: run.id,
+          operationId: superseded.id,
+          status: 'rejected',
+          reason: 'superseded_by_message',
+        },
+      });
+    }
+    await this.audit.append(tx, {
+      version: 1,
+      eventId: randomUUID(),
+      type: 'chat.run_finished.v1',
+      occurredAt,
+      outcome: 'success',
+      orgId: actor.orgId,
+      actorUserId: actor.userId,
+      metadata: {
+        runId: run.id,
+        model: run.modelId,
+        provider,
+        status: 'completed',
+      },
+    });
+    // finalizeOutput keeps the dead run's partial text as its final output;
+    // the terminal-pointer trigger frees chats.active_answer_run_id on this
+    // update so associateAnswer can take the slot below.
+    if (
+      !(await this.runs.transition(tx, {
+        runId: run.id,
+        expectedVersion: run.runVersion,
+        from: 'awaiting_approval',
+        to: 'completed',
+        finalizeOutput: true,
+      }))
+    )
+      return undefined;
+    return this.runs.terminalStreamReference(tx, runId);
   }
 
   async get(

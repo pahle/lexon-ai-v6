@@ -9,7 +9,7 @@ const transitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
     'failed',
     'cancelling',
   ],
-  awaiting_approval: ['running', 'failed', 'cancelling'],
+  awaiting_approval: ['running', 'completed', 'failed', 'cancelling'],
   completed: [],
   failed: [],
   cancelling: ['cancelled'],
