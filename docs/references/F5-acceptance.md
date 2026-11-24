@@ -137,3 +137,99 @@ provably at the function grant. Catalog check asserts `prosecdef`, pinned
   sweep job is a later task; `{expired:'approval'}` matches §6.1/§7.
 - `persist` keeps `kind` optional on `OperationProposal` and defaults to
   `'approval'` — step-executor (task 4 file) keeps compiling unchanged.
+
+## Task 2 — operation stream contracts
+
+`shared/src/ai-run.ts` + `shared/src/chat.ts` (commit `5e5e16b3`, draft PR
+#79 → `f5-tools-approvals`).
+
+- `OperationKindSchema` (`'approval'|'question'`); `OperationStatusSchema`
+  already widened in task 1 (answered/dismissed/expired).
+- `ChatOperationSnapshotSchema` moved to `ai-run.ts` (the pause events carry
+  it) and re-exported from `chat.ts`; now the full wire summary —
+  `operationId`, `kind`, `status`, `approvalRequired`, `snapshotHash`
+  (64-hex), `expiresAt`/`decidedAt` (ISO-Z, required-nullable), `toolName`,
+  plus optional `input`/`display`/`output` so the 4 KiB cap fallback can
+  drop them while the client refetches the tree.
+- `approval-required` gains optional `kind:'approval'` + `operation`
+  (summary pinned to `kind:'approval'` via `.extend`); new
+  `question-required` member mirrors it (`operationId`, optional
+  `kind:'question'`, optional pinned summary).
+- New `RunJobSchema` member `ai.operation-expiry.v1`
+  (`strictObject({type, data: strictObject({})})` — no `ctx`/`outboxId`;
+  the BullMQ-scheduled sweep discovers tenants per candidate row).
+- `ChatSnapshotPartSchema` gains `{type:'tool', id, toolCallId, toolName,
+  operationId, input?, output?, outcome}` (`outcome` = operation status).
+- `ChatPageSchema` items gain required `awaitingUser: boolean`; assistant
+  `ChatMessageSchema` members gain required
+  `operations: ChatOperationSnapshotSchema[]`.
+- `OperationDecisionActionSchema`, `OperationAnswerChoiceSchema`
+  (option | options | text | skipped; `options.indexes` non-empty,
+  distinct, bounded 0–4), `OperationAnswerSchema`,
+  `OperationDecisionInputSchema` (discriminated on `action`; `answers`
+  required exactly for `answer`, forbidden elsewhere — strict objects),
+  `OperationDecisionResultSchema` (`{operationId, status, decision,
+  decidedAt}` — `decision`/`decidedAt` required-nullable for the
+  idempotent read-back).
+
+Server emitters updated so required fields are produced at runtime
+(`ChatSnapshotSchema.parse` runs on the snapshot path):
+
+- `ai-run.repository.ts` `authorizedChatSnapshot` SQL now selects
+  `kind`, `snapshot_hash`, `expires_at`, `decided_at`, `tool_name`,
+  `args`→`input`, `result`→`output`; timestamps go through
+  `to_char(… AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` because
+  `z.iso.datetime()` rejects Postgres' `+00:00` offset rendering.
+- `stream-hub.ts` `enqueueSnapshot` filters `parts` to text/reasoning for
+  the `snapshot-part` frame stream (frames cannot carry tool parts;
+  `partCount`/indices stay consistent). Tool parts, when emitted, travel
+  via `operations` — flagged for the stream-publisher task.
+- `chat.service.ts`: `list()` emits `awaitingUser: false` and `get()`
+  emits `operations: []` — type-level stubs only; real population is the
+  F5 stream-publisher task (flagged).
+
+Fixture updates: 13 frontend specs (`operations: []` on assistant
+literals, `awaitingUser: false` on ChatPage items), backend e2e fixtures
+(`chat-state-fixtures.ts`, `chat-history.spec.ts`,
+`brand-visual-shell.spec.ts`), `stream-hub.spec.ts` and
+`chat-sse-replay.spec.ts` op literals widened to the full summary.
+
+### Test evidence
+
+RED (before implementation):
+`pnpm vitest run --project contracts` → exit 1, 10 failed / 20 passed —
+3 in `ai-run.spec.ts` (OperationKindSchema undefined, pause-event
+`kind`/`operation` rejected, expiry job envelope rejected), 7 in
+`chat.spec.ts` (tree `operations`, `awaitingUser`, widened op summary,
+tool part, decision schemas).
+
+GREEN:
+
+```
+contracts:          102/102 pass (12 files)
+backend-unit:       815/815 pass (104 files)
+frontend:           896/896 pass (92 files)
+backend-integration: 21/21 pass (chat-sse-replay — live services)
+pnpm typecheck → 0 errors across shared/backend/frontend
+pnpm exec eslint <changed files> → clean
+pnpm format:check → clean (after prettier --write on 2 files)
+```
+
+### Deviations / calls within spec latitude
+
+- `operation.kind` is pinned to the event type via
+  `ChatOperationSnapshotSchema.extend({kind: z.literal(...)})` rather
+  than a `.refine` — the mismatch is rejected by the discriminator shape
+  itself (verified in Zod 4.6.7: extend preserves strict catchall).
+- `decision`/`decidedAt` on the decision RESULT are required-nullable
+  (always present on the wire; `null` for undecided ops) so the
+  idempotent response shape is fixed.
+- `options.indexes`/`option.index` bounded to 0–4 (spec §10: 2–5 options
+  per question) and `answers` capped at 5 — server re-validates against
+  the stored args regardless.
+- `input`/`output` are emitted unconditionally by `authorizedChatSnapshot`
+  (snapshot is the owner-authorized channel; events may still drop them
+  under the byte cap). `display` is schema-only until a publisher stamps
+  it.
+- `awaitingUser`/`operations` emit constant `false`/`[]` — flagged; the
+  stream-publisher task wires the EXISTS query and per-run ops.

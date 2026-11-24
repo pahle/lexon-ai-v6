@@ -468,7 +468,16 @@ it.each<[string, Partial<ChatSnapshot>]>([
     'operations',
     {
       operations: [
-        { operationId, status: 'pending' as const, approvalRequired: true },
+        {
+          operationId,
+          kind: 'approval' as const,
+          status: 'pending' as const,
+          approvalRequired: true,
+          snapshotHash: 'a'.repeat(64),
+          expiresAt: null,
+          decidedAt: null,
+          toolName: 'lexon.test',
+        },
       ],
     },
   ],

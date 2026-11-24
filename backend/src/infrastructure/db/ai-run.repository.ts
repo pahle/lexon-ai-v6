@@ -214,8 +214,16 @@ export class AiRunRepository {
       resolved_config: unknown;
       operations: {
         operationId: string;
+        kind: string;
         status: string;
         approvalRequired: boolean;
+        snapshotHash: string;
+        expiresAt: string | null;
+        decidedAt: string | null;
+        toolName: string;
+        input?: unknown;
+        display?: unknown;
+        output?: unknown;
       }[];
     }>(
       `SELECT r.id,r.status,r.partial_output,r.final_output,
@@ -226,8 +234,15 @@ export class AiRunRepository {
          COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
              'operationId',o.id,
+             'kind',o.kind,
              'status',CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END,
-             'approvalRequired',o.approval_required
+             'approvalRequired',o.approval_required,
+             'snapshotHash',o.snapshot_hash,
+             'expiresAt',to_char(o.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+             'decidedAt',to_char(o.decided_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+             'toolName',o.tool_name,
+             'input',o.args,
+             'output',o.result
            ) ORDER BY s.sequence,o.call_occurrence)
            FROM app.ai_operations o
            JOIN app.ai_steps s ON s.org_id=o.org_id AND s.run_id=o.run_id AND s.id=o.step_id

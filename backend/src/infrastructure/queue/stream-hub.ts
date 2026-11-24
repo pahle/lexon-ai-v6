@@ -260,6 +260,11 @@ export class StreamHub {
       checkpointId?: string,
     ): Promise<boolean> => {
       const { parts, operations, ...metadata } = snapshot;
+      // snapshot-part frames only transport streamed text/reasoning chunks;
+      // tool parts ride the operation summary instead of the part stream.
+      const streamParts = parts.filter(
+        (part) => part.type === 'text' || part.type === 'reasoning',
+      );
       if (
         !(await enqueue({
           data: JSON.stringify(
@@ -268,15 +273,15 @@ export class StreamHub {
               type: 'snapshot-start',
               reset: true,
               snapshot: metadata,
-              partCount: parts.length,
+              partCount: streamParts.length,
               operationCount: operations.length,
             }),
           ),
         }))
       )
         return false;
-      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
-        const part = parts[partIndex]!;
+      for (let partIndex = 0; partIndex < streamParts.length; partIndex++) {
+        const part = streamParts[partIndex]!;
         const chunks: string[] = [];
         const frameBase = {
           version: 1 as const,
@@ -355,7 +360,7 @@ export class StreamHub {
           ChatSnapshotFrameSchema.parse({
             version: 1,
             type: 'snapshot-end',
-            partCount: parts.length,
+            partCount: streamParts.length,
             operationCount: operations.length,
           }),
         ),

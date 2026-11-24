@@ -42,6 +42,31 @@ export const OperationStatusSchema = z.enum([
 ]);
 export type OperationStatus = z.infer<typeof OperationStatusSchema>;
 
+export const OperationKindSchema = z.enum(['approval', 'question']);
+export type OperationKind = z.infer<typeof OperationKindSchema>;
+
+const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
+
+// The wire operation summary: `input` is the verbatim args the snapshot hash
+// binds, `display` carries server-stamped informational fields that are not
+// hash-bound, and `output` is the stored result for decided ops. Under the
+// event-byte cap emitters drop `input`/`display`/`output` and keep the
+// ids/status/hash core; the client fetches the tree for the rest.
+export const ChatOperationSnapshotSchema = z.strictObject({
+  operationId: z.uuid(),
+  kind: OperationKindSchema,
+  status: OperationStatusSchema,
+  approvalRequired: z.boolean(),
+  snapshotHash: sha256Hex,
+  expiresAt: z.iso.datetime().nullable(),
+  decidedAt: z.iso.datetime().nullable(),
+  toolName: z.string().trim().min(1).max(256),
+  input: z.record(z.string(), z.unknown()).optional(),
+  display: z.record(z.string(), z.unknown()).optional(),
+  output: z.unknown().optional(),
+});
+export type ChatOperationSnapshot = z.infer<typeof ChatOperationSnapshotSchema>;
+
 const identifier = z.string().trim().min(1);
 const sdkPartId = z.string().min(1).max(256);
 const sequence = z.number().int().positive();
@@ -79,6 +104,12 @@ export const RunJobSchema = z.discriminatedUnion('type', [
     ctx: tenantContext,
     payload: z.strictObject({ chatId: z.uuid() }),
   }),
+  // BullMQ-scheduled sweep (upsertJobScheduler): no outbox id and no tenant
+  // ctx — the sweep discovers expiring operations cross-tenant per candidate.
+  z.strictObject({
+    type: z.literal('ai.operation-expiry.v1'),
+    data: z.strictObject({}),
+  }),
 ]);
 export type RunJob = z.infer<typeof RunJobSchema>;
 
@@ -99,6 +130,21 @@ const RunStreamEventV1Schema = z.discriminatedUnion('type', [
     ...eventBase,
     type: z.literal('approval-required'),
     operationId: z.uuid(),
+    // The kind selects the panel; the cap-fallback sends {operationId, kind}
+    // only (old stored events carry neither).
+    kind: z.literal('approval').optional(),
+    operation: ChatOperationSnapshotSchema.extend({
+      kind: z.literal('approval'),
+    }).optional(),
+  }),
+  z.strictObject({
+    ...eventBase,
+    type: z.literal('question-required'),
+    operationId: z.uuid(),
+    kind: z.literal('question').optional(),
+    operation: ChatOperationSnapshotSchema.extend({
+      kind: z.literal('question'),
+    }).optional(),
   }),
   z.strictObject({
     ...eventBase,

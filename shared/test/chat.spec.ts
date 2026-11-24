@@ -4,6 +4,7 @@ import {
   ChatInvalidationEventSchema,
   ChatFeedbackSchema,
   ChatMutationResultSchema,
+  ChatOperationSnapshotSchema,
   ChatPageSchema,
   ChatSearchPageSchema,
   ChatEffortSchema,
@@ -14,6 +15,8 @@ import {
   ChatTreeSchema,
   CreateChatInputSchema,
   EditMessageInputSchema,
+  OperationDecisionInputSchema,
+  OperationDecisionResultSchema,
   RegenerateInputSchema,
   SendMessageInputSchema,
   ViewedLeafInputSchema,
@@ -165,6 +168,7 @@ describe('chat contracts', () => {
       reasoningSummary: null,
       reasoningDurationMs: null,
       feedback: null,
+      operations: [],
       createdAt: '2026-11-09T00:00:01.000Z',
     };
     expect(ChatMessageSchema.safeParse(userMessage).success).toBe(true);
@@ -268,11 +272,33 @@ describe('chat contracts', () => {
             title: 'Question',
             updatedAt: '2026-11-09T00:00:00.000Z',
             lastMessageAt: null,
+            awaitingUser: false,
+          },
+          {
+            id: parentMessageId,
+            title: 'Waiting',
+            updatedAt: '2026-11-09T00:00:00.000Z',
+            lastMessageAt: '2026-11-09T00:00:00.000Z',
+            awaitingUser: true,
           },
         ],
         pageInfo: { nextCursor: 'cursor/opaque' },
       }).success,
     ).toBe(true);
+    // awaitingUser is a required boolean — clients must always find it.
+    expect(
+      ChatPageSchema.safeParse({
+        items: [
+          {
+            id: chatId,
+            title: 'Question',
+            updatedAt: '2026-11-09T00:00:00.000Z',
+            lastMessageAt: null,
+          },
+        ],
+        pageInfo: { nextCursor: 'cursor/opaque' },
+      }).success,
+    ).toBe(false);
     expect(
       ChatSearchPageSchema.safeParse({
         items: [
@@ -397,8 +423,13 @@ describe('chat contracts', () => {
     ).toBe(false);
     const safeOperation = {
       operationId: parentMessageId,
+      kind: 'approval',
       status: 'awaiting_approval',
       approvalRequired: true,
+      snapshotHash: 'c'.repeat(64),
+      expiresAt: '2026-11-10T00:00:00.000Z',
+      decidedAt: null,
+      toolName: 'rename_chat',
     };
     expect(
       ChatSnapshotSchema.safeParse({
@@ -446,6 +477,318 @@ describe('chat contracts', () => {
         type: 'snapshot-reset',
         reason: 'cursor-gap',
         debug: 'private',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('round-trips the operation summary and its event-cap core', () => {
+    const summary = {
+      operationId: parentMessageId,
+      kind: 'question',
+      status: 'awaiting_approval',
+      approvalRequired: true,
+      snapshotHash: 'b'.repeat(64),
+      expiresAt: '2026-11-10T00:00:00.000Z',
+      decidedAt: '2026-11-09T12:00:00.000Z',
+      toolName: 'ask_user',
+      input: {
+        questions: [
+          {
+            questionId: 'q1',
+            text: 'Pertanyaan?',
+            kind: 'single',
+            options: [{ label: 'Ya' }, { label: 'Tidak' }],
+          },
+        ],
+      },
+      display: { note: 'server-stamped informational fields' },
+      output: { unanswered: true },
+    };
+    const parsed = ChatOperationSnapshotSchema.parse(summary);
+    expect(parsed.snapshotHash).toBe('b'.repeat(64));
+    expect(parsed.input).toEqual(summary.input);
+    // The event-cap core keeps ids/status/hash without the payload blocks.
+    const core = {
+      operationId: summary.operationId,
+      kind: summary.kind,
+      status: summary.status,
+      approvalRequired: summary.approvalRequired,
+      snapshotHash: summary.snapshotHash,
+      expiresAt: summary.expiresAt,
+      decidedAt: summary.decidedAt,
+      toolName: summary.toolName,
+    };
+    expect(ChatOperationSnapshotSchema.safeParse(core).success).toBe(true);
+    // kind, hash, tool and the timestamps are required on every summary.
+    for (const key of [
+      'kind',
+      'snapshotHash',
+      'toolName',
+      'expiresAt',
+      'decidedAt',
+      'status',
+      'approvalRequired',
+    ] as const)
+      expect(
+        ChatOperationSnapshotSchema.safeParse({ ...core, [key]: undefined })
+          .success,
+      ).toBe(false);
+    expect(
+      ChatOperationSnapshotSchema.safeParse({
+        ...core,
+        expiresAt: null,
+        decidedAt: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      ChatOperationSnapshotSchema.safeParse({
+        ...core,
+        snapshotHash: 'not-a-sha256',
+      }).success,
+    ).toBe(false);
+    expect(
+      ChatOperationSnapshotSchema.safeParse({ ...core, kind: 'write' }).success,
+    ).toBe(false);
+    // snapshot-operation frames accept both the full summary and the core.
+    for (const operation of [summary, core])
+      expect(
+        ChatSnapshotFrameSchema.safeParse({
+          version: 1,
+          type: 'snapshot-operation',
+          index: 0,
+          operation,
+        }).success,
+      ).toBe(true);
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-operation',
+        index: 0,
+        operation: { operationId: parentMessageId },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a tool snapshot part with its operation binding', () => {
+    const toolPart = {
+      type: 'tool',
+      id: 'part-tool-1',
+      toolCallId: 'call-1',
+      toolName: 'rename_chat',
+      operationId: parentMessageId,
+      input: { newTitle: 'Proposed' },
+      output: { renamed: true, previousTitle: 'Old' },
+      outcome: 'approved',
+    };
+    const snapshot = {
+      runId,
+      messageId: assistantMessageId,
+      attemptId: null,
+      generation: null,
+      revision: 0,
+      eventId: null,
+      parts: [toolPart],
+      operations: [],
+      status: 'completed',
+      errorCode: null,
+      reasoningDurationMs: null,
+    };
+    expect(ChatSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    expect(
+      ChatSnapshotSchema.safeParse({
+        ...snapshot,
+        parts: [{ ...toolPart, input: undefined, output: undefined }],
+      }).success,
+    ).toBe(true);
+    for (const key of ['toolCallId', 'toolName', 'operationId', 'outcome'])
+      expect(
+        ChatSnapshotSchema.safeParse({
+          ...snapshot,
+          parts: [{ ...toolPart, [key]: undefined }],
+        }).success,
+      ).toBe(false);
+    // A tool part without its operation binding is incomplete.
+    expect(
+      ChatSnapshotSchema.safeParse({
+        ...snapshot,
+        parts: [{ ...toolPart, operationId: 'call-1' }],
+      }).success,
+    ).toBe(false);
+    // snapshot-part frames still carry streamed text/reasoning chunks only.
+    expect(
+      ChatSnapshotFrameSchema.safeParse({
+        version: 1,
+        type: 'snapshot-part',
+        partIndex: 0,
+        chunkIndex: 0,
+        partType: 'tool',
+        id: 'part-tool-1',
+        text: '',
+        final: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('carries the run operation list on tree assistant messages', () => {
+    const userMessage = {
+      id: userMessageId,
+      role: 'user',
+      parentId: null,
+      text: 'Question',
+      effort: 'high',
+      createdAt: '2026-11-09T00:00:00.000Z',
+    };
+    const operation = {
+      operationId: parentMessageId,
+      kind: 'approval',
+      status: 'approved',
+      approvalRequired: true,
+      snapshotHash: 'd'.repeat(64),
+      expiresAt: null,
+      decidedAt: '2026-11-09T00:00:30.000Z',
+      toolName: 'rename_chat',
+      input: { newTitle: 'Renamed' },
+      output: { renamed: true, previousTitle: 'Old' },
+    };
+    const assistantMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      parentId: userMessageId,
+      runId,
+      text: 'Done',
+      status: 'completed',
+      reasoningSummary: null,
+      reasoningDurationMs: null,
+      feedback: null,
+      operations: [operation],
+      createdAt: '2026-11-09T00:00:01.000Z',
+    };
+    expect(ChatMessageSchema.safeParse(assistantMessage).success).toBe(true);
+    const tree = {
+      id: chatId,
+      title: 'Question',
+      messages: [userMessage, assistantMessage],
+      viewedLeafId: assistantMessageId,
+      createdAt: '2026-11-09T00:00:00.000Z',
+      updatedAt: '2026-11-09T00:00:01.000Z',
+    };
+    expect(ChatTreeSchema.safeParse(tree).success).toBe(true);
+    // The operations list is required on assistant messages.
+    const withoutOperations = Object.fromEntries(
+      Object.entries(assistantMessage).filter(([key]) => key !== 'operations'),
+    );
+    expect(ChatMessageSchema.safeParse(withoutOperations).success).toBe(false);
+    expect(
+      ChatMessageSchema.safeParse({
+        ...assistantMessage,
+        operations: [{ operationId: parentMessageId }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates the operation decision input and stored outcome shapes', () => {
+    const snapshotHash = 'e'.repeat(64);
+    for (const action of ['approve', 'reject', 'dismiss'] as const)
+      expect(
+        OperationDecisionInputSchema.safeParse({ snapshotHash, action })
+          .success,
+      ).toBe(true);
+    // answers cover every question of the call, one choice each.
+    const answers = [
+      { questionId: 'q1', choice: { kind: 'option', index: 0 } },
+      { questionId: 'q2', choice: { kind: 'options', indexes: [0, 2] } },
+      { questionId: 'q3', choice: { kind: 'text', text: 'Jawaban bebas' } },
+      { questionId: 'q4', choice: { kind: 'skipped' } },
+    ];
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'answer',
+        answers,
+      }).success,
+    ).toBe(true);
+    // action: 'answer' requires the answers array.
+    expect(
+      OperationDecisionInputSchema.safeParse({ snapshotHash, action: 'answer' })
+        .success,
+    ).toBe(false);
+    // A non-answer payload on another action is rejected (strict keys).
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'approve',
+        answers,
+      }).success,
+    ).toBe(false);
+    // Choice payloads validate their wire shape.
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'answer',
+        answers: [
+          { questionId: 'q1', choice: { kind: 'options', indexes: [] } },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'answer',
+        answers: [
+          { questionId: 'q1', choice: { kind: 'options', indexes: [1, 1] } },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'answer',
+        answers: [{ questionId: 'q1', choice: { kind: 'other' } }],
+      }).success,
+    ).toBe(false);
+    // Each question is covered exactly once.
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash,
+        action: 'answer',
+        answers: [answers[0], answers[0]],
+      }).success,
+    ).toBe(false);
+    // The hash binds the stored snapshot — a malformed hash never parses.
+    expect(
+      OperationDecisionInputSchema.safeParse({
+        snapshotHash: 'not-a-hash',
+        action: 'approve',
+      }).success,
+    ).toBe(false);
+    // The idempotent result echoes the stored outcome.
+    for (const outcome of [
+      {
+        operationId: parentMessageId,
+        status: 'answered',
+        decision: 'answer',
+        decidedAt: '2026-11-09T00:00:30.000Z',
+      },
+      {
+        operationId: parentMessageId,
+        status: 'expired',
+        decision: null,
+        decidedAt: '2026-11-09T00:00:30.000Z',
+      },
+      {
+        operationId: parentMessageId,
+        status: 'failed',
+        decision: null,
+        decidedAt: null,
+      },
+    ])
+      expect(OperationDecisionResultSchema.safeParse(outcome).success).toBe(
+        true,
+      );
+    expect(
+      OperationDecisionResultSchema.safeParse({
+        operationId: parentMessageId,
+        status: 'answered',
       }).success,
     ).toBe(false);
   });

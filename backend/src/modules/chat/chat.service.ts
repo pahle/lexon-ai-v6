@@ -313,6 +313,9 @@ export class ChatService {
                   reasoningSummary: message.reasoningSummary,
                   reasoningDurationMs: message.reasoningDurationMs,
                   feedback: message.feedback,
+                  // Per-run operation summaries are populated by the F5
+                  // stream-publisher task; the wire field is required.
+                  operations: [],
                   createdAt: message.createdAt.toISOString(),
                 };
           }),
@@ -362,6 +365,9 @@ export class ChatService {
           title: row.title || 'New chat',
           updatedAt: row.updated_at.toISOString(),
           lastMessageAt: row.last_message_at?.toISOString() ?? null,
+          // Awaiting-decision flag is wired by the F5 stream-publisher task;
+          // the wire field is a required boolean.
+          awaitingUser: false,
         }));
         const last = pageRows.at(-1);
         return ChatPageSchema.parse({
