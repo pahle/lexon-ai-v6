@@ -159,7 +159,7 @@ provably at the function grant. Catalog check asserts `prosecdef`, pinned
   (`strictObject({type, data: strictObject({})})` — no `ctx`/`outboxId`;
   the BullMQ-scheduled sweep discovers tenants per candidate row).
 - `ChatSnapshotPartSchema` gains `{type:'tool', id, toolCallId, toolName,
-  operationId, input?, output?, outcome}` (`outcome` = operation status).
+operationId, input?, output?, outcome}` (`outcome` = operation status).
 - `ChatPageSchema` items gain required `awaitingUser: boolean`; assistant
   `ChatMessageSchema` members gain required
   `operations: ChatOperationSnapshotSchema[]`.
@@ -169,7 +169,7 @@ provably at the function grant. Catalog check asserts `prosecdef`, pinned
   `OperationDecisionInputSchema` (discriminated on `action`; `answers`
   required exactly for `answer`, forbidden elsewhere — strict objects),
   `OperationDecisionResultSchema` (`{operationId, status, decision,
-  decidedAt}` — `decision`/`decidedAt` required-nullable for the
+decidedAt}` — `decision`/`decidedAt` required-nullable for the
   idempotent read-back).
 
 Server emitters updated so required fields are produced at runtime
