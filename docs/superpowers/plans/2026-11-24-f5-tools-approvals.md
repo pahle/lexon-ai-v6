@@ -36,9 +36,11 @@ Copied from spec §1–§2 and the owner's session brief. Every task's requireme
 
 ### Branches and PRs
 
-- Spec + plan ride PR #75 (`f5-tools-approvals`); it merges after the owner approves this plan.
-- Implementation tasks run in their own worktrees off updated `main`, one branch + draft PR each, named `f5-t<N>-<slug>`. Parallel marks A/B/C are from spec §16 — same letter may share a worktree sequence; different letters are independent and may run concurrently.
-- Task 9 (visual) and task 10 (a11y/E2E sweep) are last, on a worktree rebased onto the final merged head.
+- Spec + plan ride PR #75 (`f5-tools-approvals`); it merges after the owner approves this plan. After it merges, `f5-tools-approvals` is **restarted from `origin/main`** and becomes the **integration branch** for the whole slice.
+- **Do not merge task PRs into `main` one by one.** Task 4 enables the tools on the chat profiles before task 7 ships the client — on `main` that would advertise tools the client cannot render and would tear paused runs down. Every task branch `f5-t<N>-<slug>` is cut **from `f5-tools-approvals` and merges back into it** (each in its own worktree). There is **one PR to `main`, "F5 Tools & approvals", opened as a draft from task 1** (base `f5-tools-approvals` → `main`), which merges only after task 10.
+- **Parallel tasks never touch the same file.** Shared files: `backend/src/modules/chat/step-executor.ts`, `backend/src/modules/chat/run-events.service.ts`, `backend/src/modules/chat/run-registry.ts`, `backend/src/modules/chat/chat-profiles.ts` — owned by task 4; later tasks re-read them after the merge-back.
+- **Dependency order:** task 3 (calendar) is the only task that may run parallel with tasks 1–2. Task 6 runs after 4 (it resumes through the question/approval resume path). Task 7 runs after 4 and 5 (step-executor emitters + the decision route client). Task 8 runs after 4.
+- Task 9 (visual) and task 10 (a11y/E2E sweep) are last, on a worktree branched from the merged integration head.
 
 ### Command conventions
 
@@ -73,13 +75,13 @@ Spec §5, §8; research notes: migrations 0019/0020/0026 shapes, `lexon_validate
 
 **Files:**
 
-- Create: `backend/src/infrastructure/db/migrations/0042_ai_operation_kinds.sql` (per migration convention), `backend/test/integration/ai-operation-kinds.spec.ts`, `backend/test/integration/ai-expired-operations-grants.spec.ts`.
-- Modify: `backend/src/infrastructure/db/ai-records.ts` (kind/expires_at/statuses on `OperationProposal`/`OperationRecord`/`AiOperationStatus`), `backend/src/infrastructure/db/ai-operation.repository.ts` (`persist` kind, `decideApproval` kind-aware CAS, `pendingFromPreviousStep`, expiry helpers), `backend/src/infrastructure/db/schema.ts` (sync all columns incl. the `decision*` lag), `shared/src/audit-event.ts` (widened enums + new `chat.question_decided.v1`).
+- Create: `backend/drizzle/0042_ai_operation_kinds.sql` (+ its `backend/drizzle/meta/` journal entry per the migration convention), `backend/test/integration/ai-operation-kinds.spec.ts`, `backend/test/integration/ai-expired-operations-grants.spec.ts`.
+- Modify: `backend/src/infrastructure/db/ai-records.ts` (kind/expires_at/statuses on `OperationProposal`/`OperationRecord`/`AiOperationStatus`), `backend/src/infrastructure/db/ai-operation.repository.ts` (`persist` kind, `decideApproval` kind-aware CAS, `pendingFromPreviousStep`, expiry helpers), `backend/src/infrastructure/db/schema.ts` (sync all columns incl. the `decision*` lag), `backend/src/modules/audit/audit-event.ts` (widened enums + new `chat.question_decided.v1`).
 - Evidence: `docs/references/F5-acceptance.md` (create, `## Task 1`).
 
 **Interfaces produced:** the new op columns/statuses and the audit union that every emitter task (5, 6, 7) uses.
 
-- [ ] **Step 0:** `/session-stats`; save output. Create worktree `../lexon-f5-t1` on branch `f5-t1-operation-kinds` off updated `main`.
+- [ ] **Step 0:** `/session-stats`; save output **for the report only — never a repo file** (it names models). Create worktree `../lexon-f5-t1` on branch `f5-t1-operation-kinds` **cut from `f5-tools-approvals`**; open the draft PR "F5 Tools & approvals" (base `f5-tools-approvals` → `main`).
 - [ ] **Step 1: Write the failing tests.**
   - `ai-operation-kinds.spec.ts` **[Docker]**: `it('rejects a pause op without expires_at and an unknown kind')` (CHECK violations); `it('requires result+completed_at for answered/dismissed/expired')`; `it('backfilled rows carry created_at + 24h and are indexed')` (seed an `awaiting_approval` row pre-migration shape, assert `expires_at IS NOT NULL` and `EXPLAIN` uses `ai_operations_expiry_idx`); `it('a tenant cannot read or write kind/expires_at on another org\'s op')` (RLS under `withTenant` of org B on org A's row).
   - `ai-expired-operations-grants.spec.ts` **[Docker]**: `it('returns only the four id columns')` (`SELECT *` → keys are exactly `org_id,id,run_id,initiating_user_id`); `it('returns candidates across orgs, ids only')`; `it('lexon_auth, lexon_setup and an ungranted role are denied')` (`permission denied for function ai_expired_operations` for each).
@@ -124,13 +126,13 @@ Spec §10 (deadline row), §11; research notes: SKB 2026 (1497/2/5-2025) + SKB 2
 
 **Files:**
 
-- Create: `shared/src/calendar/id-national-holidays.ts` (typed const + `CalendarDataSchema` + `version:'id-national@2027.1'` + per-year `decree` blocks citing the two SKB PDFs + setneg/kemnaker lampiran URLs), `shared/src/calendar/index.ts`, `backend/src/modules/chat/tools/deadline-calculator.ts` (or wherever tool impls live — check `tool-registry.ts`), `backend/test/unit/deadline-calculator.spec.ts`, `backend/test/unit/id-calendar-guard.spec.ts` (or `scripts/test/` if the guard runs in CI scripts — match the repo's CI-test convention for repo-health checks).
+- Create: `shared/src/calendar/id-national-holidays.ts` (typed const + `CalendarDataSchema` + `version:'id-national@2027.1'` + per-year `decree` blocks citing the two SKB PDFs + setneg/kemnaker lampiran URLs), `shared/src/calendar/index.ts`, `backend/src/modules/chat/deadline-calculator.ts` (tool impl beside `tool-executor.ts`), `backend/test/unit/deadline-calculator.spec.ts`, `scripts/test/id-calendar-guard.spec.mjs` (CI repo-health convention, `node --test`).
 
 **Interfaces produced:** `ID_NATIONAL_CALENDAR` + the calculator `execute` used by task 4's registration.
 
 - [ ] **Step 1: Failing tests.**
   - `deadline-calculator.spec.ts`: arithmetic matrix — `calendar_days`/`working_days` with `countStartDay` true/false; `months`/`years` clamp (2026-01-31 + 1 month → 2026-02-28) with `countStartDay` ignored; `working_days` across a 2026 cuti bersama week (`skippedDays` lists each skipped date + name, weekends named "Saturday"/"Sunday"); `nonWorkingDayRule:'next_working_day'` vs `'none'` on a holiday landing; `calendarVersion` in the result; outside covered years → `failed` result `{refused:'outside_calendar_range', coveredYears:[2026,2027]}`.
-  - `id-calendar-guard.spec.ts`: schema spec — every `date` parses ISO, kinds are `holiday|cuti_bersama`, `decree` fields non-empty with `https` URLs; the guard — `today` injected as `new Date('2027-10-02')` fails with the add-year message, `new Date('2027-10-01')` passes (reads `lastCoveredYear` from the module, never a literal).
+  - `id-calendar-guard.spec.mjs`: schema spec — every `date` parses ISO, kinds are `holiday|cuti_bersama`, `decree` fields non-empty with `https` URLs; the guard — `today` injected as `new Date('2027-10-02')` fails with the add-year message, `new Date('2027-10-01')` passes (reads `lastCoveredYear` from the module, never a literal).
 - [ ] **Step 2: RED** → exit 1 (module/tool missing).
 - [ ] **Step 3: Implement** — the data file verbatim from spec §17 lists; the calculator per spec §10 semantics (approach F refusal as a `failed` op result, not a throw past the boundary).
 - [ ] **Step 4: GREEN** → exit 0; gate; commit `feat(shared): Indonesian national calendar + deadline calculator`; push; draft PR.
@@ -143,17 +145,18 @@ Spec §10 (deadline row), §11; research notes: SKB 2026 (1497/2/5-2025) + SKB 2
 
 ### Task 4: Tool registration, profile caps/iterations, engine question-kind, instructions (B, after 1)
 
-Spec §10 preamble + all three tool rows; research notes: `PRODUCTION_ENGINE_REGISTRATIONS`, `chat-profiles.ts`, `step-executor.ts` proposal flow, `chat-instructions.ts`.
+Spec §10 preamble + all three tool rows; research notes: `PRODUCTION_ENGINE_REGISTRATIONS`, `chat-profiles.ts`, `step-executor.ts` proposal flow, `chat-instructions.ts` — all under `backend/src/modules/chat/`.
 
 **Files:**
 
-- Modify: `shared/src/run-contracts.ts` (`ToolBase.pauseKind`; `ToolDefinition` union += `kind:'pause'` member), `shared/src/tool-registry.ts` (`ask_user`/`deadline_calculator`/`rename_chat` Zod schemas in `shared/`), `backend/src/modules/chat/chat-profiles.ts` (`capabilities: ['chat.ask','chat.deadline','chat.rename']`, `maxIterations: 1 → 6`), `backend/src/modules/chat/step-executor.ts` (kind propagation, one-pause-per-generation, ask_user ≤2-per-run counter incl. same-generation, refusal→`failed`-op path), `backend/src/modules/chat/chat-instructions.ts` (Tools section + version bump), `PRODUCTION_ENGINE_REGISTRATIONS` (three registrations).
-- Test: `backend/test/unit/tool-registration.spec.ts`, `backend/test/unit/step-executor-tools.spec.ts` (or the existing executor spec, extended).
+- Create: `shared/src/chat-tools.ts` (the three tools' Zod input schemas — `shared/` gains a module **only** for the schemas; registration stays backend-side).
+- Modify: `backend/src/modules/chat/run-contracts.ts` (`ToolBase.pauseKind`; `ToolDefinition` union += `kind:'pause'` member), `backend/src/modules/chat/run-registry.ts` + `index.ts` (`PRODUCTION_ENGINE_REGISTRATIONS` += the three tools), `backend/src/modules/chat/chat-profiles.ts` (`capabilities: ['chat.ask','chat.deadline','chat.rename']`, `maxIterations: 1 → 6`), `backend/src/modules/chat/step-executor.ts` (kind propagation, one-pause-per-generation, ask_user ≤2-per-run counter incl. same-generation, refusal→`failed`-op path), `backend/src/modules/chat/chat-instructions.ts` (Tools section + version bump).
+- Test: extend `backend/test/unit/run-registry.spec.ts`, create `backend/test/unit/step-executor-tools.spec.ts` (or extend the existing executor spec), `backend/test/integration/step-executor-tools.spec.ts` **[Docker]** for the DB-backed flows.
 
 **Interfaces produced:** the engine paths task 5's decide/resume and task 6's expiry resume rely on.
 
 - [ ] **Step 1: Failing tests.**
-  - `tool-registration.spec.ts`: the three tools registered with correct `kind`/`pauseKind`/capabilities/mode; input schemas reject out-of-range (empty questions, 4 questions, 6 options, label >80, text >300, `newTitle` >120, `currentTitle` present in args → schema strips/rejects); `.describe()` present on key fields.
+  - `run-registry.spec.ts` (extend): the three tools registered with correct `kind`/`pauseKind`/capabilities/mode; the `shared/src/chat-tools.ts` schemas reject out-of-range (empty questions, 4 questions, 6 options, label >80, text >300, `newTitle` >120, `currentTitle` present in args → schema strips/rejects); `.describe()` present on key fields.
   - `step-executor-tools.spec.ts` **[Docker]** where the flow needs DB: a generation proposing `ask_user` persists a `kind:'question'` op in `awaiting_approval` **with `expires_at` set in the same commit**; a generation proposing two pause tools → first pauses, second persisted `failed`/`one_decision_at_a_time`; the 3rd `ask_user` in a run → `failed`/`question_limit` with `maxPerRun:2`; an `ask_user` result from a stored decision is fed to the next generation via `toolResultsAsMessages` + `fenceUntrusted` (never raw); `pending` read op + pause op in one generation → run pauses, read op executes on the resumed continuation.
   - Profile spec: chat profiles carry the three capabilities and `maxIterations: 6`; a run reaching the limit after tool flow ends `failed`/`AI_ITERATION_LIMIT` (existing failure surface — records the safe copy).
 - [ ] **Step 2: RED** → exit 1.
@@ -190,14 +193,14 @@ Spec §6.2–§6.4, §9 decision schemas; research notes: `ApprovalService.decid
 
 ---
 
-### Task 6: Expiry job — scheduler + sweep + resume + poison candidates (B, after 1)
+### Task 6: Expiry job — scheduler + sweep + resume + poison candidates (B, after 4)
 
 Spec §7; research notes: `upsertJobScheduler` (BullMQ 6.5.3), `QueueConsumer` strategy pattern, `rejectApprovalForAccessLoss` precedent.
 
 **Files:**
 
 - Create: `backend/src/infrastructure/queue/expiry-sweep.ts` (or the consumer-strategy file convention), `backend/test/integration/expiry-sweep.spec.ts`.
-- Modify: `backend/src/infrastructure/queue/queue-consumer.ts` (route `ai.operation-expiry.v1` by job name), the AI-worker bootstrap (`upsertJobScheduler('ai-operation-expiry', {every:60_000}, …)` — spec §7 exact options).
+- Modify: `backend/src/infrastructure/queue/queue-consumer.ts` (route `ai.operation-expiry.v1` by job name), `backend/src/entrypoints/ai-worker/main.ts` (`upsertJobScheduler('ai-operation-expiry', {every:60_000}, …)` — spec §7 exact options).
 
 **Interfaces produced:** none consumed by later tasks (terminal consumer).
 
@@ -212,14 +215,15 @@ Spec §7; research notes: `upsertJobScheduler` (BullMQ 6.5.3), `QueueConsumer` s
 
 ---
 
-### Task 7: Stream publishers + client mapping + rows/panels/records + waiting markers + composer rules (C, after 2)
+### Task 7: Stream publishers + client mapping + rows/panels/records + waiting markers + composer rules (C, after 4 and 5)
 
 Spec §9 (all client bullets), §15; research notes: `chat-stream.ts` `chunksFromFrame`, `findActiveRun`, `run-events.service.ts`, `authorizedChatSnapshot`, `use-tree-polling`, r17 `prototype.html` panel markup.
 
 **Files:**
 
-- Modify: `backend/src/modules/chat/run-events.service.ts` + step-executor/coordinator emitters (publish `tool-input-available`, `tool-output-available`/`tool-output-denied`, `*-required` with summary, `operation-status` new statuses; **event-cap drop logic** per spec §9), `backend/src/infrastructure/db/ai-run.repository.ts` (`authorizedChatSnapshot` ops summary incl. `snapshotHash`/`display`; cap-fallback frame shape), the chat page mapper (`awaitingUser`), `chat.invalidated` on pause/decision/expiry transitions.
-- Modify (client): `frontend/src/app/(workspace)/chats/chat-stream.ts` (`chunksFromFrame` event→part mapping + missing-summary tree-fetch fallback), `chat-runtime.tsx` (`findActiveRun` learns `awaiting_approval` — new `ChatAwaitingContext`; send enabled while paused; Stop hidden when paused), `chat-client.ts` (decision route client), `thread.aui.tsx` (tool rows component `components.tools.Fallback`/`by_name`, decision records), the new docked panel component (in `ComposerPrimitive.Root`, `useAuiState` selector, calls the decision route), `chat-history.tsx` (waiting markers).
+- Modify: `backend/src/modules/chat/run-events.service.ts` + `step-executor.ts`/`step-coordinator.ts` emitters (publish `tool-input-available`, `tool-output-available`/`tool-output-denied`, `*-required` with summary, `operation-status` new statuses; **event-cap drop logic** per spec §9), `backend/src/infrastructure/db/ai-run.repository.ts` (`authorizedChatSnapshot` ops summary incl. `snapshotHash`/`display`; cap-fallback frame shape), the chat page mapper (`awaitingUser`), `chat.invalidated` on pause/decision/expiry transitions.
+- Create: `frontend/src/components/chat/chat-operation-panel.tsx` (the docked panel in `ComposerPrimitive.Root`, `useAuiState` selector, calls the decision route), `frontend/src/components/chat/chat-tool-row.tsx` (the `components.tools.Fallback`/`by_name` row + decision records).
+- Modify (client): `frontend/src/lib/chat-stream.ts` (`chunksFromFrame` event→part mapping + missing-summary tree-fetch fallback), `frontend/src/components/chat/chat-runtime.tsx` (`findActiveRun` learns `awaiting_approval` — new `ChatAwaitingContext`; send enabled while paused; Stop hidden when paused), `frontend/src/lib/chat-client.ts` (decision route client), `frontend/src/components/assistant-ui/elements/thread.aui.tsx` (wire the row + records components), `frontend/src/components/chat/chat-history.tsx` (waiting markers), `frontend/src/components/chat/use-tree-polling.ts` (keep the paused run's stream alive).
 - Test: `backend/test/unit/run-events-ops.spec.ts`, `backend/test/integration/chat-ops-stream.spec.ts` **[Docker]**, `frontend/test/chat-stream-ops.spec.tsx`, `frontend/test/chat-awaiting-panel.spec.tsx`, `frontend/test/chat-page-awaiting.spec.tsx`.
 
 **Interfaces produced:** the full live path task 10's browser specs exercise.
@@ -228,7 +232,7 @@ Spec §9 (all client bullets), §15; research notes: `chat-stream.ts` `chunksFro
   - Backend: `tool-input-available` published on proposal (running row); `approval-required`/`question-required` carry the op summary under the cap; **over-cap events (maximal multibyte `ask_user` input — `Buffer.byteLength` > 4096) drop `operation`/`input` but keep `operationId`/`kind`/ids**; `snapshot-operation` frame cap-fallback shape; `operation-status` emits `answered|dismissed|expired`; `chat.invalidated` fires on pause + on decision; `awaitingUser` true while paused, cleared after.
   - Frontend: `chunksFromFrame` maps each event to the right part state; a missing-summary `question-required` triggers a tree fetch (spy) and still renders the panel; paused run is not torn down (poll stays active past the 5 s window); panel renders options as a radio group, number keys select, Esc dismisses, Ctrl+Enter approves, Enter never approves; send enabled while paused → calls send (the supersede is server-side); **two-tab case** — a 200 stored-outcome response different from the sent action renders the stored record and closes the panel; decision records render from op state (approved/rejected/expired/"Answered in chat"/"Not run"); rows render live and identically after a replayed snapshot.
 - [ ] **Step 2: RED** → exit 1 per suite.
-- [ ] **Step 3: Implement** per spec §9 mapping table + §15 keyboard/a11y rules (radio-group pattern from `appearance-settings.tsx`, `role="status"` announcements).
+- [ ] **Step 3: Implement** per spec §9 mapping table + §15 keyboard/a11y rules (radio-group pattern from `frontend/src/components/settings/appearance-settings.tsx`, `role="status"` announcements).
 - [ ] **Step 4: GREEN** → exit 0; gate; commit `feat(chat): tool rows, decision panels, waiting markers`; push; draft PR.
 
 **Review focus:** the cap logic compares **bytes** not chars; the fetch fallback is exercised (not just coded); `requires-action`/Stop/composer states match D7 (no Stop while paused); decision records are derived from op state, never from model text; no K1 in any log/audit path touched; axe runs on the new components in both themes.
@@ -237,7 +241,7 @@ Spec §9 (all client bullets), §15; research notes: `chat-stream.ts` `chunksFro
 
 ---
 
-### Task 8: Evals (C)
+### Task 8: Evals (C, after 4)
 
 Spec §13; research notes: `evals/` layout, `backend/src/evaluation/index.ts` + `evaluation-harness.ts` allowlists, fixture `context.decide` precedent.
 
@@ -263,7 +267,7 @@ Spec §14; research notes: `index.json` 52 planned ids, `captureBrandViews` conv
 
 **Files:**
 
-- Modify: `docs/references/F4.1-visual/index.json` (52 ids → `pending`), `e2e/brand-visual-chat.spec.ts` (12 `captureBrandViews`), `e2e/brand-visual-chats-settings.spec.ts` (`chats-waiting`), `scripts/visual-compare-prototype.mjs` (`PROTOTYPE_REVISION` → 17), `docs/design/f4.1-prototype/README.md` (lead line 16 → 17), app-side capture fixtures (`installChatFixtures`/`installRunStreamFixture` for `awaiting_approval`/tool events/panels/records), the mask list (shimmer label, waiting dot/pill if animated).
+- Modify: `docs/references/F4.1-visual/index.json` (52 ids → `pending`), `backend/test/e2e/brand-visual-chat.spec.ts` (12 `captureBrandViews`), `backend/test/e2e/brand-visual-chats-settings.spec.ts` (`chats-waiting`), `scripts/visual-compare-prototype.mjs` (`PROTOTYPE_REVISION` → 17), `docs/design/f4.1-prototype/README.md` (lead line 16 → 17), app-side capture fixtures (`installChatFixtures`/`installRunStreamFixture` for `awaiting_approval`/tool events/panels/records), the mask list (shimmer label, waiting dot/pill if animated).
 - Evidence: CI `pending-compare` artifacts, `deviations.md` rows, golden `update` output.
 
 - [ ] **Step 1: Failing tests** — `node scripts/test/prototype-state-ids.spec.mjs` + `visual-index.spec.mjs` → exit 1 (ids still `planned`, revision 16).
@@ -283,11 +287,11 @@ Spec §15, §18 (every row), spec §6.4 test list.
 
 **Files:**
 
-- Create/extend: `e2e/chat-tools.spec.ts` **[Docker]** (pause→decide→resume in browser; expiry path via shortened `expires_at` fixture; send-while-paused redirect; reload parity), `frontend/test/thread-a11y.spec.tsx` (axe on panel/rows/records both themes, keyboard order).
+- Create/extend: `backend/test/e2e/chat-tools.spec.ts` **[Docker]** (pause→decide→resume in browser; the expiry case sets `expires_at` in the past via a **test-side DB update through the existing E2E helpers** — no product config, env var or route that shortens the 24 h; send-while-paused redirect; reload parity), `frontend/test/thread-a11y.spec.tsx` (axe on panel/rows/records both themes, keyboard order).
 - Evidence: the completed §18 map — every brief criterion ticked against a named passing test; `docs/references/F5-acceptance.md` final entry; `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `gh pr checks` once.
 
-- [ ] **Step 1:** browser specs fail (flows absent) — record RED where a flow doesn't exist yet.
-- [ ] **Step 2:** fix gaps found by the sweep only (each fix its own RED first; anything beyond spec → stop point).
+- [ ] **Step 1:** write the browser specs and the a11y spec. These are **acceptance tests, no RED** — the flows ship in tasks 4–7; a green run here is the expected outcome, not a skipped discipline.
+- [ ] **Step 2:** fix gaps found by the sweep only — each fix gets its own RED first (a reproduction spec that fails before the fix); anything beyond spec → stop point.
 - [ ] **Step 3:** final gates green; report every workflow run on the head with conclusion + URL.
 
 **Review focus:** every §18 row maps to a named, passing test; no assertion weakened anywhere in the slice (the old→new log is empty or justified); E2E covers live, reload, and the send redirect.
