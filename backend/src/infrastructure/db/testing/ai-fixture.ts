@@ -442,6 +442,20 @@ export async function createAiFixture(services: Services) {
         [runId],
       );
     },
+    // `lexon_app` has INSERT-only on `ops.audit_events`, so the decision-audit
+    // count reads through the migrator pool; the query is parameterized and
+    // never interpolates args, results or any other K1 field.
+    async decisionAuditCount(index: number, runId: string): Promise<number> {
+      const tenant = tenants[index];
+      if (!tenant) throw new Error('Invalid AI fixture tenant');
+      const result = await migrator.query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM ops.audit_events
+         WHERE org_id=$1 AND metadata->>'runId'=$2
+           AND type IN ('chat.approval_decided.v1','chat.question_decided.v1')`,
+        [tenant.orgId, runId],
+      );
+      return Number(result.rows[0]?.count ?? 0);
+    },
     async toolEffectCountFor(tenant: TenantFixture): Promise<number> {
       const result = await migrator.query<{ count: string }>(
         'SELECT count(*)::text AS count FROM app.ai_test_tool_effects WHERE org_id=$1',
