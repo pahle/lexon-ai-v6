@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
 import { descriptor } from './runtime-support.js';
 import { readCapturedMail, waitForHydration } from './identity-support.js';
@@ -42,7 +43,7 @@ test('open sign-up: the setup link creates a platform administrator exactly once
 }) => {
   const stack = descriptor();
   const password = 'Platform-open-signup-42!';
-  const email = 'open.setup.operator@example.test';
+  const email = randomUUID() + '@example.test';
   const setup = await operatorSetup(email, true);
   expect(setup.status).toBe('created');
   const actionUrl = setup.mail!.actionUrl;
@@ -133,7 +134,7 @@ test('open sign-up: the setup link creates a platform administrator exactly once
   }
 
   // An ordinary open sign-up without a token never gets platform rights.
-  const ordinaryEmail = 'open.ordinary.user@example.test';
+  const ordinaryEmail = randomUUID() + '@example.test';
   const ordinary = await browser.newContext();
   try {
     const ordinaryPage = await ordinary.newPage();
@@ -156,6 +157,9 @@ test('open sign-up: the setup link creates a platform administrator exactly once
     );
     await ordinaryPage.goto(stack.frontendUrl + '/sign-in');
     await signInThroughForm(ordinaryPage, ordinaryEmail, password);
+    // signInThroughForm resolves on the sign-in response; wait for the
+    // resulting navigation to commit before the next page.goto.
+    await expect(ordinaryPage).toHaveURL(/\/(workspace|onboarding)/);
     const denied = await ordinary.request.get(
       stack.apiUrl + '/api/platform/provisioning',
       { headers: { origin: stack.frontendUrl } },

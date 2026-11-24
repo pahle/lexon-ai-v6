@@ -103,26 +103,73 @@ test('open-SSE counter is off unless LEXON_LOAD_METRICS=1', () => {
   const off = createSseCounter({});
   assert.equal(off.enabled, false);
   off.opened('a');
-  assert.deepEqual(off.snapshot(), { open: null, peak: null });
+  assert.deepEqual(off.snapshot(), {
+    open: null,
+    peak: null,
+    openedTotal: null,
+    closedTotal: null,
+    lastOpenElapsedMs: null,
+  });
 });
 
 test('open-SSE counter tracks the server-side peak per window', () => {
-  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
   counter.opened('a');
   counter.opened('b');
   counter.opened('c');
   counter.closed('b');
-  assert.deepEqual(counter.snapshot(), { open: 2, peak: 3 });
+  assert.deepEqual(counter.snapshot(), {
+    open: 2,
+    peak: 3,
+    openedTotal: 3,
+    closedTotal: 1,
+    lastOpenElapsedMs: 0,
+  });
   counter.opened('a');
   assert.equal(counter.snapshot().open, 2, 'a repeated id is not recounted');
+  assert.equal(
+    counter.snapshot().openedTotal,
+    3,
+    'a repeated id is not a new open',
+  );
   counter.closed('unknown');
   counter.closed('b');
   assert.equal(counter.snapshot().open, 2, 'a repeated close is a no-op');
+  assert.equal(counter.snapshot().closedTotal, 1);
   counter.reset();
-  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+  // 'a' and 'c' are still open: they carry into the next window's totals.
+  assert.deepEqual(counter.snapshot(), {
+    open: 2,
+    peak: 2,
+    openedTotal: 2,
+    closedTotal: 0,
+    lastOpenElapsedMs: null,
+  });
   counter.closed('a');
   counter.opened('d');
-  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+  assert.deepEqual(counter.snapshot(), {
+    open: 2,
+    peak: 2,
+    openedTotal: 3,
+    closedTotal: 1,
+    lastOpenElapsedMs: 0,
+  });
+});
+
+test('open-SSE counter reports the last-open elapsed per window', () => {
+  let now = 1_000;
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => now);
+  counter.opened('a');
+  counter.opened('b');
+  counter.closed('a');
+  now = 2_500;
+  assert.deepEqual(counter.snapshot(), {
+    open: 1,
+    peak: 2,
+    openedTotal: 2,
+    closedTotal: 1,
+    lastOpenElapsedMs: 1_500,
+  });
 });
 
 test('the result records the server-side peak and the replay latency', () => {
@@ -196,7 +243,7 @@ function fakeResponse(contentType) {
 }
 
 test('open-SSE counts response streams on open and decrements on close', () => {
-  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
   const proto = { writeHead() {} };
   observeSseResponses(counter, proto);
   const a = Object.assign(fakeResponse('text/event-stream; charset=utf-8'), {
@@ -207,18 +254,31 @@ test('open-SSE counts response streams on open and decrements on close', () => {
   });
   a.writeHead(200);
   b.writeHead(200);
-  assert.deepEqual(counter.snapshot(), { open: 2, peak: 2 });
+  assert.deepEqual(counter.snapshot(), {
+    open: 2,
+    peak: 2,
+    openedTotal: 2,
+    closedTotal: 0,
+    lastOpenElapsedMs: 0,
+  });
   // A second writeHead on the same response is not a second stream.
   a.writeHead(200);
   assert.equal(counter.snapshot().open, 2);
   a.emit('close');
-  assert.deepEqual(counter.snapshot(), { open: 1, peak: 2 });
+  assert.deepEqual(counter.snapshot(), {
+    open: 1,
+    peak: 2,
+    openedTotal: 2,
+    closedTotal: 1,
+    lastOpenElapsedMs: 0,
+  });
   b.emit('close');
   assert.equal(counter.snapshot().open, 0);
+  assert.equal(counter.snapshot().closedTotal, 2);
 });
 
 test('open-SSE ignores non-SSE responses and a lease without a response', () => {
-  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' });
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
   const proto = { writeHead() {} };
   observeSseResponses(counter, proto);
   const json = Object.assign(fakeResponse('application/json'), {
@@ -228,7 +288,77 @@ test('open-SSE ignores non-SSE responses and a lease without a response', () => 
   assert.equal(counter.snapshot().open, 0);
   // Registry leases (admit without release) no longer move the counter.
   counter.reset();
-  assert.deepEqual(counter.snapshot(), { open: 0, peak: 0 });
+  assert.deepEqual(counter.snapshot(), {
+    open: 0,
+    peak: 0,
+    openedTotal: 0,
+    closedTotal: 0,
+    lastOpenElapsedMs: null,
+  });
+});
+
+test('open-SSE reports writes on counted responses only', () => {
+  // The write notification is the rendezvous pairing a service sink (which
+  // names a close reason) to its response: api-main marks the response with
+  // the key the sink's write ran under.
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
+  const proto = { writeHead() {} };
+  const writes = [];
+  const closes = [];
+  observeSseResponses(
+    counter,
+    proto,
+    (response) => closes.push(response),
+    (response) => writes.push(response),
+  );
+  const a = Object.assign(fakeResponse('text/event-stream'), {
+    writeHead: proto.writeHead,
+    write() {
+      return true;
+    },
+  });
+  const json = Object.assign(fakeResponse('application/json'), {
+    writeHead: proto.writeHead,
+    write() {
+      return true;
+    },
+  });
+  a.writeHead(200);
+  json.writeHead(200);
+  a.write('data: x\n\n');
+  json.write('{}');
+  assert.deepEqual(writes, [a]);
+  a.emit('close');
+  assert.deepEqual(closes, [a]);
+});
+
+test('open-SSE reports end calls on counted responses only', () => {
+  // The end notification is the close rendezvous: a counted stream whose
+  // service close lands before any body write still pairs, because
+  // sink.close() reaches response.end() inside the stream key.
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
+  const proto = { writeHead() {} };
+  const ends = [];
+  observeSseResponses(counter, proto, undefined, undefined, (response) =>
+    ends.push(response),
+  );
+  const a = Object.assign(fakeResponse('text/event-stream'), {
+    writeHead: proto.writeHead,
+    end() {
+      return this;
+    },
+  });
+  const json = Object.assign(fakeResponse('application/json'), {
+    writeHead: proto.writeHead,
+    end() {
+      return this;
+    },
+  });
+  a.writeHead(200);
+  json.writeHead(200);
+  a.end();
+  json.end();
+  assert.deepEqual(ends, [a]);
 });
 
 test('retry budget starts at the first refusal, not before', () => {
