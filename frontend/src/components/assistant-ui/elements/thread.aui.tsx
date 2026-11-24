@@ -19,9 +19,12 @@ import {
   type AnswerStatus,
 } from '@/components/chat/chat-reasoning';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
+import { ChatOperationPanel } from '@/components/chat/chat-operation-panel';
+import { ChatToolRow } from '@/components/chat/chat-tool-row';
 import {
   ChatComposerCancel,
   useChatActiveRun,
+  useChatAwaiting,
 } from '@/components/chat/chat-runtime';
 import {
   BottomSentinel,
@@ -109,7 +112,11 @@ export type ThreadProps = {
 
 // B-22: a stable Parts components map — a fresh object per render would hand
 // each part new component identities and remount the message content.
-const messagePartComponents = { Text: MarkdownText, Reasoning: () => null };
+const messagePartComponents = {
+  Text: MarkdownText,
+  Reasoning: () => null,
+  tools: { Fallback: ChatToolRow },
+};
 
 const preventFileDrop = (event: DragEvent<HTMLFormElement>) => {
   if (event.dataTransfer.files.length === 0) return;
@@ -934,8 +941,9 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   onEffortChange,
 }) => {
   const serverActive = useChatActiveRun();
+  const paused = useChatAwaiting()?.paused ?? false;
   const running =
-    useAuiState((state) => state.thread.isRunning) || serverActive;
+    (useAuiState((state) => state.thread.isRunning) || serverActive) && !paused;
   const loading = useAuiState((state) => state.thread.isLoading);
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
@@ -964,7 +972,8 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
     if (text && !text.trim()) event.preventDefault();
   };
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    if (serverActive || loading) {
+    // A paused run stays send-capable — the server supersedes it (D7).
+    if ((serverActive && !paused) || loading) {
       event.preventDefault();
       return;
     }
@@ -983,12 +992,15 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onSubmit={validatePrompt}
     >
       <ScrollToLatest />
+      <ChatOperationPanel />
       <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
-            running
-              ? 'Lexon is answering…'
-              : 'Ask Lexon about a contract, a regulation, or a case...'
+            paused
+              ? 'Or reply in your own words…'
+              : running
+                ? 'Lexon is answering…'
+                : 'Ask Lexon about a contract, a regulation, or a case...'
           }
           className={cn(
             'aui-composer-input caret-primary',

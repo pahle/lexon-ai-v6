@@ -84,22 +84,34 @@ describe('encodeStreamParts', () => {
     expect(JSON.stringify(available[0])).toContain('operationId');
   });
 
-  it('converts a tool whole result into durable operation metadata', () => {
+  it('keeps a tool whole result bound to its durable operation id', () => {
+    // F5 §9: tool parts replay — the stored result rides the event (no
+    // operation-status rewrite); only over-cap frames drop the output block.
+    const output = { verdict: 'the stored result replays' };
     const parts = encodeStreamParts({
       ...base,
       type: 'tool-output-available',
       toolCallId: 'sdk-call',
       operationId: '40000000-0000-4000-8000-000000000002',
-      output: { secretText: 'must not be copied into the stream' },
+      output,
     });
     expect(parts).toEqual([
       {
         ...base,
-        type: 'operation-status',
+        type: 'tool-output-available',
+        toolCallId: 'sdk-call',
         operationId: '40000000-0000-4000-8000-000000000002',
-        status: 'completed',
+        output,
       },
     ]);
+    expect(() =>
+      encodeStreamParts({
+        ...base,
+        type: 'tool-output-available',
+        toolCallId: 'sdk-call',
+        output,
+      }),
+    ).toThrow('Tool result requires durable operation metadata');
   });
 
   it('fragments oversized structured tool input without losing the completion part', () => {

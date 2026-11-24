@@ -28,6 +28,7 @@ export { streamsSmoke } from './streams-smoke.js';
 export { encodeStreamParts } from './run-stream-parts.js';
 export {
   RunStreams,
+  MAX_COMMITTED_EVENTS_PER_PUBLICATION,
   type RunStreamsOptions,
   type RunStreamAuthority,
   type ActiveStreamProof,

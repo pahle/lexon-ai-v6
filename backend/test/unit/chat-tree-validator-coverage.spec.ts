@@ -30,6 +30,9 @@ it('the selected-column list is the literal tree projection', () => {
     'reasoning_summary',
     'reasoning_duration_ms',
     'feedback',
+    // F5: the ops LATERAL aggregate — covered by ai_operations validator
+    // inputs (spec §5 item 15 guard still holds).
+    'operations',
     'created_at',
     'viewed_leaf_id',
   ]);

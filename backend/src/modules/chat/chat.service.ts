@@ -8,7 +8,12 @@ import type {
   SendMessageInput,
 } from '@lexon/contracts';
 import { ChatApiError } from '@lexon/contracts';
-import { ChatPageSchema, ChatTreeSchema } from '@lexon/contracts';
+import {
+  ChatOperationSnapshotSchema,
+  ChatPageSchema,
+  ChatTreeSchema,
+} from '@lexon/contracts';
+import type { RunStreamEvent } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
 import {
   AiOperationRepository,
@@ -24,9 +29,11 @@ import {
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type {
+  CommittedStreamReference,
   TenantSession,
   TerminalStreamReference,
 } from '../../infrastructure/db/index.js';
+import { requireSession } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
 import type { RunActor } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
@@ -65,6 +72,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 export type ChatServiceGetResult =
   | { notModified: false; tree: SharedChatTree; etag: string }
   | { notModified: true; etag: string };
+
+/**
+ * Post-commit stream publication for a superseded pause: the dead run's
+ * terminal reference for `finish`, plus the settled-op lifecycle events a
+ * live claim would have committed (published first, then the finish).
+ */
+interface SupersededPublication {
+  readonly reference: TerminalStreamReference;
+  readonly committed: CommittedStreamReference;
+  readonly events: readonly RunStreamEvent[];
+}
 
 export class ChatService {
   private readonly chats = new ChatRepository();
@@ -230,11 +248,12 @@ export class ChatService {
         // resolves the paused call in this same transaction, completes the
         // run and continues as a normal send. Any other active answer still
         // conflicts exactly as before.
-        let superseded: TerminalStreamReference | undefined;
+        let superseded: SupersededPublication | undefined;
         if (chat.activeAnswerRunId) {
           superseded = await this.supersedePausedRun(
             tx,
             actor,
+            chatId,
             chat.activeAnswerRunId,
           );
           if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
@@ -301,12 +320,19 @@ export class ChatService {
         }
       },
     );
-    if (outcome.superseded)
-      await this.streams?.finish(outcome.superseded, {
+    if (outcome.superseded) {
+      // The settled ops close out on the dead run's stream before its
+      // terminal finish, exactly like a live claim's committed lifecycle.
+      await this.streams?.publishCommitted(
+        outcome.superseded.committed,
+        outcome.superseded.events,
+      );
+      await this.streams?.finish(outcome.superseded.reference, {
         version: 1,
-        runId: outcome.superseded.runId,
+        runId: outcome.superseded.reference.runId,
         type: 'finish',
       });
+    }
     return outcome.result;
   }
 
@@ -326,8 +352,9 @@ export class ChatService {
   private async supersedePausedRun(
     tx: TenantSession,
     actor: RunActor,
+    chatId: string,
     runId: string,
-  ): Promise<TerminalStreamReference | undefined> {
+  ): Promise<SupersededPublication | undefined> {
     const run = await this.runs.find(tx, runId);
     if (!run || run.status !== 'awaiting_approval') return undefined;
     const operation = (
@@ -346,7 +373,9 @@ export class ChatService {
       userId: actor.userId,
     });
     if (!superseded) return undefined;
-    await this.operations.failUnresolvedForSupersede(tx, { runId });
+    const leftovers = (
+      await this.operations.failUnresolvedForSupersede(tx, { runId })
+    ).toSorted((left, right) => left.callOccurrence - right.callOccurrence);
     const provider = asRecord(run.resolvedConfig).provider;
     if (
       typeof provider !== 'string' ||
@@ -415,7 +444,77 @@ export class ChatService {
       }))
     )
       return undefined;
-    return this.runs.terminalStreamReference(tx, runId);
+    const reference = await this.runs.terminalStreamReference(tx, runId);
+    if (!reference) return undefined;
+    const pausedStep = await this.steps.find(tx, {
+      runId: run.id,
+      sequence: run.nextSequence - 1,
+    });
+    if (!pausedStep || pausedStep.state !== 'awaiting_approval')
+      return undefined;
+    // The pause settled ops the way the executor's committed lifecycle maps
+    // them: rejected/dismissed/expired → tool-output-denied, settled-with-
+    // result states → tool-output-available carrying the stored result.
+    const events: RunStreamEvent[] = [];
+    for (const settled of [superseded, ...leftovers]) {
+      const wireStatus =
+        settled.status === 'succeeded' ? 'completed' : settled.status;
+      events.push({
+        version: 1,
+        runId: run.id,
+        type: 'operation-status',
+        operationId: settled.id,
+        status: wireStatus,
+      });
+      if (
+        settled.status === 'rejected' ||
+        settled.status === 'dismissed' ||
+        settled.status === 'expired'
+      ) {
+        events.push({
+          version: 1,
+          runId: run.id,
+          type: 'tool-output-denied',
+          toolCallId: settled.id,
+        });
+      } else if (
+        settled.status === 'succeeded' ||
+        settled.status === 'failed' ||
+        settled.status === 'outcome_unknown' ||
+        settled.status === 'answered'
+      ) {
+        events.push({
+          version: 1,
+          runId: run.id,
+          type: 'tool-output-available',
+          toolCallId: settled.id,
+          operationId: settled.id,
+          output: settled.result ?? null,
+        });
+      }
+    }
+    // §6.5: the superseded pause invalidates the chat view — the notify
+    // fires at this send transaction's commit, after the run closed.
+    const { client } = requireSession(tx);
+    await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
+      JSON.stringify({
+        orgId: actor.orgId,
+        userId: actor.userId,
+        chatId,
+      }),
+    ]);
+    const committed: CommittedStreamReference = {
+      runId: run.id,
+      orgId: actor.orgId,
+      userId: actor.userId,
+      stepId: pausedStep.id,
+      sequence: pausedStep.sequence,
+      expectedVersion: pausedStep.expectedVersion,
+      fence: pausedStep.fence,
+      committedRunVersion: run.runVersion + 1,
+      committedStatus: 'completed',
+    };
+    return { reference, committed, events };
   }
 
   async get(
@@ -462,9 +561,9 @@ export class ChatService {
                   reasoningSummary: message.reasoningSummary,
                   reasoningDurationMs: message.reasoningDurationMs,
                   feedback: message.feedback,
-                  // Per-run operation summaries are populated by the F5
-                  // stream-publisher task; the wire field is required.
-                  operations: [],
+                  operations: z
+                    .array(ChatOperationSnapshotSchema)
+                    .parse(message.operations),
                   createdAt: message.createdAt.toISOString(),
                 };
           }),
@@ -514,9 +613,7 @@ export class ChatService {
           title: row.title || 'New chat',
           updatedAt: row.updated_at.toISOString(),
           lastMessageAt: row.last_message_at?.toISOString() ?? null,
-          // Awaiting-decision flag is wired by the F5 stream-publisher task;
-          // the wire field is a required boolean.
-          awaitingUser: false,
+          awaitingUser: row.awaiting_user,
         }));
         const last = pageRows.at(-1);
         return ChatPageSchema.parse({

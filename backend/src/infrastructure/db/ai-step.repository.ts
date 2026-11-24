@@ -188,7 +188,13 @@ export class AiStepRepository {
            WHERE o.org_id=s.org_id AND o.run_id=s.run_id
              AND operation_step.sequence<=s.sequence
              AND o.id=$10 AND (
-               ($11='approval-required' AND o.status='awaiting_approval') OR
+               ($11='approval-required' AND o.status='awaiting_approval'
+                 AND o.kind='approval') OR
+               ($11='question-required' AND o.status='awaiting_approval'
+                 AND o.kind='question') OR
+               ($11='tool-input-available') OR
+               ($11='tool-output-available' AND
+                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
                ($11='operation-status' AND
                  CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=$12)
              )

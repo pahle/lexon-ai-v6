@@ -5,10 +5,12 @@ import type {
   CommittedStreamReference,
   OperationRecord,
   OutboxRepository,
+  TenantSession,
   TerminalStreamReference,
   RunActorFactsRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
+import { requireSession } from '../../infrastructure/db/index.js';
 import {
   AskUserToolInputSchema,
   ChatApiError,
@@ -209,6 +211,7 @@ export class ApprovalService {
           });
           const reference = await this.runs.terminalStreamReference(tx, run.id);
           if (!reference) throw new Error('AI approval decision refused');
+          await this.#notifyChatInvalidated(tx, run.id);
           return { kind: 'terminal', reference };
         }
         const updated = await this.operations.decideApproval(tx, {
@@ -326,6 +329,7 @@ export class ApprovalService {
           committedRunVersion: expectedVersion,
           committedStatus: 'running',
         };
+        await this.#notifyChatInvalidated(tx, run.id);
         return {
           kind: 'resume',
           reference,
@@ -364,6 +368,29 @@ export class ApprovalService {
       ]);
     }
     return publication.outcome;
+  }
+
+  /**
+   * §6.5: a decided (or access-loss-settled) panel invalidates the chat view.
+   * The notify lands at this transaction's commit; runs not bound to a chat
+   * simply find no `chat_runs` row and emit nothing.
+   */
+  async #notifyChatInvalidated(tx: TenantSession, runId: string) {
+    const { client, ctx } = requireSession(tx);
+    const link = await client.query<{ chat_id: string }>(
+      `SELECT chat_id FROM app.chat_runs
+       WHERE org_id=$1 AND run_id=$2 AND kind='answer'`,
+      [ctx.orgId, runId],
+    );
+    for (const row of link.rows) {
+      await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
+        JSON.stringify({
+          orgId: ctx.orgId,
+          userId: ctx.userId,
+          chatId: row.chat_id,
+        }),
+      ]);
+    }
   }
 }
 
