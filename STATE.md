@@ -4,7 +4,14 @@ Last updated: 2026-11-23 by the brief generator.
 
 ## Next action
 
-**2026-11-24 ~02:10 WIB (latest): owner asleep; owner asked me to merge tonight (green only).**
+**2026-11-24 (latest, after night): F4.4 COMPLETE. #66 merged by owner (3e69b5ef) with the S2 ramp-peak deviation, carried to F4.5 item 4 (PR #71). Main CI on 3e69b5ef was in progress at merge.**
+
+- Main now: F0-F4.4, LEX-TS-001 v1.14, LEX-DS-001 v3.4, prototype revision 17 approved, F5 brief with decisions 5-7, F4.5 brief (#70) + item 4 (#71, draft).
+- Next: owner merges #71; owner starts the F4.5 planning session (prompt in this session, typo fixed); then F5.
+- Cleanup: ../lexon-f44-merge removed. Implementer worktrees ../lexon-f44-deps (branch f4.4-ts-guard) and ../lexon-f44-hardening are stale; implementer removes them at the start of F4.5.
+- SWE-2 max F4.4 assessment (owner trial, not policy): strong tests and RED evidence; misses caught only by my diff review (an unreported CI failure, two wrong clock claims, a pgFailure spec deviation, an unverified CI step, incomplete close counters). Recommendation: Fusion for root-cause/spec/plan phases; SWE-2 max for execution with my per-task diff review.
+
+**2026-11-24 ~02:10 WIB: owner asleep; owner asked me to merge tonight (green only).**
 
 - Merged by me on owner request: #68 (2aa770bc, LEX-TS-001 v1.14), #67 (16b8e24a, revision 17 + DS v3.4 + F5 decision 7), #70 (240ed7a2, F4.5 brief). Earlier by owner: #65, #69.
 - #66 NOT merged: I merged origin/main into f4.4-hardening from my own worktree ../lexon-f44-merge (merge commit 155d6a6a; resolved chat-markdown.spec.tsx (kept both tests) and F4.4-acceptance.md (task 1 section + tasks 2-13); local lint/typecheck/format/test:unit 1700/1700 green). Required checks green, but chat-sse-load failed again on 155d6a6a (run 45241596238): ramp serverPeakOpenSse 484/500, admitted 500, authPoolWaitP95 2113 ms. Close counters show only clientAbort, but they count only 179 closes for 500 ramp streams (run B also counted < 500), so the counters do not cover every close path: "no server-initiated close" is not proven.
