@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { descriptor } from './runtime-support.js';
-import { readCapturedMail } from './identity-support.js';
+import { readCapturedMail, waitForHydration } from './identity-support.js';
 import { totpForUri } from '../setup/totp.js';
 
 test('settings deep links, shortcut, draft reset, and nested destructive focus stay in the workspace', async ({
@@ -158,9 +158,12 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
     ).status(),
   ).toBe(204);
   await page.goto(stack.frontendUrl + '/workspace?settings=security');
-  await page
-    .getByRole('button', { name: 'Set up authenticator', exact: true })
-    .click();
+  const setupAuthenticator = page.getByRole('button', {
+    name: 'Set up authenticator',
+    exact: true,
+  });
+  await waitForHydration(setupAuthenticator);
+  await setupAuthenticator.click();
   await page.getByLabel('Enrollment password', { exact: true }).fill(password);
   await page
     .getByRole('button', { name: 'Set up authenticator', exact: true })
@@ -232,9 +235,12 @@ test('security TOTP enrollment challenge and recovery are accessible and remain 
   expect(
     (await page.request.get(stack.frontendUrl + '/api/identity')).status(),
   ).toBe(401);
-  await page
-    .getByRole('button', { name: 'Use a recovery code', exact: true })
-    .click();
+  const recoveryToggle = page.getByRole('button', {
+    name: 'Use a recovery code',
+    exact: true,
+  });
+  await waitForHydration(recoveryToggle);
+  await recoveryToggle.click();
   await page.getByLabel('Recovery code', { exact: true }).fill(recovery);
   await page
     .getByRole('button', { name: 'Verify recovery code', exact: true })
