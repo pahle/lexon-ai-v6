@@ -24,6 +24,7 @@ import {
   TenantTransactionTimeoutError,
 } from '../../infrastructure/db/index.js';
 import { capRequiredEvent } from '../../infrastructure/queue/run-stream-parts.js';
+import { MAX_COMMITTED_EVENTS_PER_PUBLICATION } from '../../infrastructure/queue/index.js';
 import type {
   JsonValue,
   ModelEvent,
@@ -2090,7 +2091,13 @@ export class StepExecutor {
       committedStatus: run.status,
     };
     const terminal = ['completed', 'failed', 'cancelled'].includes(run.status);
-    const events: RunStreamEvent[] = terminal
+    // §9 + the F3/F4 32-event writer bound: the durable lifecycle spine (run
+    // status, every op status, pending decision panels) publishes ahead of
+    // the tool-* replay frames. With ~3 replay frames per op the batch outgrew
+    // the bound, so publication slices into ordered chunks — and a bounded
+    // partial write always lands the authoritative op states first, which is
+    // exactly the partial state consumers resync from.
+    const lifecycle: RunStreamEvent[] = terminal
       ? []
       : [
           {
@@ -2100,13 +2107,14 @@ export class StepExecutor {
             status: run.status,
           },
         ];
+    const replay: RunStreamEvent[] = [];
     for (const operation of operations.filter(
       (entry) =>
         entry.stepId === claim.stepId || operationIds.includes(entry.id),
     )) {
       const wireStatus: OperationStatus =
         operation.status === 'succeeded' ? 'completed' : operation.status;
-      events.push({
+      lifecycle.push({
         version: 1,
         runId: claim.runId,
         type: 'operation-status',
@@ -2121,15 +2129,6 @@ export class StepExecutor {
         !Array.isArray(operation.args)
           ? (operation.args as Record<string, unknown>)
           : {};
-      events.push({
-        version: 1,
-        runId: claim.runId,
-        type: 'tool-input-available',
-        toolCallId: operation.id,
-        toolName: operation.toolName,
-        operationId: operation.id,
-        input: args,
-      });
       const summary = {
         operationId: operation.id,
         kind: operation.kind,
@@ -2152,7 +2151,7 @@ export class StepExecutor {
           : {}),
       };
       if (operation.status === 'awaiting_approval')
-        events.push(
+        lifecycle.push(
           ...capRequiredEvent(
             operation.kind === 'question'
               ? {
@@ -2179,13 +2178,22 @@ export class StepExecutor {
                 },
           ),
         );
+      replay.push({
+        version: 1,
+        runId: claim.runId,
+        type: 'tool-input-available',
+        toolCallId: operation.id,
+        toolName: operation.toolName,
+        operationId: operation.id,
+        input: args,
+      });
       if (
         operation.status === 'succeeded' ||
         operation.status === 'failed' ||
         operation.status === 'outcome_unknown' ||
         operation.status === 'answered'
       )
-        events.push({
+        replay.push({
           version: 1,
           runId: claim.runId,
           type: 'tool-output-available',
@@ -2198,7 +2206,7 @@ export class StepExecutor {
         operation.status === 'dismissed' ||
         operation.status === 'expired'
       )
-        events.push({
+        replay.push({
           version: 1,
           runId: claim.runId,
           type: 'tool-output-denied',
@@ -2207,14 +2215,26 @@ export class StepExecutor {
     }
     const safeCode = RunErrorCodeSchema.safeParse(run.errorCode);
     if (!terminal && safeCode.success)
-      events.push({
+      lifecycle.push({
         version: 1,
         runId: claim.runId,
         type: 'error',
         code: safeCode.data,
       });
-    if (events.length)
-      await this.options.streams.publishCommitted(reference, events);
+    const events = [...lifecycle, ...replay];
+    for (
+      let start = 0;
+      start < events.length;
+      start += MAX_COMMITTED_EVENTS_PER_PUBLICATION
+    ) {
+      const published = await this.options.streams.publishCommitted(
+        reference,
+        events.slice(start, start + MAX_COMMITTED_EVENTS_PER_PUBLICATION),
+      );
+      // A stale or deadline-bound chunk ends the batch: later chunks share the
+      // same lineage and deadline, and the committed prefix is recoverable.
+      if (published !== 'written') break;
+    }
   }
 
   async #appendToolAudit(

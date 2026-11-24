@@ -26,6 +26,7 @@ import {
 } from '@/components/chat/chat-runtime';
 import { readDockQuestions } from '@/components/chat/chat-tool-row';
 import { composerClasses } from '@/components/chat/composer-styles';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const prettifyKey = (key: string) =>
@@ -233,7 +234,16 @@ function ApprovalDock({
           </h2>
         </div>
         {missingDetail ? (
-          <p className="text-muted-foreground text-sm">Loading the details…</p>
+          // §9-capped frames carry ids only; skeleton rows hold the field
+          // slots until the tree refetch lands (LEX-DS-001 §5.1).
+          <div
+            aria-hidden="true"
+            className="bg-muted flex flex-col gap-2 rounded-xl p-3"
+          >
+            <Skeleton className="w-24" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-2/3" />
+          </div>
         ) : (
           <DescriptorFields input={summary.input} display={summary.display} />
         )}
@@ -480,7 +490,13 @@ function QuestionDock({
           </span>
         </div>
         {!isReady ? (
-          <p className="text-muted-foreground text-sm">Loading the question…</p>
+          // Same §9-cap fallback as the approval dock: skeleton rows shaped
+          // like a question and its option rows (LEX-DS-001 §5.1).
+          <div aria-hidden="true" className="flex flex-col gap-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
         ) : (
           <>
             <p className="text-[15px] font-medium">{current.text}</p>

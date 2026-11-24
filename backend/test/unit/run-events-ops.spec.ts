@@ -87,7 +87,7 @@ describe('byte-cap fallback (spec §9)', () => {
       type: 'question-required',
       operationId,
       kind: 'question',
-      operation: oversizedOperation,
+      operation: { ...oversizedOperation, kind: 'question' as const },
     });
     for (const event of events) {
       const parsed = RunStreamEventSchema.parse(event);
