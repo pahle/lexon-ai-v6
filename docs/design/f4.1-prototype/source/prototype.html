@@ -487,6 +487,11 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .orow.on .num{background:var(--tint);color:var(--redtext)}
 .orow.on .ot{font-weight:500}
 .orow .ck{margin-left:auto;color:var(--redtext);align-self:center}
+.orow .cb{flex:none;width:18px;height:18px;margin:4px 3px 0;border:1.5px solid var(--input);border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--bg)}
+.orow.on .cb{background:var(--redtext);border-color:var(--redtext)}
+.dock .dhint{padding:0 16px 4px;font-size:13px;color:var(--mfg)}
+.dock .dtext{padding:4px 16px 6px}
+.dock .dtext .inp{height:40px;font-size:14.5px}
 .qrec .qi+.qi{margin-top:8px}
 .qrec .qi{display:flex;flex-direction:column;gap:2px}
 .qrec{border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:4px;font-size:15px;line-height:1.5}
@@ -497,6 +502,7 @@ mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
 .app.mobile .kv,.app.mobile .dock .dbox .kv{grid-template-columns:1fr;gap:0}
 .app.mobile .kv dd{margin-bottom:6px}
 .app.mobile .dock .df .ox{display:none}
+.app.mobile .dock .df .dic{display:none}
 .app.mobile .kbd2{display:none}
 </style>
 <div id="root"></div>
@@ -1050,7 +1056,8 @@ document.addEventListener('click',e=>{const x=e.target.closest('.dv-bar .x');if(
 const F5={
  tool:{title:'Batas waktu banding',q:'Kapan batas akhir mengajukan banding jika putusan dibacakan pada 3 Agustus 2027?'},
  ask:{title:'Masa berlaku kontrak',q:'Apakah kontrak ini masih berlaku?'},
- ren:{title:'Draf somasi wanprestasi',q:'Ganti judul chat ini jadi “Somasi PT Sinar”.'}
+ ren:{title:'Draf somasi wanprestasi',q:'Ganti judul chat ini jadi “Somasi PT Sinar”.'},
+ nda:{title:'Draf NDA vendor',q:'Buatkan draf NDA untuk kerja sama dengan vendor kami.'}
 };
 const DL_PRE='<p>Saya hitung tenggatnya dengan kalender hari kerja Indonesia.</p>';
 const DL_ANS='<p>Batas akhir pengajuan banding jatuh pada <b>Rabu, 18 Agustus 2027</b>.</p><p>Perhitungan memakai 14 hari kalender sejak hari setelah putusan dibacakan. Hari ke-14 jatuh pada Selasa, 17 Agustus 2027 (Hari Kemerdekaan), sehingga digeser ke hari kerja berikutnya. Periksa kembali tenggang waktu yang berlaku untuk perkara Anda.</p>';
@@ -1064,6 +1071,12 @@ const ASKM=[[ASKQ,ASKO],['Siapa pihak dalam kontrak ini?',[['Perusahaan dan kary
 const qdock=(page=0,total=1,picked=-1)=>{const [q,opts]=total>1?ASKM[page]:[ASKQ,ASKO];
  const nav=total>1?`<span class="dnav"><button class="ib" aria-label="Previous question" ${page===0?'aria-disabled="true"':''}>${sv('left',16)}</button><span class="pg">${page+1} of ${total}</span><button class="ib" aria-label="Next question" ${page===total-1?'aria-disabled="true"':''}>${sv('right',16)}</button><span class="dsep" aria-hidden="true"></span><button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button></span>`:`<button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button>`;
  return `<section class="dock" aria-label="${total>1?`Question ${page+1} of ${total} from Lexon`:'Question from Lexon'}"><div class="dh"><span id="aq">${q}</span>${nav}</div><div class="ol" role="radiogroup" aria-labelledby="aq">${opts.map(([t,d],i)=>`<button class="orow ${i===picked?'on':''}" role="radio" aria-checked="${i===picked}"><span class="num">${i+1}</span><span class="ot">${t}${d?`<small>${d}</small>`:''}</span>${i===picked?`<span class="ck">${sv('check',16)}</span>`:''}</button>`).join('')}<div class="orow"><span class="num">${sv('pen',13)}</span><span class="oin">Write another answer</span></div></div><div class="df"><span class="ox">Expires 24 Nov 2026, 10:42</span><span style="display:inline-flex;gap:4px">${total>1?'<button class="btn ghost sm">Skip this question</button>':''}<button class="btn ghost sm">Answer in chat instead</button></span></div></section>`;};
+const NDAQ=['NDA ini untuk siapa?','Siapa nama pihak pertama?','Informasi apa saja yang dilindungi?','Hukum mana yang berlaku?','Bagaimana sengketa diselesaikan?'];
+const ndaNav=(page)=>`<span class="dnav"><button class="ib" aria-label="Previous question">${sv('left',16)}</button><span class="pg">${page+1} of 5</span><button class="ib" aria-label="Next question">${sv('right',16)}</button><span class="dsep" aria-hidden="true"></span><button class="ib" aria-label="Answer in chat instead">${sv('x',16)}</button></span>`;
+const ndaFoot=()=>`<div class="df"><span class="ox">Expires 24 Nov 2026, 10:42</span><span style="display:inline-flex;gap:4px;margin-left:auto"><button class="btn ghost sm">Skip this question</button><button class="btn ghost sm dic">Answer in chat instead</button><button class="btn primary sm">Next</button></span></div>`;
+const tdock=()=>`<section class="dock" aria-label="Question 2 of 5 from Lexon"><div class="dh"><label id="aq" for="aqt">${NDAQ[1]}</label>${ndaNav(1)}</div><div class="dtext"><input id="aqt" class="inp focus" value="PT Sinar Abadi Logistik" aria-labelledby="aq"></div>${ndaFoot()}</section>`;
+const SELO=[['Data keuangan','Laporan, harga, dan anggaran',true],['Rahasia dagang','Proses, formula, dan metode kerja',true],['Data pelanggan','Identitas dan riwayat transaksi',false],['Kode sumber dan dokumentasi teknis','',true]];
+const sdock=()=>`<section class="dock" aria-label="Question 3 of 5 from Lexon"><div class="dh"><span id="aq">${NDAQ[2]}</span>${ndaNav(2)}</div><div class="dhint">Select all that apply</div><div class="ol" role="group" aria-labelledby="aq">${SELO.map(([t,d,on])=>`<button class="orow ${on?'on':''}" role="checkbox" aria-checked="${on}"><span class="cb">${on?sv('check',12):''}</span><span class="ot">${t}${d?`<small>${d}</small>`:''}</span></button>`).join('')}<div class="orow"><span class="num">${sv('pen',13)}</span><span class="oin">Write another answer</span></div></div>${ndaFoot()}</section>`;
 const adock=()=>`<section class="dock" aria-label="Approval needed"><div class="dh"><span style="display:inline-flex;align-items:center;gap:6px">Lexon wants to rename this chat${sv('down2',14,'style="color:var(--mfg)"')}</span></div><div class="dbox"><dl class="kv"><dt>Current title</dt><dd>Draf somasi wanprestasi</dd><dt>New title</dt><dd><b style="font-weight:600">Somasi PT Sinar</b></dd></dl></div><div class="df" style="padding-top:10px"><span class="ox">Expires 24 Nov 2026, 10:42</span><span style="display:inline-flex;gap:8px;margin-left:auto"><button class="btn outline sm">Reject<span class="kbd2">Esc</span></button><button class="btn primary sm">Approve<span class="kbd2">Ctrl ↵</span></button></span></div></section>`;
 const docked=(panel,ph)=>{let c=composer().replace('<div class="comp','__DOCK__<div class="comp').replace('__DOCK__',panel);if(ph)c=c.replace('placeholder="Ask Lexon about a contract, a regulation, or a case…"',`placeholder="${ph}"`);return c;};
 const qrec=(answer,off=false)=>`<div class="qrec"><span class="q">${ASKQ}</span><span class="a ${off?'off':''}">${answer}</span></div>`;
@@ -1078,7 +1091,10 @@ function f5Screen(st){
   if(st==='chat-tool-running'){b=q+`<div class="am">${who('',null,true)}${DL_PRE}<span class="trow" aria-live="polite">${sv('calendar',15)}<span class="lb shim">Calculating the deadline…</span></span></div>`;c=composer({streaming:true});}
   if(st==='chat-tool-failed') b=q+`<div class="am">${who('Thought for 9 seconds',false)}${DL_PRE}${trow('alert','Couldn’t calculate the deadline',false,'bad')}<p>Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.</p>${abar()}</div>`;
  }
- if(st.startsWith('chat-question')){set(F5.ask.title);
+ if(st==='chat-question-text'||st==='chat-question-select'){set(F5.nda.title);
+  b=um(F5.nda.q)+`<div class="am">${who('Thought for 4 seconds',false)}<p>Saya perlu beberapa informasi sebelum menyusun drafnya.</p>${waitChip()}</div>`;
+  c=docked(st==='chat-question-text'?tdock():sdock(),'Or reply in your own words…');side.waiting='a';
+ } else if(st.startsWith('chat-question')){set(F5.ask.title);
   const q=um(F5.ask.q),pre='<p>Saya perlu satu informasi sebelum menjawab.</p>';
   if(st==='chat-question'){b=q+`<div class="am">${who('Thought for 3 seconds',false)}${pre}${waitChip()}</div>`;c=docked(qdock(),'Or reply in your own words…');side.waiting='a';}
   if(st==='chat-question-multi'){b=q+`<div class="am">${who('Thought for 4 seconds',false)}<p>Saya perlu beberapa informasi sebelum menjawab.</p>${waitChip()}</div>`;c=docked(qdock(1,3,0),'Or reply in your own words…');side.waiting='a';}
@@ -1106,7 +1122,7 @@ const GROUPS=[
  ['Auth',['sign-in','sign-in-field-errors','sign-in-form-alert','sign-in-pending','sign-up','forgot-password','forgot-password-sent','reset-password','reset-password-invalid','verify-email','two-factor','accept-invitation','accept-invitation-declined','accept-invitation-unavailable','admin-setup','admin-setup-activate','admin-setup-unavailable','onboarding','onboarding-invitations','onboarding-team']],
  ['Status',['not-found','organizations-not-found','workspace-error','platform-no-access']],
  ['Shell',['shell-personal','shell-team','organization-switcher-open','user-menu-open','recent-menu','sidebar-collapsed','mobile-sheet-open','recent-load-failed']],
- ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete','chat-tool-activity','chat-tool-expanded','chat-tool-running','chat-tool-failed','chat-question','chat-question-multi','chat-question-answered','chat-question-dismissed','chat-approval','chat-approval-approved','chat-approval-rejected','chat-approval-expired']],
+ ['Chat',['chat-new','chat-starter-pill','chat-deep-thinking','chat-thinking','chat-streaming-scroll','chat-reasoning-collapsed','chat-reasoning-open','chat-answer-actions','chat-copied','chat-copy-failed','chat-feedback','chat-edit','chat-branch','chat-stopped','chat-error','chat-reconnecting','chat-composer-running','chat-thread-loading','chat-floating-menu','chat-rename','chat-delete','chat-tool-activity','chat-tool-expanded','chat-tool-running','chat-tool-failed','chat-question','chat-question-multi','chat-question-text','chat-question-select','chat-question-answered','chat-question-dismissed','chat-approval','chat-approval-approved','chat-approval-rejected','chat-approval-expired']],
  ['Chats',['chats-history','chats-search','chats-no-results','chats-empty','chats-loading','chats-load-failed','chats-waiting']],
  ['Settings',['settings-profile','settings-appearance','settings-security','settings-members','settings-invitations','settings-general','settings-profile-save-failed','settings-members-load-failed','toast-success']],
  ['Platform',['platform-accounts','platform-accounts-search','platform-accounts-filtered','platform-accounts-row-menu','platform-accounts-no-results','platform-accounts-loading','platform-accounts-error','platform-accounts-invitations','platform-account-invite','platform-account-detail','platform-account-unverified','platform-account-disabled','platform-account-disable','platform-account-sign-out','platform-organizations','platform-organizations-empty','platform-organizations-loading','platform-organizations-error','platform-organization-provision','platform-organization-provisioning','platform-organization-active']],

@@ -1,5 +1,5 @@
 ---
-version: "3.4"
+version: "3.5"
 name: Lexon
 description: "Lexon brand v4.1 on shadcn/ui base-nova and assistant-ui components: white surfaces and ink text, Merah Segel red only for primary actions and flagged items, Inter for the interface, EB Garamond for headlines, TeX Gyre Bonum for legal quotations, light and dark themes."
 brand-source: "docs/brand/lexon-2026-v4.1/ (product owner's LEXON Brand Kit 2026 v4.1)"
@@ -386,6 +386,14 @@ the approved prototype (`docs/design/f4.1-prototype/`).
     and a `red-text` check. A last row "Write another answer" takes free
     text. The footer has the expiry time on the left and "Skip this
     question" (several questions) and "Answer in chat instead" on the right.
+  - Question kinds (F5 decision 8): a select-all-that-apply question shows
+    "Select all that apply" (13px `muted-foreground`) under the question and
+    checkbox rows (18px box, radius 5px; checked is `red-text` fill with a
+    `background` check) instead of number tiles; a text-only question shows
+    one 40px text field under the question. Neither answers on one click:
+    the footer adds a primary Next (Send on the last question), and Enter in
+    the text field acts as Next. On mobile the footer drops "Answer in chat
+    instead" (the close button does the same).
   - Approval: the header says what Lexon wants to do; the details are a
     field list on a `muted` block; the footer has the expiry time on the
     left and Reject (outline, Esc) and Approve (primary, Ctrl+Enter)
@@ -798,6 +806,7 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
 
 | Version | Change |
 |---|---|
+| 3.5 | **Added (product owner, F5 decision 8, 2026-11-24):** two question kinds in the docked question panel: select all that apply (checkbox rows) and text only (one text field), with Next/Send in the footer; prototype revision 17 states `chat-question-select` and `chat-question-text` (§5.3). |
 | 3.4 | **Added (product owner, F5 prototype review, 2026-11-24):** tool activity rows that follow the answer text, the Waiting for you marker, question and approval panels docked above the composer (single and several questions), and decision records in the thread (§5.3). Visual target: `docs/design/f4.1-prototype/` revision 17 |
 | 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** the data views kit (§5.7). A list page has tabs, a data table card, a toolbar with facet filters, sortable headers, typed cells, a row menu, selection with a floating action bar, a paged footer, states, and mobile rows. A record page has a header with icon actions, a two-column body with stat tiles and related tables, and a Details aside. Every action button carries an icon. The kit is built once as shared components for every list and record in Lexon. Status badge variants (§5.5). **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 and its `kit` page |
 | 3.2 | **Added (product owner, F4.2 spec review, 2026-11-19):** load failures are never empty states, and save failures keep the draft (§5.1); Recent load failure, copy failure, and the composer reason line (§5.5), from prototype revision 15. **Changed:** scroll-to-latest sits 12px above the composer box instead of a fixed offset, so it never covers the composer; sessions show no location (as built in F4.1); the §5.1 pattern examples point to the F4.1 prototype. **Removed:** references to the retired F2.1 prototype and the v1.0 brand package |
