@@ -1,12 +1,15 @@
 # F5 acceptance evidence
 
-Status: implementation in progress. Task 1 (operation kinds, expiry and audit
-contract, migration 0042) is implemented with local RED/GREEN and gate evidence;
-task review and owner acceptance remain pending. This is not F5 completion.
+Status: implementation in progress. Tasks 1 (operation kinds, expiry and audit
+contract, migration 0042), 2 (operation stream contracts) and 3 (national
+calendar + deadline calculator) are implemented with local RED/GREEN and gate
+evidence; task review and owner acceptance remain pending. This is not F5
+completion.
 
 Design and plan: [approved design](../superpowers/specs/2026-11-24-f5-tools-approvals-design.md).
-Branch: `f5-t1-operation-kinds` (cut from `f5-tools-approvals`). Draft PR
-pending. No merge to main is authorized.
+Branches: `f5-t1-operation-kinds`, `f5-t2-stream-contracts`, `f5-t3-calendar`
+(each cut from `f5-tools-approvals`). Draft PRs only. No merge to main is
+authorized.
 
 ## Task 1 — operation kinds, expiry columns and audit contract (0042)
 
@@ -233,3 +236,96 @@ pnpm format:check → clean (after prettier --write on 2 files)
   it.
 - `awaitingUser`/`operations` emit constant `false`/`[]` — flagged; the
   stream-publisher task wires the EXISTS query and per-run ops.
+
+## Task 3 — national calendar + deadline calculator
+
+`shared/src/calendar/id-national-holidays.ts` (+ `calendar/index.ts` barrel,
+`shared/src/index.ts` re-export), `backend/src/modules/chat/deadline-calculator.ts`
+(commit `238c30da`, draft PR #80 → `f5-tools-approvals`).
+
+- `ID_NATIONAL_CALENDAR` (`version: 'id-national@2027.1'`): typed calendar data
+  validated by `CalendarDataSchema` via `satisfies` — strict objects,
+  `z.iso.date()` dates, `kind: 'holiday'|'cuti_bersama'`, per-year `decree`
+  provenance `{numbers, issued, title, sources}` with https-only source URLs.
+  Weekends are never listed; consumers derive Sat/Sun.
+- 2026 (SKB 3 Menteri 1497/2/5 Tahun 2025, issued 2025-09-19): 17 holidays +
+  8 cuti bersama. 2027 (SKB 3 Menteri 1205/3/2 Tahun 2026, issued 2026-09-15):
+  18 holidays + 8 cuti bersama, including two Isra Mikraj entries
+  (2027-01-05 for 1448 H and 2027-12-26 for 1449 H) as printed in the decree.
+- `calculateDeadline(input)`: pure function per spec §10 — units
+  `calendar_days|working_days|months|years`; `countStartDay` applies only to
+  day units; month/year addition clamps to the target month's last day
+  (2026-01-31 + 1 month → 2026-02-28); `working_days` counting skips
+  Sat/Sun + holidays + cuti bersama; `nonWorkingDayRule:
+'next_working_day'|'none'` adjusts a non-working landing day;
+  `skippedDays` = counting skips + adjustment skips for `working_days`,
+  adjustment-only for other units. Result:
+  `{deadline, weekday, skippedDays: [{date, name}], calendarVersion}`.
+- Out-of-range inputs return a `failed` op result (approach F — never a bare
+  throw past the tool boundary): `{status:'failed', result:{refused:
+'outside_calendar_range', coveredYears:[2026,2027]}}`.
+  `executeDeadlineCalculation` parses `inputSchema` (Zod) and rethrows range
+  failures as the typed `DeadlineCalculatorRefusalError` so task 4's wiring
+  persists the same failed op result.
+- Deliberately NOT registered in the tool registry — task 4 owns registration.
+
+### Test evidence
+
+RED (recorded before implementation):
+
+```
+pnpm vitest run --project backend-unit test/unit/deadline-calculator.spec.ts
+→ exit 1 — Cannot find module '../../src/modules/chat/deadline-calculator.js'
+
+node --test scripts/test/id-calendar-guard.spec.mjs
+→ exit 1 — ERR_MODULE_NOT_FOUND ../../shared/src/calendar/id-national-holidays.ts
+```
+
+GREEN:
+
+```
+pnpm vitest run --project backend-unit test/unit/deadline-calculator.spec.ts
+→ exit 0, 21/21 pass (§10 arithmetic matrix: all four units, countStartDay,
+  holiday/cuti-bersama/weekend skips, clamp, both adjustment rules,
+  skippedDays accounting, refusal shape)
+
+node --test scripts/test/id-calendar-guard.spec.mjs
+→ exit 0, 6/6 pass (ISO dates, kind enum, non-empty decree fields, https
+  sources; 90-day guard reads lastCoveredYear from the module — injected
+  2027-10-02 fails, 2027-10-01 passes)
+
+regression: pnpm vitest run --project backend-unit --project contracts
+→ exit 0, 836/836 pass (105 files)
+
+node --test scripts/test/*.spec.mjs → exit 0, 469/469 pass
+pnpm typecheck → exit 0 (shared, backend, frontend, evals)
+pnpm exec eslint <changed files> → exit 0
+pnpm format:check → exit 0 (whole repo; required --write on the 2 new
+  backend files + this file, which was already unformatted at base)
+```
+
+### Research notes (verified against official sources, 2026-11-24)
+
+- 2026 decree — SKB 3 Menteri Nomor 1497/2/5 Tahun 2025 (issued 19 Sep 2025):
+  - https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2026
+  - https://www.kemenkopmk.go.id/sites/default/files/pengumuman/2025-09/SKB%20Libur%20Nasional%20dan%20Cuti%20Bersama%20Tahun%202026.pdf
+- 2027 decree — SKB 3 Menteri Nomor 1205/3/2 Tahun 2026 (issued 15 Sep 2026):
+  - https://kemnaker.go.id/news/detail/pemerintah-tetapkan-18-hari-libur-nasional-dan-8-hari-cuti-bersama-tahun-2027
+  - https://jdih.kemnaker.go.id/asset/data_puu/2026skb003.pdf
+- Holiday/cuti-bersama lists transcribed verbatim from the decree lampiran
+  pages; 2027 decree prints Isra Mikraj twice (1448 H and 1449 H fall in the
+  same Gregorian year) — both rows kept.
+- Zod 4.6.7: `z.iso.date()` validates `YYYY-MM-DD` calendar dates;
+  `z.url({protocol: /^https$/})` pins https provenance URLs; `satisfies
+CalendarData` type-checks the literal without widening inferred types.
+
+### Deviations / calls within spec latitude
+
+- `executeDeadlineCalculation` takes a single `input` parameter (no
+  `_context`) — eslint `no-unused-vars` rejected the unused param; the op
+  result carries the refusal, so no context is needed at this layer.
+- The calendar barrel is re-exported from `shared/src/index.ts` so backend
+  and the `.mjs` guard spec import the same source of truth (the guard reads
+  `lastCoveredYear` from the module, never a hardcoded year).
+- `refused: 'outside_calendar_range'` keeps `coveredYears` in the failed op
+  result so the model can rephrase with the actual coverage window.

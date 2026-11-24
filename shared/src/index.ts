@@ -13,3 +13,4 @@ export * from './job-title.js';
 export * from './device.js';
 export * from './numbered-page.js';
 export * from './platform.js';
+export * from './calendar/index.js';
