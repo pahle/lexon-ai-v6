@@ -718,3 +718,92 @@ node --test scripts/test/*.spec.mjs → exit 0, 469/469
 - Resume-path stream events are best-effort: `publishCommitted` returns
   `stale` when the run's stream state was already evicted — the committed
   `run.resume.v1` outbox row is the durable resume mechanism.
+
+## Task 7 — stream events → decision panels, tool rows, waiting markers (frontend)
+
+The stream client maps every §9 wire event to AI SDK chunks and operation
+records: `approval-required`/`question-required`/`tool-approval-request`
+emit `tool-input-available` + `tool-approval-request` (approvalId =
+operationId), `tool-approval-response` emits `tool-approval-response`,
+`tool-output-available`/`tool-output-denied` resolve the part, and
+`operation-status` patches the record only. Operation payloads also flow
+through `onOperation` into a runtime store (`operationsRef` + version);
+§9-capped frames that carry ids only fire `onOperationSummaryMissing`,
+which refetches the tree. Snapshot tool parts replay the identical chunk
+order (input → approval-request or output/denied) so a reloaded thread
+rebuilds the same rows; `snapshot-operation` follows the parts and merges
+the canonical record.
+
+`ChatAwaitingContext` exposes `{paused, runId, pendingOperationId,
+getOperation, decide, refreshTree}`; `decideOperation` POSTs
+`/api/runs/{runId}/operations/{operationId}/decision` and merges the
+STORED result (a decided status never downgrades back to awaiting/
+pending). `ChatOperationPanel` mounts docked above the composer driven by
+the last assistant message's unresolved tool part: approvals render
+summary + expiry + Approve/Reject; questions page `readDockQuestions`
+output as radio groups, checkbox rows, or a single 40px text field with
+"1 of N" paging, per §15 keyboard rules (number keys select, Enter = Next
+on text, Ctrl+Enter approves, Enter never approves, Esc rejects/dismisses,
+"Answer in chat instead" + close affordance). `ChatToolRow` is the
+`tools.Fallback` renderer: pending shows a waiting dot, awaiting_approval
+surfaces the descriptor, decided statuses render the stored outcome,
+denied/dismissed/expired render as denied. While paused the composer
+keeps Send enabled with a "reply in your own words" placeholder and hides
+Stop; a send POSTs `/api/chats/{id}/messages` and supersedes server-side.
+`ChatWaitingDot`/`ChatWaitingPill` mark `awaitingUser` chats in the
+Recent list and chat history rows; a paused run still polls past the 5.5s
+calm window.
+
+### Test evidence
+
+```
+RED (before implementation):
+cd frontend && pnpm exec vitest run test/chat-stream-ops.spec.tsx \
+  test/chat-awaiting-panel.spec.tsx test/chat-page-awaiting.spec.tsx
+→ exit 1 — 15 stream-ops tests (14 failing: no onOperation handler, no
+  approval-request chunks, snapshot tool parts unmapped), 14 panel tests
+  failing (no ChatOperationPanel/dock selectors, no decide calls), 6 page
+  tests failing (no chat-waiting-dot/pill, paused run stops polling at
+  the calm window, send-while-paused unimplemented).
+
+GREEN (after implementation): same command
+→ exit 0, 35/35:
+  chat-stream-ops 15/15 — per-event chunk mapping, onOperation /
+  onOperationSummaryMissing spies, snapshot-part tool replay,
+  §9-capped id-only frame triggers the summary-missing refetch.
+  chat-awaiting-panel 14/14 — dock selectors, Ctrl+Enter approves /
+  Enter never approves / Esc rejects, radio group + number keys,
+  checkbox paging submits once, stored outcome render, polite
+  announcements, theme tokens (no fixed colors).
+  chat-page-awaiting 6/6 — waiting dot on Recent rows, pill on history
+  rows, paused run polls past 5.5s calm window, send shown/Stop hidden
+  while paused, send-while-paused POSTs the messages route, completed
+  chat unmarked.
+
+Regression: chat-runtime.spec + chat-runtime-poll + chat-runtime-leaf +
+chat-thread + chat-transport + chat-history + chat-client-etag +
+chat-announcements → 155/155 unchanged.
+```
+
+### Gates
+
+```
+pnpm exec tsc --noEmit -p frontend/tsconfig.json → 0 errors
+eslint (11 changed files) → exit 0
+node scripts/check-boundaries.mjs → exit 0
+pnpm format:check → exit 0 (whole repo)
+node --test scripts/test/*.spec.mjs → exit 0, 469/469
+```
+
+### Deviations / calls within spec latitude
+
+- `UIMessageChunk` is re-exported as a type from `chat-stream.ts` (the
+  file is already on the `clientAiTypeFiles` allowlist); specs import it
+  from there rather than widening the `ai-owner` boundary allowlist to
+  another test file.
+- `exactOptionalPropertyTypes` forced `| undefined` on every optional
+  field of `StreamOperationUpdate`/`ChatOperationRecord`/`ChatToolRowProps`
+  — wire frames omit fields, they never send explicit undefined.
+- Backend half (stream publishers, op summaries, waiting markers) shipped
+  in `c467937a` on this branch; its evidence is tracked with the backend
+  PR — this section covers the client half only.
