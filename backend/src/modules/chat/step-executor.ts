@@ -5,6 +5,7 @@ import type {
   AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
+  OperationRecord,
   RunActorFactsRepository,
   RunRecord,
   StepClaim,
@@ -18,6 +19,7 @@ import {
   TenantTransactionTimeoutError,
 } from '../../infrastructure/db/index.js';
 import type {
+  JsonValue,
   ModelEvent,
   ModelGateway,
   ModelInput,
@@ -54,6 +56,7 @@ import {
   ToolPolicyOutcome,
   toolResultsAsMessages,
 } from './tool-executor.js';
+import { DeadlineCalculatorRefusalError } from './deadline-calculator.js';
 
 const CHECKPOINT_INTERVAL_MS = 1000;
 const CHECKPOINT_BYTES = 8192;
@@ -646,6 +649,53 @@ export class StepExecutor {
                       ))
                     )
                       throw new Error('AI operation timeout receipt failed');
+                    await this.#appendToolAudit(
+                      tx,
+                      claim,
+                      operation.id,
+                      'failed',
+                    );
+                  },
+                },
+              );
+              if (recorded === 'committed') {
+                await heartbeat.stop();
+                const recordedRun = await this.options.database.withTenant(
+                  { orgId: claim.orgId, userId: claim.userId },
+                  (tx) => this.options.runs.find(tx, claim.runId),
+                );
+                if (recordedRun)
+                  await this.#publishCommittedLifecycle(claim, recordedRun, [
+                    operation.id,
+                  ]);
+              }
+              setRunSpanStatus('continued');
+              setStepSpanStatus('failed');
+              return { kind: 'done' };
+            }
+            if (error instanceof DeadlineCalculatorRefusalError) {
+              // The deadline tool's typed refusal lands as the `failed` op
+              // result verbatim — the model reads it on the next generation.
+              const recorded = await this.options.coordinator.commit(
+                job,
+                claim,
+                {
+                  state: 'committed',
+                  text: '',
+                  data: { operationId: operation.id },
+                  advancement: 'continuation',
+                  terminal: false,
+                  outcome: 'succeeded',
+                  transactionTimeoutMs: 5_000,
+                  transactionWork: async (tx) => {
+                    if (
+                      !(await this.options.operations!.complete(
+                        tx,
+                        operation.id,
+                        { status: 'failed', result: error.refusal },
+                      ))
+                    )
+                      throw new Error('AI operation refusal receipt failed');
                     await this.#appendToolAudit(
                       tx,
                       claim,
@@ -1486,10 +1536,12 @@ export class StepExecutor {
                 proposals,
                 this.options.registry,
                 activeCapabilities,
+                operationHistory,
               )
-          : [];
+          : { operations: [], refusals: [] };
       const invalidProposals = prepared === null;
-      const operationProposals = prepared ?? [];
+      const operationProposals = prepared?.operations ?? [];
+      const refusedProposals = prepared?.refusals ?? [];
       const requiresApproval = operationProposals.some(
         (operation) => operation.approvalRequired,
       );
@@ -1530,9 +1582,13 @@ export class StepExecutor {
         budgetExceeded ||= settlement.budgetExceeded;
       }
       if (unknown) attemptReserved = false;
+      // A generation with only refused proposals is not terminal: the
+      // refusals are stored results the model reads on the next generation.
       const terminal =
         invalidProposals ||
-        (!continueLength && operationProposals.length === 0);
+        (!continueLength &&
+          operationProposals.length === 0 &&
+          refusedProposals.length === 0);
       const committed = await this.options.coordinator.commit(job, claim, {
         state: requiresApproval ? 'awaiting_approval' : 'committed',
         text,
@@ -1571,6 +1627,36 @@ export class StepExecutor {
                       }
                     : {}),
         ...(operationProposals.length ? { operationProposals } : {}),
+        ...(refusedProposals.length
+          ? {
+              transactionTimeoutMs: 5_000,
+              transactionWork: async (tx: TenantSession) => {
+                for (const refusal of refusedProposals) {
+                  // Every tool call keeps a stored result: a refused
+                  // proposal persists as a `failed` op in the same commit.
+                  const operation = await this.options.operations!.persist(
+                    tx,
+                    claim,
+                    refusal.operation,
+                  );
+                  if (
+                    !(await this.options.operations!.complete(
+                      tx,
+                      operation.id,
+                      { status: 'failed', result: refusal.result },
+                    ))
+                  )
+                    throw new Error('AI operation refusal receipt failed');
+                  await this.#appendToolAudit(
+                    tx,
+                    claim,
+                    operation.id,
+                    'failed',
+                  );
+                }
+              },
+            }
+          : {}),
         ...(!unknown
           ? {
               attemptSettlement: {
@@ -1980,12 +2066,23 @@ export class StepExecutor {
           operation.status === 'succeeded' ? 'completed' : operation.status,
       });
       if (operation.status === 'awaiting_approval')
-        events.push({
-          version: 1,
-          runId: claim.runId,
-          type: 'approval-required',
-          operationId: operation.id,
-        });
+        events.push(
+          operation.kind === 'question'
+            ? {
+                version: 1,
+                runId: claim.runId,
+                type: 'question-required',
+                operationId: operation.id,
+                kind: 'question' as const,
+              }
+            : {
+                version: 1,
+                runId: claim.runId,
+                type: 'approval-required',
+                operationId: operation.id,
+                kind: 'approval' as const,
+              },
+        );
     }
     const safeCode = RunErrorCodeSchema.safeParse(run.errorCode);
     if (!terminal && safeCode.success)
@@ -2056,12 +2153,43 @@ export class StepExecutor {
   }
 }
 
-function prepareOperationProposals(
+/** A proposal refused by the pause rules; it still persists as a `failed`
+ * op carrying the safe result so no tool call is dropped. */
+export interface RefusedOperationProposal {
+  readonly operation: OperationProposal;
+  readonly result: JsonValue;
+}
+
+export interface PreparedOperationProposals {
+  readonly operations: OperationProposal[];
+  readonly refusals: RefusedOperationProposal[];
+}
+
+/**
+ * Builds operation proposals for a generation's tool calls. Returns null
+ * when any proposal fails the closed-world checks (unknown tool, missing
+ * capability, oversized input, schema-invalid input) — the caller maps that
+ * to AI_INVALID_TOOL. Validated proposals can still be refused by the pause
+ * rules: at most one pause-required op may enter `awaiting_approval` per
+ * generation (one-pause fires first for same-generation extras), and a
+ * tool's `maxPerRun` counts every proposal by tool name — prior ops plus
+ * same-generation calls. Refusals keep their `failed` stored result.
+ */
+export function prepareOperationProposals(
   proposals: readonly Extract<ModelEvent, { type: 'tool-proposal' }>[],
   registry: RunRegistry,
   capabilities: readonly string[],
-): OperationProposal[] | null {
+  priorOperations: readonly Pick<OperationRecord, 'toolName'>[] = [],
+): PreparedOperationProposals | null {
   const operations: OperationProposal[] = [];
+  const refusals: RefusedOperationProposal[] = [];
+  const proposalCounts = new Map<string, number>();
+  for (const prior of priorOperations)
+    proposalCounts.set(
+      prior.toolName,
+      (proposalCounts.get(prior.toolName) ?? 0) + 1,
+    );
+  let pauseConsumed = false;
   for (const [callOccurrence, proposal] of proposals.entries()) {
     const tool = registry.tool(proposal.toolName);
     if (
@@ -2079,8 +2207,9 @@ function prepareOperationProposals(
     if (inputBytes > (tool.maxInputBytes ?? 16_384)) return null;
     const parsed = tool.inputSchema.safeParse(proposal.input);
     if (!parsed.success) return null;
+    let operation: OperationProposal;
     try {
-      operations.push({
+      operation = {
         callOccurrence,
         toolName: tool.id,
         toolVersion: tool.version,
@@ -2092,13 +2221,32 @@ function prepareOperationProposals(
           toolVersion: tool.version,
           args: parsed.data,
         }),
-        approvalRequired: tool.requiresApproval,
-      });
+        approvalRequired: tool.pauseKind !== null,
+        kind: tool.pauseKind ?? 'approval',
+      };
     } catch {
       return null;
     }
+    const priorCount = proposalCounts.get(tool.id) ?? 0;
+    proposalCounts.set(tool.id, priorCount + 1);
+    if (tool.pauseKind !== null && pauseConsumed) {
+      refusals.push({
+        operation: { ...operation, approvalRequired: false },
+        result: { refused: 'one_decision_at_a_time' },
+      });
+      continue;
+    }
+    if (tool.maxPerRun !== undefined && priorCount >= tool.maxPerRun) {
+      refusals.push({
+        operation: { ...operation, approvalRequired: false },
+        result: { refused: 'question_limit', maxPerRun: tool.maxPerRun },
+      });
+      continue;
+    }
+    if (tool.pauseKind !== null) pauseConsumed = true;
+    operations.push(operation);
   }
-  return operations;
+  return { operations, refusals };
 }
 
 function permittedToolSchemas(

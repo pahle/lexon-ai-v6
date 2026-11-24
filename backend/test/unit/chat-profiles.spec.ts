@@ -21,12 +21,18 @@ describe('production chat profiles', () => {
     });
     expect(CHAT_PROFILES.chat.queue).toBe('ai-interactive');
     expect(CHAT_PROFILES.chat.priority).toBe(1);
-    expect(CHAT_PROFILES.chat.maxIterations).toBe(1);
+    expect(CHAT_PROFILES.chat.maxIterations).toBe(6);
+    expect(CHAT_PROFILES.chat.capabilities).toEqual([
+      'chat.ask',
+      'chat.deadline',
+      'chat.rename',
+    ]);
     expect(CHAT_PROFILES.title).toMatchObject({
       queue: 'ai-batch',
       priority: 5,
       maxOutputTokens: 512,
-      maxIterations: 1,
+      maxIterations: 6,
+      capabilities: ['chat.ask', 'chat.deadline', 'chat.rename'],
       reasoning: {
         allowed: ['none'],
         default: 'none',
