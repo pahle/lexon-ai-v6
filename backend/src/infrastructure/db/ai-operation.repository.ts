@@ -2,8 +2,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { canonicalJson, jsonbTextBytes } from './canonical-json.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  inspectPool,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
+import type { TenantDatabase } from './tenant-database.js';
 import type {
+  ExpiredOperationCandidate,
   OperationProposal,
   OperationRecord,
   StepClaim,
@@ -86,6 +92,44 @@ export function hashOperationArgs(value: unknown): string {
 }
 
 export class AiOperationRepository {
+  constructor(private readonly database?: TenantDatabase) {}
+
+  private pool() {
+    if (!this.database) throw new Error('Expiry discovery database required');
+    return inspectPool(this.database);
+  }
+
+  /**
+   * §7 sweep discovery: `app.ai_expired_operations` is a cross-tenant
+   * SECURITY DEFINER function granted to `lexon_app`; it returns candidate
+   * ids only, ordered by expires_at. The expiry itself still runs per
+   * candidate inside `withTenant` under the candidate's own org.
+   */
+  async listExpired(
+    limit: number,
+  ): Promise<readonly ExpiredOperationCandidate[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1024)
+      throw new Error('Invalid expiry batch limit');
+    const result = await this.pool().query<{
+      org_id: string;
+      id: string;
+      run_id: string;
+      initiating_user_id: string;
+    }>(
+      `SELECT org_id,id,run_id,initiating_user_id
+       FROM app.ai_expired_operations($1)`,
+      [limit],
+    );
+    return result.rows.map((row) =>
+      Object.freeze({
+        orgId: row.org_id,
+        id: row.id,
+        runId: row.run_id,
+        initiatingUserId: row.initiating_user_id,
+      }),
+    );
+  }
+
   async persist(
     tx: TenantSession,
     claim: StepClaim,

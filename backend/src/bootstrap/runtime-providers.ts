@@ -16,7 +16,7 @@ import {
 import { StoragePort } from '../infrastructure/storage/index.js';
 import { HealthIndicators } from '../infrastructure/telemetry/index.js';
 import { JobExecutor, OutboxDispatcher } from '../modules/platform/index.js';
-import { StepExecutor } from '../modules/chat/index.js';
+import { OperationExpirySweep, StepExecutor } from '../modules/chat/index.js';
 import { RunStreams } from '../infrastructure/queue/index.js';
 import { RuntimeLifecycle } from './runtime-lifecycle.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
@@ -95,6 +95,7 @@ export function runtimeProviders(
               RunStreams,
               CancelSignals,
               ChatTitleService,
+              OperationExpirySweep,
             ]
           : [QueueProducer, OutboxDispatcher];
   if (capacity) tokens.push(AiCapacityRepository);
@@ -118,6 +119,7 @@ export function runtimeProviders(
         | StreamHub
         | ChatCleanupWorker
         | ChatTitleService
+        | OperationExpirySweep
       )[]
     ) =>
       new RuntimeLifecycle(
@@ -149,6 +151,9 @@ export function runtimeProviders(
         ),
         dependencies.find(
           (x): x is ChatTitleService => x instanceof ChatTitleService,
+        ),
+        dependencies.find(
+          (x): x is OperationExpirySweep => x instanceof OperationExpirySweep,
         ),
       ),
   });

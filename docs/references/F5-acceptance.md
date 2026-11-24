@@ -623,3 +623,98 @@ node --test scripts/test/*.spec.mjs → exit 0, 469/469
 - Malformed persisted ask args → plain Error (surfaces as 500
   INTERNAL_ERROR): stored args were Zod-validated at creation, so
   unparseable args are a data invariant violation, not a client error.
+
+## Task 6 — operation expiry sweep
+
+BullMQ job scheduler `ai-operation-expiry` on `ai-interactive` (every 60s,
+`removeOnComplete`, `removeOnFail.age=86_400`, upserted once per replica in
+the ai-worker lifecycle after `consumer.start(registry)`) enqueues
+`ai.operation-expiry.v1`. A new `expiry-sweep` job strategy (JobRegistry +
+`QueueJobHandler` union; `QueueConsumer.#process` routes it without
+`JobEnvelopeSchema` parsing — the shared `RunJobSchema` job carries
+`{type, data:{}}` with no outboxId/ctx) hands the job to
+`OperationExpirySweep.sweep()`.
+
+`sweep()` lists `app.ai_expired_operations(64)` cross-tenant (ids only) and
+processes each candidate inside its own `withTenant` transaction keyed on
+the run initiator: `operations.expire()` CAS marks the op `expired` /
+`{unanswered:true}` with `decision`/`decision_by_user_id` left NULL
+(actor-less expiry), `AuditService.append` writes the actor-null
+`chat.{approval,question}_decided.v1` row (`decisionAuditAgree` validator:
+`metadata.status==='expired'` → outcome `failure`, no actor required), then
+`decideRunCapabilities` on the initiator picks the publication path —
+eligible → resume (`awaiting_approval→running` transition, pending step
+inserted at `next_sequence`, one `run.resume.v1` outbox keyed by
+`stepJobId`, post-commit `publishCommitted` of `status:running` +
+`operation-status:expired` stream events); revoked → `awaiting_approval→
+failed` with `errorCode='AI_ACCESS_REVOKED'` and post-commit
+`streams.finish`. Per-candidate failures log
+`ai_operation_expiry_candidate_failed` (warn, `safeCode:'AI_INTERNAL'`)
+and never block the batch; a second pass is a no-op (expire CAS +
+stepJobId dedupe). Runs already terminal commit the expired op + audit but
+skip publication so the candidate never re-lists.
+
+### Test evidence
+
+```
+RED (before implementation): pnpm vitest run --project backend-integration
+  test/integration/expiry-sweep.spec.ts
+→ exit 1 (expiry-sweep strategy unknown to JobRegistry, no
+  scheduleOperationExpiry on QueueConsumer, sweep module missing)
+
+GREEN (after implementation): pnpm vitest run --project backend-integration
+  test/integration/expiry-sweep.spec.ts
+→ exit 0 — 6/6:
+  'the scheduled sweep expires the op, audits actor-null and enqueues the
+   resume' — real QueueConsumer + scheduler end-to-end: template opts
+   asserted, op expired with decision NULL, run running v4, step 2 pending
+   @expectedVersion 4, exactly one run.resume.v1, one actor-null/failure
+   audit, stream contains status:running + operation-status:expired, and a
+   second enqueued pass changes nothing.
+  'a question op expires to the unanswered stored result'
+  'a candidate decided between listing and processing is a no-op' —
+   CAS loss returns cleanly.
+  'a poison candidate expires the op but fails the run without a resume' —
+   initiator banned via auth.user.banned (fixture tenants are personal
+   orgs: mutateMember('delete') is refused); banned flows through
+   auth.lexon_ai_actor_facts → decideRunCapabilities eligible=false →
+   denied → failed/AI_ACCESS_REVOKED + finish event, no resume outbox.
+  'a poison candidate never blocks the rest of the batch' — banned +
+   healthy candidates in one sweep; the healthy run resumes.
+  'the ai-worker bootstrap registers the scheduler once per replica' —
+   real createRuntimeContext('ai-worker') + lifecycle; repeated
+   scheduleOperationExpiry() dedupes on scheduler id.
+
+Fixture notes: BullMQ stores the scheduler template without a `data` key
+when it is `{}` (produced jobs still carry the empty payload), so the spec
+asserts `template?.data ?? {}` and keeps `data` out of toMatchObject.
+publishCommitted (APPEND_COMMITTED_RUN_STREAM) only appends to an existing
+stream — contexts entry, stream key, generation key and an open guard —
+so the paused-run seed publishes a `start` event via streams.publish while
+the claim is live, matching the state a real paused run leaves behind.
+```
+
+### Gates
+
+```
+eslint (changed files) → exit 0
+node scripts/check-boundaries.mjs → exit 0, 105/105
+pnpm typecheck (shared/backend/frontend/evals) → exit 0
+pnpm format:check → exit 0 (whole repo; 5 files formatted)
+node --test scripts/test/*.spec.mjs → exit 0, 469/469
+```
+
+### Deviations / calls within spec latitude
+
+- `OperationExpirySweep` lives at `modules/chat/expiry-sweep.ts`, not
+  `infrastructure/queue/` — the `infrastructure-domain` boundary rule
+  forbids the queue layer importing repositories/services, so the module
+  layer owns the composition; the ai-worker provider + lifecycle wiring
+  inject it there.
+- The `expiry-sweep` strategy was added to `JobRegistry.register` and the
+  `QueueJobHandler` union (previously three strategies); the backend
+  `JobEnvelopeSchema` does not carry `ai.operation-expiry.v1`, so
+  `#process` invokes the handler directly without envelope parsing.
+- Resume-path stream events are best-effort: `publishCommitted` returns
+  `stale` when the run's stream state was already evicted — the committed
+  `run.resume.v1` outbox row is the durable resume mechanism.
