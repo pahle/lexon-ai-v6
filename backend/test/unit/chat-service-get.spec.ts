@@ -60,6 +60,7 @@ const tree = {
       reasoningSummary: null,
       reasoningDurationMs: null,
       feedback: null,
+      operations: [],
       runId: null,
       status: null,
       createdAt,

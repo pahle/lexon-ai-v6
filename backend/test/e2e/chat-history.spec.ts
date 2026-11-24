@@ -467,6 +467,7 @@ test('search opens an inactive message branch, scrolls and highlights it, while 
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: timestamp,
       },
       {
@@ -487,6 +488,7 @@ test('search opens an inactive message branch, scrolls and highlights it, while 
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: timestamp,
       },
     ],

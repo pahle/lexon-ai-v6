@@ -2019,8 +2019,13 @@ test('reset snapshots emit every safe committed operation before snapshot-end', 
   const runId = randomUUID();
   const operations = Array.from({ length: 15 }, (_, index) => ({
     operationId: randomUUID(),
+    kind: 'approval' as const,
     status: index < 7 ? ('awaiting_approval' as const) : ('completed' as const),
     approvalRequired: index < 7,
+    snapshotHash: 'a'.repeat(64),
+    expiresAt: null,
+    decidedAt: null,
+    toolName: 'lexon.test',
   }));
   const frames: SseFrame[] = [];
   const subscription = await hub.subscribe(

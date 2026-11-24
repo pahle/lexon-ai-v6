@@ -328,6 +328,7 @@ test('workspace error page after a render failure', async ({
                   title: chatTitles.forceMajeure,
                   updatedAt: '2026-01-05T04:00:00.000Z',
                   lastMessageAt: '2026-01-05T04:00:00.000Z',
+                  awaitingUser: false,
                 },
               ],
               pageInfo: { nextCursor: null },

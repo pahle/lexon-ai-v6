@@ -135,6 +135,7 @@ export function assistantMessage(
               ? 9_000
               : 14_000,
     feedback: null,
+    operations: [],
   };
 }
 
@@ -229,6 +230,7 @@ export function chatList(state: string) {
             title,
             updatedAt,
             lastMessageAt: updatedAt,
+            awaitingUser: false,
           })),
     pageInfo: { nextCursor: null },
   });

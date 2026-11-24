@@ -1,13 +1,19 @@
 import { z } from 'zod';
 import {
+  ChatOperationSnapshotSchema,
   OperationStatusSchema,
   RunErrorCodeSchema,
   RunStatusSchema,
 } from './ai-run.js';
+// The operation summary schema lives beside the run stream events that carry
+// it (ai-run.ts); re-export so both import paths keep working.
+export { ChatOperationSnapshotSchema };
+export type { ChatOperationSnapshot } from './ai-run.js';
 
 const uuid = z.uuid();
 const opaqueId = z.string().min(1).max(256);
 const timestamp = z.iso.datetime();
+const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
 export const ChatStreamRecoveryModeSchema = z.enum(['snapshot', 'incremental']);
 export type ChatStreamRecoveryMode = z.infer<
   typeof ChatStreamRecoveryModeSchema
@@ -50,6 +56,7 @@ const assistantMessageSchema = z.strictObject({
   reasoningSummary: z.string().nullable(),
   reasoningDurationMs: z.number().int().nonnegative().safe().nullable(),
   feedback: ChatFeedbackSchema,
+  operations: z.array(ChatOperationSnapshotSchema),
   createdAt: timestamp,
 });
 
@@ -119,6 +126,7 @@ export const ChatPageSchema = z.strictObject({
       title: z.string().min(1).max(240),
       updatedAt: timestamp,
       lastMessageAt: timestamp.nullable(),
+      awaitingUser: z.boolean(),
     }),
   ),
   pageInfo: z.strictObject({ nextCursor: z.string().max(256).nullable() }),
@@ -226,13 +234,19 @@ export const ChatSnapshotPartSchema = z.discriminatedUnion('type', [
     id: opaqueId,
     text: z.string(),
   }),
+  // Replayed snapshots rebuild the tool rows/records from these parts; the
+  // operation binding lets the client join the summary and decision events.
+  z.strictObject({
+    type: z.literal('tool'),
+    id: opaqueId,
+    toolCallId: opaqueId,
+    toolName: opaqueId,
+    operationId: uuid,
+    input: z.record(z.string(), z.unknown()).optional(),
+    output: z.unknown().optional(),
+    outcome: OperationStatusSchema,
+  }),
 ]);
-
-export const ChatOperationSnapshotSchema = z.strictObject({
-  operationId: uuid,
-  status: OperationStatusSchema,
-  approvalRequired: z.boolean(),
-});
 
 export const ChatSnapshotMetadataSchema = z
   .strictObject({
@@ -325,6 +339,90 @@ export const ChatSnapshotFrameSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type ChatSnapshotFrame = z.infer<typeof ChatSnapshotFrameSchema>;
+
+// Owner-only decision route (POST /runs/{runId}/operations/{operationId}/
+// decision). `snapshotHash` binds the decision to the stored snapshot; the
+// kind-vs-action fit and answer-vs-args validation happen server-side.
+export const OperationDecisionActionSchema = z.enum([
+  'approve',
+  'reject',
+  'answer',
+  'dismiss',
+]);
+export type OperationDecisionAction = z.infer<
+  typeof OperationDecisionActionSchema
+>;
+
+const decisionOptionIndex = z.number().int().min(0).max(4);
+export const OperationAnswerChoiceSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('option'), index: decisionOptionIndex }),
+  z.strictObject({
+    kind: z.literal('options'),
+    indexes: z
+      .array(decisionOptionIndex)
+      .min(1)
+      .max(5)
+      .refine((indexes) => new Set(indexes).size === indexes.length, {
+        error: 'Option indexes must be distinct',
+      }),
+  }),
+  z.strictObject({
+    kind: z.literal('text'),
+    text: z.string().min(1).max(500),
+  }),
+  z.strictObject({ kind: z.literal('skipped') }),
+]);
+export type OperationAnswerChoice = z.infer<typeof OperationAnswerChoiceSchema>;
+
+export const OperationAnswerSchema = z.strictObject({
+  questionId: opaqueId,
+  choice: OperationAnswerChoiceSchema,
+});
+export type OperationAnswer = z.infer<typeof OperationAnswerSchema>;
+
+export const OperationDecisionInputSchema = z.discriminatedUnion('action', [
+  z.strictObject({
+    snapshotHash: sha256Hex,
+    action: z.literal('approve'),
+  }),
+  z.strictObject({
+    snapshotHash: sha256Hex,
+    action: z.literal('reject'),
+  }),
+  z.strictObject({
+    snapshotHash: sha256Hex,
+    action: z.literal('dismiss'),
+  }),
+  z.strictObject({
+    snapshotHash: sha256Hex,
+    action: z.literal('answer'),
+    answers: z
+      .array(OperationAnswerSchema)
+      .min(1)
+      .max(5)
+      .refine(
+        (answers) =>
+          new Set(answers.map((answer) => answer.questionId)).size ===
+          answers.length,
+        { error: 'Every question must be answered exactly once' },
+      ),
+  }),
+]);
+export type OperationDecisionInput = z.infer<
+  typeof OperationDecisionInputSchema
+>;
+
+// Idempotent result: the stored outcome (expired/settled ops may carry no
+// `decision`, and `decidedAt` stays null for undecided ops).
+export const OperationDecisionResultSchema = z.strictObject({
+  operationId: uuid,
+  status: OperationStatusSchema,
+  decision: OperationDecisionActionSchema.nullable(),
+  decidedAt: timestamp.nullable(),
+});
+export type OperationDecisionResult = z.infer<
+  typeof OperationDecisionResultSchema
+>;
 
 export const ChatAuditEventSchema = z.discriminatedUnion('type', [
   z.strictObject({

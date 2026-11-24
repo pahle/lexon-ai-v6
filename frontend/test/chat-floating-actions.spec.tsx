@@ -468,6 +468,7 @@ test('the open chat title loads without the sidebar mounted, never as "Chat"', a
             title: 'Lease dispute memo',
             updatedAt: '2026-11-01T00:00:00Z',
             lastMessageAt: null,
+            awaitingUser: false,
           },
         ],
         pageInfo: { nextCursor: null },

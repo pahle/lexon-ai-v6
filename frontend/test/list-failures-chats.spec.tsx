@@ -26,6 +26,7 @@ const row = {
   title: 'Acquisition review',
   updatedAt: '2026-11-13T09:00:00.000Z',
   lastMessageAt: '2026-11-13T09:00:00.000Z',
+  awaitingUser: false,
 };
 const okPage: ChatPage = { items: [row], pageInfo: { nextCursor: null } };
 

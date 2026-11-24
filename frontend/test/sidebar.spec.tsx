@@ -326,6 +326,7 @@ test('Recent shows View all chats with its icon when there is at least one chat'
             title: 'Contract review',
             updatedAt: '2026-11-13T09:00:00.000Z',
             lastMessageAt: '2026-11-13T09:00:00.000Z',
+            awaitingUser: false,
           },
         ],
         pageInfo: { nextCursor: null },
