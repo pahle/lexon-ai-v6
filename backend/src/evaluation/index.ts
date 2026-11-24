@@ -127,6 +127,12 @@ const scenarioIds = new Set([
   'claim-recovery',
   'replay',
   'unknown-attempt',
+  'ask-user',
+  'deadline',
+  'rename-approval',
+  'injection-rename',
+  'injection-skip-approval',
+  'expiry',
 ]);
 const scoreCountKeys = new Set([
   'attempts',
@@ -145,6 +151,13 @@ const scoreCountKeys = new Set([
   'partialTextPresent',
   'recoveryStepAttempts',
   'postOperationCompletionAttempts',
+  'undecidedOperations',
+  'succeededOperations',
+  'answeredOperations',
+  'dismissedOperations',
+  'rejectedOperations',
+  'expiredOperations',
+  'decisionAudits',
 ]);
 const safeCodes = new Set([
   'AI_RUN_NOT_FOUND',
