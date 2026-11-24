@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
+import {
+  RunErrorCodeSchema,
+  type OperationStatus,
+  type RunStreamEvent,
+} from '@lexon/contracts';
 import type {
   AiOperationRepository,
   AiRunRepository,
@@ -16,8 +20,10 @@ import {
   hashOperationArgs,
   isRunStepJob,
   jsonbTextBytes,
+  requireSession,
   TenantTransactionTimeoutError,
 } from '../../infrastructure/db/index.js';
+import { capRequiredEvent } from '../../infrastructure/queue/run-stream-parts.js';
 import type {
   JsonValue,
   ModelEvent,
@@ -77,6 +83,19 @@ export interface StepExecutorOptions {
   readonly cancelSignals?: CancelSignals;
   readonly modelCallTimeoutMs?: number;
   readonly chatTitles?: ChatTitleService;
+}
+
+/**
+ * The chat that started the run rides `resolvedConfig.resourceIds[0]` — the
+ * same extraction chat-tools.ts applies for rename_chat.
+ */
+function pausedRunChatId(resolvedConfig: unknown): string | null {
+  if (resolvedConfig === null || typeof resolvedConfig !== 'object')
+    return null;
+  const resources = (resolvedConfig as Record<string, unknown>).resourceIds;
+  if (!Array.isArray(resources)) return null;
+  const chatId = resources[0];
+  return typeof chatId === 'string' ? chatId : null;
 }
 
 export class StepExecutor {
@@ -2021,16 +2040,44 @@ export class StepExecutor {
   ): Promise<void> {
     if (!this.options.streams) return;
     if (run.status === 'queued' || run.status === 'cancelling') return;
-    const operations = this.options.operations
+    const pausedChatId =
+      run.status === 'awaiting_approval'
+        ? pausedRunChatId(run.resolvedConfig)
+        : null;
+    const { operations, chatTitle } = this.options.operations
       ? await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) =>
-            this.options.operations!.forRun(tx, {
+          async (tx) => {
+            const ops = await this.options.operations!.forRun(tx, {
               runId: claim.runId,
               throughSequence: claim.sequence + 1,
-            }),
+            });
+            let title: string | null = null;
+            if (pausedChatId) {
+              const { client } = requireSession(tx);
+              if (
+                ops.some((operation) => operation.toolName === 'rename_chat')
+              ) {
+                const row = await client.query<{ title: string }>(
+                  'SELECT title FROM app.chats WHERE id=$1',
+                  [pausedChatId],
+                );
+                title = row.rows[0]?.title ?? null;
+              }
+              // §6.5: a pause invalidates the chat view — the notify fires at
+              // this read transaction's commit, after the pause committed.
+              await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
+                JSON.stringify({
+                  orgId: claim.orgId,
+                  userId: claim.userId,
+                  chatId: pausedChatId,
+                }),
+              ]);
+            }
+            return { operations: ops, chatTitle: title };
+          },
         )
-      : [];
+      : { operations: [], chatTitle: null };
     const reference = {
       runId: claim.runId,
       orgId: claim.orgId,
@@ -2057,32 +2104,106 @@ export class StepExecutor {
       (entry) =>
         entry.stepId === claim.stepId || operationIds.includes(entry.id),
     )) {
+      const wireStatus: OperationStatus =
+        operation.status === 'succeeded' ? 'completed' : operation.status;
       events.push({
         version: 1,
         runId: claim.runId,
         type: 'operation-status',
         operationId: operation.id,
-        status:
-          operation.status === 'succeeded' ? 'completed' : operation.status,
+        status: wireStatus,
       });
+      // §9: rows render from tool-* events bound to the operation; the stored
+      // decision is replayed identically for decided ops.
+      const args =
+        operation.args !== null &&
+        typeof operation.args === 'object' &&
+        !Array.isArray(operation.args)
+          ? (operation.args as Record<string, unknown>)
+          : {};
+      events.push({
+        version: 1,
+        runId: claim.runId,
+        type: 'tool-input-available',
+        toolCallId: operation.id,
+        toolName: operation.toolName,
+        operationId: operation.id,
+        input: args,
+      });
+      const summary = {
+        operationId: operation.id,
+        kind: operation.kind,
+        status: wireStatus,
+        approvalRequired: operation.approvalRequired,
+        snapshotHash: operation.snapshotHash,
+        expiresAt: operation.expiresAt
+          ? operation.expiresAt.toISOString()
+          : null,
+        decidedAt: operation.decidedAt
+          ? operation.decidedAt.toISOString()
+          : null,
+        toolName: operation.toolName,
+        input: args,
+        ...(operation.toolName === 'rename_chat' && chatTitle !== null
+          ? { display: { currentTitle: chatTitle } }
+          : {}),
+        ...(operation.result !== null && operation.result !== undefined
+          ? { output: operation.result }
+          : {}),
+      };
       if (operation.status === 'awaiting_approval')
         events.push(
-          operation.kind === 'question'
-            ? {
-                version: 1,
-                runId: claim.runId,
-                type: 'question-required',
-                operationId: operation.id,
-                kind: 'question' as const,
-              }
-            : {
-                version: 1,
-                runId: claim.runId,
-                type: 'approval-required',
-                operationId: operation.id,
-                kind: 'approval' as const,
-              },
+          ...capRequiredEvent(
+            operation.kind === 'question'
+              ? {
+                  version: 1,
+                  runId: claim.runId,
+                  type: 'question-required',
+                  operationId: operation.id,
+                  kind: 'question' as const,
+                  operation: {
+                    ...summary,
+                    kind: 'question' as const,
+                  },
+                }
+              : {
+                  version: 1,
+                  runId: claim.runId,
+                  type: 'approval-required',
+                  operationId: operation.id,
+                  kind: 'approval' as const,
+                  operation: {
+                    ...summary,
+                    kind: 'approval' as const,
+                  },
+                },
+          ),
         );
+      if (
+        operation.status === 'succeeded' ||
+        operation.status === 'failed' ||
+        operation.status === 'outcome_unknown' ||
+        operation.status === 'answered'
+      )
+        events.push({
+          version: 1,
+          runId: claim.runId,
+          type: 'tool-output-available',
+          toolCallId: operation.id,
+          operationId: operation.id,
+          output: operation.result ?? null,
+        });
+      if (
+        operation.status === 'rejected' ||
+        operation.status === 'dismissed' ||
+        operation.status === 'expired'
+      )
+        events.push({
+          version: 1,
+          runId: claim.runId,
+          type: 'tool-output-denied',
+          toolCallId: operation.id,
+        });
     }
     const safeCode = RunErrorCodeSchema.safeParse(run.errorCode);
     if (!terminal && safeCode.success)

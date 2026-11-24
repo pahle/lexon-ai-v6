@@ -8,8 +8,10 @@ import type {
   OutboxRepository,
   RunActorFactsRepository,
   TenantDatabase,
+  TenantSession,
   TerminalStreamReference,
 } from '../../infrastructure/db/index.js';
+import { requireSession } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
 import { AuditService } from '../audit/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
@@ -135,6 +137,9 @@ export class OperationExpirySweep {
             status: 'expired',
           },
         });
+        // §6.5: an expired panel invalidates the chat view — the notify lands
+        // at this transaction's commit whether the run resumes or fails closed.
+        await this.#notifyChatInvalidated(tx, candidate);
         const run = await this.options.runs.find(tx, candidate.runId);
         // A run already terminal (cancelled/failed) no longer resumes; the
         // expired op and its audit still commit so it never re-lists.
@@ -246,6 +251,31 @@ export class OperationExpirySweep {
         return { kind: 'resume', reference, operationId: operation.id };
       },
     );
+  }
+
+  /**
+   * Fires `lexon_chat_title` once per `chat_runs` answer link for the
+   * candidate run; non-chat runs have no link row and emit nothing.
+   */
+  async #notifyChatInvalidated(
+    tx: TenantSession,
+    candidate: ExpiredOperationCandidate,
+  ) {
+    const { client } = requireSession(tx);
+    const link = await client.query<{ chat_id: string }>(
+      `SELECT chat_id FROM app.chat_runs
+       WHERE org_id=$1 AND run_id=$2 AND kind='answer'`,
+      [candidate.orgId, candidate.runId],
+    );
+    for (const row of link.rows) {
+      await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
+        JSON.stringify({
+          orgId: candidate.orgId,
+          userId: candidate.initiatingUserId,
+          chatId: row.chat_id,
+        }),
+      ]);
+    }
   }
 }
 

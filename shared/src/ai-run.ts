@@ -211,7 +211,9 @@ const RunStreamEventV1Schema = z.discriminatedUnion('type', [
     type: z.literal('tool-output-available'),
     toolCallId: sdkPartId,
     operationId: z.uuid().optional(),
-    output: z.unknown(),
+    // Droppable under the §9 byte cap: the event keeps ids while the client
+    // refetches the tree for the payload.
+    output: z.unknown().optional(),
   }),
   z.strictObject({
     ...eventBase,

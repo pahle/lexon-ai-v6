@@ -54,7 +54,22 @@ export const VALIDATOR_SQL = `SELECT
         AND f.owner_user_id=c.owner_user_id) AS feedback_count,
    COALESCE((SELECT max(f.updated_at)::text FROM app.message_feedback f
       WHERE f.org_id=c.org_id AND f.chat_id=c.id
-        AND f.owner_user_id=c.owner_user_id),'') AS feedback_max_updated_at
+        AND f.owner_user_id=c.owner_user_id),'') AS feedback_max_updated_at,
+   (SELECT count(*)::text FROM app.chat_runs cr
+      JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
+      WHERE cr.org_id=c.org_id AND cr.chat_id=c.id) AS operations_count,
+   COALESCE((SELECT max(o.created_at)::text FROM app.chat_runs cr
+      JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
+      WHERE cr.org_id=c.org_id AND cr.chat_id=c.id),'') AS operations_max_created_at,
+   COALESCE((SELECT max(o.decided_at)::text FROM app.chat_runs cr
+      JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
+      WHERE cr.org_id=c.org_id AND cr.chat_id=c.id),'') AS operations_max_decided_at,
+   COALESCE((SELECT max(o.completed_at)::text FROM app.chat_runs cr
+      JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
+      WHERE cr.org_id=c.org_id AND cr.chat_id=c.id),'') AS operations_max_completed_at,
+   COALESCE((SELECT max(o.expires_at)::text FROM app.chat_runs cr
+      JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
+      WHERE cr.org_id=c.org_id AND cr.chat_id=c.id),'') AS operations_max_expires_at
  FROM app.chats c
  WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL`;
 
@@ -76,6 +91,11 @@ interface ValidatorRow {
   attempts_max_settled_at: string;
   feedback_count: string;
   feedback_max_updated_at: string;
+  operations_count: string;
+  operations_max_created_at: string;
+  operations_max_decided_at: string;
+  operations_max_completed_at: string;
+  operations_max_expires_at: string;
 }
 
 /**
@@ -133,6 +153,13 @@ export const VALIDATOR_INPUTS: Record<string, readonly string[]> = {
   reasoning_summary: ['ai_runs.run_version_sum', 'ai_runs.max_updated_at'],
   reasoning_duration_ms: ['ai_runs.run_version_sum', 'ai_runs.max_updated_at'],
   feedback: ['message_feedback.count', 'message_feedback.max_updated_at'],
+  operations: [
+    'ai_operations.count',
+    'ai_operations.max_created_at',
+    'ai_operations.max_decided_at',
+    'ai_operations.max_completed_at',
+    'ai_operations.max_expires_at',
+  ],
   created_at: [
     'chat_messages.count',
     'chat_messages.max_created_at',
@@ -187,6 +214,11 @@ export async function readTreeValidator(
     `ai_attempts.max_settled_at=${row.attempts_max_settled_at}`,
     `message_feedback.count=${row.feedback_count}`,
     `message_feedback.max_updated_at=${row.feedback_max_updated_at}`,
+    `ai_operations.count=${row.operations_count}`,
+    `ai_operations.max_created_at=${row.operations_max_created_at}`,
+    `ai_operations.max_decided_at=${row.operations_max_decided_at}`,
+    `ai_operations.max_completed_at=${row.operations_max_completed_at}`,
+    `ai_operations.max_expires_at=${row.operations_max_expires_at}`,
   ].join('|');
   const digest = createHash('sha256').update(tuple, 'utf8').digest('base64url');
   return `W/"v1.${digest}"`;

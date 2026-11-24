@@ -412,19 +412,20 @@ export class AiOperationRepository {
   async failUnresolvedForSupersede(
     tx: TenantSession,
     input: { runId: string },
-  ): Promise<number> {
+  ): Promise<OperationRecord[]> {
     const { client, ctx } = requireSession(tx);
-    if (!uuid.safeParse(input.runId).success) return 0;
-    const updated = await client.query(
+    if (!uuid.safeParse(input.runId).success) return [];
+    const updated = await client.query<OperationRow>(
       `UPDATE app.ai_operations
        SET status='failed',
            result='{"not_run":"superseded_by_message"}'::jsonb,
            completed_at=clock_timestamp(),expires_at=NULL
        WHERE org_id=$1 AND run_id=$2
-         AND status IN ('pending','awaiting_approval') AND decision IS NULL`,
+         AND status IN ('pending','awaiting_approval') AND decision IS NULL
+       RETURNING *`,
       [ctx.orgId, input.runId],
     );
-    return updated.rowCount ?? 0;
+    return updated.rows.map(mapOperation);
   }
 
   /**

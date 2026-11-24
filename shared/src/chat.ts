@@ -319,18 +319,37 @@ export const ChatSnapshotFrameSchema = z.discriminatedUnion('type', [
     index: z.number().int().nonnegative().safe(),
     operation: ChatOperationSnapshotSchema,
   }),
-  z.strictObject({
-    version: z.literal(1),
-    type: z.literal('snapshot-part'),
-    partIndex: z.number().int().nonnegative().safe(),
-    chunkIndex: z.number().int().nonnegative().safe(),
-    partType: z.enum(['text', 'reasoning']),
-    id: opaqueId,
-    text: z
-      .string()
-      .refine((text) => new TextEncoder().encode(text).byteLength <= 24_000),
-    final: z.boolean(),
-  }),
+  z.discriminatedUnion('partType', [
+    z.strictObject({
+      version: z.literal(1),
+      type: z.literal('snapshot-part'),
+      partIndex: z.number().int().nonnegative().safe(),
+      chunkIndex: z.number().int().nonnegative().safe(),
+      partType: z.enum(['text', 'reasoning']),
+      id: opaqueId,
+      text: z
+        .string()
+        .refine((text) => new TextEncoder().encode(text).byteLength <= 24_000),
+      final: z.boolean(),
+    }),
+    // Tool parts replay as a single frame so rows rebuild identically to the
+    // live stream; oversized input/display/output blocks are dropped (§9).
+    z.strictObject({
+      version: z.literal(1),
+      type: z.literal('snapshot-part'),
+      partIndex: z.number().int().nonnegative().safe(),
+      chunkIndex: z.number().int().nonnegative().safe(),
+      partType: z.literal('tool'),
+      id: opaqueId,
+      toolCallId: opaqueId,
+      toolName: opaqueId,
+      operationId: uuid,
+      input: z.record(z.string(), z.unknown()).optional(),
+      output: z.unknown().optional(),
+      outcome: OperationStatusSchema,
+      final: z.boolean(),
+    }),
+  ]),
   z.strictObject({
     version: z.literal(1),
     type: z.literal('snapshot-end'),
@@ -482,4 +501,10 @@ export interface ChatApi {
   setViewedLeaf(chatId: string, input: ViewedLeafInput): Promise<void>;
   rename(chatId: string, input: RenameChatInput): Promise<void>;
   delete(chatId: string): Promise<void>;
+  /** §6.3 owner-only decision route; idempotent 200 with the stored outcome. */
+  decideOperation(
+    runId: string,
+    operationId: string,
+    input: OperationDecisionInput,
+  ): Promise<OperationDecisionResult>;
 }
