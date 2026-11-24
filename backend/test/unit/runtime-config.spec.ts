@@ -145,6 +145,47 @@ it('validates an optional caller-reachable S3 endpoint separately from its inter
   ).toThrow('S3_PUBLIC_ENDPOINT');
 });
 
+it('rejects a malformed telemetry collector URL naming the field, not the value', () => {
+  const secret = 'PRIVATE_OTEL_SENTINEL';
+  try {
+    loadRuntimeConfig('ai-worker', {
+      ...base,
+      LEXON_OTEL_COLLECTOR_URL: secret,
+    });
+    expect.unreachable('must reject invalid URL');
+  } catch (error) {
+    expect(String(error)).toContain('LEXON_OTEL_COLLECTOR_URL');
+    expect(String(error)).not.toContain(secret);
+    expect(JSON.stringify(error)).not.toContain(secret);
+  }
+});
+
+it('reads the optional telemetry collector URL, blank meaning unset', () => {
+  expect(loadRuntimeConfig('ai-worker', base).otelCollectorUrl).toBeUndefined();
+  expect(
+    loadRuntimeConfig('ai-worker', {
+      ...base,
+      LEXON_OTEL_COLLECTOR_URL: '',
+    }).otelCollectorUrl,
+  ).toBeUndefined();
+  expect(
+    loadRuntimeConfig('ai-worker', {
+      ...base,
+      LEXON_OTEL_COLLECTOR_URL: 'http://collector:4318',
+    }).otelCollectorUrl,
+  ).toBe('http://collector:4318');
+});
+
+it('exposes validated provider credentials on the ai-worker ai config', () => {
+  const config = loadRuntimeConfig('ai-worker', {
+    ...base,
+    OPENROUTER_API_KEY: 'test-only-key',
+    LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: '2026-11-20',
+  });
+  expect(config.ai.openRouterApiKey).toBe('test-only-key');
+  expect(config.ai.openRouterZdrOnlyVerified).toBe('2026-11-20');
+});
+
 it('configures a queue namespace shared by producers and workers', () => {
   expect(
     loadRuntimeConfig('ai-worker', { ...base, QUEUE_PREFIX: 'lexon_test' })

@@ -56,6 +56,41 @@ type PendingCreateIdentity = {
   readonly effort: 'high' | 'max';
 };
 
+// B-19: a refreshed tree identical to the mounted one must not allocate a new
+// state object — the runtime and thread re-render for nothing otherwise.
+// Structural deep equality over the JSON-shaped tree (plain objects, arrays,
+// scalars).
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (
+    typeof a !== 'object' ||
+    a === null ||
+    typeof b !== 'object' ||
+    b === null
+  )
+    return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((item, index) => deepEqual(item, b[index]));
+  }
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(b, key) &&
+      deepEqual(
+        (a as Record<string, unknown>)[key],
+        (b as Record<string, unknown>)[key],
+      ),
+  );
+}
+
+export function treesEqual(a: ChatTree, b: ChatTree): boolean {
+  return deepEqual(a, b);
+}
+
 export function ChatView(props: ChatViewProps) {
   return (
     <ChatViewSession
@@ -80,6 +115,9 @@ function ChatViewSession({
   const titleRequestVersion = useRef(0);
   const observedTitleRefreshVersion = useRef(chatTitleRefreshVersion);
   const [tree, setTree] = useState<ChatTree | null>(null);
+  // The validator the last non-poll tree write carried (the initial GET); the
+  // poll seeds its stored tag from it so a tag never describes another tree.
+  const [treeEtag, setTreeEtag] = useState<string | null>(null);
   const [loading, setLoading] = useState(chatId !== undefined);
   const [loadError, setLoadError] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -91,12 +129,17 @@ function ChatViewSession({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCreateIdentity = useRef<PendingCreateIdentity | null>(null);
   const bytes = promptByteLength(text);
-  const refreshActiveTree = useCallback(() => {
-    if (!chatId) throw new Error('This conversation is not available.');
-    return client.get(chatId);
-  }, [chatId, client]);
+  const refreshActiveTree = useCallback(
+    (signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      if (!chatId) throw new Error('This conversation is not available.');
+      return client.get(chatId, { signal, ifNoneMatch });
+    },
+    [chatId, client],
+  );
   const updateCanonicalTree = useCallback((nextTree: ChatTree) => {
-    setTree(nextTree);
+    setTree((current) =>
+      current !== null && treesEqual(current, nextTree) ? current : nextTree,
+    );
   }, []);
 
   useEffect(() => {
@@ -106,11 +149,13 @@ function ChatViewSession({
     setLoading(true);
     void client
       .get(chatId)
-      .then((next) => {
+      .then((result) => {
+        if (result.notModified) return;
         if (mounted) {
-          setTree(next);
+          setTree(result.tree);
+          setTreeEtag(result.etag);
           if (requestVersion === titleRequestVersion.current)
-            setChatTitle(chatId, actorScope, next.title);
+            setChatTitle(chatId, actorScope, result.tree.title);
         }
       })
       .catch((error: unknown) => {
@@ -137,9 +182,10 @@ function ChatViewSession({
     const requestVersion = ++titleRequestVersion.current;
     void client
       .get(chatId)
-      .then((next) => {
+      .then((result) => {
+        if (result.notModified) return;
         if (current && requestVersion === titleRequestVersion.current)
-          setChatTitle(chatId, actorScope, next.title);
+          setChatTitle(chatId, actorScope, result.tree.title);
       })
       .catch(() => undefined);
     return () => {
@@ -295,6 +341,7 @@ function ChatViewSession({
         chatId={chatId}
         tree={tree}
         onTreeRefresh={refreshActiveTree}
+        treeEtag={treeEtag}
         onTreeUpdate={updateCanonicalTree}
         effort={effort}
         onRunId={(runId) => {

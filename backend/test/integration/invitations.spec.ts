@@ -437,7 +437,9 @@ test('audit failure rolls back invitation creation before any invitation mail di
     await harness.identity(owner.cookieHeaders, async (identity) => {
       await expect(
         service.create(identity, team.id, { email, role: 'member' }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: { code: 'P0001', message: 'injected-audit-failure' },
+      });
     });
     expect(await inspect.pendingCount(team.id, email)).toBe(0);
     expect(proof.dispatchedLink(email, 'invitation')).toBeUndefined();

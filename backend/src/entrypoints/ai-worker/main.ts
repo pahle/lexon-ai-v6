@@ -6,8 +6,8 @@ import { registerAiSdkTelemetry } from '../../infrastructure/ai/index.js';
 await runEntrypoint(import.meta.url, 'ai-worker', async () => {
   const config = loadRuntimeConfig('ai-worker', process.env);
   const telemetry = await startAiTelemetry({
-    ...(process.env.LEXON_OTEL_COLLECTOR_URL
-      ? { collectorUrl: process.env.LEXON_OTEL_COLLECTOR_URL }
+    ...(config.otelCollectorUrl
+      ? { collectorUrl: config.otelCollectorUrl }
       : {}),
     serviceName: 'lexon-ai-worker',
   });

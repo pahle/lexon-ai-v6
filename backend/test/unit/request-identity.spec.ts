@@ -68,5 +68,8 @@ test('request identity and tenant context survive async work and expire together
   expect(() => assertVerifiedIdentity(captured!)).toThrow();
   expect(() => currentTenantContext()).toThrow();
   expect(() => requests.summary()).toThrow();
-  await expect(requests.run(request, async () => {})).rejects.toBeDefined();
+  await expect(requests.run(request, async () => {})).rejects.toMatchObject({
+    code: 'AUTH_REQUIRED',
+    status: 401,
+  });
 });

@@ -11,7 +11,12 @@ import { execFile } from 'node:child_process';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { composeEnvironment, root } from './compose-environment.mjs';
-import { withOwnedStack } from './e2e-lifecycle.mjs';
+import {
+  captureComposeLogs,
+  describeChatLoadFailure,
+  tagChatLoadStep,
+  withOwnedStack,
+} from './e2e-lifecycle.mjs';
 import { checkStack } from './e2e-stack-guard.mjs';
 import { buildStackDescriptor } from './e2e-compose-files.mjs';
 import { composeArgs, run } from './compose-runner.mjs';
@@ -188,6 +193,13 @@ try {
         { env, signal },
       );
     },
+    captureLogs: () =>
+      captureComposeLogs({
+        project,
+        files,
+        env,
+        target: join(root, 'test-results', 'compose-logs.txt'),
+      }),
     async exercise(signal) {
       const descriptor = buildStackDescriptor({
         project,
@@ -259,8 +271,8 @@ try {
         join(root, 'test-results/f4-chat-load'),
     );
     const { latency, ...aggregate } = loadEvidence;
-    await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
     try {
+      await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
       await writeFile(
         join(evidenceDirectory, 'F4-sse-load.json'),
         `${JSON.stringify(aggregate, null, 2)}\n`,
@@ -276,11 +288,13 @@ try {
         rm(join(evidenceDirectory, 'F4-sse-load.json'), { force: true }),
         rm(join(evidenceDirectory, 'F4-stream-latency.json'), { force: true }),
       ]);
-      throw error;
+      tagChatLoadStep('evidence write', error);
     }
   }
 } catch (error) {
-  console.error(captureChatLoad ? 'Chat SSE load E2E failed.' : error.message);
+  console.error(
+    captureChatLoad ? describeChatLoadFailure(error) : error.message,
+  );
   process.exitCode = 1;
 } finally {
   process.off('SIGINT', stop);

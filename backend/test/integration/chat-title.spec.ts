@@ -652,7 +652,10 @@ test('title outbox failure rolls back the answer completion transition', async (
       'A completion that must roll back atomically',
     );
     removeFailure = await scenario.fixture.inspect.failChatTitleOutboxInsert();
-    await expect(scenario.executeAnswer(eligibleRunId)).rejects.toThrow();
+    await expect(scenario.executeAnswer(eligibleRunId)).rejects.toMatchObject({
+      code: '23514',
+      message: 'injected title outbox failure',
+    });
     const run = await scenario.fixture.inspect.query(
       `SELECT status,final_output FROM app.ai_runs WHERE id=$1`,
       [eligibleRunId],
@@ -753,7 +756,11 @@ test('title capacity refusal leaves the answer completed and retries the same lo
       );
       extraRuns.push(run.runId);
     }
-    await expect(scenario.startTitle()).rejects.toThrow();
+    await expect(scenario.startTitle()).rejects.toMatchObject({
+      code: '23514',
+      message: 'AI organization capacity exceeded',
+      constraint: 'ai_org_capacity',
+    });
     expect(
       (await scenario.engine.inspect(scenario.tenant, scenario.answerRunId))
         ?.status,

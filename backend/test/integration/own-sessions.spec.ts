@@ -126,11 +126,16 @@ test('audit failure rolls back Bearer creation and own-session revocation withou
       service.list(identity),
     );
     await audits.rejectInserts();
+    const auditFailure = {
+      cause: { code: 'P0001', message: 'injected-audit-failure' },
+    };
     await harness.identity(cookie, async (identity) => {
-      await expect(service.issueBearer(identity)).rejects.toThrow();
+      await expect(service.issueBearer(identity)).rejects.toMatchObject(
+        auditFailure,
+      );
       await expect(
         service.revoke(identity, issued.sessionId),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject(auditFailure);
     });
     expect(
       await harness.identity(cookie, (identity) => service.list(identity)),

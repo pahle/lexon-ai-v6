@@ -15,6 +15,7 @@ services:
       - ./backend/test/e2e/chat-load-api-main.mjs:/app/backend/test/e2e/chat-load-api-main.mjs:ro
       - ./backend/test/e2e/chat-load-control.mjs:/app/backend/test/e2e/chat-load-control.mjs:ro
       - ./backend/test/load/burst-harness.mjs:/app/backend/test/load/burst-harness.mjs:ro
+      - ./backend/test/load/close-counters.mjs:/app/backend/test/load/close-counters.mjs:ro
   load-tool:
     image: ${K6_IMAGE:?Use the manifest loader}
     profiles: [chat-load]

@@ -4,6 +4,11 @@ import type {
   AuthIntegration,
 } from '../../infrastructure/db/index.js';
 import {
+  isRetryableAuthError,
+  pgFailure,
+  withAuthRetry,
+} from '../../infrastructure/db/index.js';
+import {
   assertVerifiedIdentity,
   verifiedIdentityHeaders,
   type VerifiedIdentity,
@@ -11,37 +16,6 @@ import {
 import { IdentityError, mapSlugConflict } from './identity-error.js';
 import { IdentityPolicy } from './identity-policy.js';
 
-function databaseFailure(error: unknown): {
-  code?: string;
-  constraint?: string;
-} {
-  const seen = new Set<unknown>();
-  let current = error;
-  for (
-    let depth = 0;
-    depth < 6 && current && typeof current === 'object' && !seen.has(current);
-    depth++
-  ) {
-    seen.add(current);
-    const candidate = current as {
-      code?: string;
-      constraint?: string;
-      cause?: unknown;
-    };
-    if (
-      candidate.code === '40001' ||
-      candidate.code === '40P01' ||
-      candidate.constraint === 'lexon_team_owner'
-    )
-      return candidate;
-    current = candidate.cause;
-  }
-  return {};
-}
-export function isRetryableAuthError(error: unknown): boolean {
-  const failure = databaseFailure(error);
-  return failure.code === '40001' || failure.code === '40P01';
-}
 @Injectable()
 export class OrganizationAuthPort {
   constructor(private readonly integration: AuthIntegration) {}
@@ -88,9 +62,9 @@ export class OrganizationAuthPort {
   ): Promise<T> {
     assertVerifiedIdentity(identity);
     const headers = verifiedIdentityHeaders(identity);
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        return await this.integration.transaction(async (tx) => {
+    return withAuthRetry(
+      () =>
+        this.integration.transaction(async (tx) => {
           const facts = await tx.call('lexonSecurityFacts', { headers });
           const user = facts.user;
           const session = facts.session;
@@ -109,20 +83,18 @@ export class OrganizationAuthPort {
           if (session.hardExpiresAt && session.hardExpiresAt <= new Date())
             throw new IdentityError('AUTH_REQUIRED', 401);
           return work(tx, new Headers(headers));
-        });
-      } catch (error) {
-        const conflict = mapSlugConflict(error);
-        if (conflict) throw conflict;
-        const failure = databaseFailure(error);
-        if (failure.constraint === 'lexon_team_owner')
-          throw new IdentityError('ORG_LAST_OWNER', 409);
-        if (
-          attempt === 2 ||
-          (failure.code !== '40001' && failure.code !== '40P01')
-        )
-          throw error;
-      }
-    }
-    throw new IdentityError('AUTH_UNAVAILABLE', 503);
+        }),
+      {
+        attempts: 3,
+        retryable: isRetryableAuthError,
+        map: (error) =>
+          mapSlugConflict(error) ??
+          (pgFailure(error).constraint === 'lexon_team_owner'
+            ? new IdentityError('ORG_LAST_OWNER', 409)
+            : isRetryableAuthError(error)
+              ? new IdentityError('AUTH_UNAVAILABLE', 503)
+              : error),
+      },
+    );
   }
 }

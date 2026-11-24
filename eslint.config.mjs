@@ -92,5 +92,31 @@ export default ts.config(
       'react-hooks/exhaustive-deps': 'error',
     },
   },
+  {
+    // Backend specs must assert the exact rejection (code, status or
+    // SQLSTATE); a bare `.rejects.toThrow()` (even with a sole `undefined`
+    // argument) or `.rejects.toBeDefined()` proves only that *something* threw.
+    files: ['backend/test/**/*.ts', 'backend/src/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.object.type='CallExpression'][callee.object.property.name='rejects'][callee.property.name=/^toThrow(Error)?$/][arguments.length=0]",
+          message: 'Assert the exact rejection (code, status or SQLSTATE).',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.object.type='CallExpression'][callee.object.property.name='rejects'][callee.property.name=/^toThrow(Error)?$/][arguments.length=1][arguments.0.type='Identifier'][arguments.0.name='undefined']",
+          message: 'Assert the exact rejection (code, status or SQLSTATE).',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.object.type='CallExpression'][callee.object.property.name='rejects'][callee.property.name='toBeDefined']",
+          message: 'Assert the exact rejection (code, status or SQLSTATE).',
+        },
+      ],
+    },
+  },
   prettier,
 );

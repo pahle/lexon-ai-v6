@@ -155,3 +155,135 @@ it('refreshNow fetches immediately', async () => {
   expect(fetchTree).toHaveBeenCalledTimes(1);
   await view.unmount();
 });
+
+it('sends no tag first, then the tag the previous response stored', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: 'W/"v1.stored"' };
+    },
+  );
+  const view = await mount({ fetchTree });
+  await vi.advanceTimersByTimeAsync(5_000);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual([undefined, 'W/"v1.stored"']);
+  await view.unmount();
+});
+
+it('keeps no tag across polls when responses carry none', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: null };
+    },
+  );
+  const view = await mount({ fetchTree });
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(tags).toEqual([undefined, undefined]);
+  await view.unmount();
+});
+
+it('a seeded tag is the first validator sent', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: 'W/"v1.polled"' };
+    },
+  );
+  const view = await mount({ fetchTree, seedEtag: 'W/"v1.seeded"' });
+  await vi.advanceTimersByTimeAsync(5_000);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual(['W/"v1.seeded"', 'W/"v1.polled"']);
+  await view.unmount();
+});
+
+it('a seed change resets the stored tag to the new write\u2019s validator', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: 'W/"v1.polled"' };
+    },
+  );
+  function Seeding(props: { readonly seed: string | null }) {
+    handle = useTreePolling({
+      fetchTree,
+      isUrgent: () => false,
+      onFailures: () => undefined,
+      seedEtag: props.seed,
+    });
+    return null;
+  }
+  const view = await render(<Seeding seed={'W/"v1.seeded-a"'} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual(['W/"v1.seeded-a"', 'W/"v1.polled"']);
+  // The tree was rewritten outside the poll: the stored tag must reset to the
+  // validator that write carried, never keep the polled one.
+  await view.rerender(<Seeding seed={'W/"v1.seeded-b"'} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual(['W/"v1.seeded-a"', 'W/"v1.polled"', 'W/"v1.seeded-b"']);
+  await view.unmount();
+});
+
+it('a cleared seed forgets the stored tag entirely', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: 'W/"v1.polled"' };
+    },
+  );
+  function Seeding(props: { readonly seed: string | null }) {
+    handle = useTreePolling({
+      fetchTree,
+      isUrgent: () => false,
+      onFailures: () => undefined,
+      seedEtag: props.seed,
+    });
+    return null;
+  }
+  const view = await render(<Seeding seed={'W/"v1.seeded-a"'} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  await vi.advanceTimersByTimeAsync(5_000);
+  await view.rerender(<Seeding seed={null} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual(['W/"v1.seeded-a"', 'W/"v1.polled"', undefined]);
+  await view.unmount();
+});
+
+it('a resetKey change forgets the stored tag', async () => {
+  const tags: Array<string | undefined> = [];
+  const fetchTree = vi.fn(
+    async (_signal: AbortSignal, ifNoneMatch: string | undefined) => {
+      tags.push(ifNoneMatch);
+      return { etag: 'W/"v1.chat-one"' };
+    },
+  );
+  function Switching(props: { readonly chatId: string }) {
+    handle = useTreePolling({
+      fetchTree,
+      isUrgent: () => false,
+      onFailures: () => undefined,
+      resetKey: props.chatId,
+    });
+    return null;
+  }
+  // Same mounted component, new resetKey: the stored tag must not leak
+  // across chats.
+  const view = await render(<Switching chatId={chatA} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual([undefined]);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual([undefined, 'W/"v1.chat-one"']);
+  await view.rerender(<Switching chatId={chatB} />);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(tags).toEqual([undefined, 'W/"v1.chat-one"', undefined]);
+  await view.unmount();
+});
+
+const chatA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const chatB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';

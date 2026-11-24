@@ -43,7 +43,15 @@ for (const stage of ['account', 'organization', 'member'] as const) {
       await proof.inspect.rejectInsert(stage);
       await expect(
         proof.integration.transaction((tx) => tx.call('signUpEmail', signup())),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject(
+        stage === 'account'
+          ? { cause: { code: 'P0001', message: 'injected-insert-failure' } }
+          : {
+              status: 'UNPROCESSABLE_ENTITY',
+              statusCode: 422,
+              body: { code: 'FAILED_TO_CREATE_USER' },
+            },
+      );
       expect(await proof.inspect.totals()).toEqual(before);
     } finally {
       await proof.close();

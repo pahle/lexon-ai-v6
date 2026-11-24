@@ -22,6 +22,11 @@ export interface ChatInvalidationSource {
 
 export { chatListQueryKey, chatThreadQueriesPrefix, chatThreadQueryKey };
 
+// B-19: when the EventSource comes back after an API restart every tab's
+// reconnect refresh lands on the same throttle instant. A per-subscription
+// jitter spreads the refetches; injectable for tests.
+export const RECONNECT_JITTER_MS = 2_000;
+
 function cancelAndInvalidate(
   queryClient: QueryClient,
   queryKey: readonly unknown[],
@@ -59,6 +64,7 @@ export function subscribeToChatInvalidations(
     options: EventSourceInit,
   ) => ChatInvalidationSource = (url, options) => new EventSource(url, options),
   onChatInvalidated?: (chatId: string | null) => void,
+  random: () => number = Math.random,
 ): () => void {
   const source = createSource('/api/chats/events', { withCredentials: true });
   let lastRecoveryRefresh: number | undefined;
@@ -86,10 +92,13 @@ export function subscribeToChatInvalidations(
           : now - lastRecoveryRefresh;
       if (elapsed < 15_000) {
         if (recoveryTimer === undefined) {
-          recoveryTimer = setTimeout(() => {
-            recoveryTimer = undefined;
-            invalidateOwnerChats(true);
-          }, 15_000 - elapsed);
+          recoveryTimer = setTimeout(
+            () => {
+              recoveryTimer = undefined;
+              invalidateOwnerChats(true);
+            },
+            15_000 - elapsed + random() * RECONNECT_JITTER_MS,
+          );
         }
         return;
       }

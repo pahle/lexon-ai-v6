@@ -45,7 +45,7 @@ async function renderComposeServices(input, directory) {
   return JSON.parse(rendered).services;
 }
 
-test('OpenRouter provider configuration is mapped only to ai-worker', async () => {
+test('provider and telemetry configuration is mapped only to ai-worker', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lexon-ai-worker-compose-'));
   try {
     const services = await renderComposeServices(
@@ -53,6 +53,7 @@ test('OpenRouter provider configuration is mapped only to ai-worker', async () =
         ...syntheticRequiredEnvironment,
         OPENROUTER_API_KEY: 'synthetic-openrouter-key-not-a-secret',
         LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: '2099-01-01',
+        LEXON_OTEL_COLLECTOR_URL: 'http://collector.test:4318',
       },
       directory,
     );
@@ -69,6 +70,12 @@ test('OpenRouter provider configuration is mapped only to ai-worker', async () =
       true,
       'ai-worker receives the configured ZDR verification date',
     );
+    assert.equal(
+      workerEnvironment.LEXON_OTEL_COLLECTOR_URL ===
+        'http://collector.test:4318',
+      true,
+      'ai-worker receives the configured OTLP collector URL',
+    );
 
     for (const [serviceName, service] of Object.entries(services)) {
       if (serviceName === 'ai-worker') continue;
@@ -83,13 +90,18 @@ test('OpenRouter provider configuration is mapped only to ai-worker', async () =
         false,
         `${serviceName} does not receive the ZDR verification date`,
       );
+      assert.equal(
+        Object.hasOwn(environment, 'LEXON_OTEL_COLLECTOR_URL'),
+        false,
+        `${serviceName} does not receive the OTLP collector URL`,
+      );
     }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
 
-test('unset OpenRouter provider configuration has safe empty ai-worker defaults', async () => {
+test('unset provider and telemetry configuration has safe empty ai-worker defaults', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lexon-ai-worker-compose-'));
   try {
     const services = await renderComposeServices(
@@ -101,6 +113,7 @@ test('unset OpenRouter provider configuration has safe empty ai-worker defaults'
     for (const name of [
       'OPENROUTER_API_KEY',
       'LEXON_OPENROUTER_ZDR_ONLY_VERIFIED',
+      'LEXON_OTEL_COLLECTOR_URL',
     ]) {
       assert.equal(
         Object.hasOwn(workerEnvironment, name),

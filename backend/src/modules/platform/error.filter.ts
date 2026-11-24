@@ -10,6 +10,8 @@ import type { PinoLogger } from 'nestjs-pino';
 import type { Request, Response } from 'express';
 import type { ErrorResponse } from '@lexon/contracts';
 import { ChatApiError, SafeErrorMessages } from '@lexon/contracts';
+import { pgFailure } from '../../infrastructure/db/index.js';
+import { routeFamily } from './route-family.js';
 
 // A 23505 is a client conflict only for constraints we expect callers to hit.
 // Any other unique violation stays a 500: chat-branches.spec.ts pins that an
@@ -92,6 +94,25 @@ function unavailable(error: unknown): boolean {
     )
   );
 }
+// K3: only a class name plus an optional SQLSTATE — never the message, the
+// stack or request content. The name is read from the prototype so an
+// own-property `constructor` on a thrown object cannot spoof it.
+const ERROR_KIND = /^[A-Za-z_$][\w$]{0,63}$/;
+const DRIVER_CODE = /^[0-9A-Z]{1,16}$/;
+function errorKind(error: unknown): string {
+  const prototype =
+    typeof error === 'object' && error !== null
+      ? Object.getPrototypeOf(error)
+      : null;
+  const raw = (prototype as { constructor?: { name?: unknown } } | null)
+    ?.constructor?.name;
+  const name =
+    typeof raw === 'string' && ERROR_KIND.test(raw) ? raw : 'Unknown';
+  const { code } = pgFailure(error);
+  return code !== undefined && DRIVER_CODE.test(code)
+    ? `${name}:${code}`
+    : name;
+}
 function clientStatus(error: unknown): number | undefined {
   if (typeof error !== 'object' || error === null) return undefined;
   const raw = error as { status?: unknown; statusCode?: unknown };
@@ -159,11 +180,20 @@ export class SafeErrorFilter implements ExceptionFilter {
         message: SafeErrorMessages.AI_CAPACITY_EXCEEDED,
       };
     } else if (unavailable(error)) {
+      // Ruling P2: the outage code depends on which dependency family the
+      // route serves. Identity routes keep AUTH_UNAVAILABLE; every other
+      // route (chats, runs, diagnostics, health, future) is SERVICE_UNAVAILABLE.
       status = 503;
-      detail = {
-        code: 'AUTH_UNAVAILABLE',
-        message: 'Authentication is temporarily unavailable.',
-      };
+      detail =
+        routeFamily(request.originalUrl ?? request.url ?? '') === 'identity'
+          ? {
+              code: 'AUTH_UNAVAILABLE',
+              message: 'Authentication is temporarily unavailable.',
+            }
+          : {
+              code: 'SERVICE_UNAVAILABLE',
+              message: SafeErrorMessages.SERVICE_UNAVAILABLE,
+            };
     } else if (
       uniqueConflict(error) ||
       databaseCode(error, CONFLICT_SQLSTATES)
@@ -187,6 +217,8 @@ export class SafeErrorFilter implements ExceptionFilter {
     const id = response.getHeader('x-request-id') ?? request.id;
     this.logger.warn({
       event: 'http_request_failed',
+      code: detail.code,
+      ...(status >= 500 ? { errorKind: errorKind(error) } : {}),
       ...(typeof id === 'string' ? { requestId: id } : {}),
     });
     response.status(status).json({

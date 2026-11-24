@@ -11,6 +11,10 @@ import type {
   AuthIntegration,
   AuthCommandSession,
 } from '../../infrastructure/db/index.js';
+import {
+  isRetryableAuthError,
+  withAuthRetry,
+} from '../../infrastructure/db/index.js';
 import { credentialChannel } from './credential-channel.js';
 import { IdentityError } from './identity-error.js';
 import { IdentityPolicy } from './identity-policy.js';
@@ -19,7 +23,6 @@ import {
   verifiedIdentityHeaders,
   type VerifiedIdentity,
 } from './identity.types.js';
-import { isRetryableAuthError } from './organization-auth.port.js';
 import type { RouteAccess } from './route-access.js';
 import type { ResolvedRequestIdentity } from './request-identity.js';
 
@@ -104,20 +107,17 @@ export class IdentitySessionService implements OrganizationSelectionPort {
   private async transaction<T>(
     work: (tx: AuthCommandSession) => Promise<T>,
   ): Promise<T> {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        return await this.integration.transaction(work);
-      } catch (error) {
-        if (
-          attempt < 2 &&
-          (error instanceof SelectionChanged || isRetryableAuthError(error))
-        )
-          continue;
-        if (error instanceof IdentityError) throw error;
-        throw new IdentityError('AUTH_UNAVAILABLE', 503);
-      }
-    }
-    throw new IdentityError('AUTH_UNAVAILABLE', 503);
+    return withAuthRetry(() => this.integration.transaction(work), {
+      attempts: 3,
+      retryable: (error) =>
+        error instanceof SelectionChanged || isRetryableAuthError(error),
+      map: (error) =>
+        error instanceof IdentityError
+          ? error
+          : error instanceof SelectionChanged
+            ? new IdentityError('ORG_STATE_CHANGED', 409)
+            : new IdentityError('AUTH_UNAVAILABLE', 503),
+    });
   }
   private async actor(
     tx: AuthCommandSession,

@@ -4,7 +4,16 @@ import { join, resolve } from 'node:path';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { readContainerImages } from './container-images.mjs';
 
-const INVALID_EVIDENCE = 'Chat load evidence is incomplete or invalid.';
+const INVALID_EVIDENCE = 'Chat load evidence is incomplete or invalid';
+
+// The only error whose message reaches the job log: the bound name plus
+// count-style constants, never an observed value.
+export class ChatLoadEvidenceError extends Error {
+  constructor(bound) {
+    super(`${INVALID_EVIDENCE}: ${bound}`);
+    this.name = 'ChatLoadEvidenceError';
+  }
+}
 const K6_IMAGE = readContainerImages(
   fileURLToPath(new URL('../config/container-images.env', import.meta.url)),
 ).k6;
@@ -19,52 +28,53 @@ const OPTIONAL_VALKEY_PURPOSES = [
   'health',
 ];
 
-function invalid() {
-  throw new Error(INVALID_EVIDENCE);
+function invalid(bound) {
+  throw new ChatLoadEvidenceError(bound);
 }
 
-function record(value, keys) {
+function record(value, keys, bound) {
   if (
     value === null ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
     Object.getPrototypeOf(value) !== Object.prototype
   )
-    invalid();
+    invalid(`${bound} object`);
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
   if (
     actual.length !== expected.length ||
     actual.some((key, index) => key !== expected[index])
   )
-    invalid();
+    invalid(`${bound} fields ${actual.length}!=${expected.length}`);
   return value;
 }
 
-function finite(value, minimum = 0) {
+function finite(value, minimum = 0, bound) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum)
-    invalid();
+    invalid(bound);
   return value;
 }
 
-function integer(value, minimum = 0) {
-  finite(value, minimum);
-  if (!Number.isSafeInteger(value)) invalid();
+function integer(value, minimum = 0, bound) {
+  finite(value, minimum, bound);
+  if (!Number.isSafeInteger(value)) invalid(bound);
   return value;
 }
 
-function equal(value, expected) {
-  if (value !== expected) invalid();
+function equal(value, expected, bound) {
+  if (value !== expected)
+    invalid(`${bound} expected ${JSON.stringify(expected)}`);
 }
 
-function valkeyPurposeCounts(value) {
+function valkeyPurposeCounts(value, bound) {
   if (
     value === null ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
     Object.getPrototypeOf(value) !== Object.prototype
   )
-    invalid();
+    invalid(`${bound} object`);
   const purposes = Object.keys(value);
   if (
     CORE_VALKEY_PURPOSES.some((purpose) => !purposes.includes(purpose)) ||
@@ -74,8 +84,9 @@ function valkeyPurposeCounts(value) {
         !OPTIONAL_VALKEY_PURPOSES.includes(purpose),
     )
   )
-    invalid();
-  for (const purpose of purposes) integer(value[purpose]);
+    invalid(`${bound} purposes`);
+  for (const purpose of purposes)
+    integer(value[purpose], 0, `${bound}.${purpose}`);
   return value;
 }
 
@@ -83,21 +94,25 @@ function compareValkeyPurposeCounts(
   value,
   baseline,
   activeReaderCount = baseline.reader,
+  bound,
 ) {
-  valkeyPurposeCounts(value);
+  valkeyPurposeCounts(value, bound);
   const baselinePurposes = Object.keys(baseline).sort();
   const purposes = Object.keys(value).sort();
   if (
     purposes.length !== baselinePurposes.length ||
     purposes.some((purpose, index) => purpose !== baselinePurposes[index])
   )
-    invalid();
+    invalid(`${bound} purposes`);
   for (const purpose of purposes) {
     if (purpose === 'reader') {
-      equal(value.reader, activeReaderCount);
+      equal(value.reader, activeReaderCount, `${bound}.reader`);
     } else if (purpose === 'health') {
-      if (value.health > baseline.health) invalid();
-    } else equal(value[purpose], baseline[purpose]);
+      // The Compose healthcheck probes /api/health every 5 s and each
+      // probe opens a transient unnamed Valkey client, so a sample may
+      // catch one client above the observed warm peak.
+      if (value.health > baseline.health + 1) invalid(`${bound}.health`);
+    } else equal(value[purpose], baseline[purpose], `${bound}.${purpose}`);
   }
 }
 
@@ -115,228 +130,342 @@ function percentile(values, quantile) {
 }
 
 function validateAndBuild(observations) {
-  record(observations, [
-    'provenance',
-    'config',
-    'defaultSixQualification',
-    'warmBaseline',
-    'oneSubscriberBaseline',
-    'plateauSamples',
-    'k6',
-    'worker',
-    'teardown',
-    'latency',
-  ]);
+  record(
+    observations,
+    [
+      'provenance',
+      'config',
+      'defaultSixQualification',
+      'warmBaseline',
+      'oneSubscriberBaseline',
+      'plateauSamples',
+      'k6',
+      'worker',
+      'teardown',
+      'latency',
+    ],
+    'observations',
+  );
 
-  const provenance = record(observations.provenance, [
-    'sourceHead',
-    'sourceDirty',
-    'runnerImage',
-    'apiPid',
-    'loadToolPid',
-    'images',
-  ]);
+  const provenance = record(
+    observations.provenance,
+    [
+      'sourceHead',
+      'sourceDirty',
+      'runnerImage',
+      'apiPid',
+      'loadToolPid',
+      'images',
+    ],
+    'provenance',
+  );
   if (
     typeof provenance.sourceHead !== 'string' ||
     !/^[a-f0-9]{40}$/u.test(provenance.sourceHead)
   )
-    invalid();
-  if (typeof provenance.sourceDirty !== 'boolean') invalid();
+    invalid('provenance.sourceHead');
+  if (typeof provenance.sourceDirty !== 'boolean')
+    invalid('provenance.sourceDirty');
   if (
     typeof provenance.runnerImage !== 'string' ||
     !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,99}$/u.test(provenance.runnerImage)
   )
-    invalid();
-  integer(provenance.apiPid, 1);
-  integer(provenance.loadToolPid, 1);
-  if (provenance.apiPid === provenance.loadToolPid) invalid();
-  const images = record(provenance.images, ['api', 'caddy', 'valkey', 'k6']);
-  for (const image of Object.values(images)) {
+    invalid('provenance.runnerImage');
+  integer(provenance.apiPid, 1, 'provenance.apiPid');
+  integer(provenance.loadToolPid, 1, 'provenance.loadToolPid');
+  if (provenance.apiPid === provenance.loadToolPid)
+    invalid('provenance.apiPid!=loadToolPid');
+  const images = record(
+    provenance.images,
+    ['api', 'caddy', 'valkey', 'k6'],
+    'provenance.images',
+  );
+  for (const [name, image] of Object.entries(images)) {
     if (
       typeof image !== 'string' ||
       !/^[a-z0-9./_-]+:[a-zA-Z0-9._-]+@sha256:[a-f0-9]{64}$/u.test(image)
     )
-      invalid();
+      invalid(`provenance.images.${name}`);
   }
-  equal(images.k6, K6_IMAGE);
+  equal(images.k6, K6_IMAGE, 'provenance.images.k6');
 
-  const config = record(observations.config, [
-    'perUserSseLimit',
-    'owners',
-    'separateOrganizations',
-    'subscribersPerOwner',
-    'activeMockRuns',
-    'apiMemoryLimitMiB',
-    'apiCpuLimit',
-    'loadToolMemoryLimitMiB',
-    'loadToolCpuLimit',
-    'testTimeoutSeconds',
-    'runCaps',
-  ]);
-  equal(config.perUserSseLimit, 256);
-  equal(config.owners, 2);
-  equal(config.separateOrganizations, 2);
-  equal(config.subscribersPerOwner, 250);
-  equal(config.activeMockRuns, 2);
-  equal(config.apiMemoryLimitMiB, 1536);
-  equal(config.apiCpuLimit, 1);
-  equal(config.loadToolMemoryLimitMiB, 2048);
-  equal(config.loadToolCpuLimit, 2);
-  equal(config.testTimeoutSeconds, 180);
-  const runCaps = record(config.runCaps, ['global', 'perOrganization']);
-  equal(runCaps.global, 24);
-  equal(runCaps.perOrganization, 6);
-
-  const defaultSixQualification = record(observations.defaultSixQualification, [
-    'perUserLimit',
-    'seventhConnectionEvictedOldest',
-  ]);
-  equal(defaultSixQualification.perUserLimit, 6);
-  equal(defaultSixQualification.seventhConnectionEvictedOldest, true);
-
-  const warmBaseline = record(observations.warmBaseline, [
-    'apiPid',
-    'activeSubscriptions',
-    'activeLeases',
-    'readerSubscriptions',
-    'readerConnections',
-    'valkeyClientsByPurpose',
-  ]);
-  equal(warmBaseline.apiPid, provenance.apiPid);
-  equal(warmBaseline.activeSubscriptions, 0);
-  equal(warmBaseline.activeLeases, 0);
-  equal(warmBaseline.readerSubscriptions, 0);
-  equal(warmBaseline.readerConnections, 1);
-  const warmValkeyCounts = valkeyPurposeCounts(
-    warmBaseline.valkeyClientsByPurpose,
+  const config = record(
+    observations.config,
+    [
+      'perUserSseLimit',
+      'owners',
+      'separateOrganizations',
+      'subscribersPerOwner',
+      'activeMockRuns',
+      'apiMemoryLimitMiB',
+      'apiCpuLimit',
+      'loadToolMemoryLimitMiB',
+      'loadToolCpuLimit',
+      'testTimeoutSeconds',
+      'runCaps',
+    ],
+    'config',
   );
-  equal(warmValkeyCounts.reader, 1);
+  equal(config.perUserSseLimit, 256, 'config.perUserSseLimit');
+  equal(config.owners, 2, 'config.owners');
+  equal(config.separateOrganizations, 2, 'config.separateOrganizations');
+  equal(config.subscribersPerOwner, 250, 'config.subscribersPerOwner');
+  equal(config.activeMockRuns, 2, 'config.activeMockRuns');
+  equal(config.apiMemoryLimitMiB, 1536, 'config.apiMemoryLimitMiB');
+  equal(config.apiCpuLimit, 1, 'config.apiCpuLimit');
+  equal(config.loadToolMemoryLimitMiB, 2048, 'config.loadToolMemoryLimitMiB');
+  equal(config.loadToolCpuLimit, 2, 'config.loadToolCpuLimit');
+  equal(config.testTimeoutSeconds, 180, 'config.testTimeoutSeconds');
+  const runCaps = record(
+    config.runCaps,
+    ['global', 'perOrganization'],
+    'config.runCaps',
+  );
+  equal(runCaps.global, 24, 'config.runCaps.global');
+  equal(runCaps.perOrganization, 6, 'config.runCaps.perOrganization');
 
-  const oneSubscriberBaseline = record(observations.oneSubscriberBaseline, [
-    'apiPid',
-    'readerConnections',
-  ]);
-  equal(oneSubscriberBaseline.apiPid, provenance.apiPid);
-  equal(oneSubscriberBaseline.readerConnections, 2);
+  const defaultSixQualification = record(
+    observations.defaultSixQualification,
+    ['perUserLimit', 'seventhConnectionEvictedOldest'],
+    'defaultSixQualification',
+  );
+  equal(
+    defaultSixQualification.perUserLimit,
+    6,
+    'defaultSixQualification.perUserLimit',
+  );
+  equal(
+    defaultSixQualification.seventhConnectionEvictedOldest,
+    true,
+    'defaultSixQualification.seventhConnectionEvictedOldest',
+  );
 
-  if (!Array.isArray(observations.plateauSamples)) invalid();
-  const plateauSamples = observations.plateauSamples;
-  if (plateauSamples.length < 7) invalid();
-  let previousElapsedMs = -1;
-  for (const sampleValue of plateauSamples) {
-    const sample = record(sampleValue, [
-      'elapsedMs',
+  const warmBaseline = record(
+    observations.warmBaseline,
+    [
+      'apiPid',
       'activeSubscriptions',
       'activeLeases',
       'readerSubscriptions',
       'readerConnections',
-      'apiPid',
-      'apiMemoryBytes',
-      'apiCpuMicros',
-      'loadToolPid',
-      'loadToolMemoryBytes',
-      'loadToolCpuMicros',
       'valkeyClientsByPurpose',
-    ]);
-    const elapsedMs = integer(sample.elapsedMs);
+    ],
+    'warmBaseline',
+  );
+  equal(warmBaseline.apiPid, provenance.apiPid, 'warmBaseline.apiPid');
+  equal(
+    warmBaseline.activeSubscriptions,
+    0,
+    'warmBaseline.activeSubscriptions',
+  );
+  equal(warmBaseline.activeLeases, 0, 'warmBaseline.activeLeases');
+  equal(
+    warmBaseline.readerSubscriptions,
+    0,
+    'warmBaseline.readerSubscriptions',
+  );
+  equal(warmBaseline.readerConnections, 1, 'warmBaseline.readerConnections');
+  const warmValkeyCounts = valkeyPurposeCounts(
+    warmBaseline.valkeyClientsByPurpose,
+    'warmBaseline.valkeyClientsByPurpose',
+  );
+  equal(
+    warmValkeyCounts.reader,
+    1,
+    'warmBaseline.valkeyClientsByPurpose.reader',
+  );
+
+  const oneSubscriberBaseline = record(
+    observations.oneSubscriberBaseline,
+    ['apiPid', 'readerConnections'],
+    'oneSubscriberBaseline',
+  );
+  equal(
+    oneSubscriberBaseline.apiPid,
+    provenance.apiPid,
+    'oneSubscriberBaseline.apiPid',
+  );
+  equal(
+    oneSubscriberBaseline.readerConnections,
+    2,
+    'oneSubscriberBaseline.readerConnections',
+  );
+
+  if (!Array.isArray(observations.plateauSamples)) invalid('plateauSamples');
+  const plateauSamples = observations.plateauSamples;
+  if (plateauSamples.length < 7) invalid('plateauSamples.length>=7');
+  let previousElapsedMs = -1;
+  for (const [index, sampleValue] of plateauSamples.entries()) {
+    const bound = `plateauSamples[${index}]`;
+    const sample = record(
+      sampleValue,
+      [
+        'elapsedMs',
+        'activeSubscriptions',
+        'activeLeases',
+        'readerSubscriptions',
+        'readerConnections',
+        'apiPid',
+        'apiMemoryBytes',
+        'apiCpuMicros',
+        'loadToolPid',
+        'loadToolMemoryBytes',
+        'loadToolCpuMicros',
+        'valkeyClientsByPurpose',
+      ],
+      bound,
+    );
+    const elapsedMs = integer(sample.elapsedMs, 0, `${bound}.elapsedMs`);
     if (
       elapsedMs <= previousElapsedMs ||
       (previousElapsedMs >= 0 && elapsedMs - previousElapsedMs > 5000)
     )
-      invalid();
+      invalid(`${bound}.elapsedMs monotonic<=5000`);
     previousElapsedMs = elapsedMs;
-    if (integer(sample.activeSubscriptions) < 500) invalid();
-    if (integer(sample.activeLeases) < 500) invalid();
-    if (integer(sample.readerSubscriptions) < 500) invalid();
-    equal(sample.readerConnections, oneSubscriberBaseline.readerConnections);
-    equal(sample.apiPid, provenance.apiPid);
-    if (integer(sample.apiMemoryBytes, 1) >= API_MEMORY_LIMIT_BYTES) invalid();
-    integer(sample.apiCpuMicros);
-    equal(sample.loadToolPid, provenance.loadToolPid);
-    if (integer(sample.loadToolMemoryBytes, 1) > LOAD_TOOL_MEMORY_LIMIT_BYTES)
-      invalid();
-    integer(sample.loadToolCpuMicros);
+    if (
+      integer(sample.activeSubscriptions, 0, `${bound}.activeSubscriptions`) <
+      500
+    )
+      invalid(`${bound}.activeSubscriptions>=500`);
+    if (integer(sample.activeLeases, 0, `${bound}.activeLeases`) < 500)
+      invalid(`${bound}.activeLeases>=500`);
+    if (
+      integer(sample.readerSubscriptions, 0, `${bound}.readerSubscriptions`) <
+      500
+    )
+      invalid(`${bound}.readerSubscriptions>=500`);
+    equal(
+      sample.readerConnections,
+      oneSubscriberBaseline.readerConnections,
+      `${bound}.readerConnections`,
+    );
+    equal(sample.apiPid, provenance.apiPid, `${bound}.apiPid`);
+    if (
+      integer(sample.apiMemoryBytes, 1, `${bound}.apiMemoryBytes`) >=
+      API_MEMORY_LIMIT_BYTES
+    )
+      invalid(`${bound}.apiMemoryBytes`);
+    integer(sample.apiCpuMicros, 0, `${bound}.apiCpuMicros`);
+    equal(sample.loadToolPid, provenance.loadToolPid, `${bound}.loadToolPid`);
+    if (
+      integer(sample.loadToolMemoryBytes, 1, `${bound}.loadToolMemoryBytes`) >
+      LOAD_TOOL_MEMORY_LIMIT_BYTES
+    )
+      invalid(`${bound}.loadToolMemoryBytes`);
+    integer(sample.loadToolCpuMicros, 0, `${bound}.loadToolCpuMicros`);
     compareValkeyPurposeCounts(
       sample.valkeyClientsByPurpose,
       warmValkeyCounts,
       oneSubscriberBaseline.readerConnections,
+      `${bound}.valkeyClientsByPurpose`,
     );
   }
   const plateauDurationMs =
     plateauSamples.at(-1).elapsedMs - plateauSamples[0].elapsedMs;
-  if (plateauDurationMs < 30_000) invalid();
+  if (plateauDurationMs < 30_000) invalid('plateauDurationMs>=30000');
 
-  const k6 = record(observations.k6, [
-    'vus',
-    'requestsStarted',
-    'requestsCompleted',
-    'http200',
-    'errors',
-    'minRequestDurationMs',
-    'maxRequestsPerVu',
-    'reconnects',
-  ]);
-  equal(k6.vus, 500);
-  equal(k6.requestsStarted, 500);
-  equal(k6.requestsCompleted, 500);
-  equal(k6.http200, 500);
-  equal(k6.errors, 0);
-  if (finite(k6.minRequestDurationMs) < 30_000) invalid();
-  equal(k6.maxRequestsPerVu, 1);
-  equal(k6.reconnects, 0);
+  const k6 = record(
+    observations.k6,
+    [
+      'vus',
+      'requestsStarted',
+      'requestsCompleted',
+      'http200',
+      'errors',
+      'minRequestDurationMs',
+      'maxRequestsPerVu',
+      'reconnects',
+    ],
+    'k6',
+  );
+  equal(k6.vus, 500, 'k6.vus');
+  equal(k6.requestsStarted, 500, 'k6.requestsStarted');
+  equal(k6.requestsCompleted, 500, 'k6.requestsCompleted');
+  equal(k6.http200, 500, 'k6.http200');
+  equal(k6.errors, 0, 'k6.errors');
+  if (finite(k6.minRequestDurationMs, 0, 'k6.minRequestDurationMs') < 30_000)
+    invalid('k6.minRequestDurationMs>=30000');
+  equal(k6.maxRequestsPerVu, 1, 'k6.maxRequestsPerVu');
+  equal(k6.reconnects, 0, 'k6.reconnects');
 
-  const worker = record(observations.worker, [
-    'activeRuns',
-    'sequenceBefore',
-    'sequenceAfter',
-  ]);
-  equal(worker.activeRuns, 2);
+  const worker = record(
+    observations.worker,
+    ['activeRuns', 'sequenceBefore', 'sequenceAfter'],
+    'worker',
+  );
+  equal(worker.activeRuns, 2, 'worker.activeRuns');
   if (
     !Array.isArray(worker.sequenceBefore) ||
     !Array.isArray(worker.sequenceAfter) ||
     worker.sequenceBefore.length !== 2 ||
     worker.sequenceAfter.length !== 2
   )
-    invalid();
+    invalid('worker.sequences length=2');
   for (let index = 0; index < 2; index += 1) {
-    integer(worker.sequenceBefore[index]);
-    integer(worker.sequenceAfter[index]);
-    if (worker.sequenceAfter[index] <= worker.sequenceBefore[index]) invalid();
+    integer(worker.sequenceBefore[index], 0, `worker.sequenceBefore[${index}]`);
+    integer(worker.sequenceAfter[index], 0, `worker.sequenceAfter[${index}]`);
+    if (worker.sequenceAfter[index] <= worker.sequenceBefore[index])
+      invalid(`worker.sequenceAfter[${index}]>before`);
   }
   const progressedRuns = worker.sequenceAfter.filter(
     (sequence, index) => sequence > worker.sequenceBefore[index],
   ).length;
 
-  const teardown = record(observations.teardown, [
-    'apiPid',
-    'activeSubscriptions',
-    'activeLeases',
-    'readerSubscriptions',
-    'readerConnections',
-    'valkeyClientsByPurpose',
-  ]);
-  equal(teardown.apiPid, warmBaseline.apiPid);
-  equal(teardown.activeSubscriptions, warmBaseline.activeSubscriptions);
-  equal(teardown.activeLeases, warmBaseline.activeLeases);
-  equal(teardown.readerSubscriptions, warmBaseline.readerSubscriptions);
-  equal(teardown.readerConnections, warmBaseline.readerConnections);
-  compareValkeyPurposeCounts(teardown.valkeyClientsByPurpose, warmValkeyCounts);
+  const teardown = record(
+    observations.teardown,
+    [
+      'apiPid',
+      'activeSubscriptions',
+      'activeLeases',
+      'readerSubscriptions',
+      'readerConnections',
+      'valkeyClientsByPurpose',
+    ],
+    'teardown',
+  );
+  equal(teardown.apiPid, warmBaseline.apiPid, 'teardown.apiPid');
+  equal(
+    teardown.activeSubscriptions,
+    warmBaseline.activeSubscriptions,
+    'teardown.activeSubscriptions',
+  );
+  equal(
+    teardown.activeLeases,
+    warmBaseline.activeLeases,
+    'teardown.activeLeases',
+  );
+  equal(
+    teardown.readerSubscriptions,
+    warmBaseline.readerSubscriptions,
+    'teardown.readerSubscriptions',
+  );
+  equal(
+    teardown.readerConnections,
+    warmBaseline.readerConnections,
+    'teardown.readerConnections',
+  );
+  compareValkeyPurposeCounts(
+    teardown.valkeyClientsByPurpose,
+    warmValkeyCounts,
+    undefined,
+    'teardown.valkeyClientsByPurpose',
+  );
 
-  const latency = record(observations.latency, [
-    'measurement',
-    'coldSamplesMs',
-    'warmSamplesMs',
-  ]);
-  equal(latency.measurement, 'mock-send-to-first-frame');
+  const latency = record(
+    observations.latency,
+    ['measurement', 'coldSamplesMs', 'warmSamplesMs'],
+    'latency',
+  );
+  equal(latency.measurement, 'mock-send-to-first-frame', 'latency.measurement');
   if (
     !Array.isArray(latency.coldSamplesMs) ||
     latency.coldSamplesMs.length === 0 ||
     !Array.isArray(latency.warmSamplesMs) ||
     latency.warmSamplesMs.length === 0
   )
-    invalid();
+    invalid('latency samples non-empty');
   for (const sample of [...latency.coldSamplesMs, ...latency.warmSamplesMs])
-    finite(sample);
+    finite(sample, 0, 'latency.sample');
   const latencySamples = [...latency.coldSamplesMs, ...latency.warmSamplesMs];
   const outputLatency = {
     measurement: latency.measurement,
@@ -389,11 +518,7 @@ function validateAndBuild(observations) {
 }
 
 export function collectChatLoadEvidence(observations) {
-  try {
-    return validateAndBuild(observations);
-  } catch {
-    throw new Error(INVALID_EVIDENCE);
-  }
+  return validateAndBuild(observations);
 }
 
 const QUALIFICATION_ARGS = [

@@ -133,7 +133,7 @@ test('only the exact password-checked email verification error survives sanitiza
   expect(accepted?.status).toBe(403);
   expect(await accepted?.json()).toEqual({
     error: {
-      code: 'EMAIL_NOT_VERIFIED',
+      code: 'AUTH_EMAIL_VERIFICATION_REQUIRED',
       message: 'Verify your email address before signing in.',
     },
   });

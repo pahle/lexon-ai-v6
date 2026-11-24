@@ -174,7 +174,7 @@ export async function sanitizeVerifiedSigninFailure(
   return Response.json(
     {
       error: {
-        code: 'EMAIL_NOT_VERIFIED',
+        code: 'AUTH_EMAIL_VERIFICATION_REQUIRED',
         message: 'Verify your email address before signing in.',
       },
     },

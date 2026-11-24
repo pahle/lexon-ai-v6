@@ -4,13 +4,29 @@ const URGENT_MS = 1_000;
 const CALM_MS = 5_000;
 const FAILURE_THRESHOLD = 5;
 
+export interface TreePollingResult {
+  /** The validator tag the last response carried; stored and resent as If-None-Match. */
+  readonly etag?: string | null;
+}
+
 export interface TreePollingOptions {
-  readonly fetchTree: (signal: AbortSignal) => Promise<void>;
+  readonly fetchTree: (
+    signal: AbortSignal,
+    ifNoneMatch: string | undefined,
+  ) => Promise<TreePollingResult | void>;
   readonly isUrgent: () => boolean;
   readonly onFailures: (count: number) => void;
   readonly now?: () => number;
   /** Polling runs only while true (default true). */
   readonly enabled?: boolean;
+  /** Resets the stored validator tag when it changes (the chat id). */
+  readonly resetKey?: string;
+  /**
+   * The validator the latest non-poll tree write carried (the initial GET).
+   * When it changes, the stored tag resets to it — a tag never outlives the
+   * tree it describes; a write with no tag clears it entirely.
+   */
+  readonly seedEtag?: string | null;
 }
 
 /**
@@ -25,6 +41,8 @@ export function useTreePolling(options: TreePollingOptions): {
   optionsRef.current = options;
   const refreshNowRef = useRef<() => void>(() => undefined);
   const enabled = options.enabled ?? true;
+  const resetKey = options.resetKey;
+  const seedEtag = options.seedEtag;
 
   useEffect(() => {
     if (!enabled) {
@@ -35,6 +53,7 @@ export function useTreePolling(options: TreePollingOptions): {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
     let failures = 0;
+    let lastEtag: string | undefined = seedEtag ?? undefined;
 
     const hidden = () => document.visibilityState === 'hidden';
     const clearTimer = () => {
@@ -55,8 +74,13 @@ export function useTreePolling(options: TreePollingOptions): {
       const mine = new AbortController();
       controller = mine;
       try {
-        await optionsRef.current.fetchTree(mine.signal);
+        const result = await optionsRef.current.fetchTree(
+          mine.signal,
+          lastEtag,
+        );
         if (mine.signal.aborted) return;
+        if (result?.etag !== undefined && result.etag !== null)
+          lastEtag = result.etag;
         failures = 0;
       } catch {
         if (mine.signal.aborted) return;
@@ -92,7 +116,7 @@ export function useTreePolling(options: TreePollingOptions): {
       window.removeEventListener('focus', onFocus);
       refreshNowRef.current = () => undefined;
     };
-  }, [enabled]);
+  }, [enabled, resetKey, seedEtag]);
 
   const refreshNow = useCallback(() => refreshNowRef.current(), []);
   return { refreshNow };

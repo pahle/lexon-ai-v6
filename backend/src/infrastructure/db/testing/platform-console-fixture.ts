@@ -58,6 +58,40 @@ export const platformFunctions: Record<
   },
 };
 
+/**
+ * Auth-database outage injector for the platform read path. `failAccountsRead`
+ * replaces `auth.lexon_platform_accounts` with a raise of SQLSTATE 57P01 —
+ * the admin-shutdown shape `SafeErrorFilter.unavailable` treats as a database
+ * outage — and `close` replays the definition captured by `pg_get_functiondef`.
+ */
+export function createPlatformReadInspector(options: { migratorUrl: string }) {
+  const pool = new Pool({ connectionString: options.migratorUrl });
+  let restore: string | undefined;
+  return {
+    async failAccountsRead() {
+      const saved = (
+        await pool.query<{ def: string }>(
+          `SELECT pg_get_functiondef('auth.lexon_platform_accounts(text,text[],boolean[],int,int)'::regprocedure) AS def`,
+        )
+      ).rows[0]!.def;
+      await pool.query(`CREATE OR REPLACE FUNCTION auth.lexon_platform_accounts(q text, statuses text[], two_factor boolean[], page_size int, page_offset int)
+RETURNS TABLE(id uuid, name text, email text, status text, two_factor_enabled boolean, is_platform_administrator boolean, team_count int, created_at timestamp, last_active_at timestamp, total bigint)
+LANGUAGE plpgsql SET search_path = pg_catalog, auth, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'injected platform read outage' USING ERRCODE='57P01';
+END $$;`);
+      restore = saved;
+    },
+    async close() {
+      try {
+        if (restore) await pool.query(restore);
+      } finally {
+        await pool.end();
+      }
+    },
+  };
+}
+
 /** One pool per role used by the platform console tests. */
 export function createPlatformPools(urls: {
   appUrl: string;

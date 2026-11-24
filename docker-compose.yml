@@ -225,6 +225,7 @@ services:
       <<: *runtime-env
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: ${LEXON_OPENROUTER_ZDR_ONLY_VERIFIED:-}
+      LEXON_OTEL_COLLECTOR_URL: ${LEXON_OTEL_COLLECTOR_URL:-}
     networks: [core, egress]
     depends_on: *runtime-dependencies
     healthcheck: *worker-health

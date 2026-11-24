@@ -288,6 +288,13 @@
       "when": 1793404800040,
       "tag": "0040_platform_console",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793404800041,
+      "tag": "0041_ops_default_privileges",
+      "breakpoints": true
     }
   ]
 }

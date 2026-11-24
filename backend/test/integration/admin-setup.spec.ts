@@ -306,7 +306,9 @@ test('activation audit failure preserves ordinary access and a live grant', asyn
     );
     await audits.rejectInserts();
     await harness.identity(full.headers, async (identity) => {
-      await expect(service.complete(identity, token)).rejects.toThrow();
+      await expect(service.complete(identity, token)).rejects.toMatchObject({
+        cause: { code: 'P0001', message: 'injected-audit-failure' },
+      });
     });
     expect(await service.redeem(token)).toEqual({ status: 'pending' });
     expect(

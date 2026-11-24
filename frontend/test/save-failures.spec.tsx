@@ -68,6 +68,11 @@ const slugTaken = () =>
     { error: { code: 'ORG_SLUG_TAKEN', message: 'Taken' } },
     { status: 409 },
   );
+const stateChanged = () =>
+  Response.json(
+    { error: { code: 'ORG_STATE_CHANGED', message: 'Conflict' } },
+    { status: 409 },
+  );
 
 async function type(el: HTMLInputElement, value: string) {
   await act(async () => {
@@ -179,6 +184,22 @@ it('organization General: a slug the server rejected reverts with its own field 
     'Hukum Nusantara LLP',
   );
   expect(save(view.container).disabled).toBe(false);
+  await view.unmount();
+});
+
+it('organization General: a lost state race shows its own alert in the same region', async () => {
+  responses = [stateChanged];
+  const view = await render(<OrganizationSettings organization={org} />);
+  const toggle = view.container.querySelector<HTMLButtonElement>(
+    '[role="switch"][aria-label="Require two-factor authentication"]',
+  )!;
+  await act(async () => toggle.click());
+  await settle();
+  const alert = view.container.querySelector('[role="alert"]')!;
+  expect(alert.getAttribute('data-slot')).toBe('form-alert');
+  expect(alert.textContent).toBe(
+    'Something changed while you were working. Refresh and try again.',
+  );
   await view.unmount();
 });
 

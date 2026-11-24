@@ -110,6 +110,78 @@ test('setup eligibility uses a digest, matching email and pending unexpired stat
     ).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
   }
 });
+// Characterisation pins (F4.4 task 6): every email the policy compares is
+// trimmed and lower-cased on both sides — the input at :46, the stored
+// invitation email at :71, the setup grant email at :92 and the account
+// invitation email at :98. normalizeEmail is the same function.
+test('email matching trims and lower-cases both the input and each stored value', async () => {
+  const invitation = new SignupPolicy({
+    openSignup: false,
+    readFacts: async () => ({
+      invitation: {
+        email: 'A@B.COM',
+        status: 'pending',
+        expiresAt: future,
+        purpose: 'team',
+        organizationState: 'active',
+      },
+      setup: null,
+    }),
+  });
+  await expect(
+    invitation.authorize({ email: '  a@b.com ', invitationId }),
+  ).resolves.toBeUndefined();
+  const setup = new SignupPolicy({
+    openSignup: false,
+    readFacts: async () => ({
+      invitation: null,
+      setup: {
+        expiresAt: future,
+        value: JSON.stringify({
+          version: 1,
+          email: 'A@B.COM',
+          status: 'pending',
+          additional: false,
+          boundUserId: null,
+        }),
+      },
+    }),
+  });
+  await expect(
+    setup.authorize({ email: '  a@b.com ', setupToken: 'opaque-token' }),
+  ).resolves.toBeUndefined();
+  const accountInvitation = new SignupPolicy({
+    openSignup: false,
+    readFacts: async () => ({
+      invitation: null,
+      setup: null,
+      accountInvitation: { email: ' A@b.COM ', usable: true },
+    }),
+  });
+  await expect(
+    accountInvitation.authorize({
+      email: 'a@b.com',
+      accountInvitationToken: 'token-value',
+    }),
+  ).resolves.toBeUndefined();
+  // The same pair without normalization must still be rejected.
+  const mismatch = new SignupPolicy({
+    openSignup: false,
+    readFacts: async () => ({
+      invitation: {
+        email: 'other@example.test',
+        status: 'pending',
+        expiresAt: future,
+        purpose: 'team',
+        organizationState: 'active',
+      },
+      setup: null,
+    }),
+  });
+  await expect(
+    mismatch.authorize({ email: '  a@b.com ', invitationId }),
+  ).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
+});
 test('account invitation proof allows only usable facts with a case-insensitive email match', async () => {
   const run = (
     accountInvitation: { email: string; usable: boolean } | null,

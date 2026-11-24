@@ -307,7 +307,10 @@ test('duplicate settlement cannot release a reservation twice', async ({
         inputTokens: 2,
         outputTokens: 2,
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      code: 'AI_INTERNAL',
+      message: 'AI settlement unavailable',
+    });
     expect(
       await harness.withTenant((tx) =>
         harness.newService().remaining(tx, harness.runId),
@@ -339,7 +342,10 @@ test('metadata is persisted only while its unique attempt is active', async ({
           generationId: 'generation-2',
         }),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      code: 'AI_INTERNAL',
+      message: 'AI metadata rejected',
+    });
     expect(await harness.listAttempts()).toContainEqual(
       expect.objectContaining({
         attemptId: reserved.attemptId,

@@ -7,19 +7,17 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { z } from 'zod';
-import { InvitationInputSchema, UuidSchema } from '@lexon/contracts';
+import {
+  InvitationInputSchema,
+  PaginationQuerySchema,
+  UuidSchema,
+} from '@lexon/contracts';
 import {
   AccountRoute,
   currentVerifiedIdentity,
 } from '../identity-access/index.js';
 import { InvitationService } from './invitation.service.js';
-const querySchema = z
-  .object({
-    limit: z.coerce.number().optional(),
-    cursor: UuidSchema.optional(),
-  })
-  .strict();
+const querySchema = PaginationQuerySchema;
 function page(input: unknown) {
   const query = querySchema.parse(input);
   return {

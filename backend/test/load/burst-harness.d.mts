@@ -16,6 +16,7 @@ export function buildBurstResult(input: {
   authPoolWaitMs: number[];
   poolWaitingMax: number | null;
   serverPeakOpenSse?: number | null;
+  closeReasons?: unknown;
   replayFirstFrameMs?: number[];
 }): {
   mode: string;
@@ -26,6 +27,7 @@ export function buildBurstResult(input: {
   authPoolWaitP95Ms: number | null;
   poolWaitingMax: number | null;
   serverPeakOpenSse: number | null;
+  closeReasons: unknown;
   replayP95FirstFrameMs: number | null;
 };
 export function loadMetricsEnabled(
@@ -58,6 +60,7 @@ export function observeSseResponses(
     closed(id: string): void;
   },
   prototype: { writeHead: (...args: never[]) => unknown },
+  onResponseClose?: (response: unknown) => void,
 ): void;
 export function createRetryBudget(
   limitMs: number,

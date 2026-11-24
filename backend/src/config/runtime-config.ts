@@ -18,6 +18,13 @@ const url = (protocols: string[]) =>
       (value) =>
         URL.canParse(value) && protocols.includes(new URL(value).protocol),
     );
+// An empty environment value means the optional variable was left unset.
+const blankMeansUnset = <S extends z.ZodType>(schema: S) =>
+  z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    schema.optional(),
+  );
 const common = z.object({
   DATABASE_APP_URL: url(['postgres:', 'postgresql:']),
   DATABASE_POOL_MAX: positive(5),
@@ -35,6 +42,7 @@ const common = z.object({
   HEALTH_WRITE_INTERVAL_MS: positive(5000),
   HEALTH_STALE_MS: positive(20000),
   DEPENDENCY_TIMEOUT_MS: positive(2000),
+  LEXON_OTEL_COLLECTOR_URL: blankMeansUnset(z.url()),
 });
 const storageSchema = z.object({
   S3_ENDPOINT: url(['http:', 'https:']),
@@ -97,6 +105,7 @@ function readCommon(env: Record<string, string | undefined>) {
       staleMs: values.HEALTH_STALE_MS,
       dependencyTimeoutMs: values.DEPENDENCY_TIMEOUT_MS,
     },
+    otelCollectorUrl: values.LEXON_OTEL_COLLECTOR_URL,
   };
 }
 function readStorage(env: Record<string, string | undefined>) {

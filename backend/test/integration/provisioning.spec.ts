@@ -57,7 +57,7 @@ test('platform provisions no members, replaces owner links, and verified accepta
           name: 'Forbidden staff team',
           slug: `staff-${randomUUID()}`,
         }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ code: 'ORG_FORBIDDEN', status: 403 });
     });
     await harness.identity(owner.cookieHeaders, async (identity) => {
       expect(
@@ -227,7 +227,9 @@ test('owner acceptance audit failure restores provisioning, invitation and empty
           new IdentitySessionService(proof.integration),
           config,
         ).accept(identity, created.invitation.id),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        cause: { code: 'P0001', message: 'injected-audit-failure' },
+      });
     });
     expect(await inspect.member(owner.userId, created.id)).toBeNull();
     expect(

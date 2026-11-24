@@ -281,7 +281,11 @@ it('the wait line clears when the run ends', async () => {
         actorScope="tenant-1:user-1"
         chatId={chatId}
         tree={running}
-        onTreeRefresh={async () => done}
+        onTreeRefresh={async () => ({
+          notModified: false,
+          tree: done,
+          etag: 'W/"v1.done"',
+        })}
       >
         <Thread displayName="Ada" />
       </ChatRuntime>,
@@ -322,9 +326,13 @@ it('reload during a run: no run is known while history loads; Stop appears enabl
   const client = {
     get: vi.fn(
       () =>
-        new Promise<ChatTree>((resolve) => {
-          resolvers.push(resolve);
-        }),
+        new Promise<{ notModified: false; tree: ChatTree; etag: null }>(
+          (resolve) => {
+            resolvers.push((tree) =>
+              resolve({ notModified: false, tree, etag: null }),
+            );
+          },
+        ),
     ),
   };
   const view = await render(

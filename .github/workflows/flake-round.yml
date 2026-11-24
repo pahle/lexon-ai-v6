@@ -1,0 +1,51 @@
+name: Flake round
+on:
+  # F4.4 task 5: the pull_request trigger that ran the pre-merge round is
+  # retired — the guarded spec files stay in this PR's diff, so it would
+  # re-fire on every push. workflow_dispatch works once the file is on main.
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flake-round-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  flake-round:
+    # F4.4 task 5: 20 consecutive Linux passes for the A-12 margin tests and
+    # the chat-scaffold refresh test. One dispatch is one cap unit.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fresh checkouts have no built shared dist; without it vitest file
+      # discovery in backend-integration returns zero files (and vite 8
+      # crashes printing the error). Same pre-step the load wrapper runs.
+      - run: pnpm exec tsc -p shared/tsconfig.build.json
+      - name: ai-execution lease tests x20
+        run: |
+          set -e
+          passes=0
+          for i in $(seq 1 20); do
+            pnpm exec vitest run --project backend-integration backend/test/integration/ai-execution.spec.ts -t 'renews through the bounded retry backoff|stops claim renewal'
+            passes=$((passes + 1))
+            echo "PASS $passes/20"
+          done
+          echo "backend ai-execution lease tests: $passes/20 passed"
+      - name: chat-scaffold refresh test x20
+        run: |
+          set -e
+          passes=0
+          for i in $(seq 1 20); do
+            pnpm exec vitest run --project frontend frontend/test/chat-scaffold.spec.tsx -t 'refreshes the canonical off-branch tree'
+            passes=$((passes + 1))
+            echo "PASS $passes/20"
+          done
+          echo "frontend chat-scaffold refresh test: $passes/20 passed"

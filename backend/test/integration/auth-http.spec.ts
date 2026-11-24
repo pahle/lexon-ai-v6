@@ -68,7 +68,7 @@ test('only a credential-checked unverified sign-in returns the safe verification
     expect(verifiedRequired.status).toBe(403);
     expect(await verifiedRequired.json()).toEqual({
       error: {
-        code: 'EMAIL_NOT_VERIFIED',
+        code: 'AUTH_EMAIL_VERIFICATION_REQUIRED',
         message: 'Verify your email address before signing in.',
       },
     });

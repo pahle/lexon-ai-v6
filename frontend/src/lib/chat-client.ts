@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import * as contracts from '@lexon/contracts';
-import type { ChatApi } from '@lexon/contracts';
+import type { ChatApi, ChatGetResult } from '@lexon/contracts';
 import { chatClientError, ChatClientError } from './chat-errors';
 import { notifyIdentityFallbackHint } from './identity-client';
 import { parseJsonResponse, requestJson } from './request-json';
@@ -53,6 +53,41 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
     return path + (query.size > 0 ? `?${query.toString()}` : '');
   };
 
+  async function getChat(
+    chatId: string,
+    request: { signal?: AbortSignal; ifNoneMatch?: string } = {},
+  ): Promise<ChatGetResult> {
+    const response = await requestJson(
+      `${base}/chats/${id(chatId)}`,
+      {
+        fetch: options.fetch,
+        method: 'GET',
+        signal: request.signal,
+        ...(request.ifNoneMatch === undefined
+          ? {}
+          : { headers: { 'if-none-match': request.ifNoneMatch } }),
+      },
+      () => new ChatClientError('AI_PROVIDER_UNAVAILABLE', 503),
+    );
+    if (notifyIdentityFallbackHint(response))
+      throw new ChatClientError('AI_ACCESS_REVOKED', response.status);
+    if (response.status === 304)
+      return {
+        notModified: true,
+        etag: response.headers.get('etag') ?? '',
+      };
+    if (!response.ok) throw await chatClientError(response);
+    return {
+      notModified: false,
+      tree: await parseJsonResponse(
+        response,
+        contracts.ChatTreeSchema,
+        () => new ChatClientError('AI_INTERNAL', 503),
+      ),
+      etag: response.headers.get('etag'),
+    };
+  }
+
   return {
     create: (input) =>
       call(
@@ -61,7 +96,7 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         'POST',
         contracts.CreateChatInputSchema.parse(input),
       ),
-    get: (chatId) => call(`/chats/${id(chatId)}`, contracts.ChatTreeSchema),
+    get: getChat,
     list: (input, signal) =>
       call(
         withPage('/chats', input),

@@ -295,7 +295,7 @@ test('verification resend appears only after credential-checked unverified sign-
     error: {
       status: 403,
       error: {
-        code: 'EMAIL_NOT_VERIFIED',
+        code: 'AUTH_EMAIL_VERIFICATION_REQUIRED',
         message: 'Verify your email address before signing in.',
       },
     },
@@ -437,7 +437,7 @@ test('invitation email id query reaches the acceptance action', async () => {
 test('a rejected recipient can change accounts without losing invitation intent', async () => {
   vi.stubGlobal('fetch', async () =>
     Response.json(
-      { error: { code: 'INVITATION_UNAVAILABLE', message: 'Unavailable' } },
+      { error: { code: 'ORG_FORBIDDEN', message: 'Unavailable' } },
       { status: 403 },
     ),
   );

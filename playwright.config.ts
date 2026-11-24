@@ -63,7 +63,7 @@ export default defineConfig({
         'backend/test/e2e/chat-recovery.spec.ts',
         'backend/test/e2e/indicator-trace.spec.ts',
       ],
-      use: { trace: 'off', video: 'off', screenshot: 'off' },
+      use: { trace: 'retain-on-failure', video: 'off', screenshot: 'off' },
     },
     {
       name: 'chat-browser',

@@ -10,6 +10,23 @@ const positiveInteger = (fallback: number, max?: number) => {
     ? number.default(fallback)
     : number.max(max).default(fallback);
 };
+// Compose maps an unset operator variable to an empty string; blank means unset.
+const blankMeansUnset = <S extends z.ZodType>(schema: S) =>
+  z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    schema.optional(),
+  );
+// The dated operator attestation consumed by validateRealModelPrerequisites:
+// a real YYYY-MM-DD calendar date. Recency stays a request-time check there.
+const datedAttestation = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(
+    (value) =>
+      Number.isFinite(Date.parse(`${value}T00:00:00.000Z`)) &&
+      new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value,
+  );
 
 const schema = z.object({
   AI_MAXLEN: positiveInteger(1024, 1024),
@@ -22,6 +39,8 @@ const schema = z.object({
   AI_MAX_ACTIVE: positiveInteger(24, 24).optional(),
   AI_MAX_ACTIVE_PER_ORG: positiveInteger(6, 6),
   AI_TERMINAL_SLOTS: positiveInteger(6, 6),
+  OPENROUTER_API_KEY: blankMeansUnset(z.string()),
+  LEXON_OPENROUTER_ZDR_ONLY_VERIFIED: blankMeansUnset(datedAttestation),
 });
 
 export interface AiConfig {
@@ -33,6 +52,8 @@ export interface AiConfig {
   maxActive: number;
   maxActivePerOrg: number;
   terminalSlots: number;
+  openRouterApiKey: string | undefined;
+  openRouterZdrOnlyVerified: string | undefined;
   fingerprint: string;
 }
 
@@ -85,6 +106,8 @@ export function readAiConfig(
     maxActive,
     maxActivePerOrg: values.AI_MAX_ACTIVE_PER_ORG,
     terminalSlots: values.AI_TERMINAL_SLOTS,
+    openRouterApiKey: values.OPENROUTER_API_KEY,
+    openRouterZdrOnlyVerified: values.LEXON_OPENROUTER_ZDR_ONLY_VERIFIED,
   };
   return {
     ...config,

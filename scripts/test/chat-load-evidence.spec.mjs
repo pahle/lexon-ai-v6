@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { withOwnedStack } from '../e2e-lifecycle.mjs';
+import { describeChatLoadFailure, withOwnedStack } from '../e2e-lifecycle.mjs';
+import { ChatLoadEvidenceError } from '../chat-load-evidence.mjs';
 import { SYNTHETIC_OBSERVATIONS } from './fixtures/chat-load-observations.mjs';
 
 async function capture(observations, events) {
@@ -159,14 +160,14 @@ test('invalid load observations reject and still tear down the owned stack', asy
       },
     ],
     [
-      'health purpose count above its observed warm peak',
+      'health purpose count more than one probe above its warm peak',
       (value) => {
         addAdditionalPurposeCounts(value, {
           warmPeak: 2,
           plateau: [0, 1, 2, 2, 1, 0, 0],
           teardown: 0,
         });
-        value.plateauSamples[3].valkeyClientsByPurpose.health = 3;
+        value.plateauSamples[3].valkeyClientsByPurpose.health = 4;
       },
     ],
     [
@@ -392,9 +393,10 @@ test('invalid load observations reject and still tear down the owned stack', asy
 
       assert.deepEqual(events, ['start', 'exercise', 'down', 'remove']);
       assert.ok(failure instanceof Error, `${name} should reject capture`);
-      assert.equal(
+      assert.equal(failure.chatLoadStep, 'validation');
+      assert.match(
         failure.message,
-        'Chat load evidence is incomplete or invalid.',
+        /^Chat load evidence is incomplete or invalid/u,
       );
       assert.doesNotMatch(
         `${failure.name}: ${failure.message}`,
@@ -402,6 +404,73 @@ test('invalid load observations reject and still tear down the owned stack', asy
       );
     });
   }
+});
+
+test('a validation failure reports its step, class and bound name', async () => {
+  const observations = structuredClone(SYNTHETIC_OBSERVATIONS);
+  observations.plateauSamples[3].activeSubscriptions = 499;
+  const { error } = await tryCapture(observations);
+
+  assert.ok(error instanceof ChatLoadEvidenceError);
+  assert.equal(error.chatLoadStep, 'validation');
+  const line = describeChatLoadFailure(error);
+  assert.match(line, /at validation: ChatLoadEvidenceError/u);
+  assert.match(line, /plateauSamples\[3\]\.activeSubscriptions/u);
+});
+
+test('an arbitrary exercise failure reports only its class and step', async () => {
+  const marker = 'marker-canary-9f8e7d6c';
+  const failure = await withOwnedStack({
+    project: 'lexon-e2e-18aabb',
+    directory: '/tmp/lexon-e2e-task18',
+    captureChatLoad: true,
+    async start() {},
+    async exercise() {
+      throw new Error(`boom ${marker}`);
+    },
+    async down() {},
+    async remove() {},
+  }).then(
+    () => undefined,
+    (caught) => caught,
+  );
+
+  assert.equal(failure.chatLoadStep, 'exercise');
+  const line = describeChatLoadFailure(failure);
+  assert.match(line, /at exercise: Error/u);
+  assert.doesNotMatch(line, new RegExp(marker, 'u'));
+});
+
+test('a teardown failure reports only its class and the teardown step', async () => {
+  const marker = 'marker-canary-1a2b3c4d';
+  const failure = await withOwnedStack({
+    project: 'lexon-e2e-18aabb',
+    directory: '/tmp/lexon-e2e-task18',
+    captureChatLoad: true,
+    async start() {},
+    async exercise() {
+      return structuredClone(SYNTHETIC_OBSERVATIONS);
+    },
+    async down() {
+      throw new Error(`boom ${marker}`);
+    },
+    async remove() {},
+  }).then(
+    () => undefined,
+    (caught) => caught,
+  );
+
+  assert.equal(failure.chatLoadStep, 'teardown');
+  const line = describeChatLoadFailure(failure);
+  assert.match(line, /at teardown: Error/u);
+  assert.doesNotMatch(line, new RegExp(marker, 'u'));
+});
+
+test('an untagged error still reports its class with an unknown step', () => {
+  const line = describeChatLoadFailure(new TypeError('marker-canary-5e6f'));
+
+  assert.match(line, /at unknown: TypeError/u);
+  assert.doesNotMatch(line, /marker-canary-5e6f/u);
 });
 
 test('local runner provenance is recorded without requiring an Ubuntu runner', async () => {
@@ -463,6 +532,21 @@ test('transient health Valkey clients remain bounded by observed warm peak', asy
   );
   assert.equal(report?.teardown?.valkeyClientsByPurpose.health, 0);
   assert.deepEqual(events, ['start', 'exercise', 'down', 'remove']);
+});
+
+test('one transient healthcheck probe client above the warm peak passes', async () => {
+  const observations = addAdditionalPurposeCounts(
+    structuredClone(SYNTHETIC_OBSERVATIONS),
+    {
+      warmPeak: 2,
+      plateau: [0, 1, 2, 3, 1, 0, 0],
+      teardown: 0,
+    },
+  );
+  const { report, error } = await tryCapture(observations);
+
+  assert.equal(error, undefined);
+  assert.equal(report?.plateauSamples[3].valkeyClientsByPurpose.health, 3);
 });
 
 test('health clients may remain at teardown within the observed warm peak', async () => {

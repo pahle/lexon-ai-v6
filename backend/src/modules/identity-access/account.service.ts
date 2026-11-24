@@ -4,6 +4,7 @@ import {
   SignUpInputSchema,
   ProfileInputSchema,
   SafeProfileSchema,
+  normalizeEmail,
   type SafeProfile,
   type ProfileInput,
 } from '@lexon/contracts';
@@ -43,7 +44,7 @@ export class AccountService {
     const facts = await tx.call('lexonAccountOperationFacts', {
       body: {
         ...(typeof body.email === 'string'
-          ? { email: body.email.trim().toLowerCase() }
+          ? { email: normalizeEmail(body.email) }
           : {}),
         ...(path === '/reset-password' && typeof body.token === 'string'
           ? { resetToken: body.token }
@@ -179,7 +180,7 @@ export class AccountService {
     );
     await this.integration.transaction(async (tx) => {
       const facts = await tx.call('lexonAccountOperationFacts', {
-        body: { email: email.trim().toLowerCase() },
+        body: { email: normalizeEmail(email) },
       });
       await appendAuthAudit(tx, {
         version: 1,

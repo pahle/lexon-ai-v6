@@ -162,7 +162,9 @@ it('rejects an unallowlisted model or missing real prerequisites before fetch', 
     attestation: undefined,
     fetch: fetchSpy,
   });
-  await expect(collect(gateway.generate(input()))).rejects.toThrow();
+  await expect(collect(gateway.generate(input()))).rejects.toThrow(
+    'OpenRouter API key is required',
+  );
   expect(fetchSpy).not.toHaveBeenCalled();
 
   const ready = createRealModelGateway({

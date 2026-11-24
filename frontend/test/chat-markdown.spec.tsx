@@ -1,3 +1,10 @@
+import {
+  AssistantRuntimeProvider,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useExternalStoreRuntime,
+  type ThreadMessageLike,
+} from '@assistant-ui/react';
 import { expect, it, vi } from 'vitest';
 import {
   AnswerDimmedContext,
@@ -117,6 +124,71 @@ it('renders ordered lists, unordered lists, and bold text with the exact baselin
       expect(item.className).toBe('my-[3px]');
     expect(root.querySelector('strong')?.className).toBe('font-bold');
   } finally {
+    await view.unmount();
+  }
+});
+
+// B-22: streaming deltas re-render the same Markdown component tree. A fresh
+// `components` map each render remounts every node; the map must be stable so
+// the appended text arrives without replacing existing DOM.
+const partsComponents = { Text: MarkdownText };
+function LiveAnswer({ text }: { readonly text: string }) {
+  const messages: ThreadMessageLike[] = [
+    {
+      id: 'a1',
+      role: 'assistant',
+      content: [{ type: 'text', text }],
+      status: { type: 'running' },
+    },
+  ];
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages,
+    convertMessage: (m) => m,
+    onNew: async () => {},
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages>
+          {() => (
+            <MessagePrimitive.Root>
+              <MessagePrimitive.Parts components={partsComponents} />
+            </MessagePrimitive.Root>
+          )}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Root>
+    </AssistantRuntimeProvider>
+  );
+}
+
+it('keeps the paragraph and link DOM nodes when a delta appends text', async () => {
+  // prefers-reduced-motion pins the reveal off, so the live answer paints its
+  // full text synchronously and the assertions see the final nodes at once.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  }));
+  const view = await render(
+    <LiveAnswer text={'A paragraph with [a link](https://example.com).'} />,
+  );
+  try {
+    const paragraph = view.container.querySelector('p');
+    const link = view.container.querySelector('a');
+    expect(paragraph).not.toBeNull();
+    expect(link).not.toBeNull();
+    await view.rerender(
+      <LiveAnswer
+        text={'A paragraph with [a link](https://example.com). Appended.'}
+      />,
+    );
+    expect(view.container.querySelector('p')).toBe(paragraph);
+    expect(view.container.querySelector('a')).toBe(link);
+  } finally {
+    vi.unstubAllGlobals();
     await view.unmount();
   }
 });

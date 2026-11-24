@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SignInInputSchema, type SignInInput } from '@lexon/contracts';
+import {
+  IdentityErrorCodeSchema,
+  SignInInputSchema,
+  type SignInInput,
+} from '@lexon/contracts';
 import { authClient } from '../../lib/auth-client';
 import { safeReturnPath } from '../../lib/return-path';
 import { useVisualAuthFormReady } from './visual-readiness';
@@ -20,7 +24,8 @@ function requiresEmailVerification(error: unknown): boolean {
     !!nested &&
     typeof nested === 'object' &&
     !Array.isArray(nested) &&
-    (nested as { code?: unknown }).code === 'EMAIL_NOT_VERIFIED'
+    (nested as { code?: unknown }).code ===
+      IdentityErrorCodeSchema.enum.AUTH_EMAIL_VERIFICATION_REQUIRED
   );
 }
 

@@ -11,6 +11,7 @@ export const BURST_RESULT_KEYS = [
   'authPoolWaitP95Ms',
   'poolWaitingMax',
   'serverPeakOpenSse',
+  'closeReasons',
   'replayP95FirstFrameMs',
 ];
 
@@ -83,6 +84,7 @@ export function buildBurstResult({
   authPoolWaitMs,
   poolWaitingMax,
   serverPeakOpenSse = null,
+  closeReasons = null,
   replayFirstFrameMs = [],
 }) {
   const peak = rssBytes.length === 0 ? 0 : Math.max(...rssBytes);
@@ -95,6 +97,7 @@ export function buildBurstResult({
     authPoolWaitP95Ms: percentile(authPoolWaitMs, 0.95),
     poolWaitingMax,
     serverPeakOpenSse,
+    closeReasons,
     replayP95FirstFrameMs: percentile(replayFirstFrameMs, 0.95),
   };
 }
@@ -175,8 +178,9 @@ export function createSseCounter(env) {
 // http.ServerResponse prototype in the API) so a response whose content type
 // is text/event-stream is opened once, and closed on its own 'close' event.
 // Registry leases are deliberately not used: an unreleased lease is not an
-// open socket.
-export function observeSseResponses(counter, prototype) {
+// open socket. `onResponseClose` observes the same close event for the
+// client-abort close-reason counter.
+export function observeSseResponses(counter, prototype, onResponseClose) {
   if (!counter.enabled) return;
   const original = prototype.writeHead;
   const seen = new WeakSet();
@@ -192,7 +196,10 @@ export function observeSseResponses(counter, prototype) {
       seen.add(this);
       const id = `response-${++next}`;
       counter.opened(id);
-      this.once('close', () => counter.closed(id));
+      this.once('close', () => {
+        counter.closed(id);
+        onResponseClose?.(this);
+      });
     }
     return result;
   };

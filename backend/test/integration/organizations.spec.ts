@@ -1,11 +1,22 @@
+import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
-import { OrganizationSummarySchema } from '@lexon/contracts';
+import { expect, vi } from 'vitest';
+import { Module } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import {
+  IdentityErrorResponseSchema,
+  OrganizationSummarySchema,
+} from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
 import { createAuditInspector } from '../../src/infrastructure/db/testing/audit-fixture.js';
 import { OrganizationAuthPort } from '../../src/modules/identity-access/organization-auth.port.js';
+import { IdentityAccessModule } from '../../src/modules/identity-access/index.js';
+import { IdentitySessionService } from '../../src/modules/identity-access/identity-session.service.js';
 import { OrganizationService } from '../../src/modules/organizations/organization.service.js';
+import { OrganizationsModule } from '../../src/modules/organizations/organizations.module.js';
+import { SafeErrorFilter } from '../../src/modules/platform/error.filter.js';
+import { unlimitedLimiter } from '../setup/unlimited-limiter.js';
 import { securityHarness } from '../setup/security-harness.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { responseCookies } from '../setup/security-harness.js';
@@ -368,7 +379,8 @@ for (const failures of [2, 3])
         });
       else
         await expect(create).rejects.toMatchObject({
-          cause: { code: '40001' },
+          code: 'AUTH_UNAVAILABLE',
+          status: 503,
         });
       expect(await inspect.attempts()).toBe(3);
       expect(await inspect.teamCount(user.userId)).toBe(failures === 2 ? 1 : 0);
@@ -381,3 +393,63 @@ for (const failures of [2, 3])
       await proof.close();
     }
   });
+
+test('a team create exhausted by serialization faults is 503 AUTH_UNAVAILABLE over HTTP', async ({
+  services,
+}) => {
+  const proof = await createAuthFixture(services);
+  const inspect = createOrganizationInspector(services);
+  @Module({})
+  class FrameworkModule {}
+  @Module({
+    imports: [
+      IdentityAccessModule.forPolicy({
+        limiter: unlimitedLimiter,
+        correlationSecret: 'test-correlation-secret-0123456789',
+        integration: proof.integration,
+        frameworkModule: { module: FrameworkModule },
+      }),
+      OrganizationsModule.forPolicy({
+        port: new OrganizationAuthPort(proof.integration),
+        selection: new IdentitySessionService(proof.integration),
+        pagination: { defaultLimit: 20, maxLimit: 100 },
+        invitationSeconds: 1209600,
+      }),
+    ],
+  })
+  class Root {}
+  const app = await NestFactory.create(Root, { logger: false });
+  app.useGlobalFilters(new SafeErrorFilter({ warn: vi.fn() } as never));
+  app.setGlobalPrefix('api');
+  await app.listen(0, '127.0.0.1');
+  try {
+    const origin = await app.getUrl();
+    const user = await proof.signIn({
+      body: {
+        name: 'HTTP retry owner',
+        email: `${randomUUID()}@example.test`,
+        password: 'Http-retry-owner-42!',
+      },
+    });
+    await inspect.failAudits(3);
+    const headers = new Headers(user.cookieHeaders);
+    headers.set('content-type', 'application/json');
+    const response = await fetch(`${origin}/api/organizations`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: 'Exhausted team',
+        slug: `exhausted-${randomUUID()}`,
+      }),
+    });
+    expect(response.status).toBe(503);
+    const body = IdentityErrorResponseSchema.parse(await response.json());
+    expect(body.error.code).toBe('AUTH_UNAVAILABLE');
+    expect(await inspect.attempts()).toBe(3);
+    expect(await inspect.teamCount(user.userId)).toBe(0);
+  } finally {
+    await app.close();
+    await inspect.close();
+    await proof.close();
+  }
+});

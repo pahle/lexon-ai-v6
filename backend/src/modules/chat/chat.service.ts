@@ -18,6 +18,7 @@ import {
   ChatDeletionRepository,
   ChatSearchRepository,
   isPgUniqueViolation,
+  readTreeValidator,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import type { RunActor } from '../identity-access/index.js';
@@ -25,6 +26,7 @@ import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
 import { titleExcerpt } from './chat-title.service.js';
+import { weakMatch } from './etag.js';
 
 const listCursorSchema = z.tuple([
   z.literal(1),
@@ -42,6 +44,14 @@ function ownerDigest(actor: RunActor): string {
     .update(`${actor.orgId}\0${actor.userId}`, 'utf8')
     .digest('hex');
 }
+
+/**
+ * The service always computes a validator tag, unlike the shared
+ * `ChatGetResult` wire shape where a plain 200 may carry no ETag header.
+ */
+export type ChatServiceGetResult =
+  | { notModified: false; tree: SharedChatTree; etag: string }
+  | { notModified: true; etag: string };
 
 export class ChatService {
   private readonly chats = new ChatRepository();
@@ -259,16 +269,28 @@ export class ChatService {
     );
   }
 
-  async get(actor: RunActor, chatId: string): Promise<SharedChatTree> {
+  async get(
+    actor: RunActor,
+    chatId: string,
+    options?: { ifNoneMatch?: string | undefined },
+  ): Promise<ChatServiceGetResult> {
     this.authorization.assertLiveActor(actor);
     return this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         const chat = await this.chats.readLive(tx, chatId);
         if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
+        // Validator before tree: the reads do not share a snapshot under READ
+        // COMMITTED, so this order keeps the body never older than its tag.
+        // A write in between may cost an extra 200, never a stale 304.
+        const etag = await readTreeValidator(tx, chatId);
+        if (!etag) throw new ChatApiError('CHAT_NOT_FOUND');
+        if (weakMatch(options?.ifNoneMatch, etag)) {
+          return { notModified: true, etag };
+        }
         const tree = await this.messages.tree(tx, chatId);
         if (!tree) throw new ChatApiError('CHAT_NOT_FOUND');
-        return ChatTreeSchema.parse({
+        const parsed = ChatTreeSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
           messages: tree.messages.map((message) => {
@@ -298,6 +320,7 @@ export class ChatService {
           createdAt: chat.createdAt.toISOString(),
           updatedAt: chat.updatedAt.toISOString(),
         });
+        return { notModified: false, etag, tree: parsed };
       },
     );
   }

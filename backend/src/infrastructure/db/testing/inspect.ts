@@ -16,12 +16,23 @@ export async function databaseProbe(
     await migrator.query(
       'CREATE TABLE ops.isolation_probe (id integer PRIMARY KEY, value text NOT NULL)',
     );
-    await app.query('INSERT INTO ops.isolation_probe VALUES (1, $1)', [value]);
-    return (
-      await app.query<{ value: string }>(
-        'SELECT value FROM ops.isolation_probe WHERE id = 1',
-      )
-    ).rows[0]!.value;
+    // B-07 removed ops default privileges: app access to a migrator-created
+    // ops table now comes only from an explicit grant.
+    await migrator.query(
+      'GRANT SELECT, INSERT ON ops.isolation_probe TO lexon_app',
+    );
+    try {
+      await app.query('INSERT INTO ops.isolation_probe VALUES (1, $1)', [
+        value,
+      ]);
+      return (
+        await app.query<{ value: string }>(
+          'SELECT value FROM ops.isolation_probe WHERE id = 1',
+        )
+      ).rows[0]!.value;
+    } finally {
+      await migrator.query('DROP TABLE ops.isolation_probe');
+    }
   } finally {
     await migrator.end();
     await app.end();

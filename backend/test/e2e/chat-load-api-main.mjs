@@ -11,6 +11,7 @@ import {
   observeSseResponses,
   percentile,
 } from '../load/burst-harness.mjs';
+import { createCloseCounters } from '../load/close-counters.mjs';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
 import { SafeErrorFilter } from '../../dist/modules/platform/error.filter.js';
 import { RunEventsService } from '../../dist/modules/chat/run-events.service.js';
@@ -87,7 +88,6 @@ const safeAuthErrorCodes = new Set([
   'AUTH_EMAIL_VERIFICATION_REQUIRED',
   'AUTH_2FA_REQUIRED',
   'AUTH_REAUTH_REQUIRED',
-  'AUTH_DISABLED',
   'AUTH_RATE_LIMITED',
   'AUTH_UNAVAILABLE',
 ]);
@@ -367,6 +367,28 @@ events.connect = function (...args) {
   );
 };
 
+// Chat invalidation streams do not pass through hub.subscribe: their closes
+// land on the controller sink directly, so observe them at the service edge.
+const originalConnectChatInvalidations = events.connectChatInvalidations;
+events.connectChatInvalidations = function (...args) {
+  const ownerIndex = ownerIndexForUser(args[0]?.userId);
+  const sink = args[1];
+  if (ownerIndex !== undefined && sink && typeof sink === 'object')
+    args[1] = {
+      ...sink,
+      close: async (reason) => {
+        closeCounters.recordClose({
+          kind: 'invalidation',
+          reason,
+          ownerIndex,
+          nowMs: Date.now(),
+        });
+        return sink.close(reason);
+      },
+    };
+  return Reflect.apply(originalConnectChatInvalidations, this, args);
+};
+
 const originalTenantWithTenant = events.database.withTenant;
 events.database.withTenant = function (...args) {
   const ownerIndex = ownerIndexForUser(args[0]?.userId);
@@ -381,8 +403,19 @@ events.database.withTenant = function (...args) {
 };
 
 // Test-only (LEXON_LOAD_METRICS=1): count open SSE response streams (run
-// streams and chat invalidation streams), not registry leases.
-observeSseResponses(sseCounter, ServerResponse.prototype);
+// streams and chat invalidation streams), not registry leases. A response
+// that closes without ever finishing is a client abort; the path prefix
+// selects the stream kind and is dropped immediately (K3: no ids).
+observeSseResponses(sseCounter, ServerResponse.prototype, (response) => {
+  if (response.writableFinished) return;
+  const url = response.req?.url ?? '';
+  const kind = url.startsWith('/api/runs/')
+    ? 'run'
+    : url.startsWith('/api/chats/events')
+      ? 'invalidation'
+      : undefined;
+  if (kind) closeCounters.recordClientAbort({ kind, nowMs: Date.now() });
+});
 
 const originalRenew = registry.renew;
 registry.renew = function (...args) {
@@ -394,7 +427,12 @@ registry.renew = function (...args) {
     ownerIndex,
     (lease, index) =>
       countCause(index, 'renewal', lease ? 'succeeded' : 'missing'),
-    (_error, index) => countCause(index, 'renewal', 'rejected'),
+    (_error, index) => {
+      countCause(index, 'renewal', 'rejected');
+      // A rejected renew reaches `close('revoked')` through the service's
+      // renewal catch — record the cause so that close is not opaque.
+      closeCounters.noteRenewRejected(index, Date.now());
+    },
   );
 };
 
@@ -423,6 +461,20 @@ Object.defineProperty(events, 'revalidation', {
                   ? 'authUnavailable'
                   : 'other';
           countCause(index, 'revalidation', outcome);
+          // closesStream() closes on 401/403/404 only; those statuses are the
+          // cause a following `revoked` close attributes to.
+          const status =
+            error instanceof IdentityError
+              ? error.status
+              : error instanceof HttpException
+                ? error.getStatus()
+                : undefined;
+          if (status === 401 || status === 403 || status === 404)
+            closeCounters.noteRevalidationCloseError(
+              index,
+              String(status),
+              Date.now(),
+            );
         },
       );
     },
@@ -437,8 +489,11 @@ events.runs.existsForOwnedChat = function (...args) {
     originalExistsForOwnedChat,
     args,
     ownerIndex,
-    (exists, index) =>
-      countCause(index, 'ownership', exists ? 'present' : 'missing'),
+    (exists, index) => {
+      countCause(index, 'ownership', exists ? 'present' : 'missing');
+      // A missing ownership row throws NotFoundException upstream → `revoked`.
+      if (!exists) closeCounters.noteOwnershipMissing(index, Date.now());
+    },
     (_error, index) => {
       countCause(index, 'ownership', 'errors');
     },
@@ -453,8 +508,11 @@ events.runs.authorizedChatSnapshot = function (...args) {
     originalAuthorizedChatSnapshot,
     args,
     ownerIndex,
-    (snapshot, index) =>
-      countCause(index, 'snapshot', snapshot ? 'present' : 'missing'),
+    (snapshot, index) => {
+      countCause(index, 'snapshot', snapshot ? 'present' : 'missing');
+      // A missing snapshot fails the resync reload → `revoked`.
+      if (!snapshot) closeCounters.noteSnapshotMissing(index, Date.now());
+    },
     (_error, index) => {
       countCause(index, 'snapshot', 'errors');
     },
@@ -472,6 +530,7 @@ const closeReasons = {
   shutdown: 0,
   normal: 0,
 };
+const closeCounters = createCloseCounters();
 
 function ownerIndexForStreamKey(key) {
   const runId = /:\{run-streams\}:([0-9a-f-]{36}):events$/iu.exec(key)?.[1];
@@ -530,6 +589,12 @@ hub.subscribe = async (...args) => {
                   : reason;
             if (Object.hasOwn(closeReasons, reasonName))
               closeReasons[reasonName] += 1;
+            closeCounters.recordClose({
+              kind: 'run',
+              reason,
+              ownerIndex,
+              nowMs: Date.now(),
+            });
           }
           return Reflect.get(target, property, target).call(target, reason);
         };
@@ -645,6 +710,7 @@ async function snapshot() {
     readerSubscriptionsByOwner: [...activeReaderSubscriptionsByOwner],
     readerConnections: byPurpose.reader,
     closeReasons: { ...closeReasons },
+    closeBreakdown: closeCounters.snapshot(),
     valkeyClientsByPurpose: byPurpose,
     causeCounters: causeCounters.map((counter) => ({
       renewal: { ...counter.renewal },
@@ -735,6 +801,7 @@ const control = createServer((socket) => {
         Object.keys(closeReasons).forEach((reason) => {
           closeReasons[reason] = 0;
         });
+        closeCounters.reset(Date.now());
         socket.end('{"ok":true}\n');
         return;
       }
@@ -748,11 +815,13 @@ const control = createServer((socket) => {
           waitCount: waitMs.length,
           peakRssBytes,
           sse: sseCounter.snapshot(),
+          closeReasons: closeCounters.snapshot(),
         };
         if (request.reset === true) {
           poolMetrics.reset();
           sseCounter.reset();
           peakRssBytes = 0;
+          closeCounters.begin(Date.now());
         }
         socket.end(JSON.stringify(value) + '\n');
         return;

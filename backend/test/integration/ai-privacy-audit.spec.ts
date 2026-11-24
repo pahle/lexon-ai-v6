@@ -116,7 +116,9 @@ test('auth transaction writer cannot append AI audit authority', async ({
           },
         }),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: { code: '23514', message: 'Invalid audit event' },
+    });
   } finally {
     await proof.close();
   }

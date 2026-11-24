@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Inject,
@@ -180,11 +181,24 @@ export class ChatController {
   }
 
   @Get(':chatId')
-  get(@Param('chatId') chatId: string) {
+  async get(
+    @Param('chatId') chatId: string,
+    @Headers('if-none-match') ifNoneMatch: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const identity = currentVerifiedIdentity();
-    return this.authorization.withActor(identity, (actor) =>
-      this.chats.get(actor, UuidSchema.parse(chatId)),
+    const result = await this.authorization.withActor(identity, (actor) =>
+      this.chats.get(actor, UuidSchema.parse(chatId), { ifNoneMatch }),
     );
+    // Explicit ETag on both 200 and 304 (never Express's body hash) and
+    // no-store so a stale poll body is never replayed. No Vary.
+    res.setHeader('etag', result.etag);
+    res.setHeader('cache-control', 'no-store');
+    if (result.notModified) {
+      res.status(304).end();
+      return;
+    }
+    return result.tree;
   }
 
   @Patch(':chatId')
