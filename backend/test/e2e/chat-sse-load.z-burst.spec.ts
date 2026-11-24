@@ -28,6 +28,8 @@ const workerControlPath = 'backend/test/e2e/chat-worker-control.mjs';
 // Worker concurrency of ai-interactive (the held runs drain in waves of it).
 const WORKER_CONCURRENCY = 4;
 const RUN_ADMISSION_MS = 60_000;
+// Bound on the close-drain barrier before each window's metrics read.
+const CLOSE_DRAIN_BOUND_MS = 10_000;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 type Client = { cookie: string; runId?: string };
@@ -156,11 +158,31 @@ async function eachLimited<T>(
   );
 }
 
-type Sse = { open: number | null; peak: number | null };
+type Sse = {
+  open: number | null;
+  peak: number | null;
+  openedTotal: number | null;
+  closedTotal: number | null;
+  lastOpenElapsedMs: number | null;
+};
 type CloseBreakdown = Record<
   string,
   Record<string, { total: number; buckets: Record<string, number> }>
 >;
+// Global cause-outcome tallies (ownerIndex-free): run-stream
+// evicted/shutdown flatten to revoked at the hub subscription boundary, so
+// these aggregates — not per-stream names — separate the early-close
+// hypotheses on run 1.
+type CauseTallies = {
+  renewal: { succeeded: number; missing: number; rejected: number };
+  revalidation: {
+    succeeded: number;
+    authRequired: number;
+    auth2faRequired: number;
+    authUnavailable: number;
+    other: number;
+  };
+};
 type Metrics = {
   waitingMax: number | null;
   waitP95Ms: number | null;
@@ -168,6 +190,7 @@ type Metrics = {
   peakRssBytes: number;
   sse: Sse;
   closeReasons: CloseBreakdown;
+  causes: CauseTallies;
 };
 
 test('S2 burst: 500 distinct users are all admitted at the Compose limits', async ({
@@ -342,6 +365,7 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
 
     const results: ReturnType<typeof buildBurstResult>[] = [];
     const activeRunsAtPeak: Record<string, number> = {};
+    const causeTallies: Record<string, CauseTallies> = {};
     for (const mode of options.modes) {
       // The previous mode's connections have all been released server-side.
       await expect
@@ -398,8 +422,31 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
       controller.abort();
       await Promise.all(settled);
       // A read, not a reset: the next mode resets at its start, and a retried
-      // reset would lose the window's peak.
-      const metrics = await control<Metrics>(api, { op: 'burst-metrics' });
+      // reset would lose the window's peak. Bounded close-drain barrier
+      // first: 'close' events still queued when the reply is written would
+      // miss this window's reason snapshot, so poll until every counted open
+      // reported its counted close. An expired bound fails with the missing
+      // count — the barrier never passes silently.
+      const drainDeadline = Date.now() + CLOSE_DRAIN_BOUND_MS;
+      let metrics = await control<Metrics>(api, { op: 'burst-metrics' });
+      for (;;) {
+        const opened = metrics.sse.openedTotal;
+        const closed = metrics.sse.closedTotal;
+        // Absent fields (unpatched harness, LEXON_LOAD_METRICS unset) fail
+        // the step — the barrier must never pass silently.
+        if (typeof opened !== 'number' || typeof closed !== 'number')
+          throw new Error(
+            `${mode}: burst-metrics reply lacks numeric sse.openedTotal/closedTotal — the close counters are not patched in this api`,
+          );
+        if (closed >= opened) break;
+        if (Date.now() >= drainDeadline)
+          throw new Error(
+            `${mode}: ${opened - closed} counted SSE close(s) still missing ${CLOSE_DRAIN_BOUND_MS / 1000} s after the window abort (openedTotal ${opened}, closedTotal ${closed})`,
+          );
+        await delay(250);
+        metrics = await control<Metrics>(api, { op: 'burst-metrics' });
+      }
+      causeTallies[mode] = metrics.causes;
       results.push(
         buildBurstResult({
           mode,
@@ -431,6 +478,7 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
         capacityRetries,
       },
       activeRunsAtPeak,
+      causeTallies,
       replay: { attaches: 0, drainSeconds: null as number | null, note: '' },
       results,
     };

@@ -150,26 +150,57 @@ export function createPoolMetrics(env) {
 // Test-only server-side count of open SSE connections (run streams and chat
 // invalidation streams both pass through the connection registry). Disabled
 // unless LEXON_LOAD_METRICS=1. Keyed by connection id, so repeats are no-ops.
-export function createSseCounter(env) {
+// openedTotal/closedTotal are the per-window cumulative counts the z-burst
+// close-drain barrier polls (`closedTotal >= openedTotal` proves every
+// counted open saw its counted close); lastOpenElapsedMs shows whether
+// closes could have preceded the last open.
+export function createSseCounter(env, now = () => Date.now()) {
   const enabled = loadMetricsEnabled(env);
   const open = new Set();
   let peak = 0;
+  let openedTotal = 0;
+  let closedTotal = 0;
+  let lastOpenedAtMs = null;
   return {
     enabled,
     opened(id) {
       if (!enabled) return;
+      if (!open.has(id)) {
+        openedTotal += 1;
+        lastOpenedAtMs = now();
+      }
       open.add(id);
       peak = Math.max(peak, open.size);
     },
     closed(id) {
       if (!enabled) return;
-      open.delete(id);
+      if (open.delete(id)) closedTotal += 1;
     },
     reset() {
       peak = open.size;
+      // Streams still open carry into the next window, so they count as
+      // opened there too — otherwise their closes could never drain it.
+      openedTotal = open.size;
+      closedTotal = 0;
+      lastOpenedAtMs = null;
     },
     snapshot() {
-      return enabled ? { open: open.size, peak } : { open: null, peak: null };
+      return enabled
+        ? {
+            open: open.size,
+            peak,
+            openedTotal,
+            closedTotal,
+            lastOpenElapsedMs:
+              lastOpenedAtMs === null ? null : now() - lastOpenedAtMs,
+          }
+        : {
+            open: null,
+            peak: null,
+            openedTotal: null,
+            closedTotal: null,
+            lastOpenElapsedMs: null,
+          };
     },
   };
 }
@@ -179,8 +210,15 @@ export function createSseCounter(env) {
 // is text/event-stream is opened once, and closed on its own 'close' event.
 // Registry leases are deliberately not used: an unreleased lease is not an
 // open socket. `onResponseClose` observes the same close event for the
-// client-abort close-reason counter.
-export function observeSseResponses(counter, prototype, onResponseClose) {
+// close-reason counter, and `onResponseWrite` fires inside `response.write`
+// — the rendezvous that lets the instrumentation pair the stream's service
+// sink (which names a close reason) to this response.
+export function observeSseResponses(
+  counter,
+  prototype,
+  onResponseClose,
+  onResponseWrite,
+) {
   if (!counter.enabled) return;
   const original = prototype.writeHead;
   const seen = new WeakSet();
@@ -200,6 +238,12 @@ export function observeSseResponses(counter, prototype, onResponseClose) {
         counter.closed(id);
         onResponseClose?.(this);
       });
+      const originalWrite = this.write;
+      if (typeof originalWrite === 'function')
+        this.write = function (...writeArgs) {
+          onResponseWrite?.(this);
+          return Reflect.apply(originalWrite, this, writeArgs);
+        };
     }
     return result;
   };

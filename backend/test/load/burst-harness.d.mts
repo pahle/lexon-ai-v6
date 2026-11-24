@@ -40,12 +40,21 @@ export function createPoolMetrics(env: Record<string, string | undefined>): {
   reset(): void;
   snapshot(): { waitingMax: number | null; waitMs: number[] };
 };
-export function createSseCounter(env: Record<string, string | undefined>): {
+export function createSseCounter(
+  env: Record<string, string | undefined>,
+  now?: () => number,
+): {
   enabled: boolean;
   opened(id: string): void;
   closed(id: string): void;
   reset(): void;
-  snapshot(): { open: number | null; peak: number | null };
+  snapshot(): {
+    open: number | null;
+    peak: number | null;
+    openedTotal: number | null;
+    closedTotal: number | null;
+    lastOpenElapsedMs: number | null;
+  };
 };
 export function isCapacityRefusal(status: number, body: unknown): boolean;
 export function drainBoundMs(
@@ -61,6 +70,7 @@ export function observeSseResponses(
   },
   prototype: { writeHead: (...args: never[]) => unknown },
   onResponseClose?: (response: unknown) => void,
+  onResponseWrite?: (response: unknown) => void,
 ): void;
 export function createRetryBudget(
   limitMs: number,

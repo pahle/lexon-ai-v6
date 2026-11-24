@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { createSseCounter } from '../../backend/test/load/burst-harness.mjs';
 import {
   CLOSE_ELAPSED_BUCKETS,
   CLOSE_KINDS,
@@ -25,6 +26,7 @@ test('close reason buckets cover the F4.4 diagnosis contract', () => {
     'shutdown',
     'slowClient',
     'clientAbort',
+    'serverEnd',
     'normal',
     'otherError',
   ])
@@ -153,6 +155,199 @@ test('client aborts and the remaining close reasons count per kind', () => {
   assert.equal(snapshot.run.slowClient.total, 1);
   assert.equal(snapshot.invalidation.normal.total, 1);
   assert.equal(snapshot.run.otherError.total, 1);
+});
+
+test('a finished close is a server end, an unfinished close is a client abort', () => {
+  // z-burst never sets owners, so the only name a counted close can get is
+  // the writableFinished classification at the response 'close' event.
+  const counters = createCloseCounters();
+  counters.begin(0);
+  counters.recordResponseClose({
+    kind: 'run',
+    stream: {},
+    finished: true,
+    nowMs: 100,
+  });
+  counters.recordResponseClose({
+    kind: 'invalidation',
+    stream: {},
+    finished: false,
+    nowMs: 200,
+  });
+  const snapshot = counters.snapshot();
+  assert.equal(snapshot.run.serverEnd.total, 1);
+  assert.equal(snapshot.run.serverEnd.buckets.under5s, 1);
+  assert.equal(snapshot.invalidation.clientAbort.total, 1);
+});
+
+test('the first close reason wins: exactly one reason per counted stream', () => {
+  const counters = createCloseCounters();
+  counters.begin(0);
+  const serviceClosed = {};
+  const aborted = {};
+  // A service reason lands before the response 'close': the later
+  // writableFinished classification must not add serverEnd on top.
+  counters.recordClose({
+    kind: 'run',
+    reason: 'evicted',
+    stream: serviceClosed,
+    nowMs: 100,
+  });
+  counters.recordResponseClose({
+    kind: 'run',
+    stream: serviceClosed,
+    finished: true,
+    nowMs: 150,
+  });
+  // A client abort lands before the service teardown close(): the later
+  // no-reason close must not add normal on top of clientAbort.
+  counters.recordResponseClose({
+    kind: 'run',
+    stream: aborted,
+    finished: false,
+    nowMs: 200,
+  });
+  counters.recordClose({
+    kind: 'run',
+    reason: undefined,
+    stream: aborted,
+    nowMs: 300,
+  });
+  const snapshot = counters.snapshot();
+  assert.equal(snapshot.run.evicted.total, 1);
+  assert.equal(snapshot.run.clientAbort.total, 1);
+  const totalReasons = CLOSE_REASONS.reduce(
+    (sum, reason) => sum + (snapshot.run[reason]?.total ?? 0),
+    0,
+  );
+  assert.equal(
+    totalReasons,
+    2,
+    'every counted stream carries exactly one close reason',
+  );
+});
+
+test('an unpaired stream close records unconditionally', () => {
+  // A close classification without a rendezvous key still counts: the
+  // counters must never silently drop a counted stream.
+  const counters = createCloseCounters();
+  counters.begin(0);
+  counters.recordResponseClose({
+    kind: 'run',
+    stream: undefined,
+    finished: true,
+    nowMs: 100,
+  });
+  counters.recordResponseClose({
+    kind: 'run',
+    stream: undefined,
+    finished: false,
+    nowMs: 200,
+  });
+  const snapshot = counters.snapshot();
+  assert.equal(snapshot.run.serverEnd.total, 1);
+  assert.equal(snapshot.run.clientAbort.total, 1);
+});
+
+test('the stream dedup resets with the window', () => {
+  const counters = createCloseCounters();
+  const stream = {};
+  counters.begin(0);
+  counters.recordClose({
+    kind: 'run',
+    reason: 'evicted',
+    stream,
+    nowMs: 100,
+  });
+  counters.begin(60_000);
+  counters.recordResponseClose({
+    kind: 'run',
+    stream,
+    finished: true,
+    nowMs: 61_000,
+  });
+  const snapshot = counters.snapshot();
+  assert.equal(snapshot.run.serverEnd.total, 1);
+});
+
+test('the sse counter snapshot carries cumulative opens and closes', () => {
+  // burst-metrics returns sseCounter.snapshot() verbatim as `sse`; the
+  // z-burst close-drain barrier polls closedTotal >= openedTotal, and the
+  // last-open elapsed shows whether closes preceded the last open.
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 5_000);
+  counter.opened('a');
+  counter.opened('b');
+  counter.closed('a');
+  const snapshot = counter.snapshot();
+  assert.equal(snapshot.openedTotal, 2);
+  assert.equal(snapshot.closedTotal, 1);
+  assert.equal(snapshot.lastOpenElapsedMs, 0);
+  counter.reset();
+  assert.equal(counter.snapshot().closedTotal, 0);
+});
+
+test('burst-metrics reports the sse counter snapshot verbatim', async () => {
+  const apiMain = await readFile(
+    join(root, 'backend/test/e2e/chat-load-api-main.mjs'),
+    'utf8',
+  );
+  assert.match(apiMain, /sse:\s*sseCounter\.snapshot\(\)/u);
+});
+
+test('cause outcome tallies count renewal and revalidation without ownerIndex', () => {
+  // Run-stream evicted/shutdown flatten to 'revoked' at the hub boundary,
+  // so the global tallies — emitted as `causes` — separate the early-close
+  // hypotheses in aggregate. Zero counts are evidence: emit the full shape.
+  const counters = createCloseCounters();
+  counters.begin(0);
+  counters.noteRenewOutcome('succeeded');
+  counters.noteRenewOutcome('missing');
+  counters.noteRenewOutcome('rejected');
+  counters.noteRenewOutcome('rejected');
+  counters.noteRevalidationOutcome('succeeded');
+  counters.noteRevalidationOutcome('authRequired');
+  counters.noteRevalidationOutcome('other');
+  counters.noteRenewOutcome('bogus');
+  counters.noteRevalidationOutcome('bogus');
+  assert.deepEqual(counters.causes(), {
+    renewal: { succeeded: 1, missing: 1, rejected: 2 },
+    revalidation: {
+      succeeded: 1,
+      authRequired: 1,
+      auth2faRequired: 0,
+      authUnavailable: 0,
+      other: 1,
+    },
+  });
+});
+
+test('cause tallies reset with the window', () => {
+  const counters = createCloseCounters();
+  counters.begin(0);
+  counters.noteRenewOutcome('rejected');
+  counters.noteRevalidationOutcome('authUnavailable');
+  counters.begin(60_000);
+  const causes = counters.causes();
+  assert.equal(causes.renewal.rejected, 0);
+  assert.equal(causes.revalidation.authUnavailable, 0);
+});
+
+test('burst-metrics emits the cause tallies and the api counts outcomes ungated', async () => {
+  const apiMain = await readFile(
+    join(root, 'backend/test/e2e/chat-load-api-main.mjs'),
+    'utf8',
+  );
+  assert.match(apiMain, /causes:\s*closeCounters\.causes\(\)/u);
+  // The tally calls sit in the renew/revalidation wrappers without an
+  // ownerIndex gate — z-burst never sets owners, so gating would starve
+  // the only early-close evidence the run kind has.
+  assert.match(
+    apiMain,
+    /noteRenewOutcome\(lease \? 'succeeded' : 'missing'\)/u,
+  );
+  assert.match(apiMain, /noteRenewOutcome\('rejected'\)/u);
+  assert.match(apiMain, /noteRevalidationOutcome\('succeeded'\)/u);
+  assert.match(apiMain, /noteRevalidationOutcome\(outcome\)/u);
 });
 
 test('begin resets counts and restarts the elapsed clock', () => {
