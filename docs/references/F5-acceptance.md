@@ -329,3 +329,174 @@ CalendarData` type-checks the literal without widening inferred types.
   `lastCoveredYear` from the module, never a hardcoded year).
 - `refused: 'outside_calendar_range'` keeps `coveredYears` in the failed op
   result so the model can rephrase with the actual coverage window.
+
+## Task 4 — register the three F5 tools (ask_user, deadline_calculator, rename_chat)
+
+`shared/src/chat-tools.ts` (new, re-exported via `shared/src/index.ts`),
+`backend/src/modules/chat/chat-tools.ts` (new `CHAT_TOOLS`),
+`run-contracts.ts`, `run-registry.ts`, `chat-profiles.ts`,
+`chat-instructions.ts`, `step-executor.ts`, `tool-executor.ts`,
+`chat/index.ts` (commit `6ab70806`, draft PR #81 → `f5-tools-approvals`).
+
+- Schemas per spec §10/decision 8, all strict objects with `.describe()` on
+  the fields the model fills:
+  - `ask_user`: `questions` 1–5 × discriminated union on `kind` —
+    `single|multiple` require `options` 2–5 × `{label ≤80, description?
+≤140}` and accept `allowFreeText` (default `true`); `text` declares
+    `options`/`allowFreeText` as `z.never().optional()` so present-
+    but-undefined parses while any real value is refused
+    (`z.undefined()` cannot be advertised as JSON Schema; `never` maps to
+    `{"not":{}}`).
+  - `deadline_calculator`: `{startDate: z.iso.date(), amount int 1–3650,
+unit, countStartDay, nonWorkingDayRule}`; `countStartDay` description
+    states it is ignored for `months`/`years`.
+  - `rename_chat`: `{newTitle: trim, 1–120}` only — extra keys rejected.
+- `PRODUCTION_ENGINE_REGISTRATIONS.tools`: `[]` → the three registrations.
+  `ask_user`: `kind:'pause'`, `pauseKind:'question'`,
+  `interaction:'question'`, `capabilities:['chat.ask']`, `maxPerRun:2`, no
+  `execute` — the stored decision is the result. `deadline_calculator`:
+  `kind:'read'`, `pauseKind:null`, `capabilities:['chat.deadline']`,
+  executes `executeDeadlineCalculation` in the continuation tx.
+  `rename_chat`: `kind:'write'`, `pauseKind:'approval'`, transactional,
+  `capabilities:['chat.rename']`, executes `ChatRepository.rename` once and
+  stamps `{renamed:true, previousTitle}`.
+- Contract changes: `ToolBase.requiresApproval` → `pauseKind:
+'approval'|'question'|null` (`requiresApproval ≡ pauseKind !== null`);
+  `ToolBase.maxPerRun?` caps proposals by tool name per run including
+  same-generation calls; `ToolDefinition` gains `kind:'pause'` (requires
+  `interaction === pauseKind`, transactional idempotency, and no execute
+  keys — `validateTool` enforces all three and rejects executors on pause
+  tools). Every `requiresApproval` call site migrated to `pauseKind`
+  (ai-execution fixtures ×35, tool-operation-worker, evaluation-harness).
+- Engine (`step-executor.ts`): `prepareOperationProposals` propagates
+  `kind` (`pauseKind ?? 'approval'`) and `approvalRequired` into persisted
+  proposals and returns `{operations, refusals}`. At most one pause-
+  required op enters `awaiting_approval` per generation — same-generation
+  extras persist `failed` with `{refused:'one_decision_at_a_time'}`;
+  `maxPerRun` overflow persists `failed` with `{refused:'question_limit',
+maxPerRun}` (prior ops + same-generation count toward the cap). Refusal-
+  only generations are non-terminal so the model reads the stored results;
+  refusals persist + complete in the same commit via `transactionWork`
+  with `approvalRequired:false` so `expires_at` stays null (0042 CHECK).
+  `DeadlineCalculatorRefusalError` on the continuation path persists the
+  `failed` op with `result = error.refusal` verbatim and the run continues.
+  `question`-kind awaiting ops publish `question-required`; approval ops
+  keep `approval-required` (both carry `kind`).
+- `tool-executor.ts`: pause tools fail closed at execution
+  (`AI_INVALID_TOOL` — they never execute); `toolResultsAsMessages` feeds
+  `answered|dismissed|expired` stored decisions to the next generation as
+  `{status, result}` inside the `fenceUntrusted` markers only.
+- `chat-profiles.ts`: the chat profile gains `maxIterations: 1 → 6` +
+  `capabilities: ['chat.ask','chat.deadline','chat.rename']`; chat-title
+  keeps `capabilities: []` and `maxIterations: 1` — it is a background
+  run with nobody to answer or approve (spec §21 deviation 3, owner
+  ruling).
+- `chat-instructions.ts`: `chat.instructions.v1 → v2` + Tools section —
+  ask_user when facts are missing (never guess), deadline_calculator for
+  every date computation (never mental arithmetic), rename only via the
+  tool and only when the user asks, tool panels handle approval (never
+  request approval in answer text).
+
+### Test evidence
+
+RED (recorded before implementation):
+
+```
+pnpm vitest run test/unit/run-registry.spec.ts test/unit/step-executor-tools.spec.ts
+→ exit 1 — 27 failed / 12 passed (tools not registered, contracts absent)
+
+pnpm vitest run --config vitest.integration.config.ts test/integration/step-executor-tools.spec.ts
+→ exit 1 — all 9 failed (production tools empty → Duplicate tool id)
+```
+
+GREEN:
+
+```
+pnpm vitest run test/unit/run-registry.spec.ts test/unit/step-executor-tools.spec.ts
+→ exit 0, 39/39 (three registrations incl. kind/pauseKind/maxPerRun/
+  interaction/idempotency contract, full schema bounds incl. text-variant
+  option refusal, .describe() presence, both profiles 6 + capabilities,
+  prepareOperationProposals seams, fenced stored-decision feed)
+
+pnpm vitest run --config vitest.integration.config.ts test/integration/step-executor-tools.spec.ts
+→ exit 0, 9/9 — pause→awaiting_approval kind:'question' + expires_at in the
+  same commit; two-pause generation → first pauses, second failed/
+  one_decision_at_a_time (expires_at null); 3rd ask_user → failed/
+  question_limit, run continues to completion; answered decision reaches
+  the next generation only inside BEGIN/END UNTRUSTED CONTEXT with
+  {status:'answered',result}; pending read + pause in one generation →
+  read executes on the resumed continuation; deadline refusal → failed op
+  {refused:'outside_calendar_range',coveredYears:[2026,2027]} verbatim;
+  approved rename executes once → {renamed:true,previousTitle:'Original
+  title'} + chat row title 'Renamed chat'/titleSource:'user'; non-permitted
+  tool → AI_INVALID_TOOL; post-pause iteration exhaustion →
+  AI_ITERATION_LIMIT with the standard failure surface.
+
+pnpm test:unit → exit 0, 1758/1758 (all non-integration projects)
+integration batch (ai-execution 86 + ai-expired-operations-grants,
+  ai-operation-decisions, ai-operation-kinds, ai-tools, ai-cancel,
+  ai-capacity, ai-step-concurrency, ai-streams, chat-send,
+  chat-sse-replay, step-executor-tools) → exit 0, 213/213
+node --test scripts/test/*.spec.mjs → exit 0, 469/469
+pnpm typecheck → exit 0 (shared, backend, frontend, evals)
+pnpm lint (eslint . + check-boundaries) → exit 0 (105 boundary specs)
+pnpm format:check → exit 0 (whole repo, exit 0 reported)
+```
+
+Fix round (owner ruling → spec §21 deviation 3 — chat-title keeps
+`capabilities: []` + `maxIterations: 1`; spec §10/§20 corrected):
+
+```
+RED (pre-fix): 3 failed — chat-profiles.spec.ts 'sets resolved effort
+  limits…' (title capabilities [] / maxIterations 1 pins),
+  chat-profiles.spec.ts 'advertises no tool schemas to a chat-title
+  model call' (permittedToolSchemas → assembleModelInput → schemas {}),
+  run-registry.spec.ts 'registers the production chat profiles with the
+  F5 tool surface' (chat-title object).
+
+GREEN: pnpm vitest run --project backend-unit test/unit/chat-profiles.spec.ts
+  test/unit/run-registry.spec.ts test/unit/step-executor-tools.spec.ts
+→ exit 0, 44/44.
+```
+
+### Research notes (verified against installed sources, 2026-11-24)
+
+- Zod 4.6.7 (`backend/node_modules/zod`, verified by direct invocation):
+  `z.toJSONSchema(z.never().optional(), {io:'input'})` →
+  `{"$schema":"…/draft/2020-12/schema","not":{}}`; `z.never().optional()`
+  is how the `text` question variant forbids `options`/`allowFreeText`
+  while staying JSON-Schema-advertisable — `z.toJSONSchema(z.undefined())`
+  throws `Undefined cannot be represented in JSON Schema`.
+- Same check: `io:'input'` advertises input-side types for transformed
+  fields (`z.string().transform(Number)` → `{type:'string'}`) — matching
+  the ai-execution advertised-schema test.
+- `permittedToolSchemas` (`step-executor.ts`) is the single seam turning
+  run capabilities into the `schemas` block on `ModelInput`; it is
+  exported (same pattern as `prepareOperationProposals`) so the title
+  profile's empty advertised set is pinned in a unit test.
+
+### Deviations / calls within spec latitude
+
+- Spec §10/§20 said "both chat profiles" gain the tool capabilities +
+  `maxIterations` 1→6; owner ruling: chat-title is a background run with
+  nobody to answer or approve, so it keeps `capabilities: []` +
+  `maxIterations: 1`. Spec text corrected (§10, §20 calls 4–5), logged
+  as §21 deviation 3, and pinned by `chat-profiles.spec.ts` (including a
+  title run's model call advertising zero tool schemas).
+- Three pre-existing `ai-execution.spec.ts` tests encoded the pre-F5
+  multi-pause batching semantics (several `awaiting_approval` ops per
+  generation). Spec §180/§295 cap pauses at one per generation, so those
+  tests were updated to the new contract: extras persist `failed`/
+  `one_decision_at_a_time`, only the paused op emits `approval-required`,
+  and the revoked-access sweep leaves refused ops untouched (audit count
+  assertions adjusted accordingly).
+- The integration fixture profile's `tokenBudget` was raised 4 000 →
+  64 000 — the ask_user JSON Schema advertised to the model estimates
+  ~4 400 input tokens, which tripped `AI_BUDGET_EXCEEDED` at reservation;
+  this is fixture sizing, not a contract change.
+- Stored decisions serialize as `{status, result}` inside the fence so the
+  model sees how the pause resolved (`'answered'` is literally present);
+  the raw decision payload remains verbatim inside the wrapper.
+- `lockLiveForRun` requires a `chat_runs` link for `resourceIds` runs — the
+  rename test inserts the chat, associates it to the run, then drives the
+  first step (same pattern as `chat.chat.associateFor` in ai-execution).

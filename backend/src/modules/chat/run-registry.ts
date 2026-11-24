@@ -6,6 +6,7 @@ import type {
   ToolDefinition,
 } from './run-contracts.js';
 import { PRODUCTION_CHAT_PROFILES } from './chat-profiles.js';
+import { CHAT_TOOLS } from './chat-tools.js';
 import {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
   DEFAULT_MAX_TOOL_PROPOSALS_PER_GENERATION,
@@ -17,7 +18,7 @@ export const PRODUCTION_ENGINE_REGISTRATIONS: EngineRegistrations =
   Object.freeze({
     profiles: PRODUCTION_CHAT_PROFILES,
     contexts: Object.freeze([]),
-    tools: Object.freeze([]),
+    tools: CHAT_TOOLS,
   });
 
 export function createProductionRunRegistry(
@@ -203,9 +204,11 @@ function validateTool(
     !Number.isInteger(tool.version) ||
     tool.version < 1 ||
     typeof tool.inputSchema?.safeParse !== 'function' ||
-    typeof tool.requiresApproval !== 'boolean' ||
+    !['approval', 'question', null].includes(tool.pauseKind) ||
     !Array.isArray(tool.capabilities) ||
-    tool.capabilities.some((capability) => !capability.trim())
+    tool.capabilities.some((capability) => !capability.trim()) ||
+    (tool.maxPerRun !== undefined &&
+      (!Number.isSafeInteger(tool.maxPerRun) || tool.maxPerRun < 1))
   )
     throw new Error('Invalid tool identity');
   try {
@@ -275,6 +278,18 @@ function validateTool(
       default:
         throw new Error('Unsupported write idempotency mode');
     }
+  } else if (tool.kind === 'pause') {
+    // A pause tool only stages a decision; the stored decision is its result,
+    // so it must never carry an execution callback.
+    if (
+      (tool.interaction !== 'approval' && tool.interaction !== 'question') ||
+      tool.pauseKind !== tool.interaction ||
+      !tool.idempotency ||
+      tool.idempotency.mode !== 'transactional' ||
+      'execute' in tool ||
+      'executeExternal' in tool
+    )
+      throw new Error('Invalid pause tool contract');
   } else if (tool.kind !== 'read' || typeof tool.execute !== 'function') {
     throw new Error('Read tool requires an execution callback');
   }

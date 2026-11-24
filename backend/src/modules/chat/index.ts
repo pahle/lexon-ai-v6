@@ -15,6 +15,12 @@ export { CancelService } from './cancel.service.js';
 export { StepCoordinator } from './step-coordinator.js';
 export { StepExecutor } from './step-executor.js';
 export {
+  permittedToolSchemas,
+  prepareOperationProposals,
+  type PreparedOperationProposals,
+  type RefusedOperationProposal,
+} from './step-executor.js';
+export {
   boundToolResult,
   chooseToolRecovery,
   ToolExecutor,
@@ -31,6 +37,7 @@ export type {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
   EngineRegistrations,
   IdempotencyKeyWriteToolDefinition,
+  PauseToolDefinition,
   ReadToolDefinition,
   ReconcileWriteToolDefinition,
   RunProfile,
