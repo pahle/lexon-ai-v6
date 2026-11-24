@@ -216,16 +216,24 @@ describe('run registry', () => {
 
   it('registers the production chat profiles with the F5 tool surface', () => {
     // Assertion change (F5 task 4): production registrations gain the three
-    // tools (was tools: []), and both chat profiles gain the three tool
-    // capabilities plus maxIterations 1 -> 6 (spec §10).
-    for (const registered of PRODUCTION_ENGINE_REGISTRATIONS.profiles) {
-      expect(registered.capabilities).toEqual([
-        'chat.ask',
-        'chat.deadline',
-        'chat.rename',
-      ]);
-      expect(registered.maxIterations).toBe(6);
-    }
+    // tools (was tools: []), and the chat profile gains the three tool
+    // capabilities plus maxIterations 1 -> 6 (spec §10). Per the owner
+    // ruling (§21 deviation 3) chat-title is a background run with nobody to
+    // answer or approve, so it keeps capabilities: [] and maxIterations: 1.
+    const byId = new Map(
+      PRODUCTION_ENGINE_REGISTRATIONS.profiles.map((registered) => [
+        registered.id,
+        registered,
+      ]),
+    );
+    expect(byId.get('chat')).toMatchObject({
+      capabilities: ['chat.ask', 'chat.deadline', 'chat.rename'],
+      maxIterations: 6,
+    });
+    expect(byId.get('chat-title')).toMatchObject({
+      capabilities: [],
+      maxIterations: 1,
+    });
     expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'chat', priority: 1 }),

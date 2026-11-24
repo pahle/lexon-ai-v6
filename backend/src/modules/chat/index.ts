@@ -15,6 +15,7 @@ export { CancelService } from './cancel.service.js';
 export { StepCoordinator } from './step-coordinator.js';
 export { StepExecutor } from './step-executor.js';
 export {
+  permittedToolSchemas,
   prepareOperationProposals,
   type PreparedOperationProposals,
   type RefusedOperationProposal,

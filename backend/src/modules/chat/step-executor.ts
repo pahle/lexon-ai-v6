@@ -2249,7 +2249,7 @@ export function prepareOperationProposals(
   return { operations, refusals };
 }
 
-function permittedToolSchemas(
+export function permittedToolSchemas(
   registry: RunRegistry,
   capabilities: readonly string[],
 ): Record<string, import('../../infrastructure/ai/index.js').JsonValue> {

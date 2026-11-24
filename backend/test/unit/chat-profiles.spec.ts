@@ -5,6 +5,8 @@ import {
 } from '../../src/modules/chat/chat-profiles.js';
 import { assembleModelInput } from '../../src/modules/chat/model-input.js';
 import { fitModelContext } from '../../src/modules/chat/model-input.js';
+import { createProductionRunRegistry } from '../../src/modules/chat/run-registry.js';
+import { permittedToolSchemas } from '../../src/modules/chat/step-executor.js';
 import { estimateInputTokens } from '../../src/modules/usage/token-estimator.js';
 
 describe('production chat profiles', () => {
@@ -27,12 +29,15 @@ describe('production chat profiles', () => {
       'chat.deadline',
       'chat.rename',
     ]);
+    // Owner ruling (spec §21 deviation 3): chat-title is a background run
+    // with nobody to answer or approve, so it keeps no tool capabilities and
+    // a single iteration.
+    expect(CHAT_PROFILES.title.capabilities).toEqual([]);
+    expect(CHAT_PROFILES.title.maxIterations).toBe(1);
     expect(CHAT_PROFILES.title).toMatchObject({
       queue: 'ai-batch',
       priority: 5,
       maxOutputTokens: 512,
-      maxIterations: 6,
-      capabilities: ['chat.ask', 'chat.deadline', 'chat.rename'],
       reasoning: {
         allowed: ['none'],
         default: 'none',
@@ -40,6 +45,26 @@ describe('production chat profiles', () => {
         runBudgets: { none: 16_384 },
       },
     });
+  });
+
+  it('advertises no tool schemas to a chat-title model call', () => {
+    const registry = createProductionRunRegistry();
+    const schemas = permittedToolSchemas(
+      registry,
+      CHAT_PROFILES.title.capabilities,
+    );
+    expect(schemas).toEqual({});
+    const input = assembleModelInput(
+      CHAT_PROFILES.title,
+      [],
+      'Summarize this chat into a short title',
+      'none',
+      new AbortController().signal,
+      schemas,
+    );
+    expect(input.schemas ?? {}).toEqual({});
+    for (const toolId of ['ask_user', 'deadline_calculator', 'rename_chat'])
+      expect(input.schemas ?? {}).not.toHaveProperty(toolId);
   });
 
   it('assembles the selected effort and versioned trusted instructions', () => {

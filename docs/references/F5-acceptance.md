@@ -386,8 +386,11 @@ maxPerRun}` (prior ops + same-generation count toward the cap). Refusal-
   (`AI_INVALID_TOOL` — they never execute); `toolResultsAsMessages` feeds
   `answered|dismissed|expired` stored decisions to the next generation as
   `{status, result}` inside the `fenceUntrusted` markers only.
-- `chat-profiles.ts`: BOTH profiles `maxIterations: 1 → 6` +
-  `capabilities: ['chat.ask','chat.deadline','chat.rename']`.
+- `chat-profiles.ts`: the chat profile gains `maxIterations: 1 → 6` +
+  `capabilities: ['chat.ask','chat.deadline','chat.rename']`; chat-title
+  keeps `capabilities: []` and `maxIterations: 1` — it is a background
+  run with nobody to answer or approve (spec §21 deviation 3, owner
+  ruling).
 - `chat-instructions.ts`: `chat.instructions.v1 → v2` + Tools section —
   ask_user when facts are missing (never guess), deadline_calculator for
   every date computation (never mental arithmetic), rename only via the
@@ -440,11 +443,46 @@ pnpm lint (eslint . + check-boundaries) → exit 0 (105 boundary specs)
 pnpm format:check → exit 0 (whole repo, exit 0 reported)
 ```
 
+Fix round (owner ruling → spec §21 deviation 3 — chat-title keeps
+`capabilities: []` + `maxIterations: 1`; spec §10/§20 corrected):
+
+```
+RED (pre-fix): 3 failed — chat-profiles.spec.ts 'sets resolved effort
+  limits…' (title capabilities [] / maxIterations 1 pins),
+  chat-profiles.spec.ts 'advertises no tool schemas to a chat-title
+  model call' (permittedToolSchemas → assembleModelInput → schemas {}),
+  run-registry.spec.ts 'registers the production chat profiles with the
+  F5 tool surface' (chat-title object).
+
+GREEN: pnpm vitest run --project backend-unit test/unit/chat-profiles.spec.ts
+  test/unit/run-registry.spec.ts test/unit/step-executor-tools.spec.ts
+→ exit 0, 44/44.
+```
+
+### Research notes (verified against installed sources, 2026-11-24)
+
+- Zod 4.6.7 (`backend/node_modules/zod`, verified by direct invocation):
+  `z.toJSONSchema(z.never().optional(), {io:'input'})` →
+  `{"$schema":"…/draft/2020-12/schema","not":{}}`; `z.never().optional()`
+  is how the `text` question variant forbids `options`/`allowFreeText`
+  while staying JSON-Schema-advertisable — `z.toJSONSchema(z.undefined())`
+  throws `Undefined cannot be represented in JSON Schema`.
+- Same check: `io:'input'` advertises input-side types for transformed
+  fields (`z.string().transform(Number)` → `{type:'string'}`) — matching
+  the ai-execution advertised-schema test.
+- `permittedToolSchemas` (`step-executor.ts`) is the single seam turning
+  run capabilities into the `schemas` block on `ModelInput`; it is
+  exported (same pattern as `prepareOperationProposals`) so the title
+  profile's empty advertised set is pinned in a unit test.
+
 ### Deviations / calls within spec latitude
 
-- Both chat profiles gained the capabilities + maxIterations 6 (spec §180
-  says "both chat profiles"); chat-title now also carries the tool
-  capabilities — noted for review since title runs never invoke tools.
+- Spec §10/§20 said "both chat profiles" gain the tool capabilities +
+  `maxIterations` 1→6; owner ruling: chat-title is a background run with
+  nobody to answer or approve, so it keeps `capabilities: []` +
+  `maxIterations: 1`. Spec text corrected (§10, §20 calls 4–5), logged
+  as §21 deviation 3, and pinned by `chat-profiles.spec.ts` (including a
+  title run's model call advertising zero tool schemas).
 - Three pre-existing `ai-execution.spec.ts` tests encoded the pre-F5
   multi-pause batching semantics (several `awaiting_approval` ops per
   generation). Spec §180/§295 cap pauses at one per generation, so those
