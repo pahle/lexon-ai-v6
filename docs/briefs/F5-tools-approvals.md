@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Depends on** | F4.4 (hardening 2: chat poll and stream groundwork), F4.3 (merged), F3 (engine contracts), F4 (chat) |
+| **Depends on** | F4.5 (flakes, merged), F4.4 (hardening 2: chat poll and stream groundwork), F4.3 (merged), F3 (engine contracts), F4 (chat) |
 | **Architecture** | [LEX-ARC-001](../specs/LEXON-02-SYSTEM-ARCHITECTURE.md) §4.1 step 8 (approval pause and resume), §4.7 (tool provider, capability policy), §5.1 (prompt injection) |
 | **Design system** | [LEX-DS-001 v3.4](../specs/LEXON-03-DESIGN-SYSTEM.md) §5.3 (chat: tool rows, waiting marker, docked panels, decision records), §5.4 (labels) |
 | **Visual target** | `docs/design/f4.1-prototype/` revision 17 (to be drawn and approved before planning; its new states enter `index.json` `planned` in the same PR) |
@@ -60,7 +60,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 
 1. **Tool activity in the thread:**
    - Every tool call shows as an activity row inside the answer, after the assistant's text (decision 7): an icon, what the tool did with its key result, and a chevron that opens the input and the result.
-   - Rows are collapsed by default. A running call shows a shimmering present-tense label ("Calculating the deadline…") while the header keeps the live indicator; a failed call shows a muted row with the alert icon ("Couldn't calculate the deadline"), and the answer continues without the tool.
+   - Rows are collapsed by default. A running call shows a shimmering present-tense label ("Calculating the deadline…") while the header keeps the live indicator; a failed call shows a row in the `red-text` token with the alert icon ("Couldn't calculate the deadline", decision 7), and the answer continues without the tool.
    - Reloading a chat shows the same rows from stored state. The rows never show K1 content beyond what the user's own chat already contains.
 2. **Waiting state:**
    - A run paused for the user (a question or an approval) shows the "Waiting for you" marker after the assistant's text in the answer.
@@ -240,7 +240,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 - [ ] Audit events for every tool, approval, and question outcome, with no K1 content.
 - [ ] Evals added, including the prompt-injection cases; the injection cases are in the CI eval subset.
 - [ ] Revision 17 states approved and captured; the Linux CI comparison sheets are reviewed by the owner by eye, at most 2 Linux UI rounds, and remaining differences are logged as deviations; the new app goldens pass the 1.5% gate.
-- [ ] All F0–F4.3 tests pass; CI green on the final head.
+- [ ] All F0–F4.5 tests pass; CI green on the final head.
 
 ## References
 
