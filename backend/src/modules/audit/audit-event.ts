@@ -317,27 +317,69 @@ const aiToolOperation = z
       operationId: UuidSchema,
       model: aiRoute.model,
       provider: aiRoute.provider,
-      status: z.enum(['proposed', 'pending', 'completed', 'failed', 'unknown']),
+      status: z.enum([
+        'proposed',
+        'pending',
+        'completed',
+        'failed',
+        'unknown',
+        'answered',
+        'dismissed',
+        'expired',
+      ]),
     }),
   })
   .refine(
     (event) =>
-      ['proposed', 'pending', 'completed'].includes(event.metadata.status) ===
+      ['proposed', 'pending', 'completed', 'answered', 'dismissed'].includes(
+        event.metadata.status,
+      ) ===
       (event.outcome === 'success'),
     { message: 'AI tool audit status and outcome must agree' },
   );
-const aiApprovalDecided = z.strictObject({
-  ...base,
-  type: z.literal('chat.approval_decided.v1'),
-  outcome: z.literal('success'),
-  orgId: UuidSchema,
-  actorUserId: UuidSchema,
-  metadata: z.strictObject({
-    runId: UuidSchema,
-    operationId: UuidSchema,
-    status: z.enum(['approved', 'rejected']),
-  }),
-});
+// Owner decisions carry an actor and a success outcome; the expiry sweep
+// emits actor-less failure events. Both layers enforce the agreement.
+const decisionAuditAgree = (event: {
+  outcome: 'success' | 'failure';
+  actorUserId?: string | undefined;
+  metadata: { status: string };
+}) =>
+  event.metadata.status === 'expired'
+    ? event.outcome === 'failure' && event.actorUserId === undefined
+    : event.outcome === 'success' && event.actorUserId !== undefined;
+const decisionAuditRefine = {
+  message: 'AI decision audit status, outcome and actor must agree',
+};
+const aiApprovalDecided = z
+  .strictObject({
+    ...base,
+    type: z.literal('chat.approval_decided.v1'),
+    outcome: z.enum(['success', 'failure']),
+    orgId: UuidSchema,
+    actorUserId: UuidSchema.optional(),
+    metadata: z.strictObject({
+      runId: UuidSchema,
+      operationId: UuidSchema,
+      status: z.enum(['approved', 'rejected', 'expired']),
+      reason: z.literal('superseded_by_message').optional(),
+    }),
+  })
+  .refine(decisionAuditAgree, decisionAuditRefine);
+const aiQuestionDecided = z
+  .strictObject({
+    ...base,
+    type: z.literal('chat.question_decided.v1'),
+    outcome: z.enum(['success', 'failure']),
+    orgId: UuidSchema,
+    actorUserId: UuidSchema.optional(),
+    metadata: z.strictObject({
+      runId: UuidSchema,
+      operationId: UuidSchema,
+      status: z.enum(['answered', 'dismissed', 'expired']),
+      reason: z.literal('superseded_by_message').optional(),
+    }),
+  })
+  .refine(decisionAuditAgree, decisionAuditRefine);
 const chatCreated = z.strictObject({
   ...base,
   type: z.literal('chat.created.v1'),
@@ -425,6 +467,7 @@ export const AuditEventSchema = z.union([
   aiRunFinished,
   aiToolOperation,
   aiApprovalDecided,
+  aiQuestionDecided,
   chatCreated,
   chatMessageSent,
   chatRenamed,
