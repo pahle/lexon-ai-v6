@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { createSseCounter } from '../../backend/test/load/burst-harness.mjs';
+import {
+  createSseCounter,
+  observeSseResponses,
+} from '../../backend/test/load/burst-harness.mjs';
 import {
   CLOSE_ELAPSED_BUCKETS,
   CLOSE_KINDS,
@@ -249,6 +253,86 @@ test('an unpaired stream close records unconditionally', () => {
   assert.equal(snapshot.run.clientAbort.total, 1);
 });
 
+test('a counted stream whose service close lands before any write records exactly one reason', () => {
+  // Mirrors the api-main wiring: the counted response's wrapped write pairs
+  // it with the sink's stream key on the first body write, and its wrapped
+  // end pairs it when the service close reaches response.end() under
+  // withStreamKey — so a stream whose service close lands before any write
+  // still closes paired, and first reason wins at the counter. Without the
+  // end rendezvous the response 'close' arrives unpaired (streamKeys.get is
+  // undefined) and the unconditional classification adds a second reason.
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
+  const counters = createCloseCounters();
+  counters.begin(0);
+  const streamKeys = new WeakMap();
+  let activeStreamKey;
+  const withStreamKey = (key, run) => {
+    const previous = activeStreamKey;
+    activeStreamKey = key;
+    try {
+      return run();
+    } finally {
+      activeStreamKey = previous;
+    }
+  };
+  const bind = (response) => {
+    if (activeStreamKey !== undefined && !streamKeys.has(response))
+      streamKeys.set(response, activeStreamKey);
+  };
+  const proto = { writeHead() {} };
+  observeSseResponses(
+    counter,
+    proto,
+    (response) =>
+      counters.recordResponseClose({
+        kind: 'run',
+        stream: streamKeys.get(response),
+        finished: response.writableFinished === true,
+        nowMs: 1_000,
+      }),
+    bind,
+    bind,
+  );
+  const response = new EventEmitter();
+  response.getHeader = (name) =>
+    name === 'content-type' ? 'text/event-stream; charset=utf-8' : undefined;
+  response.writeHead = proto.writeHead;
+  response.write = () => true;
+  response.end = function () {
+    this.writableFinished = true;
+    return this;
+  };
+  // Gauge-counted (the SSE writeHead ran) but no sink write ever reached it.
+  response.writeHead(200);
+  assert.equal(counter.snapshot().openedTotal, 1);
+  const sink = {};
+  counters.recordClose({
+    kind: 'run',
+    reason: 'evicted',
+    stream: sink,
+    nowMs: 1_000,
+  });
+  // The wrapped sink.close reaches response.end() under the stream key.
+  withStreamKey(sink, () => response.end());
+  response.emit('close');
+  assert.equal(
+    streamKeys.get(response),
+    sink,
+    'the service close pairs the response to its stream key at end()',
+  );
+  const snapshot = counters.snapshot();
+  assert.equal(snapshot.run.evicted.total, 1);
+  const totalReasons = CLOSE_REASONS.reduce(
+    (sum, reason) => sum + (snapshot.run[reason]?.total ?? 0),
+    0,
+  );
+  assert.equal(
+    totalReasons,
+    1,
+    'exactly one recorded close reason per counted stream',
+  );
+});
+
 test('the stream dedup resets with the window', () => {
   const counters = createCloseCounters();
   const stream = {};
@@ -366,6 +450,19 @@ test('a close without a recorded owner still counts but never attributes', () =>
   counters.begin(0);
   counters.recordClose({ kind: 'run', reason: 'revoked', nowMs: 50 });
   assert.equal(counters.snapshot().run.revokedOther.total, 1);
+});
+
+test('the z-burst spec records per-window close sums and writes evidence before a window failure throws', async () => {
+  const spec = await readFile(
+    join(root, 'backend/test/e2e/chat-sse-load.z-burst.spec.ts'),
+    'utf8',
+  );
+  // Per-window evidence: the reason ledger sums per kind plus the counted
+  // closes (closedTotal) for the same window.
+  assert.match(spec, /closeSums/u);
+  // A capped run never loses its evidence: the write precedes each
+  // window-scoped throw (absent fields, drain expiry, ledger mismatch).
+  assert.match(spec, /await writeEvidence\(\);\s*\n\s*throw new Error\(/u);
 });
 
 test('every local module the load api imports is mounted into the api container', async () => {

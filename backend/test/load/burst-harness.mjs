@@ -210,14 +210,19 @@ export function createSseCounter(env, now = () => Date.now()) {
 // is text/event-stream is opened once, and closed on its own 'close' event.
 // Registry leases are deliberately not used: an unreleased lease is not an
 // open socket. `onResponseClose` observes the same close event for the
-// close-reason counter, and `onResponseWrite` fires inside `response.write`
-// — the rendezvous that lets the instrumentation pair the stream's service
-// sink (which names a close reason) to this response.
+// close-reason counter, `onResponseWrite` fires inside `response.write` —
+// the rendezvous that lets the instrumentation pair the stream's service
+// sink (which names a close reason) to this response — and `onResponseEnd`
+// fires inside `response.end`, the same rendezvous for a counted stream
+// whose service close lands before any body write: sink.close() ends the
+// response inside the stream key, so the close can still pair instead of
+// arriving unpaired and recording a second reason.
 export function observeSseResponses(
   counter,
   prototype,
   onResponseClose,
   onResponseWrite,
+  onResponseEnd,
 ) {
   if (!counter.enabled) return;
   const original = prototype.writeHead;
@@ -243,6 +248,12 @@ export function observeSseResponses(
         this.write = function (...writeArgs) {
           onResponseWrite?.(this);
           return Reflect.apply(originalWrite, this, writeArgs);
+        };
+      const originalEnd = this.end;
+      if (typeof originalEnd === 'function')
+        this.end = function (...endArgs) {
+          onResponseEnd?.(this);
+          return Reflect.apply(originalEnd, this, endArgs);
         };
     }
     return result;

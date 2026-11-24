@@ -192,6 +192,16 @@ type Metrics = {
   closeReasons: CloseBreakdown;
   causes: CauseTallies;
 };
+// Per-window close ledger: the sum of recorded close reasons per stream
+// kind plus the counted opens/closes for the same window. Every counted
+// close carries exactly one reason, so the per-kind sums equal closedTotal
+// — a mismatch is the F4.4 symptom (counted closes without reasons) or a
+// double-attributed stream.
+type WindowCloseSums = {
+  reasonSumByKind: Record<'run' | 'invalidation', number>;
+  openedTotal: number | null;
+  closedTotal: number | null;
+};
 
 test('S2 burst: 500 distinct users are all admitted at the Compose limits', async ({
   playwright,
@@ -366,6 +376,55 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
     const results: ReturnType<typeof buildBurstResult>[] = [];
     const activeRunsAtPeak: Record<string, number> = {};
     const causeTallies: Record<string, CauseTallies> = {};
+    const closeSums: Record<string, WindowCloseSums> = {};
+    // The evidence object is built before the first window so a failed
+    // window still flushes its ledger: a capped run never loses its
+    // evidence.
+    const directory = resolve(
+      process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR || 'test-results/f4-chat-load',
+    );
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const evidence = {
+      apiLimits: { memoryMiB: 384, cpus: 0.5 },
+      composition: {
+        heldRuns: options.heldRuns,
+        invalidationStreams: options.invalidationStreams,
+      },
+      setup: {
+        activeAtStart,
+        leftoverRunsReleased: releasedLeftovers.size,
+        slotsQuietSeconds,
+        capacityRetries,
+      },
+      activeRunsAtPeak,
+      causeTallies,
+      closeSums,
+      replay: { attaches: 0, drainSeconds: null as number | null, note: '' },
+      results,
+    };
+    const writeEvidence = () =>
+      writeFile(
+        `${directory}/F4.2-burst.json`,
+        `${JSON.stringify(evidence, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+    // One window's close ledger into the evidence. The metrics read is the
+    // window's cumulative state: `burst-metrics` `reset: true` at the mode
+    // start calls `closeCounters.begin` and `sseCounter.reset`, so the
+    // reply's reason ledger and openedTotal/closedTotal are this window's.
+    const recordWindowClose = (mode: string, metrics: Metrics) => {
+      const breakdown: CloseBreakdown = metrics.closeReasons ?? {};
+      const reasonSumByKind = { run: 0, invalidation: 0 };
+      for (const kind of ['run', 'invalidation'] as const)
+        for (const entry of Object.values(breakdown[kind] ?? {}))
+          reasonSumByKind[kind] += entry.total;
+      causeTallies[mode] = metrics.causes;
+      closeSums[mode] = {
+        reasonSumByKind,
+        openedTotal: metrics.sse?.openedTotal ?? null,
+        closedTotal: metrics.sse?.closedTotal ?? null,
+      };
+    };
     for (const mode of options.modes) {
       // The previous mode's connections have all been released server-side.
       await expect
@@ -430,23 +489,45 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
       const drainDeadline = Date.now() + CLOSE_DRAIN_BOUND_MS;
       let metrics = await control<Metrics>(api, { op: 'burst-metrics' });
       for (;;) {
-        const opened = metrics.sse.openedTotal;
-        const closed = metrics.sse.closedTotal;
+        const opened = metrics.sse?.openedTotal;
+        const closed = metrics.sse?.closedTotal;
         // Absent fields (unpatched harness, LEXON_LOAD_METRICS unset) fail
-        // the step — the barrier must never pass silently.
-        if (typeof opened !== 'number' || typeof closed !== 'number')
+        // the step — the barrier must never pass silently. The window's
+        // evidence (with whatever counts the reply carried) is flushed
+        // first, so a capped run never loses it.
+        if (typeof opened !== 'number' || typeof closed !== 'number') {
+          recordWindowClose(mode, metrics);
+          await writeEvidence();
           throw new Error(
             `${mode}: burst-metrics reply lacks numeric sse.openedTotal/closedTotal — the close counters are not patched in this api`,
           );
+        }
         if (closed >= opened) break;
-        if (Date.now() >= drainDeadline)
+        if (Date.now() >= drainDeadline) {
+          recordWindowClose(mode, metrics);
+          await writeEvidence();
           throw new Error(
             `${mode}: ${opened - closed} counted SSE close(s) still missing ${CLOSE_DRAIN_BOUND_MS / 1000} s after the window abort (openedTotal ${opened}, closedTotal ${closed})`,
           );
+        }
         await delay(250);
         metrics = await control<Metrics>(api, { op: 'burst-metrics' });
       }
-      causeTallies[mode] = metrics.causes;
+      recordWindowClose(mode, metrics);
+      const windowClose = closeSums[mode]!;
+      const reasonTotal =
+        windowClose.reasonSumByKind.run +
+        windowClose.reasonSumByKind.invalidation;
+      // Every counted close carries exactly one reason: a ledger smaller
+      // than closedTotal lost reasons (the F4.4 symptom), a larger one
+      // double-counted a stream or counted a close the gauge never saw.
+      // Evidence is flushed before the step fails naming both numbers.
+      if (reasonTotal !== metrics.sse.closedTotal) {
+        await writeEvidence();
+        throw new Error(
+          `${mode}: close-reason ledger mismatch — ${reasonTotal} recorded close reason(s) across run and invalidation, expected ${metrics.sse.closedTotal} (closedTotal)`,
+        );
+      }
       results.push(
         buildBurstResult({
           mode,
@@ -461,33 +542,6 @@ test('S2 burst: 500 distinct users are all admitted at the Compose limits', asyn
       );
     }
 
-    const directory = resolve(
-      process.env.LEXON_CHAT_LOAD_EVIDENCE_DIR || 'test-results/f4-chat-load',
-    );
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    const evidence = {
-      apiLimits: { memoryMiB: 384, cpus: 0.5 },
-      composition: {
-        heldRuns: options.heldRuns,
-        invalidationStreams: options.invalidationStreams,
-      },
-      setup: {
-        activeAtStart,
-        leftoverRunsReleased: releasedLeftovers.size,
-        slotsQuietSeconds,
-        capacityRetries,
-      },
-      activeRunsAtPeak,
-      causeTallies,
-      replay: { attaches: 0, drainSeconds: null as number | null, note: '' },
-      results,
-    };
-    const writeEvidence = () =>
-      writeFile(
-        `${directory}/F4.2-burst.json`,
-        `${JSON.stringify(evidence, null, 2)}\n`,
-        { mode: 0o600 },
-      );
     // The measured numbers are final here; record them before the replay.
     await writeEvidence();
     for (const result of results) {

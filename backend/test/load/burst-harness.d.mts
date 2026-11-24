@@ -71,6 +71,7 @@ export function observeSseResponses(
   prototype: { writeHead: (...args: never[]) => unknown },
   onResponseClose?: (response: unknown) => void,
   onResponseWrite?: (response: unknown) => void,
+  onResponseEnd?: (response: unknown) => void,
 ): void;
 export function createRetryBudget(
   limitMs: number,

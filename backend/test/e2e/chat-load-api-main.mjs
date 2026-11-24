@@ -370,18 +370,28 @@ events.connect = function (...args) {
 // The write rendezvous pairs a service sink (which names a close reason) to
 // its counted response: a counted stream's body writes all run inside
 // `withStreamKey`, so `onResponseWrite` can bind the response to that key.
-// First reason wins per stream in the close counters.
+// The service close is the backstop rendezvous: a wrapped `sink.close`
+// reaches `response.end()` inside `withStreamKey` too, so a counted stream
+// whose close lands before any body write still binds — the end hook keeps
+// an unpaired close (and its second reason) impossible for instrumented
+// streams. First reason wins per stream in the close counters.
 let activeStreamKey;
 const streamKeys = new WeakMap();
-function withStreamKey(key, write) {
+function withStreamKey(key, run) {
   const previous = activeStreamKey;
   activeStreamKey = key;
   try {
-    return write();
+    return run();
   } finally {
     activeStreamKey = previous;
   }
 }
+// Same binding serves the write and end rendezvous: whichever runs first
+// pairs the response to the stream key it ran under.
+const bindStreamKey = (response) => {
+  if (activeStreamKey !== undefined && !streamKeys.has(response))
+    streamKeys.set(response, activeStreamKey);
+};
 
 // Chat invalidation streams do not pass through hub.subscribe: their closes
 // land on the controller sink directly, so observe them at the service edge.
@@ -404,7 +414,9 @@ events.connectChatInvalidations = function (...args) {
           stream: sink,
           nowMs: Date.now(),
         });
-        return sink.close(reason);
+        // The service close reaches response.end() under the stream key:
+        // the end rendezvous binds a stream that never wrote.
+        return withStreamKey(sink, () => sink.close(reason));
       },
     };
   return Reflect.apply(originalConnectChatInvalidations, this, args);
@@ -429,6 +441,8 @@ events.database.withTenant = function (...args) {
 // server-side, an unfinished one is a client abort — unless the service
 // close already named this stream's reason (first reason wins). The path
 // prefix selects the stream kind and is dropped immediately (K3: no ids).
+// `bindStreamKey` pairs on the first response.write and again on
+// response.end — the write and end rendezvous use the same stream key.
 observeSseResponses(
   sseCounter,
   ServerResponse.prototype,
@@ -447,10 +461,8 @@ observeSseResponses(
       nowMs: Date.now(),
     });
   },
-  (response) => {
-    if (activeStreamKey !== undefined && !streamKeys.has(response))
-      streamKeys.set(response, activeStreamKey);
-  },
+  bindStreamKey,
+  bindStreamKey,
 );
 
 const originalRenew = registry.renew;
@@ -650,7 +662,11 @@ hub.subscribe = async (...args) => {
             stream: sink,
             nowMs: Date.now(),
           });
-          return Reflect.get(target, property, target).call(target, reason);
+          // The service close reaches response.end() under the stream key:
+          // the end rendezvous binds a stream that never wrote.
+          return withStreamKey(sink, () =>
+            Reflect.get(target, property, target).call(target, reason),
+          );
         };
       },
     });

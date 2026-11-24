@@ -332,6 +332,35 @@ test('open-SSE reports writes on counted responses only', () => {
   assert.deepEqual(closes, [a]);
 });
 
+test('open-SSE reports end calls on counted responses only', () => {
+  // The end notification is the close rendezvous: a counted stream whose
+  // service close lands before any body write still pairs, because
+  // sink.close() reaches response.end() inside the stream key.
+  const counter = createSseCounter({ LEXON_LOAD_METRICS: '1' }, () => 1_000);
+  const proto = { writeHead() {} };
+  const ends = [];
+  observeSseResponses(counter, proto, undefined, undefined, (response) =>
+    ends.push(response),
+  );
+  const a = Object.assign(fakeResponse('text/event-stream'), {
+    writeHead: proto.writeHead,
+    end() {
+      return this;
+    },
+  });
+  const json = Object.assign(fakeResponse('application/json'), {
+    writeHead: proto.writeHead,
+    end() {
+      return this;
+    },
+  });
+  a.writeHead(200);
+  json.writeHead(200);
+  a.end();
+  json.end();
+  assert.deepEqual(ends, [a]);
+});
+
 test('retry budget starts at the first refusal, not before', () => {
   let now = 1_000;
   const budget = createRetryBudget(60_000, () => now);
