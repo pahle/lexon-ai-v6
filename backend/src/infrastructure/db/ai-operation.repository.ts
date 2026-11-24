@@ -325,6 +325,65 @@ export class AiOperationRepository {
   }
 
   /**
+   * §6.4 send-while-paused supersede CAS: a still-waiting panel op settles
+   * by kind — approvals reject with {denied:'superseded'}, questions dismiss
+   * with {answered_in_chat:true}. decision/decision_by_user_id/decided_at are
+   * stamped like an owner decision; the message send carries the reason in
+   * the audit trail instead. Returns null when a concurrent decide already
+   * won the row.
+   */
+  async supersedeForMessage(
+    tx: TenantSession,
+    input: { runId: string; operationId: string; userId: string },
+  ): Promise<OperationRecord | null> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.userId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success
+    )
+      return null;
+    const updated = await client.query<OperationRow>(
+      `UPDATE app.ai_operations
+       SET status=CASE WHEN kind='approval' THEN 'rejected' ELSE 'dismissed' END,
+           decision=CASE WHEN kind='approval' THEN 'reject' ELSE 'dismiss' END,
+           decision_by_user_id=$4,decided_at=clock_timestamp(),
+           result=CASE WHEN kind='approval' THEN '{"denied":"superseded"}'::jsonb
+                       ELSE '{"answered_in_chat":true}'::jsonb END,
+           completed_at=clock_timestamp(),expires_at=NULL
+       WHERE org_id=$1 AND run_id=$2 AND id=$3
+         AND status='awaiting_approval' AND decision IS NULL
+       RETURNING *`,
+      [ctx.orgId, input.runId, input.operationId, input.userId],
+    );
+    return updated.rows[0] ? mapOperation(updated.rows[0]) : null;
+  }
+
+  /**
+   * §6.4 supersede leftovers: pending ops (and any still-waiting sibling) of
+   * the superseded run settle failed with {not_run:'superseded_by_message'}.
+   * decision, decision_by_user_id and decided_at stay NULL — the lifecycle
+   * CHECK requires undecided rows to keep all three clear.
+   */
+  async failUnresolvedForSupersede(
+    tx: TenantSession,
+    input: { runId: string },
+  ): Promise<number> {
+    const { client, ctx } = requireSession(tx);
+    if (!uuid.safeParse(input.runId).success) return 0;
+    const updated = await client.query(
+      `UPDATE app.ai_operations
+       SET status='failed',
+           result='{"not_run":"superseded_by_message"}'::jsonb,
+           completed_at=clock_timestamp(),expires_at=NULL
+       WHERE org_id=$1 AND run_id=$2
+         AND status IN ('pending','awaiting_approval') AND decision IS NULL`,
+      [ctx.orgId, input.runId],
+    );
+    return updated.rowCount ?? 0;
+  }
+
+  /**
    * Expiry sweep CAS: closes a still-waiting op as 'expired' with the stored
    * result the model or thread record reads ({expired:'approval'} /
    * {unanswered:true}). decision stays NULL and decision_by_user_id

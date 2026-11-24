@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { RuntimeConfig } from '../../config/runtime-config.js';
 import {
   AiCapacityRepository,
+  AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
   OutboxRepository,
@@ -27,6 +28,7 @@ import { StreamHub } from '../../infrastructure/queue/stream-hub.js';
 import { SseConnectionRegistry } from '../../infrastructure/queue/sse-connection-registry.js';
 import { CancelSignals, RunStreams } from '../../infrastructure/queue/index.js';
 import { CancelService } from './cancel.service.js';
+import { ApprovalService } from './approval.service.js';
 import { ChatDeletionService } from './chat-deletion.service.js';
 
 export function chatRuntimeProviders(): Provider[] {
@@ -245,12 +247,47 @@ export function chatApiProviders(
     chatRunServiceProvider(config),
     {
       provide: ChatService,
-      inject: [TenantDatabase, RunService, RunAuthorizationService],
+      inject: [TenantDatabase, RunService, RunAuthorizationService, RunStreams],
       useFactory: (
         database: TenantDatabase,
         runs: RunService,
         authorization: RunAuthorizationService,
-      ) => new ChatService(database, runs, authorization),
+        streams: RunStreams,
+      ) => new ChatService(database, runs, authorization, streams),
+    },
+    {
+      provide: ApprovalService,
+      inject: [
+        TenantDatabase,
+        AiRunRepository,
+        AiStepRepository,
+        AiOperationRepository,
+        RunAuthorizationService,
+        OutboxRepository,
+        RunRegistry,
+        RunStreams,
+      ],
+      useFactory: (
+        database: TenantDatabase,
+        runs: AiRunRepository,
+        steps: AiStepRepository,
+        operations: AiOperationRepository,
+        authorization: RunAuthorizationService,
+        outbox: OutboxRepository,
+        registry: RunRegistry,
+        streams: RunStreams,
+      ) =>
+        new ApprovalService(
+          database,
+          runs,
+          steps,
+          operations,
+          new RunActorFactsRepository(),
+          authorization,
+          outbox,
+          registry,
+          streams,
+        ),
     },
     {
       provide: ChatSearchService,

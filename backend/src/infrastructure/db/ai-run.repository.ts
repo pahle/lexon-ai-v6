@@ -35,7 +35,7 @@ const transitions: Readonly<Record<AiRunStatus, readonly AiRunStatus[]>> = {
     'failed',
     'cancelling',
   ],
-  awaiting_approval: ['running', 'failed', 'cancelling'],
+  awaiting_approval: ['running', 'completed', 'failed', 'cancelling'],
   completed: [],
   failed: [],
   cancelling: ['cancelled', 'failed'],

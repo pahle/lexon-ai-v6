@@ -2898,7 +2898,7 @@ test('approval-required transactional operations remain staged and produce no ef
       approvalStreams,
     );
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operations[0]!.id,
         snapshotHash: operations[0]!.snapshotHash,
@@ -3486,7 +3486,7 @@ test('approved operation resumes from a fresh sequence and executes one transact
         { orgId: h.tenant.orgId, userId: randomUUID() },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3501,7 +3501,7 @@ test('approved operation resumes from a fresh sequence and executes one transact
     const decisions = await Promise.allSettled(
       Array.from({ length: 2 }, () =>
         actorScope(h.tenant, h.authorization, (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3510,9 +3510,11 @@ test('approved operation resumes from a fresh sequence and executes one transact
         ),
       ),
     );
+    // One call wins the CAS + resume; the loser re-reads the decided row and
+    // returns the stored outcome — decisions are idempotent on the op id.
     expect(
       decisions.filter((item) => item.status === 'fulfilled'),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     const resume = await ai.outboxForRunSequence(0, h.runId, 2);
     expect(resume).toMatchObject({ type: 'run.resume.v1' });
     expect(resume!.id).not.toBe(stepJobId(h.runId, 1));
@@ -3655,7 +3657,7 @@ test('rejected operation is returned to the next model generation without effect
       )
     )[0]!;
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -3845,7 +3847,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: foreignTeam.id, userId: foreignUser.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3870,7 +3872,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: team.id, userId: remainingOwner.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3883,7 +3885,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: team.id, userId: remainingOwner.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3899,7 +3901,7 @@ test('initiator access loss before a decision finishes the stream from the actua
     await organizations.mutateMember(team.members[0]!.id, 'delete');
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -3926,16 +3928,20 @@ test('initiator access loss before a decision finishes the stream from the actua
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBeforeForeign + 1,
     );
-    await expect(
-      actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
-          runId: h.runId,
-          operationId: operation.id,
-          snapshotHash: operation.snapshotHash,
-          decision: 'approve',
-        }),
-      ),
-    ).rejects.toThrow('AI approval decision refused');
+    // A retry on the decided row returns the stored outcome, not a refusal.
+    const retried = await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decideOperation(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    expect(retried).toMatchObject({
+      operationId: operation.id,
+      status: 'rejected',
+      decision: 'reject',
+    });
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBeforeForeign + 1,
     );
@@ -4061,7 +4067,7 @@ test('resume enforces the current profile capability floor before a tool effect'
       )
     )[0]!;
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4149,7 +4155,7 @@ test('resume refuses a registered tool version change after approval', async ({
     };
     const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4316,7 +4322,7 @@ test('resume fails a tool removed from the current registry without an effect', 
     };
     const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4416,7 +4422,7 @@ test('decision uses the current organization two-factor requirement', async ({
     await audit.rejectInserts();
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -4445,7 +4451,7 @@ test('decision uses the current organization two-factor requirement', async ({
     audit = createAuditInspector(services);
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -4477,16 +4483,20 @@ test('decision uses the current organization two-factor requirement', async ({
     expect(await audit.count('chat.run_finished.v1')).toBe(
       finishAuditBefore + 1,
     );
-    await expect(
-      actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
-          runId: h.runId,
-          operationId: operation.id,
-          snapshotHash: operation.snapshotHash,
-          decision: 'approve',
-        }),
-      ),
-    ).rejects.toThrow('AI approval decision refused');
+    // The retry resolves to the stored outcome — idempotent on the op id.
+    const retried = await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decideOperation(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    expect(retried).toMatchObject({
+      operationId: operation.id,
+      status: 'rejected',
+      decision: 'reject',
+    });
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBefore + 1,
     );
@@ -4579,7 +4589,7 @@ test('initiator membership loss after approval fails resume without an effect', 
       )
     )[0]!;
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4743,7 +4753,7 @@ test('mixed pending and approved operations terminate on membership loss before 
     );
     const approved = operations[1]!;
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: approved.id,
         snapshotHash: approved.snapshotHash,
