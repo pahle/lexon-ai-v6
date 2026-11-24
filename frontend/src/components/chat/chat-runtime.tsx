@@ -18,6 +18,7 @@ import {
   bindExternalStoreMessage,
   fromThreadMessageLike,
   getExternalStoreMessages,
+  useAuiState,
 } from '@assistant-ui/react';
 import type {
   AppendMessage,
@@ -25,17 +26,96 @@ import type {
   ThreadMessage,
 } from '@assistant-ui/react';
 import type { CreateUIMessage, UIMessage } from 'ai';
-import type { ChatGetResult, ChatMessage, ChatTree } from '@lexon/contracts';
+import type {
+  ChatGetResult,
+  ChatMessage,
+  ChatOperationSnapshot,
+  ChatTree,
+  OperationDecisionInput,
+  OperationDecisionResult,
+  OperationStatus,
+} from '@lexon/contracts';
 import { Button } from '@/components/ui/button';
 import { useTreePolling } from './use-tree-polling';
 import { createChatClient } from '@/lib/chat-client';
 import { LexonChatTransport, type ChatUIMessage } from '@/lib/chat-transport';
+import type { StreamOperationUpdate } from '@/lib/chat-stream';
 
 const ChatStopContext = createContext<(() => Promise<void>) | null>(null);
 const ChatActiveRunContext = createContext(false);
 
 export function useChatActiveRun(): boolean {
   return useContext(ChatActiveRunContext);
+}
+
+/**
+ * The merged wire/canonical view of one operation: every field optional but
+ * the id — §9-capped frames keep the ids/hash core and the tree fetch fills
+ * in the rest, while a decide response adds `decision`/`decidedAt`.
+ */
+export interface ChatOperationRecord {
+  readonly operationId: string;
+  readonly toolCallId?: string | undefined;
+  readonly kind?: 'approval' | 'question' | undefined;
+  readonly toolName?: string | undefined;
+  readonly status?: OperationStatus | undefined;
+  readonly approvalRequired?: boolean | undefined;
+  readonly snapshotHash?: string | undefined;
+  readonly expiresAt?: string | null | undefined;
+  readonly decidedAt?: string | null | undefined;
+  readonly decision?: string | null | undefined;
+  readonly input?: Record<string, unknown> | undefined;
+  readonly display?: Record<string, unknown> | undefined;
+  readonly output?: unknown;
+  readonly denied?: boolean | undefined;
+}
+
+const DECIDED_STATUSES: ReadonlySet<OperationStatus> = new Set([
+  'approved',
+  'rejected',
+  'answered',
+  'dismissed',
+  'expired',
+  'completed',
+  'failed',
+  'outcome_unknown',
+]);
+
+export function isDecidedOperationStatus(
+  status: OperationStatus | undefined,
+): boolean {
+  return status !== undefined && DECIDED_STATUSES.has(status);
+}
+
+export interface ChatAwaiting {
+  /** The run is paused on a decision or question (or a pending tool part). */
+  readonly paused: boolean;
+  /** The paused run's id — the decide route's runId. */
+  readonly runId: string | undefined;
+  /** The operation id whose tool part waits for a decision, if any. */
+  readonly pendingOperationId: string | undefined;
+  /** Bumps when the operation store changes. */
+  readonly version: number;
+  getOperation(
+    operationId: string | undefined,
+  ): ChatOperationRecord | undefined;
+  /**
+   * §6.3 owner decision route: posts the decision and merges the stored
+   * outcome into the operation store — even when it differs from the sent
+   * action (the stored outcome wins; the panel closes without an error).
+   */
+  decide(
+    operationId: string,
+    input: OperationDecisionInput,
+  ): Promise<OperationDecisionResult | null>;
+  /** Fetch the tree now — a §9-capped frame dropped the detail fields. */
+  refreshTree(): void;
+}
+
+const ChatAwaitingContext = createContext<ChatAwaiting | null>(null);
+
+export function useChatAwaiting(): ChatAwaiting | null {
+  return useContext(ChatAwaitingContext);
 }
 
 export interface ChatRuntimeProps {
@@ -134,6 +214,28 @@ function ChatRuntimeSession({
   }, []);
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const activeRun = findActiveRun(tree);
+  // The operation store merges wire events, snapshot/operation summaries,
+  // canonical tree ops and decide results into one map keyed by operationId.
+  const operationsRef = useRef(new Map<string, ChatOperationRecord>());
+  const [operationsVersion, setOperationsVersion] = useState(0);
+  const mergeOperation = useCallback(
+    (update: StreamOperationUpdate | ChatOperationRecord) => {
+      const previous = operationsRef.current.get(update.operationId);
+      const next = mergeOperationRecord(previous, update);
+      if (next === previous) return;
+      operationsRef.current.set(update.operationId, next);
+      setOperationsVersion((version) => version + 1);
+    },
+    [],
+  );
+  const getOperation = useCallback(
+    (operationId: string | undefined) =>
+      operationId === undefined
+        ? undefined
+        : operationsRef.current.get(operationId),
+    [],
+  );
+  const refreshTreeNowRef = useRef<() => void>(() => undefined);
   const transport = useMemo(
     () =>
       new LexonChatTransport({
@@ -147,12 +249,20 @@ function ChatRuntimeSession({
           streamReconnectingRef.current = state === 'reconnecting';
           onStreamStateRef.current?.(state);
         },
+        onOperation: (operation) => mergeOperation(operation),
+        onOperationSummaryMissing: () => refreshTreeNowRef.current(),
         ...(activeRun ? { initialRunId: activeRun.runId } : {}),
         onRunId: handleRunId,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the transport is created once per actor and chat; effort, active run and callbacks are read through setters and refs, and recreating it would drop the open stream
     [actorScope, chatId],
   );
+  // Canonical ops feed the same store; they never downgrade a decided state.
+  useEffect(() => {
+    for (const message of tree.messages)
+      if (message.role === 'assistant')
+        for (const operation of message.operations) mergeOperation(operation);
+  }, [tree, mergeOperation]);
 
   const repository = useMemo(() => toMessageRepository(tree), [tree]);
   const createMessage = useCallback(toCreateChatMessage, []);
@@ -270,7 +380,7 @@ function ChatRuntimeSession({
       throw error;
     }
   };
-  useTreePolling({
+  const { refreshNow: refreshTreeNow } = useTreePolling({
     enabled: Boolean(serverActiveRunId && onTreeRefresh),
     fetchTree: refreshTree,
     isUrgent: () =>
@@ -281,6 +391,28 @@ function ChatRuntimeSession({
     resetKey: chatId,
     seedEtag: treeEtag ?? null,
   });
+  refreshTreeNowRef.current = refreshTreeNow;
+
+  const decideOperation = useCallback(
+    async (operationId: string, input: OperationDecisionInput) => {
+      const activeRunId = serverActiveRunId ?? runId;
+      if (!activeRunId) return null;
+      const result = await client.decideOperation(
+        activeRunId,
+        operationId,
+        input,
+      );
+      // The stored outcome wins over the sent action (two-tab races, §6.3).
+      mergeOperation({
+        operationId,
+        status: result.status,
+        decidedAt: result.decidedAt,
+        decision: result.decision,
+      });
+      return result;
+    },
+    [client, mergeOperation, runId, serverActiveRunId],
+  );
 
   const initialRunId = activeRun?.runId;
   const resumedRunRef = useRef<string | undefined>(undefined);
@@ -311,7 +443,15 @@ function ChatRuntimeSession({
     <ChatStopContext.Provider value={stop}>
       <ChatActiveRunContext.Provider value={serverActiveRunId !== undefined}>
         <AssistantRuntimeProvider runtime={runtime}>
-          {children}
+          <ChatAwaitingBridge
+            runId={serverActiveRunId ?? runId}
+            version={operationsVersion}
+            getOperation={getOperation}
+            decide={decideOperation}
+            refreshTree={() => refreshTreeNowRef.current()}
+          >
+            {children}
+          </ChatAwaitingBridge>
           {selectionSaveFailed ? (
             <span role="alert">
               Could not save this branch selection. Reload the conversation
@@ -322,6 +462,109 @@ function ChatRuntimeSession({
       </ChatActiveRunContext.Provider>
     </ChatStopContext.Provider>
   );
+}
+
+/**
+ * Reads the thread's last assistant message to decide whether the run waits
+ * for the user: a paused metadata status or a tool part whose approval is
+ * still unanswered (and whose stored status has not already settled — the
+ * stored outcome wins in two-tab races).
+ */
+function ChatAwaitingBridge({
+  runId,
+  version,
+  getOperation,
+  decide,
+  refreshTree,
+  children,
+}: {
+  readonly runId: string | undefined;
+  readonly version: number;
+  readonly getOperation: ChatAwaiting['getOperation'];
+  readonly decide: ChatAwaiting['decide'];
+  readonly refreshTree: () => void;
+  readonly children: ReactNode;
+}) {
+  const pendingOperationId = useAuiState((state) => {
+    const last = state.thread.messages.at(-1);
+    if (last?.role !== 'assistant') return undefined;
+    const part = last.parts.find(
+      (part) =>
+        part.type === 'tool-call' &&
+        part.approval !== undefined &&
+        part.approval.approved === undefined &&
+        part.approval.resolution === undefined &&
+        part.result === undefined,
+    );
+    return part?.type === 'tool-call'
+      ? (part.approval as { id?: string } | undefined)?.id
+      : undefined;
+  });
+  const metadataAwaiting = useAuiState((state) => {
+    const last = state.thread.messages.at(-1);
+    if (last?.role !== 'assistant') return false;
+    const custom = last.metadata?.custom as { status?: unknown } | undefined;
+    return custom?.status === 'awaiting_approval';
+  });
+  const pendingOperation = getOperation(pendingOperationId);
+  const pending =
+    pendingOperationId !== undefined &&
+    !isDecidedOperationStatus(pendingOperation?.status)
+      ? pendingOperationId
+      : undefined;
+  const value = useMemo<ChatAwaiting>(
+    () => ({
+      paused: metadataAwaiting || pending !== undefined,
+      runId,
+      pendingOperationId: pending,
+      version,
+      getOperation,
+      decide,
+      refreshTree,
+    }),
+    [
+      metadataAwaiting,
+      pending,
+      runId,
+      version,
+      getOperation,
+      decide,
+      refreshTree,
+    ],
+  );
+  return (
+    <ChatAwaitingContext.Provider value={value}>
+      {children}
+    </ChatAwaitingContext.Provider>
+  );
+}
+
+function mergeOperationRecord(
+  previous: ChatOperationRecord | undefined,
+  update: StreamOperationUpdate | ChatOperationRecord,
+): ChatOperationRecord {
+  if (!previous) return { ...update } as ChatOperationRecord;
+  let changed = false;
+  const next: Record<string, unknown> = { ...previous };
+  for (const [key, value] of Object.entries(update)) {
+    if (value === undefined) continue;
+    if (key === 'status') continue;
+    if (next[key] !== value) {
+      next[key] = value;
+      changed = true;
+    }
+  }
+  if (update.status !== undefined && update.status !== previous.status) {
+    // A stale tree or re-emitted event must not reopen a decided op.
+    const downgrade =
+      isDecidedOperationStatus(previous.status) &&
+      (update.status === 'awaiting_approval' || update.status === 'pending');
+    if (!downgrade) {
+      next.status = update.status;
+      changed = true;
+    }
+  }
+  return changed ? (next as unknown as ChatOperationRecord) : previous;
 }
 
 type ChatComposerCancelProps = Omit<
@@ -400,6 +643,7 @@ function toUIMessage(message: ChatMessage): ChatUIMessage {
         ? [{ type: 'reasoning' as const, text: message.reasoningSummary }]
         : []),
       ...(message.text ? [{ type: 'text' as const, text: message.text }] : []),
+      ...message.operations.map(operationToToolPart),
     ],
     metadata: {
       status: message.status,
@@ -410,6 +654,49 @@ function toUIMessage(message: ChatMessage): ChatUIMessage {
   };
 }
 
+/**
+ * Canonical operations render as tool parts so a reloaded tree shows the
+ * same rows the live stream built — a pending op restores its docked panel.
+ */
+function operationToToolPart(
+  operation: ChatOperationSnapshot,
+): UIMessage['parts'][number] {
+  const status = operation.status;
+  const denied =
+    status === 'rejected' || status === 'dismissed' || status === 'expired';
+  const state =
+    status === 'awaiting_approval'
+      ? ('approval-requested' as const)
+      : status === 'approved'
+        ? ('approval-responded' as const)
+        : denied
+          ? ('output-denied' as const)
+          : status === 'pending'
+            ? ('input-available' as const)
+            : ('output-available' as const);
+  return {
+    type: 'dynamic-tool' as const,
+    toolName: operation.toolName,
+    toolCallId: operation.operationId,
+    state,
+    input: operation.input ?? {},
+    ...(state === 'output-available' || state === 'output-denied'
+      ? { output: operation.output ?? null }
+      : {}),
+    ...(state === 'approval-requested' || state === 'approval-responded'
+      ? {
+          approval: {
+            id: operation.operationId,
+            ...(state === 'approval-responded'
+              ? { approved: true as const }
+              : {}),
+            descriptor: operation,
+          },
+        }
+      : {}),
+  } as UIMessage['parts'][number];
+}
+
 function findActiveRun(
   tree: ChatTree,
 ): Extract<ChatMessage, { role: 'assistant' }> | undefined {
@@ -418,7 +705,8 @@ function findActiveRun(
       message.role === 'assistant' &&
       (message.status === 'queued' ||
         message.status === 'running' ||
-        message.status === 'cancelling'),
+        message.status === 'cancelling' ||
+        message.status === 'awaiting_approval'),
   );
 }
 
@@ -550,6 +838,46 @@ function toCanonicalAssistantMessage(
   const preservedContent = message.content.filter(
     (part) => part.type !== 'reasoning' && part.type !== 'text',
   );
+  // Canonical ops are authoritative: rebuild tool rows from them when the
+  // tree carries any, else keep whatever the stream produced.
+  const operationContent =
+    canonical.operations.length > 0
+      ? canonical.operations.map((operation) => {
+          const denied =
+            operation.status === 'rejected' ||
+            operation.status === 'dismissed' ||
+            operation.status === 'expired';
+          return {
+            type: 'tool-call' as const,
+            toolName: operation.toolName,
+            toolCallId: operation.operationId,
+            args: operation.input as never,
+            argsText: JSON.stringify(operation.input ?? {}),
+            ...(operation.status === 'awaiting_approval' ||
+            operation.status === 'approved'
+              ? {
+                  approval: {
+                    id: operation.operationId,
+                    ...(operation.status === 'approved'
+                      ? { approved: true as const }
+                      : {}),
+                  },
+                }
+              : {}),
+            ...(denied
+              ? {
+                  result: { error: 'Tool approval denied' },
+                  isError: true as const,
+                }
+              : operation.output !== undefined
+                ? { result: operation.output }
+                : {}),
+          };
+        })
+      : preservedContent.filter((part) => part.type === 'tool-call');
+  const otherContent = preservedContent.filter(
+    (part) => part.type !== 'tool-call',
+  );
   const status =
     canonical.status === 'cancelled'
       ? { type: 'incomplete' as const, reason: 'cancelled' as const }
@@ -571,7 +899,8 @@ function toCanonicalAssistantMessage(
         ...(canonical.text
           ? [{ type: 'text' as const, text: canonical.text }]
           : []),
-        ...preservedContent,
+        ...operationContent,
+        ...otherContent,
       ],
       status,
       metadata: {

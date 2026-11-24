@@ -2,8 +2,33 @@ import {
   ChatSnapshotFrameSchema,
   RunStreamEventSchema,
 } from '@lexon/contracts';
+import type { OperationStatus } from '@lexon/contracts';
 import type { UIMessageChunk } from 'ai';
+
+export type { UIMessageChunk };
 import { safeChatError } from './chat-errors';
+
+/**
+ * The operation summary a wire frame carried, reported to the runtime's
+ * operation store. Everything is optional but `operationId` — the §9 byte
+ * cap can strip the detail fields while the store merges each update.
+ */
+export interface StreamOperationUpdate {
+  readonly operationId: string;
+  readonly toolCallId?: string | undefined;
+  readonly kind?: 'approval' | 'question' | undefined;
+  readonly toolName?: string | undefined;
+  readonly status?: OperationStatus | undefined;
+  readonly approvalRequired?: boolean | undefined;
+  readonly snapshotHash?: string | undefined;
+  readonly expiresAt?: string | null | undefined;
+  readonly decidedAt?: string | null | undefined;
+  readonly input?: Record<string, unknown> | undefined;
+  readonly display?: Record<string, unknown> | undefined;
+  readonly output?: unknown;
+  /** A denied output arrived keyed by toolCallId only. */
+  readonly denied?: boolean | undefined;
+}
 
 export interface ChatStreamHandlers {
   readonly onCursor?: (cursor: string) => void;
@@ -12,6 +37,13 @@ export interface ChatStreamHandlers {
   readonly onTerminal?: (runId: string) => void;
   readonly onReset?: () => void;
   readonly onComplete?: () => void;
+  /** An operation row's wire payload arrived; merge into the op store. */
+  readonly onOperation?: (operation: StreamOperationUpdate) => void;
+  /**
+   * A §9-capped frame dropped the operation's detail fields; the client
+   * fetches the tree for the rest (the tree payload has no event cap).
+   */
+  readonly onOperationSummaryMissing?: (operationId: string) => void;
 }
 
 type StreamState = {
@@ -19,6 +51,10 @@ type StreamState = {
   messageId?: string;
   reasoningDurationMs?: number | null;
   terminalRunId?: string;
+  /** toolCallIds whose tool part exists in the streamed message. */
+  toolCalls?: Set<string>;
+  /** approvalIds the stream already requested a decision for. */
+  approvals?: Set<string>;
   snapshot?: {
     readonly runId: string;
     readonly generation: number | null;
@@ -29,7 +65,7 @@ type StreamState = {
       number,
       {
         readonly id: string;
-        readonly type: 'text' | 'reasoning';
+        readonly type: 'text' | 'reasoning' | 'tool';
         readonly complete: boolean;
       }
     >;
@@ -39,7 +75,7 @@ type StreamState = {
     activePart?: {
       readonly index: number;
       readonly id: string;
-      readonly type: 'text' | 'reasoning';
+      readonly type: 'text' | 'reasoning' | 'tool';
       nextChunk: number;
     };
   };
@@ -231,6 +267,8 @@ function chunksFromFrame(
       delete state.status;
       delete state.messageId;
       delete state.reasoningDurationMs;
+      state.toolCalls?.clear();
+      state.approvals?.clear();
       return [];
     }
     if (frame.type === 'snapshot-start') {
@@ -238,6 +276,8 @@ function chunksFromFrame(
       state.status = frame.snapshot.status;
       state.messageId = frame.snapshot.messageId;
       state.reasoningDurationMs = frame.snapshot.reasoningDurationMs;
+      state.toolCalls?.clear();
+      state.approvals?.clear();
       state.snapshot = {
         runId: frame.snapshot.runId,
         generation: frame.snapshot.generation,
@@ -312,7 +352,60 @@ function chunksFromFrame(
         delete current.activePart;
       }
       const chunks: UIMessageChunk[] = [];
-      if (frame.partType === 'text') {
+      if (frame.partType === 'tool') {
+        // Tool parts replay as a single frame: rebuild the same chunk order
+        // the live stream emitted so rows restore identically (§9).
+        if (frame.chunkIndex === 0) {
+          toolCalls(state).add(frame.toolCallId);
+          chunks.push({
+            type: 'tool-input-available',
+            toolCallId: frame.toolCallId,
+            toolName: frame.toolName,
+            input: frame.input ?? {},
+          });
+          handlers.onOperation?.({
+            operationId: frame.operationId,
+            toolCallId: frame.toolCallId,
+            toolName: frame.toolName,
+            ...(frame.input !== undefined ? { input: frame.input } : {}),
+          });
+        }
+        if (frame.final) {
+          const outcome = frame.outcome;
+          if (outcome === 'awaiting_approval') {
+            approvals(state).add(frame.operationId);
+            chunks.push({
+              type: 'tool-approval-request',
+              approvalId: frame.operationId,
+              toolCallId: frame.toolCallId,
+            });
+          } else if (outcome !== 'pending') {
+            if (
+              outcome === 'rejected' ||
+              outcome === 'dismissed' ||
+              outcome === 'expired'
+            )
+              chunks.push({
+                type: 'tool-output-denied',
+                toolCallId: frame.toolCallId,
+              });
+            else
+              chunks.push({
+                type: 'tool-output-available',
+                toolCallId: frame.toolCallId,
+                output: frame.output ?? null,
+              });
+          }
+          handlers.onOperation?.({
+            operationId: frame.operationId,
+            toolCallId: frame.toolCallId,
+            status: outcome,
+            ...(frame.output !== undefined ? { output: frame.output } : {}),
+          });
+          if (outcome === 'awaiting_approval' && frame.input === undefined)
+            handlers.onOperationSummaryMissing?.(frame.operationId);
+        }
+      } else if (frame.partType === 'text') {
         if (frame.chunkIndex === 0)
           chunks.push({ type: 'text-start', id: frame.id });
         if (frame.text)
@@ -352,6 +445,13 @@ function chunksFromFrame(
       }
       current.nextOperationIndex += 1;
       current.operations.add(frame.index);
+      handlers.onOperation?.(frame.operation);
+      if (
+        frame.operation.input === undefined &&
+        frame.operation.display === undefined &&
+        frame.operation.output === undefined
+      )
+        handlers.onOperationSummaryMissing?.(frame.operation.operationId);
       return [];
     }
     if (frame.type === 'snapshot-end') {
@@ -451,6 +551,8 @@ function chunksFromFrame(
       delete state.messageId;
       delete state.status;
       state.reasoningDurationMs = null;
+      state.toolCalls?.clear();
+      state.approvals?.clear();
       handlers.onReset?.();
       return [
         {
@@ -488,6 +590,163 @@ function chunksFromFrame(
           messageMetadata: { reasoningDurationMs: item.durationMs },
         },
       ];
+    case 'tool-input-start':
+      toolCalls(state).add(item.toolCallId);
+      return [
+        {
+          type: 'tool-input-start',
+          toolCallId: item.toolCallId,
+          toolName: item.toolName,
+        },
+      ];
+    case 'tool-input-delta':
+      return [
+        {
+          type: 'tool-input-delta',
+          toolCallId: item.toolCallId,
+          inputTextDelta: item.inputTextDelta,
+        },
+      ];
+    case 'tool-input-available': {
+      toolCalls(state).add(item.toolCallId);
+      const operationId = item.operationId ?? item.toolCallId;
+      handlers.onOperation?.({
+        operationId,
+        toolCallId: item.toolCallId,
+        toolName: item.toolName,
+        ...(item.input !== undefined ? { input: item.input } : {}),
+      });
+      // §9: a dropped input means the row's detail fields live on the tree.
+      if (item.input === undefined)
+        handlers.onOperationSummaryMissing?.(operationId);
+      return [
+        {
+          type: 'tool-input-available',
+          toolCallId: item.toolCallId,
+          toolName: item.toolName,
+          input: item.input ?? {},
+        },
+      ];
+    }
+    case 'approval-required':
+    case 'question-required': {
+      const toolCallId = item.operationId;
+      const chunks: UIMessageChunk[] = [];
+      // The lifecycle batch emits tool-input-available first; a summary-less
+      // fallback frame still needs a part for the approval request to land.
+      if (!toolCalls(state).has(toolCallId)) {
+        toolCalls(state).add(toolCallId);
+        chunks.push({
+          type: 'tool-input-available',
+          toolCallId,
+          toolName: item.operation?.toolName ?? 'operation',
+          input: item.operation?.input ?? {},
+        });
+      }
+      approvals(state).add(item.operationId);
+      const summary = item.operation;
+      handlers.onOperation?.({
+        ...(summary ?? {}),
+        operationId: item.operationId,
+        toolCallId,
+        kind:
+          item.kind ??
+          (item.type === 'approval-required' ? 'approval' : 'question'),
+        status: 'awaiting_approval',
+      });
+      if (!summary) handlers.onOperationSummaryMissing?.(item.operationId);
+      chunks.push({
+        type: 'tool-approval-request',
+        approvalId: item.operationId,
+        toolCallId,
+        ...(summary ? { approvalDescriptor: summary } : {}),
+      });
+      return chunks;
+    }
+    case 'tool-approval-request':
+      approvals(state).add(item.approvalId);
+      return [
+        {
+          type: 'tool-approval-request',
+          toolCallId: item.toolCallId,
+          approvalId: item.approvalId,
+        },
+      ];
+    case 'tool-approval-response':
+      if (!approvals(state).has(item.approvalId)) return [];
+      return [
+        {
+          type: 'tool-approval-response',
+          approvalId: item.approvalId,
+          approved: item.approved,
+        },
+      ];
+    case 'operation-status': {
+      handlers.onOperation?.({
+        operationId: item.operationId,
+        status: item.status,
+      });
+      const toolCallId = item.operationId;
+      const chunks: UIMessageChunk[] = [];
+      if (item.status === 'approved' || item.status === 'answered') {
+        if (approvals(state).has(item.operationId))
+          chunks.push({
+            type: 'tool-approval-response',
+            approvalId: item.operationId,
+            approved: true,
+          });
+      } else if (
+        item.status === 'rejected' ||
+        item.status === 'dismissed' ||
+        item.status === 'expired'
+      ) {
+        // Respond first so the terminal state stays output-denied.
+        if (approvals(state).has(item.operationId))
+          chunks.push({
+            type: 'tool-approval-response',
+            approvalId: item.operationId,
+            approved: false,
+          });
+        if (toolCalls(state).has(toolCallId))
+          chunks.push({ type: 'tool-output-denied', toolCallId });
+        else handlers.onOperationSummaryMissing?.(item.operationId);
+      }
+      return chunks;
+    }
+    case 'tool-output-available': {
+      const operationId = item.operationId ?? item.toolCallId;
+      handlers.onOperation?.({
+        operationId,
+        toolCallId: item.toolCallId,
+        ...(item.output !== undefined ? { output: item.output } : {}),
+      });
+      if (item.output === undefined)
+        handlers.onOperationSummaryMissing?.(operationId);
+      if (!toolCalls(state).has(item.toolCallId)) {
+        // Output without a seen input (a superseded leftover op): the tree
+        // rebuilds the row — emitting the chunk would crash on a missing part.
+        return [];
+      }
+      return [
+        {
+          type: 'tool-output-available',
+          toolCallId: item.toolCallId,
+          output: item.output ?? null,
+        },
+      ];
+    }
+    case 'tool-output-denied': {
+      handlers.onOperation?.({
+        operationId: item.toolCallId,
+        toolCallId: item.toolCallId,
+        denied: true,
+      });
+      if (!toolCalls(state).has(item.toolCallId)) {
+        handlers.onOperationSummaryMissing?.(item.toolCallId);
+        return [];
+      }
+      return [{ type: 'tool-output-denied', toolCallId: item.toolCallId }];
+    }
     case 'error':
       return [{ type: 'error', errorText: safeChatError(item.code) }];
     case 'finish':
@@ -506,6 +765,14 @@ function chunksFromFrame(
     default:
       return [];
   }
+}
+
+function toolCalls(state: StreamState): Set<string> {
+  return (state.toolCalls ??= new Set());
+}
+
+function approvals(state: StreamState): Set<string> {
+  return (state.approvals ??= new Set());
 }
 
 function isTerminalRelevant(
