@@ -1,4 +1,4 @@
-import { Pool, type PoolClient } from 'pg';
+import { Client, Pool, type PoolClient } from 'pg';
 
 export type { Pool, PoolClient };
 
@@ -90,6 +90,11 @@ END $$;`);
       }
     },
   };
+}
+
+/** Single-connection client for an arbitrary role URL (denial probes). */
+export function createRoleClient(connectionString: string): Client {
+  return new Client({ connectionString });
 }
 
 /** One pool per role used by the platform console tests. */
