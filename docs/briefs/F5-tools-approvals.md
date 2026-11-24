@@ -253,7 +253,7 @@ Every tool call is visible in the thread, every write needs approval, unanswered
 
 ## References
 
-- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.4 §5.3–§5.7; LEX-TS-001 v1.14.
+- LEX-ARC-001 §4.1, §4.6, §4.7, §5.1, §6; LEX-DS-001 v3.5 §5.3–§5.7; LEX-TS-001 v1.14.
 - F3 brief (engine contracts, approval pause and resume), F4 brief (chat, ownership), F4.2 (client polling and state).
 
 ## Open questions
