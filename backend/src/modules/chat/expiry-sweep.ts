@@ -184,6 +184,32 @@ export class OperationExpirySweep {
             }))
           )
             throw new Error('AI operation expiry transition failed');
+          // Every terminal run fires run_finished (the approval.service.ts
+          // access-loss precedent); the actor is the run initiator like every
+          // other run_finished emission — the §8 validator admits no
+          // actor-less shape for this type.
+          const provider = asRecord(run.resolvedConfig).provider;
+          if (
+            typeof provider !== 'string' ||
+            !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+          )
+            throw new Error('AI operation expiry transition failed');
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            type: 'chat.run_finished.v1',
+            occurredAt: new Date().toISOString(),
+            outcome: 'failure',
+            orgId: candidate.orgId,
+            actorUserId: candidate.initiatingUserId,
+            metadata: {
+              runId: run.id,
+              model: run.modelId,
+              provider,
+              status: 'failed',
+              safeCode: 'AI_ACCESS_REVOKED',
+            },
+          });
           const reference = await this.options.runs.terminalStreamReference(
             tx,
             run.id,
