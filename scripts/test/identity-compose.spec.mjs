@@ -135,17 +135,10 @@ test('package E2E filters include their identity projects and credential project
   assert.ok(E2E_PROJECTS.frontend.includes('brand-visual'));
   assert.ok(E2E_PROJECTS.backend.includes('identity-api'));
   const config = (await import('../../playwright.config.ts')).default;
-  // F4.5 retains identity-browser traces on failure for flake diagnosis;
-  // identity-api stays fully off. Neither project may carry storageState.
-  const expectedTrace = {
-    'identity-browser': 'retain-on-failure',
-    'identity-api': 'off',
-  };
   for (const name of ['identity-browser', 'identity-api']) {
     const project = config.projects.find((project) => project.name === name);
     assert.ok(project, name);
-    assert.equal(project.use?.trace, expectedTrace[name]);
-    for (const setting of ['video', 'screenshot'])
+    for (const setting of ['trace', 'video', 'screenshot'])
       assert.equal(project.use?.[setting], 'off');
     assert.equal(project.use?.storageState, undefined);
   }

@@ -26,7 +26,7 @@ export default defineConfig({
     {
       name: 'identity-browser',
       use: {
-        trace: 'retain-on-failure',
+        trace: 'off',
         video: 'off',
         screenshot: 'off',
         deviceScaleFactor: 1,
