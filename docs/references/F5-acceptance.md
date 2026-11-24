@@ -34,7 +34,7 @@ entry idx 42, `when: 1793404800042`, `breakpoints: true`).
   `status='awaiting_approval' AND expires_at <= clock_timestamp()`
   ordered by `expires_at` — ids only, per §5/§20.23.
 - `CREATE POLICY ai_operations_internal … FOR ALL TO lexon_migrator
-  USING (true) WITH CHECK (true)`: required because `ai_operations` is
+USING (true) WITH CHECK (true)`: required because `ai_operations` is
   FORCE-RLS and `lexon_migrator` is `NOBYPASSRLS` — without it the backfill
   UPDATE sees zero rows and the SECURITY DEFINER function cannot read the
   table (`ai_run_chat_trigger_internal` 0027 precedent). Verified empirically:
