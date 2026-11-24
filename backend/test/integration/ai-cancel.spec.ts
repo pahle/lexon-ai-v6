@@ -189,6 +189,7 @@ test('public cancel after lease expiry settles the active attempt before termina
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    publicationDeadlineMs: 2000,
     authority,
   });
   try {
@@ -693,6 +694,7 @@ test('cancelling a streaming model aborts it and commits partial output once', a
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    publicationDeadlineMs: 2000,
     authority: {
       authorizeActive: (claim: StepClaim) =>
         ai.database.withTenant(
@@ -1350,6 +1352,7 @@ test('queued cancellation writes its terminal marker from the pending lineage', 
   const streams = new RunStreams({
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
+    publicationDeadlineMs: 2000,
     authority: {
       authorizeActive: (claim: StepClaim) =>
         ai.database.withTenant(
