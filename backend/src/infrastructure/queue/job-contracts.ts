@@ -25,6 +25,15 @@ export type QueueJobHandler =
       handle: TenantJobHandler;
     }>
   | Readonly<{
+      /**
+       * §7 expiry sweep: BullMQ-scheduled `ai.operation-expiry.v1` jobs carry
+       * only `{name, data:{}}` — no tenant envelope. The consumer routes by
+       * job name and the sweep discovers candidates cross-tenant.
+       */
+      strategy: 'expiry-sweep';
+      handle: () => Promise<void>;
+    }>
+  | Readonly<{
       strategy: 'durable-step';
       handle: DurableJobHandler;
       exhausted?: (job: JobEnvelope) => Promise<'done' | 'retry'>;

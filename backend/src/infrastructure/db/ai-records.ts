@@ -155,6 +155,19 @@ export interface StepCommit {
   readonly data: unknown;
 }
 
+/**
+ * §7 sweep discovery: one `app.ai_expired_operations` row. The function is
+ * SECURITY DEFINER and deliberately returns ids only — never args, results
+ * or any K1 field. `initiatingUserId` opens the per-candidate tenant
+ * transaction and supplies the `run.resume.v1` job ctx.
+ */
+export interface ExpiredOperationCandidate {
+  readonly orgId: string;
+  readonly id: string;
+  readonly runId: string;
+  readonly initiatingUserId: string;
+}
+
 export interface AttemptRecord {
   readonly attemptId: string;
   readonly orgId: string;

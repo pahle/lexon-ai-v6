@@ -24,6 +24,7 @@ import { RunAuthorizationService } from '../modules/identity-access/index.js';
 import { AttemptService } from '../modules/usage/index.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
 import { ChatTitleService } from '../modules/chat/chat-title.service.js';
+import { OperationExpirySweep } from '../modules/chat/expiry-sweep.js';
 import { RunService } from '../modules/chat/run.service.js';
 import { chatRunServiceProvider } from '../modules/chat/chat-runtime.providers.js';
 import { StepPermitManager } from '../infrastructure/queue/step-permits.js';
@@ -142,6 +143,41 @@ export function aiWorkerProviders(
             },
           },
         ),
+    },
+    {
+      provide: OperationExpirySweep,
+      inject: [
+        TenantDatabase,
+        AiRunRepository,
+        AiStepRepository,
+        OutboxRepository,
+        RunRegistry,
+        RunAuthorizationService,
+        RunStreams,
+        PinoLogger,
+      ],
+      useFactory: (
+        db: TenantDatabase,
+        runs: AiRunRepository,
+        steps: AiStepRepository,
+        outbox: OutboxRepository,
+        registry: RunRegistry,
+        authorization: RunAuthorizationService,
+        streams: RunStreams,
+        logger: PinoLogger,
+      ) =>
+        new OperationExpirySweep({
+          database: db,
+          runs,
+          steps,
+          operations: new AiOperationRepository(db),
+          facts: new RunActorFactsRepository(),
+          authorization,
+          outbox,
+          registry,
+          streams,
+          logger,
+        }),
     },
     {
       provide: StepExecutor,
