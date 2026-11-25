@@ -36,12 +36,12 @@ export type {
 } from './step-permit.repository.js';
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
-export { TREE_SELECTED_COLUMNS, TREE_SQL } from './chat-message.repository.js';
+export { TREE_SELECTED_COLUMNS, treeSql } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
 export {
   readTreeValidator,
   VALIDATOR_INPUTS,
-  VALIDATOR_SQL,
+  validatorSql,
 } from './chat-tree-validator.js';
 export { ChatSearchRepository } from './chat-search.repository.js';
 export type {

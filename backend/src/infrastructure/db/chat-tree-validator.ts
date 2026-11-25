@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { buildAuthorizationPredicate } from './authorization-predicate.js';
+import {
+  buildAuthorizationPredicate,
+  type ChatAuthorizationPredicate,
+} from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 
 const uuid = z.uuid();
@@ -10,9 +13,13 @@ const uuid = z.uuid();
  * the tree query reads, using only columns that every tree-changing write
  * already updates. No revision column, no trigger. The tuple below is the
  * exact input set from the spec table, joined as text in a fixed order, then
- * hashed: `W/"v1.<base64url(sha256(tuple))>"`.
+ * hashed: `W/"v1.<base64url(sha256(tuple))>"`. The WHERE is the F6 §4.1
+ * ChatRead fragment — a reader gets the same ETag the owner does.
  */
-export const VALIDATOR_SQL = `SELECT
+export function validatorSql(
+  scope: Pick<ChatAuthorizationPredicate, 'where'>,
+): string {
+  return `SELECT
    c.updated_at::text AS chat_updated_at,
    c.title_version::text AS chat_title_version,
    COALESCE(c.viewed_leaf_id::text,'') AS chat_viewed_leaf_id,
@@ -71,7 +78,8 @@ export const VALIDATOR_SQL = `SELECT
       JOIN app.ai_operations o ON o.org_id=cr.org_id AND o.run_id=cr.run_id
       WHERE cr.org_id=c.org_id AND cr.chat_id=c.id),'') AS operations_max_expires_at
  FROM app.chats c
- WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL`;
+ WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3`;
+}
 
 interface ValidatorRow {
   chat_updated_at: string;
@@ -169,10 +177,11 @@ export const VALIDATOR_INPUTS: Record<string, readonly string[]> = {
 };
 
 /**
- * Reads the validator tuple for one owned live chat and returns its weak
+ * Reads the validator tuple for one readable live chat and returns its weak
  * entity tag `W/"v1.<base64url(sha256(tuple))>"`. `null` when the filtered
- * chats row is absent — the same org/owner/chat/deleted_at filter as `tree`,
- * so a chat deleted mid-transaction surfaces as not-found, never as a 304.
+ * chats row is absent — the same ChatRead/chat filter as `tree`, so a chat
+ * deleted or access-revoked mid-transaction surfaces as not-found, never as
+ * a 304.
  */
 export async function readTreeValidator(
   tx: TenantSession,
@@ -182,12 +191,12 @@ export async function readTreeValidator(
   const { client, ctx } = requireSession(tx);
   if (!ctx.userId) return null;
   const scope = buildAuthorizationPredicate({
-    scope: 'owned-chat',
+    scope: 'chat-read',
     orgId: ctx.orgId,
     userId: ctx.userId,
     excludeDeleted: true,
   });
-  const result = await client.query<ValidatorRow>(VALIDATOR_SQL, [
+  const result = await client.query<ValidatorRow>(validatorSql(scope), [
     scope.orgId,
     scope.userId,
     chatId,

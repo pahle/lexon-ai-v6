@@ -7,9 +7,10 @@ import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
+  buildAuthorizationPredicate,
   requireSession,
-  TREE_SQL,
-  VALIDATOR_SQL,
+  treeSql,
+  validatorSql,
 } from '../../src/infrastructure/db/index.js';
 
 // F4.4 hardening (spec §5 item 15, cost record): the validator must be
@@ -193,12 +194,20 @@ describe.skipIf(!process.env.LEXON_RECORD_COST)(
             const { client } = requireSession(tx);
             return client.query(sql, [...values]);
           });
+        const readScope = buildAuthorizationPredicate({
+          scope: 'chat-read',
+          orgId: ctx.orgId,
+          userId: ctx.userId,
+          excludeDeleted: true,
+        });
+        const VALIDATOR = validatorSql(readScope);
+        const TREE = treeSql(readScope);
 
         // One warm-up pass each, then the recorded pass.
-        await explain(inTenant, VALIDATOR_SQL, params);
-        await explain(inTenant, TREE_SQL, params);
-        const validator = await explain(inTenant, VALIDATOR_SQL, params);
-        const tree = await explain(inTenant, TREE_SQL, params);
+        await explain(inTenant, VALIDATOR, params);
+        await explain(inTenant, TREE, params);
+        const validator = await explain(inTenant, VALIDATOR, params);
+        const tree = await explain(inTenant, TREE, params);
 
         const validatorScans = seqScans(validator.Plan);
         const treeScans = seqScans(tree.Plan);

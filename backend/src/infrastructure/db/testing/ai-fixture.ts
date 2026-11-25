@@ -181,6 +181,17 @@ export async function createAiFixture(services: Services) {
     if (!tenant) throw new Error('Invalid AI fixture tenant');
     const id = randomUUID();
     return database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      // Production topology: every run is bound to a chat through
+      // chat_runs with resolvedConfig.resourceIds naming that chat — the
+      // write-fence trigger enforces the binding, and the stream proofs
+      // and registry read through the link — so the fixture stands in a
+      // standalone chat the same way ChatService.send does.
+      const chatId = randomUUID();
+      await client.query(
+        'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+        [chatId, tenant.orgId, tenant.userId],
+      );
       const run = await runs.insert(tx, {
         id,
         orgId: tenant.orgId,
@@ -190,13 +201,18 @@ export async function createAiFixture(services: Services) {
         resolvedConfig: {
           model: 'synthetic/test',
           provider: 'synthetic-provider',
+          resourceIds: [chatId],
         },
         modelId: 'synthetic/test',
         inputText: 'test input',
         inputBudgetTokens: budgets.inputBudgetTokens ?? 1000,
         outputBudgetTokens: budgets.outputBudgetTokens ?? 1000,
       });
-      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+         VALUES($1,$2,$3,'answer')`,
+        [tenant.orgId, chatId, id],
+      );
       await client.query(
         `INSERT INTO ops.outbox(id,type,org_id,user_id,payload) VALUES($1,'run.start.v1',$2,$3,$4::jsonb)`,
         [

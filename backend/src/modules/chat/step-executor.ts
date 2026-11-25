@@ -2070,7 +2070,6 @@ export class StepExecutor {
               await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
                 JSON.stringify({
                   orgId: claim.orgId,
-                  userId: claim.userId,
                   chatId: pausedChatId,
                 }),
               ]);

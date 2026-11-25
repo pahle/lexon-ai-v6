@@ -318,7 +318,6 @@ export class OperationExpirySweep {
       await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
         JSON.stringify({
           orgId: candidate.orgId,
-          userId: candidate.initiatingUserId,
           chatId: row.chat_id,
         }),
       ]);

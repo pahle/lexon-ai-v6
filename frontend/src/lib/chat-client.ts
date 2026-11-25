@@ -45,11 +45,16 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
 
   const withPage = (
     path: string,
-    input: { cursor?: string; limit?: number } = {},
+    input: {
+      cursor?: string;
+      limit?: number;
+      scope?: contracts.ChatListScope;
+    } = {},
   ) => {
     const query = new URLSearchParams();
     if (input.limit !== undefined) query.set('limit', String(input.limit));
     if (input.cursor) query.set('cursor', input.cursor);
+    if (input.scope !== undefined) query.set('scope', input.scope);
     return path + (query.size > 0 ? `?${query.toString()}` : '');
   };
 

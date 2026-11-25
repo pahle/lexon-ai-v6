@@ -130,7 +130,8 @@ export class ChatMutationRepository {
         AND message.chat_id=mutation.chat_id AND message.id=mutation.user_message_id
        JOIN app.chats chat ON chat.org_id=mutation.org_id AND chat.id=mutation.chat_id
        WHERE mutation.org_id=$1 AND mutation.owner_user_id=$2 AND chat.id=$3
-         AND chat.deleted_at IS NULL AND mutation.request_id=$4 AND mutation.mutation_kind='send'`,
+         AND ${scope.where('chat', '$1', '$2')}
+         AND mutation.request_id=$4 AND mutation.mutation_kind='send'`,
       [scope.orgId, scope.userId, chatId, userMessageId],
     );
     const row = result.rows[0];
@@ -183,7 +184,8 @@ export class ChatMutationRepository {
         AND message.chat_id=mutation.chat_id AND message.id=mutation.user_message_id
        JOIN app.chats chat ON chat.org_id=mutation.org_id AND chat.id=mutation.chat_id
        WHERE mutation.org_id=$1 AND mutation.owner_user_id=$2 AND chat.id=$3
-         AND chat.deleted_at IS NULL AND mutation.request_id=$4 AND mutation.mutation_kind=$5`,
+         AND ${scope.where('chat', '$1', '$2')}
+         AND mutation.request_id=$4 AND mutation.mutation_kind=$5`,
       [scope.orgId, scope.userId, input.chatId, input.requestId, input.kind],
     );
     const row = result.rows[0];

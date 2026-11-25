@@ -22,6 +22,7 @@ import { RUNTIME_CONFIG } from '../../config/config.module.js';
 import {
   CreateChatInputSchema,
   ChatIdentityFallbackEventSchema,
+  ChatListScopeSchema,
   ChatSearchRequestSchema,
   EditMessageInputSchema,
   RegenerateInputSchema,
@@ -145,12 +146,14 @@ export class ChatController {
           .transform(Number)
           .pipe(z.number().int().min(1).max(100))
           .optional(),
+        scope: ChatListScopeSchema.optional(),
       })
       .parse(query);
     return this.authorization.withActor(identity, (actor) =>
       this.chats.list(actor, {
         ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
         ...(input.limit === undefined ? {} : { limit: input.limit }),
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
       }),
     );
   }

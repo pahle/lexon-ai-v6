@@ -148,7 +148,10 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
 
 export class AiRunRepository {
   private readonly steps = new AiStepRepository();
-  async existsForOwnedChat(
+  /** §5 row 10: the existence probe any stream/decision gate uses — ChatRead
+   * scope, so project members and share recipients answer true, denied or
+   * non-members false. */
+  async existsForAccessibleChat(
     tx: TenantSession,
     runId: string,
     userId: string,
@@ -161,7 +164,7 @@ export class AiRunRepository {
     const { client, ctx } = requireSession(tx);
     if (ctx.userId !== userId) return false;
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId,
       excludeDeleted: true,
@@ -171,8 +174,8 @@ export class AiRunRepository {
        JOIN app.chat_runs cr ON cr.org_id=r.org_id AND cr.run_id=r.id
          AND cr.kind='answer'
        JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
-       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3
-         AND c.deleted_at IS NULL LIMIT 1`,
+       WHERE r.org_id=$1 AND r.id=$2 AND ${scope.where('c', '$1', '$3')}
+       LIMIT 1`,
       [scope.orgId, runId, scope.userId],
     );
     return result.rowCount === 1;
@@ -191,7 +194,7 @@ export class AiRunRepository {
     const { client, ctx } = requireSession(tx);
     if (ctx.userId !== userId) return null;
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId,
       excludeDeleted: true,
@@ -268,7 +271,7 @@ export class AiRunRepository {
        LEFT JOIN app.ai_attempts active_attempt
          ON active_attempt.org_id=cp.org_id AND active_attempt.run_id=cp.run_id
         AND active_attempt.id=cp.attempt_id AND active_attempt.active=true
-       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3 AND c.deleted_at IS NULL
+       WHERE r.org_id=$1 AND r.id=$2 AND ${scope.where('c', '$1', '$3')}
          AND (cp.id IS NULL OR active_attempt.id IS NOT NULL)
        LIMIT 1`,
       [scope.orgId, runId, scope.userId],
@@ -380,8 +383,13 @@ export class AiRunRepository {
     )
       return { state: 'missing' };
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
     if (ctx.userId !== userId) return { state: 'missing' };
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       status: AiRunStatus;
       run_version: number;
@@ -416,7 +424,12 @@ export class AiRunRepository {
         `SELECT s.id,s.sequence,s.expected_version,s.fence
          FROM app.ai_runs r JOIN app.ai_steps s
            ON s.org_id=r.org_id AND s.run_id=r.id
-         WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+         WHERE r.org_id=$1 AND r.id=$2
+           AND (r.initiating_user_id=$3 OR EXISTS (
+             SELECT 1 FROM app.chat_runs cr
+             JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+             WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+               AND ${scope.where('c', '$1', '$3')}))
            AND ((r.status='failed' AND s.state='failed'
                  AND s.sequence=r.next_sequence-1) OR
                 (r.status='cancelled' AND s.state IN ('pending','claimed')

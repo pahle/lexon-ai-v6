@@ -1,5 +1,5 @@
 import {
-  CHAT_SEARCH_SQL,
+  chatSearchSql,
   type ChatSearchCursor,
 } from '../chat-search.repository.js';
 import { buildAuthorizationPredicate } from '../authorization-predicate.js';
@@ -66,17 +66,20 @@ export async function explainChatSearch(
        'app.chats'::regclass,'app.chat_messages'::regclass,'app.ai_runs'::regclass
      ]) ORDER BY relation`,
   );
-  const plan = await client.query(`EXPLAIN (FORMAT JSON) ${CHAT_SEARCH_SQL}`, [
-    scope.orgId,
-    scope.userId,
-    queryText,
-    cursor?.score ?? null,
-    cursor?.activityAt ?? null,
-    cursor?.chatId ?? null,
-    limit,
-    '__LXPLANSTART__',
-    '__LXPLANEND__',
-  ]);
+  const plan = await client.query(
+    `EXPLAIN (FORMAT JSON) ${chatSearchSql(scope)}`,
+    [
+      scope.orgId,
+      scope.userId,
+      queryText,
+      cursor?.score ?? null,
+      cursor?.activityAt ?? null,
+      cursor?.chatId ?? null,
+      limit,
+      '__LXPLANSTART__',
+      '__LXPLANEND__',
+    ],
+  );
   const row = session.rows[0]!;
   return {
     session: {

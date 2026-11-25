@@ -160,7 +160,16 @@ export class AiStepRepository {
   > {
     if (!validTerminalReference(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (write arms stay initiating_user_id owner-only — zero-resource
+    // runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       status:
         'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
@@ -175,7 +184,12 @@ export class AiStepRepository {
       `SELECT r.status,r.run_version,r.next_sequence,s.id AS step_id,
               s.sequence,s.expected_version,s.fence,r.stream_generation
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
-       WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+       WHERE r.org_id=$1 AND r.id=$2
+         AND (r.initiating_user_id=$3 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$3')}))
          AND r.status=$9 AND r.run_version=$8
          AND r.next_sequence >= $4 + 1
          AND s.id=$6 AND s.sequence=$4 AND s.expected_version=$5 AND s.fence=$7
@@ -253,7 +267,15 @@ export class AiStepRepository {
   > {
     if (!validClaim(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (zero-resource runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       run_version: number;
       next_sequence: number;
@@ -269,6 +291,11 @@ export class AiStepRepository {
               s.id AS step_id,s.sequence,s.expected_version,s.fence,s.lease_until
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
+         AND (r.initiating_user_id=$7 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$7')}))
          AND r.status IN ('queued','running','awaiting_approval','cancelling')
          AND s.id=$5 AND s.sequence=$4 AND s.expected_version=$3 AND s.fence=$6
          AND s.state='claimed' AND s.lease_until>clock_timestamp()`,
@@ -279,6 +306,7 @@ export class AiStepRepository {
         claim.sequence,
         claim.stepId,
         claim.fence,
+        scope.userId,
       ],
     );
     const row = result.rows[0];
@@ -342,7 +370,15 @@ export class AiStepRepository {
   > {
     if (!validTerminalReference(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (zero-resource runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       status: 'completed' | 'failed' | 'cancelled';
       error_code: string | null;
@@ -375,13 +411,20 @@ export class AiStepRepository {
          )
          ORDER BY sequence DESC,updated_at DESC LIMIT 1
        ) s ON true
-       WHERE r.org_id=$1 AND r.id=$2 AND r.status IN ('completed','failed','cancelled')`,
+       WHERE r.org_id=$1 AND r.id=$2
+         AND (r.initiating_user_id=$6 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$6')}))
+         AND r.status IN ('completed','failed','cancelled')`,
       [
         scope.orgId,
         claim.runId,
         claim.neutral === true,
         claim.stepId,
         claim.sequence,
+        scope.userId,
       ],
     );
     const row = result.rows[0];

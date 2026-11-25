@@ -107,8 +107,8 @@ export class ChatRepository {
       excludeDeleted: true,
     });
     const result = await client.query<ChatRow>(
-      `SELECT * FROM app.chats
-       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL
+      `SELECT * FROM app.chats c
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3
        FOR UPDATE`,
       [scope.orgId, scope.userId, chatId],
     );
@@ -122,15 +122,16 @@ export class ChatRepository {
     if (!uuid.safeParse(chatId).success) return null;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return null;
+    // Full §4.1 predicate: owner OR project access OR standalone share.
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId: ctx.userId,
       excludeDeleted: true,
     });
     const result = await client.query<ChatRow>(
-      `SELECT * FROM app.chats
-       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL`,
+      `SELECT * FROM app.chats c
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3`,
       [scope.orgId, scope.userId, chatId],
     );
     return result.rows[0] ? mapChat(result.rows[0]) : null;
@@ -149,7 +150,8 @@ export class ChatRepository {
     const result = await client.query<{ authorized: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM app.chat_runs run_link
         JOIN app.chats chat ON chat.org_id=run_link.org_id AND chat.id=run_link.chat_id
-        WHERE run_link.org_id=$1 AND chat.owner_user_id=$2 AND chat.deleted_at IS NULL
+        WHERE ${scope.where('chat', '$1', '$2')}
+          AND run_link.org_id=$1
           AND run_link.run_id=$3 AND run_link.kind='answer') AS authorized`,
       [scope.orgId, scope.userId, runId],
     );
@@ -165,11 +167,17 @@ export class ChatRepository {
       throw new Error('Invalid chat run');
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) throw new Error('Invalid chat owner');
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query(
       `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
        SELECT $1,c.id,$3,'answer' FROM app.chats c
-       WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$4 AND c.deleted_at IS NULL`,
-      [ctx.orgId, ctx.userId, runId, chatId],
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$4`,
+      [scope.orgId, scope.userId, runId, chatId],
     );
     if (result.rowCount !== 1) throw new Error('Chat unavailable');
   }
@@ -182,6 +190,12 @@ export class ChatRepository {
     if (!uuid.safeParse(answerRunId).success) return null;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return null;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       chat_id: string;
       owner_user_id: string;
@@ -201,10 +215,10 @@ export class ChatRepository {
          AND parent.chat_id=assistant.chat_id AND parent.id=assistant.parent_message_id
          AND parent.role='user'
        JOIN app.ai_runs run ON run.org_id=link.org_id AND run.id=link.run_id
-       WHERE link.org_id=$1 AND c.owner_user_id=$2 AND c.deleted_at IS NULL
+       WHERE link.org_id=$1 AND ${scope.where('c', '$1', '$2')}
          AND link.run_id=$3 AND link.kind='answer' AND run.status='completed'
        ${lock ? 'FOR UPDATE OF c' : ''}`,
-      [ctx.orgId, ctx.userId, answerRunId],
+      [scope.orgId, scope.userId, answerRunId],
     );
     const row = result.rows[0];
     return row
@@ -235,12 +249,18 @@ export class ChatRepository {
     if (!uuid.safeParse(chatId).success) return false;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query(
       `SELECT 1 FROM app.chat_runs link
        JOIN app.chats c ON c.org_id=link.org_id AND c.id=link.chat_id
-       WHERE link.org_id=$1 AND c.owner_user_id=$2 AND link.chat_id=$3
-         AND link.kind='title' AND c.deleted_at IS NULL LIMIT 1`,
-      [ctx.orgId, ctx.userId, chatId],
+       WHERE link.org_id=$1 AND ${scope.where('c', '$1', '$2')}
+         AND link.chat_id=$3 AND link.kind='title' LIMIT 1`,
+      [scope.orgId, scope.userId, chatId],
     );
     return result.rowCount === 1;
   }
@@ -252,14 +272,20 @@ export class ChatRepository {
     if (!uuid.safeParse(titleRunId).success) return false;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query(
       `SELECT 1 FROM app.chat_runs link
        JOIN app.chats c ON c.org_id=link.org_id AND c.id=link.chat_id
-       WHERE link.org_id=$1 AND c.owner_user_id=$2 AND link.run_id=$3
-         AND link.kind='title' AND c.deleted_at IS NULL
+       WHERE link.org_id=$1 AND ${scope.where('c', '$1', '$2')}
+         AND link.run_id=$3 AND link.kind='title'
          AND c.title_source='excerpt' AND c.title_version=link.title_version
        LIMIT 1`,
-      [ctx.orgId, ctx.userId, titleRunId],
+      [scope.orgId, scope.userId, titleRunId],
     );
     return result.rowCount === 1;
   }
@@ -271,6 +297,12 @@ export class ChatRepository {
     if (!uuid.safeParse(titleRunId).success) return null;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return null;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       chat_id: string;
       owner_user_id: string;
@@ -301,9 +333,9 @@ export class ChatRepository {
          AND parent.chat_id=assistant.chat_id AND parent.id=assistant.parent_message_id
          AND parent.role='user'
        JOIN app.ai_runs answer ON answer.org_id=source_link.org_id AND answer.id=source_link.run_id
-       WHERE link.org_id=$1 AND c.owner_user_id=$2 AND c.deleted_at IS NULL
+       WHERE link.org_id=$1 AND ${scope.where('c', '$1', '$2')}
          AND link.run_id=$3 AND link.kind='title' FOR UPDATE OF c`,
-      [ctx.orgId, ctx.userId, titleRunId],
+      [scope.orgId, scope.userId, titleRunId],
     );
     const row = result.rows[0];
     return row
@@ -340,16 +372,22 @@ export class ChatRepository {
       return false;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query(
       `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind,title_version,source_answer_run_id)
        SELECT $1,c.id,$3,'title',$5,$6 FROM app.chats c
-       WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$4 AND c.deleted_at IS NULL
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$4
          AND c.title_source='excerpt' AND c.title_version=$5
          AND EXISTS(SELECT 1 FROM app.chat_runs a WHERE a.org_id=$1
            AND a.chat_id=c.id AND a.run_id=$6 AND a.kind='answer')`,
       [
-        ctx.orgId,
-        ctx.userId,
+        scope.orgId,
+        scope.userId,
         input.titleRunId,
         input.chatId,
         input.titleVersion,
@@ -369,18 +407,24 @@ export class ChatRepository {
   ): Promise<boolean> {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{ chat_id: string }>(
       `UPDATE app.chats c SET title=$4,title_source='ai',title_version=c.title_version+1,
          updated_at=clock_timestamp()
        FROM app.chat_runs link
        WHERE link.org_id=c.org_id AND link.chat_id=c.id AND link.run_id=$3
          AND link.kind='title' AND link.title_version=$5
-         AND c.org_id=$1 AND c.owner_user_id=$2 AND c.deleted_at IS NULL
+         AND ${scope.where('c', '$1', '$2')}
          AND c.title_source='excerpt' AND c.title_version=$5
        RETURNING c.id AS chat_id`,
       [
-        ctx.orgId,
-        ctx.userId,
+        scope.orgId,
+        scope.userId,
         input.titleRunId,
         input.title,
         input.expectedVersion,
@@ -390,7 +434,6 @@ export class ChatRepository {
     await client.query("SELECT pg_notify('lexon_chat_title', $1)", [
       JSON.stringify({
         orgId: ctx.orgId,
-        userId: ctx.userId,
         chatId: result.rows[0]!.chat_id,
       }),
     ]);
@@ -405,15 +448,21 @@ export class ChatRepository {
     if (!uuid.safeParse(chatId).success) return false;
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return false;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query(
-      `UPDATE app.chats SET title=$4,title_source='user',title_version=title_version+1,
+      `UPDATE app.chats c SET title=$4,title_source='user',title_version=title_version+1,
          updated_at=clock_timestamp()
-       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL`,
-      [ctx.orgId, ctx.userId, chatId, title],
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3`,
+      [scope.orgId, scope.userId, chatId, title],
     );
     if (result.rowCount !== 1) return false;
     await client.query("SELECT pg_notify('lexon_chat_title', $1)", [
-      JSON.stringify({ orgId: ctx.orgId, userId: ctx.userId, chatId }),
+      JSON.stringify({ orgId: ctx.orgId, chatId }),
     ]);
     return true;
   }
@@ -435,7 +484,7 @@ export class ChatRepository {
     });
     const result = await client.query(
       `UPDATE app.chats c SET viewed_leaf_id=$4,updated_at=clock_timestamp()
-       WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3
          AND EXISTS (SELECT 1 FROM app.chat_messages m
            WHERE m.org_id=c.org_id AND m.chat_id=c.id AND m.id=$4
              AND NOT EXISTS (SELECT 1 FROM app.chat_messages child
