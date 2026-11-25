@@ -472,6 +472,9 @@ it('draws the waiting pill dot with a soft halo ring', async () => {
     const pill = [...view.container.querySelectorAll('span')].find(
       (node) => node.textContent === 'Waiting for you',
     )!;
+    // An inline pill, not a full-width band: the message column stretches
+    // its flex children, so the pill opts out (prototype `.wait`).
+    expect(pill.className).toContain('self-start');
     const dot = pill.querySelector('span[aria-hidden="true"]') as HTMLElement;
     expect(dot.style.boxShadow).toContain('0 0 0 3px');
     expect(dot.style.boxShadow).toContain('color-mix');

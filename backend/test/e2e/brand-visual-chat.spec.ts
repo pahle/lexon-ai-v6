@@ -753,12 +753,17 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
 
   // A paused run docks its panel above the composer; the Recent row of the
   // waiting chat carries the primary dot (desktop only: the mobile sheet is
-  // closed).
-  const openAwaiting = async (viewport: BrandViewport, state: string) => {
+  // closed). "Or reply in your own words…" is the question dock's hint — an
+  // approval dock keeps the default placeholder (r17 round 3).
+  const openAwaiting = async (
+    viewport: BrandViewport,
+    state: string,
+    placeholder = 'Or reply in your own words…',
+  ) => {
     await openThread(page, env, state, dock, `?capture_state=${state}`);
     await expect(
       page.getByRole('textbox', { name: 'Message input' }),
-    ).toHaveAttribute('placeholder', 'Or reply in your own words…');
+    ).toHaveAttribute('placeholder', placeholder);
     await expect(
       page.getByText('Waiting for you', { exact: true }),
     ).toBeVisible();
@@ -910,7 +915,11 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
 
   await captureBrandViews(page, 'chat-approval', {
     open: async (viewport) => {
-      await openAwaiting(viewport, 'approval-pending');
+      await openAwaiting(
+        viewport,
+        'approval-pending',
+        'Ask Lexon about a contract, a regulation, or a case...',
+      );
       await expect(dock).toContainText('Lexon wants to rename this chat');
       await expect(dock).toContainText('Draf somasi wanprestasi');
       await expect(dock).toContainText('Somasi PT Sinar');

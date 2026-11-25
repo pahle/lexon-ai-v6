@@ -8,6 +8,7 @@ import {
 import { useAuiState, type TextMessagePartProps } from '@assistant-ui/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useChatAwaiting } from '@/components/chat/chat-runtime.js';
 import { cn } from '@/lib/utils';
 import {
   createContext,
@@ -159,6 +160,11 @@ function MarkdownBody({
 }: MarkdownProps & { readonly smooth: false | typeof SMOOTH_REVEAL }) {
   const dimmed = useContext(AnswerDimmedContext);
   const hidePulse = useContext(HideAnswerPulseContext);
+  // While the run waits on the owner the stream stays open, so assistant-ui
+  // still reports 'running' on the held-open text part and on the empty part
+  // it synthesizes behind the tool row. Neither is streaming: the caret reads
+  // data-status, which here must say 'requires-action' instead.
+  const paused = useChatAwaiting()?.paused ?? false;
   const wrapperClass = `aui-md ${dimmed ? 'text-muted-foreground' : 'text-foreground'} max-w-none flex flex-col gap-3${hidePulse ? ' after:content-none! [&_*]:after:content-none!' : ''}`;
   const components = dimmed ? markdownComponentsDimmed : markdownComponents;
   if (source !== undefined)
@@ -175,6 +181,13 @@ function MarkdownBody({
       remarkPlugins={[remarkGfm]}
       components={components}
       className={wrapperClass}
+      containerProps={
+        paused
+          ? ({
+              'data-status': 'requires-action',
+            } as ComponentPropsWithoutRef<'div'>)
+          : undefined
+      }
       smooth={smooth}
       defer
     />

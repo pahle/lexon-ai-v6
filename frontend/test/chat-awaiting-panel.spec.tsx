@@ -1,4 +1,5 @@
 import type { ChatTree } from '@lexon/contracts';
+import { useAuiState } from '@assistant-ui/react';
 import { act, type ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
@@ -182,6 +183,149 @@ async function mountPaused(operations: unknown[]) {
   return view;
 }
 
+/** Mirrors the last assistant message's aui run status for the spec. */
+function RunStatusProbe() {
+  const status = useAuiState(
+    (state) => state.thread.messages.at(-1)?.status?.type,
+  );
+  return <output data-testid="probe-status">{status}</output>;
+}
+
+/**
+ * The resumed paused run: snapshot frames replay the stored answer and the
+ * pending tool call, then the stream stays open until the owner decides.
+ */
+function pausedSse(operation: Record<string, unknown>) {
+  const frames = [
+    {
+      version: 1,
+      type: 'snapshot-start',
+      reset: true,
+      snapshot: {
+        runId,
+        messageId: assistantId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        status: 'awaiting_approval',
+        errorCode: null,
+        reasoningDurationMs: null,
+      },
+      partCount: 2,
+      operationCount: 1,
+    },
+    {
+      version: 1,
+      type: 'snapshot-part',
+      partIndex: 0,
+      chunkIndex: 0,
+      partType: 'text',
+      id: 'paused-answer',
+      text: 'Sebentar, saya butuh satu detail.',
+      final: true,
+    },
+    {
+      version: 1,
+      type: 'snapshot-part',
+      partIndex: 1,
+      chunkIndex: 0,
+      partType: 'tool',
+      id: 'paused-tool',
+      toolCallId: operation.operationId,
+      toolName: operation.toolName,
+      operationId: operation.operationId,
+      input: operation.input,
+      outcome: 'awaiting_approval',
+      final: true,
+    },
+    {
+      version: 1,
+      type: 'snapshot-operation',
+      index: 0,
+      operation,
+    },
+    {
+      version: 1,
+      type: 'snapshot-end',
+      partCount: 2,
+      operationCount: 1,
+    },
+  ];
+  return frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join('');
+}
+
+it('shows no streaming caret while the resumed paused run stays running', async () => {
+  // The paused run's /events stream replays the snapshot and is then held
+  // open by the server, so the assistant message keeps reading 'running'.
+  const operation = renameOp();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: unknown, init?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/decision')) {
+        decisionCalls.push({ url, init });
+        return Promise.resolve(
+          new Response(JSON.stringify(decisionResponse), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      if (typeof url === 'string' && url.endsWith(`/runs/${runId}/events`)) {
+        return Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(pausedSse(operation)),
+                );
+              },
+            }),
+            {
+              headers: {
+                'content-type': 'text/event-stream',
+                'x-lexon-stream-recovery-result': 'snapshot',
+              },
+            },
+          ),
+        );
+      }
+      return new Promise<Response>(() => undefined);
+    }),
+  );
+  const tree = pausedTree([operation]);
+  const view = await render(
+    wrapped(
+      <ChatRuntime actorScope="tenant-1:user-1" chatId={tree.id} tree={tree}>
+        <Thread displayName="Ada" />
+        <RunStatusProbe />
+      </ChatRuntime>,
+    ),
+  );
+  try {
+    await settleUntil(
+      () =>
+        view.container.querySelector('[data-slot="operation-dock"]') !== null,
+    );
+    // The held-open stream keeps the message marked running, so the caret's
+    // data-status hook must not read 'running' anywhere: not after the answer
+    // text and not under the Waiting for you pill (the empty part that
+    // assistant-ui synthesizes behind the tool row).
+    expect(
+      view.container.querySelector('[data-testid="probe-status"]')?.textContent,
+    ).toBe('running');
+    const markdowns = [
+      ...view.container.querySelectorAll<HTMLElement>('.aui-md'),
+    ];
+    expect(markdowns.length).toBeGreaterThan(0);
+    expect(
+      markdowns.filter((node) => node.dataset.status === 'running'),
+    ).toHaveLength(0);
+  } finally {
+    await view.unmount();
+  }
+});
+
 it('docks an approval panel above the composer with the ask, expiry and decision buttons', async () => {
   const view = await mountPaused([renameOp()]);
   try {
@@ -195,6 +339,52 @@ it('docks an approval panel above the composer with the ask, expiry and decision
     );
     expect(buttons.join('|')).toContain('Reject');
     expect(buttons.join('|')).toContain('Approve');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('lays out the approval dock at composer width with stacked mobile rows and compact rectangular buttons', async () => {
+  const view = await mountPaused([renameOp()]);
+  try {
+    const dock = view.container.querySelector(
+      '[data-slot="operation-dock"]',
+    ) as HTMLElement;
+    // The dock parks inside the padded composer column: no wrapper padding of
+    // its own, so its box spans the composer shell's width.
+    expect(dock.className).toContain('w-full');
+    expect(dock.className).not.toContain('px-6');
+    // The approval dock keeps the default composer placeholder — the
+    // own-words hint belongs to the question dock only.
+    expect(view.container.querySelector('textarea')?.placeholder).toBe(
+      'Ask Lexon about a contract, a regulation, or a case...',
+    );
+    // Sentence-case descriptor labels.
+    expect(dock.textContent).toContain('Current title');
+    expect(dock.textContent).not.toContain('Current Title');
+    // `.btn.sm` metrics: 30px high, 8px radius — rectangular, not pill-shaped.
+    const approve = [...dock.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Approve'),
+    )!;
+    expect(approve.className).toContain('h-[30px]');
+    expect(approve.className).toContain('rounded-lg');
+    expect(approve.className).not.toContain('rounded-full');
+    // `.kv` rows stack label over value on mobile.
+    const row = dock.querySelector('dl > div') as HTMLElement;
+    expect(row.className).toContain('max-md:flex-col');
+    const label = row.querySelector('dt') as HTMLElement;
+    expect(label.className).toContain('max-md:w-auto');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('offers free reply under a question dock', async () => {
+  const view = await mountPaused([questionOp()]);
+  try {
+    expect(view.container.querySelector('textarea')?.placeholder).toBe(
+      'Or reply in your own words…',
+    );
   } finally {
     await view.unmount();
   }

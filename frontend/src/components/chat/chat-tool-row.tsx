@@ -52,7 +52,11 @@ export function ChatWaitingPill() {
   return (
     <span
       role="status"
-      className="inline-flex h-6 items-center gap-[7px] rounded-full bg-(--lexon-tint) pr-2.5 pl-2 text-[13px] font-medium text-(--lexon-red-text)"
+      // self-start: the pill is an inline pill, not a full-width band — the
+      // message column stretches its flex children, so it must opt out
+      // (prototype `.wait { align-self: flex-start }`). In the history row it
+      // is the tallest item, so the self-align is a no-op there.
+      className="inline-flex h-6 items-center gap-[7px] self-start rounded-full bg-(--lexon-tint) pr-2.5 pl-2 text-[13px] font-medium whitespace-nowrap text-(--lexon-red-text)"
     >
       <span
         aria-hidden="true"
@@ -184,9 +188,14 @@ function toolIcon(toolName: string) {
   }
 }
 
+// Field labels read sentence-case ("Current title"), never Title Case.
 const prettifyKey = (key: string) =>
   key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      (_match, lower: string, upper: string) =>
+        `${lower} ${upper.toLowerCase()}`,
+    )
     .replace(/[_-]+/g, ' ')
     .replace(/^./, (char) => char.toUpperCase());
 

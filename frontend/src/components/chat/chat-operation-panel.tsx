@@ -28,14 +28,18 @@ import {
   type ChatOperationRecord,
 } from '@/components/chat/chat-runtime';
 import { readDockQuestions } from '@/components/chat/chat-tool-row';
-import { composerClasses } from '@/components/chat/composer-styles';
 import { formatPlatformDateTime } from '@/components/platform/platform-format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+// Descriptor labels read sentence-case ("Current title"), never Title Case.
 const prettifyKey = (key: string) =>
   key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      (_match, lower: string, upper: string) =>
+        `${lower} ${upper.toLowerCase()}`,
+    )
     .replace(/[_-]+/g, ' ')
     .replace(/^./, (char) => char.toUpperCase());
 
@@ -68,16 +72,23 @@ function DescriptorFields({
   const fields = { ...(display ?? {}), ...(input ?? {}) };
   const entries = Object.entries(fields);
   if (entries.length === 0) return null;
+  // `.dbox .kv`: a 110px label column with 16px column gap; on mobile the
+  // grid collapses to stacked label/value rows with 6px under each value
+  // (prototype `.app.mobile .kv { grid-template-columns: 1fr; gap: 0 }`,
+  // `.kv dd { margin-bottom: 6px }`).
   return (
-    <dl className="bg-muted flex flex-col gap-1 rounded-xl p-3">
+    <dl className="bg-muted flex flex-col gap-1 rounded-[10px] px-3 py-2.5 max-md:gap-0">
       {entries.map(([key, value]) => (
-        <div key={key} className="flex items-baseline gap-3 text-[13px]">
-          <dt className="text-muted-foreground w-28 shrink-0">
+        <div
+          key={key}
+          className="flex items-baseline gap-4 text-sm max-md:flex-col max-md:gap-0"
+        >
+          <dt className="text-muted-foreground w-[110px] shrink-0 max-md:w-auto">
             {prettifyKey(key)}
           </dt>
           <dd
             className={cn(
-              'text-foreground min-w-0',
+              'text-foreground min-w-0 max-md:mb-1.5',
               // The proposed title is the headline value of a rename dock.
               key === 'newTitle' && 'font-semibold',
             )}
@@ -90,12 +101,15 @@ function DescriptorFields({
   );
 }
 
+// The prototype's `.btn.sm`: 30px high, 10px side padding, 13px/500 text and
+// the base `.btn` 8px radius — compact and rectangular, never pill-shaped.
 const buttonClasses = {
-  ghost: 'text-muted-foreground hover:text-foreground text-[13px] font-medium',
+  ghost:
+    'text-muted-foreground hover:text-foreground inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[13px] font-medium',
   outline:
-    'border-border hover:bg-muted h-9 rounded-full border px-4 text-[13px] font-medium',
+    'border-border hover:bg-muted inline-flex h-[30px] items-center justify-center gap-1 rounded-lg border px-2.5 text-[13px] font-medium',
   primary:
-    'bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-full px-4 text-[13px] font-medium disabled:opacity-40',
+    'bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[13px] font-medium disabled:opacity-40',
 } as const;
 
 /**
@@ -243,7 +257,10 @@ function ApprovalDock({
       role="status"
       aria-label="Approval needed"
       onKeyDown={onKeyDown}
-      className={cn(composerClasses.wrapper, 'mb-2 pb-0! max-md:pb-0!')}
+      // The dock parks inside the same padded column as the composer, so it
+      // spans exactly the composer shell's width (prototype `.dock` inside
+      // `.cw`); the composer wrapper's own padding must not be repeated here.
+      className="mb-2 w-full"
     >
       <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
         <div className="flex items-center justify-between gap-3">
@@ -278,7 +295,7 @@ function ApprovalDock({
           <span className="text-muted-foreground max-md:hidden text-[13px]">
             {formatExpiry(summary.expiresAt)}
           </span>
-          <span className="flex items-center gap-2">
+          <span className="ms-auto flex items-center gap-2">
             <button
               type="button"
               className={buttonClasses.outline}
@@ -463,7 +480,9 @@ function QuestionDock({
           : 'Question from Lexon'
       }
       onKeyDown={onKeyDown}
-      className={cn(composerClasses.wrapper, 'mb-2 pb-0! max-md:pb-0!')}
+      // Same width contract as the approval dock: the composer column already
+      // carries the side padding, so the dock is simply full width.
+      className="mb-2 w-full"
     >
       <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
         <div className="flex items-center justify-between gap-3">
@@ -689,7 +708,18 @@ function QuestionDock({
           <span className="text-muted-foreground max-md:hidden text-[13px]">
             {formatExpiry(summary.expiresAt)}
           </span>
-          <span className="flex items-center gap-3">
+          {/* `.df` keeps 4px between ghost buttons; once the expiry hides on
+              mobile, footers shaped like the paged/text variants pin right
+              (`margin-left:auto`), the single-question footer stays left. */}
+          <span
+            className={cn(
+              'flex items-center gap-1',
+              (total > 1 ||
+                (isReady &&
+                  (current.kind === 'multiple' || current.kind === 'text'))) &&
+                'ms-auto',
+            )}
+          >
             {total > 1 ? (
               <button
                 type="button"
