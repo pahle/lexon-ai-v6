@@ -86,8 +86,8 @@ breakpoints: [768px]
 | Field | Value |
 |---|---|
 | **Document** | LEX-DS-001 |
-| **Version** | 3.1 |
-| **Date** | 18 November 2026 |
+| **Version** | 3.6 |
+| **Date** | 25 November 2026 |
 | **Companions** | [Technology Stack](./LEXON-01-TECHNOLOGY-STACK.md) · [System Architecture](./LEXON-02-SYSTEM-ARCHITECTURE.md) |
 | **Brand source** | [`docs/brand/lexon-2026-v4.1/`](../brand/lexon-2026-v4.1/README.md) (logo, fonts, kit theme) |
 | **Visual target** | [`docs/design/f4.1-prototype/`](../design/f4.1-prototype/README.md) (revision 14.9, approved 2026-11-19) |
@@ -250,7 +250,9 @@ Rules:
   - Tools, with no group label: **Assistant** (sub-items New chat and Chats);
     later tools (Tabular Review, Editor) join it. **Platform** (sub-items
     Accounts and Organizations) shows only to platform administrators.
-    **Matters** (F6) follows. **Recent** is the only labeled group: the six
+    **Matters** (F6, briefcase icon) follows, with the five most recently
+    active matters and All matters as sub-items, in personal and team
+    workspaces. **Recent** is the only labeled group: the six
     latest chats with a per-chat menu (Rename, Delete), then View all chats.
   - Footer: `NavUser` with name and **job title** (email when no job title).
 - **Page header:** the sidebar trigger at the top left. Chat pages add a
@@ -314,8 +316,8 @@ the approved prototype (`docs/design/f4.1-prototype/`).
   Escape, or the backdrop, and returns focus to its opener.
 - **Sections:** an **Account** group (Profile, Appearance, Security) for
   everyone, then a group named after the active organization when it is a
-  team: Members (every role), Invitations (admin and owner), General
-  (owner). Section titles use EB Garamond. Profile includes an optional Job
+  team: Members (every role), Invitations (admin and owner), Matters (admin
+  and owner, §5.8), General (owner). Section titles use EB Garamond. Profile includes an optional Job
   title (1–80 characters). Later personal settings (memory, connectors, my activity,
   privacy) are added as sections here.
 - **State in the URL:** the open dialog and its section are reflected in a
@@ -793,6 +795,38 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
   carries its icon and is `primary`, or `destructive-fill` when it removes
   access or data.
 
+
+### 5.8 Matters (F6)
+
+- **Term:** the interface says **Matter**; code and documents may say project.
+- **Matters page:** a data views kit list (§5.7) with tabs All, Owned by me,
+  Shared with me; search; columns Name (matter number on a second muted
+  line), Practice area, Owner, Your role (plain text), Chats, Last activity;
+  New matter as the primary action.
+- **Matter page:** EB Garamond title, a muted meta line (matter number ·
+  practice area), and on the right an avatar stack of 24px overlapping
+  initials circles, Members, Settings and a menu (owner only; a viewer sees
+  the plain text "Viewer"). Below: the project composer (owners and editors),
+  a Chats table card, and an Instructions card (Edit for owners and editors;
+  on mobile it stacks above the chats, clamped to three lines with Show more).
+- **Row menus** on chat lists appear only on chats the signed-in user owns.
+- **Read-only chats** (another member's project chat, a chat shared with the
+  user) replace the composer with one muted bar with a lock icon: "<Name>'s
+  chat · read-only" or "Shared by <Name> · read-only". Only Copy remains in the
+  answer actions. The chat header shows the matter as a chip before the title.
+- **Members and share dialogs:** an add row (input "Add people by name or
+  email", a role select, Add), then one row per person with initials, name,
+  email, role select and remove. A member restricted by the organization is a
+  greyed row reading "Access restricted by your organization", with no
+  controls.
+- **Settings → Matters** (organization owners and admins): names only, never
+  chats or instructions; a Restricted count column; the row menu's Restrict
+  access opens a dialog that explains that only owners and admins can lift a
+  restriction, lists restricted members ("Restricted by <Name> · <date>") with
+  Lift.
+- **Visual target:** prototype revision 18 states `matters-*`, `matter-*`,
+  `settings-matters*`, `chat-share`, `chat-shared-readonly`, `chats-shared`.
+
 ## 6. Accessibility (required, not advisory)
 
 - WCAG 2.2 AA is the bar: text contrast ≥ 4.5:1, non-text UI ≥ 3:1.
@@ -806,6 +840,7 @@ menu ⋯, open ›, copy, pagination) have an accessible name and a tooltip.
 
 | Version | Change |
 |---|---|
+| 3.6 | **Added (product owner, F6 prototype review, 2026-11-25):** the Matters sidebar group with sub-items (§4), the Settings → Matters section (§5.2), and Matters patterns (§5.8): Matters page, matter page with avatar stack and Instructions card, owner-only row menus, read-only chat bar, members and share dialogs with restricted members, and the organization Restrict access dialog. Visual target: prototype revision 18. Header version and date brought up to date (they still showed 3.1) |
 | 3.5 | **Added (product owner, F5 decision 8, 2026-11-24):** two question kinds in the docked question panel: select all that apply (checkbox rows) and text only (one text field), with Next/Send in the footer; prototype revision 17 states `chat-question-select` and `chat-question-text` (§5.3). |
 | 3.4 | **Added (product owner, F5 prototype review, 2026-11-24):** tool activity rows that follow the answer text, the Waiting for you marker, question and approval panels docked above the composer (single and several questions), and decision records in the thread (§5.3). Visual target: `docs/design/f4.1-prototype/` revision 17 |
 | 3.3 | **Added (product owner, F4.3 brief, 2026-11-21):** the data views kit (§5.7). A list page has tabs, a data table card, a toolbar with facet filters, sortable headers, typed cells, a row menu, selection with a floating action bar, a paged footer, states, and mobile rows. A record page has a header with icon actions, a two-column body with stat tiles and related tables, and a Details aside. Every action button carries an icon. The kit is built once as shared components for every list and record in Lexon. Status badge variants (§5.5). **Changed:** the Platform sidebar group holds Accounts and Organizations. Visual target: `docs/design/f4.1-prototype/` revision 16 and its `kit` page |
