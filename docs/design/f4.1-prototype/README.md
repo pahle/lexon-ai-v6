@@ -17,7 +17,7 @@ gate is in §5.6.
   `prototype.html` without the embedded fonts and marks (about 110 KB instead of
   380 KB). **Read this file for values**; open `prototype.html` to view states.
 - `screens/r14/<state>-<d|m>[-dark].png`: every state of the current
-  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (420 files).
+  revision at 1440×900 (`d`) and 390×844 (`m`), light and dark (484 files).
   The folder keeps its name; it always holds the current revision.
 - `screens/fm-strip.png`, `screens/finish-strip.png`: the thinking indicator.
 - The numbered PNGs in `screens/` (`00-personal.png` to `51-mobile-dark.png`)
@@ -36,6 +36,7 @@ state of the same name.
 | Shell     | `shell-personal`, `shell-team`, `organization-switcher-open`, `user-menu-open`, `recent-menu`, `sidebar-collapsed`, `mobile-sheet-open`, `recent-load-failed`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Chat      | `chat-new`, `chat-starter-pill`, `chat-deep-thinking`, `chat-thinking`, `chat-streaming-scroll`, `chat-reasoning-collapsed`, `chat-reasoning-open`, `chat-answer-actions`, `chat-copied`, `chat-copy-failed`, `chat-feedback`, `chat-edit`, `chat-branch`, `chat-stopped`, `chat-error`, `chat-reconnecting`, `chat-composer-running`, `chat-thread-loading`, `chat-floating-menu`, `chat-rename`, `chat-delete`, `chat-tool-activity`, `chat-tool-expanded`, `chat-tool-running`, `chat-tool-failed`, `chat-question`, `chat-question-multi`, `chat-question-text`, `chat-question-select`, `chat-question-answered`, `chat-question-dismissed`, `chat-approval`, `chat-approval-approved`, `chat-approval-rejected`, `chat-approval-expired` |
 | Chats     | `chats-history`, `chats-search`, `chats-no-results`, `chats-empty`, `chats-loading`, `chats-load-failed`, `chats-waiting`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Matters   | `matters-list`, `matters-empty`, `matter-new`, `matter-owner`, `matter-viewer`, `matter-instructions-edit`, `matter-members`, `matter-delete`, `matter-chat`, `matter-chat-readonly`, `settings-matters`, `settings-matters-restrict`, `chat-share`, `chat-shared-readonly`, `chats-shared`, `matter-personal`                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Settings  | `settings-profile`, `settings-appearance`, `settings-security`, `settings-members`, `settings-invitations`, `settings-general`, `settings-profile-save-failed`, `settings-members-load-failed`, `toast-success`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Platform  | `platform-accounts`, `platform-accounts-search`, `platform-accounts-filtered`, `platform-accounts-row-menu`, `platform-accounts-no-results`, `platform-accounts-loading`, `platform-accounts-error`, `platform-accounts-invitations`, `platform-account-invite`, `platform-account-detail`, `platform-account-unverified`, `platform-account-disabled`, `platform-account-disable`, `platform-account-sign-out`, `platform-organizations`, `platform-organizations-empty`, `platform-organizations-loading`, `platform-organizations-error`, `platform-organization-provision`, `platform-organization-provisioning`, `platform-organization-active`                                                                                           |
 | Indicator | `indicator` (the thinking indicator at preview and actual size)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -89,6 +90,47 @@ as current.
   a `tint` pill with a dot after the assistant's text, a dot on the chat in
   Recent, and the same pill on the chat's row in Chats.
 
+## Revision 18 (F6 Matters and the ethical wall): awaiting owner approval
+
+Sixteen new states for [F6](../../briefs/F6-projects-ethical-wall.md), drawn
+from the brief on top of revision 17, awaiting owner approval. Their 64
+views are listed in `docs/references/F4.1-visual/index.json` `planned`; the
+lead line above and `PROTOTYPE_REVISION` in
+`scripts/visual-compare-prototype.mjs` stay at revision 17 until approval.
+
+- **Matters in the sidebar** (all F6 states): a Matters group (briefcase
+  icon) between the Assistant and Platform groups and Recent, listing the
+  most recent matters, then "All matters". It appears only in the F6
+  states; earlier states keep the old sidebar.
+- **Matters list** (`matters-list`, `matters-empty`, `matter-new`): the
+  data views kit list with the All / Owned by me / Shared with me filter,
+  the kit empty state, and the New matter dialog (name, client/matter
+  number, practice area).
+- **Matter page** (`matter-owner`, `matter-viewer`,
+  `matter-instructions-edit`, `matter-personal`): the matter name as page
+  title with its number and practice area, an avatar stack with a Members
+  button, the project composer, a Chats list, and an Instructions card that
+  holds the matter instructions (edit mode shows the 8,000-character
+  counter). A viewer (`matter-viewer`) sees a muted note instead of the
+  composer and no management actions; the personal workspace
+  (`matter-personal`) shows the same page without Members. On mobile the
+  instructions stack above the chats, collapsed to three lines.
+- **Members and restriction** (`matter-members`, `settings-matters`,
+  `settings-matters-restrict`): the members dialog with an add row, role
+  selects, and a greyed row for a member restricted by the organization;
+  the organization settings Matters section listing every matter with its
+  restricted count; and the restrict-access dialog that warns that only
+  owners and admins can lift a restriction.
+- **Matter chats** (`matter-chat`, `matter-chat-readonly`): the chat keeps
+  its normal thread but the header shows the matter as a link chip before
+  the chat title; a viewer gets the muted read-only composer bar.
+- **Chat sharing** (`chat-share`, `chat-shared-readonly`,
+  `chats-shared`): the Share chat dialog explaining that recipients can
+  only read, the read-only thread view for a recipient, and the Shared with
+  me filter on the Chats page.
+- **Delete** (`matter-delete`): the alert dialog naming the matter and how
+  many chats are deleted with it.
+
 ## Fixtures shown
 
 - User: Ayu Wardani, Senior Associate, `ayu@hukum-nusantara.co.id`.
@@ -98,6 +140,10 @@ as current.
   in the states; Recent lists the six chats in `chats-history`.
 - Platform administrator: Dimas Prasetyo; provisioning organizations Harbor
   Legal Partners, Sinar Hukum, and Kantor Hukum Wibowo.
+- F6: organization Kantor Hukum Adil (`KA`, 6 members): Dewi Lestari as
+  admin; Andi Wijaya, Rina Kusuma, Budi Santoso, and Citra Ayu as members;
+  Eko Prasetyo restricted from the first matter. Five matters under
+  Matters; the personal workspace shows "Kontrak sewa ruko Tebet".
 
 ## Decisions in revision 14 (owner review round 4)
 
