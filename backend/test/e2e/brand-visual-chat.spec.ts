@@ -588,16 +588,10 @@ test('streaming, reconnecting, and loading chat threads', async ({
         : null;
     });
   };
-  const closeStreaming = (id: string) => async (viewport: BrandViewport) => {
-    const theme = await page
-      .locator('html')
-      .evaluate((element) =>
-        element.classList.contains('dark') ? 'dark' : 'light',
-      );
-    const sidecar = resolve(
-      '.cache/f4.1-visual/review',
-      `${brandViewId(id, viewport, theme)}.png.masks.json`,
-    );
+  // The sidecar sits next to the png wherever captureBrandView wrote it —
+  // .cache locally, the committed review set when CI=true.
+  const closeStreaming = async (_viewport: BrandViewport, captured: string) => {
+    const sidecar = `${captured}.masks.json`;
     if (!cursor || !existsSync(sidecar)) return;
     const rects = JSON.parse(readFileSync(sidecar, 'utf8')) as object[];
     writeFileSync(sidecar, `${JSON.stringify([...rects, cursor])}\n`);
@@ -605,7 +599,7 @@ test('streaming, reconnecting, and loading chat threads', async ({
 
   await captureBrandViews(page, 'chat-streaming-scroll', {
     open: openStreaming,
-    close: closeStreaming('chat-streaming-scroll'),
+    close: closeStreaming,
   });
 
   // F4.2 revision 15: the user tried to send while the answer was arriving.
@@ -622,7 +616,7 @@ test('streaming, reconnecting, and loading chat threads', async ({
         'Bagaimana jika salah satu pihak masih di bawah umur?',
       );
     },
-    close: closeStreaming('chat-composer-running'),
+    close: closeStreaming,
   });
 
   await captureBrandViews(page, 'chat-reconnecting', {
@@ -713,16 +707,10 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
   const dock = page.locator('[data-slot="operation-dock"]');
   const record = page.locator('[data-slot="decision-record"]');
 
-  const closeStreamed = (id: string) => async (viewport: BrandViewport) => {
-    const theme = await page
-      .locator('html')
-      .evaluate((element) =>
-        element.classList.contains('dark') ? 'dark' : 'light',
-      );
-    const sidecar = resolve(
-      '.cache/f4.1-visual/review',
-      `${brandViewId(id, viewport, theme)}.png.masks.json`,
-    );
+  // The sidecar sits next to the png wherever captureBrandView wrote it —
+  // .cache locally, the committed review set when CI=true.
+  const closeStreamed = async (_viewport: BrandViewport, captured: string) => {
+    const sidecar = `${captured}.masks.json`;
     if (!existsSync(sidecar)) return;
     // Every running markdown gets a block caret: after the last child when it
     // has content, at the element's start when it is the still-empty part a
@@ -822,7 +810,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
         page.getByRole('button', { name: 'Stop generating' }),
       ).toBeVisible();
     },
-    close: closeStreamed('chat-tool-running'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-tool-failed', {
@@ -842,7 +830,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
       await expect(dock).toContainText('Kontrak jenis apa yang Anda maksud?');
       await expect(dock.getByRole('radio')).toHaveCount(4);
     },
-    close: closeStreamed('chat-question'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-question-multi', {
@@ -863,7 +851,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
       );
       await calm(page);
     },
-    close: closeStreamed('chat-question-multi'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-question-text', {
@@ -879,7 +867,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
       await expect(dock).toContainText('Question 2 of 5');
       await calm(page);
     },
-    close: closeStreamed('chat-question-text'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-question-select', {
@@ -901,7 +889,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
         await expect(boxes.nth(index)).toHaveAttribute('aria-checked', 'true');
       await calm(page);
     },
-    close: closeStreamed('chat-question-select'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-question-answered', {
@@ -928,7 +916,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
       await expect(dock).toContainText('Somasi PT Sinar');
       await expect(dock.getByRole('button', { name: /Approve/ })).toBeVisible();
     },
-    close: closeStreamed('chat-approval'),
+    close: closeStreamed,
   });
 
   await captureBrandViews(page, 'chat-approval-approved', {
