@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
   foreignKey,
+  primaryKey,
   smallint,
   customType,
 } from 'drizzle-orm/pg-core';
@@ -374,6 +375,7 @@ export const chats = app.table(
     lastActivityAt: timestamp('last_activity_at', {
       withTimezone: true,
     }).notNull(),
+    projectId: uuid('project_id'),
   },
   (table) => [
     uniqueIndex('chats_org_id_id').on(table.orgId, table.id),
@@ -383,6 +385,17 @@ export const chats = app.table(
       table.lastActivityAt,
       table.id,
     ),
+    index('chats_org_project').on(
+      table.orgId,
+      table.projectId,
+      table.lastActivityAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'chats_project_fk',
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }).onDelete('set null'),
   ],
 );
 
@@ -465,6 +478,137 @@ export const chatMessages = app.table(
       name: 'chat_messages_run_fk',
       columns: [table.orgId, table.chatId, table.runId],
       foreignColumns: [chatRuns.orgId, chatRuns.chatId, chatRuns.runId],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const chatCreateRequests = app.table(
+  'chat_create_requests',
+  {
+    orgId: uuid('org_id').notNull(),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    requestId: uuid('request_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    userMessageId: uuid('user_message_id').notNull(),
+    assistantMessageId: uuid('assistant_message_id').notNull(),
+    projectId: uuid('project_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.orgId, table.ownerUserId, table.requestId],
+    }),
+  ],
+);
+
+export const projects = app.table(
+  'projects',
+  {
+    id: uuid().primaryKey(),
+    orgId: uuid('org_id').notNull(),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    name: text().notNull(),
+    matterNumber: text('matter_number'),
+    practiceArea: text('practice_area'),
+    memberCount: integer('member_count').notNull(),
+    chatCount: integer('chat_count').notNull(),
+    lastActivityAt: timestamp('last_activity_at', {
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('projects_org_id_id').on(table.orgId, table.id),
+    index('projects_org_activity').on(
+      table.orgId,
+      table.lastActivityAt,
+      table.id,
+    ),
+    index('projects_org_name').on(table.orgId, table.name, table.id),
+  ],
+);
+
+export const projectMembers = app.table(
+  'project_members',
+  {
+    orgId: uuid('org_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    role: text().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orgId, table.projectId, table.userId] }),
+    index('project_members_user').on(table.orgId, table.userId),
+    foreignKey({
+      name: 'project_members_project_fk',
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const projectDenies = app.table(
+  'project_denies',
+  {
+    orgId: uuid('org_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    setByUserId: uuid('set_by_user_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orgId, table.projectId, table.userId] }),
+    foreignKey({
+      name: 'project_denies_project_fk',
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const projectInstructions = app.table(
+  'project_instructions',
+  {
+    orgId: uuid('org_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    text: text('text').notNull(),
+    updatedByUserId: uuid('updated_by_user_id').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orgId, table.projectId] }),
+    foreignKey({
+      name: 'project_instructions_project_fk',
+      columns: [table.orgId, table.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const chatShares = app.table(
+  'chat_shares',
+  {
+    orgId: uuid('org_id').notNull(),
+    chatId: uuid('chat_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    grantedByUserId: uuid('granted_by_user_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orgId, table.chatId, table.userId] }),
+    index('chat_shares_user').on(
+      table.orgId,
+      table.userId,
+      table.createdAt,
+      table.chatId,
+    ),
+    foreignKey({
+      name: 'chat_shares_chat_fk',
+      columns: [table.orgId, table.chatId],
+      foreignColumns: [chats.orgId, chats.id],
     }).onDelete('cascade'),
   ],
 );
