@@ -4,7 +4,7 @@
 | Field | Detail |
 |---|---|
 | **Document** | LEX-ARC-001 |
-| **Version** | 1.7 |
+| **Version** | 1.8 |
 | **Status** | **PROPOSED — for architecture approval** |
 | **Date** | 31 October 2026 |
 | **Supersedes** | v1.6 (31 October 2026) |
@@ -200,7 +200,7 @@ The Frontend and Word add-in have no database role and do not connect to Postgre
   `NULLIF` turns both into NULL, so the comparison is never true and no rows pass. Mandatory test (S6): a query without context returns zero rows without error, on both a fresh connection **and** a reused connection. Policies are kept as simple equality comparisons so they keep using indexes.
 - **Workers and the dispatcher** set the context from the validated job payload. Cross-tenant work (reconciliation, retention, deletion ledger replay) uses narrow, audited `SECURITY DEFINER` functions with a fixed `search_path`, not a role without RLS.
 
-**Ethical wall:** access to a project/matter is based on explicit membership. An organization role does not automatically grant access to project content (configurable per organization). A per-project deny list overrides any role (deny-overrides).
+**Ethical wall:** access to a project/matter is based on explicit membership. An organization role does not grant access to project content; in the MVP this is not configurable per organization (F6 decision 1). A per-project deny list, set and lifted only by organization owners and admins, overrides any role, including the project owner's ability to add members (deny-overrides).
 
 The plugin usage in this section is a **design detail of the Better Auth integration**, not a technology decision outside the locked stack.
 
@@ -783,3 +783,4 @@ Architecture changes that affect technology choices, data ownership, or runtime 
 | 1.5 | **Fixed:** RLS policies use `NULLIF(current_setting('app.org_id', true), '')::uuid` because the context value on a reused pool connection is an empty string (§3.2, S6).<br>**Replaced:**<br>• Valkey 8.1 → 9.0.x (§2, §5.3, §5.4)<br>• MCP client → `@modelcontextprotocol/client` v2 (§4.6)<br>• Next.js "middleware" → `proxy.ts` (§3.5)<br>**Set:**<br>• Better Auth adapter `@thallesp/nestjs-better-auth` (§3.2)<br>• `halfvec(1024)` vectors with HNSW cosine and embeddings through OpenRouter with a zero-retention flag (§4.2, §4.3, §9)<br>• browser error path through the Sentry `tunnel` (§2.2)<br>• standalone evals runner (§7.2)<br>• logging, configuration, and health checks (§9)<br>**Added:**<br>• S6(h) criteria<br>• `halfvec` limit and HNSW query-level checks in S3<br>• Pro package telemetry check in S1<br>• rows for open business decisions and design findings (§9) |
 | 1.6 | **Removed from the MVP:**<br>• `pgvector`, `halfvec` columns, the HNSW index, and the two-path vector search strategy<br>• the embedding pipeline (`embedding` status, `ai-embed` queue, OpenRouter embeddings endpoint) and embedding model selection<br>MVP document scale does not need them.<br>**Changed:**<br>• retrieval becomes FTS + trigram with RRF fusion and a full-context path (§4.3)<br>• the document pipeline status ends at `chunking` → `indexed` (§4.2)<br>• S3 and S6(h) criteria adjusted (§10)<br>**Added:** rules for adding vector search later through an explicit stack change (§4.3) |
 | 1.7 | **Added:**<br>• §4.7 AI Run Engine (one run engine with run profiles, context providers, tool providers, and a capability policy)<br>• MVP product capabilities (Workflows and Quick Actions, Playbooks, Memory, Subagents, Web research, personal data export) with their domains and modules (§1, §3.1, §3.4, §3.6, §6.3, §9)<br>• a reference to the Design System<br>**Set:** English as the MVP language (UI, content, reference documents, engineering documents)<br>**Clarified (F0 review):** `evals/` may import the backend only through a public evaluation entry (§3.4)<br>**Added (F1 implementation):** the `lexon_setup` operator role (§3.2)<br>**Set (F1, product owner):** both sign-up paths with an invitation-only switch; hidden personal organization per account; multiple memberships with a server-side active organization; no social login or SSO in the MVP (§1, §3.2)<br>**Changed:** frontend components use shadcn/ui on Base UI (Stack v1.7)<br>**Translated:** the document into English |
+| 1.8 | **Changed (product owner, F6 brief, 2026-11-25):** §3.2 ethical wall: project access is explicit membership only in the MVP (the per-organization setting is deferred); the per-project deny list is set and lifted only by organization owners and admins and cannot be lifted by the project owner |
