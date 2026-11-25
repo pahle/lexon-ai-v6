@@ -827,3 +827,78 @@ it('uses theme tokens, not fixed colors, in both themes', async () => {
   }
   delete document.documentElement.dataset.theme;
 });
+
+it('sizes option rows by their copy: two-line with a description, single-line without', async () => {
+  // `.orow .ot` grows a second 13px muted line only for options that carry
+  // a description — the rows share the `.orow` 9px vertical padding, not a
+  // shared two-line height.
+  const op = questionOp({
+    input: {
+      questions: [
+        {
+          questionId: 'q1',
+          text: 'Which applies?',
+          kind: 'single',
+          options: [
+            { label: 'First choice', description: 'A short explanation' },
+            { label: 'Second choice' },
+          ],
+        },
+      ],
+    },
+  });
+  const view = await mountPaused([op]);
+  try {
+    const rows = [
+      ...view.container.querySelectorAll(
+        '[data-slot="operation-dock"] [role="radio"]',
+      ),
+    ] as HTMLElement[];
+    expect(rows).toHaveLength(2);
+    // The text column is the row's second child (tile, text, trailing check).
+    const textCell = (row: HTMLElement) => row.children[1] as HTMLElement;
+    expect(textCell(rows[0]!).childElementCount).toBe(2);
+    expect(textCell(rows[0]!).textContent).toContain('A short explanation');
+    expect(textCell(rows[1]!).childElementCount).toBe(1);
+    expect(textCell(rows[1]!).textContent).toBe('Second choice');
+    for (const row of rows) expect(row.className).toContain('py-[9px]');
+  } finally {
+    await view.unmount();
+  }
+});
+
+it('draws a separator under the "Select all that apply" hint of a multi-select', async () => {
+  const op = questionOp({
+    input: {
+      questions: [
+        {
+          questionId: 'q1',
+          text: 'Which are covered?',
+          kind: 'multiple',
+          options: [{ label: 'Alpha' }, { label: 'Beta' }],
+        },
+      ],
+    },
+  });
+  const view = await mountPaused([op]);
+  try {
+    const dock = view.container.querySelector(
+      '[data-slot="operation-dock"]',
+    ) as HTMLElement;
+    const hint = [...dock.querySelectorAll('p')].find(
+      (node) => node.textContent === 'Select all that apply',
+    ) as HTMLElement;
+    expect(hint).not.toBeUndefined();
+    // The hint sits directly above the option list (`role="group"`); the
+    // first row's top rule is the separator under the hint, inset by the
+    // list's 8px side padding like every option separator.
+    const group = hint.nextElementSibling as HTMLElement;
+    expect(group.getAttribute('role')).toBe('group');
+    expect(group.className).toContain('px-2');
+    const first = group.querySelector('[role="checkbox"]') as HTMLElement;
+    expect(first.className).toContain('border-t');
+    expect(first.className).not.toContain('first:border-t-0');
+  } finally {
+    await view.unmount();
+  }
+});

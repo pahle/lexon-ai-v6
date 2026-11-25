@@ -56,6 +56,7 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | toast-success                   | m       | 1.64 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | user-menu-open                  | m       | 3.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | user-menu-open                  | m-dark  | 4.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
+| chat-question                   | m       | 6.61 | owner accepted 2026-11-25 (paused keeps the user-message copy/edit bar hidden — F5 §6.4.4)      |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
