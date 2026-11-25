@@ -56,7 +56,65 @@ Variants over the 1.5% gate that the owner accepted (`scripts/visual-compare-pro
 | toast-success                   | m       | 1.64 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | user-menu-open                  | m       | 3.77 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
 | user-menu-open                  | m-dark  | 4.00 | owner accepted 2026-11-19 (reviewer checked sheets: text-rendering residuals, layout identical) |
-| chat-question                   | m       | 6.61 | owner accepted 2026-11-25 (paused keeps the user-message copy/edit bar hidden — F5 §6.4.4)      |
+
+### F5 pending views (Task 9), CI run [45566511311](https://github.com/pahle/lexon-ai-v6/actions/runs/45566511311)
+
+The owner accepted the 40 variants below on 2026-11-25, grouped by cause. The 16 other pending variants and all four `chats-waiting` variants are under the gate and are not listed.
+
+**(a) 14 rows — paused-run user-message copy/edit action bar hidden** (correct per F5 spec §6.4 item 4: while a question or approval panel is open the run is paused and the bar stays hidden; the prototype still draws it, so the bar differs and the thread below it shifts). Run: https://github.com/pahle/lexon-ai-v6/actions/runs/45566511311
+
+| id                   | variant | %    | reason                                                                                 |
+| -------------------- | ------- | ---- | -------------------------------------------------------------------------------------- |
+| chat-approval        | d       | 1.55 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-approval        | d-dark  | 1.59 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-approval        | m       | 4.96 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-approval        | m-dark  | 5.22 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question        | m       | 6.61 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question        | m-dark  | 6.86 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-multi  | m       | 5.93 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-multi  | m-dark  | 6.21 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-select | d       | 1.82 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-select | d-dark  | 1.82 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-select | m       | 4.88 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-select | m-dark  | 4.88 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-text   | m       | 3.00 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+| chat-question-text   | m-dark  | 3.14 | owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 §6.4.4) |
+
+**(b) 12 rows — thread vertical offset between the user message and the thought row** (post-decision states; both sides draw the action bar, and the dominant residual is the thread sitting a few pixels off under the user message). Run: https://github.com/pahle/lexon-ai-v6/actions/runs/45566511311
+
+| id                      | variant | %    | reason                                                                                          |
+| ----------------------- | ------- | ---- | ----------------------------------------------------------------------------------------------- |
+| chat-approval-approved  | m       | 2.08 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-approval-approved  | m-dark  | 2.19 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-approval-expired   | m       | 2.68 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-approval-expired   | m-dark  | 2.80 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-approval-rejected  | m       | 1.82 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-approval-rejected  | m-dark  | 1.85 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-answered  | d       | 2.01 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-answered  | d-dark  | 2.05 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-answered  | m       | 6.79 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-answered  | m-dark  | 7.12 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-dismissed | m       | 2.51 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+| chat-question-dismissed | m-dark  | 2.59 | owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row) |
+
+**(c) 14 rows — tool row ~3px** (the tool block is about 3px taller in the app, so the tool rows and the content below them sit ~3px lower). Run: https://github.com/pahle/lexon-ai-v6/actions/runs/45566511311
+
+| id                 | variant | %    | reason                                                                            |
+| ------------------ | ------- | ---- | --------------------------------------------------------------------------------- |
+| chat-tool-activity | d       | 2.47 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-activity | d-dark  | 2.55 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-activity | m       | 8.39 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-activity | m-dark  | 9.13 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-expanded | d       | 3.21 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-expanded | d-dark  | 3.27 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-expanded | m       | 3.75 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-expanded | m-dark  | 3.75 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-failed   | d       | 1.66 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-failed   | d-dark  | 1.70 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-failed   | m       | 5.65 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-failed   | m-dark  | 6.10 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-running  | m       | 2.67 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
+| chat-tool-running  | m-dark  | 2.81 | owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower) |
 
 ## Review round 2 (Linux captures at 16330c5, after Tasks 35R1–35R7)
 
