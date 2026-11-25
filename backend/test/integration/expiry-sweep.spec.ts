@@ -259,6 +259,23 @@ async function auditRows(
   ).rows;
 }
 
+async function runFinishedRows(
+  migrator: ReturnType<typeof createRoleClient>,
+  runId: string,
+) {
+  return (
+    await migrator.query<{
+      actor_user_id: string | null;
+      outcome: string;
+      metadata: Record<string, unknown>;
+    }>(
+      `SELECT actor_user_id,outcome,metadata FROM ops.audit_events
+       WHERE type='chat.run_finished.v1' AND metadata->>'runId'=$1`,
+      [runId],
+    )
+  ).rows;
+}
+
 async function resumeCount(
   ai: Ai,
   index: number,
@@ -595,6 +612,24 @@ test('a poison candidate expires the op but fails the run without a resume', asy
       outcome: 'failure',
       metadata: { status: 'expired' },
     });
+    // Every terminal run fires chat.run_finished.v1; the run's actor is the
+    // initiator like every other run_finished emission.
+    const finished = await runFinishedRows(migrator, seeded.run.id);
+    expect(finished).toHaveLength(1);
+    expect(finished[0]).toMatchObject({
+      actor_user_id: seeded.tenant.userId,
+      outcome: 'failure',
+    });
+    // §8: run_finished metadata is ids/status/safeCode only — the exact key
+    // set proves no K1 (the seeded args carry 'Expiry fixture rename').
+    expect(finished[0]?.metadata).toEqual({
+      runId: seeded.run.id,
+      model: 'synthetic/test',
+      provider: 'synthetic-provider',
+      status: 'failed',
+      safeCode: 'AI_ACCESS_REVOKED',
+    });
+    expect(JSON.stringify(finished[0])).not.toContain('Expiry fixture rename');
     const events = await streamEvents(
       redis,
       services.queuePrefix,
