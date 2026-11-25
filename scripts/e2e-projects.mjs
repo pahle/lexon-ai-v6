@@ -64,6 +64,7 @@ export const E2E_SHARD_PLAN = [
       e2e('indicator-trace'),
       e2e('chat-states'),
       e2e('chat-thread'),
+      e2e('chat-tools'),
       e2e('chat-accessibility'),
     ],
   },
