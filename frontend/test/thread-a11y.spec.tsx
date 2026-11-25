@@ -13,8 +13,10 @@ import { render, settle, settleUntil } from './render.js';
  * `aria-keyshortcuts`, groups labelled by the question text, a labelled text
  * field, `role="status"` on the dock and every record, and no positive
  * tabindex surprises. Runs in jsdom, so `color-contrast` stays disabled —
- * the real contrast check lives in the browser axe pass
- * (chat-accessibility.spec.ts).
+ * the real contrast check lives in the capture harness: `runBrandAxe`
+ * (axe `brandAxeTags`, the WCAG 2.0/2.1/2.2 A and AA tags) runs inside
+ * `captureBrandViews` on every capture in both themes
+ * (`backend/test/e2e/brand-visual-support.ts`).
  */
 
 const chatId = '11111111-1111-4111-8111-111111111111';

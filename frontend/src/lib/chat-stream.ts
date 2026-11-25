@@ -55,6 +55,8 @@ type StreamState = {
   toolCalls?: Set<string>;
   /** approvalIds the stream already requested a decision for. */
   approvals?: Set<string>;
+  /** inputTextDelta text accumulated per toolCallId. */
+  toolInputText?: Map<string, string>;
   snapshot?: {
     readonly runId: string;
     readonly generation: number | null;
@@ -269,6 +271,7 @@ function chunksFromFrame(
       delete state.reasoningDurationMs;
       state.toolCalls?.clear();
       state.approvals?.clear();
+      state.toolInputText?.clear();
       return [];
     }
     if (frame.type === 'snapshot-start') {
@@ -278,6 +281,7 @@ function chunksFromFrame(
       state.reasoningDurationMs = frame.snapshot.reasoningDurationMs;
       state.toolCalls?.clear();
       state.approvals?.clear();
+      state.toolInputText?.clear();
       state.snapshot = {
         runId: frame.snapshot.runId,
         generation: frame.snapshot.generation,
@@ -553,6 +557,7 @@ function chunksFromFrame(
       state.reasoningDurationMs = null;
       state.toolCalls?.clear();
       state.approvals?.clear();
+      state.toolInputText?.clear();
       handlers.onReset?.();
       return [
         {
@@ -592,6 +597,7 @@ function chunksFromFrame(
       ];
     case 'tool-input-start':
       toolCalls(state).add(item.toolCallId);
+      toolInputTexts(state).set(item.toolCallId, '');
       return [
         {
           type: 'tool-input-start',
@@ -599,7 +605,12 @@ function chunksFromFrame(
           toolName: item.toolName,
         },
       ];
-    case 'tool-input-delta':
+    case 'tool-input-delta': {
+      const texts = toolInputTexts(state);
+      texts.set(
+        item.toolCallId,
+        (texts.get(item.toolCallId) ?? '') + item.inputTextDelta,
+      );
       return [
         {
           type: 'tool-input-delta',
@@ -607,9 +618,14 @@ function chunksFromFrame(
           inputTextDelta: item.inputTextDelta,
         },
       ];
+    }
     case 'tool-input-available': {
       toolCalls(state).add(item.toolCallId);
       const operationId = item.operationId ?? item.toolCallId;
+      // A bare frame (§9 over-cap) keeps the input the deltas reassembled
+      // instead of clobbering the tool part with {}.
+      const reassembled = reassembledToolInput(state, item.toolCallId);
+      const input = item.input ?? reassembled;
       handlers.onOperation?.({
         operationId,
         toolCallId: item.toolCallId,
@@ -624,7 +640,7 @@ function chunksFromFrame(
           type: 'tool-input-available',
           toolCallId: item.toolCallId,
           toolName: item.toolName,
-          input: item.input ?? {},
+          input,
         },
       ];
     }
@@ -769,6 +785,26 @@ function chunksFromFrame(
 
 function toolCalls(state: StreamState): Set<string> {
   return (state.toolCalls ??= new Set());
+}
+
+function toolInputTexts(state: StreamState): Map<string, string> {
+  return (state.toolInputText ??= new Map());
+}
+
+/**
+ * Parses the input the tool-input-delta chunks accumulated for one tool call
+ * and drops the buffer. Unparseable or absent text falls back to {}, matching
+ * the pre-accumulation behaviour for inputs that never streamed.
+ */
+function reassembledToolInput(state: StreamState, toolCallId: string): unknown {
+  const text = state.toolInputText?.get(toolCallId);
+  state.toolInputText?.delete(toolCallId);
+  if (text === undefined || text === '') return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
 }
 
 function approvals(state: StreamState): Set<string> {
