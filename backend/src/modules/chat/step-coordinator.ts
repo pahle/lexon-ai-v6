@@ -19,6 +19,7 @@ import type { ReportedUsage } from '../../infrastructure/db/index.js';
 import type { JobExecutor } from '../platform/index.js';
 import { AttemptService, UsageClaimLostError } from '../usage/index.js';
 import { stepJobId } from './step-job-id.js';
+import { isRouting } from './run-routing.js';
 import { randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/index.js';
 
@@ -868,19 +869,6 @@ export class StepCoordinator {
       return 'retry';
     }
   }
-}
-
-function isRouting(
-  value: unknown,
-): value is { queue: 'ai-interactive' | 'ai-batch'; priority: number } {
-  if (!value || typeof value !== 'object') return false;
-  const config = value as Record<string, unknown>;
-  return (
-    (config.queue === 'ai-interactive' || config.queue === 'ai-batch') &&
-    Number.isSafeInteger(config.priority) &&
-    Number(config.priority) >= 1 &&
-    Number(config.priority) <= 10
-  );
 }
 
 function routingProvider(value: unknown): string {

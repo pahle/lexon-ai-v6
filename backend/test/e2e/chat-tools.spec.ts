@@ -393,8 +393,10 @@ test('a paused question expires through the real sweep after a backdated expires
     `UPDATE app.ai_operations SET expires_at = clock_timestamp() - interval '1 minute' WHERE org_id='${orgId}' AND id='${operation.operationId}' AND status='awaiting_approval';`,
   );
   expect(backdated).toContain('UPDATE 1');
-  // The test drives the identical handler the 60 s scheduler job runs.
-  await workerSweep(runId);
+  // The test drives the identical handler the 60 s scheduler job runs; the
+  // control socket reports the sweep's own return value, not just its
+  // database side effects.
+  expect(await workerSweep(runId)).toEqual({ swept: true });
 
   const settled = await awaitLatestAssistantStatus(
     page,
