@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import type { ChatTree } from '@lexon/contracts';
+import type { ChatDetail } from '@lexon/contracts';
 import { createChatClient } from '../src/lib/chat-client.js';
 
 // F4.4 hardening (spec §5 item 15): the client sends If-None-Match only when a
@@ -7,11 +7,12 @@ import { createChatClient } from '../src/lib/chat-client.js';
 // response ETag for both statuses.
 
 const chatId = '11111111-1111-4111-8111-111111111111';
-const tree: ChatTree = {
+const tree: ChatDetail = {
   id: chatId,
   title: 'Probe',
   messages: [],
   viewedLeafId: null,
+  access: 'owner',
   createdAt: '2026-11-11T00:00:00.000Z',
   updatedAt: '2026-11-11T00:00:01.000Z',
 };
