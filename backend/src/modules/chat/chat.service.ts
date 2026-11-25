@@ -26,8 +26,10 @@ import {
   ChatDeletionRepository,
   ChatSearchRepository,
   isPgUniqueViolation,
+  isRetryableAuthError,
   readTreeValidator,
   TenantDatabase,
+  withAuthRetry,
 } from '../../infrastructure/db/index.js';
 import type {
   CommittedStreamReference,
@@ -220,106 +222,116 @@ export class ChatService {
     input: SendMessageInput,
   ): Promise<ChatMutationResult> {
     this.authorization.assertLiveActor(actor);
-    const outcome = await this.database.withTenant(
-      { orgId: actor.orgId, userId: actor.userId },
-      async (tx) => {
-        await this.steps.lockTenantClaimGuard(tx);
-        const chat = await this.chats.lockLive(tx, chatId);
-        if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
-        const retry = await this.mutations.findMessageMutation(
-          tx,
-          chatId,
-          input.userMessageId,
-        );
-        if (retry) {
-          if (
-            retry.parentMessageId !== input.parentMessageId ||
-            retry.text !== input.text ||
-            retry.effort !== input.effort
-          )
-            throw new ChatApiError('CHAT_CONFLICT');
-          return {
-            result: this.mutations.toMutationResult(retry),
-            superseded: undefined,
-          };
-        }
-        if (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
-          throw new ChatApiError('CHAT_CONFLICT');
-        // §6.4 owner ruling A: a send while an undecided panel is open
-        // resolves the paused call in this same transaction, completes the
-        // run and continues as a normal send. Any other active answer still
-        // conflicts exactly as before.
-        let superseded: SupersededPublication | undefined;
-        if (chat.activeAnswerRunId) {
-          superseded = await this.supersedePausedRun(
-            tx,
-            actor,
-            chatId,
-            chat.activeAnswerRunId,
-          );
-          if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
-        }
-
-        try {
-          await this.messages.insertUser(tx, {
-            chatId,
-            messageId: input.userMessageId,
-            parentMessageId: input.parentMessageId,
-            text: input.text,
-            effort: input.effort,
-          });
-          const { runId } = await this.runService.startWithin(tx, actor, {
-            profileId: 'chat',
-            prompt: input.text,
-            effort: input.effort,
-            resourceIds: [chatId],
-          });
-          await this.chats.associateAnswer(tx, chatId, runId);
-          await this.messages.insertAssistant(tx, {
-            chatId,
-            messageId: runId,
-            parentMessageId: input.userMessageId,
-            runId,
-          });
-          await this.mutations.insertMutationRequest(tx, {
-            requestId: input.userMessageId,
-            kind: 'send',
-            chatId,
-            sourceMessageId: input.parentMessageId,
-            userMessageId: input.userMessageId,
-            assistantMessageId: runId,
-          });
-          await this.chats.selectLeaf(tx, chatId, runId);
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.message_sent.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'success',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: { chatId, messageId: input.userMessageId },
-          });
-          return {
-            result: {
+    const outcome = await withAuthRetry(
+      () =>
+        this.database.withTenant(
+          { orgId: actor.orgId, userId: actor.userId },
+          async (tx) => {
+            await this.steps.lockTenantClaimGuard(tx);
+            const chat = await this.chats.lockLive(tx, chatId);
+            if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
+            const retry = await this.mutations.findMessageMutation(
+              tx,
               chatId,
-              userMessageId: input.userMessageId,
-              assistantMessageId: runId,
-              runId,
-            },
-            superseded,
-          };
-        } catch (error) {
-          if (
-            isPgUniqueViolation(error, [
-              'chat_messages_pkey',
-              'chat_one_active_answer',
-            ])
-          )
-            throw new ChatApiError('CHAT_CONFLICT');
-          throw error;
-        }
-      },
+              input.userMessageId,
+            );
+            if (retry) {
+              if (
+                retry.parentMessageId !== input.parentMessageId ||
+                retry.text !== input.text ||
+                retry.effort !== input.effort
+              )
+                throw new ChatApiError('CHAT_CONFLICT');
+              return {
+                result: this.mutations.toMutationResult(retry),
+                superseded: undefined,
+              };
+            }
+            if (
+              await this.deletions.wasDeleted(
+                tx,
+                'message',
+                input.userMessageId,
+              )
+            )
+              throw new ChatApiError('CHAT_CONFLICT');
+            // §6.4 owner ruling A: a send while an undecided panel is open
+            // resolves the paused call in this same transaction, completes the
+            // run and continues as a normal send. Any other active answer still
+            // conflicts exactly as before.
+            let superseded: SupersededPublication | undefined;
+            if (chat.activeAnswerRunId) {
+              superseded = await this.supersedePausedRun(
+                tx,
+                actor,
+                chatId,
+                chat.activeAnswerRunId,
+              );
+              if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
+            }
+
+            try {
+              await this.messages.insertUser(tx, {
+                chatId,
+                messageId: input.userMessageId,
+                parentMessageId: input.parentMessageId,
+                text: input.text,
+                effort: input.effort,
+              });
+              const { runId } = await this.runService.startWithin(tx, actor, {
+                profileId: 'chat',
+                prompt: input.text,
+                effort: input.effort,
+                resourceIds: [chatId],
+              });
+              await this.chats.associateAnswer(tx, chatId, runId);
+              await this.messages.insertAssistant(tx, {
+                chatId,
+                messageId: runId,
+                parentMessageId: input.userMessageId,
+                runId,
+              });
+              await this.mutations.insertMutationRequest(tx, {
+                requestId: input.userMessageId,
+                kind: 'send',
+                chatId,
+                sourceMessageId: input.parentMessageId,
+                userMessageId: input.userMessageId,
+                assistantMessageId: runId,
+              });
+              await this.chats.selectLeaf(tx, chatId, runId);
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.message_sent.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'success',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: { chatId, messageId: input.userMessageId },
+              });
+              return {
+                result: {
+                  chatId,
+                  userMessageId: input.userMessageId,
+                  assistantMessageId: runId,
+                  runId,
+                },
+                superseded,
+              };
+            } catch (error) {
+              if (
+                isPgUniqueViolation(error, [
+                  'chat_messages_pkey',
+                  'chat_one_active_answer',
+                ])
+              )
+                throw new ChatApiError('CHAT_CONFLICT');
+              throw error;
+            }
+          },
+        ),
+      { retryable: isRetryableAuthError },
     );
     if (outcome.superseded) {
       // The settled ops close out on the dead run's stream before its
