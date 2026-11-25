@@ -105,6 +105,11 @@ test('an app connection without the tenant GUC sees no rows in any app table', a
       },
       chat_runs: { kind: "'answer'" },
       message_feedback: { rating: "'good'" },
+      // F6: member roles are CHECK-fenced, and the deny row must target a
+      // non-tenant user or it walls off the seeded project/member/
+      // instruction rows the visibility pass asserts on.
+      project_members: { role: "'editor'" },
+      project_denies: { user_id: 'gen_random_uuid()' },
       usage_events: { outcome: "'reserved'" },
     });
     // ai_test_tool_effects is created by the AI fixture itself, not by a
