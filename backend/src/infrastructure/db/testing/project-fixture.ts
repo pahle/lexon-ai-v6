@@ -145,9 +145,7 @@ export async function createProjectScenario(pools: {
     await tail.query('BEGIN');
     // The chat resource write fence trigger reads app.user_id and requires
     // it to equal the chat owner and run initiator.
-    await tail.query(
-      `SELECT set_config('app.user_id','${users.owner}',true)`,
-    );
+    await tail.query(`SELECT set_config('app.user_id','${users.owner}',true)`);
     await tail.query(
       `INSERT INTO app.ai_operations(id,org_id,run_id,step_id,call_occurrence,tool_name,
          tool_version,idempotency_mode,args,args_hash,snapshot_hash,approval_required,

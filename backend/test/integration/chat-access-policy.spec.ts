@@ -154,9 +154,9 @@ test('a standalone chat is readable by its owner and share recipient, and shares
       userId: scenario.users.member,
       grantedByUserId: scenario.users.owner,
     });
-    expect(
-      await countChat(scenario.users.member, scenario.projectChatId),
-    ).toBe(0);
+    expect(await countChat(scenario.users.member, scenario.projectChatId)).toBe(
+      0,
+    );
   } finally {
     await pools.close();
   }
@@ -282,12 +282,7 @@ test('ai_runs and ai_operations stay initiator-written even when members can rea
                'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
                'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
                false,'pending')`,
-            [
-              randomUUID(),
-              scenario.orgId,
-              scenario.runId,
-              scenario.stepId,
-            ],
+            [randomUUID(), scenario.orgId, scenario.runId, scenario.stepId],
           );
           return 'allowed';
         } catch (error) {
@@ -377,9 +372,9 @@ test('chat_create_requests INSERT applies the same project gate and binds the ch
        VALUES ($1,$2,$3,'member standalone',NULL)`,
       [memberChat, scenario.orgId, scenario.users.member],
     );
-    expect(
-      await insertReceipt(scenario.users.member, memberChat),
-    ).toBe('42501');
+    expect(await insertReceipt(scenario.users.member, memberChat)).toBe(
+      '42501',
+    );
   } finally {
     await pools.close();
   }

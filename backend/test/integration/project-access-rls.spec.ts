@@ -305,7 +305,13 @@ test('selects on every new table terminate without infinite recursion', async ({
       { orgId: scenario.orgId, userId: scenario.users.viewer },
       async (client) =>
         (
-          await client.query<{ projects: string; members: string; instructions: string; denies: string; shares: string }>(
+          await client.query<{
+            projects: string;
+            members: string;
+            instructions: string;
+            denies: string;
+            shares: string;
+          }>(
             `SELECT
                (SELECT count(*) FROM app.projects) AS projects,
                (SELECT count(*) FROM app.project_members) AS members,
@@ -439,15 +445,12 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
       { orgId: scenario.orgId, userId: scenario.users.admin },
       async (client) => {
         try {
-          await client.query(
-            'SELECT ops.lexon_project_deny_add($1,$2,$3,$4)',
-            [
-              scenario.orgId,
-              scenario.projectId,
-              scenario.users.admin,
-              scenario.users.owner,
-            ],
-          );
+          await client.query('SELECT ops.lexon_project_deny_add($1,$2,$3,$4)', [
+            scenario.orgId,
+            scenario.projectId,
+            scenario.users.admin,
+            scenario.users.owner,
+          ]);
           return 'allowed';
         } catch (error) {
           return (error as Error).message;
@@ -533,15 +536,12 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
       { orgId: scenario.orgId, userId: scenario.users.editor },
       async (client) => {
         try {
-          await client.query(
-            'SELECT ops.lexon_project_deny_add($1,$2,$3,$4)',
-            [
-              scenario.orgId,
-              scenario.projectId,
-              scenario.users.editor,
-              scenario.users.member,
-            ],
-          );
+          await client.query('SELECT ops.lexon_project_deny_add($1,$2,$3,$4)', [
+            scenario.orgId,
+            scenario.projectId,
+            scenario.users.editor,
+            scenario.users.member,
+          ]);
           return 'allowed';
         } catch (error) {
           return errorCode(error);
@@ -558,7 +558,9 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
         scenario.users.member,
       ])
       .then(() => 'allowed')
-      .catch((error: unknown) => `${errorCode(error)} ${(error as Error).message}`);
+      .catch(
+        (error: unknown) => `${errorCode(error)} ${(error as Error).message}`,
+      );
     expect(authError).toContain('42501');
     // lexon_auth lacks USAGE on ops as well as EXECUTE on the definer, so
     // the denial surfaces at whichever grant check fails first.
