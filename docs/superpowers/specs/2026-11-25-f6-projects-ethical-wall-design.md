@@ -50,7 +50,6 @@ maintenance need them, grants to `lexon_app` matching existing tables.
 | `name` | text NOT NULL | `CHECK (char_length(name) BETWEEN 1 AND 120)` |
 | `matter_number` | text NULL | `CHECK (matter_number IS NULL OR char_length(matter_number) <= 64)` |
 | `practice_area` | text NULL | `CHECK (practice_area IS NULL OR char_length(practice_area) <= 120)` |
-| `instructions` | text NULL | `CHECK (instructions IS NULL OR char_length(instructions) <= 8000)` |
 | `member_count` | integer NOT NULL DEFAULT 0 | maintained by member-row trigger; feeds org-admin metadata list without member-row access |
 | `chat_count` | integer NOT NULL DEFAULT 0 | maintained by chat trigger; feeds the delete confirmation |
 | `last_activity_at` | timestamptz NOT NULL DEFAULT clock_timestamp() | maintained by chat activity trigger (same pattern as `chats.last_activity_at`) |
@@ -93,9 +92,31 @@ UNIQUE (org_id,project_id,user_id). Deny-add deletes any existing
 `project_members` row for that user in the same transaction ("a deny removes
 any existing project role at once and blocks future adds"); lifting a deny does
 not restore a role (decision/brief item 15). The project owner cannot be denied
-— refused with a clear message (brief decision 3).
+— refused with a clear message (brief decision 3). An org owner/admin **may
+deny themselves** (recusal) but **must not lift a deny whose subject is
+themselves** — another owner/admin lifts it; enforced in the deny definer and
+the service (§4.2, §6).
 
-### 3.4 `app.chat_shares`
+### 3.4 `app.project_instructions`
+
+Separate table because RLS cannot restrict columns: an org owner/admin reads
+`projects` rows for the metadata list and must never see instructions
+(decisions 3/4).
+
+| Column | Type | Notes |
+|---|---|---|
+| `org_id` | uuid NOT NULL | |
+| `project_id` | uuid NOT NULL | PK with org_id; FK (org_id,project_id) → projects ON DELETE CASCADE |
+| `text` | text NOT NULL | `CHECK (char_length(text) <= 8000)` |
+| `updated_by_user_id` | uuid NOT NULL | last editor |
+| `updated_at` | timestamptz NOT NULL | |
+
+Row created lazily on first instructions save (plan may instead have the
+project-create trigger insert an empty row — either way the API shape is
+`instructions: string | null`). SELECT requires project access (viewer+);
+INSERT/UPDATE/DELETE require owner/editor — **never** the org-admin arm.
+
+### 3.5 `app.chat_shares`
 
 | Column | Type | Notes |
 |---|---|---|
@@ -110,18 +131,21 @@ the "Shared with me" list. Shares on project chats grant nothing — the access
 predicate only honors shares when `chats.project_id IS NULL`, so the invariant
 is self-enforcing at the predicate level in addition to the service refusal.
 
-### 3.5 `app.chats` change
+### 3.6 `app.chats` change
 
 Add `project_id uuid NULL` + FK (org_id,project_id) → projects **ON DELETE
-SET NULL** + index `chats_org_project`
+SET NULL (project_id)** + index `chats_org_project`
 (org_id,project_id,last_activity_at,id). Set once at creation; no
 `UPDATE (project_id)` column grant for `lexon_app`, so the binding is
 immutable at the privilege layer (decision 7). Existing rows get NULL
-(standalone chats). `SET NULL` (not `CASCADE`) because project deletion
-reuses the F4 tombstone flow: the chats are first marked `deleted_at`
-(fencing active runs, emitting per-chat outbox/notify records), then the
-project row goes — the tombstoned chats become invisible standalone rows
-that the existing cleanup sweep hard-deletes on schedule (§8).
+(standalone chats). `ON DELETE SET NULL (project_id)` uses the PG 15+
+per-column form — a blanket `SET NULL` on the composite FK would try to
+null `org_id` (NOT NULL) and fail. `SET NULL` (not `CASCADE`) because
+project deletion reuses the F4 tombstone flow: the chats are first marked
+`deleted_at` (fencing active runs, emitting per-chat outbox/notify
+records), then the project row goes — the tombstoned chats become
+invisible standalone rows that the existing cleanup sweep hard-deletes on
+schedule (§8).
 
 ## 4. The one access rule
 
@@ -154,43 +178,89 @@ instructions = owner or editor; chats-create-in-project = owner or editor
 
 `authorization-predicate.ts` gains one scope kind — e.g.
 `ChatReadAuthorizationScope` — whose builder emits the rule above as a single
-composable predicate (params `$org`, `$user`):
+composable predicate (params `$org`, `$user`). It calls the same definer the
+policies call — the query runs under `lexon_app` RLS, so it cannot read
+`project_members`/`project_denies` directly either:
 
 ```sql
 c.org_id = $org AND c.deleted_at IS NULL
 AND ops.lexon_org_member(c.org_id, $user)
-AND NOT EXISTS (SELECT 1 FROM app.project_denies d
-     WHERE d.org_id=c.org_id AND d.project_id=c.project_id AND d.user_id=$user)
 AND ( c.owner_user_id = $user
-   OR (c.project_id IS NOT NULL AND (
-        EXISTS (SELECT 1 FROM app.projects p
-                 WHERE p.org_id=c.org_id AND p.id=c.project_id
-                   AND p.owner_user_id=$user)
-        OR EXISTS (SELECT 1 FROM app.project_members m
-                 WHERE m.org_id=c.org_id AND m.project_id=c.project_id
-                   AND m.user_id=$user)))
+   OR (c.project_id IS NOT NULL
+        AND ops.lexon_project_access(c.org_id, c.project_id, $user) <> 'none')
    OR (c.project_id IS NULL AND EXISTS (SELECT 1 FROM app.chat_shares s
         WHERE s.org_id=c.org_id AND s.chat_id=c.id AND s.user_id=$user)) )
 ```
 
 `OwnedChatAuthorizationScope` (the existing owner-only scope) stays for every
 write path and for owner-only reads (FTS search stays owner-only in F6 —
-brief out-of-scope item). Every read path in §5 uses the new builder. There is
-no unfiltered path.
+brief out-of-scope item; the owner scope gains the deny clause via
+`lexon_project_access` = 'none' when a deny row exists, so a denied owner
+loses their own project chats). Every read path in §5 uses the new builder.
+There is no unfiltered path.
 
-`ops.lexon_org_member(org_id uuid, user_id uuid)` is a small
-`SECURITY DEFINER` fixed-search-path function on `auth.member`
-(`lexon_app` already holds `GRANT SELECT (id, user_id, organization_id, role)`
-from migration `0004`); grants EXECUTE to `lexon_app`, revokes PUBLIC and
-`lexon_auth`, same pattern as `ops.ai_chat_run_is_associated` (migration
-`0028`). A companion `ops.lexon_org_owner_admin(org_id,user_id)` returns
-`role IN ('owner','admin')` for org-owner/admin-gated policies.
+### 4.2 The access definers
 
-### 4.2 RLS mirror — exact policy changes
+Because subqueries inside policies run with the caller's privileges and RLS,
+any policy-side read of `project_denies` or `project_members` is unsound (a
+member's deny probe would always be empty, and `projects` ↔ `project_members`
+policy cross-reads recurse — "infinite recursion detected in policy"). All
+project-access evaluation therefore lives behind one `STABLE
+SECURITY DEFINER` function — same pattern as `ops.ai_chat_run_is_associated`
+(migration 0028): fixed `search_path`, `REVOKE … FROM PUBLIC, lexon_auth`,
+`GRANT EXECUTE … TO lexon_app` only:
+
+```text
+ops.lexon_project_access(org_id uuid, project_id uuid, user_id uuid)
+  → text IN ('owner','editor','viewer','none')
+```
+
+Evaluation order inside the function (all reads as the definer role, which
+the internal `lexon_migrator` bypass policies admit):
+
+1. Fail closed: `org_id`/`user_id` must equal the current tenant claims
+   (`app.org_id`/`app.user_id`), else `'none'` — it can never be used to
+   probe another user's standing.
+2. `ops.lexon_org_member(org_id, user_id)` false → `'none'` (brief item 11).
+3. `project_denies` row exists → `'none'` (**deny checked before owner**).
+4. `projects.owner_user_id = user_id` → `'owner'`; else `project_members.role`.
+5. Output is the level only — a single text value, no names/ids beyond the
+   inputs (K3).
+
+Companion definers (same hardening), target-parameterized so they can be
+called on users other than the caller — they verify only the `org_id`
+context match:
+
+- `ops.lexon_project_denied(org_id, project_id, user_id) → bool` — deny
+  rows for the admin arm, the member-add gate, and the deny-add/lift flow.
+- `ops.lexon_org_member(org_id, user_id) → bool` — `auth.member`
+  membership (`lexon_app` already holds `GRANT SELECT (id, user_id,
+  organization_id, role)` from migration 0004).
+- `ops.lexon_org_owner_admin(org_id, user_id) → bool` —
+  `auth.member.role IN ('owner','admin')`.
+
+Deny writes go through two more definers (no `lexon_app` INSERT/DELETE
+policies on `project_denies` at all — deny-by-default):
+
+- `ops.lexon_project_deny_add(org_id, project_id, actor, target)` — verifies
+  actor is org owner/admin, refuses target = `projects.owner_user_id`
+  ("the project owner cannot be denied"), upserts the deny row, deletes
+  any `project_members` row for target — one transaction.
+- `ops.lexon_project_deny_lift(org_id, project_id, actor, target)` —
+  verifies actor is org owner/admin **and `actor <> target`** (no
+  self-lift); deletes the deny row.
+
+The service calls these definers after its own checks so refusals return
+clear messages; the definers re-verify everything as the second layer.
+
+### 4.3 RLS mirror — exact policy changes
 
 Read policies widen to owner OR project access OR share; write policies stay
-owner-only. `D` below = the deny `NOT EXISTS` clause; `M` = `ops.lexon_org_member`;
-`G` = the grant disjunction; all scoped to `org_id = NULLIF(current_setting('app.org_id',true),'')::uuid`.
+owner-only. No policy reads `project_denies`, `project_members`, `projects`,
+or `auth.member` directly — every project/membership question goes through
+the §4.2 definers. `u` below =
+`NULLIF(current_setting('app.user_id',true),'')::uuid`; the tenant clause is
+the existing `NULLIF` form.
 
 **`app.chats`** — replace `owner_live_chat_select`:
 
@@ -201,18 +271,10 @@ USING (
   org_id = NULLIF(current_setting('app.org_id',true),'')::uuid
   AND deleted_at IS NULL
   AND ops.lexon_org_member(org_id, NULLIF(current_setting('app.user_id',true),'')::uuid)
-  AND NOT (project_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM app.project_denies d
-        WHERE d.org_id=chats.org_id AND d.project_id=chats.project_id
-          AND d.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid))
   AND ( owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
-     OR (project_id IS NOT NULL AND (
-          EXISTS (SELECT 1 FROM app.projects p
-                   WHERE p.org_id=chats.org_id AND p.id=chats.project_id
-                     AND p.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)
-          OR EXISTS (SELECT 1 FROM app.project_members m
-                   WHERE m.org_id=chats.org_id AND m.project_id=chats.project_id
-                     AND m.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)))
+     OR (project_id IS NOT NULL
+          AND ops.lexon_project_access(org_id, project_id,
+               NULLIF(current_setting('app.user_id',true),'')::uuid) <> 'none')
      OR (project_id IS NULL AND EXISTS (SELECT 1 FROM app.chat_shares s
           WHERE s.org_id=chats.org_id AND s.chat_id=chats.id
             AND s.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid))));
@@ -220,31 +282,26 @@ USING (
 
 `owner_live_chat_update` stays owner-only (rename, `viewed_leaf_id`,
 `active_answer_run_id`, tombstone fence all remain owner paths; readers never
-mutate). `owner_live_chat_insert` gains the project-creation gate — the
-caller may only create a chat in a project where they have editor-or-owner:
+mutate). `owner_live_chat_insert` gains the project-creation gate in its
+WITH CHECK — editor-or-owner on the project, deny and membership already
+inside the definer:
 
 ```sql
 ... AND ( project_id IS NULL
-   OR ( NOT EXISTS (SELECT 1 FROM app.project_denies d
-                     WHERE d.org_id=chats.org_id AND d.project_id=chats.project_id
-                       AND d.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)
-        AND ( EXISTS (SELECT 1 FROM app.projects p
-                       WHERE p.org_id=chats.org_id AND p.id=chats.project_id
-                         AND p.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)
-              OR EXISTS (SELECT 1 FROM app.project_members m
-                       WHERE m.org_id=chats.org_id AND m.project_id=chats.project_id
-                         AND m.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
-                         AND m.role='editor'))))
+   OR ops.lexon_project_access(org_id, project_id,
+        NULLIF(current_setting('app.user_id',true),'')::uuid) IN ('owner','editor'))
 ```
 
-**`app.chat_runs`** — `owner_chat_run_select` (0027) widens: same predicate
-via the parent chat (`EXISTS app.chats WHERE org_id=cr.org_id AND
-id=cr.chat_id AND <access rule>`). `owner_chat_run_insert` stays owner-only.
+**`app.chat_runs`** — `owner_chat_run_select` (0027) becomes
+`chat_run_access_select`: `EXISTS (SELECT 1 FROM app.chats c WHERE
+c.org_id=cr.org_id AND c.id=cr.chat_id)` — the parent read is itself
+RLS-filtered by `chats_access_select`, so the whole rule is inherited with
+no project-table reads. `owner_chat_run_insert` stays owner-only.
 
 **`app.chat_messages`** — `owner_chat_message FOR ALL` (0026) splits into
-`chat_message_access_select` (read rule via parent chat) plus owner-only
-`FOR INSERT`/`FOR UPDATE`/`FOR DELETE` policies preserving today's write
-behavior exactly (message inserts flow through the internal
+`chat_message_access_select` (same RLS-filtered `EXISTS` on the parent chat)
+plus owner-only `FOR INSERT`/`FOR UPDATE`/`FOR DELETE` policies preserving
+today's write behavior exactly (message inserts flow through the internal
 mutation-request triggers as lexon_migrator regardless).
 
 **`app.ai_runs`** — the RESTRICTIVE `ai_runs_owner_live_resource` (0028)
@@ -252,67 +309,98 @@ splits by command, because a member watching a project chat's run SELECTs
 run rows under their own claim:
 
 - `ai_runs_access_read` AS RESTRICTIVE FOR SELECT: the three existing arms,
-  with the second arm's owner clause replaced by the chat-access rule
-  (owner OR project access OR share on the associated chat). Queued
-  unassociated and zero-resource arms unchanged.
+  with the second arm's `initiating_user_id` + owner clause replaced by
+  `EXISTS (SELECT 1 FROM app.chat_runs cr WHERE cr.org_id=ai_runs.org_id
+  AND cr.run_id=ai_runs.id AND
+  cr.chat_id::text=ai_runs.resolved_config->'resourceIds'->>0 AND
+  jsonb_array_length(ai_runs.resolved_config->'resourceIds')=1)` — the
+  `chat_runs` read is RLS-filtered all the way to the chat predicate, so
+  no user clause is needed. Queued-unassociated and zero-resource arms
+  unchanged.
 - `ai_runs_owner_live_write` AS RESTRICTIVE FOR INSERT/UPDATE/DELETE:
-  identical to today's arms with `initiating_user_id=app.user_id AND`
-  owner-only chat clause — writes stay owner-only.
+  identical to today's arms (`initiating_user_id=app.user_id` + owner-only
+  chat clause) — writes stay owner-only.
 
 **`app.ai_steps`, `app.ai_checkpoints`, `app.ai_operations`** — same split of
-their 0027 RESTRICTIVE `*_owner_run` policies: SELECT arm widened from
-"caller is the run's initiating user" to "caller has read access on the
-chat the run belongs to" (EXISTS over `chat_runs` → `chats` predicate);
-write arms keep `initiating_user_id = app.user_id` (owner-only). Runs of
-unassociated/zero-resource keep today's shape. `ai_attempts` gets the same
-split if it carries an owner-run restrictive policy (plan verifies).
+their 0027 RESTRICTIVE `*_owner_run` policies: SELECT arm becomes an
+RLS-filtered `EXISTS` over `chat_runs` for the row's `run_id`; write arms
+keep `initiating_user_id = app.user_id` (owner-only). Unassociated/
+zero-resource arms unchanged. `ai_attempts` gets the same split if it
+carries an owner-run restrictive policy (plan verifies).
+
+**Recursion analysis (why this terminates):** policy evaluation DAG —
+`ai_*` → `chat_runs` → `chats` → {definers, `chat_shares`}. `chat_shares`
+has no policy that reads `chats` (below), `chats` reads no
+`chat_runs`/`ai_*`, and no table's policy reads `projects`,
+`project_members`, `project_denies`, or `auth.member` (definer-only). No
+cycle exists → no "infinite recursion detected in policy".
 
 **New-table policies (`lexon_app`)**
 
-- `projects` SELECT: `org` AND `ops.lexon_org_member` AND NOT denied AND
-  (owner OR member EXISTS OR `ops.lexon_org_owner_admin`) — the admin arm
-  exists for the metadata-only list; the API contract for that list
-  returns metadata fields only, and every project-content path still
-  requires membership (decision 3/4).
-- `projects` INSERT: `org` AND `owner_user_id = app.user_id` AND
-  `ops.lexon_org_member`.
-- `projects` UPDATE: `org` AND (owner OR member `role='editor'` AND NOT
-  denied). Column discipline is enforced by the service (editors may only
-  update `instructions`; owners all settings) — RLS cannot differ per
-  column, so the service is the enforcement point; the policy only narrows
-  who may touch the row at all.
-- `projects` DELETE: `org` AND owner only.
-- `project_members` SELECT: `org` AND NOT denied-on-that-project AND
-  (project owner OR member) — the members dialog and role labels.
-  INSERT/UPDATE/DELETE: `org` AND project owner AND NOT denied, WITH CHECK
-  additionally `ops.lexon_org_member(org_id, user_id)` on the target and
-  `NOT EXISTS project_denies(target)` — a denied target can never be
-  (re)added at the privilege layer either.
-- `project_denies` SELECT/INSERT/DELETE: `org` AND
-  `ops.lexon_org_owner_admin(org_id, app.user_id)` only. Project members
-  never see deny rows; the denied user's world is 404-shaped by the
-  dependent policies, not by reading this table.
+- `projects` SELECT: `org` AND `ops.lexon_org_member` AND
+  (`ops.lexon_project_access(org,id,u) <> 'none'`
+   OR (`ops.lexon_org_owner_admin(org,u)`
+       AND NOT `ops.lexon_project_denied(org,id,u)`)) — the admin arm feeds
+  the metadata-only list; deny still beats admin.
+- `projects` INSERT: `org` AND `owner_user_id = u` AND `ops.lexon_org_member`.
+- `projects` UPDATE: `org` AND `ops.lexon_project_access(org,id,u) =
+  'owner'` — owner-only now that instructions live in their own table.
+- `projects` DELETE: `org` AND `ops.lexon_project_access(org,id,u) = 'owner'`.
+- `project_members` SELECT: `org` AND
+  `ops.lexon_project_access(org,project_id,u) <> 'none'`.
+  INSERT/UPDATE/DELETE: `org` AND `ops.lexon_project_access(...) = 'owner'`;
+  INSERT/UPDATE WITH CHECK additionally
+  `ops.lexon_org_member(org_id, user_id)` on the target and
+  `NOT ops.lexon_project_denied(org_id, project_id, user_id)` — a denied
+  target can never be (re)added at the privilege layer either.
+- `project_instructions` SELECT: `org` AND
+  `ops.lexon_project_access(org,project_id,u) <> 'none'` — no admin arm.
+  INSERT/UPDATE/DELETE: `org` AND
+  `ops.lexon_project_access(org,project_id,u) IN ('owner','editor')`.
+- `project_denies` SELECT: `org` AND `ops.lexon_org_owner_admin(org,u)`.
+  **No** INSERT/DELETE policies — all deny writes go through the §4.2
+  definers (self-lift and owner-deny refused inside).
+- `chat_shares` SELECT: `org` AND (`user_id = u` OR
+  `granted_by_user_id = u`) — deliberately reads no `chats` rows, which is
+  what keeps the `chats` ↔ `chat_shares` pair acyclic; the owner's share
+  list queries `granted_by_user_id = u` (granted_by is always the owner).
+- `chat_shares` INSERT: `org` AND `granted_by_user_id = u` AND
+  `ops.lexon_org_member(org_id, user_id)` on the target AND
+  `EXISTS (SELECT 1 FROM app.chats c WHERE c.org_id=chat_shares.org_id
+  AND c.id=chat_shares.chat_id AND c.owner_user_id=u AND c.project_id IS
+  NULL)` — the chats read passes through `chats_access_select` (owner arm),
+  which terminates without reading `chat_shares` back via policy… the
+  share arm's `chat_shares` EXISTS sees only the caller-visible rows and
+  adds nothing the WITH CHECK doesn't already require.
+- `chat_shares` DELETE: `org` AND (`granted_by_user_id = u` OR
+  `user_id = u`) — recipient self-removal is harmless; the API only
+  exposes owner-revoke.
 - `project_chats` — not needed: `chats.project_id` column replaces a join
   table (decision 7, immutable binding).
-- `chat_shares` SELECT: `org` AND (chat owner via `EXISTS chats.owner` OR
-  `user_id=app.user_id`) — owner manages shares; recipient needs own rows
-  for the Shared-with-me list and the predicate.
-- `chat_shares` INSERT/DELETE: `org` AND chat owner AND (INSERT only)
-  target is `ops.lexon_org_member` and `chats.project_id IS NULL`.
 
-Grants: `lexon_app` gets SELECT on all four new tables; INSERT/UPDATE/DELETE
-on `project_members`, `chat_shares`; INSERT/UPDATE/DELETE on `projects`
-(column grants excluding `member_count`, `chat_count`, `last_activity_at`,
-`project_id`-analog fields maintained by triggers); INSERT/DELETE on
+**Required RLS-level tests** (as `lexon_app` with tenant claims set via
+`set_config`, not through the service — `psqlInTenant` precedent): a denied
+editor and a denied **project owner** (deny row inserted directly as
+migrator, bypassing the service refusal, to prove deny > owner
+structurally) get **zero rows** from `chats`, `chat_messages`, `chat_runs`,
+`ai_runs`, `ai_operations`, `projects`, `project_members`,
+`project_instructions`; no recursion error on any new-table SELECT; and the
+`lexon_project_access` output column set is the level only.
+
+Grants: `lexon_app` gets SELECT on all five new tables;
+INSERT/UPDATE/DELETE on `project_members`, `project_instructions`,
+`chat_shares`; INSERT/UPDATE/DELETE on `projects` (column grants excluding
+`member_count`, `chat_count`, `last_activity_at`); SELECT only on
 `project_denies`. `lexon_migrator` internal FOR ALL bypass policies on all
 new tables (existing convention).
 
 **Chat creation plumbing:** chats are materialized by the
 `chat_create_requests` trigger (migration 0029). The request table gains a
 nullable `project_id` column; the create-request INSERT policy applies the
-same editor-or-owner-in-project gate as `chats` INSERT, and the materialize
-trigger copies `project_id` onto the new chat row. `chat_mutation_requests`
-needs no change — only the chat owner mutates a chat, project or not.
+same `lexon_project_access IN ('owner','editor')` gate as `chats` INSERT,
+and the materialize trigger copies `project_id` onto the new chat row.
+`chat_mutation_requests` needs no change — only the chat owner mutates a
+chat, project or not.
 
 ## 5. Read-path inventory — every existing read path and how it gets the rule
 
@@ -331,7 +419,7 @@ needs no change — only the chat owner mutates a chat, project or not.
 | 11 | **Run context** (`historyForRun`, history collect) | `ChatMessageRepository`, `ChatHistoryContextProvider` | Owner-scope — only chat owners run chats. The owner-denied case is caught before collect by the capability gate (§9). |
 | 12 | **Title invalidation** fan-out | `pg_notify('lexon_chat_title', {orgId,userId,chatId})` → `PgNotificationListener` → `RunEventsService` pendingChatIds | Payload drops `userId` → `{orgId,chatId}` (content-free). Server fans out to each connected user of that org **that currently passes the read predicate** (owner ∪ project members ∪ share recipients). Denied/removed users are deliberately not notified — their stale view is corrected by §10's stream close and by refetch 404s; notifying them would leak the chatId. Schema `ChatTitleNotificationSchema` and the listener parse updated; `chatId`-null `invalidateAll` path unchanged. |
 | 13 | Access-change invalidation (member removed, deny set, share revoked, role change) | new emits on `lexon_chat_title` / `chat.invalidated` | Member/deny/share mutations emit `chat.invalidated` (`chatId:null` = refresh) to the affected user(s) — the target always gets it (they must refetch and hit 404s), plus project members when their visible set changed. Reuses the existing channel and event schema — no new channel. |
-| 14 | F5 **operation/approval/question reads** (dock panels) | run snapshot serialization | Run/step rows become readable by viewers via §4.2, but **panels render only for the chat owner** — operation payloads are filtered out of the snapshot serialization for non-owner callers; waiting marker reads "Waiting for <owner>" (brief items 18, 24). API-level: decision endpoints stay owner-only (capability policy). |
+| 14 | F5 **operation/approval/question reads** (dock panels) | run snapshot serialization | Run/step rows become readable by viewers via §4.3, but **panels render only for the chat owner** — operation payloads are filtered out of the snapshot serialization for non-owner callers; waiting marker reads "Waiting for <owner>" (brief items 18, 24). API-level: decision endpoints stay owner-only (capability policy). |
 | 15 | Matters list, sidebar Matters group, project page, project chats list, member list, org metadata list, shared-with-me list | new repositories | All built on the §4.1 builder + new-table policies. |
 | 16 | Chat invalidation stream subscription itself | `RunEventsService` | Per-connection events now fan out per §12/§13; subscription unchanged. |
 
@@ -360,6 +448,9 @@ non-member or denied caller gets **404**.
 | Member/deny/share management on P | all → 404 (project invisible) except org admin paths, which succeed but operate on the deny table |
 | Share list on a standalone chat owned by denied user | unaffected (deny is per-project) — asserted to catch over-broad predicates |
 | pg_notify title fan-out | denied user receives no `chat.invalidated` for that chat (existence must not leak) |
+| **RLS level (as `lexon_app` + `set_config`, not via service)** | denied editor **and denied project owner** (deny row inserted as migrator to prove deny > owner structurally): zero rows from `chats`, `chat_messages`, `chat_runs`, `ai_runs`, `ai_operations`, `projects`, `project_members`, `project_instructions`; no recursion error on any new-table SELECT; `lexon_project_access` returns the level only |
+| Org admin (non-member) instruction probe | zero rows from `project_instructions` at the RLS level — the admin arm does not exist on that table |
+| Self-lift | admin who denied themselves calls deny-lift → refused by service and by `lexon_project_deny_lift` definer; another admin lifts successfully |
 
 ## 7. TenantGuard — narrow per-route allowance
 
@@ -372,6 +463,9 @@ target user id:
   `project_members` is keyed by `(org,project,user)`, no surrogate id)
 - `POST /org/projects/:id/denies` body `{userId}` (or `{userIds}`)
 - `POST /chats/:id/shares` body `{userIds}`
+- `DELETE /chats/:id/shares/:userId` — recipient keyed by `(org,chat,user)`,
+  no surrogate id; path param only, so it needs no allowance but is listed
+  for the inventory |
 
 Change: extend `ROUTE_ACCESS` metadata with an opt-in key list, e.g.
 `allowUserIdKey: true` (or `allowBodyKeys:['userId']`), applied per-method on
@@ -399,13 +493,18 @@ touched by the project owner's claim through the per-chat fence
 2. marks every project chat `deleted_at` — the same tombstone semantics as
    `ops.ai_mark_chat_deleted` — fencing active runs and emitting each
    chat's deletion outbox/notify records exactly as F4 single-chat delete;
-3. deletes the `projects` row (`project_members`/`project_denies` cascade;
-   `chats.project_id` goes `SET NULL`).
+3. deletes the `projects` row (`project_members`/`project_denies`/
+   `project_instructions` cascade; `chats.project_id` goes
+   `SET NULL (project_id)`).
 
 The tombstoned chats are now invisible everywhere and the existing F4
 cleanup sweep hard-deletes them and their runs on schedule — no new
-hard-delete path. Audited with `chatCount`. Plan-phase check: the worker's
-mid-run next read sees the tombstone before the sweep, identical to F4.
+hard-delete path. Audited with `chatCount`. **Deletion test:** after
+project delete, zero chats with `deleted_at IS NULL` that belonged to the
+project (and `project_id IS NULL` on the tombstoned rows); members' own
+tombstoned chats are invisible to them on every read path. Plan-phase
+check: the worker's mid-run next read sees the tombstone before the
+sweep, identical to F4.
 
 ## 9. `project-chat` run profile + project context provider + capability policy
 
@@ -415,10 +514,12 @@ mid-run next read sees the tombstone before the sweep, identical to F4.
   context table).
 - `ProjectContextProvider` implements the existing `ContextProvider`
   contract `{id:'project', version, collect({actor,runId,input,budget})}`
-  and emits `ContextPiece[]` containing project name + instructions as
-  delimited untrusted data (§4.7/`untrusted-context.ts` — instructions are
-  untrusted, never grant tools, never change the model, never affect
-  approvals).
+  and emits `ContextPiece[]` containing project `name` (`projects`) +
+  instructions `text` (`project_instructions`) as delimited untrusted data
+  (§4.7/`untrusted-context.ts` — instructions are untrusted, never grant
+  tools, never change the model, never affect approvals). It reads under
+  the owner's claim through the normal RLS policies — an owner denied on
+  the project fails the capability gate before collect.
 - Registration: `createProductionRunRegistry([history, project])` in
   `chat-runtime.providers.ts` — **no engine branches**; the provider is
   selected purely by the profile's context list.
@@ -496,7 +597,7 @@ New Zod schemas (all `strictObject`, existing error contract):
   /org/projects/:id/denies` (owner/admin).
 - `GET /org/members/search?q=` (member/share pickers, §11
   `OrgMemberSearchQuery`).
-- `GET/POST /chats/:id/shares`, `DELETE /chats/:id/shares/:shareId`,
+- `GET/POST /chats/:id/shares`, `DELETE /chats/:id/shares/:userId`,
   `GET /chats?scope=shared` (shared-with-me).
 - Sidebar Matters group = `GET /projects?sort=activity&limit=5` (or a
   dedicated `recent` scope).
@@ -532,16 +633,18 @@ CI runner):
   `projects_org_activity` or `projects_org_name` + PK lookups on
   `project_members`/`project_denies`; blocking gate **p95 < 1,000 ms**;
   warning if > 300 ms.
-- Org metadata list: same with the `ops.lexon_org_owner_admin` arm; the
-  admin EXISTS is one `auth.member` PK lookup per page, not per row, via
-  the definer's STABLE marking… verified in the plan's evidence (if the
-  definer cannot be inlined, the admin check moves into a per-query
-  lateral/CTE — plan must show index shape, no seq scans on
-  `project_members`/`project_denies` beyond PK probes).
-- Chat list with the widened predicate: three EXISTS arms, all indexed
-  (`project_members(org,project,user)`, `projects(org,id)`,
-  `chat_shares(org,chat,user)`); owner arm stays the
-  `chats_owner_activity` index scan. Plan-shape evidence required.
+- Org metadata list: same with the `ops.lexon_org_owner_admin` +
+  `ops.lexon_project_denied` arms — STABLE definers are per-row calls, so
+  the gate's evidence must show PK-lookup cost on `auth.member`/
+  `project_denies` inside the function, not per-row seq scans.
+- Chat list with the widened predicate: owner arm stays the
+  `chats_owner_activity` index scan; the project arm is one
+  `lexon_project_access` call per row (PK lookups on
+  `projects`/`project_members`/`project_denies` inside); the share arm is
+  an indexed `chat_shares(org,chat,user)` EXISTS. Plan-shape evidence
+  required — if per-row definer cost fails the gate, the plan may
+  materialize the caller's project-access set in a per-query CTE
+  (decided on measured evidence, not guessed).
 - Benchmark script follows `testing/chat-search-benchmark.ts` precedent;
   output lands in `docs/references/F6-*-gate.jsonl`.
 
@@ -608,7 +711,9 @@ rules, and §6 audit/privacy rules all hold as written.
 | D1 | `chats.project_id` column | separate `project_chats` join table | Decision 7 fixes the binding at creation → a column + FK is strictly simpler; one fewer join in every predicate; immutability enforced by column grant. |
 | D2 | Owner on `projects.owner_user_id`; members table holds only viewer/editor | owner as a member row | Matches brief entity shape and `chats.owner_user_id` precedent; the "one owner" invariant is structural, not a partial-unique index. |
 | D3 | Deny removes the member row at once | member row + deny flag overlay | Brief item 14: "removes any existing project role at once"; lifting doesn't restore. Overlay would keep hidden state and a second path to bugs. Predicate still checks deny first (deny wins even for owners, whose row can't be removed). |
-| D4 | `ops.lexon_org_member` / `ops.lexon_org_owner_admin` SECURITY DEFINER predicates | inline `EXISTS auth.member` in policies | `lexon_app` already has column grants; a definer keeps auth access behind a fixed-search-path boundary consistent with 0027/0028 precedent and gives one definition shared by app predicate and RLS. |
+| D4 | All project access evaluation behind `ops.lexon_project_access` (+ `lexon_project_denied`, `lexon_org_member`, `lexon_org_owner_admin` definers) | inline `EXISTS` on `project_members`/`project_denies`/`auth.member` in policies | Policy subqueries run under the caller's RLS — a member's deny probe would always be empty, and `projects`↔`project_members` cross-reads recurse. One STABLE definer (0028 precedent) fixes both and gives the app builder and every policy one definition. |
+| D4b | Instructions in `app.project_instructions` | column on `projects` | RLS can't restrict columns — the admin metadata arm would leak instructions. Separate table has no admin arm; `projects` UPDATE becomes cleanly owner-only. |
+| D4c | Deny writes via `lexon_project_deny_add`/`deny_lift` definers, no lexon_app write policies | lexon_app INSERT/DELETE policies on `project_denies` | The deny→member-row removal must be atomic under one actor whose RLS can't delete the member row; self-lift and owner-deny invariants live in one place next to the write. |
 | D5 | Title-notification payload drops `userId`, server fans out per access rule | keep per-user notify at write time | Writers don't know the full audience; fan-out at emit time evaluates the live predicate per connected org user — correct under membership/deny changes between write and notify. Denied users are excluded to avoid existence leaks. |
 | D6 | `project-chat` profile reuses `chat`'s engines/tools + project context | engine branches or new tools | LEX-ARC-001 §4.7; registry selects contexts by profile — zero engine changes; capabilities decide rights, instructions never do. |
 | D7 | FTS search stays owner-only | widen search to readable chats | Explicitly F8 scope (brief out-of-scope). The `D` clause still joins the owner CTE so denied owners lose their own hits. |
@@ -620,9 +725,9 @@ rules, and §6 audit/privacy rules all hold as written.
 
 | Source | Version / date | What it supports |
 |---|---|---|
-| [PostgreSQL 17 row security](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), [explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html), [function security](https://www.postgresql.org/docs/17/perm-functions.html) | docs read 2026-11-25 against installed PG 17.11 | Permissive policies OR, RESTRICTIVE AND — hence the restrictive `*_owner_run` policies must split per command so SELECT can widen while writes stay owner. FORCE RLS + fail-closed `NULLIF` form unchanged. SECURITY DEFINER with fixed `search_path` for `ops.*` predicates. |
+| [PostgreSQL 17 row security](https://www.postgresql.org/docs/17/ddl-rowsecurity.html), [explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html), [function security](https://www.postgresql.org/docs/17/perm-functions.html), [FK referential actions](https://www.postgresql.org/docs/17/ddl-constraints.html) | docs read 2026-11-25 against installed PG 17.11 | Permissive policies OR, RESTRICTIVE AND — hence the restrictive `*_owner_run` policies split per command. Policy subqueries run with the caller's privileges and RLS — the reason every project/membership probe lives in STABLE SECURITY DEFINER functions (§4.2) and `chat_runs`/`chat_messages`/`ai_*` read arms use RLS-filtered `EXISTS` on the parent chat. FORCE RLS + fail-closed `NULLIF` form unchanged. `ON DELETE SET NULL (column_list)` (PG 15+) on the composite `chats(org_id,project_id)` FK — blanket SET NULL would fail on `org_id NOT NULL`. |
 | Installed packages | `drizzle-orm@0.45.4`, `drizzle-kit@0.31.11`, `better-auth@1.7.14`, `@nestjs/core@12.3.2`, `pg@8.23.1`, `zod@4.6.7`, `next@16.4.6`, `ai@7.0.159`, `typescript@6.0.3` | No version changes; raw-SQL migrations + `schema.ts` updates per existing convention. |
-| Better Auth [organization plugin](https://better-auth.com/docs/plugins/organization.md) (`llms.txt` in `.cache/docs/better-auth/`) | 1.7.14 / 2026-11-25 | Member search for the picker and member facts go through `tx.call('listMembers'| 'lexonOrganizationFacts')` on `OrganizationAuthPort` (membership.service precedent) — not raw `auth.member` reads; `lexon_app` keeps only the §4-column grant for predicate EXISTS. |
+| Better Auth [organization plugin](https://better-auth.com/docs/plugins/organization.md) (`llms.txt` in `.cache/docs/better-auth/`) | 1.7.14 / 2026-11-25 | **Two distinct `auth.member` paths, on purpose:** the access predicate and RLS read `auth.member` only inside the §4.2 definers (queries run under `lexon_app` RLS, so they cannot use the port or the service layer); the member/share pickers and org-facts reads go through `tx.call('listMembers'/'lexonOrganizationFacts')` on `OrganizationAuthPort` (membership.service precedent — names/emails never enter `lexon_app` tables). `lexon_app` keeps only the 4-column grant, consumed solely by the definers. |
 | Drizzle [transactions](https://orm.drizzle.team/docs/transactions), [indexes/constraints](https://orm.drizzle.team/docs/indexes-constraints) | 0.45.4 / 2026-11-25 | New-table definitions and index declarations follow `schema.ts` conventions; `searchVector`-style generated columns not needed. |
 | F4 spec research notes R25–R28, F4-search gate (`docs/references/F4-search-*-gate-*.jsonl`) | 2026-11 | Restricive-policy split precedent, definer-fence precedent (`ai_chat_run_is_associated`, `ai_mark_chat_deleted`), gate file format, `NULLIF` fail-closed form. |
 | F5 spec §6.5 + code (`run-events.service.ts`, `approval.service.ts`, `capability-policy.ts`, `step-executor.ts`) | merged `790b61a2` | `REVALIDATION_INTERVAL_MS=5000` stream-close path; `decideRunCapabilities` phases (start/resume/tool/decision/cancel); `AI_ACCESS_REVOKED` access-loss flow with `chat.run_finished.v1` audit; `lexon_ai_actor_facts` extension point. |
@@ -633,8 +738,9 @@ rules, and §6 audit/privacy rules all hold as written.
 | Q | A |
 |---|---|
 | Every brief item mapped? | Items 1–26 map to §2–§17; NFRs to §14–§15; decisions 1–9 to §3–§9/§18. |
-| One rule, one place? | §4.1 builder + §4.2 mirror; every read path enumerated in §5 uses it; owner-scope retained only where writes/owner-only semantics are required (FTS, fences). |
-| Deny beats everything? | `D` clause precedes all grant arms incl. `owner_user_id`, project owner, org admin; assertable via the §6 matrix incl. denied-owner's own chat → 404. |
+| One rule, one place? | §4.1 builder + §4.3 mirror; every read path enumerated in §5 uses it; owner-scope retained only where writes/owner-only semantics are required (FTS, fences). |
+| Deny beats everything? | `lexon_project_access` checks `project_denies` before the owner check, so deny > ownership/roles/admin structurally — proven at the RLS level by inserting a deny row against a project owner as migrator (§6). |
+| RLS-subquery soundness? | No policy reads `project_members`/`project_denies`/`projects`/`auth.member` directly (§4.3 header + recursion analysis); all project/membership evaluation is inside STABLE definers; `chat_runs`/`chat_messages`/`ai_*` read arms inherit the rule through RLS-filtered `EXISTS` on `chats`. |
 | Identical 404 vs 403 split? | Non-member/denied → 404; member-without-capability → 403 (item 150) — spec'd in §6 and the route table. |
 | No engine branches? | Profile + context registration only (`createProductionRunRegistry`); capability gate is data-driven via actor facts. |
 | K1 privacy? | No names/numbers/instructions/titles in notify payloads, audit metadata, logs, or metrics; payload is `{orgId,chatId}` content-free. |
